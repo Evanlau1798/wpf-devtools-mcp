@@ -76,4 +76,20 @@ public class InteractionAnalyzerTests
         // Assert
         result.Should().NotBeNull();
     }
+
+    [StaFact]
+    public void SimulateKeyboard_WithValidElement_ShouldSimulateKeyPress()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var textBox = new TextBox();
+        var elementId = finder.GenerateElementId(textBox);
+
+        // Act
+        var result = analyzer.SimulateKeyboard(elementId, "A", "KeyDown");
+
+        // Assert
+        result.Should().NotBeNull();
+    }
 }

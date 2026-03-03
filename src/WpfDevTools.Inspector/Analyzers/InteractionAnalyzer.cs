@@ -276,4 +276,79 @@ public class InteractionAnalyzer
             return new { success = false, error = $"Failed to simulate drag and drop: {ex.Message}" };
         }
     }
+
+    /// <summary>
+    /// Simulate keyboard input to element
+    /// </summary>
+    public object SimulateKeyboard(string? elementId, string key, string eventType)
+    {
+        // Must run on UI thread
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() =>
+                SimulateKeyboard(elementId, key, eventType));
+        }
+
+        var element = elementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
+
+        if (element == null)
+        {
+            return new { success = false, error = "Element not found" };
+        }
+
+        if (element is not UIElement uiElement)
+        {
+            return new { success = false, error = "Element is not a UIElement" };
+        }
+
+        try
+        {
+            // Parse key
+            if (!Enum.TryParse<Key>(key, out var parsedKey))
+            {
+                return new { success = false, error = $"Invalid key: {key}" };
+            }
+
+            // Create keyboard event
+            RoutedEvent routedEvent;
+            if (eventType?.ToLower() == "keydown")
+            {
+                routedEvent = Keyboard.KeyDownEvent;
+            }
+            else if (eventType?.ToLower() == "keyup")
+            {
+                routedEvent = Keyboard.KeyUpEvent;
+            }
+            else
+            {
+                return new { success = false, error = "Invalid event type. Use 'KeyDown' or 'KeyUp'" };
+            }
+
+            var keyEventArgs = new KeyEventArgs(
+                Keyboard.PrimaryDevice,
+                PresentationSource.FromVisual(uiElement),
+                0,
+                parsedKey)
+            {
+                RoutedEvent = routedEvent
+            };
+
+            uiElement.RaiseEvent(keyEventArgs);
+
+            return new
+            {
+                success = true,
+                message = $"Keyboard event '{eventType}' simulated for key '{key}'",
+                key,
+                eventType,
+                elementType = element.GetType().Name
+            };
+        }
+        catch (Exception ex)
+        {
+            return new { success = false, error = $"Failed to simulate keyboard: {ex.Message}" };
+        }
+    }
 }

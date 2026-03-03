@@ -397,6 +397,7 @@ Simulate drag and drop.
 - `processId` (required): Process ID
 - `sourceElementId` (required): Source element ID
 - `targetElementId` (required): Target element ID
+- `dataFormat` (optional): Data format (default: "Text")
 
 **Returns**: Success status
 
@@ -415,7 +416,8 @@ Simulate keyboard input.
 **Parameters**:
 - `processId` (required): Process ID
 - `elementId` (required): Element ID
-- `text` (required): Text to type
+- `key` (required): Key name (e.g., "A", "Enter", "Escape", "Tab")
+- `eventType` (optional): "KeyDown" or "KeyUp" (default: "KeyDown")
 
 **Returns**: Success status
 
@@ -445,6 +447,7 @@ Highlight an element in the UI.
 **Parameters**:
 - `processId` (required): Process ID
 - `elementId` (required): Element ID
+- `color` (optional): Highlight color (default: "Red")
 - `duration` (optional): Highlight duration in ms (default: 2000)
 
 **Returns**: Success status

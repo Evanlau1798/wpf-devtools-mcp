@@ -15,7 +15,9 @@ public class PerformanceAnalyzer
     private static List<double> _frameTimes = new List<double>();
     private static int _frameCount = 0;
     private static DateTime _monitoringStartTime;
-    private const int MaxFrameSamples = 60; // Keep last 60 frames
+
+    // Keep last 60 frames (1 second at 60 FPS)
+    private const int MaxFrameSamples = 60;
 
     private static readonly List<WeakReference> _bindingReferences = new List<WeakReference>();
     private static readonly object _bindingLock = new object();

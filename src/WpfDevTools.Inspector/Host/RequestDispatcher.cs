@@ -18,6 +18,8 @@ public class RequestDispatcher
     private readonly ElementFinder _elementFinder;
     private readonly LogicalTreeAnalyzer _logicalTreeAnalyzer;
     private readonly MvvmAnalyzer _mvvmAnalyzer;
+    private readonly DependencyPropertyAnalyzer _dependencyPropertyAnalyzer;
+    private readonly LayoutAnalyzer _layoutAnalyzer;
 
     public RequestDispatcher()
     {
@@ -29,6 +31,8 @@ public class RequestDispatcher
         _bindingAnalyzer = new BindingAnalyzer();
         _logicalTreeAnalyzer = new LogicalTreeAnalyzer(_elementFinder);
         _mvvmAnalyzer = new MvvmAnalyzer(_elementFinder);
+        _dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(_elementFinder);
+        _layoutAnalyzer = new LayoutAnalyzer(_elementFinder);
 
         _handlers = new Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>>
         {
@@ -49,12 +53,16 @@ public class RequestDispatcher
             ["execute_command"] = HandleExecuteCommandAsync,
             ["get_validation_errors"] = HandleGetValidationErrorsAsync,
 
-            // Placeholder tools (to be implemented in Phase 2-4)
-            ["get_dp_value_source"] = HandleNotImplementedAsync,
-            ["set_dp_value"] = HandleNotImplementedAsync,
-            ["clear_dp_value"] = HandleNotImplementedAsync,
-            ["get_layout_info"] = HandleNotImplementedAsync,
-            ["get_clipping_info"] = HandleNotImplementedAsync,
+            // DependencyProperty tools (Phase 2)
+            ["get_dp_value_source"] = HandleGetDpValueSourceAsync,
+            ["set_dp_value"] = HandleSetDpValueAsync,
+            ["clear_dp_value"] = HandleClearDpValueAsync,
+
+            // Layout tools (Phase 2)
+            ["get_layout_info"] = HandleGetLayoutInfoAsync,
+            ["get_clipping_info"] = HandleGetClippingInfoAsync,
+
+            // Placeholder tools (to be implemented in Phase 3-4)
             ["click_element"] = HandleNotImplementedAsync,
             ["scroll_to_element"] = HandleNotImplementedAsync,
             ["element_screenshot"] = HandleNotImplementedAsync,
@@ -247,6 +255,67 @@ public class RequestDispatcher
             _mvvmAnalyzer.GetValidationErrors(elementId));
     }
 
+    private async Task<object> HandleGetDpValueSourceAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var propertyName = GetStringParam(@params, "propertyName");
+
+        if (string.IsNullOrEmpty(propertyName))
+            throw new ArgumentException("Missing required parameter: propertyName");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _dependencyPropertyAnalyzer.GetValueSource(propertyName!, elementId)));
+    }
+
+    private async Task<object> HandleSetDpValueAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var propertyName = GetStringParam(@params, "propertyName");
+        var value = GetObjectParam<object>(@params, "value");
+
+        if (string.IsNullOrEmpty(propertyName))
+            throw new ArgumentException("Missing required parameter: propertyName");
+
+        if (value == null)
+            throw new ArgumentException("Missing required parameter: value");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _dependencyPropertyAnalyzer.SetValue(propertyName!, value, elementId)));
+    }
+
+    private async Task<object> HandleClearDpValueAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var propertyName = GetStringParam(@params, "propertyName");
+
+        if (string.IsNullOrEmpty(propertyName))
+            throw new ArgumentException("Missing required parameter: propertyName");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _dependencyPropertyAnalyzer.ClearValue(propertyName!, elementId)));
+    }
+
+    private async Task<object> HandleGetLayoutInfoAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _layoutAnalyzer.GetLayoutInfo(elementId)));
+    }
+
+    private async Task<object> HandleGetClippingInfoAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _layoutAnalyzer.GetClippingInfo(elementId)));
+    }
+
     private async Task<object> HandleNotImplementedAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         await Task.CompletedTask;
@@ -278,5 +347,16 @@ public class RequestDispatcher
             return property.GetInt32();
 
         return null;
+    }
+
+    private static T? GetObjectParam<T>(JsonElement? @params, string name)
+    {
+        if (@params == null || !@params.HasValue)
+            return default;
+
+        if (@params.Value.TryGetProperty(name, out var property))
+            return JsonSerializer.Deserialize<T>(property.GetRawText());
+
+        return default;
     }
 }

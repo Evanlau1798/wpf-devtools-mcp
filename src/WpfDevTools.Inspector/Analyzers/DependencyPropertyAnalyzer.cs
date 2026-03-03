@@ -1,4 +1,5 @@
 using System.Windows;
+using System.ComponentModel;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -9,6 +10,9 @@ namespace WpfDevTools.Inspector.Analyzers;
 public class DependencyPropertyAnalyzer
 {
     private readonly ElementFinder _elementFinder;
+    private static readonly Dictionary<string, DependencyPropertyDescriptor> _watchers = new();
+    private static readonly List<object> _changeLog = new();
+    private static readonly object _watchLock = new object();
 
     public DependencyPropertyAnalyzer(ElementFinder elementFinder)
     {
@@ -267,9 +271,54 @@ public class DependencyPropertyAnalyzer
             return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
         }
 
-        // TODO: Implement DependencyPropertyDescriptor.AddValueChanged
-        // This requires event push mechanism to MCP Server
-        return new { success = true, message = $"Watching property '{propertyName}' (not yet implemented)" };
+        try
+        {
+            var watchKey = $"{elementId}_{propertyName}";
+
+            lock (_watchLock)
+            {
+                // Check if already watching
+                if (_watchers.ContainsKey(watchKey))
+                {
+                    return new { success = false, error = "Already watching this property" };
+                }
+
+                // Create descriptor and add handler
+                var descriptor = DependencyPropertyDescriptor.FromProperty(dp, depObj.GetType());
+                if (descriptor != null)
+                {
+                    descriptor.AddValueChanged(depObj, (sender, e) =>
+                    {
+                        lock (_watchLock)
+                        {
+                            var newValue = depObj.GetValue(dp);
+                            _changeLog.Add(new
+                            {
+                                timestamp = DateTime.UtcNow,
+                                elementId,
+                                propertyName,
+                                newValue = newValue?.ToString(),
+                                valueType = newValue?.GetType().Name
+                            });
+                        }
+                    });
+
+                    _watchers[watchKey] = descriptor;
+                }
+            }
+
+            return new
+            {
+                success = true,
+                message = $"Started watching property '{propertyName}'",
+                propertyName,
+                elementId
+            };
+        }
+        catch (Exception ex)
+        {
+            return new { success = false, error = $"Failed to watch property: {ex.Message}" };
+        }
     }
 
     /// <summary>
@@ -283,7 +332,61 @@ public class DependencyPropertyAnalyzer
             return Application.Current.Dispatcher.Invoke(() => UnwatchChanges(propertyName, elementId));
         }
 
-        // TODO: Implement DependencyPropertyDescriptor.RemoveValueChanged
-        return new { success = true, message = $"Stopped watching property '{propertyName}' (not yet implemented)" };
+        var watchKey = $"{elementId}_{propertyName}";
+
+        lock (_watchLock)
+        {
+            if (_watchers.TryGetValue(watchKey, out var descriptor))
+            {
+                var element = elementId == null
+                    ? _elementFinder.GetRootElement()
+                    : _elementFinder.FindById(elementId);
+
+                if (element != null)
+                {
+                    descriptor.RemoveValueChanged(element, null);
+                }
+
+                _watchers.Remove(watchKey);
+
+                return new
+                {
+                    success = true,
+                    message = $"Stopped watching property '{propertyName}'",
+                    propertyName,
+                    elementId
+                };
+            }
+        }
+
+        return new { success = false, error = "Property is not being watched" };
+    }
+
+    /// <summary>
+    /// Get change log for watched properties
+    /// </summary>
+    public object GetChangeLog()
+    {
+        lock (_watchLock)
+        {
+            return new
+            {
+                success = true,
+                changeCount = _changeLog.Count,
+                changes = _changeLog.ToList()
+            };
+        }
+    }
+
+    /// <summary>
+    /// Clear change log
+    /// </summary>
+    public object ClearChangeLog()
+    {
+        lock (_watchLock)
+        {
+            _changeLog.Clear();
+            return new { success = true, message = "Change log cleared" };
+        }
     }
 }

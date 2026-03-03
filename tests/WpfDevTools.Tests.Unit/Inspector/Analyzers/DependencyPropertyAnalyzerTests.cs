@@ -73,4 +73,20 @@ public class DependencyPropertyAnalyzerTests
         // Assert
         result.Should().NotBeNull();
     }
+
+    [StaFact]
+    public void WatchChanges_WithValidProperty_ShouldStartWatching()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        // Act
+        var result = analyzer.WatchChanges("Width", elementId);
+
+        // Assert
+        result.Should().NotBeNull();
+    }
 }

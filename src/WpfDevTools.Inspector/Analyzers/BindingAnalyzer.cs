@@ -100,6 +100,103 @@ public class BindingAnalyzer
         return new { chain };
     }
 
+    /// <summary>
+    /// Get binding value resolution chain from source to target
+    /// </summary>
+    public object GetBindingValueChain(DependencyObject element, string propertyName)
+    {
+        // Must run on UI thread
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() => GetBindingValueChain(element, propertyName));
+        }
+
+        if (element == null)
+        {
+            return new { error = "Element is null" };
+        }
+
+        if (string.IsNullOrEmpty(propertyName))
+        {
+            return new { error = "propertyName is required" };
+        }
+
+        // Find DependencyProperty
+        var dp = FindDependencyProperty(element, propertyName);
+        if (dp == null)
+        {
+            return new { error = $"Property '{propertyName}' not found" };
+        }
+
+        // Get binding expression
+        var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
+        if (bindingExpr == null)
+        {
+            return new { success = true, hasBinding = false, message = "No binding on this property" };
+        }
+
+        var chain = new List<object>();
+
+        // Get binding details
+        var binding = bindingExpr.ParentBinding;
+        chain.Add(new
+        {
+            step = "Binding",
+            path = binding.Path?.Path,
+            mode = binding.Mode.ToString(),
+            updateSourceTrigger = binding.UpdateSourceTrigger.ToString(),
+            converter = binding.Converter?.GetType().Name
+        });
+
+        // Get data context chain
+        var current = element as FrameworkElement;
+        while (current != null)
+        {
+            if (current.DataContext != null)
+            {
+                chain.Add(new
+                {
+                    step = "DataContext",
+                    elementType = current.GetType().Name,
+                    dataContextType = current.DataContext.GetType().Name,
+                    dataContextValue = current.DataContext.ToString()
+                });
+                break;
+            }
+            current = current.Parent as FrameworkElement;
+        }
+
+        // Get resolved value
+        var resolvedValue = bindingExpr.ResolvedSource;
+        if (resolvedValue != null)
+        {
+            chain.Add(new
+            {
+                step = "ResolvedSource",
+                sourceType = resolvedValue.GetType().Name,
+                sourceValue = resolvedValue.ToString()
+            });
+        }
+
+        // Get final value
+        var finalValue = element.GetValue(dp);
+        chain.Add(new
+        {
+            step = "FinalValue",
+            valueType = finalValue?.GetType().Name,
+            value = finalValue?.ToString()
+        });
+
+        return new
+        {
+            success = true,
+            hasBinding = true,
+            propertyName,
+            chainLength = chain.Count,
+            chain
+        };
+    }
+
     private DependencyObject? GetRootElement()
     {
         return Application.Current?.MainWindow;
@@ -120,5 +217,27 @@ public class BindingAnalyzer
         // For now, return empty list
 
         return bindings;
+    }
+
+    private DependencyProperty? FindDependencyProperty(DependencyObject element, string propertyName)
+    {
+        var type = element.GetType();
+        var fieldName = propertyName + "Property";
+
+        while (type != null && type != typeof(object))
+        {
+            var field = type.GetField(fieldName,
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Static);
+
+            if (field != null && field.FieldType == typeof(DependencyProperty))
+            {
+                return field.GetValue(null) as DependencyProperty;
+            }
+
+            type = type.BaseType;
+        }
+
+        return null;
     }
 }

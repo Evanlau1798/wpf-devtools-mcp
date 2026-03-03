@@ -404,7 +404,7 @@ public class RequestDispatcher
         var elementId = GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
+            Application.Current.Dispatcher.Invoke<object>(() =>
             {
                 var element = elementId == null
                     ? _elementFinder.GetRootElement()

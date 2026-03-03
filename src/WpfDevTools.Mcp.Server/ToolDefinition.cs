@@ -1,0 +1,22 @@
+namespace WpfDevTools.Mcp.Server;
+
+/// <summary>
+/// Defines an MCP tool with its metadata
+/// </summary>
+public class ToolDefinition
+{
+    /// <summary>
+    /// Tool name (unique identifier)
+    /// </summary>
+    public required string Name { get; init; }
+
+    /// <summary>
+    /// Human-readable description
+    /// </summary>
+    public required string Description { get; init; }
+
+    /// <summary>
+    /// JSON schema for tool parameters
+    /// </summary>
+    public required object Parameters { get; init; }
+}

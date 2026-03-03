@@ -29,17 +29,37 @@ public class ProcessInjectorTests
     {
         // Arrange
         var injector = new ProcessInjector();
-        // Use a known non-WPF process (e.g., current test process)
-        var currentProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
+
+        // Find a system process that is definitely not WPF (e.g., svchost, System, Idle)
+        var systemProcesses = System.Diagnostics.Process.GetProcessesByName("svchost");
+        if (systemProcesses.Length == 0)
+        {
+            // Fallback to other system processes
+            systemProcesses = System.Diagnostics.Process.GetProcessesByName("System");
+        }
+
+        if (systemProcesses.Length == 0)
+        {
+            // Skip test if no suitable process found
+            return;
+        }
+
+        var nonWpfProcessId = systemProcesses[0].Id;
         var dllPath = typeof(ProcessInjector).Assembly.Location;
 
         // Act
-        var result = injector.Inject(currentProcessId, dllPath);
+        var result = injector.Inject(nonWpfProcessId, dllPath);
 
         // Assert
         result.Success.Should().BeFalse();
-        // Current test process is not a WPF app
+        // System process is not a WPF app
         result.Error.Should().Be(InjectionError.NotWpfApplication);
+
+        // Cleanup
+        foreach (var proc in systemProcesses)
+        {
+            proc.Dispose();
+        }
     }
 
     [Fact]

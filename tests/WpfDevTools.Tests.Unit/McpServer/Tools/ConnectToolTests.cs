@@ -46,8 +46,23 @@ public class ConnectToolTests
     {
         // Arrange
         var tool = new ConnectTool();
-        var currentProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
-        var parameters = new { processId = currentProcessId };
+
+        // Find a system process that is definitely not WPF (e.g., svchost, System, Idle)
+        var systemProcesses = System.Diagnostics.Process.GetProcessesByName("svchost");
+        if (systemProcesses.Length == 0)
+        {
+            // Fallback to other system processes
+            systemProcesses = System.Diagnostics.Process.GetProcessesByName("System");
+        }
+
+        if (systemProcesses.Length == 0)
+        {
+            // Skip test if no suitable process found
+            return;
+        }
+
+        var nonWpfProcessId = systemProcesses[0].Id;
+        var parameters = new { processId = nonWpfProcessId };
 
         // Act
         var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
@@ -56,5 +71,11 @@ public class ConnectToolTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+
+        // Cleanup
+        foreach (var proc in systemProcesses)
+        {
+            proc.Dispose();
+        }
     }
 }

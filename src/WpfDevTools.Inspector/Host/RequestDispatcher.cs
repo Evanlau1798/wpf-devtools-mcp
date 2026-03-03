@@ -22,6 +22,8 @@ public class RequestDispatcher
     private readonly LayoutAnalyzer _layoutAnalyzer;
     private readonly InteractionAnalyzer _interactionAnalyzer;
     private readonly StyleAnalyzer _styleAnalyzer;
+    private readonly EventAnalyzer _eventAnalyzer;
+    private readonly PerformanceAnalyzer _performanceAnalyzer;
 
     public RequestDispatcher()
     {
@@ -37,6 +39,8 @@ public class RequestDispatcher
         _layoutAnalyzer = new LayoutAnalyzer(_elementFinder);
         _interactionAnalyzer = new InteractionAnalyzer(_elementFinder);
         _styleAnalyzer = new StyleAnalyzer(_elementFinder);
+        _eventAnalyzer = new EventAnalyzer(_elementFinder);
+        _performanceAnalyzer = new PerformanceAnalyzer();
 
         _handlers = new Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>>
         {
@@ -76,12 +80,14 @@ public class RequestDispatcher
             ["get_triggers"] = HandleGetTriggersAsync,
             ["get_template_tree"] = HandleGetTemplateTreeAsync,
 
-            // Placeholder tools (to be implemented in Phase 4)
-            ["trace_routed_events"] = HandleNotImplementedAsync,
-            ["fire_routed_event"] = HandleNotImplementedAsync,
-            ["get_render_stats"] = HandleNotImplementedAsync,
-            ["get_visual_count"] = HandleNotImplementedAsync,
-            ["measure_element_render_time"] = HandleNotImplementedAsync,
+            // Event tools (Phase 4)
+            ["trace_routed_events"] = HandleTraceRoutedEventsAsync,
+            ["fire_routed_event"] = HandleFireRoutedEventAsync,
+
+            // Performance tools (Phase 4)
+            ["get_render_stats"] = HandleGetRenderStatsAsync,
+            ["get_visual_count"] = HandleGetVisualCountAsync,
+            ["measure_element_render_time"] = HandleMeasureElementRenderTimeAsync,
 
             // Test
             ["test_slow"] = HandleTestSlowAsync
@@ -376,6 +382,59 @@ public class RequestDispatcher
         return await Task.Run(() =>
             Application.Current.Dispatcher.Invoke(() =>
                 _styleAnalyzer.GetTemplateTree(elementId)));
+    }
+
+    private async Task<object> HandleTraceRoutedEventsAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var eventName = GetStringParam(@params, "eventName");
+        var duration = GetIntParam(@params, "duration") ?? 5000;
+
+        if (string.IsNullOrEmpty(eventName))
+            throw new ArgumentException("Missing required parameter: eventName");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _eventAnalyzer.TraceRoutedEvents(elementId, eventName!, duration)));
+    }
+
+    private async Task<object> HandleFireRoutedEventAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var eventName = GetStringParam(@params, "eventName");
+        var eventArgs = GetObjectParam<object>(@params, "eventArgs");
+
+        if (string.IsNullOrEmpty(eventName))
+            throw new ArgumentException("Missing required parameter: eventName");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _eventAnalyzer.FireRoutedEvent(elementId, eventName!, eventArgs)));
+    }
+
+    private async Task<object> HandleGetRenderStatsAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _performanceAnalyzer.GetRenderStats()));
+    }
+
+    private async Task<object> HandleGetVisualCountAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _performanceAnalyzer.GetVisualCount(elementId)));
+    }
+
+    private async Task<object> HandleMeasureElementRenderTimeAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _performanceAnalyzer.MeasureElementRenderTime(elementId)));
     }
 
     private async Task<object> HandleNotImplementedAsync(JsonElement? @params, CancellationToken cancellationToken)

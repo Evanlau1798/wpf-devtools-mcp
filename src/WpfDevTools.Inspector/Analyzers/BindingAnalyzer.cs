@@ -197,6 +197,77 @@ public class BindingAnalyzer
         };
     }
 
+    /// <summary>
+    /// Force binding to update source or target
+    /// </summary>
+    public object ForceBindingUpdate(DependencyObject element, string propertyName, string direction)
+    {
+        // Must run on UI thread
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() =>
+                ForceBindingUpdate(element, propertyName, direction));
+        }
+
+        if (element == null)
+        {
+            return new { success = false, error = "Element is null" };
+        }
+
+        if (string.IsNullOrEmpty(propertyName))
+        {
+            return new { success = false, error = "propertyName is required" };
+        }
+
+        // Find DependencyProperty
+        var dp = FindDependencyProperty(element, propertyName);
+        if (dp == null)
+        {
+            return new { success = false, error = $"Property '{propertyName}' not found" };
+        }
+
+        // Get binding expression
+        var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
+        if (bindingExpr == null)
+        {
+            return new { success = false, error = "No binding on this property" };
+        }
+
+        try
+        {
+            if (direction?.ToLower() == "source")
+            {
+                bindingExpr.UpdateSource();
+                return new
+                {
+                    success = true,
+                    message = "Binding source updated",
+                    direction = "Source",
+                    propertyName
+                };
+            }
+            else if (direction?.ToLower() == "target")
+            {
+                bindingExpr.UpdateTarget();
+                return new
+                {
+                    success = true,
+                    message = "Binding target updated",
+                    direction = "Target",
+                    propertyName
+                };
+            }
+            else
+            {
+                return new { success = false, error = "Invalid direction. Use 'Source' or 'Target'" };
+            }
+        }
+        catch (Exception ex)
+        {
+            return new { success = false, error = $"Failed to update binding: {ex.Message}" };
+        }
+    }
+
     private DependencyObject? GetRootElement()
     {
         return Application.Current?.MainWindow;

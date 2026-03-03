@@ -67,8 +67,14 @@ public class RequestDispatcher
 
             // DependencyProperty tools (Phase 2)
             ["get_dp_value_source"] = HandleGetDpValueSourceAsync,
+            ["get_dp_metadata"] = HandleGetDpMetadataAsync,
             ["set_dp_value"] = HandleSetDpValueAsync,
             ["clear_dp_value"] = HandleClearDpValueAsync,
+            ["watch_dp_changes"] = HandleWatchDpChangesAsync,
+
+            // Binding Diagnostics tools (Phase 6)
+            ["get_binding_value_chain"] = HandleGetBindingValueChainAsync,
+            ["force_binding_update"] = HandleForceBindingUpdateAsync,
 
             // Layout tools (Phase 2)
             ["get_layout_info"] = HandleGetLayoutInfoAsync,
@@ -316,6 +322,81 @@ public class RequestDispatcher
         return await Task.Run(() =>
             Application.Current.Dispatcher.Invoke(() =>
                 _dependencyPropertyAnalyzer.ClearValue(propertyName!, elementId)));
+    }
+
+    private async Task<object> HandleGetDpMetadataAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var propertyName = GetStringParam(@params, "propertyName");
+
+        if (string.IsNullOrEmpty(propertyName))
+            throw new ArgumentException("Missing required parameter: propertyName");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _dependencyPropertyAnalyzer.GetMetadata(propertyName!, elementId)));
+    }
+
+    private async Task<object> HandleWatchDpChangesAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var propertyName = GetStringParam(@params, "propertyName");
+
+        if (string.IsNullOrEmpty(propertyName))
+            throw new ArgumentException("Missing required parameter: propertyName");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _dependencyPropertyAnalyzer.WatchChanges(propertyName!, elementId)));
+    }
+
+    private async Task<object> HandleGetBindingValueChainAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var propertyName = GetStringParam(@params, "propertyName");
+
+        if (string.IsNullOrEmpty(elementId))
+            throw new ArgumentException("Missing required parameter: elementId");
+
+        if (string.IsNullOrEmpty(propertyName))
+            throw new ArgumentException("Missing required parameter: propertyName");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke<object>(() =>
+            {
+                var element = _elementFinder.FindById(elementId!);
+                if (element == null)
+                {
+                    return new { success = false, error = "Element not found" };
+                }
+
+                return _bindingAnalyzer.GetBindingValueChain(element, propertyName!);
+            }));
+    }
+
+    private async Task<object> HandleForceBindingUpdateAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var propertyName = GetStringParam(@params, "propertyName");
+        var direction = GetStringParam(@params, "direction") ?? "Source";
+
+        if (string.IsNullOrEmpty(elementId))
+            throw new ArgumentException("Missing required parameter: elementId");
+
+        if (string.IsNullOrEmpty(propertyName))
+            throw new ArgumentException("Missing required parameter: propertyName");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke<object>(() =>
+            {
+                var element = _elementFinder.FindById(elementId!);
+                if (element == null)
+                {
+                    return new { success = false, error = "Element not found" };
+                }
+
+                return _bindingAnalyzer.ForceBindingUpdate(element, propertyName!, direction);
+            }));
     }
 
     private async Task<object> HandleGetLayoutInfoAsync(JsonElement? @params, CancellationToken cancellationToken)

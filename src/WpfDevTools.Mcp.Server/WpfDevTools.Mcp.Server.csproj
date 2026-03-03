@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
+    <ProjectReference Include="..\WpfDevTools.Injector\WpfDevTools.Injector.csproj" />
   </ItemGroup>
 
 </Project>

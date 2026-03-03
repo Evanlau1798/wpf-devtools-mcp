@@ -224,4 +224,85 @@ public class StyleAnalyzer
             chain
         };
     }
+
+    /// <summary>
+    /// Override a style setter value at runtime
+    /// </summary>
+    public object OverrideStyleSetter(string? elementId, string propertyName, object value)
+    {
+        // Must run on UI thread
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() =>
+                OverrideStyleSetter(elementId, propertyName, value));
+        }
+
+        if (string.IsNullOrEmpty(propertyName))
+        {
+            return new { success = false, error = "propertyName is required" };
+        }
+
+        var element = elementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
+
+        if (element == null)
+        {
+            return new { success = false, error = "Element not found" };
+        }
+
+        if (element is not FrameworkElement fe)
+        {
+            return new { success = false, error = "Element is not a FrameworkElement" };
+        }
+
+        try
+        {
+            // Find the DependencyProperty
+            var dp = FindDependencyProperty(fe, propertyName);
+            if (dp == null)
+            {
+                return new { success = false, error = $"Property '{propertyName}' not found" };
+            }
+
+            // Set local value (overrides style)
+            var targetType = dp.PropertyType;
+            var convertedValue = Convert.ChangeType(value, targetType);
+            fe.SetValue(dp, convertedValue);
+
+            return new
+            {
+                success = true,
+                message = $"Style setter for '{propertyName}' overridden with local value",
+                propertyName,
+                newValue = convertedValue
+            };
+        }
+        catch (Exception ex)
+        {
+            return new { success = false, error = $"Failed to override setter: {ex.Message}" };
+        }
+    }
+
+    private DependencyProperty? FindDependencyProperty(DependencyObject element, string propertyName)
+    {
+        var type = element.GetType();
+        var fieldName = propertyName + "Property";
+
+        while (type != null && type != typeof(object))
+        {
+            var field = type.GetField(fieldName,
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Static);
+
+            if (field != null && field.FieldType == typeof(DependencyProperty))
+            {
+                return field.GetValue(null) as DependencyProperty;
+            }
+
+            type = type.BaseType;
+        }
+
+        return null;
+    }
 }

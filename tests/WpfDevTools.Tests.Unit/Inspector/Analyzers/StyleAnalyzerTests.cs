@@ -79,4 +79,26 @@ public class StyleAnalyzerTests
         // Assert
         result.Should().NotBeNull();
     }
+
+    [StaFact]
+    public void OverrideStyleSetter_WithValidSetter_ShouldOverrideValue()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var analyzer = new StyleAnalyzer(finder);
+
+        var button = new Button();
+        var style = new Style(typeof(Button));
+        style.Setters.Add(new Setter(Button.WidthProperty, 100.0));
+        button.Style = style;
+
+        var elementId = finder.GenerateElementId(button);
+
+        // Act
+        var result = analyzer.OverrideStyleSetter(elementId, "Width", 200.0);
+
+        // Assert
+        result.Should().NotBeNull();
+        button.Width.Should().Be(200.0);
+    }
 }

@@ -1,4 +1,5 @@
 using System.Windows;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -7,20 +8,27 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public class DependencyPropertyAnalyzer
 {
+    private readonly ElementFinder _elementFinder;
+
+    public DependencyPropertyAnalyzer(ElementFinder elementFinder)
+    {
+        _elementFinder = elementFinder;
+    }
+
     /// <summary>
     /// Get value source for a DependencyProperty
     /// </summary>
     public object GetValueSource(string propertyName, string? elementId = null)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => GetValueSource(propertyName, elementId));
         }
 
         var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
 
         if (element == null)
         {
@@ -61,14 +69,14 @@ public class DependencyPropertyAnalyzer
     public object GetMetadata(string propertyName, string? elementId = null)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => GetMetadata(propertyName, elementId));
         }
 
         var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
 
         if (element == null)
         {
@@ -105,14 +113,14 @@ public class DependencyPropertyAnalyzer
     public object SetValue(string propertyName, object value, string? elementId = null)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => SetValue(propertyName, value, elementId));
         }
 
         var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
 
         if (element == null)
         {
@@ -152,14 +160,14 @@ public class DependencyPropertyAnalyzer
     public object ClearValue(string propertyName, string? elementId = null)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => ClearValue(propertyName, elementId));
         }
 
         var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
 
         if (element == null)
         {
@@ -187,17 +195,6 @@ public class DependencyPropertyAnalyzer
         {
             return new { success = false, error = $"Failed to clear property: {ex.Message}" };
         }
-    }
-
-    private DependencyObject? GetRootElement()
-    {
-        return Application.Current?.MainWindow;
-    }
-
-    private DependencyObject? FindElementById(string elementId)
-    {
-        // TODO: Implement element lookup by ID
-        return GetRootElement();
     }
 
     private DependencyProperty? FindDependencyProperty(DependencyObject element, string propertyName)
@@ -234,14 +231,14 @@ public class DependencyPropertyAnalyzer
     public object WatchChanges(string propertyName, string? elementId = null)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => WatchChanges(propertyName, elementId));
         }
 
         var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
 
         if (element == null)
         {
@@ -271,7 +268,7 @@ public class DependencyPropertyAnalyzer
     public object UnwatchChanges(string propertyName, string? elementId = null)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => UnwatchChanges(propertyName, elementId));
         }

@@ -148,4 +148,80 @@ public class StyleAnalyzer
             return new { success = false, error = $"Failed to load template: {ex.Message}" };
         }
     }
+
+    /// <summary>
+    /// Get resource resolution chain for an element
+    /// </summary>
+    public object GetResourceChain(string? elementId, string resourceKey)
+    {
+        // Must run on UI thread
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() => GetResourceChain(elementId, resourceKey));
+        }
+
+        if (string.IsNullOrEmpty(resourceKey))
+        {
+            return new { success = false, error = "resourceKey is required" };
+        }
+
+        var element = elementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
+
+        if (element == null)
+        {
+            return new { error = "Element not found" };
+        }
+
+        if (element is not FrameworkElement fe)
+        {
+            return new { error = "Element is not a FrameworkElement" };
+        }
+
+        var chain = new List<object>();
+        var current = fe;
+
+        // Walk up the tree looking for the resource
+        while (current != null)
+        {
+            if (current.Resources.Contains(resourceKey))
+            {
+                var resource = current.Resources[resourceKey];
+                chain.Add(new
+                {
+                    level = "Element",
+                    elementType = current.GetType().Name,
+                    resourceKey,
+                    resourceType = resource?.GetType().Name,
+                    resourceValue = resource?.ToString()
+                });
+                break;
+            }
+
+            current = current.Parent as FrameworkElement;
+        }
+
+        // Check Application resources
+        if (chain.Count == 0 && Application.Current?.Resources.Contains(resourceKey) == true)
+        {
+            var resource = Application.Current.Resources[resourceKey];
+            chain.Add(new
+            {
+                level = "Application",
+                elementType = "Application",
+                resourceKey,
+                resourceType = resource?.GetType().Name,
+                resourceValue = resource?.ToString()
+            });
+        }
+
+        return new
+        {
+            success = true,
+            resourceKey,
+            found = chain.Count > 0,
+            chain
+        };
+    }
 }

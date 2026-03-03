@@ -61,4 +61,22 @@ public class StyleAnalyzerTests
         // Assert
         result.Should().NotBeNull();
     }
+
+    [StaFact]
+    public void GetResourceChain_WithResources_ShouldReturnChain()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var analyzer = new StyleAnalyzer(finder);
+
+        var button = new Button();
+        button.Resources.Add("TestKey", "TestValue");
+        var elementId = finder.GenerateElementId(button);
+
+        // Act
+        var result = analyzer.GetResourceChain(elementId, "TestKey");
+
+        // Assert
+        result.Should().NotBeNull();
+    }
 }

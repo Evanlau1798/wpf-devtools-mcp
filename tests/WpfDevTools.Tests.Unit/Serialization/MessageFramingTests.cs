@@ -6,110 +6,138 @@ using WpfDevTools.Shared.Serialization;
 
 namespace WpfDevTools.Tests.Unit.Serialization;
 
-// TODO: Fix Named Pipes async blocking issue - tests hang indefinitely
-// Temporarily skipped to unblock Week 2 development
 public class MessageFramingTests
 {
-    [Fact(Skip = "TODO: Fix Named Pipes async blocking issue")]
+    [Fact]
     public async Task WriteAndReadMessage_ShouldRoundTrip()
     {
         // Arrange
         var pipeName = "test-pipe-" + Guid.NewGuid();
-        using var server = new NamedPipeServerStream(
-            pipeName,
-            PipeDirection.InOut,
-            1,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
-
-        using var client = new NamedPipeClientStream(
-            ".",
-            pipeName,
-            PipeDirection.InOut,
-            PipeOptions.Asynchronous);
-
-        var connectTask = client.ConnectAsync();
-        await server.WaitForConnectionAsync();
-        await connectTask;
-
         var testMessage = "Hello, WPF DevTools!";
+        string? result = null;
 
         // Act
-        var writeTask = MessageFraming.WriteMessageAsync(server, testMessage);
-        var readTask = MessageFraming.ReadMessageAsync(client);
+        var serverTask = Task.Run(async () =>
+        {
+            using var server = new NamedPipeServerStream(
+                pipeName,
+                PipeDirection.InOut,
+                1,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous);
 
-        await Task.WhenAll(writeTask, readTask);
-        var result = await readTask;
+            await server.WaitForConnectionAsync();
+            await MessageFraming.WriteMessageAsync(server, testMessage);
+        });
+
+        var clientTask = Task.Run(async () =>
+        {
+            using var client = new NamedPipeClientStream(
+                ".",
+                pipeName,
+                PipeDirection.InOut,
+                PipeOptions.Asynchronous);
+
+            await client.ConnectAsync(1000);
+            result = await MessageFraming.ReadMessageAsync(client);
+        });
+
+        await Task.WhenAll(serverTask, clientTask);
 
         // Assert
         result.Should().Be(testMessage);
     }
 
-    [Fact(Skip = "TODO: Fix Named Pipes async blocking issue")]
+    [Fact]
     public async Task WriteAndReadLargeMessage_ShouldRoundTrip()
     {
         // Arrange
         var pipeName = "test-pipe-large-" + Guid.NewGuid();
-        using var server = new NamedPipeServerStream(
-            pipeName,
-            PipeDirection.InOut,
-            1,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
-
-        using var client = new NamedPipeClientStream(
-            ".",
-            pipeName,
-            PipeDirection.InOut,
-            PipeOptions.Asynchronous);
-
-        var connectTask = client.ConnectAsync();
-        await server.WaitForConnectionAsync();
-        await connectTask;
-
         var testMessage = new string('A', 100_000); // 100 KB message
+        string? result = null;
 
         // Act
-        var writeTask = MessageFraming.WriteMessageAsync(server, testMessage);
-        var readTask = MessageFraming.ReadMessageAsync(client);
+        var serverTask = Task.Run(async () =>
+        {
+            using var server = new NamedPipeServerStream(
+                pipeName,
+                PipeDirection.InOut,
+                1,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous);
 
-        await Task.WhenAll(writeTask, readTask);
-        var result = await readTask;
+            await server.WaitForConnectionAsync();
+            await MessageFraming.WriteMessageAsync(server, testMessage);
+        });
+
+        var clientTask = Task.Run(async () =>
+        {
+            using var client = new NamedPipeClientStream(
+                ".",
+                pipeName,
+                PipeDirection.InOut,
+                PipeOptions.Asynchronous);
+
+            await client.ConnectAsync(1000);
+            result = await MessageFraming.ReadMessageAsync(client);
+        });
+
+        await Task.WhenAll(serverTask, clientTask);
 
         // Assert
         result.Should().Be(testMessage);
-        result.Length.Should().Be(100_000);
+        result!.Length.Should().Be(100_000);
     }
 
-    [Fact(Skip = "TODO: Fix Named Pipes async blocking issue")]
+    [Fact]
     public async Task ReadMessage_WithInvalidLength_ShouldThrow()
     {
         // Arrange
         var pipeName = "test-pipe-invalid-" + Guid.NewGuid();
-        using var server = new NamedPipeServerStream(
-            pipeName,
-            PipeDirection.InOut,
-            1,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
+        Exception? caughtException = null;
 
-        using var client = new NamedPipeClientStream(
-            ".",
-            pipeName,
-            PipeDirection.InOut,
-            PipeOptions.Asynchronous);
+        // Act
+        var serverTask = Task.Run(async () =>
+        {
+            using var server = new NamedPipeServerStream(
+                pipeName,
+                PipeDirection.InOut,
+                1,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous);
 
-        var connectTask = client.ConnectAsync();
-        await server.WaitForConnectionAsync();
-        await connectTask;
+            await server.WaitForConnectionAsync();
 
-        // Write invalid length (negative)
-        var invalidLength = BitConverter.GetBytes(-1);
-        await server.WriteAsync(invalidLength);
-        await server.FlushAsync();
+            // Write invalid length (negative)
+            var invalidLength = BitConverter.GetBytes(-1);
+            await server.WriteAsync(invalidLength);
+            await server.FlushAsync();
+        });
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await MessageFraming.ReadMessageAsync(client));
+        var clientTask = Task.Run(async () =>
+        {
+            using var client = new NamedPipeClientStream(
+                ".",
+                pipeName,
+                PipeDirection.InOut,
+                PipeOptions.Asynchronous);
+
+            await client.ConnectAsync(1000);
+
+            try
+            {
+                await MessageFraming.ReadMessageAsync(client);
+            }
+            catch (Exception ex)
+            {
+                caughtException = ex;
+            }
+        });
+
+        await Task.WhenAll(serverTask, clientTask);
+
+        // Assert
+        caughtException.Should().NotBeNull();
+        caughtException.Should().BeOfType<InvalidOperationException>();
     }
 }

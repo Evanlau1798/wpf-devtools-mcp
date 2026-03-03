@@ -236,7 +236,7 @@ public class RequestDispatcher
             throw new ArgumentException("Missing required parameter: commandName");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.ExecuteCommand(elementId, commandName, parameter));
+            _mvvmAnalyzer.ExecuteCommand(elementId, commandName!, parameter));
     }
 
     private async Task<object> HandleGetValidationErrorsAsync(JsonElement? @params, CancellationToken cancellationToken)

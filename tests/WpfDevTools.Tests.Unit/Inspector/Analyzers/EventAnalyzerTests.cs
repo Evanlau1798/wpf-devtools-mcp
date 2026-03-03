@@ -56,4 +56,21 @@ public class EventAnalyzerTests
         // Assert
         result.Should().NotBeNull();
     }
+
+    [StaFact]
+    public void GetEventHandlers_WithEventHandlers_ShouldReturnHandlers()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var button = new Button();
+        button.Click += (s, e) => { };
+        var elementId = finder.GenerateElementId(button);
+
+        // Act
+        var result = analyzer.GetEventHandlers(elementId, "Click");
+
+        // Assert
+        result.Should().NotBeNull();
+    }
 }

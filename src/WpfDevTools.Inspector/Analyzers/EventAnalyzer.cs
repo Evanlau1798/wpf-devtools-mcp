@@ -190,4 +190,106 @@ public class EventAnalyzer
 
         return null;
     }
+
+    /// <summary>
+    /// Get event handlers attached to an element
+    /// </summary>
+    public object GetEventHandlers(string? elementId, string eventName)
+    {
+        // Must run on UI thread
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() =>
+                GetEventHandlers(elementId, eventName));
+        }
+
+        if (string.IsNullOrEmpty(eventName))
+        {
+            return new { success = false, error = "eventName is required" };
+        }
+
+        var element = elementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
+
+        if (element == null)
+        {
+            return new { error = "Element not found" };
+        }
+
+        if (element is not UIElement uiElement)
+        {
+            return new { error = "Element is not a UIElement" };
+        }
+
+        var routedEvent = FindRoutedEvent(uiElement, eventName);
+        if (routedEvent == null)
+        {
+            return new { success = false, error = $"Event '{eventName}' not found" };
+        }
+
+        try
+        {
+            var handlers = new List<object>();
+
+            // Use reflection to get event handlers
+            // Note: This is a simplified implementation as WPF doesn't provide direct access to handlers
+            var eventHandlersStoreField = typeof(UIElement).GetField(
+                "EventHandlersStore",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            if (eventHandlersStoreField != null)
+            {
+                var eventHandlersStore = eventHandlersStoreField.GetValue(uiElement);
+                if (eventHandlersStore != null)
+                {
+                    var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
+                        "GetRoutedEventHandlers",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+
+                    if (getRoutedEventHandlersMethod != null)
+                    {
+                        var routedEventHandlers = getRoutedEventHandlersMethod.Invoke(
+                            eventHandlersStore,
+                            new object[] { routedEvent }) as RoutedEventHandlerInfo[];
+
+                        if (routedEventHandlers != null)
+                        {
+                            foreach (var handlerInfo in routedEventHandlers)
+                            {
+                                var handler = handlerInfo.Handler;
+                                handlers.Add(new
+                                {
+                                    handlerType = handler.GetType().Name,
+                                    targetType = handler.Target?.GetType().Name,
+                                    methodName = handler.Method.Name,
+                                    isClassHandler = handlerInfo.InvokeHandledEventsToo
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            return new
+            {
+                success = true,
+                eventName,
+                handlerCount = handlers.Count,
+                handlers,
+                message = handlers.Count == 0
+                    ? "No handlers found (or handlers are not accessible via reflection)"
+                    : $"Found {handlers.Count} handler(s)"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new
+            {
+                success = false,
+                error = $"Failed to get event handlers: {ex.Message}",
+                note = "Event handler inspection is limited due to WPF internal structure"
+            };
+        }
+    }
 }

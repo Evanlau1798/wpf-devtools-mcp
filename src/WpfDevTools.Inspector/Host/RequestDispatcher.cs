@@ -3,6 +3,7 @@ using System.Windows;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Host;
 
@@ -14,12 +15,20 @@ public class RequestDispatcher
     private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>> _handlers;
     private readonly VisualTreeAnalyzer _visualTreeAnalyzer;
     private readonly BindingAnalyzer _bindingAnalyzer;
+    private readonly ElementFinder _elementFinder;
+    private readonly LogicalTreeAnalyzer _logicalTreeAnalyzer;
+    private readonly MvvmAnalyzer _mvvmAnalyzer;
 
     public RequestDispatcher()
     {
+        // Initialize shared utilities
+        _elementFinder = new ElementFinder();
+
         // Initialize analyzers
         _visualTreeAnalyzer = new VisualTreeAnalyzer();
         _bindingAnalyzer = new BindingAnalyzer();
+        _logicalTreeAnalyzer = new LogicalTreeAnalyzer(_elementFinder);
+        _mvvmAnalyzer = new MvvmAnalyzer(_elementFinder);
 
         _handlers = new Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>>
         {
@@ -30,13 +39,17 @@ public class RequestDispatcher
             ["get_binding_errors"] = HandleGetBindingErrorsAsync,
             ["get_datacontext_chain"] = HandleGetDataContextChainAsync,
 
-            // Placeholder tools (to be implemented)
-            ["get_logical_tree"] = HandleNotImplementedAsync,
+            // Logical Tree tools
+            ["get_logical_tree"] = HandleGetLogicalTreeAsync,
             ["compare_trees"] = HandleNotImplementedAsync,
-            ["get_viewmodel"] = HandleNotImplementedAsync,
-            ["get_commands"] = HandleNotImplementedAsync,
-            ["execute_command"] = HandleNotImplementedAsync,
-            ["get_validation_errors"] = HandleNotImplementedAsync,
+
+            // MVVM tools
+            ["get_viewmodel"] = HandleGetViewModelAsync,
+            ["get_commands"] = HandleGetCommandsAsync,
+            ["execute_command"] = HandleExecuteCommandAsync,
+            ["get_validation_errors"] = HandleGetValidationErrorsAsync,
+
+            // Placeholder tools (to be implemented in Phase 2-4)
             ["get_dp_value_source"] = HandleNotImplementedAsync,
             ["set_dp_value"] = HandleNotImplementedAsync,
             ["clear_dp_value"] = HandleNotImplementedAsync,
@@ -186,6 +199,52 @@ public class RequestDispatcher
         return await Task.Run(() =>
             Application.Current.Dispatcher.Invoke(() =>
                 _bindingAnalyzer.GetDataContextChain(elementId)));
+    }
+
+    private async Task<object> HandleGetLogicalTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var depth = GetIntParam(@params, "depth");
+
+        return await Task.Run(() =>
+            _logicalTreeAnalyzer.GetLogicalTree(depth, elementId));
+    }
+
+    private async Task<object> HandleGetViewModelAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            _mvvmAnalyzer.GetViewModel(elementId));
+    }
+
+    private async Task<object> HandleGetCommandsAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            _mvvmAnalyzer.GetCommands(elementId));
+    }
+
+    private async Task<object> HandleExecuteCommandAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var commandName = GetStringParam(@params, "commandName");
+        var parameter = GetStringParam(@params, "parameter");
+
+        if (string.IsNullOrEmpty(commandName))
+            throw new ArgumentException("Missing required parameter: commandName");
+
+        return await Task.Run(() =>
+            _mvvmAnalyzer.ExecuteCommand(elementId, commandName, parameter));
+    }
+
+    private async Task<object> HandleGetValidationErrorsAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            _mvvmAnalyzer.GetValidationErrors(elementId));
     }
 
     private async Task<object> HandleNotImplementedAsync(JsonElement? @params, CancellationToken cancellationToken)

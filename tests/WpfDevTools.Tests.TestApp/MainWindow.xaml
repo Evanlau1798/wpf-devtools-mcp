@@ -1,0 +1,160 @@
+﻿<Window x:Class="WpfDevTools.Tests.TestApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfDevTools.Tests.TestApp"
+        mc:Ignorable="d"
+        Title="WPF DevTools Test App" Height="600" Width="900">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0"
+                   Text="WPF DevTools MCP Server - Test Application"
+                   FontSize="20"
+                   FontWeight="Bold"
+                   Margin="0,0,0,10"/>
+
+        <!-- Tab Control with Test Scenarios -->
+        <TabControl Grid.Row="1">
+            <!-- Tab 1: Basic Controls & Binding Errors -->
+            <TabItem Header="Basic Controls">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Valid Bindings" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" Margin="5"/>
+                            <TextBox Grid.Row="0" Grid.Column="1"
+                                     x:Name="NameTextBox"
+                                     Text="{Binding Name, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                                     Margin="5"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Age:" Margin="5"/>
+                            <TextBox Grid.Row="1" Grid.Column="1"
+                                     x:Name="AgeTextBox"
+                                     Text="{Binding Age, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                                     Margin="5"/>
+
+                            <CheckBox Grid.Row="2" Grid.Column="1"
+                                      x:Name="EnabledCheckBox"
+                                      Content="Enabled"
+                                      IsChecked="{Binding IsEnabled}"
+                                      Margin="5"/>
+                        </Grid>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Intentional Binding Errors" FontWeight="Bold" Foreground="Red" Margin="0,0,0,10"/>
+
+                        <!-- Binding Error 1: Wrong property name -->
+                        <TextBlock Text="Wrong Property Name:" Margin="5"/>
+                        <TextBox x:Name="ErrorTextBox1"
+                                 Text="{Binding InvalidPropertyName}"
+                                 Margin="5,0,5,10"/>
+
+                        <!-- Binding Error 2: Wrong path -->
+                        <TextBlock Text="Wrong Path:" Margin="5"/>
+                        <TextBox x:Name="ErrorTextBox2"
+                                 Text="{Binding Path=NonExistent.Property}"
+                                 Margin="5,0,5,10"/>
+
+                        <!-- Binding Error 3: Missing DataContext -->
+                        <Border BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
+                            <StackPanel DataContext="{x:Null}">
+                                <TextBlock Text="Null DataContext:" Margin="0,0,0,5"/>
+                                <TextBox x:Name="ErrorTextBox3"
+                                         Text="{Binding Name}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Commands" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="SaveButton"
+                                    Content="Save"
+                                    Command="{Binding SaveCommand}"
+                                    Width="100"
+                                    Margin="5"/>
+                            <Button x:Name="ClearButton"
+                                    Content="Clear"
+                                    Command="{Binding ClearCommand}"
+                                    Width="100"
+                                    Margin="5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 2: Nested Visual Tree -->
+            <TabItem Header="Nested Tree">
+                <ScrollViewer>
+                    <Border BorderBrush="Blue" BorderThickness="2" Padding="10" Margin="10">
+                        <StackPanel>
+                            <TextBlock Text="Level 1" FontWeight="Bold"/>
+                            <Border BorderBrush="Green" BorderThickness="2" Padding="10" Margin="5">
+                                <StackPanel>
+                                    <TextBlock Text="Level 2" FontWeight="Bold"/>
+                                    <Border BorderBrush="Orange" BorderThickness="2" Padding="10" Margin="5">
+                                        <StackPanel>
+                                            <TextBlock Text="Level 3" FontWeight="Bold"/>
+                                            <Border BorderBrush="Red" BorderThickness="2" Padding="10" Margin="5">
+                                                <StackPanel>
+                                                    <TextBlock Text="Level 4 (Deep nesting)" FontWeight="Bold"/>
+                                                    <Button Content="Deep Button" Margin="5"/>
+                                                    <TextBox Text="{Binding Name}" Margin="5"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 3: Various Controls -->
+            <TabItem Header="Control Types">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="ListBox" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <ListBox Height="100" Margin="5">
+                            <ListBoxItem Content="Item 1"/>
+                            <ListBoxItem Content="Item 2"/>
+                            <ListBoxItem Content="Item 3"/>
+                        </ListBox>
+
+                        <TextBlock Text="ComboBox" FontWeight="Bold" Margin="0,10,0,5"/>
+                        <ComboBox Margin="5">
+                            <ComboBoxItem Content="Option 1"/>
+                            <ComboBoxItem Content="Option 2"/>
+                            <ComboBoxItem Content="Option 3"/>
+                        </ComboBox>
+
+                        <TextBlock Text="Slider" FontWeight="Bold" Margin="0,10,0,5"/>
+                        <Slider Minimum="0" Maximum="100" Value="50" Margin="5"/>
+
+                        <TextBlock Text="ProgressBar" FontWeight="Bold" Margin="0,10,0,5"/>
+                        <ProgressBar Value="75" Height="20" Margin="5"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

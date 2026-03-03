@@ -227,4 +227,56 @@ public class DependencyPropertyAnalyzer
 
         return null;
     }
+
+    /// <summary>
+    /// Start watching DependencyProperty changes
+    /// </summary>
+    public object WatchChanges(string propertyName, string? elementId = null)
+    {
+        // Must run on UI thread
+        if (!Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() => WatchChanges(propertyName, elementId));
+        }
+
+        var element = elementId == null
+            ? GetRootElement()
+            : FindElementById(elementId);
+
+        if (element == null)
+        {
+            return new { success = false, error = "Element not found" };
+        }
+
+        if (element is not DependencyObject depObj)
+        {
+            return new { success = false, error = "Element is not a DependencyObject" };
+        }
+
+        // Find DependencyProperty by name
+        var dp = FindDependencyProperty(depObj, propertyName);
+        if (dp == null)
+        {
+            return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+        }
+
+        // TODO: Implement DependencyPropertyDescriptor.AddValueChanged
+        // This requires event push mechanism to MCP Server
+        return new { success = true, message = $"Watching property '{propertyName}' (not yet implemented)" };
+    }
+
+    /// <summary>
+    /// Stop watching DependencyProperty changes
+    /// </summary>
+    public object UnwatchChanges(string propertyName, string? elementId = null)
+    {
+        // Must run on UI thread
+        if (!Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() => UnwatchChanges(propertyName, elementId));
+        }
+
+        // TODO: Implement DependencyPropertyDescriptor.RemoveValueChanged
+        return new { success = true, message = $"Stopped watching property '{propertyName}' (not yet implemented)" };
+    }
 }

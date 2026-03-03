@@ -28,4 +28,26 @@ public class VisualTreeAnalyzerTests
         // Assert
         result.Should().NotBeNull();
     }
+
+    [StaFact]
+    public void GetNameScope_WithNamedElements_ShouldReturnNames()
+    {
+        // Arrange
+        var analyzer = new VisualTreeAnalyzer();
+        var elementFinder = new ElementFinder();
+
+        var stackPanel = new StackPanel();
+        var button1 = new Button { Name = "Button1" };
+        var button2 = new Button { Name = "Button2" };
+        stackPanel.Children.Add(button1);
+        stackPanel.Children.Add(button2);
+
+        var elementId = elementFinder.GenerateElementId(stackPanel);
+
+        // Act
+        var result = analyzer.GetNameScope(elementId);
+
+        // Assert
+        result.Should().NotBeNull();
+    }
 }

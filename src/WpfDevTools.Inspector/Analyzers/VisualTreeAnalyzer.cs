@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Markup;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -115,6 +116,78 @@ public class VisualTreeAnalyzer
             differenceCount = differences.Count,
             differences
         };
+    }
+
+    /// <summary>
+    /// Get NameScope information for an element
+    /// </summary>
+    public object GetNameScope(string? elementId = null)
+    {
+        // Must run on UI thread
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() => GetNameScope(elementId));
+        }
+
+        var element = elementId == null
+            ? GetRootElement()
+            : _elementFinder.FindById(elementId);
+
+        if (element == null)
+        {
+            return new { error = "Element not found" };
+        }
+
+        var nameScope = NameScope.GetNameScope(element);
+        var namedElements = new List<object>();
+
+        if (nameScope != null)
+        {
+            // Get all named elements in this scope
+            var names = GetNamesInScope(element);
+
+            foreach (var name in names)
+            {
+                var namedElement = nameScope.FindName(name);
+                if (namedElement != null)
+                {
+                    namedElements.Add(new
+                    {
+                        name,
+                        type = namedElement.GetType().Name,
+                        elementId = _elementFinder.GenerateElementId(namedElement as DependencyObject)
+                    });
+                }
+            }
+        }
+
+        return new
+        {
+            success = true,
+            hasNameScope = nameScope != null,
+            namedElementCount = namedElements.Count,
+            namedElements
+        };
+    }
+
+    private List<string> GetNamesInScope(DependencyObject element)
+    {
+        var names = new List<string>();
+
+        // Recursively find all named elements
+        if (element is FrameworkElement fe && !string.IsNullOrEmpty(fe.Name))
+        {
+            names.Add(fe.Name);
+        }
+
+        var childCount = VisualTreeHelper.GetChildrenCount(element);
+        for (int i = 0; i < childCount; i++)
+        {
+            var child = VisualTreeHelper.GetChild(element, i);
+            names.AddRange(GetNamesInScope(child));
+        }
+
+        return names;
     }
 
     private List<DependencyObject> GetVisualChildren(DependencyObject element)

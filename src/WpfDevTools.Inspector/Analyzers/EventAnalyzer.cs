@@ -6,7 +6,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes and traces WPF RoutedEvents
 /// </summary>
-public class EventAnalyzer
+public class EventAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private static readonly object _lock = new object();
@@ -29,87 +29,83 @@ public class EventAnalyzer
     /// </summary>
     public object TraceRoutedEvents(string? elementId, string eventName, int duration)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() =>
-                TraceRoutedEvents(elementId, eventName, duration));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
 
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
+            if (element is not UIElement uiElement)
+            {
+                return new { success = false, error = "Element is not a UIElement" };
+            }
 
-        if (element is not UIElement uiElement)
-        {
-            return new { success = false, error = "Element is not a UIElement" };
-        }
+            var routedEvent = FindRoutedEvent(uiElement, eventName);
+            if (routedEvent == null)
+            {
+                return new { success = false, error = $"Event '{eventName}' not found" };
+            }
 
-        var routedEvent = FindRoutedEvent(uiElement, eventName);
-        if (routedEvent == null)
-        {
-            return new { success = false, error = $"Event '{eventName}' not found" };
-        }
-
-        lock (_lock)
-        {
-            _eventTrace.Clear();
-            _isTracing = true;
-
-            // Cancel any existing tracing
-            _tracingCts?.Cancel();
-            _tracingCts = new CancellationTokenSource();
-        }
-
-        // Register event handler
-        var handler = new RoutedEventHandler((sender, e) =>
-        {
             lock (_lock)
             {
-                if (_isTracing)
+                _eventTrace.Clear();
+                _isTracing = true;
+
+                // Cancel any existing tracing
+                _tracingCts?.Cancel();
+                _tracingCts = new CancellationTokenSource();
+            }
+
+            // Register event handler
+            var handler = new RoutedEventHandler((sender, e) =>
+            {
+                lock (_lock)
                 {
-                    _eventTrace.Add(new
+                    if (_isTracing)
                     {
-                        timestamp = DateTime.UtcNow,
-                        sender = sender?.GetType().Name,
-                        routingStrategy = e.RoutedEvent.RoutingStrategy.ToString(),
-                        handled = e.Handled
+                        _eventTrace.Add(new
+                        {
+                            timestamp = DateTime.UtcNow,
+                            sender = sender?.GetType().Name,
+                            routingStrategy = e.RoutedEvent.RoutingStrategy.ToString(),
+                            handled = e.Handled
+                        });
+                    }
+                }
+            });
+
+            uiElement.AddHandler(routedEvent, handler);
+
+            // Stop tracing after duration
+            var cts = _tracingCts;
+            Task.Delay(duration, cts.Token).ContinueWith(task =>
+            {
+                if (!task.IsCanceled && Application.Current != null)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        uiElement.RemoveHandler(routedEvent, handler);
+                        lock (_lock)
+                        {
+                            _isTracing = false;
+                        }
                     });
                 }
-            }
-        });
+            }, TaskScheduler.Default);
 
-        uiElement.AddHandler(routedEvent, handler);
-
-        // Stop tracing after duration
-        var cts = _tracingCts;
-        Task.Delay(duration, cts.Token).ContinueWith(task =>
-        {
-            if (!task.IsCanceled && Application.Current != null)
+            return new
             {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    uiElement.RemoveHandler(routedEvent, handler);
-                    lock (_lock)
-                    {
-                        _isTracing = false;
-                    }
-                });
-            }
-        }, TaskScheduler.Default);
-
-        return new
-        {
-            success = true,
-            message = $"Started tracing '{eventName}' for {duration}ms",
-            eventName,
-            duration
-        };
+                success = true,
+                message = $"Started tracing '{eventName}' for {duration}ms",
+                eventName,
+                duration
+            };
+        });
     }
 
     /// <summary>
@@ -134,49 +130,45 @@ public class EventAnalyzer
     /// </summary>
     public object FireRoutedEvent(string? elementId, string eventName, object? eventArgs)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() =>
-                FireRoutedEvent(elementId, eventName, eventArgs));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not UIElement uiElement)
-        {
-            return new { success = false, error = "Element is not a UIElement" };
-        }
-
-        var routedEvent = FindRoutedEvent(uiElement, eventName);
-        if (routedEvent == null)
-        {
-            return new { success = false, error = $"Event '{eventName}' not found" };
-        }
-
-        try
-        {
-            var args = new RoutedEventArgs(routedEvent, uiElement);
-            uiElement.RaiseEvent(args);
-
-            return new
+            if (element == null)
             {
-                success = true,
-                message = $"Event '{eventName}' fired successfully",
-                eventName
-            };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to fire event: {ex.Message}" };
-        }
+                return new { success = false, error = "Element not found" };
+            }
+
+            if (element is not UIElement uiElement)
+            {
+                return new { success = false, error = "Element is not a UIElement" };
+            }
+
+            var routedEvent = FindRoutedEvent(uiElement, eventName);
+            if (routedEvent == null)
+            {
+                return new { success = false, error = $"Event '{eventName}' not found" };
+            }
+
+            try
+            {
+                var args = new RoutedEventArgs(routedEvent, uiElement);
+                uiElement.RaiseEvent(args);
+
+                return new
+                {
+                    success = true,
+                    message = $"Event '{eventName}' fired successfully",
+                    eventName
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to fire event: {ex.Message}" };
+            }
+        });
     }
 
     private RoutedEvent? FindRoutedEvent(UIElement element, string eventName)
@@ -207,128 +199,124 @@ public class EventAnalyzer
     /// </summary>
     public object GetEventHandlers(string? elementId, string eventName)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() =>
-                GetEventHandlers(elementId, eventName));
-        }
-
-        if (string.IsNullOrEmpty(eventName))
-        {
-            return new { success = false, error = "eventName is required" };
-        }
-
-        // Check reflection support on first use
-        if (!IsReflectionSupported())
-        {
-            return new
+            if (string.IsNullOrEmpty(eventName))
             {
-                success = false,
-                error = "Event handler inspection not supported on this .NET version",
-                note = "This feature requires access to internal WPF structures that may not be available"
-            };
-        }
+                return new { success = false, error = "eventName is required" };
+            }
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { error = "Element not found" };
-        }
-
-        if (element is not UIElement uiElement)
-        {
-            return new { error = "Element is not a UIElement" };
-        }
-
-        var routedEvent = FindRoutedEvent(uiElement, eventName);
-        if (routedEvent == null)
-        {
-            return new { success = false, error = $"Event '{eventName}' not found" };
-        }
-
-        try
-        {
-            var handlers = new List<object>();
-
-            // Use reflection to get event handlers
-            // Note: This accesses internal WPF structures and may not work in all .NET versions
-            var eventHandlersStoreField = typeof(UIElement).GetField(
-                EVENT_HANDLERS_STORE_FIELD,
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-
-            if (eventHandlersStoreField == null)
+            // Check reflection support on first use
+            if (!IsReflectionSupported())
             {
-                // Mark reflection as unsupported for future calls
-                lock (_reflectionLock)
-                {
-                    _reflectionSupported = false;
-                }
-
                 return new
                 {
                     success = false,
-                    error = "Event handler inspection not available",
-                    note = $"Internal field '{EVENT_HANDLERS_STORE_FIELD}' not found in this .NET version"
+                    error = "Event handler inspection not supported on this .NET version",
+                    note = "This feature requires access to internal WPF structures that may not be available"
                 };
             }
 
-            if (eventHandlersStoreField != null)
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
+
+            if (element == null)
             {
-                var eventHandlersStore = eventHandlersStoreField.GetValue(uiElement);
-                if (eventHandlersStore != null)
+                return new { error = "Element not found" };
+            }
+
+            if (element is not UIElement uiElement)
+            {
+                return new { error = "Element is not a UIElement" };
+            }
+
+            var routedEvent = FindRoutedEvent(uiElement, eventName);
+            if (routedEvent == null)
+            {
+                return new { success = false, error = $"Event '{eventName}' not found" };
+            }
+
+            try
+            {
+                var handlers = new List<object>();
+
+                // Use reflection to get event handlers
+                // Note: This accesses internal WPF structures and may not work in all .NET versions
+                var eventHandlersStoreField = typeof(UIElement).GetField(
+                    EVENT_HANDLERS_STORE_FIELD,
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+                if (eventHandlersStoreField == null)
                 {
-                    var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
-                        "GetRoutedEventHandlers",
-                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-
-                    if (getRoutedEventHandlersMethod != null)
+                    // Mark reflection as unsupported for future calls
+                    lock (_reflectionLock)
                     {
-                        var routedEventHandlers = getRoutedEventHandlersMethod.Invoke(
-                            eventHandlersStore,
-                            new object[] { routedEvent }) as RoutedEventHandlerInfo[];
+                        _reflectionSupported = false;
+                    }
 
-                        if (routedEventHandlers != null)
+                    return new
+                    {
+                        success = false,
+                        error = "Event handler inspection not available",
+                        note = $"Internal field '{EVENT_HANDLERS_STORE_FIELD}' not found in this .NET version"
+                    };
+                }
+
+                if (eventHandlersStoreField != null)
+                {
+                    var eventHandlersStore = eventHandlersStoreField.GetValue(uiElement);
+                    if (eventHandlersStore != null)
+                    {
+                        var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
+                            "GetRoutedEventHandlers",
+                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+
+                        if (getRoutedEventHandlersMethod != null)
                         {
-                            foreach (var handlerInfo in routedEventHandlers)
+                            var routedEventHandlers = getRoutedEventHandlersMethod.Invoke(
+                                eventHandlersStore,
+                                new object[] { routedEvent }) as RoutedEventHandlerInfo[];
+
+                            if (routedEventHandlers != null)
                             {
-                                var handler = handlerInfo.Handler;
-                                handlers.Add(new
+                                foreach (var handlerInfo in routedEventHandlers)
                                 {
-                                    handlerType = handler.GetType().Name,
-                                    targetType = handler.Target?.GetType().Name,
-                                    methodName = handler.Method.Name,
-                                    isClassHandler = handlerInfo.InvokeHandledEventsToo
-                                });
+                                    var handler = handlerInfo.Handler;
+                                    handlers.Add(new
+                                    {
+                                        handlerType = handler.GetType().Name,
+                                        targetType = handler.Target?.GetType().Name,
+                                        methodName = handler.Method.Name,
+                                        isClassHandler = handlerInfo.InvokeHandledEventsToo
+                                    });
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            return new
+                return new
+                {
+                    success = true,
+                    eventName,
+                    handlerCount = handlers.Count,
+                    handlers,
+                    message = handlers.Count == 0
+                        ? "No handlers found (or handlers are not accessible via reflection)"
+                        : $"Found {handlers.Count} handler(s)"
+                };
+            }
+            catch (Exception ex)
             {
-                success = true,
-                eventName,
-                handlerCount = handlers.Count,
-                handlers,
-                message = handlers.Count == 0
-                    ? "No handlers found (or handlers are not accessible via reflection)"
-                    : $"Found {handlers.Count} handler(s)"
-            };
-        }
-        catch (Exception ex)
-        {
-            return new
-            {
-                success = false,
-                error = $"Failed to get event handlers: {ex.Message}",
-                note = "Event handler inspection is limited due to WPF internal structure"
-            };
-        }
+                return new
+                {
+                    success = false,
+                    error = $"Failed to get event handlers: {ex.Message}",
+                    note = "Event handler inspection is limited due to WPF internal structure"
+                };
+            }
+        });
     }
 
     /// <summary>

@@ -12,7 +12,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes and simulates user interactions with WPF elements
 /// </summary>
-public class InteractionAnalyzer
+public class InteractionAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -30,47 +30,44 @@ public class InteractionAnalyzer
     /// </summary>
     public object ClickElement(string? elementId)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => ClickElement(elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        try
-        {
-            if (element is ButtonBase button)
+            if (element == null)
             {
-                // Raise Click event directly
-                button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
+                return new { success = false, error = "Element not found" };
+            }
+
+            try
+            {
+                if (element is ButtonBase button)
+                {
+                    // Raise Click event directly
+                    button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
+
+                    return new
+                    {
+                        success = true,
+                        message = "Element clicked successfully",
+                        elementType = element.GetType().Name
+                    };
+                }
 
                 return new
                 {
-                    success = true,
-                    message = "Element clicked successfully",
+                    success = false,
+                    error = "Element is not clickable",
                     elementType = element.GetType().Name
                 };
             }
-
-            return new
+            catch (Exception ex)
             {
-                success = false,
-                error = "Element is not clickable",
-                elementType = element.GetType().Name
-            };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to click element: {ex.Message}" };
-        }
+                return new { success = false, error = $"Failed to click element: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>
@@ -78,41 +75,38 @@ public class InteractionAnalyzer
     /// </summary>
     public object ScrollToElement(string? elementId)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => ScrollToElement(elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not FrameworkElement fe)
-        {
-            return new { success = false, error = "Element is not a FrameworkElement" };
-        }
-
-        try
-        {
-            fe.BringIntoView();
-
-            return new
+            if (element == null)
             {
-                success = true,
-                message = "Element scrolled into view",
-                elementType = element.GetType().Name
-            };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to scroll to element: {ex.Message}" };
-        }
+                return new { success = false, error = "Element not found" };
+            }
+
+            if (element is not FrameworkElement fe)
+            {
+                return new { success = false, error = "Element is not a FrameworkElement" };
+            }
+
+            try
+            {
+                fe.BringIntoView();
+
+                return new
+                {
+                    success = true,
+                    message = "Element scrolled into view",
+                    elementType = element.GetType().Name
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to scroll to element: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>
@@ -120,73 +114,70 @@ public class InteractionAnalyzer
     /// </summary>
     public object TakeScreenshot(string? elementId)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => TakeScreenshot(elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not UIElement uiElement)
-        {
-            return new { success = false, error = "Element is not a UIElement" };
-        }
-
-        try
-        {
-            // Get element bounds
-            var bounds = VisualTreeHelper.GetDescendantBounds(uiElement);
-            if (bounds.IsEmpty)
+            if (element == null)
             {
-                return new { success = false, error = "Element has no visual bounds" };
+                return new { success = false, error = "Element not found" };
             }
 
-            // Create render target
-            var renderTarget = new RenderTargetBitmap(
-                (int)bounds.Width,
-                (int)bounds.Height,
-                96, 96,
-                PixelFormats.Pbgra32);
-
-            // Render element
-            var drawingVisual = new DrawingVisual();
-            using (var context = drawingVisual.RenderOpen())
+            if (element is not UIElement uiElement)
             {
-                var visualBrush = new VisualBrush(uiElement);
-                context.DrawRectangle(visualBrush, null, bounds);
+                return new { success = false, error = "Element is not a UIElement" };
             }
 
-            renderTarget.Render(drawingVisual);
-
-            // Encode to PNG
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(renderTarget));
-
-            using var stream = new MemoryStream();
-            encoder.Save(stream);
-            var imageData = Convert.ToBase64String(stream.ToArray());
-
-            return new
+            try
             {
-                success = true,
-                imageData,
-                width = (int)bounds.Width,
-                height = (int)bounds.Height,
-                format = "png"
-            };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to take screenshot: {ex.Message}" };
-        }
+                // Get element bounds
+                var bounds = VisualTreeHelper.GetDescendantBounds(uiElement);
+                if (bounds.IsEmpty)
+                {
+                    return new { success = false, error = "Element has no visual bounds" };
+                }
+
+                // Create render target
+                var renderTarget = new RenderTargetBitmap(
+                    (int)bounds.Width,
+                    (int)bounds.Height,
+                    96, 96,
+                    PixelFormats.Pbgra32);
+
+                // Render element
+                var drawingVisual = new DrawingVisual();
+                using (var context = drawingVisual.RenderOpen())
+                {
+                    var visualBrush = new VisualBrush(uiElement);
+                    context.DrawRectangle(visualBrush, null, bounds);
+                }
+
+                renderTarget.Render(drawingVisual);
+
+                // Encode to PNG
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(renderTarget));
+
+                using var stream = new MemoryStream();
+                encoder.Save(stream);
+                var imageData = Convert.ToBase64String(stream.ToArray());
+
+                return new
+                {
+                    success = true,
+                    imageData,
+                    width = (int)bounds.Width,
+                    height = (int)bounds.Height,
+                    format = "png"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to take screenshot: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>
@@ -194,118 +185,109 @@ public class InteractionAnalyzer
     /// </summary>
     public object DragAndDrop(string? sourceElementId, string? targetElementId, string dataFormat)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() =>
-                DragAndDrop(sourceElementId, targetElementId, dataFormat));
-        }
-
-        // Check reflection support on first use
-        if (!IsDragDropReflectionSupported())
-        {
-            return new
+            // Check reflection support on first use
+            if (!IsDragDropReflectionSupported())
             {
-                success = false,
-                error = "Drag and drop simulation not supported on this .NET version",
-                note = "This feature requires access to internal DragEventArgs constructor that may not be available"
-            };
-        }
-
-        var sourceElement = sourceElementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(sourceElementId);
-
-        if (sourceElement == null)
-        {
-            return new { success = false, error = "Source element not found" };
-        }
-
-        var targetElement = targetElementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(targetElementId);
-
-        if (targetElement == null)
-        {
-            return new { success = false, error = "Target element not found" };
-        }
-
-        if (sourceElement is not UIElement sourceUI || targetElement is not UIElement targetUI)
-        {
-            return new { success = false, error = "Elements must be UIElement" };
-        }
-
-        try
-        {
-            // Create drag data
-            var data = new DataObject(dataFormat, sourceElement);
-
-            // Use reflection to create DragEventArgs (constructor is internal)
-            var dragEventArgsType = typeof(DragEventArgs);
-            var constructor = dragEventArgsType.GetConstructor(
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
-                null,
-                new[] { typeof(IDataObject), typeof(DragDropKeyStates), typeof(DragDropEffects), typeof(DependencyObject), typeof(Point) },
-                null);
-
-            if (constructor == null)
-            {
-                // Mark reflection as unsupported for future calls
-                lock (_dragDropReflectionLock)
-                {
-                    _dragDropReflectionSupported = false;
-                }
-
                 return new
                 {
                     success = false,
-                    error = "Drag and drop simulation not available",
-                    note = "DragEventArgs internal constructor not found in this .NET version"
+                    error = "Drag and drop simulation not supported on this .NET version",
+                    note = "This feature requires access to internal DragEventArgs constructor that may not be available"
                 };
             }
 
-            if (constructor == null)
+            var sourceElement = sourceElementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(sourceElementId);
+
+            if (sourceElement == null)
             {
-                return new { success = false, error = "Cannot access DragEventArgs constructor" };
+                return new { success = false, error = "Source element not found" };
             }
 
-            // Simulate drag enter
-            var dragEnterArgs = (DragEventArgs)constructor.Invoke(new object[]
-            {
-                data,
-                DragDropKeyStates.None,
-                DragDropEffects.Copy,
-                targetUI,
-                new Point(0, 0)
-            });
-            dragEnterArgs.RoutedEvent = DragDrop.DragEnterEvent;
-            targetUI.RaiseEvent(dragEnterArgs);
+            var targetElement = targetElementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(targetElementId);
 
-            // Simulate drop
-            var dropArgs = (DragEventArgs)constructor.Invoke(new object[]
+            if (targetElement == null)
             {
-                data,
-                DragDropKeyStates.None,
-                DragDropEffects.Copy,
-                targetUI,
-                new Point(0, 0)
-            });
-            dropArgs.RoutedEvent = DragDrop.DropEvent;
-            targetUI.RaiseEvent(dropArgs);
+                return new { success = false, error = "Target element not found" };
+            }
 
-            return new
+            if (sourceElement is not UIElement sourceUI || targetElement is not UIElement targetUI)
             {
-                success = true,
-                message = "Drag and drop simulated successfully",
-                sourceType = sourceElement.GetType().Name,
-                targetType = targetElement.GetType().Name,
-                dataFormat
-            };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to simulate drag and drop: {ex.Message}" };
-        }
+                return new { success = false, error = "Elements must be UIElement" };
+            }
+
+            try
+            {
+                // Create drag data
+                var data = new DataObject(dataFormat, sourceElement);
+
+                // Use reflection to create DragEventArgs (constructor is internal)
+                var dragEventArgsType = typeof(DragEventArgs);
+                var constructor = dragEventArgsType.GetConstructor(
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                    null,
+                    new[] { typeof(IDataObject), typeof(DragDropKeyStates), typeof(DragDropEffects), typeof(DependencyObject), typeof(Point) },
+                    null);
+
+                if (constructor == null)
+                {
+                    // Mark reflection as unsupported for future calls
+                    lock (_dragDropReflectionLock)
+                    {
+                        _dragDropReflectionSupported = false;
+                    }
+
+                    return new
+                    {
+                        success = false,
+                        error = "Drag and drop simulation not available",
+                        note = "DragEventArgs internal constructor not found in this .NET version"
+                    };
+                }
+
+                // Simulate drag enter
+                var dragEnterArgs = (DragEventArgs)constructor.Invoke(new object[]
+                {
+                    data,
+                    DragDropKeyStates.None,
+                    DragDropEffects.Copy,
+                    targetUI,
+                    new Point(0, 0)
+                });
+                dragEnterArgs.RoutedEvent = DragDrop.DragEnterEvent;
+                targetUI.RaiseEvent(dragEnterArgs);
+
+                // Simulate drop
+                var dropArgs = (DragEventArgs)constructor.Invoke(new object[]
+                {
+                    data,
+                    DragDropKeyStates.None,
+                    DragDropEffects.Copy,
+                    targetUI,
+                    new Point(0, 0)
+                });
+                dropArgs.RoutedEvent = DragDrop.DropEvent;
+                targetUI.RaiseEvent(dropArgs);
+
+                return new
+                {
+                    success = true,
+                    message = "Drag and drop simulated successfully",
+                    sourceType = sourceElement.GetType().Name,
+                    targetType = targetElement.GetType().Name,
+                    dataFormat
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to simulate drag and drop: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>
@@ -313,86 +295,82 @@ public class InteractionAnalyzer
     /// </summary>
     public object SimulateKeyboard(string? elementId, string key, string eventType)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() =>
-                SimulateKeyboard(elementId, key, eventType));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not UIElement uiElement)
-        {
-            return new { success = false, error = "Element is not a UIElement" };
-        }
-
-        try
-        {
-            // Parse key
-            if (!Enum.TryParse<Key>(key, out var parsedKey))
+            if (element == null)
             {
-                return new { success = false, error = $"Invalid key: {key}" };
+                return new { success = false, error = "Element not found" };
             }
 
-            // Create keyboard event
-            RoutedEvent routedEvent;
-            if (eventType?.ToLower() == "keydown")
+            if (element is not UIElement uiElement)
             {
-                routedEvent = Keyboard.KeyDownEvent;
-            }
-            else if (eventType?.ToLower() == "keyup")
-            {
-                routedEvent = Keyboard.KeyUpEvent;
-            }
-            else
-            {
-                return new { success = false, error = "Invalid event type. Use 'KeyDown' or 'KeyUp'" };
+                return new { success = false, error = "Element is not a UIElement" };
             }
 
-            // Check if element is connected to a presentation source
-            var presentationSource = PresentationSource.FromVisual(uiElement);
-            if (presentationSource == null)
+            try
             {
+                // Parse key
+                if (!Enum.TryParse<Key>(key, out var parsedKey))
+                {
+                    return new { success = false, error = $"Invalid key: {key}" };
+                }
+
+                // Create keyboard event
+                RoutedEvent routedEvent;
+                if (eventType?.ToLower() == "keydown")
+                {
+                    routedEvent = Keyboard.KeyDownEvent;
+                }
+                else if (eventType?.ToLower() == "keyup")
+                {
+                    routedEvent = Keyboard.KeyUpEvent;
+                }
+                else
+                {
+                    return new { success = false, error = "Invalid event type. Use 'KeyDown' or 'KeyUp'" };
+                }
+
+                // Check if element is connected to a presentation source
+                var presentationSource = PresentationSource.FromVisual(uiElement);
+                if (presentationSource == null)
+                {
+                    return new
+                    {
+                        success = false,
+                        error = "Element is not connected to a presentation source",
+                        hint = "Element may not be in the visual tree or may not be rendered yet"
+                    };
+                }
+
+                var keyEventArgs = new KeyEventArgs(
+                    Keyboard.PrimaryDevice,
+                    presentationSource,
+                    0,
+                    parsedKey)
+                {
+                    RoutedEvent = routedEvent
+                };
+
+                uiElement.RaiseEvent(keyEventArgs);
+
                 return new
                 {
-                    success = false,
-                    error = "Element is not connected to a presentation source",
-                    hint = "Element may not be in the visual tree or may not be rendered yet"
+                    success = true,
+                    message = $"Keyboard event '{eventType}' simulated for key '{key}'",
+                    key,
+                    eventType,
+                    elementType = element.GetType().Name
                 };
             }
-
-            var keyEventArgs = new KeyEventArgs(
-                Keyboard.PrimaryDevice,
-                presentationSource,
-                0,
-                parsedKey)
+            catch (Exception ex)
             {
-                RoutedEvent = routedEvent
-            };
-
-            uiElement.RaiseEvent(keyEventArgs);
-
-            return new
-            {
-                success = true,
-                message = $"Keyboard event '{eventType}' simulated for key '{key}'",
-                key,
-                eventType,
-                elementType = element.GetType().Name
-            };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to simulate keyboard: {ex.Message}" };
-        }
+                return new { success = false, error = $"Failed to simulate keyboard: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>

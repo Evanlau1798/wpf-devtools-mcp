@@ -9,7 +9,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF Layout information
 /// </summary>
-public class LayoutAnalyzer
+public class LayoutAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private static readonly Dictionary<string, Border> _highlights = new();
@@ -24,54 +24,51 @@ public class LayoutAnalyzer
     /// </summary>
     public object GetLayoutInfo(string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetLayoutInfo(elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { error = "Element not found" };
-        }
-
-        if (element is not FrameworkElement fe)
-        {
-            return new { error = "Element is not a FrameworkElement" };
-        }
-
-        return new
-        {
-            actualWidth = fe.ActualWidth,
-            actualHeight = fe.ActualHeight,
-            width = fe.Width,
-            height = fe.Height,
-            minWidth = fe.MinWidth,
-            minHeight = fe.MinHeight,
-            maxWidth = fe.MaxWidth,
-            maxHeight = fe.MaxHeight,
-            desiredSize = new
+            if (element == null)
             {
-                width = fe.DesiredSize.Width,
-                height = fe.DesiredSize.Height
-            },
-            renderSize = new
-            {
-                width = fe.RenderSize.Width,
-                height = fe.RenderSize.Height
-            },
-            margin = new
-            {
-                left = fe.Margin.Left,
-                top = fe.Margin.Top,
-                right = fe.Margin.Right,
-                bottom = fe.Margin.Bottom
+                return new { error = "Element not found" };
             }
-        };
+
+            if (element is not FrameworkElement fe)
+            {
+                return new { error = "Element is not a FrameworkElement" };
+            }
+
+            return new
+            {
+                actualWidth = fe.ActualWidth,
+                actualHeight = fe.ActualHeight,
+                width = fe.Width,
+                height = fe.Height,
+                minWidth = fe.MinWidth,
+                minHeight = fe.MinHeight,
+                maxWidth = fe.MaxWidth,
+                maxHeight = fe.MaxHeight,
+                desiredSize = new
+                {
+                    width = fe.DesiredSize.Width,
+                    height = fe.DesiredSize.Height
+                },
+                renderSize = new
+                {
+                    width = fe.RenderSize.Width,
+                    height = fe.RenderSize.Height
+                },
+                margin = new
+                {
+                    left = fe.Margin.Left,
+                    top = fe.Margin.Top,
+                    right = fe.Margin.Right,
+                    bottom = fe.Margin.Bottom
+                }
+            };
+        });
     }
 
     /// <summary>
@@ -79,41 +76,38 @@ public class LayoutAnalyzer
     /// </summary>
     public object GetClippingInfo(string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetClippingInfo(elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { error = "Element not found" };
-        }
-
-        if (element is not UIElement uiElement)
-        {
-            return new { error = "Element is not a UIElement" };
-        }
-
-        var clip = uiElement.Clip;
-        var clipToBounds = uiElement.ClipToBounds;
-
-        return new
-        {
-            clipToBounds = clipToBounds,
-            hasClip = clip != null,
-            clipBounds = clip != null ? new
+            if (element == null)
             {
-                x = clip.Bounds.X,
-                y = clip.Bounds.Y,
-                width = clip.Bounds.Width,
-                height = clip.Bounds.Height
-            } : null
-        };
+                return new { error = "Element not found" };
+            }
+
+            if (element is not UIElement uiElement)
+            {
+                return new { error = "Element is not a UIElement" };
+            }
+
+            var clip = uiElement.Clip;
+            var clipToBounds = uiElement.ClipToBounds;
+
+            return new
+            {
+                clipToBounds = clipToBounds,
+                hasClip = clip != null,
+                clipBounds = clip != null ? new
+                {
+                    x = clip.Bounds.X,
+                    y = clip.Bounds.Y,
+                    width = clip.Bounds.Width,
+                    height = clip.Bounds.Height
+                } : null
+            };
+        });
     }
 
     /// <summary>
@@ -121,38 +115,35 @@ public class LayoutAnalyzer
     /// </summary>
     public object InvalidateLayout(string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => InvalidateLayout(elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
 
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
+            if (element is not UIElement uiElement)
+            {
+                return new { success = false, error = "Element is not a UIElement" };
+            }
 
-        if (element is not UIElement uiElement)
-        {
-            return new { success = false, error = "Element is not a UIElement" };
-        }
+            try
+            {
+                uiElement.InvalidateMeasure();
+                uiElement.InvalidateArrange();
+                uiElement.UpdateLayout();
 
-        try
-        {
-            uiElement.InvalidateMeasure();
-            uiElement.InvalidateArrange();
-            uiElement.UpdateLayout();
-
-            return new { success = true, message = "Layout invalidated and updated successfully" };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to invalidate layout: {ex.Message}" };
-        }
+                return new { success = true, message = "Layout invalidated and updated successfully" };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to invalidate layout: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>
@@ -160,83 +151,79 @@ public class LayoutAnalyzer
     /// </summary>
     public object HighlightElement(string? elementId, string color, int duration)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() =>
-                HighlightElement(elementId, color, duration));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not FrameworkElement fe)
-        {
-            return new { success = false, error = "Element is not a FrameworkElement" };
-        }
-
-        try
-        {
-            // Parse color
-            var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
-
-            // Create highlight border
-            var highlightBorder = new Border
+            if (element == null)
             {
-                BorderBrush = brush,
-                BorderThickness = new Thickness(2),
-                IsHitTestVisible = false
-            };
-
-            // Get adorner layer
-            var adornerLayer = AdornerLayer.GetAdornerLayer(fe);
-            if (adornerLayer == null)
-            {
-                return new
-                {
-                    success = false,
-                    error = "Cannot highlight element: AdornerLayer not available",
-                    hint = "Element may not be in the visual tree or may not have an AdornerDecorator ancestor"
-                };
+                return new { success = false, error = "Element not found" };
             }
 
-            // Create adorner
-            var adorner = new HighlightAdorner(fe, highlightBorder);
-            adornerLayer.Add(adorner);
-
-            // Store reference
-            var key = elementId ?? "root";
-            _highlights[key] = highlightBorder;
-
-            // Remove highlight after duration
-            Task.Delay(duration).ContinueWith(_ =>
+            if (element is not FrameworkElement fe)
             {
-                Application.Current?.Dispatcher.Invoke(() =>
+                return new { success = false, error = "Element is not a FrameworkElement" };
+            }
+
+            try
+            {
+                // Parse color
+                var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+
+                // Create highlight border
+                var highlightBorder = new Border
                 {
-                    adornerLayer.Remove(adorner);
-                    _highlights.Remove(key);
-                });
-            });
+                    BorderBrush = brush,
+                    BorderThickness = new Thickness(2),
+                    IsHitTestVisible = false
+                };
 
-            return new
+                // Get adorner layer
+                var adornerLayer = AdornerLayer.GetAdornerLayer(fe);
+                if (adornerLayer == null)
+                {
+                    return new
+                    {
+                        success = false,
+                        error = "Cannot highlight element: AdornerLayer not available",
+                        hint = "Element may not be in the visual tree or may not have an AdornerDecorator ancestor"
+                    };
+                }
+
+                // Create adorner
+                var adorner = new HighlightAdorner(fe, highlightBorder);
+                adornerLayer.Add(adorner);
+
+                // Store reference
+                var key = elementId ?? "root";
+                _highlights[key] = highlightBorder;
+
+                // Remove highlight after duration
+                Task.Delay(duration).ContinueWith(_ =>
+                {
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        adornerLayer.Remove(adorner);
+                        _highlights.Remove(key);
+                    });
+                });
+
+                return new
+                {
+                    success = true,
+                    message = $"Element highlighted with {color} for {duration}ms",
+                    color,
+                    duration,
+                    elementType = element.GetType().Name
+                };
+            }
+            catch (Exception ex)
             {
-                success = true,
-                message = $"Element highlighted with {color} for {duration}ms",
-                color,
-                duration,
-                elementType = element.GetType().Name
-            };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to highlight element: {ex.Message}" };
-        }
+                return new { success = false, error = $"Failed to highlight element: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>

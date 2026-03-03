@@ -7,7 +7,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF Performance metrics
 /// </summary>
-public class PerformanceAnalyzer
+public class PerformanceAnalyzer : DispatcherAnalyzerBase
 {
     private static readonly object _lock = new object();
     private static bool _isMonitoring = false;
@@ -27,49 +27,46 @@ public class PerformanceAnalyzer
     /// </summary>
     public object GetRenderStats()
     {
-        // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetRenderStats());
-        }
+            // Start monitoring if not already started
+            EnsureMonitoringStarted();
 
-        // Start monitoring if not already started
-        EnsureMonitoringStarted();
-
-        lock (_lock)
-        {
-            if (_frameTimes.Count == 0)
+            lock (_lock)
             {
+                if (_frameTimes.Count == 0)
+                {
+                    return new
+                    {
+                        success = true,
+                        message = "Monitoring started, waiting for frame data...",
+                        frameRate = 0.0,
+                        averageFrameTime = 0.0,
+                        minFrameTime = 0.0,
+                        maxFrameTime = 0.0,
+                        totalFrames = _frameCount,
+                        monitoringDuration = 0.0,
+                        visualCount = GetVisualCountInternal()
+                    };
+                }
+
+                var avgFrameTime = _frameTimes.Average();
+                var frameRate = avgFrameTime > 0 ? 1000.0 / avgFrameTime : 0.0;
+                var monitoringDuration = (DateTime.Now - _monitoringStartTime).TotalSeconds;
+
                 return new
                 {
                     success = true,
-                    message = "Monitoring started, waiting for frame data...",
-                    frameRate = 0.0,
-                    averageFrameTime = 0.0,
-                    minFrameTime = 0.0,
-                    maxFrameTime = 0.0,
+                    frameRate = Math.Round(frameRate, 2),
+                    averageFrameTime = Math.Round(avgFrameTime, 2),
+                    minFrameTime = Math.Round(_frameTimes.Min(), 2),
+                    maxFrameTime = Math.Round(_frameTimes.Max(), 2),
                     totalFrames = _frameCount,
-                    monitoringDuration = 0.0,
+                    monitoringDuration = Math.Round(monitoringDuration, 2),
                     visualCount = GetVisualCountInternal()
                 };
             }
-
-            var avgFrameTime = _frameTimes.Average();
-            var frameRate = avgFrameTime > 0 ? 1000.0 / avgFrameTime : 0.0;
-            var monitoringDuration = (DateTime.Now - _monitoringStartTime).TotalSeconds;
-
-            return new
-            {
-                success = true,
-                frameRate = Math.Round(frameRate, 2),
-                averageFrameTime = Math.Round(avgFrameTime, 2),
-                minFrameTime = Math.Round(_frameTimes.Min(), 2),
-                maxFrameTime = Math.Round(_frameTimes.Max(), 2),
-                totalFrames = _frameCount,
-                monitoringDuration = Math.Round(monitoringDuration, 2),
-                visualCount = GetVisualCountInternal()
-            };
-        }
+        });
     }
 
     /// <summary>
@@ -77,28 +74,25 @@ public class PerformanceAnalyzer
     /// </summary>
     public object GetVisualCount(string? elementId = null)
     {
-        // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetVisualCount(elementId));
-        }
+            var element = elementId == null
+                ? GetRootElement()
+                : FindElementById(elementId);
 
-        var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            if (element == null)
+            {
+                return new { error = "Element not found" };
+            }
 
-        if (element == null)
-        {
-            return new { error = "Element not found" };
-        }
+            var count = CountVisualElements(element);
 
-        var count = CountVisualElements(element);
-
-        return new
-        {
-            totalCount = count,
-            elementType = element.GetType().Name
-        };
+            return new
+            {
+                totalCount = count,
+                elementType = element.GetType().Name
+            };
+        });
     }
 
     /// <summary>
@@ -106,39 +100,36 @@ public class PerformanceAnalyzer
     /// </summary>
     public object MeasureElementRenderTime(string? elementId = null)
     {
-        // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => MeasureElementRenderTime(elementId));
-        }
+            var element = elementId == null
+                ? GetRootElement()
+                : FindElementById(elementId);
 
-        var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
 
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
+            // Approximate render time by forcing invalidation and measuring next frame
+            var sw = Stopwatch.StartNew();
 
-        // Approximate render time by forcing invalidation and measuring next frame
-        var sw = Stopwatch.StartNew();
+            if (element is UIElement uiElement)
+            {
+                uiElement.InvalidateVisual();
+                uiElement.UpdateLayout();
+            }
 
-        if (element is UIElement uiElement)
-        {
-            uiElement.InvalidateVisual();
-            uiElement.UpdateLayout();
-        }
+            sw.Stop();
 
-        sw.Stop();
-
-        return new
-        {
-            success = true,
-            renderTime = Math.Round(sw.Elapsed.TotalMilliseconds, 2),
-            message = "Approximate render time (includes layout update)",
-            elementType = element.GetType().Name
-        };
+            return new
+            {
+                success = true,
+                renderTime = Math.Round(sw.Elapsed.TotalMilliseconds, 2),
+                message = "Approximate render time (includes layout update)",
+                elementType = element.GetType().Name
+            };
+        });
     }
 
     /// <summary>
@@ -146,66 +137,63 @@ public class PerformanceAnalyzer
     /// </summary>
     public object FindBindingLeaks(int threshold = 100)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => FindBindingLeaks(threshold));
-        }
-
-        lock (_bindingLock)
-        {
-            // Force garbage collection to identify true leaks
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-
-            // Check which bindings are still alive
-            var aliveBindings = new List<object>();
-            var deadCount = 0;
-
-            foreach (var weakRef in _bindingReferences.ToList())
+            lock (_bindingLock)
             {
-                if (weakRef.IsAlive && weakRef.Target != null)
+                // Force garbage collection to identify true leaks
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                // Check which bindings are still alive
+                var aliveBindings = new List<object>();
+                var deadCount = 0;
+
+                foreach (var weakRef in _bindingReferences.ToList())
                 {
-                    var target = weakRef.Target;
-                    aliveBindings.Add(new
+                    if (weakRef.IsAlive && weakRef.Target != null)
                     {
-                        type = target.GetType().Name,
-                        hashCode = target.GetHashCode(),
-                        toString = target.ToString()
-                    });
+                        var target = weakRef.Target;
+                        aliveBindings.Add(new
+                        {
+                            type = target.GetType().Name,
+                            hashCode = target.GetHashCode(),
+                            toString = target.ToString()
+                        });
+                    }
+                    else
+                    {
+                        deadCount++;
+                    }
                 }
-                else
+
+                // Clean up dead references
+                _bindingReferences.RemoveAll(wr => !wr.IsAlive);
+
+                var hasLeaks = aliveBindings.Count > threshold;
+                var potentialLeaks = hasLeaks
+                    ? aliveBindings.Take(10).ToList()
+                    : new List<object>();
+
+                return new
                 {
-                    deadCount++;
-                }
+                    success = true,
+                    totalTracked = _bindingReferences.Count,
+                    aliveBindings = aliveBindings.Count,
+                    deadBindings = deadCount,
+                    threshold,
+                    hasLeaks,
+                    potentialLeaks,
+                    message = hasLeaks
+                        ? $"Potential memory leak detected: {aliveBindings.Count} bindings alive (threshold: {threshold})"
+                        : $"No binding leaks detected ({aliveBindings.Count} bindings alive, threshold: {threshold})",
+                    recommendation = hasLeaks
+                        ? "Consider checking for event handler leaks, circular references, or bindings to static objects"
+                        : "Binding memory usage appears normal"
+                };
             }
-
-            // Clean up dead references
-            _bindingReferences.RemoveAll(wr => !wr.IsAlive);
-
-            var hasLeaks = aliveBindings.Count > threshold;
-            var potentialLeaks = hasLeaks
-                ? aliveBindings.Take(10).ToList()
-                : new List<object>();
-
-            return new
-            {
-                success = true,
-                totalTracked = _bindingReferences.Count,
-                aliveBindings = aliveBindings.Count,
-                deadBindings = deadCount,
-                threshold,
-                hasLeaks,
-                potentialLeaks,
-                message = hasLeaks
-                    ? $"Potential memory leak detected: {aliveBindings.Count} bindings alive (threshold: {threshold})"
-                    : $"No binding leaks detected ({aliveBindings.Count} bindings alive, threshold: {threshold})",
-                recommendation = hasLeaks
-                    ? "Consider checking for event handler leaks, circular references, or bindings to static objects"
-                    : "Binding memory usage appears normal"
-            };
-        }
+        });
     }
 
     /// <summary>

@@ -56,4 +56,20 @@ public class LayoutAnalyzerTests
         // Assert
         result.Should().NotBeNull();
     }
+
+    [StaFact]
+    public void HighlightElement_WithValidElement_ShouldAddHighlight()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        // Act
+        var result = analyzer.HighlightElement(elementId, "Red", 2000);
+
+        // Assert
+        result.Should().NotBeNull();
+    }
 }

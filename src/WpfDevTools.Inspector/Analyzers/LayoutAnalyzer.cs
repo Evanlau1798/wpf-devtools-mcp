@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Controls;
+using System.Windows.Documents;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -10,6 +12,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 public class LayoutAnalyzer
 {
     private readonly ElementFinder _elementFinder;
+    private static readonly Dictionary<string, Border> _highlights = new();
 
     public LayoutAnalyzer(ElementFinder elementFinder)
     {
@@ -149,6 +152,104 @@ public class LayoutAnalyzer
         catch (Exception ex)
         {
             return new { success = false, error = $"Failed to invalidate layout: {ex.Message}" };
+        }
+    }
+
+    /// <summary>
+    /// Highlight an element with a colored border overlay
+    /// </summary>
+    public object HighlightElement(string? elementId, string color, int duration)
+    {
+        // Must run on UI thread
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() =>
+                HighlightElement(elementId, color, duration));
+        }
+
+        var element = elementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
+
+        if (element == null)
+        {
+            return new { success = false, error = "Element not found" };
+        }
+
+        if (element is not FrameworkElement fe)
+        {
+            return new { success = false, error = "Element is not a FrameworkElement" };
+        }
+
+        try
+        {
+            // Parse color
+            var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+
+            // Create highlight border
+            var highlightBorder = new Border
+            {
+                BorderBrush = brush,
+                BorderThickness = new Thickness(2),
+                IsHitTestVisible = false
+            };
+
+            // Get adorner layer
+            var adornerLayer = AdornerLayer.GetAdornerLayer(fe);
+            if (adornerLayer == null)
+            {
+                return new { success = false, error = "Cannot get AdornerLayer for element" };
+            }
+
+            // Create adorner
+            var adorner = new HighlightAdorner(fe, highlightBorder);
+            adornerLayer.Add(adorner);
+
+            // Store reference
+            var key = elementId ?? "root";
+            _highlights[key] = highlightBorder;
+
+            // Remove highlight after duration
+            Task.Delay(duration).ContinueWith(_ =>
+            {
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    adornerLayer.Remove(adorner);
+                    _highlights.Remove(key);
+                });
+            });
+
+            return new
+            {
+                success = true,
+                message = $"Element highlighted with {color} for {duration}ms",
+                color,
+                duration,
+                elementType = element.GetType().Name
+            };
+        }
+        catch (Exception ex)
+        {
+            return new { success = false, error = $"Failed to highlight element: {ex.Message}" };
+        }
+    }
+
+    /// <summary>
+    /// Helper adorner class for highlighting elements
+    /// </summary>
+    private class HighlightAdorner : Adorner
+    {
+        private readonly Border _border;
+
+        public HighlightAdorner(UIElement adornedElement, Border border) : base(adornedElement)
+        {
+            _border = border;
+        }
+
+        protected override void OnRender(DrawingContext drawingContext)
+        {
+            var rect = new Rect(AdornedElement.RenderSize);
+            drawingContext.DrawRectangle(null, new Pen(_border.BorderBrush, 2), rect);
         }
     }
 }

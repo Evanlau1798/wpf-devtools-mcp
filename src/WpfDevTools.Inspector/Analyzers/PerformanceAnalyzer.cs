@@ -17,6 +17,9 @@ public class PerformanceAnalyzer
     private static DateTime _monitoringStartTime;
     private const int MaxFrameSamples = 60; // Keep last 60 frames
 
+    private static readonly List<WeakReference> _bindingReferences = new List<WeakReference>();
+    private static readonly object _bindingLock = new object();
+
     /// <summary>
     /// Get render statistics
     /// </summary>
@@ -142,26 +145,87 @@ public class PerformanceAnalyzer
     public object FindBindingLeaks(int threshold = 100)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => FindBindingLeaks(threshold));
         }
 
-        // TODO: Implement binding leak detection
-        // This requires tracking binding creation and detecting memory leaks
-        // Possible approaches:
-        // 1. Track WeakReference to bindings and check if they're still alive
-        // 2. Monitor binding creation/disposal events
-        // 3. Analyze binding expressions for potential leaks (e.g., event handlers)
-        // 4. Use memory profiling to detect objects that should be GC'd but aren't
-
-        return new
+        lock (_bindingLock)
         {
-            success = true,
-            message = "Binding leak detection not yet implemented",
-            threshold = threshold,
-            leaks = new object[] { }
-        };
+            // Force garbage collection to identify true leaks
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            // Check which bindings are still alive
+            var aliveBindings = new List<object>();
+            var deadCount = 0;
+
+            foreach (var weakRef in _bindingReferences.ToList())
+            {
+                if (weakRef.IsAlive && weakRef.Target != null)
+                {
+                    var target = weakRef.Target;
+                    aliveBindings.Add(new
+                    {
+                        type = target.GetType().Name,
+                        hashCode = target.GetHashCode(),
+                        toString = target.ToString()
+                    });
+                }
+                else
+                {
+                    deadCount++;
+                }
+            }
+
+            // Clean up dead references
+            _bindingReferences.RemoveAll(wr => !wr.IsAlive);
+
+            var hasLeaks = aliveBindings.Count > threshold;
+            var potentialLeaks = hasLeaks
+                ? aliveBindings.Take(10).ToList()
+                : new List<object>();
+
+            return new
+            {
+                success = true,
+                totalTracked = _bindingReferences.Count,
+                aliveBindings = aliveBindings.Count,
+                deadBindings = deadCount,
+                threshold,
+                hasLeaks,
+                potentialLeaks,
+                message = hasLeaks
+                    ? $"Potential memory leak detected: {aliveBindings.Count} bindings alive (threshold: {threshold})"
+                    : $"No binding leaks detected ({aliveBindings.Count} bindings alive, threshold: {threshold})",
+                recommendation = hasLeaks
+                    ? "Consider checking for event handler leaks, circular references, or bindings to static objects"
+                    : "Binding memory usage appears normal"
+            };
+        }
+    }
+
+    /// <summary>
+    /// Track a binding for leak detection
+    /// </summary>
+    public static void TrackBinding(object binding)
+    {
+        lock (_bindingLock)
+        {
+            _bindingReferences.Add(new WeakReference(binding));
+        }
+    }
+
+    /// <summary>
+    /// Clear all tracked bindings
+    /// </summary>
+    public static void ClearTrackedBindings()
+    {
+        lock (_bindingLock)
+        {
+            _bindingReferences.Clear();
+        }
     }
 
     private static void EnsureMonitoringStarted()

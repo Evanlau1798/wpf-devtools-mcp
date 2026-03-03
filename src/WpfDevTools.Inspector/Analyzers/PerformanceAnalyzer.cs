@@ -87,6 +87,33 @@ public class PerformanceAnalyzer
         return new { success = true, message = "Render time measurement not yet implemented", renderTime = 0.0 };
     }
 
+    /// <summary>
+    /// Find binding leaks
+    /// </summary>
+    public object FindBindingLeaks(int threshold = 100)
+    {
+        // Must run on UI thread
+        if (!Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() => FindBindingLeaks(threshold));
+        }
+
+        // TODO: Implement binding leak detection
+        // This requires tracking binding creation and detecting memory leaks
+        // Possible approaches:
+        // 1. Track WeakReference to bindings and check if they're still alive
+        // 2. Monitor binding creation/disposal events
+        // 3. Analyze binding expressions for potential leaks (e.g., event handlers)
+
+        return new
+        {
+            success = true,
+            message = "Binding leak detection not yet implemented",
+            threshold = threshold,
+            leaks = new object[] { }
+        };
+    }
+
     private int CountVisualElements(DependencyObject element)
     {
         int count = 1; // Count the element itself

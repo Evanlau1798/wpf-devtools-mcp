@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
+    <ProjectReference Include="..\..\src\WpfDevTools.Injector\WpfDevTools.Injector.csproj" />
   </ItemGroup>
 
 </Project>

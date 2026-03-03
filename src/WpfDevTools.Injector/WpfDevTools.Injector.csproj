@@ -1,5 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <ItemGroup>
+    <ProjectReference Include="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFrameworks>net8.0;net48</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>

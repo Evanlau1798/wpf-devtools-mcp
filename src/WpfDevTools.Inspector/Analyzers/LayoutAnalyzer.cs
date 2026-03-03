@@ -32,12 +32,12 @@ public class LayoutAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { error = "Element not found" };
+                return new { success = false, error = "Element not found" };
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { error = "Element is not a FrameworkElement" };
+                return new { success = false, error = "Element is not a FrameworkElement" };
             }
 
             return new
@@ -84,12 +84,12 @@ public class LayoutAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { error = "Element not found" };
+                return new { success = false, error = "Element not found" };
             }
 
             if (element is not UIElement uiElement)
             {
-                return new { error = "Element is not a UIElement" };
+                return new { success = false, error = "Element is not a UIElement" };
             }
 
             var clip = uiElement.Clip;

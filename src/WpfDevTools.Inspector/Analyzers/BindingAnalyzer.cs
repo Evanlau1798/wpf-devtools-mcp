@@ -25,7 +25,7 @@ public class BindingAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         var bindings = new List<object>();
@@ -73,7 +73,7 @@ public class BindingAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         var chain = new List<object>();
@@ -113,19 +113,19 @@ public class BindingAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element is null" };
+            return new { success = false, error = "Element is null" };
         }
 
         if (string.IsNullOrEmpty(propertyName))
         {
-            return new { error = "propertyName is required" };
+            return new { success = false, error = "propertyName is required" };
         }
 
         // Find DependencyProperty
         var dp = FindDependencyProperty(element, propertyName);
         if (dp == null)
         {
-            return new { error = $"Property '{propertyName}' not found" };
+            return new { success = false, error = $"Property '{propertyName}' not found" };
         }
 
         // Get binding expression

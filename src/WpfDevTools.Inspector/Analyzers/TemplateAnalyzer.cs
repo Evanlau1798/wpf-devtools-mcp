@@ -26,7 +26,7 @@ public class TemplateAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         // Check for ControlTemplate
@@ -60,7 +60,7 @@ public class TemplateAnalyzer
             }
         }
 
-        return new { error = "No template found for element" };
+        return new { success = false, error = "No template found for element" };
     }
 
     /// <summary>

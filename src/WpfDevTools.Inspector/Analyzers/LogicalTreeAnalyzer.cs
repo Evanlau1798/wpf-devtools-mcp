@@ -26,7 +26,7 @@ public class LogicalTreeAnalyzer
 
         if (root == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         var tree = WalkLogicalTree(root, depth ?? 10, 0);

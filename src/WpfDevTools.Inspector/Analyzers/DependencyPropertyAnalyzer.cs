@@ -36,19 +36,19 @@ public class DependencyPropertyAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         if (element is not DependencyObject depObj)
         {
-            return new { error = "Element is not a DependencyObject" };
+            return new { success = false, error = "Element is not a DependencyObject" };
         }
 
         // Find DependencyProperty by name
         var dp = FindDependencyProperty(depObj, propertyName);
         if (dp == null)
         {
-            return new { error = $"DependencyProperty '{propertyName}' not found" };
+            return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
         }
 
         // Get value source
@@ -84,19 +84,19 @@ public class DependencyPropertyAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         if (element is not DependencyObject depObj)
         {
-            return new { error = "Element is not a DependencyObject" };
+            return new { success = false, error = "Element is not a DependencyObject" };
         }
 
         // Find DependencyProperty by name
         var dp = FindDependencyProperty(depObj, propertyName);
         if (dp == null)
         {
-            return new { error = $"DependencyProperty '{propertyName}' not found" };
+            return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
         }
 
         // Get metadata

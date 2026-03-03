@@ -33,12 +33,12 @@ public class StyleAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         if (element is not FrameworkElement fe)
         {
-            return new { error = "Element is not a FrameworkElement" };
+            return new { success = false, error = "Element is not a FrameworkElement" };
         }
 
         var styles = new List<object>();
@@ -76,12 +76,12 @@ public class StyleAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         if (element is not FrameworkElement fe)
         {
-            return new { error = "Element is not a FrameworkElement" };
+            return new { success = false, error = "Element is not a FrameworkElement" };
         }
 
         var triggers = new List<object>();
@@ -118,12 +118,12 @@ public class StyleAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         if (element is not Control control)
         {
-            return new { error = "Element is not a Control" };
+            return new { success = false, error = "Element is not a Control" };
         }
 
         if (control.Template == null)
@@ -171,12 +171,12 @@ public class StyleAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         if (element is not FrameworkElement fe)
         {
-            return new { error = "Element is not a FrameworkElement" };
+            return new { success = false, error = "Element is not a FrameworkElement" };
         }
 
         var chain = new List<object>();

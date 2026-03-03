@@ -26,7 +26,7 @@ public class ValidationErrorAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         var errors = new List<object>();

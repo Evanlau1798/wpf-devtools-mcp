@@ -26,18 +26,18 @@ public class MvvmAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         if (element is not FrameworkElement fe)
         {
-            return new { error = "Element is not a FrameworkElement" };
+            return new { success = false, error = "Element is not a FrameworkElement" };
         }
 
         var dataContext = fe.DataContext;
         if (dataContext == null)
         {
-            return new { error = "Element has no DataContext" };
+            return new { success = false, error = "Element has no DataContext" };
         }
 
         return new

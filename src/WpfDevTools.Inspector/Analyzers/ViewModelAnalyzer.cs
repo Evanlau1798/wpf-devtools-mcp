@@ -26,19 +26,19 @@ public class ViewModelAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         // Get DataContext
         if (element is not FrameworkElement fe)
         {
-            return new { error = "Element is not a FrameworkElement" };
+            return new { success = false, error = "Element is not a FrameworkElement" };
         }
 
         var dataContext = fe.DataContext;
         if (dataContext == null)
         {
-            return new { error = "DataContext is null" };
+            return new { success = false, error = "DataContext is null" };
         }
 
         // Analyze ViewModel

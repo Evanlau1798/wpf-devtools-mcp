@@ -223,12 +223,12 @@ public class EventAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { error = "Element not found" };
+                return new { success = false, error = "Element not found" };
             }
 
             if (element is not UIElement uiElement)
             {
-                return new { error = "Element is not a UIElement" };
+                return new { success = false, error = "Element is not a UIElement" };
             }
 
             var routedEvent = FindRoutedEvent(uiElement, eventName);

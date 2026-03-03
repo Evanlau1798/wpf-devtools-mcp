@@ -40,7 +40,7 @@ public class VisualTreeAnalyzer
 
         if (root == null)
         {
-            return new { error = "Root element not found" };
+            return new { success = false, error = "Root element not found" };
         }
 
         // Walk tree
@@ -72,7 +72,7 @@ public class VisualTreeAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         var visualChildren = GetVisualChildren(element);
@@ -135,7 +135,7 @@ public class VisualTreeAnalyzer
 
         if (element == null)
         {
-            return new { error = "Element not found" };
+            return new { success = false, error = "Element not found" };
         }
 
         var nameScope = NameScope.GetNameScope(element);

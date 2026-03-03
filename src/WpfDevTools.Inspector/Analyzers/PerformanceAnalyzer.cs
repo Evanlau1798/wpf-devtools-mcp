@@ -82,7 +82,7 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { error = "Element not found" };
+                return new { success = false, error = "Element not found" };
             }
 
             var count = CountVisualElements(element);

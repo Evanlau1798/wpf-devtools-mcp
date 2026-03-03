@@ -63,6 +63,7 @@ public class RequestDispatcher
             ["get_viewmodel"] = HandleGetViewModelAsync,
             ["get_commands"] = HandleGetCommandsAsync,
             ["execute_command"] = HandleExecuteCommandAsync,
+            ["modify_viewmodel"] = HandleModifyViewModelAsync,
             ["get_validation_errors"] = HandleGetValidationErrorsAsync,
 
             // DependencyProperty tools (Phase 2)
@@ -98,12 +99,14 @@ public class RequestDispatcher
 
             // Event tools (Phase 4)
             ["trace_routed_events"] = HandleTraceRoutedEventsAsync,
+            ["get_event_handlers"] = HandleGetEventHandlersAsync,
             ["fire_routed_event"] = HandleFireRoutedEventAsync,
 
             // Performance tools (Phase 4)
             ["get_render_stats"] = HandleGetRenderStatsAsync,
-            ["get_visual_count"] = HandleGetVisualCountAsync,
+            ["find_binding_leaks"] = HandleFindBindingLeaksAsync,
             ["measure_element_render_time"] = HandleMeasureElementRenderTimeAsync,
+            ["get_visual_count"] = HandleGetVisualCountAsync,
 
             // Test
             ["test_slow"] = HandleTestSlowAsync
@@ -640,6 +643,45 @@ public class RequestDispatcher
         return await Task.Run(() =>
             Application.Current.Dispatcher.Invoke(() =>
                 _layoutAnalyzer.InvalidateLayout(elementId)));
+    }
+
+    private async Task<object> HandleModifyViewModelAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var propertyName = GetStringParam(@params, "propertyName");
+        var value = GetObjectParam<object>(@params, "value");
+
+        if (string.IsNullOrEmpty(propertyName))
+            throw new ArgumentException("Missing required parameter: propertyName");
+
+        if (value == null)
+            throw new ArgumentException("Missing required parameter: value");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _mvvmAnalyzer.ModifyViewModel(elementId, propertyName!, value)));
+    }
+
+    private async Task<object> HandleGetEventHandlersAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var eventName = GetStringParam(@params, "eventName");
+
+        if (string.IsNullOrEmpty(eventName))
+            throw new ArgumentException("Missing required parameter: eventName");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _eventAnalyzer.GetEventHandlers(elementId, eventName!)));
+    }
+
+    private async Task<object> HandleFindBindingLeaksAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var threshold = GetIntParam(@params, "threshold") ?? 100;
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _performanceAnalyzer.FindBindingLeaks(threshold)));
     }
 
     private async Task<object> HandleNotImplementedAsync(JsonElement? @params, CancellationToken cancellationToken)

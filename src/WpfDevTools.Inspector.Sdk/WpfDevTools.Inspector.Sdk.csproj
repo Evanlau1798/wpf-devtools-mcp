@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>WpfDevTools.Inspector.Sdk</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>WpfDevTools</Authors>
+    <Description>Opt-in SDK for WPF DevTools MCP Server - enables inspection without DLL injection</Description>
+    <PackageTags>wpf;devtools;mcp;debugging;inspection</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj" />
+    <ProjectReference Include="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

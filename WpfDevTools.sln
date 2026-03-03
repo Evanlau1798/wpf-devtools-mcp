@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfDevTools.Tests.Integrati
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfDevTools.Tests.TestApp", "tests\WpfDevTools.Tests.TestApp\WpfDevTools.Tests.TestApp.csproj", "{9AEBCFB4-82E4-469F-96D2-C16D2B6B4775}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfDevTools.Inspector.Sdk", "src\WpfDevTools.Inspector.Sdk\WpfDevTools.Inspector.Sdk.csproj", "{5F032B23-DB7B-4A43-9293-C1365A942F37}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -115,6 +117,18 @@ Global
 		{9AEBCFB4-82E4-469F-96D2-C16D2B6B4775}.Release|x64.Build.0 = Release|Any CPU
 		{9AEBCFB4-82E4-469F-96D2-C16D2B6B4775}.Release|x86.ActiveCfg = Release|Any CPU
 		{9AEBCFB4-82E4-469F-96D2-C16D2B6B4775}.Release|x86.Build.0 = Release|Any CPU
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Debug|x64.ActiveCfg = Debug|x64
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Debug|x64.Build.0 = Debug|x64
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Debug|x86.ActiveCfg = Debug|x86
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Debug|x86.Build.0 = Debug|x86
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Release|x64.ActiveCfg = Release|x64
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Release|x64.Build.0 = Release|x64
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Release|x86.ActiveCfg = Release|x86
+		{5F032B23-DB7B-4A43-9293-C1365A942F37}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -127,5 +141,6 @@ Global
 		{6F8E9CA1-48AD-425A-9F72-4FE3A95C8480} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{A9773C6B-53A4-4EDD-818E-EBF5C97DCBFD} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{9AEBCFB4-82E4-469F-96D2-C16D2B6B4775} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{5F032B23-DB7B-4A43-9293-C1365A942F37} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

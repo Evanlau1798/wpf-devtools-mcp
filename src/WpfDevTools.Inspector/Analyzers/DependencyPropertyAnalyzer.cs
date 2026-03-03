@@ -100,10 +100,20 @@ public class DependencyPropertyAnalyzer
 
         return new
         {
-            propertyName = propertyName,
+            success = true,
+            propertyName,
             defaultValue = metadata.DefaultValue?.ToString(),
             hasCoerceValueCallback = metadata.CoerceValueCallback != null,
-            hasPropertyChangedCallback = metadata.PropertyChangedCallback != null
+            hasPropertyChangedCallback = metadata.PropertyChangedCallback != null,
+            isReadOnly = dp.ReadOnly,
+            ownerType = dp.OwnerType.Name,
+            propertyType = dp.PropertyType.Name,
+            // Framework metadata (if available)
+            affectsArrange = (metadata as FrameworkPropertyMetadata)?.AffectsArrange ?? false,
+            affectsMeasure = (metadata as FrameworkPropertyMetadata)?.AffectsMeasure ?? false,
+            affectsRender = (metadata as FrameworkPropertyMetadata)?.AffectsRender ?? false,
+            inherits = (metadata as FrameworkPropertyMetadata)?.Inherits ?? false,
+            isDataBindingAllowed = (metadata as FrameworkPropertyMetadata)?.IsDataBindingAllowed ?? true
         };
     }
 

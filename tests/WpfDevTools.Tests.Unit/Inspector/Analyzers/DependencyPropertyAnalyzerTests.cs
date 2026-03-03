@@ -57,4 +57,20 @@ public class DependencyPropertyAnalyzerTests
         result.Should().NotBeNull();
         button.Width.Should().Be(double.NaN); // Default value
     }
+
+    [StaFact]
+    public void GetMetadata_WithValidProperty_ShouldReturnMetadata()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        // Act
+        var result = analyzer.GetMetadata("Width", elementId);
+
+        // Assert
+        result.Should().NotBeNull();
+    }
 }

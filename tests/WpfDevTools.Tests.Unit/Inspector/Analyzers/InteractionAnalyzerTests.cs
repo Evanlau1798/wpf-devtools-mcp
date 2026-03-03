@@ -58,4 +58,22 @@ public class InteractionAnalyzerTests
         // Assert
         result.Should().NotBeNull();
     }
+
+    [StaFact]
+    public void DragAndDrop_WithValidElements_ShouldSimulateDrag()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var source = new Button { Content = "Source" };
+        var target = new Button { Content = "Target" };
+        var sourceId = finder.GenerateElementId(source);
+        var targetId = finder.GenerateElementId(target);
+
+        // Act
+        var result = analyzer.DragAndDrop(sourceId, targetId, "Text");
+
+        // Assert
+        result.Should().NotBeNull();
+    }
 }

@@ -4,6 +4,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.IO;
+using System.Windows.Input;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -181,6 +182,98 @@ public class InteractionAnalyzer
         catch (Exception ex)
         {
             return new { success = false, error = $"Failed to take screenshot: {ex.Message}" };
+        }
+    }
+
+    /// <summary>
+    /// Simulate drag and drop operation between elements
+    /// </summary>
+    public object DragAndDrop(string? sourceElementId, string? targetElementId, string dataFormat)
+    {
+        // Must run on UI thread
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() =>
+                DragAndDrop(sourceElementId, targetElementId, dataFormat));
+        }
+
+        var sourceElement = sourceElementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(sourceElementId);
+
+        if (sourceElement == null)
+        {
+            return new { success = false, error = "Source element not found" };
+        }
+
+        var targetElement = targetElementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(targetElementId);
+
+        if (targetElement == null)
+        {
+            return new { success = false, error = "Target element not found" };
+        }
+
+        if (sourceElement is not UIElement sourceUI || targetElement is not UIElement targetUI)
+        {
+            return new { success = false, error = "Elements must be UIElement" };
+        }
+
+        try
+        {
+            // Create drag data
+            var data = new DataObject(dataFormat, sourceElement);
+
+            // Use reflection to create DragEventArgs (constructor is internal)
+            var dragEventArgsType = typeof(DragEventArgs);
+            var constructor = dragEventArgsType.GetConstructor(
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                null,
+                new[] { typeof(IDataObject), typeof(DragDropKeyStates), typeof(DragDropEffects), typeof(DependencyObject), typeof(Point) },
+                null);
+
+            if (constructor == null)
+            {
+                return new { success = false, error = "Cannot access DragEventArgs constructor" };
+            }
+
+            // Simulate drag enter
+            var dragEnterArgs = (DragEventArgs)constructor.Invoke(new object[]
+            {
+                data,
+                DragDropKeyStates.None,
+                DragDropEffects.Copy,
+                targetUI,
+                new Point(0, 0)
+            });
+            dragEnterArgs.RoutedEvent = DragDrop.DragEnterEvent;
+            targetUI.RaiseEvent(dragEnterArgs);
+
+            // Simulate drop
+            var dropArgs = (DragEventArgs)constructor.Invoke(new object[]
+            {
+                data,
+                DragDropKeyStates.None,
+                DragDropEffects.Copy,
+                targetUI,
+                new Point(0, 0)
+            });
+            dropArgs.RoutedEvent = DragDrop.DropEvent;
+            targetUI.RaiseEvent(dropArgs);
+
+            return new
+            {
+                success = true,
+                message = "Drag and drop simulated successfully",
+                sourceType = sourceElement.GetType().Name,
+                targetType = targetElement.GetType().Name,
+                dataFormat
+            };
+        }
+        catch (Exception ex)
+        {
+            return new { success = false, error = $"Failed to simulate drag and drop: {ex.Message}" };
         }
     }
 }

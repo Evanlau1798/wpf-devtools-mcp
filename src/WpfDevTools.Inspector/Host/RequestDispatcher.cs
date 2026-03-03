@@ -20,6 +20,8 @@ public class RequestDispatcher
     private readonly MvvmAnalyzer _mvvmAnalyzer;
     private readonly DependencyPropertyAnalyzer _dependencyPropertyAnalyzer;
     private readonly LayoutAnalyzer _layoutAnalyzer;
+    private readonly InteractionAnalyzer _interactionAnalyzer;
+    private readonly StyleAnalyzer _styleAnalyzer;
 
     public RequestDispatcher()
     {
@@ -33,6 +35,8 @@ public class RequestDispatcher
         _mvvmAnalyzer = new MvvmAnalyzer(_elementFinder);
         _dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(_elementFinder);
         _layoutAnalyzer = new LayoutAnalyzer(_elementFinder);
+        _interactionAnalyzer = new InteractionAnalyzer(_elementFinder);
+        _styleAnalyzer = new StyleAnalyzer(_elementFinder);
 
         _handlers = new Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>>
         {
@@ -62,13 +66,17 @@ public class RequestDispatcher
             ["get_layout_info"] = HandleGetLayoutInfoAsync,
             ["get_clipping_info"] = HandleGetClippingInfoAsync,
 
-            // Placeholder tools (to be implemented in Phase 3-4)
-            ["click_element"] = HandleNotImplementedAsync,
-            ["scroll_to_element"] = HandleNotImplementedAsync,
-            ["element_screenshot"] = HandleNotImplementedAsync,
-            ["get_applied_styles"] = HandleNotImplementedAsync,
-            ["get_triggers"] = HandleNotImplementedAsync,
-            ["get_template_tree"] = HandleNotImplementedAsync,
+            // Interaction tools (Phase 3)
+            ["click_element"] = HandleClickElementAsync,
+            ["scroll_to_element"] = HandleScrollToElementAsync,
+            ["element_screenshot"] = HandleElementScreenshotAsync,
+
+            // Style tools (Phase 3)
+            ["get_applied_styles"] = HandleGetAppliedStylesAsync,
+            ["get_triggers"] = HandleGetTriggersAsync,
+            ["get_template_tree"] = HandleGetTemplateTreeAsync,
+
+            // Placeholder tools (to be implemented in Phase 4)
             ["trace_routed_events"] = HandleNotImplementedAsync,
             ["fire_routed_event"] = HandleNotImplementedAsync,
             ["get_render_stats"] = HandleNotImplementedAsync,
@@ -314,6 +322,60 @@ public class RequestDispatcher
         return await Task.Run(() =>
             Application.Current.Dispatcher.Invoke(() =>
                 _layoutAnalyzer.GetClippingInfo(elementId)));
+    }
+
+    private async Task<object> HandleClickElementAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _interactionAnalyzer.ClickElement(elementId)));
+    }
+
+    private async Task<object> HandleScrollToElementAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _interactionAnalyzer.ScrollToElement(elementId)));
+    }
+
+    private async Task<object> HandleElementScreenshotAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _interactionAnalyzer.TakeScreenshot(elementId)));
+    }
+
+    private async Task<object> HandleGetAppliedStylesAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _styleAnalyzer.GetAppliedStyles(elementId)));
+    }
+
+    private async Task<object> HandleGetTriggersAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _styleAnalyzer.GetTriggers(elementId)));
+    }
+
+    private async Task<object> HandleGetTemplateTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _styleAnalyzer.GetTemplateTree(elementId)));
     }
 
     private async Task<object> HandleNotImplementedAsync(JsonElement? @params, CancellationToken cancellationToken)

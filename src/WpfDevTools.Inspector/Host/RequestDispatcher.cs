@@ -24,14 +24,16 @@ public class RequestDispatcher
     private readonly StyleAnalyzer _styleAnalyzer;
     private readonly EventAnalyzer _eventAnalyzer;
     private readonly PerformanceAnalyzer _performanceAnalyzer;
+    private readonly XamlSerializer _xamlSerializer;
 
     public RequestDispatcher()
     {
         // Initialize shared utilities
         _elementFinder = new ElementFinder();
+        _xamlSerializer = new XamlSerializer();
 
         // Initialize analyzers
-        _visualTreeAnalyzer = new VisualTreeAnalyzer();
+        _visualTreeAnalyzer = new VisualTreeAnalyzer(_elementFinder);
         _bindingAnalyzer = new BindingAnalyzer();
         _logicalTreeAnalyzer = new LogicalTreeAnalyzer(_elementFinder);
         _mvvmAnalyzer = new MvvmAnalyzer(_elementFinder);
@@ -53,7 +55,9 @@ public class RequestDispatcher
 
             // Logical Tree tools
             ["get_logical_tree"] = HandleGetLogicalTreeAsync,
-            ["compare_trees"] = HandleNotImplementedAsync,
+            ["compare_trees"] = HandleCompareTreesAsync,
+            ["serialize_to_xaml"] = HandleSerializeToXamlAsync,
+            ["get_namescope"] = HandleGetNameScopeAsync,
 
             // MVVM tools
             ["get_viewmodel"] = HandleGetViewModelAsync,
@@ -79,6 +83,8 @@ public class RequestDispatcher
             ["get_applied_styles"] = HandleGetAppliedStylesAsync,
             ["get_triggers"] = HandleGetTriggersAsync,
             ["get_template_tree"] = HandleGetTemplateTreeAsync,
+            ["get_resource_chain"] = HandleGetResourceChainAsync,
+            ["override_style_setter"] = HandleOverrideStyleSetterAsync,
 
             // Event tools (Phase 4)
             ["trace_routed_events"] = HandleTraceRoutedEventsAsync,
@@ -382,6 +388,75 @@ public class RequestDispatcher
         return await Task.Run(() =>
             Application.Current.Dispatcher.Invoke(() =>
                 _styleAnalyzer.GetTemplateTree(elementId)));
+    }
+
+    private async Task<object> HandleCompareTreesAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _visualTreeAnalyzer.CompareTree(elementId)));
+    }
+
+    private async Task<object> HandleSerializeToXamlAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var element = elementId == null
+                    ? _elementFinder.GetRootElement()
+                    : _elementFinder.FindById(elementId);
+
+                if (element == null)
+                {
+                    return new { success = false, error = "Element not found" };
+                }
+
+                var xaml = _xamlSerializer.SerializeToXaml(element);
+                return new { success = true, xaml };
+            }));
+    }
+
+    private async Task<object> HandleGetNameScopeAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _visualTreeAnalyzer.GetNameScope(elementId)));
+    }
+
+    private async Task<object> HandleGetResourceChainAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var resourceKey = GetStringParam(@params, "resourceKey");
+
+        if (string.IsNullOrEmpty(resourceKey))
+            throw new ArgumentException("Missing required parameter: resourceKey");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _styleAnalyzer.GetResourceChain(elementId, resourceKey!)));
+    }
+
+    private async Task<object> HandleOverrideStyleSetterAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var propertyName = GetStringParam(@params, "propertyName");
+        var value = GetObjectParam<object>(@params, "value");
+
+        if (string.IsNullOrEmpty(propertyName))
+            throw new ArgumentException("Missing required parameter: propertyName");
+
+        if (value == null)
+            throw new ArgumentException("Missing required parameter: value");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _styleAnalyzer.OverrideStyleSetter(elementId, propertyName!, value)));
     }
 
     private async Task<object> HandleTraceRoutedEventsAsync(JsonElement? @params, CancellationToken cancellationToken)

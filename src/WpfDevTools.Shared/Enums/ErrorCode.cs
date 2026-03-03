@@ -16,22 +16,27 @@ public enum ErrorCode
     MethodNotFound = 1001,
 
     /// <summary>
+    /// Invalid parameters for method
+    /// </summary>
+    InvalidParams = 1002,
+
+    /// <summary>
     /// Internal error in Inspector
     /// </summary>
-    InternalError = 1002,
+    InternalError = 1003,
 
     /// <summary>
     /// Timeout waiting for UI thread
     /// </summary>
-    Timeout = 1003,
+    Timeout = 1004,
 
     /// <summary>
     /// Element not found in Visual Tree
     /// </summary>
-    ElementNotFound = 1004,
+    ElementNotFound = 1005,
 
     /// <summary>
     /// Invalid element identifier
     /// </summary>
-    InvalidElement = 1005
+    InvalidElement = 1006
 }

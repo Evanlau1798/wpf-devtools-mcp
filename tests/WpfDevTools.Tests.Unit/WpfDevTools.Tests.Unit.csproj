@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
     <ProjectReference Include="..\..\src\WpfDevTools.Injector\WpfDevTools.Injector.csproj" />
+    <ProjectReference Include="..\..\src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj" />
   </ItemGroup>
 
 </Project>

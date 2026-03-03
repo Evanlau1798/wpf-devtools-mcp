@@ -1,0 +1,109 @@
+using Xunit;
+using FluentAssertions;
+using System.Text.Json;
+using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Enums;
+
+namespace WpfDevTools.Tests.Unit.Inspector;
+
+public class RequestDispatcherTests
+{
+    [Fact]
+    public async Task DispatchRequest_WithUnknownMethod_ShouldReturnMethodNotFoundError()
+    {
+        // Arrange
+        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher();
+        var request = new InspectorRequest
+        {
+            Id = "test-1",
+            Method = "unknown_method",
+            Params = null
+        };
+
+        // Act
+        var response = await dispatcher.DispatchAsync(request, CancellationToken.None);
+
+        // Assert
+        response.Should().NotBeNull();
+        response.Id.Should().Be("test-1");
+        response.Result.Should().BeNull();
+        response.Error.Should().NotBeNull();
+        response.Error!.Code.Should().Be(ErrorCode.MethodNotFound);
+        response.Error.Message.Should().Contain("unknown_method");
+    }
+
+    [Fact]
+    public async Task DispatchRequest_WithPingMethod_ShouldReturnPongResult()
+    {
+        // Arrange
+        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher();
+        var request = new InspectorRequest
+        {
+            Id = "test-2",
+            Method = "ping",
+            Params = null
+        };
+
+        // Act
+        var response = await dispatcher.DispatchAsync(request, CancellationToken.None);
+
+        // Assert
+        response.Should().NotBeNull();
+        response.Id.Should().Be("test-2");
+        response.Error.Should().BeNull();
+        response.Result.Should().NotBeNull();
+
+        var result = response.Result!.Value.Deserialize<Dictionary<string, string>>();
+        result.Should().ContainKey("status");
+        result!["status"].Should().Be("pong");
+    }
+
+    [Fact]
+    public async Task DispatchRequest_WithTimeout_ShouldReturnTimeoutError()
+    {
+        // Arrange
+        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher();
+        var request = new InspectorRequest
+        {
+            Id = "test-3",
+            Method = "test_slow",
+            Params = null
+        };
+
+        var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        // Act
+        var response = await dispatcher.DispatchAsync(request, cts.Token);
+
+        // Assert
+        response.Should().NotBeNull();
+        response.Id.Should().Be("test-3");
+        response.Result.Should().BeNull();
+        response.Error.Should().NotBeNull();
+        response.Error!.Code.Should().Be(ErrorCode.InternalError);
+        response.Error.Message.Should().Contain("cancelled");
+    }
+
+    [Fact]
+    public async Task DispatchRequest_WithInvalidParams_ShouldReturnInvalidParamsError()
+    {
+        // Arrange
+        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher();
+        var request = new InspectorRequest
+        {
+            Id = "test-4",
+            Method = "get_visual_tree",
+            Params = JsonSerializer.SerializeToElement(new { invalid = "params" })
+        };
+
+        // Act
+        var response = await dispatcher.DispatchAsync(request, CancellationToken.None);
+
+        // Assert
+        response.Should().NotBeNull();
+        response.Id.Should().Be("test-4");
+        response.Result.Should().BeNull();
+        response.Error.Should().NotBeNull();
+        response.Error!.Code.Should().Be(ErrorCode.InvalidParams);
+    }
+}

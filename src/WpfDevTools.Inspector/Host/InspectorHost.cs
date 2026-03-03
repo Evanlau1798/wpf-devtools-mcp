@@ -14,6 +14,7 @@ public class InspectorHost : IDisposable
 {
     private readonly int _processId;
     private readonly string _pipeName;
+    private readonly RequestDispatcher _dispatcher;
     private NamedPipeServerStream? _pipeServer;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _serverTask;
@@ -24,6 +25,7 @@ public class InspectorHost : IDisposable
     {
         _processId = processId;
         _pipeName = $"WpfDevTools_{processId}";
+        _dispatcher = new RequestDispatcher();
     }
 
     /// <summary>
@@ -142,33 +144,17 @@ public class InspectorHost : IDisposable
         InspectorRequest request,
         CancellationToken cancellationToken)
     {
+        // Delegate to RequestDispatcher with timeout
+        var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+
         try
         {
-            // TODO: Implement request dispatcher in Task 3.3
-            // For now, return a placeholder response
-
-            await Task.CompletedTask; // Suppress async warning
-
-            return new InspectorResponse
-            {
-                Id = request.Id,
-                Result = JsonSerializer.SerializeToElement(new { status = "not_implemented" }),
-                Error = null
-            };
+            return await _dispatcher.DispatchAsync(request, timeoutCts.Token);
         }
-        catch (Exception ex)
+        finally
         {
-            return new InspectorResponse
-            {
-                Id = request.Id,
-                Result = null,
-                Error = new InspectorError
-                {
-                    Code = Shared.Enums.ErrorCode.InternalError,
-                    Message = ex.Message,
-                    Data = null
-                }
-            };
+            timeoutCts.Dispose();
         }
     }
 

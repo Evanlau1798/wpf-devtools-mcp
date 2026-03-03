@@ -1,0 +1,94 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+        platform: [x64, x86]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -p:Platform=${{ matrix.platform }}
+
+    - name: Run tests
+      run: dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}
+
+    - name: Upload build artifacts
+      if: matrix.configuration == 'Release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: wpf-devtools-mcp-${{ matrix.platform }}
+        path: |
+          src/WpfDevTools.Mcp.Server/bin/Release/net8.0/
+          src/WpfDevTools.Inspector/bin/Release/net8.0-windows/
+          src/WpfDevTools.Inspector.Sdk/bin/Release/net8.0-windows/
+
+  code-coverage:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Run tests with coverage
+      run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=./coverage/
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./tests/WpfDevTools.Tests.Unit/coverage/coverage.opencover.xml
+        flags: unittests
+        name: codecov-wpf-devtools
+
+  build-nuget:
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build SDK package
+      run: dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg
+
+    - name: Upload NuGet package
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: ./nupkg/*.nupkg

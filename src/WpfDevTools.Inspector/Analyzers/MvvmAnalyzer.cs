@@ -123,6 +123,15 @@ public class MvvmAnalyzer
 
             if (value == null)
             {
+                // Check if target type accepts null
+                if (targetType.IsValueType && Nullable.GetUnderlyingType(targetType) == null)
+                {
+                    return new
+                    {
+                        success = false,
+                        error = $"Cannot assign null to non-nullable type '{targetType.Name}'"
+                    };
+                }
                 convertedValue = null;
             }
             else if (targetType.IsAssignableFrom(value.GetType()))
@@ -131,7 +140,40 @@ public class MvvmAnalyzer
             }
             else
             {
-                convertedValue = Convert.ChangeType(value, targetType);
+                try
+                {
+                    // Handle Nullable<T>
+                    var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+                    // Handle Enum types
+                    if (underlyingType.IsEnum && value is string strValue)
+                    {
+                        convertedValue = Enum.Parse(underlyingType, strValue, ignoreCase: true);
+                    }
+                    else
+                    {
+                        convertedValue = Convert.ChangeType(value, underlyingType);
+                    }
+
+                    // If target is Nullable<T>, wrap the result
+                    if (targetType.IsGenericType &&
+                        targetType.GetGenericTypeDefinition() == typeof(Nullable<>) &&
+                        convertedValue != null)
+                    {
+                        convertedValue = Activator.CreateInstance(targetType, convertedValue);
+                    }
+                }
+                catch (Exception conversionEx)
+                {
+                    return new
+                    {
+                        success = false,
+                        error = $"Type conversion failed: {conversionEx.Message}",
+                        sourceType = value.GetType().Name,
+                        targetType = targetType.Name,
+                        hint = "Ensure the value is compatible with the property type"
+                    };
+                }
             }
 
             // Get old value

@@ -198,7 +198,12 @@ public class LayoutAnalyzer
             var adornerLayer = AdornerLayer.GetAdornerLayer(fe);
             if (adornerLayer == null)
             {
-                return new { success = false, error = "Cannot get AdornerLayer for element" };
+                return new
+                {
+                    success = false,
+                    error = "Cannot highlight element: AdornerLayer not available",
+                    hint = "Element may not be in the visual tree or may not have an AdornerDecorator ancestor"
+                };
             }
 
             // Create adorner

@@ -16,6 +16,10 @@ public class InteractionAnalyzer
 {
     private readonly ElementFinder _elementFinder;
 
+    // Reflection support for DragAndDrop
+    private static bool? _dragDropReflectionSupported = null;
+    private static readonly object _dragDropReflectionLock = new object();
+
     public InteractionAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;
@@ -197,6 +201,17 @@ public class InteractionAnalyzer
                 DragAndDrop(sourceElementId, targetElementId, dataFormat));
         }
 
+        // Check reflection support on first use
+        if (!IsDragDropReflectionSupported())
+        {
+            return new
+            {
+                success = false,
+                error = "Drag and drop simulation not supported on this .NET version",
+                note = "This feature requires access to internal DragEventArgs constructor that may not be available"
+            };
+        }
+
         var sourceElement = sourceElementId == null
             ? _elementFinder.GetRootElement()
             : _elementFinder.FindById(sourceElementId);
@@ -232,6 +247,22 @@ public class InteractionAnalyzer
                 null,
                 new[] { typeof(IDataObject), typeof(DragDropKeyStates), typeof(DragDropEffects), typeof(DependencyObject), typeof(Point) },
                 null);
+
+            if (constructor == null)
+            {
+                // Mark reflection as unsupported for future calls
+                lock (_dragDropReflectionLock)
+                {
+                    _dragDropReflectionSupported = false;
+                }
+
+                return new
+                {
+                    success = false,
+                    error = "Drag and drop simulation not available",
+                    note = "DragEventArgs internal constructor not found in this .NET version"
+                };
+            }
 
             if (constructor == null)
             {
@@ -326,9 +357,21 @@ public class InteractionAnalyzer
                 return new { success = false, error = "Invalid event type. Use 'KeyDown' or 'KeyUp'" };
             }
 
+            // Check if element is connected to a presentation source
+            var presentationSource = PresentationSource.FromVisual(uiElement);
+            if (presentationSource == null)
+            {
+                return new
+                {
+                    success = false,
+                    error = "Element is not connected to a presentation source",
+                    hint = "Element may not be in the visual tree or may not be rendered yet"
+                };
+            }
+
             var keyEventArgs = new KeyEventArgs(
                 Keyboard.PrimaryDevice,
-                PresentationSource.FromVisual(uiElement),
+                presentationSource,
                 0,
                 parsedKey)
             {
@@ -349,6 +392,31 @@ public class InteractionAnalyzer
         catch (Exception ex)
         {
             return new { success = false, error = $"Failed to simulate keyboard: {ex.Message}" };
+        }
+    }
+
+    /// <summary>
+    /// Check if reflection-based drag and drop simulation is supported
+    /// </summary>
+    private static bool IsDragDropReflectionSupported()
+    {
+        lock (_dragDropReflectionLock)
+        {
+            // Cache the result after first check
+            if (_dragDropReflectionSupported.HasValue)
+            {
+                return _dragDropReflectionSupported.Value;
+            }
+
+            // Check if the internal constructor exists
+            var constructor = typeof(DragEventArgs).GetConstructor(
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                null,
+                new[] { typeof(IDataObject), typeof(DragDropKeyStates), typeof(DragDropEffects), typeof(DependencyObject), typeof(Point) },
+                null);
+
+            _dragDropReflectionSupported = constructor != null;
+            return _dragDropReflectionSupported.Value;
         }
     }
 }

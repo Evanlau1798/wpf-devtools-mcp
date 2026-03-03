@@ -12,6 +12,12 @@ public class EventAnalyzer
     private static readonly object _lock = new object();
     private static readonly List<object> _eventTrace = new List<object>();
     private static bool _isTracing = false;
+    private static CancellationTokenSource? _tracingCts = null;
+
+    // Reflection support for GetEventHandlers
+    private const string EVENT_HANDLERS_STORE_FIELD = "EventHandlersStore";
+    private static bool? _reflectionSupported = null;
+    private static readonly object _reflectionLock = new object();
 
     public EventAnalyzer(ElementFinder elementFinder)
     {
@@ -54,6 +60,10 @@ public class EventAnalyzer
         {
             _eventTrace.Clear();
             _isTracing = true;
+
+            // Cancel any existing tracing
+            _tracingCts?.Cancel();
+            _tracingCts = new CancellationTokenSource();
         }
 
         // Register event handler
@@ -77,9 +87,10 @@ public class EventAnalyzer
         uiElement.AddHandler(routedEvent, handler);
 
         // Stop tracing after duration
-        Task.Delay(duration).ContinueWith(_ =>
+        var cts = _tracingCts;
+        Task.Delay(duration, cts.Token).ContinueWith(task =>
         {
-            if (Application.Current != null)
+            if (!task.IsCanceled && Application.Current != null)
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
@@ -90,7 +101,7 @@ public class EventAnalyzer
                     }
                 });
             }
-        });
+        }, TaskScheduler.Default);
 
         return new
         {
@@ -208,6 +219,17 @@ public class EventAnalyzer
             return new { success = false, error = "eventName is required" };
         }
 
+        // Check reflection support on first use
+        if (!IsReflectionSupported())
+        {
+            return new
+            {
+                success = false,
+                error = "Event handler inspection not supported on this .NET version",
+                note = "This feature requires access to internal WPF structures that may not be available"
+            };
+        }
+
         var element = elementId == null
             ? _elementFinder.GetRootElement()
             : _elementFinder.FindById(elementId);
@@ -233,10 +255,26 @@ public class EventAnalyzer
             var handlers = new List<object>();
 
             // Use reflection to get event handlers
-            // Note: This is a simplified implementation as WPF doesn't provide direct access to handlers
+            // Note: This accesses internal WPF structures and may not work in all .NET versions
             var eventHandlersStoreField = typeof(UIElement).GetField(
-                "EventHandlersStore",
+                EVENT_HANDLERS_STORE_FIELD,
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            if (eventHandlersStoreField == null)
+            {
+                // Mark reflection as unsupported for future calls
+                lock (_reflectionLock)
+                {
+                    _reflectionSupported = false;
+                }
+
+                return new
+                {
+                    success = false,
+                    error = "Event handler inspection not available",
+                    note = $"Internal field '{EVENT_HANDLERS_STORE_FIELD}' not found in this .NET version"
+                };
+            }
 
             if (eventHandlersStoreField != null)
             {
@@ -290,6 +328,29 @@ public class EventAnalyzer
                 error = $"Failed to get event handlers: {ex.Message}",
                 note = "Event handler inspection is limited due to WPF internal structure"
             };
+        }
+    }
+
+    /// <summary>
+    /// Check if reflection-based event handler inspection is supported
+    /// </summary>
+    private static bool IsReflectionSupported()
+    {
+        lock (_reflectionLock)
+        {
+            // Cache the result after first check
+            if (_reflectionSupported.HasValue)
+            {
+                return _reflectionSupported.Value;
+            }
+
+            // Check if the internal field exists
+            var field = typeof(UIElement).GetField(
+                EVENT_HANDLERS_STORE_FIELD,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            _reflectionSupported = field != null;
+            return _reflectionSupported.Value;
         }
     }
 }

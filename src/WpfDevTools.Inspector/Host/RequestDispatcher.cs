@@ -79,11 +79,15 @@ public class RequestDispatcher
             // Layout tools (Phase 2)
             ["get_layout_info"] = HandleGetLayoutInfoAsync,
             ["get_clipping_info"] = HandleGetClippingInfoAsync,
+            ["highlight_element"] = HandleHighlightElementAsync,
+            ["invalidate_layout"] = HandleInvalidateLayoutAsync,
 
             // Interaction tools (Phase 3)
             ["click_element"] = HandleClickElementAsync,
             ["scroll_to_element"] = HandleScrollToElementAsync,
             ["element_screenshot"] = HandleElementScreenshotAsync,
+            ["drag_and_drop"] = HandleDragAndDropAsync,
+            ["simulate_keyboard"] = HandleSimulateKeyboardAsync,
 
             // Style tools (Phase 3)
             ["get_applied_styles"] = HandleGetAppliedStylesAsync,
@@ -591,6 +595,51 @@ public class RequestDispatcher
         return await Task.Run(() =>
             Application.Current.Dispatcher.Invoke(() =>
                 _performanceAnalyzer.MeasureElementRenderTime(elementId)));
+    }
+
+    private async Task<object> HandleDragAndDropAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var sourceElementId = GetStringParam(@params, "sourceElementId");
+        var targetElementId = GetStringParam(@params, "targetElementId");
+        var dataFormat = GetStringParam(@params, "dataFormat") ?? "Text";
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _interactionAnalyzer.DragAndDrop(sourceElementId, targetElementId, dataFormat)));
+    }
+
+    private async Task<object> HandleSimulateKeyboardAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var key = GetStringParam(@params, "key");
+        var eventType = GetStringParam(@params, "eventType") ?? "KeyDown";
+
+        if (string.IsNullOrEmpty(key))
+            throw new ArgumentException("Missing required parameter: key");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _interactionAnalyzer.SimulateKeyboard(elementId, key!, eventType)));
+    }
+
+    private async Task<object> HandleHighlightElementAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+        var color = GetStringParam(@params, "color") ?? "Red";
+        var duration = GetIntParam(@params, "duration") ?? 2000;
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _layoutAnalyzer.HighlightElement(elementId, color, duration)));
+    }
+
+    private async Task<object> HandleInvalidateLayoutAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            Application.Current.Dispatcher.Invoke(() =>
+                _layoutAnalyzer.InvalidateLayout(elementId)));
     }
 
     private async Task<object> HandleNotImplementedAsync(JsonElement? @params, CancellationToken cancellationToken)

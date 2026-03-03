@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -8,20 +9,27 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public class LayoutAnalyzer
 {
+    private readonly ElementFinder _elementFinder;
+
+    public LayoutAnalyzer(ElementFinder elementFinder)
+    {
+        _elementFinder = elementFinder;
+    }
+
     /// <summary>
     /// Get layout information for an element
     /// </summary>
     public object GetLayoutInfo(string? elementId = null)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => GetLayoutInfo(elementId));
         }
 
         var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
 
         if (element == null)
         {
@@ -69,14 +77,14 @@ public class LayoutAnalyzer
     public object GetClippingInfo(string? elementId = null)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => GetClippingInfo(elementId));
         }
 
         var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
 
         if (element == null)
         {
@@ -111,14 +119,14 @@ public class LayoutAnalyzer
     public object InvalidateLayout(string? elementId = null)
     {
         // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
             return Application.Current.Dispatcher.Invoke(() => InvalidateLayout(elementId));
         }
 
         var element = elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
 
         if (element == null)
         {
@@ -142,16 +150,5 @@ public class LayoutAnalyzer
         {
             return new { success = false, error = $"Failed to invalidate layout: {ex.Message}" };
         }
-    }
-
-    private DependencyObject? GetRootElement()
-    {
-        return Application.Current?.MainWindow;
-    }
-
-    private DependencyObject? FindElementById(string elementId)
-    {
-        // TODO: Implement element lookup by ID
-        return GetRootElement();
     }
 }

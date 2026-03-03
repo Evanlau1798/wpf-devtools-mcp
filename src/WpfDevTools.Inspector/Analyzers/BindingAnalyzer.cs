@@ -135,10 +135,16 @@ public class BindingAnalyzer
             return new { success = true, hasBinding = false, message = "No binding on this property" };
         }
 
+        // Track binding for leak detection
+        var binding = bindingExpr.ParentBinding;
+        if (binding != null)
+        {
+            PerformanceAnalyzer.TrackBinding(binding);
+        }
+
         var chain = new List<object>();
 
         // Get binding details
-        var binding = bindingExpr.ParentBinding;
         chain.Add(new
         {
             step = "Binding",
@@ -233,6 +239,13 @@ public class BindingAnalyzer
             return new { success = false, error = "No binding on this property" };
         }
 
+        // Track binding for leak detection
+        var binding = bindingExpr.ParentBinding;
+        if (binding != null)
+        {
+            PerformanceAnalyzer.TrackBinding(binding);
+        }
+
         try
         {
             if (direction?.ToLower() == "source")
@@ -283,9 +296,37 @@ public class BindingAnalyzer
     {
         var bindings = new List<object>();
 
-        // TODO: Enumerate all dependency properties and check for bindings
-        // This requires reflection or using BindingOperations.GetBinding()
-        // For now, return empty list
+        // Get all dependency properties using reflection
+        var type = element.GetType();
+        var dpFields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(f => f.FieldType == typeof(DependencyProperty));
+
+        foreach (var field in dpFields)
+        {
+            var dp = field.GetValue(null) as DependencyProperty;
+            if (dp != null)
+            {
+                var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
+                if (bindingExpr != null)
+                {
+                    var binding = bindingExpr.ParentBinding;
+
+                    // Track binding for leak detection
+                    if (binding != null)
+                    {
+                        PerformanceAnalyzer.TrackBinding(binding);
+                    }
+
+                    bindings.Add(new
+                    {
+                        propertyName = dp.Name,
+                        path = binding?.Path?.Path,
+                        mode = binding?.Mode.ToString(),
+                        updateSourceTrigger = binding?.UpdateSourceTrigger.ToString()
+                    });
+                }
+            }
+        }
 
         return bindings;
     }

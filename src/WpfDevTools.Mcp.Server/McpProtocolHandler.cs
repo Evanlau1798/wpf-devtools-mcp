@@ -50,9 +50,9 @@ public class McpProtocolHandler
             // Route to handler
             object? result = method switch
             {
-                "initialize" => await HandleInitializeAsync(request, cancellationToken),
-                "tools/list" => await HandleToolsListAsync(cancellationToken),
-                "tools/call" => await HandleToolsCallAsync(request, cancellationToken),
+                "initialize" => await HandleInitializeAsync(request, cancellationToken).ConfigureAwait(false),
+                "tools/list" => await HandleToolsListAsync(cancellationToken).ConfigureAwait(false),
+                "tools/call" => await HandleToolsCallAsync(request, cancellationToken).ConfigureAwait(false),
                 _ => throw new MethodNotFoundException($"Method not found: {method}")
             };
 
@@ -150,7 +150,7 @@ public class McpProtocolHandler
 
         var arguments = paramsElement.TryGetProperty("arguments", out var args) ? args : (JsonElement?)null;
 
-        var result = await tool.ExecuteHandler(arguments, cancellationToken);
+        var result = await tool.ExecuteHandler(arguments, cancellationToken).ConfigureAwait(false);
 
         // Check if the tool result indicates an error (success: false)
         var isError = IsToolResultError(result);

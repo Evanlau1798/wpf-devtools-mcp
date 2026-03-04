@@ -68,7 +68,7 @@ public class NamedPipeClient : IDisposable
                 }
 
                 using var cts = new CancellationTokenSource(timeout);
-                await localClient.ConnectAsync(cts.Token);
+                await localClient.ConnectAsync(cts.Token).ConfigureAwait(false);
 
                 return true;
             }
@@ -77,7 +77,7 @@ public class NamedPipeClient : IDisposable
                 if (attempt == maxRetries)
                     return false;
 
-                await Task.Delay(500); // Wait before retry
+                await Task.Delay(500).ConfigureAwait(false); // Wait before retry
             }
         }
 
@@ -111,15 +111,15 @@ public class NamedPipeClient : IDisposable
             Params = requestParams != null ? JsonSerializer.SerializeToElement(requestParams) : null
         };
 
-        await _pipeSemaphore.WaitAsync(cancellationToken);
+        await _pipeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             // Serialize and send
             var requestJson = JsonSerializer.Serialize(request);
-            await MessageFraming.WriteMessageAsync(pipeClient, requestJson, cancellationToken);
+            await MessageFraming.WriteMessageAsync(pipeClient, requestJson, cancellationToken).ConfigureAwait(false);
 
             // Read response
-            var responseJson = await MessageFraming.ReadMessageAsync(pipeClient, cancellationToken);
+            var responseJson = await MessageFraming.ReadMessageAsync(pipeClient, cancellationToken).ConfigureAwait(false);
             var response = JsonSerializer.Deserialize<InspectorResponse>(responseJson);
 
             return response ?? throw new InvalidOperationException("Invalid response from Inspector");

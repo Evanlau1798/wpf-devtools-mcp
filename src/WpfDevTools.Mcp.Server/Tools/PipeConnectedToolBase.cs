@@ -80,7 +80,7 @@ public abstract class PipeConnectedToolBase
         var response = await client.SendRequestAsync(
             Guid.NewGuid().ToString("N"),
             new { method, @params = parameters },
-            ct);
+            ct).ConfigureAwait(false);
 
         if (response.Error != null)
         {

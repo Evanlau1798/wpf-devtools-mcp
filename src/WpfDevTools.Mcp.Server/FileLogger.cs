@@ -8,6 +8,7 @@ public class FileLogger
 {
     private readonly string _logFilePath;
     private readonly object _lock = new();
+    private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
 
     public FileLogger(string? logFilePath = null)
     {
@@ -37,6 +38,7 @@ public class FileLogger
         {
             lock (_lock)
             {
+                RotateIfNeeded();
                 var logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}";
                 File.AppendAllText(_logFilePath, logEntry);
             }
@@ -44,6 +46,33 @@ public class FileLogger
         catch
         {
             // Ignore logging errors to prevent crashes
+        }
+    }
+
+    private void RotateIfNeeded()
+    {
+        try
+        {
+            if (!File.Exists(_logFilePath))
+            {
+                return;
+            }
+
+            var fileInfo = new FileInfo(_logFilePath);
+            if (fileInfo.Length >= MaxFileSizeBytes)
+            {
+                var oldPath = _logFilePath + ".old";
+                // Delete existing .old file if present
+                if (File.Exists(oldPath))
+                {
+                    File.Delete(oldPath);
+                }
+                File.Move(_logFilePath, oldPath);
+            }
+        }
+        catch
+        {
+            // Ignore rotation errors to prevent crashes
         }
     }
 

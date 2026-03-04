@@ -7,7 +7,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF styles, triggers, and templates
 /// </summary>
-public class StyleAnalyzer
+public class StyleAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -21,42 +21,39 @@ public class StyleAnalyzer
     /// </summary>
     public object GetAppliedStyles(string? elementId)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetAppliedStyles(elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not FrameworkElement fe)
-        {
-            return new { success = false, error = "Element is not a FrameworkElement" };
-        }
-
-        var styles = new List<object>();
-
-        // Get explicit style
-        if (fe.Style != null)
-        {
-            styles.Add(new
+            if (element == null)
             {
-                type = "Explicit",
-                targetType = fe.Style.TargetType?.Name,
-                setterCount = fe.Style.Setters.Count,
-                triggerCount = fe.Style.Triggers.Count,
-                hasBasedOn = fe.Style.BasedOn != null
-            });
-        }
+                return new { success = false, error = "Element not found" };
+            }
 
-        return new { success = true, styles, count = styles.Count };
+            if (element is not FrameworkElement fe)
+            {
+                return new { success = false, error = "Element is not a FrameworkElement" };
+            }
+
+            var styles = new List<object>();
+
+            // Get explicit style
+            if (fe.Style != null)
+            {
+                styles.Add(new
+                {
+                    type = "Explicit",
+                    targetType = fe.Style.TargetType?.Name,
+                    setterCount = fe.Style.Setters.Count,
+                    triggerCount = fe.Style.Triggers.Count,
+                    hasBasedOn = fe.Style.BasedOn != null
+                });
+            }
+
+            return new { success = true, styles, count = styles.Count };
+        });
     }
 
     /// <summary>
@@ -64,41 +61,38 @@ public class StyleAnalyzer
     /// </summary>
     public object GetTriggers(string? elementId)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetTriggers(elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not FrameworkElement fe)
-        {
-            return new { success = false, error = "Element is not a FrameworkElement" };
-        }
-
-        var triggers = new List<object>();
-
-        // Get triggers from style
-        if (fe.Style != null)
-        {
-            foreach (var trigger in fe.Style.Triggers)
+            if (element == null)
             {
-                triggers.Add(new
-                {
-                    type = trigger.GetType().Name,
-                });
+                return new { success = false, error = "Element not found" };
             }
-        }
 
-        return new { success = true, triggers, count = triggers.Count };
+            if (element is not FrameworkElement fe)
+            {
+                return new { success = false, error = "Element is not a FrameworkElement" };
+            }
+
+            var triggers = new List<object>();
+
+            // Get triggers from style
+            if (fe.Style != null)
+            {
+                foreach (var trigger in fe.Style.Triggers)
+                {
+                    triggers.Add(new
+                    {
+                        type = trigger.GetType().Name,
+                    });
+                }
+            }
+
+            return new { success = true, triggers, count = triggers.Count };
+        });
     }
 
     /// <summary>
@@ -106,47 +100,44 @@ public class StyleAnalyzer
     /// </summary>
     public object GetTemplateTree(string? elementId)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetTemplateTree(elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not Control control)
-        {
-            return new { success = false, error = "Element is not a Control" };
-        }
-
-        if (control.Template == null)
-        {
-            return new { success = true, message = "Element has no template", hasTemplate = false };
-        }
-
-        try
-        {
-            var templateRoot = control.Template.LoadContent();
-
-            return new
+            if (element == null)
             {
-                success = true,
-                hasTemplate = true,
-                templateType = control.Template.GetType().Name,
-                rootType = templateRoot?.GetType().Name
-            };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to load template: {ex.Message}" };
-        }
+                return new { success = false, error = "Element not found" };
+            }
+
+            if (element is not Control control)
+            {
+                return new { success = false, error = "Element is not a Control" };
+            }
+
+            if (control.Template == null)
+            {
+                return new { success = true, message = "Element has no template", hasTemplate = false };
+            }
+
+            try
+            {
+                var templateRoot = control.Template.LoadContent();
+
+                return new
+                {
+                    success = true,
+                    hasTemplate = true,
+                    templateType = control.Template.GetType().Name,
+                    rootType = templateRoot?.GetType().Name
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to load template: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>
@@ -154,75 +145,72 @@ public class StyleAnalyzer
     /// </summary>
     public object GetResourceChain(string? elementId, string resourceKey)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetResourceChain(elementId, resourceKey));
-        }
-
-        if (string.IsNullOrEmpty(resourceKey))
-        {
-            return new { success = false, error = "resourceKey is required" };
-        }
-
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not FrameworkElement fe)
-        {
-            return new { success = false, error = "Element is not a FrameworkElement" };
-        }
-
-        var chain = new List<object>();
-        var current = fe;
-
-        // Walk up the tree looking for the resource
-        while (current != null)
-        {
-            if (current.Resources.Contains(resourceKey))
+            if (string.IsNullOrEmpty(resourceKey))
             {
-                var resource = current.Resources[resourceKey];
+                return new { success = false, error = "resourceKey is required" };
+            }
+
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
+
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
+
+            if (element is not FrameworkElement fe)
+            {
+                return new { success = false, error = "Element is not a FrameworkElement" };
+            }
+
+            var chain = new List<object>();
+            var current = fe;
+
+            // Walk up the tree looking for the resource
+            while (current != null)
+            {
+                if (current.Resources.Contains(resourceKey))
+                {
+                    var resource = current.Resources[resourceKey];
+                    chain.Add(new
+                    {
+                        level = "Element",
+                        elementType = current.GetType().Name,
+                        resourceKey,
+                        resourceType = resource?.GetType().Name,
+                        resourceValue = resource?.ToString()
+                    });
+                    break;
+                }
+
+                current = current.Parent as FrameworkElement;
+            }
+
+            // Check Application resources
+            if (chain.Count == 0 && Application.Current?.Resources.Contains(resourceKey) == true)
+            {
+                var resource = Application.Current.Resources[resourceKey];
                 chain.Add(new
                 {
-                    level = "Element",
-                    elementType = current.GetType().Name,
+                    level = "Application",
+                    elementType = "Application",
                     resourceKey,
                     resourceType = resource?.GetType().Name,
                     resourceValue = resource?.ToString()
                 });
-                break;
             }
 
-            current = current.Parent as FrameworkElement;
-        }
-
-        // Check Application resources
-        if (chain.Count == 0 && Application.Current?.Resources.Contains(resourceKey) == true)
-        {
-            var resource = Application.Current.Resources[resourceKey];
-            chain.Add(new
+            return new
             {
-                level = "Application",
-                elementType = "Application",
+                success = true,
                 resourceKey,
-                resourceType = resource?.GetType().Name,
-                resourceValue = resource?.ToString()
-            });
-        }
-
-        return new
-        {
-            success = true,
-            resourceKey,
-            found = chain.Count > 0,
-            chain
-        };
+                found = chain.Count > 0,
+                chain
+            };
+        });
     }
 
     /// <summary>
@@ -230,58 +218,70 @@ public class StyleAnalyzer
     /// </summary>
     public object OverrideStyleSetter(string? elementId, string propertyName, object value)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() =>
-                OverrideStyleSetter(elementId, propertyName, value));
-        }
-
-        if (string.IsNullOrEmpty(propertyName))
-        {
-            return new { success = false, error = "propertyName is required" };
-        }
-
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not FrameworkElement fe)
-        {
-            return new { success = false, error = "Element is not a FrameworkElement" };
-        }
-
-        try
-        {
-            // Find the DependencyProperty
-            var dp = FindDependencyProperty(fe, propertyName);
-            if (dp == null)
+            if (string.IsNullOrEmpty(propertyName))
             {
-                return new { success = false, error = $"Property '{propertyName}' not found" };
+                return new { success = false, error = "propertyName is required" };
             }
 
-            // Set local value (overrides style)
-            var targetType = dp.PropertyType;
-            var convertedValue = Convert.ChangeType(value, targetType);
-            fe.SetValue(dp, convertedValue);
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-            return new
+            if (element == null)
             {
-                success = true,
-                message = $"Style setter for '{propertyName}' overridden with local value",
-                propertyName,
-                newValue = convertedValue
-            };
-        }
-        catch (Exception ex)
+                return new { success = false, error = "Element not found" };
+            }
+
+            if (element is not FrameworkElement fe)
+            {
+                return new { success = false, error = "Element is not a FrameworkElement" };
+            }
+
+            try
+            {
+                // Find the DependencyProperty
+                var dp = FindDependencyProperty(fe, propertyName);
+                if (dp == null)
+                {
+                    return new { success = false, error = $"Property '{propertyName}' not found" };
+                }
+
+                // Set local value (overrides style)
+                var targetType = dp.PropertyType;
+                var convertedValue = ConvertValue(value, targetType);
+                fe.SetValue(dp, convertedValue);
+
+                return new
+                {
+                    success = true,
+                    message = $"Style setter for '{propertyName}' overridden with local value",
+                    propertyName,
+                    newValue = convertedValue
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to override setter: {ex.Message}" };
+            }
+        });
+    }
+
+    private static object? ConvertValue(object? value, Type targetType)
+    {
+        if (value == null) return null;
+        if (targetType.IsAssignableFrom(value.GetType())) return value;
+
+        // Try TypeConverter first (handles WPF types like Brush, Thickness, etc.)
+        var converter = System.ComponentModel.TypeDescriptor.GetConverter(targetType);
+        if (converter.CanConvertFrom(value.GetType()))
         {
-            return new { success = false, error = $"Failed to override setter: {ex.Message}" };
+            return converter.ConvertFrom(value);
         }
+
+        // Fallback to Convert.ChangeType for simple types
+        return Convert.ChangeType(value, targetType);
     }
 
     private DependencyProperty? FindDependencyProperty(DependencyObject element, string propertyName)

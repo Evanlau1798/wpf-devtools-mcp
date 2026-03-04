@@ -45,7 +45,7 @@ public class MvvmHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.GetViewModel(elementId));
+            _mvvmAnalyzer.GetViewModel(elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetCommandsAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -53,7 +53,7 @@ public class MvvmHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.GetCommands(elementId));
+            _mvvmAnalyzer.GetCommands(elementId), cancellationToken);
     }
 
     private async Task<object> HandleExecuteCommandAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -66,7 +66,7 @@ public class MvvmHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: commandName");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.ExecuteCommand(elementId, commandName!, parameter));
+            _mvvmAnalyzer.ExecuteCommand(elementId, commandName!, parameter), cancellationToken);
     }
 
     private async Task<object> HandleModifyViewModelAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -82,8 +82,7 @@ public class MvvmHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: value");
 
         return await Task.Run(() =>
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                _mvvmAnalyzer.ModifyViewModel(elementId, propertyName!, value)));
+            _mvvmAnalyzer.ModifyViewModel(elementId, propertyName!, value), cancellationToken);
     }
 
     private async Task<object> HandleGetValidationErrorsAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -91,6 +90,6 @@ public class MvvmHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.GetValidationErrors(elementId));
+            _mvvmAnalyzer.GetValidationErrors(elementId), cancellationToken);
     }
 }

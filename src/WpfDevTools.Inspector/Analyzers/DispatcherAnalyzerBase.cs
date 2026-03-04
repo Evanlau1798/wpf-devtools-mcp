@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Threading;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -8,9 +9,9 @@ namespace WpfDevTools.Inspector.Analyzers;
 public abstract class DispatcherAnalyzerBase
 {
     /// <summary>
-    /// Execute an action on the UI thread
+    /// Execute an action on the UI thread with optional timeout
     /// </summary>
-    protected T InvokeOnUIThread<T>(Func<T> action)
+    protected T InvokeOnUIThread<T>(Func<T> action, TimeSpan? timeout = null)
     {
         // If no WPF application context, execute directly
         if (Application.Current == null)
@@ -24,14 +25,19 @@ public abstract class DispatcherAnalyzerBase
             return action();
         }
 
-        // Otherwise, invoke on UI thread
-        return Application.Current.Dispatcher.Invoke(action);
+        // Otherwise, invoke on UI thread with timeout
+        var actualTimeout = timeout ?? TimeSpan.FromSeconds(5);
+        return Application.Current.Dispatcher.Invoke(
+            action,
+            DispatcherPriority.Normal,
+            CancellationToken.None,
+            actualTimeout);
     }
 
     /// <summary>
-    /// Execute an action on the UI thread (void return)
+    /// Execute an action on the UI thread (void return) with optional timeout
     /// </summary>
-    protected void InvokeOnUIThread(Action action)
+    protected void InvokeOnUIThread(Action action, TimeSpan? timeout = null)
     {
         // If no WPF application context, execute directly
         if (Application.Current == null)
@@ -47,7 +53,12 @@ public abstract class DispatcherAnalyzerBase
         }
         else
         {
-            Application.Current.Dispatcher.Invoke(action);
+            var actualTimeout = timeout ?? TimeSpan.FromSeconds(5);
+            Application.Current.Dispatcher.Invoke(
+                action,
+                DispatcherPriority.Normal,
+                CancellationToken.None,
+                actualTimeout);
         }
     }
 

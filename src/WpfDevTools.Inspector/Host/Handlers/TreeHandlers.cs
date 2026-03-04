@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Windows;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 
@@ -58,8 +57,7 @@ public class TreeHandlers : IRequestHandler
         var depth = ParameterHelpers.GetIntParam(@params, "depth");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _visualTreeAnalyzer.GetVisualTree(depth, elementId)));
+            _visualTreeAnalyzer.GetVisualTree(depth, elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetLogicalTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -68,7 +66,7 @@ public class TreeHandlers : IRequestHandler
         var depth = ParameterHelpers.GetIntParam(@params, "depth");
 
         return await Task.Run(() =>
-            _logicalTreeAnalyzer.GetLogicalTree(depth, elementId));
+            _logicalTreeAnalyzer.GetLogicalTree(depth, elementId), cancellationToken);
     }
 
     private async Task<object> HandleCompareTreesAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -76,8 +74,7 @@ public class TreeHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _visualTreeAnalyzer.CompareTree(elementId)));
+            _visualTreeAnalyzer.CompareTree(elementId), cancellationToken);
     }
 
     private async Task<object> HandleSerializeToXamlAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -85,7 +82,10 @@ public class TreeHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke<object>(() =>
+        {
+            // XamlSerializer is a utility, not an analyzer with dispatch support.
+            // Element lookup and XAML serialization must run on the UI thread.
+            return System.Windows.Application.Current.Dispatcher.Invoke<object>(() =>
             {
                 var element = elementId == null
                     ? _elementFinder.GetRootElement()
@@ -98,7 +98,8 @@ public class TreeHandlers : IRequestHandler
 
                 var xaml = _xamlSerializer.SerializeToXaml(element);
                 return new { success = true, xaml };
-            }));
+            });
+        }, cancellationToken);
     }
 
     private async Task<object> HandleGetNameScopeAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -106,7 +107,6 @@ public class TreeHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _visualTreeAnalyzer.GetNameScope(elementId)));
+            _visualTreeAnalyzer.GetNameScope(elementId), cancellationToken);
     }
 }

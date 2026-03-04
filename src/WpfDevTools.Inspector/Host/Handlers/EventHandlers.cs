@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Windows;
 using WpfDevTools.Inspector.Analyzers;
 
 namespace WpfDevTools.Inspector.Host.Handlers;
@@ -47,8 +46,7 @@ public class EventHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: eventName");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _eventAnalyzer.TraceRoutedEvents(elementId, eventName!, duration)));
+            _eventAnalyzer.TraceRoutedEvents(elementId, eventName!, duration), cancellationToken);
     }
 
     private async Task<object> HandleGetEventHandlersAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -60,8 +58,7 @@ public class EventHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: eventName");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _eventAnalyzer.GetEventHandlers(elementId, eventName!)));
+            _eventAnalyzer.GetEventHandlers(elementId, eventName!), cancellationToken);
     }
 
     private async Task<object> HandleFireRoutedEventAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -74,7 +71,6 @@ public class EventHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: eventName");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _eventAnalyzer.FireRoutedEvent(elementId, eventName!, eventArgs)));
+            _eventAnalyzer.FireRoutedEvent(elementId, eventName!, eventArgs), cancellationToken);
     }
 }

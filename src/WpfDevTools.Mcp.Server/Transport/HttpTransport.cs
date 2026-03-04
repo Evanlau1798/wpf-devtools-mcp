@@ -90,6 +90,9 @@ public class HttpTransport : ITransport, IDisposable
 
     public void Dispose()
     {
-        _app?.DisposeAsync().AsTask().Wait();
+        if (_app != null)
+        {
+            Task.Run(() => _app.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(5));
+        }
     }
 }

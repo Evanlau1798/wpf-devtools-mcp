@@ -1,98 +1,31 @@
+using System.Text.Json;
+
 namespace WpfDevTools.Mcp.Server.Tools;
 
 /// <summary>
 /// MCP tool to override style setter values
 /// </summary>
-public class OverrideStyleSetterTool
+public class OverrideStyleSetterTool : PipeConnectedToolBase
 {
-    private readonly SessionManager _sessionManager;
-
-    public OverrideStyleSetterTool(SessionManager? sessionManager = null)
-    {
-        _sessionManager = sessionManager ?? new SessionManager();
-    }
+    public OverrideStyleSetterTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public async Task<object> ExecuteAsync(object parameters, CancellationToken cancellationToken)
+    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask; // Suppress async warning
-
-        // Parse parameters
-        int? processId = null;
-        string? propertyName = null;
-        string? value = null;
-        string? elementId = null;
-
-        if (parameters != null)
-        {
-            var paramsType = parameters.GetType();
-
-            var processIdProp = paramsType.GetProperty("processId");
-            var processIdValue = processIdProp?.GetValue(parameters);
-            if (processIdValue != null)
-            {
-                processId = Convert.ToInt32(processIdValue);
-            }
-
-            var propertyNameProp = paramsType.GetProperty("propertyName");
-            propertyName = propertyNameProp?.GetValue(parameters)?.ToString();
-
-            var valueProp = paramsType.GetProperty("value");
-            value = valueProp?.GetValue(parameters)?.ToString();
-
-            var elementIdProp = paramsType.GetProperty("elementId");
-            elementId = elementIdProp?.GetValue(parameters)?.ToString();
-        }
-
-        if (!processId.HasValue)
-        {
-            return new
-            {
-                success = false,
-                error = "Missing required parameter: processId"
-            };
-        }
+        var (processId, elementId, error) = ParseCommonParams(arguments);
+        if (error != null) return error;
+        var propertyName = ParseStringParam(arguments, "propertyName");
+        var value = ParseStringParam(arguments, "value");
 
         if (string.IsNullOrEmpty(propertyName))
-        {
-            return new
-            {
-                success = false,
-                error = "Missing required parameter: propertyName"
-            };
-        }
+            return CreateMissingParamError("propertyName");
 
         if (value == null)
-        {
-            return new
-            {
-                success = false,
-                error = "Missing required parameter: value"
-            };
-        }
+            return CreateMissingParamError("value");
 
-        // Check if session exists
-        if (!_sessionManager.HasSession(processId.Value))
-        {
-            return new
-            {
-                success = false,
-                error = $"Process {processId.Value} is not connected"
-            };
-        }
-
-        // TODO: Implement Named Pipe communication to Inspector
-        // For now, return a placeholder response
-        return new
-        {
-            success = true,
-            message = "Style setter override not yet implemented (requires Named Pipe communication)",
-            processId = processId.Value,
-            propertyName = propertyName,
-            value = value,
-            elementId = elementId
-        };
+        return await SendInspectorRequestAsync(processId, "override_style_setter",
+            new { elementId, propertyName, value }, cancellationToken);
     }
 }

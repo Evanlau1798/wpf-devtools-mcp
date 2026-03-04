@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace WpfDevTools.Mcp.Server;
 
 /// <summary>
@@ -19,4 +21,9 @@ public class ToolDefinition
     /// JSON schema for tool parameters
     /// </summary>
     public required object Parameters { get; init; }
+
+    /// <summary>
+    /// Handler delegate for executing the tool
+    /// </summary>
+    public Func<JsonElement?, CancellationToken, Task<object>>? ExecuteHandler { get; init; }
 }

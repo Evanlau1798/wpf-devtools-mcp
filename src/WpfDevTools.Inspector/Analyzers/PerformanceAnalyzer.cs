@@ -12,7 +12,7 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
     private static readonly object _lock = new object();
     private static bool _isMonitoring = false;
     private static Stopwatch _frameStopwatch = new Stopwatch();
-    private static List<double> _frameTimes = new List<double>();
+    private static readonly List<double> _frameTimes = new List<double>();
     private static int _frameCount = 0;
     private static DateTime _monitoringStartTime;
 
@@ -137,15 +137,15 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object FindBindingLeaks(int threshold = 100)
     {
+        // Force garbage collection OUTSIDE the UI thread to avoid blocking rendering
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
         return InvokeOnUIThread<object>(() =>
         {
             lock (_bindingLock)
             {
-                // Force garbage collection to identify true leaks
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
-
                 // Check which bindings are still alive
                 var aliveBindings = new List<object>();
                 var deadCount = 0;

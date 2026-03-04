@@ -1,89 +1,28 @@
+using System.Text.Json;
+
 namespace WpfDevTools.Mcp.Server.Tools;
 
 /// <summary>
 /// MCP tool to execute commands in WPF application
 /// </summary>
-public class ExecuteCommandTool
+public class ExecuteCommandTool : PipeConnectedToolBase
 {
-    private readonly SessionManager _sessionManager;
-
-    public ExecuteCommandTool(SessionManager? sessionManager = null)
-    {
-        _sessionManager = sessionManager ?? new SessionManager();
-    }
+    public ExecuteCommandTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public async Task<object> ExecuteAsync(object parameters, CancellationToken cancellationToken)
+    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask; // Suppress async warning
-
-        // Parse parameters
-        int? processId = null;
-        string? commandName = null;
-        string? parameter = null;
-        string? elementId = null;
-
-        if (parameters != null)
-        {
-            var paramsType = parameters.GetType();
-
-            var processIdProp = paramsType.GetProperty("processId");
-            var processIdValue = processIdProp?.GetValue(parameters);
-            if (processIdValue != null)
-            {
-                processId = Convert.ToInt32(processIdValue);
-            }
-
-            var commandNameProp = paramsType.GetProperty("commandName");
-            commandName = commandNameProp?.GetValue(parameters)?.ToString();
-
-            var parameterProp = paramsType.GetProperty("parameter");
-            parameter = parameterProp?.GetValue(parameters)?.ToString();
-
-            var elementIdProp = paramsType.GetProperty("elementId");
-            elementId = elementIdProp?.GetValue(parameters)?.ToString();
-        }
-
-        if (!processId.HasValue)
-        {
-            return new
-            {
-                success = false,
-                error = "Missing required parameter: processId"
-            };
-        }
+        var (processId, elementId, error) = ParseCommonParams(arguments);
+        if (error != null) return error;
+        var commandName = ParseStringParam(arguments, "commandName");
+        var parameter = ParseStringParam(arguments, "parameter");
 
         if (string.IsNullOrEmpty(commandName))
-        {
-            return new
-            {
-                success = false,
-                error = "Missing required parameter: commandName"
-            };
-        }
+            return CreateMissingParamError("commandName");
 
-        // Check if session exists
-        if (!_sessionManager.HasSession(processId.Value))
-        {
-            return new
-            {
-                success = false,
-                error = $"Process {processId.Value} is not connected"
-            };
-        }
-
-        // TODO: Implement Named Pipe communication to Inspector
-        // For now, return a placeholder response
-        return new
-        {
-            success = true,
-            message = "Command execution not yet implemented (requires Named Pipe communication)",
-            processId = processId.Value,
-            commandName = commandName,
-            parameter = parameter,
-            elementId = elementId
-        };
+        return await SendInspectorRequestAsync(processId, "execute_command",
+            new { elementId, commandName, parameter }, cancellationToken);
     }
 }

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Windows;
 using WpfDevTools.Inspector.Analyzers;
 
 namespace WpfDevTools.Inspector.Host.Handlers;
@@ -46,8 +45,7 @@ public class InteractionHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _interactionAnalyzer.ClickElement(elementId)));
+            _interactionAnalyzer.ClickElement(elementId), cancellationToken);
     }
 
     private async Task<object> HandleScrollToElementAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -55,8 +53,7 @@ public class InteractionHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _interactionAnalyzer.ScrollToElement(elementId)));
+            _interactionAnalyzer.ScrollToElement(elementId), cancellationToken);
     }
 
     private async Task<object> HandleElementScreenshotAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -64,8 +61,7 @@ public class InteractionHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _interactionAnalyzer.TakeScreenshot(elementId)));
+            _interactionAnalyzer.TakeScreenshot(elementId), cancellationToken);
     }
 
     private async Task<object> HandleDragAndDropAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -75,8 +71,7 @@ public class InteractionHandlers : IRequestHandler
         var dataFormat = ParameterHelpers.GetStringParam(@params, "dataFormat") ?? InspectorConstants.DataFormats.Text;
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _interactionAnalyzer.DragAndDrop(sourceElementId, targetElementId, dataFormat)));
+            _interactionAnalyzer.DragAndDrop(sourceElementId, targetElementId, dataFormat), cancellationToken);
     }
 
     private async Task<object> HandleSimulateKeyboardAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -89,7 +84,6 @@ public class InteractionHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: key");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _interactionAnalyzer.SimulateKeyboard(elementId, key!, eventType)));
+            _interactionAnalyzer.SimulateKeyboard(elementId, key!, eventType), cancellationToken);
     }
 }

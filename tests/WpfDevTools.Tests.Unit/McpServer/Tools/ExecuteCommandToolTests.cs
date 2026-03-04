@@ -3,6 +3,7 @@ using FluentAssertions;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
@@ -12,11 +13,11 @@ public class ExecuteCommandToolTests
     public async Task Execute_WithoutConnection_ShouldReturnError()
     {
         // Arrange
-        var tool = new ExecuteCommandTool();
+        var tool = new ExecuteCommandTool(new SessionManager());
         var parameters = new { processId = 12345, commandName = "SaveCommand" };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -29,11 +30,11 @@ public class ExecuteCommandToolTests
     public async Task Execute_WithMissingProcessId_ShouldReturnError()
     {
         // Arrange
-        var tool = new ExecuteCommandTool();
+        var tool = new ExecuteCommandTool(new SessionManager());
         var parameters = new { commandName = "SaveCommand" };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -52,7 +53,7 @@ public class ExecuteCommandToolTests
         var parameters = new { processId = 12345 };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -71,7 +72,7 @@ public class ExecuteCommandToolTests
         var parameters = new { processId = 12345, commandName = "SaveCommand", parameter = "test.txt" };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using WpfDevTools.Injector.Discovery;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -17,28 +18,20 @@ public class GetProcessesTool
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public async Task<object> ExecuteAsync(object parameters, CancellationToken cancellationToken)
+    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask; // Suppress async warning
+        await Task.CompletedTask;
 
-        // Parse parameters
         string? nameFilter = null;
-        if (parameters != null)
-        {
-            var paramsType = parameters.GetType();
-            var nameFilterProp = paramsType.GetProperty("nameFilter");
-            nameFilter = nameFilterProp?.GetValue(parameters)?.ToString();
-        }
+        if (arguments.HasValue && arguments.Value.TryGetProperty("nameFilter", out var filterProp))
+            nameFilter = filterProp.GetString();
 
-        // Get all WPF processes
         var allProcesses = _detector.GetAllWpfProcesses();
 
-        // Apply filter if specified
         var filteredProcesses = string.IsNullOrEmpty(nameFilter)
             ? allProcesses
             : allProcesses.Where(p => p.ProcessName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        // Map to result format
         var processes = filteredProcesses.Select(p => new
         {
             processId = p.ProcessId,

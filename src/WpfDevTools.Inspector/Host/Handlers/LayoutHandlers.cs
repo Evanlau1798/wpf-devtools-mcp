@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Windows;
 using WpfDevTools.Inspector.Analyzers;
 
 namespace WpfDevTools.Inspector.Host.Handlers;
@@ -44,8 +43,7 @@ public class LayoutHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _layoutAnalyzer.GetLayoutInfo(elementId)));
+            _layoutAnalyzer.GetLayoutInfo(elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetClippingInfoAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -53,8 +51,7 @@ public class LayoutHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _layoutAnalyzer.GetClippingInfo(elementId)));
+            _layoutAnalyzer.GetClippingInfo(elementId), cancellationToken);
     }
 
     private async Task<object> HandleHighlightElementAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -64,8 +61,7 @@ public class LayoutHandlers : IRequestHandler
         var duration = ParameterHelpers.GetIntParam(@params, "duration") ?? InspectorConstants.Defaults.HighlightDuration;
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _layoutAnalyzer.HighlightElement(elementId, color, duration)));
+            _layoutAnalyzer.HighlightElement(elementId, color, duration), cancellationToken);
     }
 
     private async Task<object> HandleInvalidateLayoutAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -73,7 +69,6 @@ public class LayoutHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _layoutAnalyzer.InvalidateLayout(elementId)));
+            _layoutAnalyzer.InvalidateLayout(elementId), cancellationToken);
     }
 }

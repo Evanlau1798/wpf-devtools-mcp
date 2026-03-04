@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using System.IO;
+using WpfDevTools.Inspector.Analyzers;
 
 namespace WpfDevTools.Inspector;
 
@@ -12,6 +13,7 @@ public static class Bootstrap
 {
     private static bool _isInitialized;
     private static readonly object _lock = new object();
+    private static Host.InspectorHost? _host;
 
     /// <summary>
     /// Initialize the Inspector in the target WPF application
@@ -109,8 +111,11 @@ public static class Bootstrap
 
         // Initialize InspectorHost with Named Pipe server
         var processId = System.Diagnostics.Process.GetCurrentProcess().Id;
-        var host = new Host.InspectorHost(processId);
-        host.Start();
+        _host = new Host.InspectorHost(processId);
+        _host.Start();
+
+        // Start capturing binding errors immediately after injection
+        BindingErrorTraceListener.Install();
 
         LogInfo($"Inspector initialized successfully. Named Pipe: WpfDevTools_{processId}");
     }

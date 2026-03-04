@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Windows;
 using WpfDevTools.Inspector.Analyzers;
 
 namespace WpfDevTools.Inspector.Host.Handlers;
@@ -42,8 +41,7 @@ public class PerformanceHandlers : IRequestHandler
     private async Task<object> HandleGetRenderStatsAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _performanceAnalyzer.GetRenderStats()));
+            _performanceAnalyzer.GetRenderStats(), cancellationToken);
     }
 
     private async Task<object> HandleFindBindingLeaksAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -51,8 +49,7 @@ public class PerformanceHandlers : IRequestHandler
         var threshold = ParameterHelpers.GetIntParam(@params, "threshold") ?? InspectorConstants.Defaults.BindingLeakThreshold;
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _performanceAnalyzer.FindBindingLeaks(threshold)));
+            _performanceAnalyzer.FindBindingLeaks(threshold), cancellationToken);
     }
 
     private async Task<object> HandleMeasureElementRenderTimeAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -60,8 +57,7 @@ public class PerformanceHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _performanceAnalyzer.MeasureElementRenderTime(elementId)));
+            _performanceAnalyzer.MeasureElementRenderTime(elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetVisualCountAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -69,7 +65,6 @@ public class PerformanceHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _performanceAnalyzer.GetVisualCount(elementId)));
+            _performanceAnalyzer.GetVisualCount(elementId), cancellationToken);
     }
 }

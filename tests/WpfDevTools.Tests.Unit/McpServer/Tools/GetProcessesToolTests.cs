@@ -2,6 +2,7 @@ using Xunit;
 using FluentAssertions;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Tools;
+using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
@@ -15,7 +16,7 @@ public class GetProcessesToolTests
         var parameters = new { };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -31,7 +32,7 @@ public class GetProcessesToolTests
         var parameters = new { nameFilter = "TestApp" };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -54,7 +55,7 @@ public class GetProcessesToolTests
         var parameters = new { };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();

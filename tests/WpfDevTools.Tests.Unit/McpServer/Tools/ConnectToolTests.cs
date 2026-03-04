@@ -1,7 +1,9 @@
 using Xunit;
 using FluentAssertions;
 using System.Text.Json;
+using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
@@ -11,11 +13,11 @@ public class ConnectToolTests
     public async Task Execute_WithInvalidProcessId_ShouldReturnError()
     {
         // Arrange
-        var tool = new ConnectTool();
+        var tool = new ConnectTool(new SessionManager());
         var parameters = new { processId = 999999 };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -28,11 +30,11 @@ public class ConnectToolTests
     public async Task Execute_WithMissingProcessId_ShouldReturnError()
     {
         // Arrange
-        var tool = new ConnectTool();
+        var tool = new ConnectTool(new SessionManager());
         var parameters = new { };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -45,7 +47,7 @@ public class ConnectToolTests
     public async Task Execute_WithNonWpfProcess_ShouldReturnError()
     {
         // Arrange
-        var tool = new ConnectTool();
+        var tool = new ConnectTool(new SessionManager());
 
         // Find a system process that is definitely not WPF (e.g., svchost, System, Idle)
         var systemProcesses = System.Diagnostics.Process.GetProcessesByName("svchost");
@@ -65,7 +67,7 @@ public class ConnectToolTests
         var parameters = new { processId = nonWpfProcessId };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();

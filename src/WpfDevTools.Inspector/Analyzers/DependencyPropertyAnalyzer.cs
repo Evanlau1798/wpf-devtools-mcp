@@ -7,10 +7,10 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF DependencyProperty values and sources
 /// </summary>
-public class DependencyPropertyAnalyzer
+public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
-    private static readonly Dictionary<string, DependencyPropertyDescriptor> _watchers = new();
+    private static readonly Dictionary<string, (DependencyPropertyDescriptor Descriptor, EventHandler Handler)> _watchers = new();
     private static readonly List<object> _changeLog = new();
     private static readonly object _watchLock = new object();
 
@@ -24,47 +24,44 @@ public class DependencyPropertyAnalyzer
     /// </summary>
     public object GetValueSource(string propertyName, string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetValueSource(propertyName, elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
 
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
+            if (element is not DependencyObject depObj)
+            {
+                return new { success = false, error = "Element is not a DependencyObject" };
+            }
 
-        if (element is not DependencyObject depObj)
-        {
-            return new { success = false, error = "Element is not a DependencyObject" };
-        }
+            // Find DependencyProperty by name
+            var dp = FindDependencyProperty(depObj, propertyName);
+            if (dp == null)
+            {
+                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+            }
 
-        // Find DependencyProperty by name
-        var dp = FindDependencyProperty(depObj, propertyName);
-        if (dp == null)
-        {
-            return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
-        }
+            // Get value source
+            var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
+            var effectiveValue = depObj.GetValue(dp);
 
-        // Get value source
-        var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
-        var effectiveValue = depObj.GetValue(dp);
-
-        return new
-        {
-            propertyName = propertyName,
-            baseValueSource = valueSource.BaseValueSource.ToString(),
-            isExpression = valueSource.IsExpression,
-            isAnimated = valueSource.IsAnimated,
-            isCoerced = valueSource.IsCoerced,
-            isCurrent = valueSource.IsCurrent,
-            effectiveValue = effectiveValue?.ToString()
-        };
+            return new
+            {
+                propertyName = propertyName,
+                baseValueSource = valueSource.BaseValueSource.ToString(),
+                isExpression = valueSource.IsExpression,
+                isAnimated = valueSource.IsAnimated,
+                isCoerced = valueSource.IsCoerced,
+                isCurrent = valueSource.IsCurrent,
+                effectiveValue = effectiveValue?.ToString()
+            };
+        });
     }
 
     /// <summary>
@@ -72,53 +69,50 @@ public class DependencyPropertyAnalyzer
     /// </summary>
     public object GetMetadata(string propertyName, string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetMetadata(propertyName, elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
 
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
+            if (element is not DependencyObject depObj)
+            {
+                return new { success = false, error = "Element is not a DependencyObject" };
+            }
 
-        if (element is not DependencyObject depObj)
-        {
-            return new { success = false, error = "Element is not a DependencyObject" };
-        }
+            // Find DependencyProperty by name
+            var dp = FindDependencyProperty(depObj, propertyName);
+            if (dp == null)
+            {
+                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+            }
 
-        // Find DependencyProperty by name
-        var dp = FindDependencyProperty(depObj, propertyName);
-        if (dp == null)
-        {
-            return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
-        }
+            // Get metadata
+            var metadata = dp.GetMetadata(depObj.GetType());
 
-        // Get metadata
-        var metadata = dp.GetMetadata(depObj.GetType());
-
-        return new
-        {
-            success = true,
-            propertyName,
-            defaultValue = metadata.DefaultValue?.ToString(),
-            hasCoerceValueCallback = metadata.CoerceValueCallback != null,
-            hasPropertyChangedCallback = metadata.PropertyChangedCallback != null,
-            isReadOnly = dp.ReadOnly,
-            ownerType = dp.OwnerType.Name,
-            propertyType = dp.PropertyType.Name,
-            // Framework metadata (if available)
-            affectsArrange = (metadata as FrameworkPropertyMetadata)?.AffectsArrange ?? false,
-            affectsMeasure = (metadata as FrameworkPropertyMetadata)?.AffectsMeasure ?? false,
-            affectsRender = (metadata as FrameworkPropertyMetadata)?.AffectsRender ?? false,
-            inherits = (metadata as FrameworkPropertyMetadata)?.Inherits ?? false,
-            isDataBindingAllowed = (metadata as FrameworkPropertyMetadata)?.IsDataBindingAllowed ?? true
-        };
+            return new
+            {
+                success = true,
+                propertyName,
+                defaultValue = metadata.DefaultValue?.ToString(),
+                hasCoerceValueCallback = metadata.CoerceValueCallback != null,
+                hasPropertyChangedCallback = metadata.PropertyChangedCallback != null,
+                isReadOnly = dp.ReadOnly,
+                ownerType = dp.OwnerType.Name,
+                propertyType = dp.PropertyType.Name,
+                // Framework metadata (if available)
+                affectsArrange = (metadata as FrameworkPropertyMetadata)?.AffectsArrange ?? false,
+                affectsMeasure = (metadata as FrameworkPropertyMetadata)?.AffectsMeasure ?? false,
+                affectsRender = (metadata as FrameworkPropertyMetadata)?.AffectsRender ?? false,
+                inherits = (metadata as FrameworkPropertyMetadata)?.Inherits ?? false,
+                isDataBindingAllowed = (metadata as FrameworkPropertyMetadata)?.IsDataBindingAllowed ?? true
+            };
+        });
     }
 
     /// <summary>
@@ -126,46 +120,43 @@ public class DependencyPropertyAnalyzer
     /// </summary>
     public object SetValue(string propertyName, object value, string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => SetValue(propertyName, value, elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
 
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
+            if (element is not DependencyObject depObj)
+            {
+                return new { success = false, error = "Element is not a DependencyObject" };
+            }
 
-        if (element is not DependencyObject depObj)
-        {
-            return new { success = false, error = "Element is not a DependencyObject" };
-        }
+            // Find DependencyProperty by name
+            var dp = FindDependencyProperty(depObj, propertyName);
+            if (dp == null)
+            {
+                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+            }
 
-        // Find DependencyProperty by name
-        var dp = FindDependencyProperty(depObj, propertyName);
-        if (dp == null)
-        {
-            return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
-        }
+            try
+            {
+                // Convert value to correct type
+                var targetType = dp.PropertyType;
+                var convertedValue = ConvertValue(value, targetType);
 
-        try
-        {
-            // Convert value to correct type
-            var targetType = dp.PropertyType;
-            var convertedValue = Convert.ChangeType(value, targetType);
-
-            depObj.SetValue(dp, convertedValue);
-            return new { success = true, message = $"Property '{propertyName}' set successfully" };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to set property: {ex.Message}" };
-        }
+                depObj.SetValue(dp, convertedValue);
+                return new { success = true, message = $"Property '{propertyName}' set successfully" };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to set property: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>
@@ -173,42 +164,55 @@ public class DependencyPropertyAnalyzer
     /// </summary>
     public object ClearValue(string propertyName, string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => ClearValue(propertyName, elementId));
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
+
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
+
+            if (element is not DependencyObject depObj)
+            {
+                return new { success = false, error = "Element is not a DependencyObject" };
+            }
+
+            // Find DependencyProperty by name
+            var dp = FindDependencyProperty(depObj, propertyName);
+            if (dp == null)
+            {
+                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+            }
+
+            try
+            {
+                depObj.ClearValue(dp);
+                return new { success = true, message = $"Property '{propertyName}' cleared successfully" };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to clear property: {ex.Message}" };
+            }
+        });
+    }
+
+    private static object? ConvertValue(object? value, Type targetType)
+    {
+        if (value == null) return null;
+        if (targetType.IsAssignableFrom(value.GetType())) return value;
+
+        // Try TypeConverter first (handles WPF types like Brush, Thickness, etc.)
+        var converter = System.ComponentModel.TypeDescriptor.GetConverter(targetType);
+        if (converter.CanConvertFrom(value.GetType()))
+        {
+            return converter.ConvertFrom(value);
         }
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not DependencyObject depObj)
-        {
-            return new { success = false, error = "Element is not a DependencyObject" };
-        }
-
-        // Find DependencyProperty by name
-        var dp = FindDependencyProperty(depObj, propertyName);
-        if (dp == null)
-        {
-            return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
-        }
-
-        try
-        {
-            depObj.ClearValue(dp);
-            return new { success = true, message = $"Property '{propertyName}' cleared successfully" };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to clear property: {ex.Message}" };
-        }
+        // Fallback to Convert.ChangeType for simple types
+        return Convert.ChangeType(value, targetType);
     }
 
     private DependencyProperty? FindDependencyProperty(DependencyObject element, string propertyName)
@@ -244,81 +248,79 @@ public class DependencyPropertyAnalyzer
     /// </summary>
     public object WatchChanges(string propertyName, string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => WatchChanges(propertyName, elementId));
-        }
+            var element = elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        if (element is not DependencyObject depObj)
-        {
-            return new { success = false, error = "Element is not a DependencyObject" };
-        }
-
-        // Find DependencyProperty by name
-        var dp = FindDependencyProperty(depObj, propertyName);
-        if (dp == null)
-        {
-            return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
-        }
-
-        try
-        {
-            var watchKey = $"{elementId}_{propertyName}";
-
-            lock (_watchLock)
+            if (element == null)
             {
-                // Check if already watching
-                if (_watchers.ContainsKey(watchKey))
-                {
-                    return new { success = false, error = "Already watching this property" };
-                }
-
-                // Create descriptor and add handler
-                var descriptor = DependencyPropertyDescriptor.FromProperty(dp, depObj.GetType());
-                if (descriptor != null)
-                {
-                    descriptor.AddValueChanged(depObj, (sender, e) =>
-                    {
-                        lock (_watchLock)
-                        {
-                            var newValue = depObj.GetValue(dp);
-                            _changeLog.Add(new
-                            {
-                                timestamp = DateTime.UtcNow,
-                                elementId,
-                                propertyName,
-                                newValue = newValue?.ToString(),
-                                valueType = newValue?.GetType().Name
-                            });
-                        }
-                    });
-
-                    _watchers[watchKey] = descriptor;
-                }
+                return new { success = false, error = "Element not found" };
             }
 
-            return new
+            if (element is not DependencyObject depObj)
             {
-                success = true,
-                message = $"Started watching property '{propertyName}'",
-                propertyName,
-                elementId
-            };
-        }
-        catch (Exception ex)
-        {
-            return new { success = false, error = $"Failed to watch property: {ex.Message}" };
-        }
+                return new { success = false, error = "Element is not a DependencyObject" };
+            }
+
+            // Find DependencyProperty by name
+            var dp = FindDependencyProperty(depObj, propertyName);
+            if (dp == null)
+            {
+                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+            }
+
+            try
+            {
+                var watchKey = $"{elementId}_{propertyName}";
+
+                lock (_watchLock)
+                {
+                    // Check if already watching
+                    if (_watchers.ContainsKey(watchKey))
+                    {
+                        return new { success = false, error = "Already watching this property" };
+                    }
+
+                    // Create descriptor and add handler
+                    var descriptor = DependencyPropertyDescriptor.FromProperty(dp, depObj.GetType());
+                    if (descriptor != null)
+                    {
+                        EventHandler handler = (sender, e) =>
+                        {
+                            lock (_watchLock)
+                            {
+                                var newValue = depObj.GetValue(dp);
+                                _changeLog.Add(new
+                                {
+                                    timestamp = DateTime.UtcNow,
+                                    elementId,
+                                    propertyName,
+                                    newValue = newValue?.ToString(),
+                                    valueType = newValue?.GetType().Name
+                                });
+                            }
+                        };
+
+                        descriptor.AddValueChanged(depObj, handler);
+                        _watchers[watchKey] = (descriptor, handler);
+                    }
+                }
+
+                return new
+                {
+                    success = true,
+                    message = $"Started watching property '{propertyName}'",
+                    propertyName,
+                    elementId
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = $"Failed to watch property: {ex.Message}" };
+            }
+        });
     }
 
     /// <summary>
@@ -326,40 +328,37 @@ public class DependencyPropertyAnalyzer
     /// </summary>
     public object UnwatchChanges(string propertyName, string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => UnwatchChanges(propertyName, elementId));
-        }
+            var watchKey = $"{elementId}_{propertyName}";
 
-        var watchKey = $"{elementId}_{propertyName}";
-
-        lock (_watchLock)
-        {
-            if (_watchers.TryGetValue(watchKey, out var descriptor))
+            lock (_watchLock)
             {
-                var element = elementId == null
-                    ? _elementFinder.GetRootElement()
-                    : _elementFinder.FindById(elementId);
-
-                if (element != null)
+                if (_watchers.TryGetValue(watchKey, out var watcher))
                 {
-                    descriptor.RemoveValueChanged(element, null);
+                    var element = elementId == null
+                        ? _elementFinder.GetRootElement()
+                        : _elementFinder.FindById(elementId);
+
+                    if (element != null)
+                    {
+                        watcher.Descriptor.RemoveValueChanged(element, watcher.Handler);
+                    }
+
+                    _watchers.Remove(watchKey);
+
+                    return new
+                    {
+                        success = true,
+                        message = $"Stopped watching property '{propertyName}'",
+                        propertyName,
+                        elementId
+                    };
                 }
-
-                _watchers.Remove(watchKey);
-
-                return new
-                {
-                    success = true,
-                    message = $"Stopped watching property '{propertyName}'",
-                    propertyName,
-                    elementId
-                };
             }
-        }
 
-        return new { success = false, error = "Property is not being watched" };
+            return new { success = false, error = "Property is not being watched" };
+        });
     }
 
     /// <summary>

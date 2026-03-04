@@ -1,0 +1,198 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+
+namespace WpfDevTools.Inspector.Analyzers;
+
+/// <summary>
+/// TraceListener that captures WPF data binding errors from PresentationTraceSources.
+/// Thread-safe singleton that collects errors into a bounded concurrent queue.
+/// </summary>
+public sealed class BindingErrorTraceListener : TraceListener
+{
+    private static BindingErrorTraceListener? _instance;
+    private static readonly object _lock = new();
+
+    private readonly ConcurrentQueue<BindingErrorInfo> _errors = new();
+    private int _errorCount;
+
+    /// <summary>
+    /// Maximum number of errors to retain in the queue.
+    /// Oldest errors are discarded when this limit is exceeded.
+    /// </summary>
+    public const int MaxErrors = 1000;
+
+    /// <summary>
+    /// Gets the singleton instance of the trace listener
+    /// </summary>
+    public static BindingErrorTraceListener Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                lock (_lock)
+                {
+                    _instance ??= new BindingErrorTraceListener();
+                }
+            }
+            return _instance;
+        }
+    }
+
+    private BindingErrorTraceListener() { }
+
+    /// <summary>
+    /// Install the trace listener on PresentationTraceSources.DataBindingSource.
+    /// Safe to call multiple times - will not add duplicate listeners.
+    /// </summary>
+    public static void Install()
+    {
+        var source = PresentationTraceSources.DataBindingSource;
+        if (!source.Listeners.Contains(Instance))
+        {
+            source.Listeners.Add(Instance);
+            source.Switch.Level = SourceLevels.Error;
+        }
+    }
+
+    /// <summary>
+    /// Remove the trace listener from PresentationTraceSources.DataBindingSource
+    /// </summary>
+    public static void Uninstall()
+    {
+        var source = PresentationTraceSources.DataBindingSource;
+        source.Listeners.Remove(Instance);
+    }
+
+    /// <summary>
+    /// Required by TraceListener - not used for structured binding errors
+    /// </summary>
+    public override void Write(string? message)
+    {
+        // Intentionally empty - binding errors come through TraceEvent
+    }
+
+    /// <summary>
+    /// Required by TraceListener - not used for structured binding errors
+    /// </summary>
+    public override void WriteLine(string? message)
+    {
+        // Intentionally empty - binding errors come through TraceEvent
+    }
+
+    /// <summary>
+    /// Captures trace events from PresentationTraceSources.DataBindingSource
+    /// </summary>
+    public override void TraceEvent(
+        TraceEventCache? eventCache,
+        string source,
+        TraceEventType eventType,
+        int id,
+        string? message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return;
+        }
+
+        var error = new BindingErrorInfo
+        {
+            Timestamp = DateTime.UtcNow,
+            Message = message!,
+            EventType = eventType.ToString(),
+            SourceId = id
+        };
+
+        EnqueueError(error);
+    }
+
+    /// <summary>
+    /// Captures formatted trace events from PresentationTraceSources.DataBindingSource
+    /// </summary>
+    public override void TraceEvent(
+        TraceEventCache? eventCache,
+        string source,
+        TraceEventType eventType,
+        int id,
+        string? format,
+        params object?[]? args)
+    {
+        string? message;
+        try
+        {
+            message = args != null && format != null
+                ? string.Format(format, args)
+                : format;
+        }
+        catch (FormatException)
+        {
+            // If format fails, use raw format string
+            message = format;
+        }
+
+        TraceEvent(eventCache, source, eventType, id, message);
+    }
+
+    /// <summary>
+    /// Returns a snapshot of all captured binding errors
+    /// </summary>
+    public IReadOnlyList<BindingErrorInfo> GetErrors()
+    {
+        return _errors.ToArray();
+    }
+
+    /// <summary>
+    /// Returns the current number of captured errors
+    /// </summary>
+    public int ErrorCount => _errorCount;
+
+    /// <summary>
+    /// Clears all captured binding errors
+    /// </summary>
+    public void ClearErrors()
+    {
+        while (_errors.TryDequeue(out _))
+        {
+            Interlocked.Decrement(ref _errorCount);
+        }
+    }
+
+    private void EnqueueError(BindingErrorInfo error)
+    {
+        _errors.Enqueue(error);
+        Interlocked.Increment(ref _errorCount);
+
+        // Trim oldest errors when exceeding capacity
+        while (_errors.Count > MaxErrors && _errors.TryDequeue(out _))
+        {
+            Interlocked.Decrement(ref _errorCount);
+        }
+    }
+
+    /// <summary>
+    /// Reset the singleton instance (for testing purposes only).
+    /// Uninstalls the current listener from PresentationTraceSources before resetting.
+    /// </summary>
+    internal static void ResetInstance()
+    {
+        lock (_lock)
+        {
+            if (_instance != null)
+            {
+                // Remove from PresentationTraceSources before disposing
+                try
+                {
+                    var source = PresentationTraceSources.DataBindingSource;
+                    source.Listeners.Remove(_instance);
+                }
+                catch
+                {
+                    // PresentationTraceSources may not be available in test contexts
+                }
+
+                _instance.ClearErrors();
+            }
+            _instance = null;
+        }
+    }
+}

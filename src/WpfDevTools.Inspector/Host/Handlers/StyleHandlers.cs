@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Windows;
 using WpfDevTools.Inspector.Analyzers;
 
 namespace WpfDevTools.Inspector.Host.Handlers;
@@ -46,8 +45,7 @@ public class StyleHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _styleAnalyzer.GetAppliedStyles(elementId)));
+            _styleAnalyzer.GetAppliedStyles(elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetTriggersAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -55,8 +53,7 @@ public class StyleHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _styleAnalyzer.GetTriggers(elementId)));
+            _styleAnalyzer.GetTriggers(elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetTemplateTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -64,8 +61,7 @@ public class StyleHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _styleAnalyzer.GetTemplateTree(elementId)));
+            _styleAnalyzer.GetTemplateTree(elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetResourceChainAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -77,8 +73,7 @@ public class StyleHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: resourceKey");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _styleAnalyzer.GetResourceChain(elementId, resourceKey!)));
+            _styleAnalyzer.GetResourceChain(elementId, resourceKey!), cancellationToken);
     }
 
     private async Task<object> HandleOverrideStyleSetterAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -94,7 +89,6 @@ public class StyleHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: value");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _styleAnalyzer.OverrideStyleSetter(elementId, propertyName!, value)));
+            _styleAnalyzer.OverrideStyleSetter(elementId, propertyName!, value), cancellationToken);
     }
 }

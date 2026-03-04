@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Windows;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 
@@ -49,15 +48,15 @@ public class BindingHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _bindingAnalyzer.GetBindings(elementId)));
+            _bindingAnalyzer.GetBindings(elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetBindingErrorsAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
+        var clearAfterRead = ParameterHelpers.GetBoolParam(@params, "clearAfterRead") ?? false;
+
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _bindingAnalyzer.GetBindingErrors()));
+            _bindingAnalyzer.GetBindingErrors(clearAfterRead), cancellationToken);
     }
 
     private async Task<object> HandleGetDataContextChainAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -67,8 +66,7 @@ public class BindingHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: elementId");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _bindingAnalyzer.GetDataContextChain(elementId)));
+            _bindingAnalyzer.GetDataContextChain(elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetBindingValueChainAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -83,16 +81,15 @@ public class BindingHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke<object>(() =>
+        {
+            var element = _elementFinder.FindById(elementId!);
+            if (element == null)
             {
-                var element = _elementFinder.FindById(elementId!);
-                if (element == null)
-                {
-                    return new { success = false, error = "Element not found" };
-                }
+                return (object)new { success = false, error = "Element not found" };
+            }
 
-                return _bindingAnalyzer.GetBindingValueChain(element, propertyName!);
-            }));
+            return _bindingAnalyzer.GetBindingValueChain(element, propertyName!);
+        }, cancellationToken);
     }
 
     private async Task<object> HandleForceBindingUpdateAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -108,15 +105,14 @@ public class BindingHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke<object>(() =>
+        {
+            var element = _elementFinder.FindById(elementId!);
+            if (element == null)
             {
-                var element = _elementFinder.FindById(elementId!);
-                if (element == null)
-                {
-                    return new { success = false, error = "Element not found" };
-                }
+                return (object)new { success = false, error = "Element not found" };
+            }
 
-                return _bindingAnalyzer.ForceBindingUpdate(element, propertyName!, direction);
-            }));
+            return _bindingAnalyzer.ForceBindingUpdate(element, propertyName!, direction);
+        }, cancellationToken);
     }
 }

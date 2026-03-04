@@ -6,6 +6,7 @@ namespace WpfDevTools.Mcp.Server;
 public class SessionManager
 {
     private readonly Dictionary<int, SessionInfo> _sessions = new();
+    private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly object _lock = new();
 
     /// <summary>
@@ -25,6 +26,8 @@ public class SessionManager
                 ProcessId = processId,
                 LastActivity = DateTime.UtcNow
             };
+
+            _pipeClients[processId] = new NamedPipeClient(processId);
         }
     }
 
@@ -36,6 +39,22 @@ public class SessionManager
         lock (_lock)
         {
             _sessions.Remove(processId);
+            if (_pipeClients.TryGetValue(processId, out var client))
+            {
+                client.Dispose();
+                _pipeClients.Remove(processId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get the NamedPipeClient for a given process
+    /// </summary>
+    public NamedPipeClient? GetPipeClient(int processId)
+    {
+        lock (_lock)
+        {
+            return _pipeClients.TryGetValue(processId, out var client) ? client : null;
         }
     }
 

@@ -29,6 +29,17 @@ public static class ParameterHelpers
         return null;
     }
 
+    public static bool? GetBoolParam(JsonElement? @params, string name)
+    {
+        if (@params == null || !@params.HasValue)
+            return null;
+
+        if (@params.Value.TryGetProperty(name, out var property))
+            return property.GetBoolean();
+
+        return null;
+    }
+
     public static T? GetObjectParam<T>(JsonElement? @params, string name)
     {
         if (@params == null || !@params.HasValue)

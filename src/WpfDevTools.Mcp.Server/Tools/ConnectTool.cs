@@ -1,3 +1,4 @@
+using System.Text.Json;
 using WpfDevTools.Injector;
 using WpfDevTools.Shared.Enums;
 
@@ -12,32 +13,23 @@ public class ConnectTool
     private readonly SessionManager _sessionManager;
     private readonly string _inspectorDllPath;
 
-    public ConnectTool(SessionManager? sessionManager = null, string? inspectorDllPath = null)
+    public ConnectTool(SessionManager sessionManager, string? inspectorDllPath = null)
     {
         _injector = new ProcessInjector();
-        _sessionManager = sessionManager ?? new SessionManager();
+        _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _inspectorDllPath = inspectorDllPath ?? GetInspectorDllPath();
     }
 
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public async Task<object> ExecuteAsync(object parameters, CancellationToken cancellationToken)
+    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask; // Suppress async warning
+        await Task.CompletedTask;
 
-        // Parse parameters
         int? processId = null;
-        if (parameters != null)
-        {
-            var paramsType = parameters.GetType();
-            var processIdProp = paramsType.GetProperty("processId");
-            var processIdValue = processIdProp?.GetValue(parameters);
-            if (processIdValue != null)
-            {
-                processId = Convert.ToInt32(processIdValue);
-            }
-        }
+        if (arguments.HasValue && arguments.Value.TryGetProperty("processId", out var pidProp))
+            processId = pidProp.GetInt32();
 
         if (!processId.HasValue)
         {
@@ -81,7 +73,7 @@ public class ConnectTool
             };
         }
 
-        // Add to session manager
+        // Add to session manager (also creates NamedPipeClient)
         _sessionManager.AddSession(processId.Value);
 
         return new
@@ -93,15 +85,13 @@ public class ConnectTool
         };
     }
 
-    private string GetInspectorDllPath()
+    private static string GetInspectorDllPath()
     {
-        // Get the Inspector DLL path relative to the MCP Server executable
         var serverDir = AppContext.BaseDirectory;
         var inspectorDll = Path.Combine(serverDir, "WpfDevTools.Inspector.dll");
 
         if (!File.Exists(inspectorDll))
         {
-            // Fallback: try to find it in the build output
             inspectorDll = Path.Combine(serverDir, "..", "..", "..", "..", "WpfDevTools.Inspector", "bin", "Debug", "net8.0-windows", "WpfDevTools.Inspector.dll");
             inspectorDll = Path.GetFullPath(inspectorDll);
         }
@@ -109,7 +99,7 @@ public class ConnectTool
         return inspectorDll;
     }
 
-    private string GetErrorMessage(InjectionError error, int processId)
+    private static string GetErrorMessage(InjectionError error, int processId)
     {
         return error switch
         {

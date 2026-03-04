@@ -1,65 +1,34 @@
+using System.Text.Json;
+
 namespace WpfDevTools.Mcp.Server.Tools;
 
 /// <summary>
 /// MCP tool to ping a connected WPF process
 /// </summary>
-public class PingTool
+public class PingTool : PipeConnectedToolBase
 {
-    private readonly SessionManager _sessionManager;
-
-    public PingTool(SessionManager? sessionManager = null)
-    {
-        _sessionManager = sessionManager ?? new SessionManager();
-    }
+    public PingTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public async Task<object> ExecuteAsync(object parameters, CancellationToken cancellationToken)
+    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask; // Suppress async warning
+        var (processId, _, error) = ParseCommonParams(arguments);
+        if (error != null) return error;
 
-        // Parse parameters
-        int? processId = null;
-        if (parameters != null)
-        {
-            var paramsType = parameters.GetType();
-            var processIdProp = paramsType.GetProperty("processId");
-            var processIdValue = processIdProp?.GetValue(parameters);
-            if (processIdValue != null)
-            {
-                processId = Convert.ToInt32(processIdValue);
-            }
-        }
-
-        if (!processId.HasValue)
-        {
-            return new
-            {
-                success = false,
-                error = "Missing required parameter: processId"
-            };
-        }
-
-        // Check if session exists
-        if (!_sessionManager.HasSession(processId.Value))
-        {
-            return new
-            {
-                success = false,
-                error = $"Process {processId.Value} is not connected"
-            };
-        }
+        if (!_sessionManager.HasSession(processId))
+            return CreateNotConnectedError(processId);
 
         // Update last activity
-        _sessionManager.UpdateLastActivity(processId.Value);
+        _sessionManager.UpdateLastActivity(processId);
 
-        return new
+        return await Task.FromResult<object>(new
         {
             success = true,
             status = "connected",
-            processId = processId.Value,
-            lastActivity = _sessionManager.GetLastActivityTime(processId.Value)
-        };
+            processId,
+            lastActivity = _sessionManager.GetLastActivityTime(processId)
+        });
     }
 }

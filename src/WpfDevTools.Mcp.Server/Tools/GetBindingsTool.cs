@@ -1,70 +1,23 @@
+using System.Text.Json;
+
 namespace WpfDevTools.Mcp.Server.Tools;
 
 /// <summary>
 /// MCP tool to get bindings from WPF elements
 /// </summary>
-public class GetBindingsTool
+public class GetBindingsTool : PipeConnectedToolBase
 {
-    private readonly SessionManager _sessionManager;
-
-    public GetBindingsTool(SessionManager? sessionManager = null)
-    {
-        _sessionManager = sessionManager ?? new SessionManager();
-    }
+    public GetBindingsTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public async Task<object> ExecuteAsync(object parameters, CancellationToken cancellationToken)
+    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask; // Suppress async warning
+        var (processId, elementId, error) = ParseCommonParams(arguments);
+        if (error != null) return error;
 
-        // Parse parameters
-        int? processId = null;
-        string? elementId = null;
-
-        if (parameters != null)
-        {
-            var paramsType = parameters.GetType();
-
-            var processIdProp = paramsType.GetProperty("processId");
-            var processIdValue = processIdProp?.GetValue(parameters);
-            if (processIdValue != null)
-            {
-                processId = Convert.ToInt32(processIdValue);
-            }
-
-            var elementIdProp = paramsType.GetProperty("elementId");
-            elementId = elementIdProp?.GetValue(parameters)?.ToString();
-        }
-
-        if (!processId.HasValue)
-        {
-            return new
-            {
-                success = false,
-                error = "Missing required parameter: processId"
-            };
-        }
-
-        // Check if session exists
-        if (!_sessionManager.HasSession(processId.Value))
-        {
-            return new
-            {
-                success = false,
-                error = $"Process {processId.Value} is not connected"
-            };
-        }
-
-        // TODO: Implement Named Pipe communication to Inspector
-        // For now, return a placeholder response
-        return new
-        {
-            success = true,
-            message = "Bindings retrieval not yet implemented (requires Named Pipe communication)",
-            processId = processId.Value,
-            elementId = elementId
-        };
+        return await SendInspectorRequestAsync(processId, "get_bindings",
+            new { elementId }, cancellationToken);
     }
 }

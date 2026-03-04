@@ -37,6 +37,7 @@ public class McpProtocolHandler
             {
                 "initialize" => await HandleInitializeAsync(request, cancellationToken),
                 "tools/list" => await HandleToolsListAsync(cancellationToken),
+                "tools/call" => await HandleToolsCallAsync(request, cancellationToken),
                 _ => throw new MethodNotFoundException($"Method not found: {method}")
             };
 
@@ -88,12 +89,37 @@ public class McpProtocolHandler
         return new { tools };
     }
 
+    private async Task<object> HandleToolsCallAsync(JsonElement request, CancellationToken cancellationToken)
+    {
+        var paramsElement = request.GetProperty("params");
+        var toolName = paramsElement.GetProperty("name").GetString()
+            ?? throw new ArgumentException("Missing tool name");
+
+        var tool = _toolRegistry.GetTool(toolName)
+            ?? throw new MethodNotFoundException($"Tool not found: {toolName}");
+
+        if (tool.ExecuteHandler == null)
+            throw new InvalidOperationException($"Tool '{toolName}' has no execute handler");
+
+        var arguments = paramsElement.TryGetProperty("arguments", out var args) ? args : (JsonElement?)null;
+
+        var result = await tool.ExecuteHandler(arguments, cancellationToken);
+
+        return new
+        {
+            content = new[]
+            {
+                new { type = "text", text = JsonSerializer.Serialize(result) }
+            }
+        };
+    }
+
     private string CreateSuccessResponse(JsonElement? id, object? result)
     {
         var response = new Dictionary<string, object?>
         {
             ["jsonrpc"] = "2.0",
-            ["id"] = id?.ValueKind == JsonValueKind.Number ? id.Value.GetInt32() : (object?)null,
+            ["id"] = id.HasValue ? (id.Value.ValueKind == JsonValueKind.Number ? (object)id.Value.GetInt32() : id.Value.ValueKind == JsonValueKind.String ? (object)id.Value.GetString()! : null) : null,
             ["result"] = result
         };
 
@@ -105,7 +131,7 @@ public class McpProtocolHandler
         var response = new Dictionary<string, object?>
         {
             ["jsonrpc"] = "2.0",
-            ["id"] = id?.ValueKind == JsonValueKind.Number ? id.Value.GetInt32() : (object?)null,
+            ["id"] = id.HasValue ? (id.Value.ValueKind == JsonValueKind.Number ? (object)id.Value.GetInt32() : id.Value.ValueKind == JsonValueKind.String ? (object)id.Value.GetString()! : null) : null,
             ["error"] = new
             {
                 code,

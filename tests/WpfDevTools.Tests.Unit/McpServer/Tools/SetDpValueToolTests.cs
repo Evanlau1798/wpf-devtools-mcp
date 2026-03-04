@@ -3,6 +3,7 @@ using FluentAssertions;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
@@ -12,11 +13,11 @@ public class SetDpValueToolTests
     public async Task Execute_WithoutConnection_ShouldReturnError()
     {
         // Arrange
-        var tool = new SetDpValueTool();
+        var tool = new SetDpValueTool(new SessionManager());
         var parameters = new { processId = 12345, propertyName = "Width", value = "100" };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -29,11 +30,11 @@ public class SetDpValueToolTests
     public async Task Execute_WithMissingProcessId_ShouldReturnError()
     {
         // Arrange
-        var tool = new SetDpValueTool();
+        var tool = new SetDpValueTool(new SessionManager());
         var parameters = new { propertyName = "Width", value = "100" };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -52,7 +53,7 @@ public class SetDpValueToolTests
         var parameters = new { processId = 12345, value = "100" };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -71,7 +72,7 @@ public class SetDpValueToolTests
         var parameters = new { processId = 12345, propertyName = "Width" };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -90,7 +91,7 @@ public class SetDpValueToolTests
         var parameters = new { processId = 12345, propertyName = "Width", value = "100", elementId = "myButton" };
 
         // Act
-        var result = await tool.ExecuteAsync(parameters, CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();

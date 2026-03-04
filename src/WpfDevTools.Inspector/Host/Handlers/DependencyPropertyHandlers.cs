@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Windows;
 using WpfDevTools.Inspector.Analyzers;
 
 namespace WpfDevTools.Inspector.Host.Handlers;
@@ -50,8 +49,7 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _dependencyPropertyAnalyzer.GetValueSource(propertyName!, elementId)));
+            _dependencyPropertyAnalyzer.GetValueSource(propertyName!, elementId), cancellationToken);
     }
 
     private async Task<object> HandleSetDpValueAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -67,8 +65,7 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: value");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _dependencyPropertyAnalyzer.SetValue(propertyName!, value, elementId)));
+            _dependencyPropertyAnalyzer.SetValue(propertyName!, value, elementId), cancellationToken);
     }
 
     private async Task<object> HandleClearDpValueAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -80,8 +77,7 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _dependencyPropertyAnalyzer.ClearValue(propertyName!, elementId)));
+            _dependencyPropertyAnalyzer.ClearValue(propertyName!, elementId), cancellationToken);
     }
 
     private async Task<object> HandleGetDpMetadataAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -93,8 +89,7 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _dependencyPropertyAnalyzer.GetMetadata(propertyName!, elementId)));
+            _dependencyPropertyAnalyzer.GetMetadata(propertyName!, elementId), cancellationToken);
     }
 
     private async Task<object> HandleWatchDpChangesAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -106,7 +101,6 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            Application.Current.Dispatcher.Invoke(() =>
-                _dependencyPropertyAnalyzer.WatchChanges(propertyName!, elementId)));
+            _dependencyPropertyAnalyzer.WatchChanges(propertyName!, elementId), cancellationToken);
     }
 }

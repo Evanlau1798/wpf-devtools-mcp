@@ -8,7 +8,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF Visual Tree
 /// </summary>
-public class VisualTreeAnalyzer
+public class VisualTreeAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -27,26 +27,23 @@ public class VisualTreeAnalyzer
     /// </summary>
     public object GetVisualTree(int? maxDepth = null, string? elementId = null)
     {
-        // Must run on UI thread
-        if (!Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetVisualTree(maxDepth, elementId));
-        }
+            // Get root element
+            var root = elementId == null
+                ? GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        // Get root element
-        var root = elementId == null
-            ? GetRootElement()
-            : _elementFinder.FindById(elementId);
+            if (root == null)
+            {
+                return new { success = false, error = "Root element not found" };
+            }
 
-        if (root == null)
-        {
-            return new { success = false, error = "Root element not found" };
-        }
+            // Walk tree
+            var tree = WalkVisualTree(root, maxDepth ?? int.MaxValue, 0);
 
-        // Walk tree
-        var tree = WalkVisualTree(root, maxDepth ?? int.MaxValue, 0);
-
-        return new { tree };
+            return new { tree };
+        });
     }
 
     private DependencyObject? GetRootElement()
@@ -60,62 +57,59 @@ public class VisualTreeAnalyzer
     /// </summary>
     public object CompareTree(string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => CompareTree(elementId));
-        }
+            var element = elementId == null
+                ? GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        var visualChildren = GetVisualChildren(element);
-        var logicalChildren = GetLogicalChildren(element);
-
-        var differences = new List<object>();
-
-        // Find elements in visual tree but not in logical tree
-        foreach (var visualChild in visualChildren)
-        {
-            if (!logicalChildren.Any(lc => ReferenceEquals(lc, visualChild)))
+            if (element == null)
             {
-                differences.Add(new
-                {
-                    type = "VisualOnly",
-                    elementType = visualChild.GetType().Name,
-                    elementId = _elementFinder.GenerateElementId(visualChild)
-                });
+                return new { success = false, error = "Element not found" };
             }
-        }
 
-        // Find elements in logical tree but not in visual tree
-        foreach (var logicalChild in logicalChildren)
-        {
-            if (!visualChildren.Any(vc => ReferenceEquals(vc, logicalChild)))
+            var visualChildren = GetVisualChildren(element);
+            var logicalChildren = GetLogicalChildren(element);
+
+            var differences = new List<object>();
+
+            // Find elements in visual tree but not in logical tree
+            foreach (var visualChild in visualChildren)
             {
-                differences.Add(new
+                if (!logicalChildren.Any(lc => ReferenceEquals(lc, visualChild)))
                 {
-                    type = "LogicalOnly",
-                    elementType = logicalChild.GetType().Name,
-                    elementId = _elementFinder.GenerateElementId(logicalChild)
-                });
+                    differences.Add(new
+                    {
+                        type = "VisualOnly",
+                        elementType = visualChild.GetType().Name,
+                        elementId = _elementFinder.GenerateElementId(visualChild)
+                    });
+                }
             }
-        }
 
-        return new
-        {
-            success = true,
-            visualChildCount = visualChildren.Count,
-            logicalChildCount = logicalChildren.Count,
-            differenceCount = differences.Count,
-            differences
-        };
+            // Find elements in logical tree but not in visual tree
+            foreach (var logicalChild in logicalChildren)
+            {
+                if (!visualChildren.Any(vc => ReferenceEquals(vc, logicalChild)))
+                {
+                    differences.Add(new
+                    {
+                        type = "LogicalOnly",
+                        elementType = logicalChild.GetType().Name,
+                        elementId = _elementFinder.GenerateElementId(logicalChild)
+                    });
+                }
+            }
+
+            return new
+            {
+                success = true,
+                visualChildCount = visualChildren.Count,
+                logicalChildCount = logicalChildren.Count,
+                differenceCount = differences.Count,
+                differences
+            };
+        });
     }
 
     /// <summary>
@@ -123,52 +117,49 @@ public class VisualTreeAnalyzer
     /// </summary>
     public object GetNameScope(string? elementId = null)
     {
-        // Must run on UI thread
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        return InvokeOnUIThread<object>(() =>
         {
-            return Application.Current.Dispatcher.Invoke(() => GetNameScope(elementId));
-        }
+            var element = elementId == null
+                ? GetRootElement()
+                : _elementFinder.FindById(elementId);
 
-        var element = elementId == null
-            ? GetRootElement()
-            : _elementFinder.FindById(elementId);
-
-        if (element == null)
-        {
-            return new { success = false, error = "Element not found" };
-        }
-
-        var nameScope = NameScope.GetNameScope(element);
-        var namedElements = new List<object>();
-
-        if (nameScope != null)
-        {
-            // Get all named elements in this scope
-            var names = GetNamesInScope(element);
-
-            foreach (var name in names)
+            if (element == null)
             {
-                var namedElement = nameScope.FindName(name);
-                if (namedElement != null)
+                return new { success = false, error = "Element not found" };
+            }
+
+            var nameScope = NameScope.GetNameScope(element);
+            var namedElements = new List<object>();
+
+            if (nameScope != null)
+            {
+                // Get all named elements in this scope
+                var names = GetNamesInScope(element);
+
+                foreach (var name in names)
                 {
-                    var depObj = namedElement as DependencyObject;
-                    namedElements.Add(new
+                    var namedElement = nameScope.FindName(name);
+                    if (namedElement != null)
                     {
-                        name,
-                        type = namedElement.GetType().Name,
-                        elementId = depObj != null ? _elementFinder.GenerateElementId(depObj) : null
-                    });
+                        var depObj = namedElement as DependencyObject;
+                        namedElements.Add(new
+                        {
+                            name,
+                            type = namedElement.GetType().Name,
+                            elementId = depObj != null ? _elementFinder.GenerateElementId(depObj) : null
+                        });
+                    }
                 }
             }
-        }
 
-        return new
-        {
-            success = true,
-            hasNameScope = nameScope != null,
-            namedElementCount = namedElements.Count,
-            namedElements
-        };
+            return new
+            {
+                success = true,
+                hasNameScope = nameScope != null,
+                namedElementCount = namedElements.Count,
+                namedElements
+            };
+        });
     }
 
     private List<string> GetNamesInScope(DependencyObject element)

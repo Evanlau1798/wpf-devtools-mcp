@@ -17,6 +17,10 @@ public class ConnectTool
     {
         _injector = new ProcessInjector();
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+
+        if (inspectorDllPath != null && !File.Exists(inspectorDllPath))
+            throw new FileNotFoundException("Inspector DLL not found", inspectorDllPath);
+
         _inspectorDllPath = inspectorDllPath ?? GetInspectorDllPath();
     }
 
@@ -88,13 +92,17 @@ public class ConnectTool
         var serverDir = AppContext.BaseDirectory;
         var inspectorDll = Path.Combine(serverDir, "WpfDevTools.Inspector.dll");
 
-        if (!File.Exists(inspectorDll))
-        {
-            inspectorDll = Path.Combine(serverDir, "..", "..", "..", "..", "WpfDevTools.Inspector", "bin", "Debug", "net8.0-windows", "WpfDevTools.Inspector.dll");
-            inspectorDll = Path.GetFullPath(inspectorDll);
-        }
+        if (File.Exists(inspectorDll))
+            return inspectorDll;
 
-        return inspectorDll;
+        // Fallback to development path
+        var fallbackDll = Path.Combine(serverDir, "..", "..", "..", "..", "WpfDevTools.Inspector", "bin", "Debug", "net8.0-windows", "WpfDevTools.Inspector.dll");
+        fallbackDll = Path.GetFullPath(fallbackDll);
+
+        if (File.Exists(fallbackDll))
+            return fallbackDll;
+
+        throw new FileNotFoundException("Inspector DLL not found", inspectorDll);
     }
 
     private static string GetErrorMessage(InjectionError error, int processId)

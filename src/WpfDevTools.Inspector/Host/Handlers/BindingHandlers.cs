@@ -78,15 +78,7 @@ public class BindingHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-        {
-            var element = _elementFinder.FindById(elementId);
-            if (element == null)
-            {
-                return (object)new { success = false, error = "Element not found" };
-            }
-
-            return _bindingAnalyzer.GetBindingValueChain(element, propertyName!);
-        }, cancellationToken);
+            _bindingAnalyzer.GetBindingValueChain(elementId, propertyName!), cancellationToken);
     }
 
     private async Task<object> HandleForceBindingUpdateAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -100,14 +92,6 @@ public class BindingHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-        {
-            var element = _elementFinder.FindById(elementId);
-            if (element == null)
-            {
-                return (object)new { success = false, error = "Element not found" };
-            }
-
-            return _bindingAnalyzer.ForceBindingUpdate(element, propertyName!, direction);
-        }, cancellationToken);
+            _bindingAnalyzer.ForceBindingUpdate(elementId, propertyName!, direction), cancellationToken);
     }
 }

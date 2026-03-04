@@ -51,9 +51,9 @@ public class McpProtocolHandler
         {
             return CreateErrorResponse(null, -32601, ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return CreateErrorResponse(null, -32603, $"Internal error: {ex.Message}");
+            return CreateErrorResponse(null, -32603, "Internal error occurred");
         }
     }
 

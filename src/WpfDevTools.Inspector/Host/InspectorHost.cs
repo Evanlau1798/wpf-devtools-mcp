@@ -51,6 +51,7 @@ public class InspectorHost : IDisposable
     /// </summary>
     public void Stop()
     {
+        Task? taskToWait = null;
         lock (_lock)
         {
             if (!_isRunning)
@@ -60,9 +61,10 @@ public class InspectorHost : IDisposable
 
             _cancellationTokenSource?.Cancel();
             _pipeServer?.Dispose();
-            _serverTask?.Wait(TimeSpan.FromSeconds(5));
             _isRunning = false;
+            taskToWait = _serverTask;
         }
+        taskToWait?.Wait(TimeSpan.FromSeconds(5));
     }
 
     private async Task RunServerLoop(CancellationToken cancellationToken)

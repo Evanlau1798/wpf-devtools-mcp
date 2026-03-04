@@ -12,6 +12,7 @@ namespace WpfDevTools.Inspector;
 public static class Bootstrap
 {
     private static bool _isInitialized;
+    private static bool _isInitializing;
     private static readonly object _lock = new object();
     private static Host.InspectorHost? _host;
 
@@ -23,11 +24,12 @@ public static class Bootstrap
     {
         lock (_lock)
         {
-            if (_isInitialized)
+            if (_isInitialized || _isInitializing)
             {
                 LogError("Bootstrap already initialized");
                 return;
             }
+            _isInitializing = true;
 
             try
             {

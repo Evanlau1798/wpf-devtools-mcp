@@ -30,6 +30,8 @@ public class EventAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object TraceRoutedEvents(string? elementId, string eventName, int duration)
     {
+        var cappedDuration = Math.Min(duration, 60000); // Max 60 seconds
+
         return InvokeOnUIThread<object>(() =>
         {
             var element = elementId == null
@@ -88,9 +90,9 @@ public class EventAnalyzer : DispatcherAnalyzerBase
 
             uiElement.AddHandler(routedEvent, handler);
 
-            // Stop tracing after duration
+            // Stop tracing after capped duration
             var cts = _tracingCts;
-            Task.Delay(duration, cts.Token).ContinueWith(task =>
+            Task.Delay(cappedDuration, cts.Token).ContinueWith(task =>
             {
                 if (!task.IsCanceled)
                 {
@@ -108,9 +110,9 @@ public class EventAnalyzer : DispatcherAnalyzerBase
             return new
             {
                 success = true,
-                message = $"Started tracing '{eventName}' for {duration}ms",
+                message = $"Started tracing '{eventName}' for {cappedDuration}ms",
                 eventName,
-                duration
+                duration = cappedDuration
             };
         });
     }

@@ -50,6 +50,7 @@ public class NamedPipeClient : IDisposable
         {
             try
             {
+                NamedPipeClientStream localClient;
                 lock (_lock)
                 {
                     if (_isDisposed)
@@ -61,10 +62,11 @@ public class NamedPipeClient : IDisposable
                         _pipeName,
                         PipeDirection.InOut,
                         PipeOptions.Asynchronous);
+                    localClient = _pipeClient;
                 }
 
                 using var cts = new CancellationTokenSource(timeout);
-                await _pipeClient.ConnectAsync(cts.Token);
+                await localClient.ConnectAsync(cts.Token);
 
                 return true;
             }

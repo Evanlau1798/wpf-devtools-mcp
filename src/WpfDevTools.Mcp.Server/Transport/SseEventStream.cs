@@ -24,10 +24,11 @@ public class SseEventStream : IDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Write event name if provided
+        // Write event name if provided (sanitize to prevent SSE injection)
         if (!string.IsNullOrEmpty(eventName))
         {
-            await _writer.WriteLineAsync($"event: {eventName}");
+            var safeName = eventName.Replace("\n", "").Replace("\r", "");
+            await _writer.WriteLineAsync($"event: {safeName}");
         }
 
         // Serialize data to JSON

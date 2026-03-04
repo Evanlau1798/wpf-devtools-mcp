@@ -170,12 +170,32 @@ public class DllInjector
 
             CloseHandle(hThread);
 
-            if (waitResult == 0x00000102) // WAIT_TIMEOUT
+            const uint WAIT_OBJECT_0 = 0x00000000;
+            const uint WAIT_TIMEOUT = 0x00000102;
+            const uint WAIT_FAILED = 0xFFFFFFFF;
+
+            if (waitResult == WAIT_TIMEOUT)
             {
                 return InjectionResult.CreateFailure(
                     processId,
                     InjectionError.Timeout,
                     "Injection timed out");
+            }
+
+            if (waitResult == WAIT_FAILED)
+            {
+                return InjectionResult.CreateFailure(
+                    processId,
+                    InjectionError.Unknown,
+                    $"WaitForSingleObject failed with error: {Marshal.GetLastWin32Error()}");
+            }
+
+            if (waitResult != WAIT_OBJECT_0)
+            {
+                return InjectionResult.CreateFailure(
+                    processId,
+                    InjectionError.Unknown,
+                    $"Unexpected wait result: 0x{waitResult:X8}");
             }
 
             return InjectionResult.CreateSuccess(processId, dllPath);

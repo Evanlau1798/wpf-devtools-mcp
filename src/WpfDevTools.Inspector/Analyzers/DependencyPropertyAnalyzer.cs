@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Windows;
 using System.ComponentModel;
 using WpfDevTools.Inspector.Utilities;
@@ -10,7 +11,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
-    private static readonly Dictionary<string, (DependencyPropertyDescriptor Descriptor, EventHandler Handler)> _watchers = new();
+    private static readonly ConcurrentDictionary<string, (DependencyPropertyDescriptor Descriptor, EventHandler Handler)> _watchers = new();
     private static readonly List<object> _changeLog = new();
     private static readonly object _watchLock = new object();
     private const int MaxChangeLogEntries = 10000;
@@ -233,43 +234,40 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             {
                 var watchKey = $"{elementId}_{propertyName}";
 
-                lock (_watchLock)
+                // Check if already watching (ConcurrentDictionary is thread-safe for reads)
+                if (_watchers.ContainsKey(watchKey))
                 {
-                    // Check if already watching
-                    if (_watchers.ContainsKey(watchKey))
-                    {
-                        return new { success = false, error = "Already watching this property" };
-                    }
+                    return new { success = false, error = "Already watching this property" };
+                }
 
-                    // Create descriptor and add handler
-                    var descriptor = DependencyPropertyDescriptor.FromProperty(dp, depObj.GetType());
-                    if (descriptor != null)
+                // Create descriptor and add handler (must be on UI thread)
+                var descriptor = DependencyPropertyDescriptor.FromProperty(dp, depObj.GetType());
+                if (descriptor != null)
+                {
+                    EventHandler handler = (sender, e) =>
                     {
-                        EventHandler handler = (sender, e) =>
+                        lock (_watchLock)
                         {
-                            lock (_watchLock)
+                            var newValue = depObj.GetValue(dp);
+                            _changeLog.Add(new
                             {
-                                var newValue = depObj.GetValue(dp);
-                                _changeLog.Add(new
-                                {
-                                    timestamp = DateTime.UtcNow,
-                                    elementId,
-                                    propertyName,
-                                    newValue = newValue?.ToString(),
-                                    valueType = newValue?.GetType().Name
-                                });
+                                timestamp = DateTime.UtcNow,
+                                elementId,
+                                propertyName,
+                                newValue = newValue?.ToString(),
+                                valueType = newValue?.GetType().Name
+                            });
 
-                                // Trim oldest entries if over limit
-                                if (_changeLog.Count > MaxChangeLogEntries)
-                                {
-                                    _changeLog.RemoveRange(0, _changeLog.Count - MaxChangeLogEntries);
-                                }
+                            // Trim oldest entries if over limit
+                            if (_changeLog.Count > MaxChangeLogEntries)
+                            {
+                                _changeLog.RemoveRange(0, _changeLog.Count - MaxChangeLogEntries);
                             }
-                        };
+                        }
+                    };
 
-                        descriptor.AddValueChanged(depObj, handler);
-                        _watchers[watchKey] = (descriptor, handler);
-                    }
+                    descriptor.AddValueChanged(depObj, handler);
+                    _watchers[watchKey] = (descriptor, handler);
                 }
 
                 return new
@@ -296,29 +294,24 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
         {
             var watchKey = $"{elementId}_{propertyName}";
 
-            lock (_watchLock)
+            if (_watchers.TryRemove(watchKey, out var watcher))
             {
-                if (_watchers.TryGetValue(watchKey, out var watcher))
+                var element = elementId == null
+                    ? _elementFinder.GetRootElement()
+                    : _elementFinder.FindById(elementId);
+
+                if (element != null)
                 {
-                    var element = elementId == null
-                        ? _elementFinder.GetRootElement()
-                        : _elementFinder.FindById(elementId);
-
-                    if (element != null)
-                    {
-                        watcher.Descriptor.RemoveValueChanged(element, watcher.Handler);
-                    }
-
-                    _watchers.Remove(watchKey);
-
-                    return new
-                    {
-                        success = true,
-                        message = $"Stopped watching property '{propertyName}'",
-                        propertyName,
-                        elementId
-                    };
+                    watcher.Descriptor.RemoveValueChanged(element, watcher.Handler);
                 }
+
+                return new
+                {
+                    success = true,
+                    message = $"Stopped watching property '{propertyName}'",
+                    propertyName,
+                    elementId
+                };
             }
 
             return new { success = false, error = "Property is not being watched" };

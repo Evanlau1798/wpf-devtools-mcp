@@ -151,9 +151,17 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
     public object FindBindingLeaks(int threshold = 100)
     {
         // Force garbage collection OUTSIDE the UI thread to avoid blocking rendering
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
+        if (Application.Current?.Dispatcher.CheckAccess() == true)
+        {
+            // If on UI thread, skip GC to avoid blocking
+            // The results may be less accurate but won't freeze the app
+        }
+        else
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        }
 
         return InvokeOnUIThread<object>(() =>
         {

@@ -299,6 +299,48 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
         });
     }
 
+    /// <summary>
+    /// Get binding value chain by elementId (resolves element on UI thread)
+    /// </summary>
+    public object GetBindingValueChain(string? elementId, string propertyName)
+    {
+        return InvokeOnUIThread<object>(() =>
+        {
+            var element = elementId == null
+                ? GetRootElement()
+                : FindElementById(elementId);
+
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
+
+            // Delegate to the existing implementation (which also calls InvokeOnUIThread,
+            // but since we're already on UI thread this is a synchronous re-entry)
+            return GetBindingValueChain(element, propertyName);
+        });
+    }
+
+    /// <summary>
+    /// Force binding update by elementId (resolves element on UI thread)
+    /// </summary>
+    public object ForceBindingUpdate(string? elementId, string propertyName, string direction)
+    {
+        return InvokeOnUIThread<object>(() =>
+        {
+            var element = elementId == null
+                ? GetRootElement()
+                : FindElementById(elementId);
+
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
+
+            return ForceBindingUpdate(element, propertyName, direction);
+        });
+    }
+
     private DependencyObject? GetRootElement()
     {
         return _elementFinder.GetRootElement();

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
@@ -12,7 +13,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 public class LayoutAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
-    private static readonly Dictionary<string, Border> _highlights = new();
+    private static readonly ConcurrentDictionary<string, Border> _highlights = new();
 
     public LayoutAnalyzer(ElementFinder elementFinder)
     {
@@ -171,8 +172,17 @@ public class LayoutAnalyzer : DispatcherAnalyzerBase
 
             try
             {
-                // Parse color
-                var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+                // Parse color with fallback
+                Color parsedColor;
+                try
+                {
+                    parsedColor = (Color)ColorConverter.ConvertFromString(color);
+                }
+                catch
+                {
+                    parsedColor = Colors.Red; // Fallback to red for invalid color strings
+                }
+                var brush = new SolidColorBrush(parsedColor);
 
                 // Create highlight border
                 var highlightBorder = new Border
@@ -203,12 +213,12 @@ public class LayoutAnalyzer : DispatcherAnalyzerBase
                 _highlights[key] = highlightBorder;
 
                 // Remove highlight after duration
-                Task.Delay(duration).ContinueWith(_ =>
+                Task.Delay(duration).ContinueWith(task =>
                 {
                     InvokeOnUIThread(() =>
                     {
                         adornerLayer.Remove(adorner);
-                        _highlights.Remove(key);
+                        _highlights.TryRemove(key, out _);
                     });
                 });
 

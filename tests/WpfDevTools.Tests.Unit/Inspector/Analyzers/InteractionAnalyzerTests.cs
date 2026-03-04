@@ -8,6 +8,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class InteractionAnalyzerTests
 {
+
     [StaFact]
     public void ClickElement_WithValidButton_ShouldRaiseClickEvent()
     {

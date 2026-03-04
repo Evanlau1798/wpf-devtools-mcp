@@ -9,6 +9,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class LayoutAnalyzerTests
 {
+
     [StaFact]
     public void GetLayoutInfo_WithValidElement_ShouldReturnLayoutInfo()
     {

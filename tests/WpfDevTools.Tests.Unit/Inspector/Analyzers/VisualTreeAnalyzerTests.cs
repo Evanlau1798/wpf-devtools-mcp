@@ -8,6 +8,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class VisualTreeAnalyzerTests
 {
+
     [StaFact]
     public void CompareTree_WithDifferences_ShouldReturnDiscrepancies()
     {

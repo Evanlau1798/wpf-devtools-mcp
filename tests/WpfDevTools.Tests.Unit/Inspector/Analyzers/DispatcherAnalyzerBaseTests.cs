@@ -9,6 +9,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class DispatcherAnalyzerBaseTests
 {
+
     private class TestAnalyzer : DispatcherAnalyzerBase
     {
         public T TestInvokeOnUIThread<T>(Func<T> action, TimeSpan? timeout = null)

@@ -9,6 +9,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class StyleAnalyzerTests
 {
+
     [StaFact]
     public void GetAppliedStyles_WithStyledElement_ShouldReturnStyle()
     {

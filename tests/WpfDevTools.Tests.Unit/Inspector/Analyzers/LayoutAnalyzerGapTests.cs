@@ -13,7 +13,8 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 /// </summary>
 public class LayoutAnalyzerGapTests
 {
-    // â”€â”€â”€ GetLayoutInfo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    // ?€?€?€ GetLayoutInfo ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
     [StaFact]
     public void GetLayoutInfo_NullElementId_NoApplication_ShouldReturnElementNotFound()
@@ -66,7 +67,7 @@ public class LayoutAnalyzerGapTests
         doc.GetProperty("error").GetString().Should().Contain("Element not found");
     }
 
-    // â”€â”€â”€ GetClippingInfo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ?€?€?€ GetClippingInfo ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
     [StaFact]
     public void GetClippingInfo_NullElementId_NoApplication_ShouldReturnElementNotFound()
@@ -139,7 +140,7 @@ public class LayoutAnalyzerGapTests
         doc.GetProperty("clipToBounds").GetBoolean().Should().BeFalse();
     }
 
-    // â”€â”€â”€ InvalidateLayout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ?€?€?€ InvalidateLayout ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
     [StaFact]
     public void InvalidateLayout_NullElementId_NoApplication_ShouldReturnElementNotFound()
@@ -211,7 +212,7 @@ public class LayoutAnalyzerGapTests
         doc.GetProperty("message").GetString().Should().Contain("invalidated");
     }
 
-    // â”€â”€â”€ HighlightElement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ?€?€?€ HighlightElement ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
     [StaFact]
     public void HighlightElement_NullElementId_NoApplication_ShouldReturnElementNotFound()

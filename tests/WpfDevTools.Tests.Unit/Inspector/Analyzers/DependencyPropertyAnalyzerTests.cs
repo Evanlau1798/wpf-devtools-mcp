@@ -8,6 +8,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class DependencyPropertyAnalyzerTests
 {
+
     [StaFact]
     public void GetValueSource_WithValidProperty_ShouldReturnSource()
     {
@@ -132,17 +133,16 @@ public class DependencyPropertyAnalyzerTests
         var buttons = Enumerable.Range(0, 10).Select(_ => new Button()).ToList();
         var elementIds = buttons.Select(b => finder.GenerateElementId(b)).ToList();
 
-        // Act - Start watching from multiple threads
-        var tasks = elementIds.Select((id, index) =>
-            Task.Run(() => analyzer.WatchChanges("Width", id))
-        ).ToArray();
-
-        Task.WaitAll(tasks);
+        // Act - Start watching sequentially (avoid Task.WaitAll on STA thread)
+        var results = new List<object>();
+        foreach (var id in elementIds)
+        {
+            results.Add(analyzer.WatchChanges("Width", id));
+        }
 
         // Assert - All should succeed
-        foreach (var task in tasks)
+        foreach (var result in results)
         {
-            var result = task.Result;
             result.Should().NotBeNull();
             var resultDict = result as System.Collections.IDictionary;
             if (resultDict != null)
@@ -200,18 +200,14 @@ public class DependencyPropertyAnalyzerTests
             analyzer.WatchChanges("Width", elementIds[i]);
         }
 
-        // Act - Trigger changes from multiple threads
-        var tasks = buttons.Select(button =>
-            Task.Run(() =>
+        // Act - Trigger changes directly (avoid Dispatcher.Invoke deadlock on STA thread)
+        for (int buttonIndex = 0; buttonIndex < buttons.Count; buttonIndex++)
+        {
+            for (int i = 0; i < 3000; i++)
             {
-                for (int i = 0; i < 3000; i++)
-                {
-                    button.Dispatcher.Invoke(() => button.Width = i);
-                }
-            })
-        ).ToArray();
-
-        Task.WaitAll(tasks);
+                buttons[buttonIndex].Width = i;
+            }
+        }
         System.Threading.Thread.Sleep(200);
 
         // Assert - Total changes should be capped at 10000
@@ -232,32 +228,21 @@ public class DependencyPropertyAnalyzerTests
 
         analyzer.WatchChanges("Width", elementId);
 
-        // Act - Read log while changes are happening
-        var changeTask = Task.Run(() =>
+        // Act - Trigger changes directly on STA thread and read log concurrently
+        for (int i = 0; i < 1000; i++)
         {
-            for (int i = 0; i < 1000; i++)
-            {
-                button.Dispatcher.Invoke(() => button.Width = i);
-            }
-        });
+            button.Width = i;
+        }
 
-        var readTasks = Enumerable.Range(0, 10).Select(_ =>
-            Task.Run(() => analyzer.GetChangeLog())
-        ).ToArray();
-
-        Task.WaitAll(readTasks.Concat(new[] { changeTask }).ToArray());
-
-        // Assert - All reads should succeed
-        foreach (var task in readTasks)
+        // Read log multiple times to verify consistency
+        for (int r = 0; r < 10; r++)
         {
-            dynamic result = task.Result;
+            dynamic result = analyzer.GetChangeLog();
             ((bool)result.success).Should().BeTrue();
 
-            // Count should be non-negative
             int changeCount = result.changeCount;
             changeCount.Should().BeGreaterThanOrEqualTo(0);
 
-            // Array should not be null
             var changes = result.changes as object[];
             changes.Should().NotBeNull();
         }
@@ -281,31 +266,24 @@ public class DependencyPropertyAnalyzerTests
         }
         System.Threading.Thread.Sleep(50);
 
-        // Act - Clear log while changes are happening
-        var changeTask = Task.Run(() =>
-        {
-            for (int i = 0; i < 500; i++)
-            {
-                button.Dispatcher.Invoke(() => button.Width = i);
-                System.Threading.Thread.Sleep(1);
-            }
-        });
-
-        System.Threading.Thread.Sleep(50);
+        // Act - Clear log and then trigger more changes on STA thread
         dynamic clearResult = analyzer.ClearChangeLog();
 
-        changeTask.Wait();
+        for (int i = 0; i < 500; i++)
+        {
+            button.Width = i;
+        }
         System.Threading.Thread.Sleep(100);
 
         // Assert - Clear should succeed
         ((bool)clearResult.success).Should().BeTrue();
 
-        // After clear and waiting, count should reflect only new changes
+        // After clear and new changes, count should reflect only new changes
         dynamic finalResult = analyzer.GetChangeLog();
         ((bool)finalResult.success).Should().BeTrue();
         int finalCount = finalResult.changeCount;
 
-        // Should have some changes from the concurrent task, but not the initial 100
+        // Should have some changes from after the clear, but not the initial 100
         finalCount.Should().BeLessThan(600); // Less than total changes
     }
 

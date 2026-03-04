@@ -13,7 +13,8 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 /// </summary>
 public class StyleAnalyzerGapTests
 {
-    // â”€â”€â”€ GetAppliedStyles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    // ?€?€?€ GetAppliedStyles ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
     [StaFact]
     public void GetAppliedStyles_NullElementId_NoApplication_ShouldReturnElementNotFound()
@@ -69,7 +70,7 @@ public class StyleAnalyzerGapTests
         doc.GetProperty("styles").GetArrayLength().Should().Be(0);
     }
 
-    // â”€â”€â”€ GetTriggers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ?€?€?€ GetTriggers ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
     [StaFact]
     public void GetTriggers_NullElementId_NoApplication_ShouldReturnElementNotFound()
@@ -105,7 +106,7 @@ public class StyleAnalyzerGapTests
         doc.GetProperty("error").GetString().Should().Contain("Element not found");
     }
 
-    // â”€â”€â”€ GetTemplateTree â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ?€?€?€ GetTemplateTree ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
     [StaFact]
     public void GetTemplateTree_NullElementId_NoApplication_ShouldReturnElementNotFound()
@@ -162,7 +163,7 @@ public class StyleAnalyzerGapTests
         doc.GetProperty("message").GetString().Should().Contain("no template");
     }
 
-    // â”€â”€â”€ GetResourceChain â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ?€?€?€ GetResourceChain ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
     [StaFact]
     public void GetResourceChain_EmptyResourceKey_ShouldReturnError()
@@ -256,7 +257,7 @@ public class StyleAnalyzerGapTests
         doc.GetProperty("chain").GetArrayLength().Should().Be(0);
     }
 
-    // â”€â”€â”€ OverrideStyleSetter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ?€?€?€ OverrideStyleSetter ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
     [StaFact]
     public void OverrideStyleSetter_EmptyPropertyName_ShouldReturnError()

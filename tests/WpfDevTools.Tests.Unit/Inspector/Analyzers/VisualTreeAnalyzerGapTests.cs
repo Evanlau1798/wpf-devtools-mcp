@@ -12,6 +12,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 /// </summary>
 public class VisualTreeAnalyzerGapTests
 {
+
     [StaFact]
     public void GetVisualTree_WithNullElementId_NoRoot_ShouldReturnError()
     {

@@ -8,6 +8,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class EventAnalyzerTests
 {
+
     [StaFact]
     public void TraceRoutedEvents_WithValidElement_ShouldStartTracing()
     {

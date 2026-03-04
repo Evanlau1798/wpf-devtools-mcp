@@ -32,4 +32,8 @@
     <ProjectReference Include="..\..\src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

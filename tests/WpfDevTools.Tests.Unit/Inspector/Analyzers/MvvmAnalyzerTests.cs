@@ -8,6 +8,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class MvvmAnalyzerTests
 {
+
     [Fact]
     public void GetViewModel_WithNullElementId_ShouldReturnError()
     {

@@ -7,6 +7,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
 
 public class SerializationHelperTests
 {
+
     [Theory]
     [InlineData(42, 42)]
     [InlineData("test", "test")]

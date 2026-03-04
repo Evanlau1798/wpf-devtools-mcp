@@ -7,6 +7,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
 
 public class SerializationHelperAdditionalTests
 {
+
     [StaFact]
     public void SerializePropertyValue_WithSolidColorBrush_ShouldReturnFormattedString()
     {

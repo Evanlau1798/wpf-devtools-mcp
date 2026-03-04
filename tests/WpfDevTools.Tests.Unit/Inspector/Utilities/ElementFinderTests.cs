@@ -7,6 +7,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
 
 public class ElementFinderTests
 {
+
     [Fact]
     public void GetRootElement_WhenNoApplication_ShouldReturnNull()
     {

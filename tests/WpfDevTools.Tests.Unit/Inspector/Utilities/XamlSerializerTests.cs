@@ -7,6 +7,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
 
 public class XamlSerializerTests
 {
+
     [StaFact]
     public void SerializeToXaml_WithButton_ShouldReturnXaml()
     {

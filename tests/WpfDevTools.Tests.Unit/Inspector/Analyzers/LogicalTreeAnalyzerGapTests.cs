@@ -12,6 +12,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 /// </summary>
 public class LogicalTreeAnalyzerGapTests
 {
+
     [StaFact]
     public void GetLogicalTree_WithNullElementId_NoRoot_ShouldReturnElementNotFound()
     {

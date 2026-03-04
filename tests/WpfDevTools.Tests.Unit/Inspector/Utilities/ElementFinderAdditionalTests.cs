@@ -7,6 +7,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
 
 public class ElementFinderAdditionalTests
 {
+
     [StaFact]
     public void GenerateElementId_ShouldReturnTypeName_WithNumber()
     {

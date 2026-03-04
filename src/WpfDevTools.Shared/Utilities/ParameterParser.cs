@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace WpfDevTools.Mcp.Server.Tools;
+namespace WpfDevTools.Shared.Utilities;
 
 /// <summary>
 /// Utility class for parsing parameters from JSON arguments

@@ -1,7 +1,7 @@
 using Xunit;
 using FluentAssertions;
 using System.Text.Json;
-using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 

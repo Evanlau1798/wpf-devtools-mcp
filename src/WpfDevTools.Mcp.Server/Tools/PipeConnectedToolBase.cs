@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 

@@ -78,6 +78,19 @@ public abstract class PipeConnectedToolBase
         if (!_sessionManager.HasSession(processId))
             return CreateNotConnectedError(processId);
 
+        // SECURITY: Check rate limit to prevent DoS attacks
+        if (!_sessionManager.CheckRateLimit(processId))
+        {
+            var availableTokens = _sessionManager.GetAvailableTokens(processId);
+            return new
+            {
+                success = false,
+                error = "Rate limit exceeded. Please slow down your requests.",
+                availableTokens,
+                retryAfter = "Wait 1 minute for rate limit to reset"
+            };
+        }
+
         var client = _sessionManager.GetPipeClient(processId);
         if (client == null || !client.IsConnected)
         {

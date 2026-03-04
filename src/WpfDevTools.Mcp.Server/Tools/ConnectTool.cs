@@ -198,12 +198,11 @@ public class ConnectTool
             throw new ArgumentException("Cannot load DLL from system directories", nameof(dllPath));
         }
 
-        // SECURITY: Verify Authenticode signature (optional but recommended)
-        // Note: Signature verification is disabled by default for development.
-        // Set environment variable WPFDEVTOOLS_REQUIRE_SIGNATURE=1 to enable.
-        var requireSignature = Environment.GetEnvironmentVariable("WPFDEVTOOLS_REQUIRE_SIGNATURE") == "1";
+        // SECURITY: Verify Authenticode signature (enabled by default for production)
+        // Set environment variable WPFDEVTOOLS_SKIP_SIGNATURE_CHECK=1 to disable (development only)
+        var skipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1";
 
-        if (requireSignature)
+        if (!skipSignatureCheck)
         {
             VerifyAuthenticodeSignature(fullPath);
         }

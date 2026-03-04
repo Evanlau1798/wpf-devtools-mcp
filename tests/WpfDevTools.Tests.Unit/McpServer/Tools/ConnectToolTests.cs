@@ -13,6 +13,7 @@ public class ConnectToolTests
     public async Task Execute_WithInvalidProcessId_ShouldReturnError()
     {
         // Arrange
+        using var _ = new SkipSignatureCheckScope();
         var tool = new ConnectTool(new SessionManager());
         var parameters = new { processId = 999999 };
 
@@ -30,6 +31,7 @@ public class ConnectToolTests
     public async Task Execute_WithMissingProcessId_ShouldReturnError()
     {
         // Arrange
+        using var _ = new SkipSignatureCheckScope();
         var tool = new ConnectTool(new SessionManager());
         var parameters = new { };
 
@@ -47,6 +49,7 @@ public class ConnectToolTests
     public async Task Execute_WithNonWpfProcess_ShouldReturnError()
     {
         // Arrange
+        using var _ = new SkipSignatureCheckScope();
         var tool = new ConnectTool(new SessionManager());
 
         // Find a system process that is definitely not WPF (e.g., svchost, System, Idle)

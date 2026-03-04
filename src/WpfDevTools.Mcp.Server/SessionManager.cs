@@ -8,7 +8,35 @@ public class SessionManager : IDisposable
     private bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
+    private readonly RateLimiterManager _rateLimiter;
     private readonly object _lock = new();
+
+    /// <summary>
+    /// Create a new SessionManager
+    /// </summary>
+    /// <param name="maxRequestsPerMinute">Maximum requests per minute per session (default: 100)</param>
+    public SessionManager(int maxRequestsPerMinute = 100)
+    {
+        _rateLimiter = new RateLimiterManager(maxRequestsPerMinute);
+    }
+
+    /// <summary>
+    /// Check if request is allowed under rate limit
+    /// </summary>
+    /// <param name="processId">Process ID</param>
+    /// <returns>True if allowed, false if rate limit exceeded</returns>
+    public bool CheckRateLimit(int processId)
+    {
+        return _rateLimiter.TryAcquire(processId);
+    }
+
+    /// <summary>
+    /// Get available request tokens for monitoring
+    /// </summary>
+    public int GetAvailableTokens(int processId)
+    {
+        return _rateLimiter.GetAvailableTokens(processId);
+    }
 
     /// <summary>
     /// Add a new session
@@ -45,6 +73,9 @@ public class SessionManager : IDisposable
                 client.Dispose();
                 _pipeClients.Remove(processId);
             }
+
+            // Clean up rate limiter state
+            _rateLimiter.RemoveSession(processId);
         }
     }
 

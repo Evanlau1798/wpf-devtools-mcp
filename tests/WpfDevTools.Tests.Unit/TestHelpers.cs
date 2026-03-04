@@ -16,3 +16,24 @@ public static class TestHelpers
         return JsonSerializer.Deserialize<JsonElement>(json);
     }
 }
+
+/// <summary>
+/// Temporarily skips DLL signature verification for testing purposes.
+/// Use with 'using' statement to ensure cleanup.
+/// </summary>
+public sealed class SkipSignatureCheckScope : IDisposable
+{
+    private readonly string? _previousValue;
+    private const string EnvVarName = "WPFDEVTOOLS_SKIP_SIGNATURE_CHECK";
+
+    public SkipSignatureCheckScope()
+    {
+        _previousValue = Environment.GetEnvironmentVariable(EnvVarName);
+        Environment.SetEnvironmentVariable(EnvVarName, "1");
+    }
+
+    public void Dispose()
+    {
+        Environment.SetEnvironmentVariable(EnvVarName, _previousValue);
+    }
+}

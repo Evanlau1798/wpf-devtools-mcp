@@ -152,8 +152,9 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
         return InvokeOnUIThread<object>(() =>
         {
             // SECURITY: Log command execution attempt for audit
-            System.Diagnostics.Trace.WriteLine(
-                $"[AUDIT] Command execution attempt: {commandName}, ElementId: {elementId ?? "root"}");
+            AuditLogger.LogSecurityEvent("CommandExecution",
+                $"Attempt: {commandName}, ElementId: {elementId ?? "root"}",
+                AuditSeverity.Information);
 
             var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
             if (element == null)
@@ -173,8 +174,9 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
 
             if (!cmd.CanExecute(parameter))
             {
-                System.Diagnostics.Trace.WriteLine(
-                    $"[AUDIT] Command execution blocked by CanExecute: {commandName}");
+                AuditLogger.LogSecurityEvent("CommandExecution",
+                    $"Blocked by CanExecute: {commandName}",
+                    AuditSeverity.Warning);
                 return new { success = false, error = $"Command '{commandName}' cannot execute" };
             }
 
@@ -182,8 +184,9 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
             cmd.Execute(parameter);
 
             // SECURITY: Log successful execution
-            System.Diagnostics.Trace.WriteLine(
-                $"[AUDIT] Command executed successfully: {commandName}");
+            AuditLogger.LogSecurityEvent("CommandExecution",
+                $"Success: {commandName}",
+                AuditSeverity.Information);
 
             return new { success = true, commandName, executed = true };
         });
@@ -280,8 +283,9 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
                 if (SensitivePropertyPattern.IsMatch(propertyName))
                 {
                     // Log security violation
-                    System.Diagnostics.Trace.WriteLine(
-                        $"[SECURITY] Blocked modification of sensitive property: {propertyName}");
+                    AuditLogger.LogSecurityEvent("PropertyModification",
+                        $"Blocked sensitive property: {propertyName}",
+                        AuditSeverity.Warning);
 
                     return new
                     {
@@ -356,11 +360,9 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
                 propertyInfo.SetValue(viewModel, convertedValue);
 
                 // SECURITY: Log property modification for audit
-                System.Diagnostics.Trace.WriteLine(
-                    $"[AUDIT] Property modified: {propertyName}, " +
-                    $"OldValue: {oldValue ?? "null"}, " +
-                    $"NewValue: {convertedValue ?? "null"}, " +
-                    $"ElementId: {elementId ?? "root"}");
+                AuditLogger.LogSecurityEvent("PropertyModification",
+                    $"Property: {propertyName}, OldValue: {oldValue ?? "null"}, NewValue: {convertedValue ?? "null"}, ElementId: {elementId ?? "root"}",
+                    AuditSeverity.Information);
 
                 // Trigger property change notification if ViewModel implements INotifyPropertyChanged
                 if (viewModel is System.ComponentModel.INotifyPropertyChanged)

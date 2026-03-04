@@ -8,16 +8,25 @@ public class SessionManager : IDisposable
     private bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
-    private readonly RateLimiterManager _rateLimiter;
+    private readonly IRateLimiterManager _rateLimiter;
     private readonly object _lock = new();
 
     /// <summary>
-    /// Create a new SessionManager
+    /// Create a new SessionManager with dependency injection
+    /// </summary>
+    /// <param name="rateLimiter">Rate limiter manager for controlling request rates</param>
+    public SessionManager(IRateLimiterManager rateLimiter)
+    {
+        _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
+    }
+
+    /// <summary>
+    /// Create a new SessionManager (backward compatibility constructor)
     /// </summary>
     /// <param name="maxRequestsPerMinute">Maximum requests per minute per session (default: 100)</param>
     public SessionManager(int maxRequestsPerMinute = 100)
+        : this(new RateLimiterManager(maxRequestsPerMinute))
     {
-        _rateLimiter = new RateLimiterManager(maxRequestsPerMinute);
     }
 
     /// <summary>

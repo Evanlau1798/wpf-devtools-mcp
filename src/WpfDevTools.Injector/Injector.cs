@@ -7,11 +7,27 @@ using WpfDevTools.Shared.Enums;
 namespace WpfDevTools.Injector;
 
 /// <summary>
+/// Interface for process injection operations
+/// </summary>
+public interface IProcessInjector
+{
+    /// <summary>
+    /// Inject Inspector DLL into target WPF process
+    /// </summary>
+    InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Validate target process
+    /// </summary>
+    InjectionError ValidateTarget(int processId);
+}
+
+/// <summary>
 /// High-level injector that validates target and performs injection
 /// Excluded from code coverage: requires real process injection
 /// </summary>
 [ExcludeFromCodeCoverage]
-public class ProcessInjector
+public class ProcessInjector : IProcessInjector
 {
     private readonly WpfProcessDetector _processDetector;
     private readonly DllInjector _dllInjector;

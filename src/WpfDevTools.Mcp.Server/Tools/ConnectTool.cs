@@ -16,14 +16,17 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public class ConnectTool
 {
-    private readonly ProcessInjector _injector;
+    private readonly IProcessInjector _injector;
     private readonly SessionManager _sessionManager;
     private readonly string _inspectorDllPath;
 
-    public ConnectTool(SessionManager sessionManager, string? inspectorDllPath = null)
+    /// <summary>
+    /// Create ConnectTool with dependency injection
+    /// </summary>
+    public ConnectTool(SessionManager sessionManager, IProcessInjector injector, string? inspectorDllPath = null)
     {
-        _injector = new ProcessInjector();
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+        _injector = injector ?? throw new ArgumentNullException(nameof(injector));
 
         if (inspectorDllPath != null)
         {
@@ -34,6 +37,14 @@ public class ConnectTool
 
         _inspectorDllPath = inspectorDllPath ?? GetInspectorDllPath();
         ValidateDllPath(_inspectorDllPath);
+    }
+
+    /// <summary>
+    /// Create ConnectTool (backward compatibility constructor)
+    /// </summary>
+    public ConnectTool(SessionManager sessionManager, string? inspectorDllPath = null)
+        : this(sessionManager, new ProcessInjector(), inspectorDllPath)
+    {
     }
 
     /// <summary>

@@ -87,9 +87,32 @@ public class RateLimiter
 }
 
 /// <summary>
+/// Interface for rate limiter manager
+/// </summary>
+public interface IRateLimiterManager
+{
+    /// <summary>
+    /// Try to acquire permission for a request
+    /// </summary>
+    /// <param name="processId">Process ID of the session</param>
+    /// <returns>True if allowed, false if rate limit exceeded</returns>
+    bool TryAcquire(int processId);
+
+    /// <summary>
+    /// Remove rate limiter for a session (when session ends)
+    /// </summary>
+    void RemoveSession(int processId);
+
+    /// <summary>
+    /// Get available tokens for a session (for monitoring)
+    /// </summary>
+    int GetAvailableTokens(int processId);
+}
+
+/// <summary>
 /// Rate limiter manager for multiple sessions
 /// </summary>
-public class RateLimiterManager
+public class RateLimiterManager : IRateLimiterManager
 {
     private readonly Dictionary<int, RateLimiter> _limiters = new();
     private readonly object _lock = new object();

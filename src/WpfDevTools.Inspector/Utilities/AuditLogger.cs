@@ -3,12 +3,38 @@ using System.Diagnostics;
 namespace WpfDevTools.Inspector.Utilities;
 
 /// <summary>
-/// Audit logger for security-sensitive operations
-/// Provides abstraction over different logging mechanisms
+/// Audit logger service interface for dependency injection
+/// </summary>
+public interface IAuditLoggerService
+{
+    void LogSecurityEvent(string category, string message, AuditSeverity severity = AuditSeverity.Information);
+}
+
+/// <summary>
+/// Instance-based audit logger service (recommended for DI)
+/// </summary>
+public class AuditLoggerService : IAuditLoggerService
+{
+    private readonly IAuditLogger _logger;
+
+    public AuditLoggerService(IAuditLogger logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public void LogSecurityEvent(string category, string message, AuditSeverity severity = AuditSeverity.Information)
+    {
+        _logger.Log(category, message, severity);
+    }
+}
+
+/// <summary>
+/// Static audit logger facade (for backward compatibility)
+/// NOTE: Prefer using IAuditLoggerService with DI for new code
 /// </summary>
 public static class AuditLogger
 {
-    private static IAuditLogger? _logger;
+    private static IAuditLoggerService _service = new AuditLoggerService(new TraceAuditLogger());
     private static readonly object _lock = new object();
 
     /// <summary>
@@ -18,7 +44,7 @@ public static class AuditLogger
     {
         lock (_lock)
         {
-            _logger = logger;
+            _service = new AuditLoggerService(logger);
         }
     }
 
@@ -29,9 +55,7 @@ public static class AuditLogger
     {
         lock (_lock)
         {
-            // Default to trace logger if not initialized
-            _logger ??= new TraceAuditLogger();
-            _logger.Log(category, message, severity);
+            _service.LogSecurityEvent(category, message, severity);
         }
     }
 }

@@ -7,6 +7,16 @@ namespace WpfDevTools.Inspector.Analyzers;
 
 /// <summary>
 /// Analyzes WPF Performance metrics
+///
+/// DESIGN NOTE - Static Mutable State:
+/// This class intentionally uses static mutable state for performance monitoring.
+/// Rationale:
+/// 1. WPF rendering is global per-application (single UI thread, single rendering pipeline)
+/// 2. CompositionTarget.Rendering is a static event that fires 60 times/second
+/// 3. Replacing collections on every frame (immutable pattern) would cause excessive GC pressure
+/// 4. Multiple analyzer instances should share the same monitoring session
+///
+/// Thread Safety: All static state is protected by locks (_lock, _bindingLock)
 /// </summary>
 public class PerformanceAnalyzer : DispatcherAnalyzerBase
 {
@@ -21,6 +31,8 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
         _elementFinder = elementFinder;
     }
 
+    // Static state for global WPF rendering monitoring
+    // Protected by _lock for thread safety
     private static readonly object _lock = new object();
     private static bool _isMonitoring = false;
     private static Stopwatch _frameStopwatch = new Stopwatch();

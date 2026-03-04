@@ -148,6 +148,7 @@ public class NamedPipeClient : IDisposable
             _isDisposed = true;
             _pipeClient?.Dispose();
             _pipeClient = null;
+            _pipeSemaphore?.Dispose();
         }
     }
 }

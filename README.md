@@ -43,12 +43,10 @@ First free, open-source MCP server providing WPF-specific deep inspection capabi
 ### Build from Source
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/wpf-devtools-mcp.git
+git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
 cd wpf-devtools-mcp
 dotnet build
 ```
-
-> **Note**: Replace `YOUR_USERNAME` with the actual repository owner's GitHub username.
 
 ### Run Tests
 
@@ -680,9 +678,34 @@ For applications that cannot use DLL injection (single-file apps, Native AOT, et
 
 > **⚠️ Note**: Currently requires building from source. NuGet package coming soon.
 
+**Step 1: Build the SDK project**
+
 ```bash
-# Build from source and reference the SDK project
+# Navigate to the SDK project directory
+cd src/WpfDevTools.Inspector.Sdk/
+
+# Build the SDK for your target framework
+dotnet build -c Release
+
+# The output DLL will be in:
+# bin/Release/net8.0-windows/WpfDevTools.Inspector.Sdk.dll
+```
+
+**Step 2: Reference the SDK in your WPF application**
+
+Option A: Add project reference (if in same solution):
+```bash
 dotnet add reference path/to/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj
+```
+
+Option B: Add DLL reference directly:
+```xml
+<!-- In your .csproj file -->
+<ItemGroup>
+  <Reference Include="WpfDevTools.Inspector.Sdk">
+    <HintPath>path\to\WpfDevTools.Inspector.Sdk.dll</HintPath>
+  </Reference>
+</ItemGroup>
 ```
 
 ### Usage
@@ -847,64 +870,13 @@ dotnet build -r win-arm64
 
 ### Contributing
 
-We welcome contributions! Please follow these guidelines:
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
 
-#### Coding Standards
-- Follow C# coding conventions and .NET best practices
-- Use meaningful variable and method names
-- Keep methods small and focused (< 50 lines)
-- Keep files focused (< 800 lines)
-- Use immutable patterns (avoid mutation)
-- Handle errors explicitly at every level
-
-#### Test-Driven Development (Required)
-All new features and bug fixes MUST follow TDD workflow:
-1. **RED**: Write failing test first
-2. **GREEN**: Write minimal code to pass test
-3. **REFACTOR**: Improve code while keeping tests green
-4. **VERIFY**: Ensure 80%+ code coverage
-
-```bash
-# Run tests in watch mode for TDD
-dotnet watch test --project tests/WpfDevTools.Tests.Unit/
-
-# Check coverage
-dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
-```
-
-#### Branch Naming
-- `feature/description` - New features
-- `fix/description` - Bug fixes
-- `refactor/description` - Code refactoring
-- `docs/description` - Documentation updates
-
-#### Commit Format
-Follow conventional commits:
-```
-<type>: <description>
-
-<optional body>
-```
-
-Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
-
-#### Pull Request Process
-1. Fork the repository
-2. Create a feature branch from `main`
-3. Write tests first (TDD)
-4. Implement feature/fix
-5. Ensure all tests pass and coverage is 80%+
-6. Update documentation if needed
-7. Submit pull request with clear description
-8. Address review feedback
-
-#### Code Review Checklist
-- [ ] Tests written and passing
-- [ ] Code coverage 80%+
-- [ ] No hardcoded values
-- [ ] Proper error handling
-- [ ] Documentation updated
-- [ ] No breaking changes (or clearly documented)
+- Coding standards and best practices
+- Test-driven development workflow
+- Branch naming and commit format
+- Pull request process
+- Code review checklist
 
 ## Roadmap
 

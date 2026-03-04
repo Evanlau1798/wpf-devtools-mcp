@@ -8,10 +8,22 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// Analyzes MVVM patterns in a WPF application, providing access to ViewModels, commands,
 /// validation errors, and runtime property modification via reflection on DataContext objects.
 /// All operations are marshalled to the UI thread via <see cref="DispatcherAnalyzerBase"/>.
+///
+/// SECURITY NOTE:
+/// - ExecuteCommand and ModifyViewModel use reflection and can modify application state
+/// - Property blacklist prevents modification of sensitive properties
+/// - All modifications are logged for audit purposes
 /// </summary>
 public class MvvmAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
+
+    // Security: Blacklist of property name patterns that should not be modified
+    private static readonly string[] PropertyBlacklist = new[]
+    {
+        "password", "secret", "token", "key", "credential",
+        "auth", "session", "cookie", "apikey", "connectionstring"
+    };
 
     /// <summary>
     /// Initializes a new instance of <see cref="MvvmAnalyzer"/> with the specified element finder.
@@ -137,6 +149,10 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
+            // SECURITY: Log command execution attempt for audit
+            System.Diagnostics.Trace.WriteLine(
+                $"[AUDIT] Command execution attempt: {commandName}, ElementId: {elementId ?? "root"}");
+
             var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
             if (element == null)
                 return new { success = false, error = "Element not found" };
@@ -154,9 +170,19 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = $"'{commandName}' is not an ICommand" };
 
             if (!cmd.CanExecute(parameter))
+            {
+                System.Diagnostics.Trace.WriteLine(
+                    $"[AUDIT] Command execution blocked by CanExecute: {commandName}");
                 return new { success = false, error = $"Command '{commandName}' cannot execute" };
+            }
 
+            // Execute command
             cmd.Execute(parameter);
+
+            // SECURITY: Log successful execution
+            System.Diagnostics.Trace.WriteLine(
+                $"[AUDIT] Command executed successfully: {commandName}");
+
             return new { success = true, commandName, executed = true };
         });
     }
@@ -248,6 +274,24 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
                     return new { success = false, error = $"Property '{propertyName}' is read-only" };
                 }
 
+                // SECURITY: Check property name against blacklist
+                var propertyNameLower = propertyName.ToLowerInvariant();
+                foreach (var blacklistedPattern in PropertyBlacklist)
+                {
+                    if (propertyNameLower.Contains(blacklistedPattern))
+                    {
+                        // Log security violation
+                        System.Diagnostics.Trace.WriteLine(
+                            $"[SECURITY] Blocked modification of sensitive property: {propertyName}");
+
+                        return new
+                        {
+                            success = false,
+                            error = $"Property '{propertyName}' cannot be modified for security reasons"
+                        };
+                    }
+                }
+
                 // Convert value to target type
                 var targetType = propertyInfo.PropertyType;
                 object? convertedValue;
@@ -312,6 +356,13 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
 
                 // Set new value
                 propertyInfo.SetValue(viewModel, convertedValue);
+
+                // SECURITY: Log property modification for audit
+                System.Diagnostics.Trace.WriteLine(
+                    $"[AUDIT] Property modified: {propertyName}, " +
+                    $"OldValue: {oldValue ?? "null"}, " +
+                    $"NewValue: {convertedValue ?? "null"}, " +
+                    $"ElementId: {elementId ?? "root"}");
 
                 // Trigger property change notification if ViewModel implements INotifyPropertyChanged
                 if (viewModel is System.ComponentModel.INotifyPropertyChanged)

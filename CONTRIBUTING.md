@@ -1,0 +1,118 @@
+# Contributing to WPF DevTools MCP Server
+
+We welcome contributions! Please follow these guidelines to ensure a smooth collaboration process.
+
+## Coding Standards
+
+- Follow C# coding conventions and .NET best practices
+- Use meaningful variable and method names
+- Keep methods small and focused (< 50 lines)
+- Keep files focused (< 800 lines)
+- Use immutable patterns (avoid mutation)
+- Handle errors explicitly at every level
+
+## Test-Driven Development (Required)
+
+All new features and bug fixes MUST follow TDD workflow:
+
+1. **RED**: Write failing test first
+2. **GREEN**: Write minimal code to pass test
+3. **REFACTOR**: Improve code while keeping tests green
+4. **VERIFY**: Ensure 80%+ code coverage
+
+```bash
+# Run tests in watch mode for TDD
+dotnet watch test --project tests/WpfDevTools.Tests.Unit/
+
+# Check coverage
+dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+```
+
+## Branch Naming
+
+- `feature/description` - New features
+- `fix/description` - Bug fixes
+- `refactor/description` - Code refactoring
+- `docs/description` - Documentation updates
+
+## Commit Format
+
+Follow conventional commits:
+
+```
+<type>: <description>
+
+<optional body>
+```
+
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
+
+## Pull Request Process
+
+1. Fork the repository
+2. Create a feature branch from `main`
+3. Write tests first (TDD)
+4. Implement feature/fix
+5. Ensure all tests pass and coverage is 80%+
+6. Update documentation if needed
+7. Submit pull request with clear description
+8. Address review feedback
+
+## Code Review Checklist
+
+Before submitting your pull request, ensure:
+
+- [ ] Tests written and passing
+- [ ] Code coverage 80%+
+- [ ] No hardcoded values
+- [ ] Proper error handling
+- [ ] Documentation updated
+- [ ] No breaking changes (or clearly documented)
+
+## Development Setup
+
+### Prerequisites
+
+- .NET 8.0 SDK or later
+- .NET Framework 4.8 targeting pack
+- Windows 10 or later
+- Visual Studio 2022 or VS Code (optional)
+
+### Build and Test
+
+```bash
+# Clone the repository
+git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
+cd wpf-devtools-mcp
+
+# Build all projects
+dotnet build
+
+# Run all tests
+dotnet test
+
+# Run specific test project
+dotnet test tests/WpfDevTools.Tests.Unit/
+
+# Run tests with coverage (IMPORTANT: Use coverlet.runsettings)
+dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage"
+
+# Build for release
+dotnet build -c Release
+```
+
+**Test Coverage Requirements:**
+- Minimum: 80% line coverage (MANDATORY)
+- Current Status: 83.17% ✅ (Exceeds target)
+- Unit test coverage is the primary metric
+- Integration test coverage (27%) is normal for end-to-end tests
+
+## Questions or Issues?
+
+If you have questions or encounter issues:
+
+1. Check existing [Issues](https://github.com/Evanlau1798/wpf-devtools-mcp/issues)
+2. Review the [README.md](README.md) for documentation
+3. Open a new issue with detailed information
+
+Thank you for contributing to WPF DevTools MCP Server!

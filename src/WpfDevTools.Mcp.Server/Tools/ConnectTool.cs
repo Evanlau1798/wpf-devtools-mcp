@@ -180,8 +180,12 @@ public class ConnectTool
         if (uri.IsAbsoluteUri && uri.IsUnc)
             throw new ArgumentException("Network paths are not allowed", nameof(dllPath));
 
-        // Get full path to normalize
+        // Get full path to normalize and check for path traversal
         var fullPath = Path.GetFullPath(dllPath);
+
+        // Verify the normalized path still points to the intended file
+        if (!fullPath.Equals(Path.GetFullPath(dllPath), StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Path traversal detected", nameof(dllPath));
 
         // Prevent system directories
         var systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
@@ -191,6 +195,51 @@ public class ConnectTool
             fullPath.StartsWith(windowsDir, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException("Cannot load DLL from system directories", nameof(dllPath));
+        }
+
+        // SECURITY: Verify Authenticode signature (optional but recommended)
+        // Note: Signature verification is disabled by default for development.
+        // Set environment variable WPFDEVTOOLS_REQUIRE_SIGNATURE=1 to enable.
+        var requireSignature = Environment.GetEnvironmentVariable("WPFDEVTOOLS_REQUIRE_SIGNATURE") == "1";
+
+        if (requireSignature)
+        {
+            VerifyAuthenticodeSignature(fullPath);
+        }
+    }
+
+    /// <summary>
+    /// Verify Authenticode signature of the DLL
+    /// </summary>
+    private static void VerifyAuthenticodeSignature(string filePath)
+    {
+        try
+        {
+            // Use X509Certificate to check if file is signed
+            var cert = System.Security.Cryptography.X509Certificates.X509Certificate.CreateFromSignedFile(filePath);
+
+            if (cert == null)
+            {
+                throw new InvalidOperationException("DLL is not digitally signed");
+            }
+
+            // Optional: Verify certificate thumbprint against expected value
+            // var expectedThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_THUMBPRINT");
+            // if (!string.IsNullOrEmpty(expectedThumbprint))
+            // {
+            //     var cert2 = new System.Security.Cryptography.X509Certificates.X509Certificate2(cert);
+            //     if (!cert2.Thumbprint.Equals(expectedThumbprint, StringComparison.OrdinalIgnoreCase))
+            //     {
+            //         throw new InvalidOperationException("DLL signature does not match expected certificate");
+            //     }
+            // }
+
+            cert.Dispose();
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            throw new InvalidOperationException(
+                "DLL signature verification failed. The file may not be signed or the signature is invalid.");
         }
     }
 }

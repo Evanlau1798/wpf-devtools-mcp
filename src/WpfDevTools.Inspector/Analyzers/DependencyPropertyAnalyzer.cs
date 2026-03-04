@@ -7,10 +7,23 @@ namespace WpfDevTools.Inspector.Analyzers;
 
 /// <summary>
 /// Analyzes WPF DependencyProperty values and sources
+///
+/// DESIGN NOTE - Static Mutable State:
+/// This class intentionally uses static mutable state for property change tracking.
+/// Rationale:
+/// 1. Property watchers should persist across analyzer instances
+/// 2. Change log is global per-application for centralized monitoring
+/// 3. Multiple MCP tool calls should access the same watcher registry
+///
+/// Thread Safety: ConcurrentDictionary and ConcurrentQueue provide thread-safe operations
+/// Memory Safety: WeakReference prevents memory leaks when elements are GC'd
 /// </summary>
 public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
+
+    // Static state for global property change tracking
+    // Thread-safe via ConcurrentDictionary/ConcurrentQueue
     private static readonly ConcurrentDictionary<string, (DependencyPropertyDescriptor Descriptor, EventHandler Handler, WeakReference<DependencyObject> ElementRef)> _watchers = new();
     private static readonly ConcurrentQueue<object> _changeLog = new();
     private static int _changeLogCount = 0;
@@ -301,18 +314,14 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             if (_watchers.TryRemove(watchKey, out var watcher))
             {
-                // Use the stored weak reference first; fall back to live lookup if still available
-                if (!watcher.ElementRef.TryGetTarget(out var element))
+                // Try to get the element from weak reference
+                if (watcher.ElementRef.TryGetTarget(out var element))
                 {
-                    element = elementId == null
-                        ? _elementFinder.GetRootElement()
-                        : _elementFinder.FindById(elementId);
-                }
-
-                if (element != null)
-                {
+                    // Element is still alive, remove the event handler
                     watcher.Descriptor.RemoveValueChanged(element, watcher.Handler);
                 }
+                // If element is GC'd, the handler is already cleaned up by GC
+                // No need for fallback lookup
 
                 return new
                 {

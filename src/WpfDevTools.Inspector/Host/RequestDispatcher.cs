@@ -137,6 +137,7 @@ public class RequestDispatcher
         }
         catch (Exception ex)
         {
+            LogError($"Unhandled exception in DispatchAsync for method '{request.Method}': {ex}");
             return new InspectorResponse
             {
                 Id = request.Id,
@@ -144,7 +145,7 @@ public class RequestDispatcher
                 Error = new InspectorError
                 {
                     Code = ErrorCode.InternalError,
-                    Message = ex.Message,
+                    Message = "Internal inspector error occurred",
                     Data = null
                 }
             };
@@ -155,6 +156,23 @@ public class RequestDispatcher
     {
         await Task.CompletedTask;
         return new { success = true, status = "pong", timestamp = DateTime.UtcNow };
+    }
+
+    private static readonly string _logPath = System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"WpfDevTools_Inspector_{System.Diagnostics.Process.GetCurrentProcess().Id}.log");
+
+    private static void LogError(string message)
+    {
+        try
+        {
+            System.IO.File.AppendAllText(_logPath,
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [ERROR] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Ignore logging errors
+        }
     }
 
 }

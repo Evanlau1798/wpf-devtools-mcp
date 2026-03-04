@@ -27,13 +27,20 @@ public abstract class PipeConnectedToolBase
         if (arguments.HasValue)
         {
             if (arguments.Value.TryGetProperty("processId", out var pidProp))
-                processId = pidProp.GetInt32();
+            {
+                if (!pidProp.TryGetInt32(out var parsedPid))
+                    return (-1, null, new { success = false, error = "processId must be a valid 32-bit integer" });
+                processId = parsedPid;
+            }
             if (arguments.Value.TryGetProperty("elementId", out var eidProp))
                 elementId = eidProp.GetString();
         }
 
         if (!processId.HasValue)
             return (-1, elementId, CreateMissingParamError("processId"));
+
+        if (processId.Value <= 0)
+            return (-1, elementId, CreateMissingParamError("processId must be a positive integer"));
 
         return (processId.Value, elementId, null);
     }
@@ -60,7 +67,7 @@ public abstract class PipeConnectedToolBase
     /// Create error response for not-connected process
     /// </summary>
     protected static object CreateNotConnectedError(int processId) =>
-        new { success = false, error = $"Process {processId} is not connected" };
+        new { success = false, error = $"Process {processId} is not connected. Call connect(processId: {processId}) first, then retry this tool." };
 
     /// <summary>
     /// Send a request to the Inspector DLL via Named Pipe

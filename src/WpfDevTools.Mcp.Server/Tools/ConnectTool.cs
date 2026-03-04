@@ -39,52 +39,62 @@ public class ConnectTool
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         int? processId = null;
         if (arguments.HasValue && arguments.Value.TryGetProperty("processId", out var pidProp))
-            processId = pidProp.GetInt32();
+        {
+            if (!pidProp.TryGetInt32(out var parsedPid))
+            {
+                return new
+                {
+                    success = false,
+                    error = "processId must be a valid 32-bit integer"
+                };
+            }
+            processId = parsedPid;
+        }
 
         if (!processId.HasValue)
         {
-            return Task.FromResult<object>(new
+            return new
             {
                 success = false,
                 error = "Missing required parameter: processId"
-            });
+            };
         }
 
         // Check if already connected
         if (_sessionManager.HasSession(processId.Value))
         {
-            return Task.FromResult<object>(new
+            return new
             {
                 success = true,
                 message = "Already connected to process",
                 processId = processId.Value
-            });
+            };
         }
 
         // Validate target process
         var validationError = _injector.ValidateTarget(processId.Value);
         if (validationError != InjectionError.None)
         {
-            return Task.FromResult<object>(new
+            return new
             {
                 success = false,
                 error = GetErrorMessage(validationError, processId.Value)
-            });
+            };
         }
 
         // Perform injection
         var injectionResult = _injector.Inject(processId.Value, _inspectorDllPath);
         if (!injectionResult.Success)
         {
-            return Task.FromResult<object>(new
+            return new
             {
                 success = false,
                 error = injectionResult.ErrorMessage ?? "Injection failed"
-            });
+            };
         }
 
         // Add to session manager (also creates NamedPipeClient)
@@ -95,70 +105,30 @@ public class ConnectTool
         if (pipeClient == null)
         {
             _sessionManager.RemoveSession(processId.Value);
-            return Task.FromResult<object>(new
+            return new
             {
                 success = false,
                 error = "Failed to create Named Pipe client"
-            });
+            };
         }
 
-        try
-        {
-            var connectTask = pipeClient.ConnectAsync(InspectorConfig.PipeConnectTimeout);
-            if (!connectTask.Wait(InspectorConfig.PipeConnectTimeout))
-            {
-                _sessionManager.RemoveSession(processId.Value);
-                return Task.FromResult<object>(new
-                {
-                    success = false,
-                    error = "Timeout connecting to Inspector Named Pipe"
-                });
-            }
-        }
-        catch (AggregateException ex) when (ex.InnerException is TimeoutException)
+        var connected = await pipeClient.ConnectAsync(InspectorConfig.PipeConnectTimeout).ConfigureAwait(false);
+        if (!connected)
         {
             _sessionManager.RemoveSession(processId.Value);
-            return Task.FromResult<object>(new
+            return new
             {
                 success = false,
                 error = "Timeout connecting to Inspector Named Pipe"
-            });
-        }
-        catch (TimeoutException)
-        {
-            _sessionManager.RemoveSession(processId.Value);
-            return Task.FromResult<object>(new
-            {
-                success = false,
-                error = "Timeout connecting to Inspector Named Pipe"
-            });
-        }
-        catch (IOException ex)
-        {
-            _sessionManager.RemoveSession(processId.Value);
-            return Task.FromResult<object>(new
-            {
-                success = false,
-                error = $"Pipe communication error: {ex.Message}"
-            });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _sessionManager.RemoveSession(processId.Value);
-            return Task.FromResult<object>(new
-            {
-                success = false,
-                error = $"Access denied to Named Pipe: {ex.Message}"
-            });
+            };
         }
 
-        return Task.FromResult<object>(new
+        return new
         {
             success = true,
-            message = "Connected successfully",
-            processId = processId.Value,
-            pipeName = $"WpfDevTools_{processId.Value}"
-        });
+            message = "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.",
+            processId = processId.Value
+        };
     }
 
     private static string GetInspectorDllPath()

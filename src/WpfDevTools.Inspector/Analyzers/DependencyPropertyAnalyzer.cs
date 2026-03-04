@@ -11,7 +11,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
-    private static readonly ConcurrentDictionary<string, (DependencyPropertyDescriptor Descriptor, EventHandler Handler)> _watchers = new();
+    private static readonly ConcurrentDictionary<string, (DependencyPropertyDescriptor Descriptor, EventHandler Handler, WeakReference<DependencyObject> ElementRef)> _watchers = new();
     private static readonly List<object> _changeLog = new();
     private static readonly object _watchLock = new object();
     private const int MaxChangeLogEntries = 10000;
@@ -267,7 +267,7 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                     };
 
                     descriptor.AddValueChanged(depObj, handler);
-                    _watchers[watchKey] = (descriptor, handler);
+                    _watchers[watchKey] = (descriptor, handler, new WeakReference<DependencyObject>(depObj));
                 }
 
                 return new
@@ -296,9 +296,13 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             if (_watchers.TryRemove(watchKey, out var watcher))
             {
-                var element = elementId == null
-                    ? _elementFinder.GetRootElement()
-                    : _elementFinder.FindById(elementId);
+                // Use the stored weak reference first; fall back to live lookup if still available
+                if (!watcher.ElementRef.TryGetTarget(out var element))
+                {
+                    element = elementId == null
+                        ? _elementFinder.GetRootElement()
+                        : _elementFinder.FindById(elementId);
+                }
 
                 if (element != null)
                 {
@@ -355,12 +359,14 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
         {
             try
             {
-                // Note: We can't remove the handler without the element reference
-                // The watchers will be cleaned up when the AppDomain unloads
+                if (kvp.Value.ElementRef.TryGetTarget(out var element))
+                {
+                    kvp.Value.Descriptor.RemoveValueChanged(element, kvp.Value.Handler);
+                }
             }
             catch
             {
-                // Ignore cleanup errors
+                // Ignore cleanup errors during shutdown
             }
         }
         _watchers.Clear();

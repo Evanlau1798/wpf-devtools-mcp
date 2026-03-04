@@ -139,6 +139,12 @@ public class InteractionAnalyzer : DispatcherAnalyzerBase
                     return new { success = false, error = "Element has no visual bounds" };
                 }
 
+                const int MaxDimensionPixels = 3840;
+                if (bounds.Width > MaxDimensionPixels || bounds.Height > MaxDimensionPixels)
+                {
+                    return new { success = false, error = $"Element too large to screenshot ({bounds.Width:F0}x{bounds.Height:F0} px). Maximum is {MaxDimensionPixels}x{MaxDimensionPixels}." };
+                }
+
                 // Create render target
                 var renderTarget = new RenderTargetBitmap(
                     (int)bounds.Width,

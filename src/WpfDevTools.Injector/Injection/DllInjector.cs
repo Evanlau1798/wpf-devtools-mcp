@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text;
 using WpfDevTools.Shared.Enums;
@@ -8,7 +9,9 @@ namespace WpfDevTools.Injector.Injection;
 /// <summary>
 /// Injects DLL into target process using CreateRemoteThread
 /// Based on Snoop's injection mechanism
+/// Excluded from code coverage: requires P/Invoke calls to inject into real processes
 /// </summary>
+[ExcludeFromCodeCoverage]
 public class DllInjector
 {
     private const int PROCESS_CREATE_THREAD = 0x0002;

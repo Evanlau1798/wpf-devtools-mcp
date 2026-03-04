@@ -18,6 +18,9 @@ public class GetEventHandlersTool : PipeConnectedToolBase
         if (error != null) return error;
         var eventName = ParseStringParam(arguments, "eventName");
 
+        if (string.IsNullOrEmpty(eventName))
+            return CreateMissingParamError("eventName");
+
         return await SendInspectorRequestAsync(processId, "get_event_handlers",
             new { elementId, eventName }, cancellationToken);
     }

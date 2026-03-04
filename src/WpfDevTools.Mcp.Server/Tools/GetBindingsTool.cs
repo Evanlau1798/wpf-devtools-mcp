@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -16,8 +17,9 @@ public class GetBindingsTool : PipeConnectedToolBase
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);
         if (error != null) return error;
+        var recursive = ParameterParser.ParseBoolParam(arguments, "recursive");
 
         return await SendInspectorRequestAsync(processId, "get_bindings",
-            new { elementId }, cancellationToken);
+            new { elementId, recursive }, cancellationToken);
     }
 }

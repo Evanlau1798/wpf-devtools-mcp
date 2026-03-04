@@ -280,7 +280,7 @@ You want to automate UI testing by simulating user interactions.
   }
 }
 
-// 3. Simulate keyboard input in a TextBox
+// 3. Simulate keyboard input in a TextBox (send individual key presses)
 {
   "jsonrpc": "2.0",
   "id": 3,
@@ -290,7 +290,22 @@ You want to automate UI testing by simulating user interactions.
     "arguments": {
       "processId": 12345,
       "elementId": "usernameTextBox",
-      "text": "testuser"
+      "key": "T"
+    }
+  }
+}
+
+// Repeat for each character, or use Tab to move to the next field
+{
+  "jsonrpc": "2.0",
+  "id": "3b",
+  "method": "tools/call",
+  "params": {
+    "name": "simulate_keyboard",
+    "arguments": {
+      "processId": 12345,
+      "elementId": "usernameTextBox",
+      "key": "Tab"
     }
   }
 }
@@ -378,6 +393,9 @@ You want to understand how a routed event propagates through the Visual Tree.
 
 ## Example 7: Real-time Property Watching
 
+> **Note**: Step 2 requires HTTP+SSE transport which is planned but not yet implemented.
+> In the current STDIO transport, use polling with `get_dp_value_source` to check for changes.
+
 ### Scenario
 You want to monitor property changes in real-time.
 
@@ -416,7 +434,7 @@ You want to monitor property changes in real-time.
       "processId": 12345,
       "elementId": "progressBar",
       "propertyName": "Value",
-      "value": 75
+      "value": "75"
     }
   }
 }

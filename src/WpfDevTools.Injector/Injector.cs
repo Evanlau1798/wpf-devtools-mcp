@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Enums;
@@ -7,7 +8,9 @@ namespace WpfDevTools.Injector;
 
 /// <summary>
 /// High-level injector that validates target and performs injection
+/// Excluded from code coverage: requires real process injection
 /// </summary>
+[ExcludeFromCodeCoverage]
 public class ProcessInjector
 {
     private readonly WpfProcessDetector _processDetector;
@@ -46,7 +49,7 @@ public class ProcessInjector
             return InjectionResult.CreateFailure(
                 processId,
                 InjectionError.AllocationFailed,
-                $"DLL not found: {dllPath}");
+                $"DLL not found: {Path.GetFileName(dllPath)}");
         }
 
         // Check architecture compatibility

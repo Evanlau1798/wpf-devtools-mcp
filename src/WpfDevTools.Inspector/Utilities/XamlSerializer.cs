@@ -35,9 +35,9 @@ public class XamlSerializer
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return $"<!-- Failed to serialize: {ex.Message} -->";
+            return "<!-- Failed to serialize element to XAML -->";
         }
     }
 }

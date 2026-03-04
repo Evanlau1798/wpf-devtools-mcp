@@ -70,6 +70,9 @@ public class ElementFinder
             return GetRootElement();
         }
 
+        if (elementId!.Length > 256)
+            return null;
+
         // Try to find in cache first
         if (_elementCache.TryGetValue(elementId!, out var weakRef))
         {

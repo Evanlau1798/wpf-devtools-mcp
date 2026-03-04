@@ -13,30 +13,34 @@ public static class ParameterHelpers
             return null;
 
         if (@params.Value.TryGetProperty(name, out var property))
-            return property.GetString();
+        {
+            if (property.ValueKind == JsonValueKind.String)
+                return property.GetString();
+            return null;
+        }
 
         return null;
     }
 
     public static int? GetIntParam(JsonElement? @params, string name)
     {
-        if (@params == null || !@params.HasValue)
-            return null;
-
+        if (@params == null || !@params.HasValue) return null;
         if (@params.Value.TryGetProperty(name, out var property))
-            return property.GetInt32();
-
+        {
+            if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var val))
+                return val;
+        }
         return null;
     }
 
     public static bool? GetBoolParam(JsonElement? @params, string name)
     {
-        if (@params == null || !@params.HasValue)
-            return null;
-
+        if (@params == null || !@params.HasValue) return null;
         if (@params.Value.TryGetProperty(name, out var property))
-            return property.GetBoolean();
-
+        {
+            if (property.ValueKind == JsonValueKind.True) return true;
+            if (property.ValueKind == JsonValueKind.False) return false;
+        }
         return null;
     }
 

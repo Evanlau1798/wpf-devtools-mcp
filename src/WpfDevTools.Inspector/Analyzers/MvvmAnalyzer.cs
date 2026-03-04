@@ -4,15 +4,33 @@ using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
+/// <summary>
+/// Analyzes MVVM patterns in a WPF application, providing access to ViewModels, commands,
+/// validation errors, and runtime property modification via reflection on DataContext objects.
+/// All operations are marshalled to the UI thread via <see cref="DispatcherAnalyzerBase"/>.
+/// </summary>
 public class MvvmAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="MvvmAnalyzer"/> with the specified element finder.
+    /// </summary>
+    /// <param name="elementFinder">The element finder used to resolve elements by ID or as the root element.</param>
     public MvvmAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;
     }
 
+    /// <summary>
+    /// Retrieves ViewModel information from the DataContext of the specified element.
+    /// Reflects over the DataContext's public properties and their current values.
+    /// </summary>
+    /// <param name="elementId">Optional element ID. Uses the application root element when null.</param>
+    /// <returns>
+    /// An object with <c>success: true</c>, <c>viewModelType</c>, and <c>properties</c> on success,
+    /// or <c>success: false</c> and an <c>error</c> message on failure.
+    /// </returns>
     public object GetViewModel(string? elementId)
     {
         return InvokeOnUIThread<object>(() =>
@@ -63,6 +81,15 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
         });
     }
 
+    /// <summary>
+    /// Retrieves all <see cref="System.Windows.Input.ICommand"/> properties from the ViewModel
+    /// of the specified element, including their current <c>CanExecute</c> status.
+    /// </summary>
+    /// <param name="elementId">Optional element ID. Uses the application root element when null.</param>
+    /// <returns>
+    /// An object with <c>success: true</c> and a <c>commands</c> array on success,
+    /// or <c>success: false</c> and an <c>error</c> message if the element is not found.
+    /// </returns>
     public object GetCommands(string? elementId)
     {
         return InvokeOnUIThread<object>(() =>
@@ -95,6 +122,17 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
         });
     }
 
+    /// <summary>
+    /// Executes a named <see cref="System.Windows.Input.ICommand"/> on the ViewModel of the specified element.
+    /// Validates <c>CanExecute</c> before attempting execution.
+    /// </summary>
+    /// <param name="elementId">Optional element ID. Uses the application root element when null.</param>
+    /// <param name="commandName">The name of the command property on the ViewModel.</param>
+    /// <param name="parameter">Optional command parameter passed to <c>Execute</c> and <c>CanExecute</c>.</param>
+    /// <returns>
+    /// An object with <c>success: true</c> and <c>executed: true</c> on success,
+    /// or <c>success: false</c> and an <c>error</c> message on failure.
+    /// </returns>
     public object ExecuteCommand(string? elementId, string commandName, object? parameter)
     {
         return InvokeOnUIThread<object>(() =>
@@ -123,6 +161,15 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
         });
     }
 
+    /// <summary>
+    /// Retrieves all WPF validation errors for the specified element using
+    /// <see cref="System.Windows.Controls.Validation.GetErrors"/>.
+    /// </summary>
+    /// <param name="elementId">Optional element ID. Uses the application root element when null.</param>
+    /// <returns>
+    /// An object with <c>success: true</c>, <c>errorCount</c>, and an <c>errors</c> array on success,
+    /// or <c>success: false</c> and an <c>error</c> message if the element is not found.
+    /// </returns>
     public object GetValidationErrors(string? elementId)
     {
         return InvokeOnUIThread<object>(() =>

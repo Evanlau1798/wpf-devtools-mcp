@@ -1,7 +1,7 @@
 # WPF DevTools MCP Server
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-318%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-687%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 A Model Context Protocol (MCP) server that enables AI agents to deeply inspect and interact with running WPF applications through in-process DLL injection.
@@ -78,7 +78,7 @@ Add to `claude_desktop_config.json`:
 
 ### Cursor
 
-Add to `.cursor/config.json`:
+Add to `.cursor/mcp.json`:
 
 ```json
 {
@@ -115,17 +115,30 @@ Add to `settings.json`:
 
 ## Quick Start
 
-### 1. Start the MCP Server
+### Using with an AI Agent (Recommended)
+
+After configuring your AI client (see Configuration above), simply ask your AI agent:
+
+1. **"List all running WPF processes"** → Uses `get_processes`
+2. **"Connect to process [PID]"** → Uses `connect`
+3. **"Show me the visual tree"** → Uses `get_visual_tree`
+4. **"Find any binding errors"** → Uses `get_binding_errors`
+
+### Manual Testing (Developer Mode)
+
+Start the MCP server directly:
 
 ```bash
 dotnet run --project src/WpfDevTools.Mcp.Server/
 ```
 
-The server will start in STDIO mode and wait for MCP protocol messages.
+The server communicates via STDIO using the MCP protocol.
 
-### 2. Connect to a WPF Application
+### Raw MCP Protocol (Advanced)
 
-Use the `get_processes` tool to list running WPF applications:
+For direct protocol interaction, the server accepts JSON-RPC messages over STDIO.
+
+List running WPF applications:
 
 ```json
 {
@@ -138,7 +151,7 @@ Use the `get_processes` tool to list running WPF applications:
 }
 ```
 
-Connect to a specific process using the `connect` tool:
+Connect to a specific process:
 
 ```json
 {
@@ -154,7 +167,7 @@ Connect to a specific process using the `connect` tool:
 }
 ```
 
-### 3. Inspect the Visual Tree
+Inspect the Visual Tree:
 
 ```json
 {
@@ -297,6 +310,16 @@ Get NameScope for element lookup.
 
 **Returns**: NameScope dictionary
 
+#### get_template_tree
+Get the template Visual Tree.
+
+**Parameters**:
+- `processId` (required): Process ID
+- `elementId` (required): Element ID
+- `depth` (optional): Maximum tree depth (default: unlimited, max: 100)
+
+**Returns**: Template tree structure
+
 ### 3. Binding Diagnostics (5 tools)
 
 #### get_bindings
@@ -417,15 +440,6 @@ Get all triggers for an element.
 - `elementId` (required): Element ID
 
 **Returns**: Array of triggers with conditions
-
-#### get_template_tree
-Get the template Visual Tree.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-
-**Returns**: Template tree structure
 
 #### get_resource_chain
 Get the resource lookup chain.
@@ -747,7 +761,8 @@ dotnet run --project src/WpfDevTools.Mcp.Server/ -- --transport http --port 3000
 3. Firewall blocking Named Pipes
 
 **Solutions**:
-1. Check Inspector logs in temp directory
+1. Check MCP Server log: `%TEMP%\WpfDevTools_McpServer_<timestamp>.log`
+   Check Inspector log: `%TEMP%\WpfDevTools_Inspector_<PID>.log`
 2. Ensure UI thread is responsive
 3. Allow Named Pipes in firewall
 
@@ -823,6 +838,11 @@ dotnet test /p:CollectCoverage=true
 
 # Build release
 dotnet build -c Release
+
+# Build for specific architecture (must match target WPF app)
+dotnet build -r win-x64
+dotnet build -r win-x86
+dotnet build -r win-arm64
 ```
 
 ### Contributing
@@ -885,6 +905,15 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
 - [ ] Proper error handling
 - [ ] Documentation updated
 - [ ] No breaking changes (or clearly documented)
+
+## Roadmap
+
+- **Phase 1 (Current)**: Core inspection tools, STDIO transport, DLL injection
+- **Phase 2**: HTTP+SSE transport for web-based AI agents, improved MVVM tooling
+- **Phase 3**: Performance diagnostics, advanced event tracing, SDK NuGet package
+- **Phase 4**: VS Code extension, MCP Prompt Templates, community plugins
+
+See [docs/proposal.md](docs/proposal.md) for the full development plan.
 
 ## License
 

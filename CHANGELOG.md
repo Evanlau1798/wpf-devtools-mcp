@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inspector DLL with WPF analysis capabilities
 - Multi-targeting support (.NET 8.0 + .NET Framework 4.8)
 - Multi-architecture support (x86, x64, ARM64)
-- Comprehensive test suite (259 tests)
+- Comprehensive test suite (686 tests)
 - Test-driven development workflow
 - File-based logging system
 - Session management for multiple WPF processes

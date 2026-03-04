@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Threading;
 using System.IO;
@@ -8,13 +9,20 @@ namespace WpfDevTools.Inspector;
 /// <summary>
 /// Bootstrap entry point for Inspector DLL
 /// Called when DLL is injected into target WPF process
+/// Excluded from code coverage: requires real DLL injection into a WPF process
 /// </summary>
+[ExcludeFromCodeCoverage]
 public static class Bootstrap
 {
     private static bool _isInitialized;
     private static int _isInitializing; // 0 = not initializing, 1 = initializing
     private static readonly object _lock = new object();
     private static Host.InspectorHost? _host;
+
+    // Cached once at startup to avoid calling Process.GetCurrentProcess().Id on every log entry
+    private static readonly string _logFilePath = Path.Combine(
+        Path.GetTempPath(),
+        $"WpfDevTools_Inspector_{System.Diagnostics.Process.GetCurrentProcess().Id}.log");
 
     /// <summary>
     /// Initialize the Inspector in the target WPF application
@@ -89,11 +97,11 @@ public static class Bootstrap
 
             // Fallback: search AppDomains (.NET Framework)
 #if NET48
-            foreach (var domain in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 try
                 {
-                    var appType = domain.GetType("System.Windows.Application");
+                    var appType = assembly.GetType("System.Windows.Application");
                     if (appType != null)
                     {
                         var currentProp = appType.GetProperty("Current");
@@ -178,11 +186,7 @@ public static class Bootstrap
     {
         try
         {
-            var logPath = Path.Combine(
-                Path.GetTempPath(),
-                $"WpfDevTools_Inspector_{System.Diagnostics.Process.GetCurrentProcess().Id}.log");
-
-            File.AppendAllText(logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}");
+            File.AppendAllText(_logFilePath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}");
         }
         catch
         {

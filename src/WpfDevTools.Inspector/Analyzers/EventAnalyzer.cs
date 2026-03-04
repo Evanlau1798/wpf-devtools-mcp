@@ -59,8 +59,9 @@ public class EventAnalyzer : DispatcherAnalyzerBase
                 _eventTrace.Clear();
                 _isTracing = true;
 
-                // Cancel any existing tracing
+                // Cancel and dispose any existing tracing token source
                 _tracingCts?.Cancel();
+                _tracingCts?.Dispose();
                 _tracingCts = new CancellationTokenSource();
             }
 
@@ -272,34 +273,31 @@ public class EventAnalyzer : DispatcherAnalyzerBase
                     };
                 }
 
-                if (eventHandlersStoreField != null)
+                var eventHandlersStore = eventHandlersStoreField.GetValue(uiElement);
+                if (eventHandlersStore != null)
                 {
-                    var eventHandlersStore = eventHandlersStoreField.GetValue(uiElement);
-                    if (eventHandlersStore != null)
+                    var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
+                        "GetRoutedEventHandlers",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+
+                    if (getRoutedEventHandlersMethod != null)
                     {
-                        var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
-                            "GetRoutedEventHandlers",
-                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+                        var routedEventHandlers = getRoutedEventHandlersMethod.Invoke(
+                            eventHandlersStore,
+                            new object[] { routedEvent }) as RoutedEventHandlerInfo[];
 
-                        if (getRoutedEventHandlersMethod != null)
+                        if (routedEventHandlers != null)
                         {
-                            var routedEventHandlers = getRoutedEventHandlersMethod.Invoke(
-                                eventHandlersStore,
-                                new object[] { routedEvent }) as RoutedEventHandlerInfo[];
-
-                            if (routedEventHandlers != null)
+                            foreach (var handlerInfo in routedEventHandlers)
                             {
-                                foreach (var handlerInfo in routedEventHandlers)
+                                var handler = handlerInfo.Handler;
+                                handlers.Add(new
                                 {
-                                    var handler = handlerInfo.Handler;
-                                    handlers.Add(new
-                                    {
-                                        handlerType = handler.GetType().Name,
-                                        targetType = handler.Target?.GetType().Name,
-                                        methodName = handler.Method.Name,
-                                        isClassHandler = handlerInfo.InvokeHandledEventsToo
-                                    });
-                                }
+                                    handlerType = handler.GetType().Name,
+                                    targetType = handler.Target?.GetType().Name,
+                                    methodName = handler.Method.Name,
+                                    isClassHandler = handlerInfo.InvokeHandledEventsToo
+                                });
                             }
                         }
                     }

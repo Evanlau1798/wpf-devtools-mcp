@@ -91,20 +91,34 @@ public class McpProtocolHandler
                 name = "wpf-devtools-mcp",
                 version = "0.1.0"
             },
-            instructions = "WPF DevTools MCP Server enables deep inspection and interaction with running WPF applications via in-process DLL injection. "
-                + "Workflow: 1) Call get_processes to list running WPF apps. 2) Call connect with a processId to inject the Inspector DLL. 3) Use inspection tools. "
-                + "All tools except get_processes require a prior connect call for the target processId. "
-                + "Tool categories: Process Management (get_processes, connect, ping), "
-                + "Tree & XAML (get_visual_tree, get_logical_tree, compare_trees, serialize_to_xaml, get_namescope, get_template_tree), "
-                + "Binding Diagnostics (get_bindings, get_binding_errors, get_datacontext_chain, get_binding_value_chain, force_binding_update), "
-                + "DependencyProperty (get_dp_value_source, get_dp_metadata, set_dp_value, clear_dp_value, watch_dp_changes), "
-                + "Style/Template (get_applied_styles, get_triggers, get_resource_chain, override_style_setter), "
-                + "RoutedEvent (trace_routed_events, get_event_handlers, fire_routed_event), "
-                + "Interaction (click_element, drag_and_drop, scroll_to_element, simulate_keyboard, element_screenshot), "
-                + "Layout (get_layout_info, get_clipping_info, highlight_element, invalidate_layout), "
-                + "MVVM (get_viewmodel, get_commands, execute_command, get_validation_errors, modify_viewmodel), "
-                + "Performance (get_render_stats, find_binding_leaks, measure_element_render_time, get_visual_count). "
-                + "Parameters: elementId defaults to root element if omitted; depth limits tree traversal depth."
+            instructions = "WPF DevTools MCP Server: Deep inspection and interaction with running WPF applications via in-process DLL injection.\n\n"
+                + "MANDATORY WORKFLOW:\n"
+                + "1. get_processes → discover running WPF apps and their processIds\n"
+                + "2. connect(processId) → inject Inspector DLL; MUST succeed before any other tool\n"
+                + "3. Use inspection/interaction tools with the same processId\n\n"
+                + "ELEMENT DISCOVERY:\n"
+                + "- elementId is required by many tools; omitting it targets the root window\n"
+                + "- To inspect a specific element, first call get_visual_tree or get_logical_tree to discover element IDs\n"
+                + "- Use the returned elementId values in subsequent tool calls\n\n"
+                + "TOOL SELECTION GUIDE:\n"
+                + "- Blank screen / wrong data? → get_binding_errors, then get_bindings, then get_datacontext_chain\n"
+                + "- UI not responding to changes? → get_dp_value_source to check binding; get_viewmodel to inspect VM\n"
+                + "- Button disabled/not working? → get_commands to check CanExecute; get_event_handlers for Click\n"
+                + "- Layout broken? → get_layout_info for size; get_clipping_info for overflow\n"
+                + "- Style not applied? → get_applied_styles; get_resource_chain to trace lookup\n"
+                + "- Performance slow? → get_visual_count for tree size; get_render_stats; find_binding_leaks\n\n"
+                + "TOKEN EFFICIENCY:\n"
+                + "- Use depth=2 or depth=3 on tree tools for large apps\n"
+                + "- Use elementId to scope tools to a subtree\n\n"
+                + "DESTRUCTIVE TOOLS (modify the running app - changes are NOT persisted):\n"
+                + "- set_dp_value, clear_dp_value, override_style_setter: change property/style values\n"
+                + "- modify_viewmodel: change ViewModel properties\n"
+                + "- execute_command, fire_routed_event, click_element: trigger actions\n\n"
+                + "ERROR RECOVERY:\n"
+                + "- \"not connected\" → call connect(processId) first, then retry\n"
+                + "- \"Access denied\" → restart MCP server as administrator\n"
+                + "- \"Not a WPF application\" → use get_processes to find correct processId\n"
+                + "- \"Architecture mismatch\" → ensure server and target app match (x64 vs x86)"
         };
     }
 
@@ -116,12 +130,23 @@ public class McpProtocolHandler
             .Select(t => new
             {
                 name = t.Name,
-                description = t.Description,
+                description = BuildDescriptionWithExamples(t),
                 inputSchema = t.Parameters
             })
             .ToList();
 
         return new { tools };
+    }
+
+    private static string BuildDescriptionWithExamples(ToolDefinition tool)
+    {
+        if (tool.Examples == null || tool.Examples.Length == 0)
+            return tool.Description;
+
+        var sb = new System.Text.StringBuilder(tool.Description);
+        sb.Append(" Example: ");
+        sb.Append(string.Join(" | ", tool.Examples.Select(e => JsonSerializer.Serialize(e))));
+        return sb.ToString();
     }
 
     private async Task<object> HandleToolsCallAsync(JsonElement request, CancellationToken cancellationToken)
@@ -183,21 +208,15 @@ public class McpProtocolHandler
     {
         try
         {
-            var json = JsonSerializer.Serialize(result);
-            var element = JsonSerializer.Deserialize<JsonElement>(json);
-
-            if (element.TryGetProperty("success", out var successProp) &&
-                successProp.ValueKind == JsonValueKind.False)
-            {
-                return true;
-            }
+            var element = JsonSerializer.SerializeToElement(result);
+            return element.TryGetProperty("success", out var successProp) &&
+                   successProp.ValueKind == JsonValueKind.False;
         }
         catch
         {
             // If we can't determine, assume not an error
+            return false;
         }
-
-        return false;
     }
 
     private string CreateSuccessResponse(JsonElement? id, object? result)

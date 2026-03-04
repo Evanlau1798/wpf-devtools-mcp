@@ -16,9 +16,12 @@ public class GetTemplateTreeTool : PipeConnectedToolBase
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);
         if (error != null) return error;
-        var maxDepth = ParseIntParam(arguments, "maxDepth");
+        var depth = ParseIntParam(arguments, "depth");
+
+        if (depth.HasValue && depth.Value > 100)
+            return new { success = false, error = "depth must be between 0 and 100" };
 
         return await SendInspectorRequestAsync(processId, "get_template_tree",
-            new { elementId, maxDepth }, cancellationToken);
+            new { elementId, depth }, cancellationToken);
     }
 }

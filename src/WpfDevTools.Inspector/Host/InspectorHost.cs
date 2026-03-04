@@ -18,6 +18,7 @@ public class InspectorHost : IDisposable
 {
     private readonly int _processId;
     private readonly string _pipeName;
+    private readonly string _logPath;
     private readonly RequestDispatcher _dispatcher;
     private NamedPipeServerStream? _pipeServer;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -29,6 +30,7 @@ public class InspectorHost : IDisposable
     {
         _processId = processId;
         _pipeName = $"WpfDevTools_{processId}";
+        _logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_Inspector_{processId}.log");
         _dispatcher = new RequestDispatcher();
     }
 
@@ -128,8 +130,11 @@ public class InspectorHost : IDisposable
             }
             finally
             {
-                _pipeServer?.Dispose();
-                _pipeServer = null;
+                lock (_lock)
+                {
+                    _pipeServer?.Dispose();
+                    _pipeServer = null;
+                }
             }
         }
     }
@@ -221,7 +226,7 @@ public class InspectorHost : IDisposable
     {
         // Delegate to RequestDispatcher with timeout
         var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+        timeoutCts.CancelAfter(InspectorConfig.RequestTimeout);
 
         try
         {
@@ -266,11 +271,7 @@ public class InspectorHost : IDisposable
     {
         try
         {
-            var logPath = Path.Combine(
-                Path.GetTempPath(),
-                $"WpfDevTools_Inspector_{_processId}.log");
-
-            File.AppendAllText(logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [ERROR] {message}{Environment.NewLine}");
+            File.AppendAllText(_logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [ERROR] {message}{Environment.NewLine}");
         }
         catch
         {

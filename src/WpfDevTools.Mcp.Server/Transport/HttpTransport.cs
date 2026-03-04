@@ -52,6 +52,24 @@ public class HttpTransport : ITransport, IDisposable
 
             _app = builder.Build();
 
+            // Optional bearer token authentication.
+            // Set the WPF_DEVTOOLS_AUTH_TOKEN environment variable to require token auth on all endpoints.
+            _app.Use(async (context, next) =>
+            {
+                var expectedToken = Environment.GetEnvironmentVariable("WPF_DEVTOOLS_AUTH_TOKEN");
+                if (!string.IsNullOrEmpty(expectedToken))
+                {
+                    if (!context.Request.Headers.TryGetValue("Authorization", out var authHeader) ||
+                        (string?)authHeader != $"Bearer {expectedToken}")
+                    {
+                        context.Response.StatusCode = 401;
+                        await context.Response.WriteAsync("Unauthorized. Set WPF_DEVTOOLS_AUTH_TOKEN environment variable and pass as Bearer token.");
+                        return;
+                    }
+                }
+                await next(context);
+            });
+
             // Configure routes
             _app.MapPost("/mcp", async (HttpContext context) =>
             {

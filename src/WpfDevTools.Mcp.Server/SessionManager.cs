@@ -92,7 +92,7 @@ public class SessionManager
     }
 
     /// <summary>
-    /// Update last activity time for session
+    /// Update last activity time for session by replacing with a new immutable instance
     /// </summary>
     public void UpdateLastActivity(int processId)
     {
@@ -100,7 +100,11 @@ public class SessionManager
         {
             if (_sessions.TryGetValue(processId, out var session))
             {
-                session.LastActivity = DateTime.UtcNow;
+                _sessions[processId] = new SessionInfo
+                {
+                    ProcessId = session.ProcessId,
+                    LastActivity = DateTime.UtcNow
+                };
             }
         }
     }
@@ -136,6 +140,6 @@ public class SessionManager
     private class SessionInfo
     {
         public required int ProcessId { get; init; }
-        public DateTime LastActivity { get; set; }
+        public required DateTime LastActivity { get; init; }
     }
 }

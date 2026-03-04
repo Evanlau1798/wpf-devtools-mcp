@@ -61,9 +61,8 @@ public class BindingHandlers : IRequestHandler
 
     private async Task<object> HandleGetDataContextChainAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
+        // elementId is optional - defaults to null (root element)
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
-        if (string.IsNullOrEmpty(elementId))
-            throw new ArgumentException("Missing required parameter: elementId");
 
         return await Task.Run(() =>
             _bindingAnalyzer.GetDataContextChain(elementId), cancellationToken);
@@ -71,18 +70,16 @@ public class BindingHandlers : IRequestHandler
 
     private async Task<object> HandleGetBindingValueChainAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
+        // elementId is optional - defaults to null (root element)
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
         var propertyName = ParameterHelpers.GetStringParam(@params, "propertyName");
-
-        if (string.IsNullOrEmpty(elementId))
-            throw new ArgumentException("Missing required parameter: elementId");
 
         if (string.IsNullOrEmpty(propertyName))
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
         {
-            var element = _elementFinder.FindById(elementId!);
+            var element = _elementFinder.FindById(elementId);
             if (element == null)
             {
                 return (object)new { success = false, error = "Element not found" };
@@ -94,19 +91,17 @@ public class BindingHandlers : IRequestHandler
 
     private async Task<object> HandleForceBindingUpdateAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
+        // elementId is optional - defaults to null (root element)
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
         var propertyName = ParameterHelpers.GetStringParam(@params, "propertyName");
         var direction = ParameterHelpers.GetStringParam(@params, "direction") ?? InspectorConstants.BindingDirections.Source;
-
-        if (string.IsNullOrEmpty(elementId))
-            throw new ArgumentException("Missing required parameter: elementId");
 
         if (string.IsNullOrEmpty(propertyName))
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
         {
-            var element = _elementFinder.FindById(elementId!);
+            var element = _elementFinder.FindById(elementId);
             if (element == null)
             {
                 return (object)new { success = false, error = "Element not found" };

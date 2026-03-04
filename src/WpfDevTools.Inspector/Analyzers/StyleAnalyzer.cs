@@ -268,41 +268,4 @@ public class StyleAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    private static object? ConvertValue(object? value, Type targetType)
-    {
-        if (value == null) return null;
-        if (targetType.IsAssignableFrom(value.GetType())) return value;
-
-        // Try TypeConverter first (handles WPF types like Brush, Thickness, etc.)
-        var converter = System.ComponentModel.TypeDescriptor.GetConverter(targetType);
-        if (converter.CanConvertFrom(value.GetType()))
-        {
-            return converter.ConvertFrom(value);
-        }
-
-        // Fallback to Convert.ChangeType for simple types
-        return Convert.ChangeType(value, targetType);
-    }
-
-    private DependencyProperty? FindDependencyProperty(DependencyObject element, string propertyName)
-    {
-        var type = element.GetType();
-        var fieldName = propertyName + "Property";
-
-        while (type != null && type != typeof(object))
-        {
-            var field = type.GetField(fieldName,
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.Static);
-
-            if (field != null && field.FieldType == typeof(DependencyProperty))
-            {
-                return field.GetValue(null) as DependencyProperty;
-            }
-
-            type = type.BaseType;
-        }
-
-        return null;
-    }
 }

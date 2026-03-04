@@ -101,6 +101,7 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
 
             return new
             {
+                success = true,
                 totalCount = count,
                 elementType = element.GetType().Name
             };
@@ -208,6 +209,8 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
         });
     }
 
+    private const int MaxBindingReferences = 10000;
+
     /// <summary>
     /// Track a binding for leak detection
     /// </summary>
@@ -216,6 +219,12 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
         lock (_bindingLock)
         {
             _bindingReferences.Add(new WeakReference(binding));
+
+            // Trim oldest entries if exceeding capacity to prevent unbounded growth
+            if (_bindingReferences.Count > MaxBindingReferences)
+            {
+                _bindingReferences.RemoveRange(0, _bindingReferences.Count - MaxBindingReferences);
+            }
         }
     }
 

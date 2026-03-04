@@ -138,22 +138,6 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
         return _elementFinder.GetRootElement();
     }
 
-    private static object? ConvertValue(object? value, Type targetType)
-    {
-        if (value == null) return null;
-        if (targetType.IsAssignableFrom(value.GetType())) return value;
-
-        // Try TypeConverter first (handles WPF types like Brush, Thickness, etc.)
-        var converter = System.ComponentModel.TypeDescriptor.GetConverter(targetType);
-        if (converter.CanConvertFrom(value.GetType()))
-        {
-            return converter.ConvertFrom(value);
-        }
-
-        // Fallback to Convert.ChangeType for simple types
-        return Convert.ChangeType(value, targetType);
-    }
-
     /// <summary>
     /// Modify ViewModel property at runtime
     /// </summary>

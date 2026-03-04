@@ -48,8 +48,7 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
     private DependencyObject? GetRootElement()
     {
-        // Get main window
-        return Application.Current?.MainWindow;
+        return _elementFinder.GetRootElement();
     }
 
     /// <summary>

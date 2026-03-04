@@ -85,9 +85,9 @@ public class EventAnalyzer : DispatcherAnalyzerBase
             var cts = _tracingCts;
             Task.Delay(duration, cts.Token).ContinueWith(task =>
             {
-                if (!task.IsCanceled && Application.Current != null)
+                if (!task.IsCanceled)
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
+                    InvokeOnUIThread(() =>
                     {
                         uiElement.RemoveHandler(routedEvent, handler);
                         lock (_lock)

@@ -40,7 +40,7 @@ public abstract class PipeConnectedToolBase
     /// <summary>
     /// Parse a string parameter from JSON arguments
     /// </summary>
-    protected static string? ParseStringParam(JsonElement? arguments, string paramName)
+    public static string? ParseStringParam(JsonElement? arguments, string paramName)
     {
         if (arguments.HasValue && arguments.Value.TryGetProperty(paramName, out var prop))
             return prop.GetString();
@@ -50,7 +50,7 @@ public abstract class PipeConnectedToolBase
     /// <summary>
     /// Parse an integer parameter from JSON arguments
     /// </summary>
-    protected static int? ParseIntParam(JsonElement? arguments, string paramName)
+    public static int? ParseIntParam(JsonElement? arguments, string paramName)
     {
         if (arguments.HasValue && arguments.Value.TryGetProperty(paramName, out var prop))
             return prop.GetInt32();

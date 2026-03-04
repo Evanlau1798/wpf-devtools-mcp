@@ -23,7 +23,7 @@ public class RequestDispatcher
 
         // Initialize analyzers
         var visualTreeAnalyzer = new VisualTreeAnalyzer(elementFinder);
-        var bindingAnalyzer = new BindingAnalyzer();
+        var bindingAnalyzer = new BindingAnalyzer(elementFinder);
         var logicalTreeAnalyzer = new LogicalTreeAnalyzer(elementFinder);
         var mvvmAnalyzer = new MvvmAnalyzer(elementFinder);
         var dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(elementFinder);
@@ -31,7 +31,7 @@ public class RequestDispatcher
         var interactionAnalyzer = new InteractionAnalyzer(elementFinder);
         var styleAnalyzer = new StyleAnalyzer(elementFinder);
         var eventAnalyzer = new EventAnalyzer(elementFinder);
-        var performanceAnalyzer = new PerformanceAnalyzer();
+        var performanceAnalyzer = new PerformanceAnalyzer(elementFinder);
 
         // Initialize handlers
         var handlers = new IRequestHandler[]

@@ -348,25 +348,4 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
         return bindings;
     }
 
-    private DependencyProperty? FindDependencyProperty(DependencyObject element, string propertyName)
-    {
-        var type = element.GetType();
-        var fieldName = propertyName + "Property";
-
-        while (type != null && type != typeof(object))
-        {
-            var field = type.GetField(fieldName,
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.Static);
-
-            if (field != null && field.FieldType == typeof(DependencyProperty))
-            {
-                return field.GetValue(null) as DependencyProperty;
-            }
-
-            type = type.BaseType;
-        }
-
-        return null;
-    }
 }

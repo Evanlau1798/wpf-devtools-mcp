@@ -129,8 +129,7 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
             {
                 var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
                 if (err != null) return (-1, null, err);
-                string? propertyName = null;
-                if (a.HasValue && a.Value.TryGetProperty("propertyName", out var pn)) propertyName = pn.GetString();
+                var propertyName = PipeConnectedToolBase.ParseStringParam(a, "propertyName");
                 if (string.IsNullOrEmpty(propertyName)) return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
                 return (pid, (object?)new { elementId = eid, propertyName }, null);
             }).ExecuteAsync(args, ct));
@@ -143,10 +142,8 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
             {
                 var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
                 if (err != null) return (-1, null, err);
-                string? propertyName = null;
-                string? direction = null;
-                if (a.HasValue && a.Value.TryGetProperty("propertyName", out var pn)) propertyName = pn.GetString();
-                if (a.HasValue && a.Value.TryGetProperty("direction", out var dir)) direction = dir.GetString();
+                var propertyName = PipeConnectedToolBase.ParseStringParam(a, "propertyName");
+                var direction = PipeConnectedToolBase.ParseStringParam(a, "direction");
                 if (string.IsNullOrEmpty(propertyName)) return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
                 if (string.IsNullOrEmpty(direction)) return (-1, null, (object)new { success = false, error = "Missing required parameter: direction" });
                 return (pid, (object?)new { elementId = eid, propertyName, direction }, null);
@@ -229,10 +226,8 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
             {
                 var (pid, _, err) = PipeConnectedToolBase.ParseCommonParams(a);
                 if (err != null) return (-1, null, err);
-                string? sourceElementId = null;
-                string? targetElementId = null;
-                if (a.HasValue && a.Value.TryGetProperty("sourceElementId", out var sp)) sourceElementId = sp.GetString();
-                if (a.HasValue && a.Value.TryGetProperty("targetElementId", out var tp)) targetElementId = tp.GetString();
+                var sourceElementId = PipeConnectedToolBase.ParseStringParam(a, "sourceElementId");
+                var targetElementId = PipeConnectedToolBase.ParseStringParam(a, "targetElementId");
                 if (string.IsNullOrEmpty(sourceElementId)) return (-1, null, (object)new { success = false, error = "Missing required parameter: sourceElementId" });
                 if (string.IsNullOrEmpty(targetElementId)) return (-1, null, (object)new { success = false, error = "Missing required parameter: targetElementId" });
                 return (pid, (object?)new { sourceElementId, targetElementId }, null);
@@ -272,10 +267,8 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
             {
                 var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
                 if (err != null) return (-1, null, err);
-                string? color = null;
-                int? duration = null;
-                if (a.HasValue && a.Value.TryGetProperty("color", out var cp)) color = cp.GetString();
-                if (a.HasValue && a.Value.TryGetProperty("duration", out var dp)) duration = dp.GetInt32();
+                var color = PipeConnectedToolBase.ParseStringParam(a, "color");
+                var duration = PipeConnectedToolBase.ParseIntParam(a, "duration");
                 return (pid, (object?)new { elementId = eid, color, duration }, null);
             }).ExecuteAsync(args, ct));
 
@@ -313,10 +306,8 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
             {
                 var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
                 if (err != null) return (-1, null, err);
-                string? propertyName = null;
-                string? value = null;
-                if (a.HasValue && a.Value.TryGetProperty("propertyName", out var pn)) propertyName = pn.GetString();
-                if (a.HasValue && a.Value.TryGetProperty("value", out var vp)) value = vp.GetString();
+                var propertyName = PipeConnectedToolBase.ParseStringParam(a, "propertyName");
+                var value = PipeConnectedToolBase.ParseStringParam(a, "value");
                 if (string.IsNullOrEmpty(propertyName)) return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
                 if (string.IsNullOrEmpty(value)) return (-1, null, (object)new { success = false, error = "Missing required parameter: value" });
                 return (pid, (object?)new { elementId = eid, propertyName, value }, null);

@@ -7,6 +7,9 @@ namespace WpfDevTools.Inspector.Utilities;
 
 public class ElementFinder
 {
+    // Static to ensure unique IDs across all ElementFinder instances.
+    // Multiple analyzers may share the same instance, but if separate instances
+    // are created (e.g., in tests), static guarantees no ID collisions.
     private static int _nextId = 0;
     private readonly ConcurrentDictionary<DependencyObject, string> _objectToIdCache = new(ReferenceEqualityComparer.Instance);
     private readonly ConcurrentDictionary<string, WeakReference<DependencyObject>> _elementCache = new();
@@ -89,7 +92,11 @@ public class ElementFinder
 }
 
 /// <summary>
-/// Comparer that uses reference equality for DependencyObject keys
+/// Comparer that uses reference equality for DependencyObject keys.
+/// A custom implementation is needed because the BCL's System.Collections.Generic.ReferenceEqualityComparer
+/// (.NET 5+) implements IEqualityComparer{object}, which cannot be used as IEqualityComparer{DependencyObject}
+/// due to IEqualityComparer{T} being contravariant (in T). ConcurrentDictionary{DependencyObject, string}
+/// requires IEqualityComparer{DependencyObject} specifically.
 /// </summary>
 internal sealed class ReferenceEqualityComparer : IEqualityComparer<DependencyObject>
 {

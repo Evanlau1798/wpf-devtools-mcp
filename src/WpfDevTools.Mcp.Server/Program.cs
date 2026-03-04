@@ -188,7 +188,7 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
 
     RegisterTool(registry, "get_resource_chain",
         "Get the resource lookup chain for a WPF element",
-        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, resourceKey = new { type = "string", description = "Resource key to look up" } }, required = new[] { "processId" } },
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, resourceKey = new { type = "string", description = "Resource key to look up" } }, required = new[] { "processId", "resourceKey" } },
         async (args, ct) => await new GetResourceChainTool(sessionManager).ExecuteAsync(args, ct));
 
     RegisterTool(registry, "override_style_setter",
@@ -204,7 +204,7 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
 
     RegisterTool(registry, "get_event_handlers",
         "Get all event handlers attached to a WPF element",
-        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, eventName = new { type = "string", description = "Name of the routed event" } }, required = new[] { "processId", "eventName" } },
         async (args, ct) => await new GetEventHandlersTool(sessionManager).ExecuteAsync(args, ct));
 
     RegisterTool(registry, "fire_routed_event",

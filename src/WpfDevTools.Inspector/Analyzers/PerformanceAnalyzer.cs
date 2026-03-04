@@ -290,15 +290,18 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
         return root != null ? CountVisualElements(root) : 0;
     }
 
-    private int CountVisualElements(DependencyObject element)
+    private int CountVisualElements(DependencyObject element, int maxDepth = 100, int currentDepth = 0)
     {
+        if (currentDepth >= maxDepth)
+            return 1;
+
         int count = 1; // Count the element itself
 
         var childCount = VisualTreeHelper.GetChildrenCount(element);
         for (int i = 0; i < childCount; i++)
         {
             var child = VisualTreeHelper.GetChild(element, i);
-            count += CountVisualElements(child);
+            count += CountVisualElements(child, maxDepth, currentDepth + 1);
         }
 
         return count;

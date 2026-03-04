@@ -155,6 +155,193 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
+            <!-- Tab 4: Styles &amp; Templates -->
+            <TabItem Header="Styles &amp; Templates">
+                <TabItem.Resources>
+                    <!-- Base Style -->
+                    <Style x:Key="BaseButtonStyle" TargetType="Button">
+                        <Setter Property="Padding" Value="10,5"/>
+                        <Setter Property="Margin" Value="5"/>
+                        <Setter Property="Background" Value="LightGray"/>
+                    </Style>
+
+                    <!-- Derived Style -->
+                    <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+                        <Setter Property="Background" Value="DodgerBlue"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="RoyalBlue"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <!-- ControlTemplate -->
+                    <ControlTemplate x:Key="RoundButtonTemplate" TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="2"
+                                CornerRadius="15"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </TabItem.Resources>
+
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Style Inheritance" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Button Content="Base Style" Style="{StaticResource BaseButtonStyle}"/>
+                        <Button Content="Primary Style" Style="{StaticResource PrimaryButtonStyle}"/>
+                        <Button Content="Primary Disabled" Style="{StaticResource PrimaryButtonStyle}" IsEnabled="False"/>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Control Template" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Button Content="Round Button"
+                                Template="{StaticResource RoundButtonTemplate}"
+                                Background="LightGreen"
+                                Padding="20,10"
+                                Margin="5"/>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Data Trigger" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <StackPanel>
+                            <CheckBox x:Name="EnableHighlightCheckBox" Content="Enable Highlight" Margin="5"/>
+                            <TextBlock x:Name="HighlightTextBlock" Text="Watch me change color!" Margin="5">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="Black"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsChecked, ElementName=EnableHighlightCheckBox}" Value="True">
+                                                <Setter Property="Foreground" Value="Red"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 5: Custom Controls -->
+            <TabItem Header="Custom Controls">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Custom DependencyProperty" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <local:CustomTextBox x:Name="CustomTextBox1"
+                                            Watermark="Enter your name"
+                                            Width="200"
+                                            Margin="5"/>
+                        <local:CustomTextBox x:Name="CustomTextBox2"
+                                            Watermark=""
+                                            Width="200"
+                                            Margin="5"/>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Attached Property" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBox x:Name="AttachedPropTextBox"
+                                local:CustomTextBox.HighlightColor="LightYellow"
+                                Text="I have an attached property"
+                                Margin="5"/>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Custom RoutedEvent" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <local:CustomButton x:Name="CustomButton1"
+                                           Content="Click Me (Custom Event)"
+                                           Margin="5"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 6: Layout &amp; Transforms -->
+            <TabItem Header="Layout &amp; Transforms">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Clipping" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Border Width="150" Height="100" BorderBrush="Black" BorderThickness="1" ClipToBounds="True" Margin="5">
+                            <TextBlock Text="This text is very long and will be clipped by the border because ClipToBounds is True"
+                                      TextWrapping="Wrap"/>
+                        </Border>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Render Transform" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Button Content="Rotated Button" Margin="5">
+                            <Button.RenderTransform>
+                                <RotateTransform Angle="15"/>
+                            </Button.RenderTransform>
+                        </Button>
+
+                        <Button Content="Scaled Button" Margin="5">
+                            <Button.RenderTransform>
+                                <ScaleTransform ScaleX="1.2" ScaleY="1.2"/>
+                            </Button.RenderTransform>
+                        </Button>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Layout Transform" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Button Content="Layout Rotated" Margin="5">
+                            <Button.LayoutTransform>
+                                <RotateTransform Angle="45"/>
+                            </Button.LayoutTransform>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 7: Drag &amp; Drop -->
+            <TabItem Header="Drag &amp; Drop">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Drag &amp; Drop Test" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                    <Border Grid.Row="1" BorderBrush="Blue" BorderThickness="2" Margin="5" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Drag Source" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <TextBox x:Name="DragSourceTextBox"
+                                    Text="Drag me!"
+                                    AllowDrop="False"
+                                    Margin="5"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="2" BorderBrush="Green" BorderThickness="2" Margin="5" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Drop Target" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <TextBox x:Name="DropTargetTextBox"
+                                    Text="Drop here"
+                                    AllowDrop="True"
+                                    Margin="5"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 8: Performance Test -->
+            <TabItem Header="Performance">
+                <ScrollViewer x:Name="PerformanceScrollViewer">
+                    <StackPanel x:Name="PerformanceStackPanel" Margin="10">
+                        <TextBlock Text="Large Visual Tree (100 elements)" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <!-- Elements will be added programmatically -->
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>

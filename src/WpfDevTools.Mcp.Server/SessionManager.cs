@@ -3,8 +3,9 @@ namespace WpfDevTools.Mcp.Server;
 /// <summary>
 /// Manages active Inspector sessions
 /// </summary>
-public class SessionManager
+public class SessionManager : IDisposable
 {
+    private bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly object _lock = new();
@@ -141,5 +142,35 @@ public class SessionManager
     {
         public required int ProcessId { get; init; }
         public required DateTime LastActivity { get; init; }
+    }
+
+    public void Dispose()
+    {
+        if (_isDisposed)
+            return;
+
+        lock (_lock)
+        {
+            if (_isDisposed)
+                return;
+
+            _isDisposed = true;
+
+            // Dispose all pipe clients
+            foreach (var client in _pipeClients.Values)
+            {
+                try
+                {
+                    client.Dispose();
+                }
+                catch
+                {
+                    // Ignore disposal errors
+                }
+            }
+
+            _pipeClients.Clear();
+            _sessions.Clear();
+        }
     }
 }

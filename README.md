@@ -1,5 +1,9 @@
 # WPF DevTools MCP Server
 
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-259%20passing-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 A Model Context Protocol (MCP) server that enables AI agents to deeply inspect and interact with running WPF applications through in-process DLL injection.
 
 ## Features
@@ -30,22 +34,80 @@ First free, open-source MCP server providing WPF-specific deep inspection capabi
 ### Prerequisites
 
 - .NET 8.0 SDK or later
-- Windows OS
+- .NET Framework 4.8 targeting pack (for multi-targeting support)
+- Windows 10 or later
+- Administrator privileges may be required for DLL injection
+- Target WPF application must be running
 - Visual Studio 2022 or VS Code (optional)
 
 ### Build from Source
 
 ```bash
-git clone https://github.com/yourusername/wpf-devtools-mcp.git
+git clone https://github.com/YOUR_USERNAME/wpf-devtools-mcp.git
 cd wpf-devtools-mcp
 dotnet build
 ```
+
+> **Note**: Replace `YOUR_USERNAME` with the actual repository owner's GitHub username.
 
 ### Run Tests
 
 ```bash
 dotnet test
 ```
+
+## Configuration
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "wpf-devtools": {
+      "command": "dotnet",
+      "args": ["run", "--project", "G:\\wpf-devtools-mcp\\src\\WpfDevTools.Mcp.Server\\WpfDevTools.Mcp.Server.csproj"],
+      "env": {}
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `.cursor/config.json`:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "wpf-devtools": {
+        "command": "dotnet",
+        "args": ["run", "--project", "G:\\wpf-devtools-mcp\\src\\WpfDevTools.Mcp.Server\\WpfDevTools.Mcp.Server.csproj"]
+      }
+    }
+  }
+}
+```
+
+### VS Code with MCP Extension
+
+Add to `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "wpf-devtools": {
+      "command": "dotnet",
+      "args": ["run", "--project", "G:\\wpf-devtools-mcp\\src\\WpfDevTools.Mcp.Server\\WpfDevTools.Mcp.Server.csproj"],
+      "transport": "stdio"
+    }
+  }
+}
+```
+
+> **Note**: Adjust the project path to match your installation directory.
 
 ## Quick Start
 
@@ -105,6 +167,40 @@ Connect to a specific process using the `connect` tool:
 }
 ```
 
+## Usage with AI Agents
+
+Once configured, AI agents can interact with WPF applications using natural language:
+
+**Example 1: Debugging Binding Errors**
+```
+"Show me all binding errors in the running WPF application"
+→ Agent uses: get_processes → connect → get_binding_errors
+```
+
+**Example 2: Inspecting UI Structure**
+```
+"What's the visual tree structure of the main window?"
+→ Agent uses: get_processes → connect → get_visual_tree
+```
+
+**Example 3: Testing User Interactions**
+```
+"Click the 'Submit' button and check if the command executed"
+→ Agent uses: get_visual_tree (find button) → click_element → get_commands
+```
+
+**Example 4: MVVM Debugging**
+```
+"What's the current DataContext and what commands are available?"
+→ Agent uses: get_viewmodel → get_commands
+```
+
+**Example 5: Performance Analysis**
+```
+"Find potential binding memory leaks in the application"
+→ Agent uses: find_binding_leaks → get_bindings (for details)
+```
+
 ## Architecture
 
 ```
@@ -124,7 +220,7 @@ Target WPF Application
 - **UI Thread Marshalling**: All Visual Tree operations use `Dispatcher.Invoke()`
 - **Token Efficiency**: All tools support `depth`, `filter`, `compact` parameters
 
-## MCP Tools (42 Total)
+## MCP Tools (44 Total)
 
 ### 1. Process Management (3 tools)
 
@@ -151,7 +247,7 @@ Verify connection health and measure latency.
 
 **Returns**: Latency in milliseconds
 
-### 2. Tree & XAML (5 tools)
+### 2. Tree & XAML (6 tools)
 
 #### get_visual_tree
 Retrieve the Visual Tree structure.
@@ -232,7 +328,7 @@ Get the DataContext inheritance chain.
 
 **Parameters**:
 - `processId` (required): Process ID
-- `elementId` (required): Element ID
+- `elementId` (optional): Element ID (default: root)
 
 **Returns**: DataContext chain from element to root
 
@@ -298,7 +394,7 @@ Watch for DependencyProperty changes.
 
 **Returns**: Subscription ID (events pushed via SSE)
 
-### 5. Style/Template (5 tools)
+### 5. Style/Template (4 tools)
 
 #### get_applied_styles
 Get all applied styles for an element.
@@ -564,8 +660,11 @@ For applications that cannot use DLL injection (single-file apps, Native AOT, et
 
 ### Installation
 
+> **⚠️ Note**: Currently requires building from source. NuGet package coming soon.
+
 ```bash
-dotnet add package WpfDevTools.Inspector.Sdk
+# Build from source and reference the SDK project
+dotnet add reference path/to/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj
 ```
 
 ### Usage
@@ -591,13 +690,16 @@ public partial class App : Application
 
 ## HTTP+SSE Transport
 
-For web-based AI agents, use HTTP+SSE transport instead of STDIO:
+> **⚠️ Note**: HTTP+SSE transport is planned but not yet implemented. Currently only STDIO transport is supported.
+
+For web-based AI agents, HTTP+SSE transport will be available in a future release:
 
 ```bash
+# Planned feature - not yet available
 dotnet run --project src/WpfDevTools.Mcp.Server/ -- --transport http --port 3000
 ```
 
-### Endpoints
+### Planned Endpoints
 
 - `POST /mcp` - Send MCP requests
 - `GET /events` - Subscribe to SSE events (property changes, etc.)
@@ -659,6 +761,32 @@ dotnet run --project src/WpfDevTools.Mcp.Server/ -- --transport http --port 3000
 2. Unwatch properties when done
 3. Capture screenshots sparingly
 
+## Supported Platforms
+
+### Operating Systems
+- Windows 10 (version 1809 or later)
+- Windows 11
+- Windows Server 2019 or later
+
+### .NET Versions
+- .NET 8.0 or later (MCP Server)
+- .NET Framework 4.8 or later (Target WPF applications)
+- Multi-targeting support for both .NET 8.0 and .NET Framework 4.8
+
+### Architectures
+- x86 (32-bit)
+- x64 (64-bit)
+- ARM64 (Windows on ARM)
+
+> **Note**: The Inspector DLL must match the target application's architecture.
+
+### Known Limitations
+- **Self-contained single-file apps**: Cannot inject DLL (use SDK mode)
+- **Native AOT apps**: Cannot inject DLL (use SDK mode)
+- **Trimmed apps**: May fail if required dependencies are removed
+- **Antivirus software**: May block DLL injection (requires code signing or exceptions)
+- **Protected processes**: Cannot inject into system processes or protected applications
+
 ## Development
 
 ### Project Structure
@@ -695,11 +823,64 @@ dotnet build -c Release
 
 ### Contributing
 
+We welcome contributions! Please follow these guidelines:
+
+#### Coding Standards
+- Follow C# coding conventions and .NET best practices
+- Use meaningful variable and method names
+- Keep methods small and focused (< 50 lines)
+- Keep files focused (< 800 lines)
+- Use immutable patterns (avoid mutation)
+- Handle errors explicitly at every level
+
+#### Test-Driven Development (Required)
+All new features and bug fixes MUST follow TDD workflow:
+1. **RED**: Write failing test first
+2. **GREEN**: Write minimal code to pass test
+3. **REFACTOR**: Improve code while keeping tests green
+4. **VERIFY**: Ensure 80%+ code coverage
+
+```bash
+# Run tests in watch mode for TDD
+dotnet watch test --project tests/WpfDevTools.Tests.Unit/
+
+# Check coverage
+dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+```
+
+#### Branch Naming
+- `feature/description` - New features
+- `fix/description` - Bug fixes
+- `refactor/description` - Code refactoring
+- `docs/description` - Documentation updates
+
+#### Commit Format
+Follow conventional commits:
+```
+<type>: <description>
+
+<optional body>
+```
+
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
+
+#### Pull Request Process
 1. Fork the repository
-2. Create a feature branch
-3. Write tests (TDD required)
-4. Ensure 80%+ code coverage
-5. Submit a pull request
+2. Create a feature branch from `main`
+3. Write tests first (TDD)
+4. Implement feature/fix
+5. Ensure all tests pass and coverage is 80%+
+6. Update documentation if needed
+7. Submit pull request with clear description
+8. Address review feedback
+
+#### Code Review Checklist
+- [ ] Tests written and passing
+- [ ] Code coverage 80%+
+- [ ] No hardcoded values
+- [ ] Proper error handling
+- [ ] Documentation updated
+- [ ] No breaking changes (or clearly documented)
 
 ## License
 

@@ -1,7 +1,10 @@
 using System.IO;
 using System.IO.Pipes;
+using System.Security.Principal;
+using System.Security.AccessControl;
 using System.Text;
 using System.Text.Json;
+using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
 
@@ -60,11 +63,21 @@ public class InspectorHost : IDisposable
             }
 
             _cancellationTokenSource?.Cancel();
-            _pipeServer?.Dispose();
             _isRunning = false;
             taskToWait = _serverTask;
         }
         taskToWait?.Wait(TimeSpan.FromSeconds(5));
+
+        // Dispose pipe server after task completes
+        lock (_lock)
+        {
+            _pipeServer?.Dispose();
+            _pipeServer = null;
+        }
+
+        // Clean up analyzer resources
+        try { PerformanceAnalyzer.StopMonitoring(); } catch { /* Ignore cleanup errors */ }
+        try { DependencyPropertyAnalyzer.StopAllWatchers(); } catch { /* Ignore cleanup errors */ }
     }
 
     private async Task RunServerLoop(CancellationToken cancellationToken)
@@ -73,13 +86,8 @@ public class InspectorHost : IDisposable
         {
             try
             {
-                // Create new pipe server instance
-                _pipeServer = new NamedPipeServerStream(
-                    _pipeName,
-                    PipeDirection.InOut,
-                    1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous);
+                // Create new pipe server instance with ACL restricted to current user
+                _pipeServer = CreateSecurePipeServer();
 
                 // Wait for client connection
                 await _pipeServer.WaitForConnectionAsync(cancellationToken);
@@ -103,6 +111,50 @@ public class InspectorHost : IDisposable
                 _pipeServer = null;
             }
         }
+    }
+
+    private NamedPipeServerStream CreateSecurePipeServer()
+    {
+        var pipeSecurity = new PipeSecurity();
+
+        // Allow current user
+        var currentUser = WindowsIdentity.GetCurrent().User;
+        if (currentUser != null)
+        {
+            pipeSecurity.AddAccessRule(new PipeAccessRule(
+                currentUser,
+                PipeAccessRights.FullControl,
+                AccessControlType.Allow));
+        }
+
+        // Allow SYSTEM account
+        var systemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+        pipeSecurity.AddAccessRule(new PipeAccessRule(
+            systemSid,
+            PipeAccessRights.FullControl,
+            AccessControlType.Allow));
+
+#if NET48
+        return new NamedPipeServerStream(
+            _pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous,
+            0,
+            0,
+            pipeSecurity);
+#else
+        return NamedPipeServerStreamAcl.Create(
+            _pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous,
+            0,
+            0,
+            pipeSecurity);
+#endif
     }
 
     private async Task HandleClientAsync(

@@ -24,10 +24,15 @@ public class ConnectTool
         _injector = new ProcessInjector();
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
 
-        if (inspectorDllPath != null && !File.Exists(inspectorDllPath))
-            throw new FileNotFoundException("Inspector DLL not found", inspectorDllPath);
+        if (inspectorDllPath != null)
+        {
+            ValidateDllPath(inspectorDllPath);
+            if (!File.Exists(inspectorDllPath))
+                throw new FileNotFoundException("Inspector DLL not found", inspectorDllPath);
+        }
 
         _inspectorDllPath = inspectorDllPath ?? GetInspectorDllPath();
+        ValidateDllPath(_inspectorDllPath);
     }
 
     /// <summary>
@@ -84,6 +89,41 @@ public class ConnectTool
         // Add to session manager (also creates NamedPipeClient)
         _sessionManager.AddSession(processId.Value);
 
+        // Connect to the Named Pipe
+        var pipeClient = _sessionManager.GetPipeClient(processId.Value);
+        if (pipeClient == null)
+        {
+            _sessionManager.RemoveSession(processId.Value);
+            return Task.FromResult<object>(new
+            {
+                success = false,
+                error = "Failed to create Named Pipe client"
+            });
+        }
+
+        try
+        {
+            var connectTask = pipeClient.ConnectAsync(TimeSpan.FromSeconds(5));
+            if (!connectTask.Wait(TimeSpan.FromSeconds(5)))
+            {
+                _sessionManager.RemoveSession(processId.Value);
+                return Task.FromResult<object>(new
+                {
+                    success = false,
+                    error = "Timeout connecting to Inspector Named Pipe"
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _sessionManager.RemoveSession(processId.Value);
+            return Task.FromResult<object>(new
+            {
+                success = false,
+                error = $"Failed to connect to Inspector: {ex.Message}"
+            });
+        }
+
         return Task.FromResult<object>(new
         {
             success = true,
@@ -121,5 +161,36 @@ public class ConnectTool
             InjectionError.ArchitectureMismatch => $"Architecture mismatch for process {processId}",
             _ => $"Validation failed: {error}"
         };
+    }
+
+    /// <summary>
+    /// Validate DLL path to prevent security issues
+    /// </summary>
+    private static void ValidateDllPath(string dllPath)
+    {
+        if (string.IsNullOrWhiteSpace(dllPath))
+            throw new ArgumentException("DLL path cannot be empty", nameof(dllPath));
+
+        // Check if path has .dll extension
+        if (!dllPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("DLL path must have .dll extension", nameof(dllPath));
+
+        // Prevent network paths
+        var uri = new Uri(dllPath, UriKind.RelativeOrAbsolute);
+        if (uri.IsAbsoluteUri && uri.IsUnc)
+            throw new ArgumentException("Network paths are not allowed", nameof(dllPath));
+
+        // Get full path to normalize
+        var fullPath = Path.GetFullPath(dllPath);
+
+        // Prevent system directories
+        var systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+
+        if (fullPath.StartsWith(systemDir, StringComparison.OrdinalIgnoreCase) ||
+            fullPath.StartsWith(windowsDir, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Cannot load DLL from system directories", nameof(dllPath));
+        }
     }
 }

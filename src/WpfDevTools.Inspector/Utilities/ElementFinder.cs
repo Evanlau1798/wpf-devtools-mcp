@@ -13,6 +13,8 @@ public class ElementFinder
     private static int _nextId = 0;
     private readonly ConcurrentDictionary<DependencyObject, string> _objectToIdCache = new(ReferenceEqualityComparer.Instance);
     private readonly ConcurrentDictionary<string, WeakReference<DependencyObject>> _elementCache = new();
+    private int _registrationCount = 0;
+    private const int CleanupThreshold = 1000;
 
     public DependencyObject? GetRootElement()
     {
@@ -31,7 +33,34 @@ public class ElementFinder
         // Cache the element with WeakReference
         _elementCache[elementId] = new WeakReference<DependencyObject>(element);
 
+        // Periodic cleanup of dead WeakReferences
+        if (Interlocked.Increment(ref _registrationCount) % CleanupThreshold == 0)
+        {
+            CleanupDeadReferences();
+        }
+
         return elementId;
+    }
+
+    /// <summary>
+    /// Remove dead WeakReferences from the cache
+    /// </summary>
+    private void CleanupDeadReferences()
+    {
+        var deadKeys = new List<string>();
+
+        foreach (var kvp in _elementCache)
+        {
+            if (!kvp.Value.TryGetTarget(out _))
+            {
+                deadKeys.Add(kvp.Key);
+            }
+        }
+
+        foreach (var key in deadKeys)
+        {
+            _elementCache.TryRemove(key, out _);
+        }
     }
 
     public DependencyObject? FindById(string? elementId, DependencyObject? root = null)

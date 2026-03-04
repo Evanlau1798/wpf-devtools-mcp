@@ -57,6 +57,35 @@ public class InteractionAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("screenshot");
+            resultDict["success"].Should().Be(true);
+
+            // Verify screenshot is valid base64
+            var screenshot = resultDict["screenshot"] as string;
+            screenshot.Should().NotBeNullOrEmpty();
+            var isValidBase64 = IsValidBase64(screenshot!);
+            isValidBase64.Should().BeTrue("screenshot should be valid base64 encoded image");
+        }
+    }
+
+    private static bool IsValidBase64(string base64String)
+    {
+        if (string.IsNullOrEmpty(base64String))
+            return false;
+
+        try
+        {
+            var data = Convert.FromBase64String(base64String);
+            return data.Length > 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     [StaFact]

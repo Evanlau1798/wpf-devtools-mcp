@@ -1,0 +1,216 @@
+using Xunit;
+using FluentAssertions;
+using WpfDevTools.Inspector.Analyzers;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+
+namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
+
+public class DispatcherAnalyzerBaseTests
+{
+    private class TestAnalyzer : DispatcherAnalyzerBase
+    {
+        public T TestInvokeOnUIThread<T>(Func<T> action, TimeSpan? timeout = null)
+        {
+            return InvokeOnUIThread(action, timeout);
+        }
+
+        public void TestInvokeOnUIThread(Action action, TimeSpan? timeout = null)
+        {
+            InvokeOnUIThread(action, timeout);
+        }
+
+        public bool TestIsOnUIThread()
+        {
+            return IsOnUIThread();
+        }
+
+        public static object? TestConvertValue(object? value, Type targetType)
+        {
+            return ConvertValue(value, targetType);
+        }
+
+        public static DependencyProperty? TestFindDependencyProperty(DependencyObject element, string propertyName)
+        {
+            return FindDependencyProperty(element, propertyName);
+        }
+    }
+
+    [StaFact]
+    public void InvokeOnUIThread_WithFunc_ShouldExecuteAndReturnValue()
+    {
+        // Arrange
+        var analyzer = new TestAnalyzer();
+        var expectedValue = 42;
+
+        // Act
+        var result = analyzer.TestInvokeOnUIThread(() => expectedValue);
+
+        // Assert
+        result.Should().Be(expectedValue);
+    }
+
+    [StaFact]
+    public void InvokeOnUIThread_WithAction_ShouldExecute()
+    {
+        // Arrange
+        var analyzer = new TestAnalyzer();
+        var executed = false;
+
+        // Act
+        analyzer.TestInvokeOnUIThread(() => executed = true);
+
+        // Assert
+        executed.Should().BeTrue();
+    }
+
+    [StaFact]
+    public void IsOnUIThread_WhenOnUIThread_ShouldReturnTrue()
+    {
+        // Arrange
+        var analyzer = new TestAnalyzer();
+
+        // Act
+        var result = analyzer.TestIsOnUIThread();
+
+        // Assert - in STA test, we should be on UI thread if Application exists
+        if (Application.Current != null)
+        {
+            result.Should().BeTrue();
+        }
+    }
+
+    [Fact]
+    public void ConvertValue_WithNull_ShouldReturnNull()
+    {
+        // Act
+        var result = TestAnalyzer.TestConvertValue(null, typeof(string));
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void ConvertValue_WithSameType_ShouldReturnValue()
+    {
+        // Arrange
+        var value = "test";
+
+        // Act
+        var result = TestAnalyzer.TestConvertValue(value, typeof(string));
+
+        // Assert
+        result.Should().Be(value);
+    }
+
+    [Fact]
+    public void ConvertValue_WithCompatibleType_ShouldReturnValue()
+    {
+        // Arrange
+        var value = "test";
+
+        // Act
+        var result = TestAnalyzer.TestConvertValue(value, typeof(object));
+
+        // Assert
+        result.Should().Be(value);
+    }
+
+    [Fact]
+    public void ConvertValue_WithIntToDouble_ShouldConvert()
+    {
+        // Arrange
+        var value = 42;
+
+        // Act
+        var result = TestAnalyzer.TestConvertValue(value, typeof(double));
+
+        // Assert
+        result.Should().Be(42.0);
+    }
+
+    [Fact]
+    public void ConvertValue_WithStringToInt_ShouldConvert()
+    {
+        // Arrange
+        var value = "123";
+
+        // Act
+        var result = TestAnalyzer.TestConvertValue(value, typeof(int));
+
+        // Assert
+        result.Should().Be(123);
+    }
+
+    [StaFact]
+    public void ConvertValue_WithStringToBrush_ShouldConvert()
+    {
+        // Arrange
+        var value = "Red";
+
+        // Act
+        var result = TestAnalyzer.TestConvertValue(value, typeof(Brush));
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Should().BeOfType<SolidColorBrush>();
+        var brush = result as SolidColorBrush;
+        brush!.Color.Should().Be(Colors.Red);
+    }
+
+    [StaFact]
+    public void FindDependencyProperty_WithValidProperty_ShouldReturnProperty()
+    {
+        // Arrange
+        var button = new Button();
+
+        // Act
+        var result = TestAnalyzer.TestFindDependencyProperty(button, "Width");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Should().Be(FrameworkElement.WidthProperty);
+    }
+
+    [StaFact]
+    public void FindDependencyProperty_WithInvalidProperty_ShouldReturnNull()
+    {
+        // Arrange
+        var button = new Button();
+
+        // Act
+        var result = TestAnalyzer.TestFindDependencyProperty(button, "NonExistentProperty");
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [StaFact]
+    public void FindDependencyProperty_WithInheritedProperty_ShouldReturnProperty()
+    {
+        // Arrange
+        var button = new Button();
+
+        // Act
+        var result = TestAnalyzer.TestFindDependencyProperty(button, "Visibility");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Should().Be(UIElement.VisibilityProperty);
+    }
+
+    [StaFact]
+    public void FindDependencyProperty_WithContentProperty_ShouldReturnProperty()
+    {
+        // Arrange
+        var button = new Button();
+
+        // Act
+        var result = TestAnalyzer.TestFindDependencyProperty(button, "Content");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Should().Be(ContentControl.ContentProperty);
+    }
+}

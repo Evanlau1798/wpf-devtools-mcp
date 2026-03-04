@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -12,23 +13,42 @@ public class PingTool : PipeConnectedToolBase
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, _, error) = ParseCommonParams(arguments);
-        if (error != null) return Task.FromResult<object>(error);
+        if (error != null) return error;
 
         if (!_sessionManager.HasSession(processId))
-            return Task.FromResult(CreateNotConnectedError(processId));
+            return CreateNotConnectedError(processId);
 
-        // Update last activity
-        _sessionManager.UpdateLastActivity(processId);
-
-        return Task.FromResult<object>(new
+        // Send actual ping through Named Pipe and measure latency
+        var stopwatch = Stopwatch.StartNew();
+        try
         {
-            success = true,
-            status = "connected",
-            processId,
-            lastActivity = _sessionManager.GetLastActivityTime(processId)
-        });
+            var response = await SendInspectorRequestAsync(processId, "ping", new { }, cancellationToken);
+            stopwatch.Stop();
+
+            // Update last activity
+            _sessionManager.UpdateLastActivity(processId);
+
+            return new
+            {
+                success = true,
+                status = "connected",
+                processId,
+                latencyMs = stopwatch.ElapsedMilliseconds,
+                lastActivity = _sessionManager.GetLastActivityTime(processId)
+            };
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            return new
+            {
+                success = false,
+                error = $"Ping failed: {ex.Message}",
+                processId
+            };
+        }
     }
 }

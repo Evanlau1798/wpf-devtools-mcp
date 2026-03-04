@@ -14,6 +14,7 @@ public class NamedPipeClient : IDisposable
     private readonly string _pipeName;
     private NamedPipeClientStream? _pipeClient;
     private readonly object _lock = new();
+    private readonly SemaphoreSlim _pipeSemaphore = new(1, 1);
     private bool _isDisposed;
 
     public NamedPipeClient(int processId)
@@ -83,19 +84,22 @@ public class NamedPipeClient : IDisposable
     }
 
     /// <summary>
-    /// Send request and wait for response
+    /// Send request and wait for response.
+    /// Uses a SemaphoreSlim to serialize pipe access across async calls.
     /// </summary>
     public async Task<InspectorResponse> SendRequestAsync<T>(
         string requestId,
         T requestParams,
         CancellationToken cancellationToken)
     {
+        NamedPipeClientStream pipeClient;
         lock (_lock)
         {
             if (!IsConnected || _pipeClient == null)
             {
                 throw new InvalidOperationException("Client is not connected");
             }
+            pipeClient = _pipeClient;
         }
 
         // Create request
@@ -106,15 +110,23 @@ public class NamedPipeClient : IDisposable
             Params = requestParams != null ? JsonSerializer.SerializeToElement(requestParams) : null
         };
 
-        // Serialize and send
-        var requestJson = JsonSerializer.Serialize(request);
-        await MessageFraming.WriteMessageAsync(_pipeClient, requestJson, cancellationToken);
+        await _pipeSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            // Serialize and send
+            var requestJson = JsonSerializer.Serialize(request);
+            await MessageFraming.WriteMessageAsync(pipeClient, requestJson, cancellationToken);
 
-        // Read response
-        var responseJson = await MessageFraming.ReadMessageAsync(_pipeClient, cancellationToken);
-        var response = JsonSerializer.Deserialize<InspectorResponse>(responseJson);
+            // Read response
+            var responseJson = await MessageFraming.ReadMessageAsync(pipeClient, cancellationToken);
+            var response = JsonSerializer.Deserialize<InspectorResponse>(responseJson);
 
-        return response ?? throw new InvalidOperationException("Invalid response from Inspector");
+            return response ?? throw new InvalidOperationException("Invalid response from Inspector");
+        }
+        finally
+        {
+            _pipeSemaphore.Release();
+        }
     }
 
     private string GetMethodName<T>(T requestParams)

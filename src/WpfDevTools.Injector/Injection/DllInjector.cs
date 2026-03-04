@@ -94,7 +94,7 @@ public class DllInjector
                 false,
                 processId);
 
-            if (hProcess == IntPtr.Zero)
+            if (hProcess == IntPtr.Zero || hProcess == new IntPtr(-1))
             {
                 return InjectionResult.CreateFailure(
                     processId,

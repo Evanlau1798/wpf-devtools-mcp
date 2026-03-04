@@ -26,6 +26,13 @@ public class StyleAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("styles");
+            resultDict["success"].Should().Be(true);
+        }
     }
 
     [StaFact]
@@ -44,6 +51,13 @@ public class StyleAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("triggers");
+            resultDict["success"].Should().Be(true);
+        }
     }
 
     [StaFact]
@@ -60,6 +74,12 @@ public class StyleAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict["success"].Should().Be(true);
+        }
     }
 
     [StaFact]
@@ -78,6 +98,13 @@ public class StyleAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("chain");
+            resultDict["success"].Should().Be(true);
+        }
     }
 
     [StaFact]

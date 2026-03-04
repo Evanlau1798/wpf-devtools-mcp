@@ -27,6 +27,13 @@ public class VisualTreeAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("elementId");
+            resultDict["elementId"].Should().Be(elementId);
+        }
     }
 
     [StaFact]
@@ -49,5 +56,18 @@ public class VisualTreeAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("names");
+            var names = resultDict["names"] as System.Collections.IDictionary;
+            names.Should().NotBeNull();
+            if (names != null)
+            {
+                names.Keys.Cast<string>().Should().Contain("Button1");
+                names.Keys.Cast<string>().Should().Contain("Button2");
+            }
+        }
     }
 }

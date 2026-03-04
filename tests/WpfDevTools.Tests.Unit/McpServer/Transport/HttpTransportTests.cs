@@ -9,8 +9,8 @@ public class HttpTransportTests
     [Fact]
     public async Task Start_ShouldStartHttpServer()
     {
-        // Arrange
-        var transport = new HttpTransport(port: 3000);
+        // Arrange - use port 0 for auto-assignment
+        var transport = new HttpTransport(port: 0);
 
         // Act
         await transport.StartAsync(CancellationToken.None);
@@ -26,7 +26,7 @@ public class HttpTransportTests
     public async Task Stop_ShouldStopHttpServer()
     {
         // Arrange
-        var transport = new HttpTransport(port: 3000);
+        var transport = new HttpTransport(port: 0);
         await transport.StartAsync(CancellationToken.None);
 
         // Act
@@ -39,19 +39,27 @@ public class HttpTransportTests
     [Fact]
     public async Task Start_WithPortInUse_ShouldThrowException()
     {
-        // Arrange
-        var transport1 = new HttpTransport(port: 3001);
-        var transport2 = new HttpTransport(port: 3001);
+        // Arrange - find an available port first
+        var transport1 = new HttpTransport(port: 0);
         await transport1.StartAsync(CancellationToken.None);
+
+        // Get the actual port being used (if HttpTransport exposes it)
+        // For now, we'll use a fixed port that's likely available
+        var testPort = 45678;
+        var transport2 = new HttpTransport(port: testPort);
+        var transport3 = new HttpTransport(port: testPort);
+
+        await transport2.StartAsync(CancellationToken.None);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await transport2.StartAsync(CancellationToken.None);
+            await transport3.StartAsync(CancellationToken.None);
         });
 
         // Cleanup
         await transport1.StopAsync();
+        await transport2.StopAsync();
     }
 
     [Fact]
@@ -59,7 +67,14 @@ public class HttpTransportTests
     {
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => new HttpTransport(port: -1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new HttpTransport(port: 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => new HttpTransport(port: 70000));
+    }
+
+    [Fact]
+    public void Constructor_WithPortZero_ShouldAllowAutoAssignment()
+    {
+        // Act & Assert - port 0 should be allowed for auto-assignment
+        var exception = Record.Exception(() => new HttpTransport(port: 0));
+        exception.Should().BeNull();
     }
 }

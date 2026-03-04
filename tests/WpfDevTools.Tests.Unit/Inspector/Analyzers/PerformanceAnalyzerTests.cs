@@ -20,12 +20,9 @@ public class PerformanceAnalyzerTests
         PerformanceAnalyzer.ClearTrackedBindings();
         var binding = new Binding("TestProperty");
 
-        // Act
-        PerformanceAnalyzer.TrackBinding(binding);
-
-        // Assert - verify binding was tracked (we can't call FindBindingLeaks without WPF context)
-        // This test verifies the method doesn't throw
-        Assert.True(true);
+        // Act & Assert - verify method doesn't throw
+        var exception = Record.Exception(() => PerformanceAnalyzer.TrackBinding(binding));
+        exception.Should().BeNull();
     }
 
     [Fact]
@@ -37,11 +34,9 @@ public class PerformanceAnalyzerTests
             PerformanceAnalyzer.TrackBinding(new Binding($"Property{i}"));
         }
 
-        // Act
-        PerformanceAnalyzer.ClearTrackedBindings();
-
-        // Assert - verify method doesn't throw
-        Assert.True(true);
+        // Act & Assert - verify method doesn't throw
+        var exception = Record.Exception(() => PerformanceAnalyzer.ClearTrackedBindings());
+        exception.Should().BeNull();
     }
 
     [Fact]

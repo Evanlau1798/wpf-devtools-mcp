@@ -12,7 +12,7 @@ namespace WpfDevTools.Inspector;
 public static class Bootstrap
 {
     private static bool _isInitialized;
-    private static bool _isInitializing;
+    private static int _isInitializing; // 0 = not initializing, 1 = initializing
     private static readonly object _lock = new object();
     private static Host.InspectorHost? _host;
 
@@ -22,14 +22,21 @@ public static class Bootstrap
     /// </summary>
     public static void Initialize(string parameters)
     {
+        // Atomic check-and-set to prevent race condition
+        if (Interlocked.CompareExchange(ref _isInitializing, 1, 0) != 0)
+        {
+            LogError("Bootstrap already initializing");
+            return;
+        }
+
         lock (_lock)
         {
-            if (_isInitialized || _isInitializing)
+            if (_isInitialized)
             {
+                Interlocked.Exchange(ref _isInitializing, 0);
                 LogError("Bootstrap already initialized");
                 return;
             }
-            _isInitializing = true;
 
             try
             {
@@ -49,16 +56,22 @@ public static class Bootstrap
                     try
                     {
                         InitializeOnUiThread(parameters);
-                        _isInitialized = true;
+                        lock (_lock)
+                        {
+                            _isInitialized = true;
+                        }
+                        Interlocked.Exchange(ref _isInitializing, 0);
                     }
                     catch (Exception ex)
                     {
+                        Interlocked.Exchange(ref _isInitializing, 0);
                         LogError($"Failed to initialize on UI thread: {ex}");
                     }
                 }), DispatcherPriority.Normal);
             }
             catch (Exception ex)
             {
+                Interlocked.Exchange(ref _isInitializing, 0);
                 LogError($"Bootstrap initialization failed: {ex}");
             }
         }

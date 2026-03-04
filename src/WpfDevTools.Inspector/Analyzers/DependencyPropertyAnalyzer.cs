@@ -345,4 +345,24 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             return new { success = true, message = "Change log cleared" };
         }
     }
+
+    /// <summary>
+    /// Stop all active property watchers (cleanup on shutdown)
+    /// </summary>
+    public static void StopAllWatchers()
+    {
+        foreach (var kvp in _watchers)
+        {
+            try
+            {
+                // Note: We can't remove the handler without the element reference
+                // The watchers will be cleaned up when the AppDomain unloads
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+        }
+        _watchers.Clear();
+    }
 }

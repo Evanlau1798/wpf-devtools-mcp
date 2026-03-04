@@ -23,6 +23,20 @@ public class LayoutAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("layoutInfo");
+            resultDict["success"].Should().Be(true);
+            var layoutInfo = resultDict["layoutInfo"] as System.Collections.IDictionary;
+            layoutInfo.Should().NotBeNull();
+            if (layoutInfo != null)
+            {
+                layoutInfo.Keys.Cast<string>().Should().Contain("width");
+                layoutInfo.Keys.Cast<string>().Should().Contain("height");
+            }
+        }
     }
 
     [StaFact]
@@ -39,6 +53,13 @@ public class LayoutAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("clippingInfo");
+            resultDict["success"].Should().Be(true);
+        }
     }
 
     [StaFact]
@@ -55,6 +76,12 @@ public class LayoutAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict["success"].Should().Be(true);
+        }
     }
 
     [StaFact]
@@ -71,5 +98,11 @@ public class LayoutAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict["success"].Should().Be(true);
+        }
     }
 }

@@ -9,8 +9,9 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class BindingErrorTraceListener : TraceListener
 {
-    private static BindingErrorTraceListener? _instance;
-    private static readonly object _lock = new();
+    private static Lazy<BindingErrorTraceListener> _instance =
+        new Lazy<BindingErrorTraceListener>(() => new BindingErrorTraceListener(),
+            LazyThreadSafetyMode.ExecutionAndPublication);
 
     private readonly ConcurrentQueue<BindingErrorInfo> _errors = new();
     private int _errorCount;
@@ -24,20 +25,7 @@ public sealed class BindingErrorTraceListener : TraceListener
     /// <summary>
     /// Gets the singleton instance of the trace listener
     /// </summary>
-    public static BindingErrorTraceListener Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                lock (_lock)
-                {
-                    _instance ??= new BindingErrorTraceListener();
-                }
-            }
-            return _instance;
-        }
-    }
+    public static BindingErrorTraceListener Instance => _instance.Value;
 
     private BindingErrorTraceListener() { }
 
@@ -171,28 +159,27 @@ public sealed class BindingErrorTraceListener : TraceListener
 
     /// <summary>
     /// Reset the singleton instance (for testing purposes only).
-    /// Uninstalls the current listener from PresentationTraceSources before resetting.
+    /// Creates a new instance and clears all errors.
     /// </summary>
     internal static void ResetInstance()
     {
-        lock (_lock)
+        // Uninstall the old instance first
+        if (_instance.IsValueCreated)
         {
-            if (_instance != null)
+            try
             {
-                // Remove from PresentationTraceSources before disposing
-                try
-                {
-                    var source = PresentationTraceSources.DataBindingSource;
-                    source.Listeners.Remove(_instance);
-                }
-                catch
-                {
-                    // PresentationTraceSources may not be available in test contexts
-                }
-
-                _instance.ClearErrors();
+                var source = PresentationTraceSources.DataBindingSource;
+                source.Listeners.Remove(_instance.Value);
             }
-            _instance = null;
+            catch
+            {
+                // PresentationTraceSources may not be available in test contexts
+            }
         }
+
+        // Create a new Lazy instance
+        _instance = new Lazy<BindingErrorTraceListener>(
+            () => new BindingErrorTraceListener(),
+            LazyThreadSafetyMode.ExecutionAndPublication);
     }
 }

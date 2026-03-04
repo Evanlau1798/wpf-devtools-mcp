@@ -22,6 +22,13 @@ public class EventAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("message");
+            resultDict["success"].Should().Be(true);
+        }
     }
 
     [StaFact]
@@ -55,6 +62,13 @@ public class EventAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("events");
+            resultDict["success"].Should().Be(true);
+        }
     }
 
     [StaFact]
@@ -72,5 +86,12 @@ public class EventAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("handlers");
+            resultDict["success"].Should().Be(true);
+        }
     }
 }

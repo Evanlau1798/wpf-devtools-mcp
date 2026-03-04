@@ -88,7 +88,10 @@ public class SessionManagerTests
         manager.AddSession(processId);
 
         var initialTime = manager.GetLastActivityTime(processId);
-        Thread.Sleep(100); // Wait a bit
+
+        // Wait with tolerance for timer resolution
+        var waitTime = TimeSpan.FromMilliseconds(50);
+        Thread.Sleep(waitTime);
 
         // Act
         manager.UpdateLastActivity(processId);
@@ -96,6 +99,7 @@ public class SessionManagerTests
         // Assert
         var updatedTime = manager.GetLastActivityTime(processId);
         updatedTime.Should().BeAfter(initialTime);
+        (updatedTime - initialTime).Should().BeGreaterThanOrEqualTo(waitTime - TimeSpan.FromMilliseconds(20)); // Allow 20ms tolerance
     }
 
     [Fact]
@@ -104,11 +108,15 @@ public class SessionManagerTests
         // Arrange
         var manager = new SessionManager();
         manager.AddSession(100);
-        Thread.Sleep(200); // Make session 100 idle
+
+        // Wait with sufficient margin for timer resolution
+        var idleTimeout = TimeSpan.FromMilliseconds(100);
+        Thread.Sleep(idleTimeout + TimeSpan.FromMilliseconds(50)); // Add 50ms margin
+
         manager.AddSession(200); // Fresh session
 
         // Act
-        var idleSessions = manager.GetIdleSessions(TimeSpan.FromMilliseconds(100));
+        var idleSessions = manager.GetIdleSessions(idleTimeout);
 
         // Assert
         idleSessions.Should().Contain(100);

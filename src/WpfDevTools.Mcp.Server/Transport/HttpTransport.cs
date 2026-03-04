@@ -15,6 +15,7 @@ public class HttpTransport : ITransport, IDisposable
     private readonly int _port;
     private WebApplication? _app;
     private bool _isRunning;
+    private const int MaxBodySizeBytes = 1 * 1024 * 1024; // 1 MB
 
     public bool IsRunning => _isRunning;
 
@@ -22,9 +23,10 @@ public class HttpTransport : ITransport, IDisposable
 
     public HttpTransport(int port)
     {
-        if (port < 1 || port > 65535)
+        // Port 0 means auto-assign an available port
+        if (port < 0 || port > 65535)
         {
-            throw new ArgumentOutOfRangeException(nameof(port), "Port must be between 1 and 65535");
+            throw new ArgumentOutOfRangeException(nameof(port), "Port must be between 0 and 65535");
         }
 
         _port = port;
@@ -40,7 +42,10 @@ public class HttpTransport : ITransport, IDisposable
         try
         {
             var builder = WebApplication.CreateBuilder();
-            builder.WebHost.UseUrls($"http://localhost:{_port}");
+
+            // Use 127.0.0.1 instead of localhost for port 0 support
+            var host = _port == 0 ? "127.0.0.1" : "localhost";
+            builder.WebHost.UseUrls($"http://{host}:{_port}");
 
             // Disable logging for tests
             builder.Logging.ClearProviders();
@@ -50,8 +55,26 @@ public class HttpTransport : ITransport, IDisposable
             // Configure routes
             _app.MapPost("/mcp", async (HttpContext context) =>
             {
+                // Check Content-Length header to prevent DoS
+                if (context.Request.ContentLength.HasValue &&
+                    context.Request.ContentLength.Value > MaxBodySizeBytes)
+                {
+                    context.Response.StatusCode = 413; // Payload Too Large
+                    await context.Response.WriteAsync("Request body too large");
+                    return;
+                }
+
                 using var reader = new StreamReader(context.Request.Body);
                 var message = await reader.ReadToEndAsync();
+
+                // Additional check after reading (in case Content-Length was not set)
+                if (message.Length > MaxBodySizeBytes)
+                {
+                    context.Response.StatusCode = 413;
+                    await context.Response.WriteAsync("Request body too large");
+                    return;
+                }
+
                 MessageReceived?.Invoke(this, new MessageReceivedEventArgs(message));
 
                 await context.Response.WriteAsJsonAsync(new { success = true });

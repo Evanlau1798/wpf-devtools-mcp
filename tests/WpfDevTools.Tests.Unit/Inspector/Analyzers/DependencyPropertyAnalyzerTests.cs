@@ -22,6 +22,14 @@ public class DependencyPropertyAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("valueSource");
+            resultDict["success"].Should().Be(true);
+            resultDict["valueSource"].Should().NotBeNull();
+        }
     }
 
     [StaFact]
@@ -38,6 +46,12 @@ public class DependencyPropertyAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict["success"].Should().Be(true);
+        }
         button.Width.Should().Be(200.0);
     }
 
@@ -55,6 +69,12 @@ public class DependencyPropertyAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict["success"].Should().Be(true);
+        }
         button.Width.Should().Be(double.NaN); // Default value
     }
 
@@ -72,6 +92,13 @@ public class DependencyPropertyAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict.Keys.Cast<string>().Should().Contain("metadata");
+            resultDict["success"].Should().Be(true);
+        }
     }
 
     [StaFact]
@@ -88,5 +115,11 @@ public class DependencyPropertyAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+        var resultDict = result as System.Collections.IDictionary;
+        if (resultDict != null)
+        {
+            resultDict.Keys.Cast<string>().Should().Contain("success");
+            resultDict["success"].Should().Be(true);
+        }
     }
 }

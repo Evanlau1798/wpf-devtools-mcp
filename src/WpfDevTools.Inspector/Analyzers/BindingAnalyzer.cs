@@ -216,9 +216,6 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
         var binding = bindingExpr.ParentBinding;
         if (binding != null)
         {
-            // Track binding for leak detection
-            PerformanceAnalyzer.TrackBinding(binding);
-
             chain.Add(new
             {
                 step = "Binding",
@@ -307,13 +304,6 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
             return new { success = false, error = "No binding on this property" };
         }
 
-        // Track binding for leak detection
-        var binding = bindingExpr.ParentBinding;
-        if (binding != null)
-        {
-            PerformanceAnalyzer.TrackBinding(binding);
-        }
-
         try
         {
             if (string.Equals(direction, "source", StringComparison.OrdinalIgnoreCase))
@@ -362,37 +352,37 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     private List<object> GetDependencyPropertiesWithBindings(DependencyObject element)
     {
         var bindings = new List<object>();
+        var seenProperties = new HashSet<string>();
 
-        // Get all dependency properties using reflection
+        // Walk up the type hierarchy to find all DependencyProperty fields
         var type = element.GetType();
-        var dpFields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
-            .Where(f => f.FieldType == typeof(DependencyProperty));
-
-        foreach (var field in dpFields)
+        while (type != null && type != typeof(object))
         {
-            var dp = field.GetValue(null) as DependencyProperty;
-            if (dp != null)
+            var dpFields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.DeclaredOnly)
+                .Where(f => f.FieldType == typeof(DependencyProperty));
+
+            foreach (var field in dpFields)
             {
-                var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
-                if (bindingExpr != null)
+                var dp = field.GetValue(null) as DependencyProperty;
+                if (dp != null && seenProperties.Add(dp.Name))
                 {
-                    var binding = bindingExpr.ParentBinding;
-
-                    // Track binding for leak detection
-                    if (binding != null)
+                    var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
+                    if (bindingExpr != null)
                     {
-                        PerformanceAnalyzer.TrackBinding(binding);
+                        var binding = bindingExpr.ParentBinding;
+
+                        bindings.Add(new
+                        {
+                            propertyName = dp.Name,
+                            path = binding?.Path?.Path,
+                            mode = binding?.Mode.ToString(),
+                            updateSourceTrigger = binding?.UpdateSourceTrigger.ToString()
+                        });
                     }
-
-                    bindings.Add(new
-                    {
-                        propertyName = dp.Name,
-                        path = binding?.Path?.Path,
-                        mode = binding?.Mode.ToString(),
-                        updateSourceTrigger = binding?.UpdateSourceTrigger.ToString()
-                    });
                 }
             }
+
+            type = type.BaseType;
         }
 
         return bindings;

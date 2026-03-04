@@ -12,8 +12,8 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private static readonly ConcurrentDictionary<string, (DependencyPropertyDescriptor Descriptor, EventHandler Handler, WeakReference<DependencyObject> ElementRef)> _watchers = new();
-    private static readonly List<object> _changeLog = new();
-    private static readonly object _watchLock = new object();
+    private static readonly ConcurrentQueue<object> _changeLog = new();
+    private static int _changeLogCount = 0;
     private const int MaxChangeLogEntries = 10000;
 
     public DependencyPropertyAnalyzer(ElementFinder elementFinder)
@@ -246,23 +246,23 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 {
                     EventHandler handler = (sender, e) =>
                     {
-                        lock (_watchLock)
+                        var newValue = depObj.GetValue(dp);
+                        _changeLog.Enqueue(new
                         {
-                            var newValue = depObj.GetValue(dp);
-                            _changeLog.Add(new
-                            {
-                                timestamp = DateTime.UtcNow,
-                                elementId,
-                                propertyName,
-                                newValue = newValue?.ToString(),
-                                valueType = newValue?.GetType().Name
-                            });
+                            timestamp = DateTime.UtcNow,
+                            elementId,
+                            propertyName,
+                            newValue = newValue?.ToString(),
+                            valueType = newValue?.GetType().Name
+                        });
 
-                            // Trim oldest entries if over limit
-                            if (_changeLog.Count > MaxChangeLogEntries)
-                            {
-                                _changeLog.RemoveRange(0, _changeLog.Count - MaxChangeLogEntries);
-                            }
+                        // Increment count and trim oldest entries if over limit
+                        var count = Interlocked.Increment(ref _changeLogCount);
+                        if (count > MaxChangeLogEntries)
+                        {
+                            // Dequeue oldest entry
+                            _changeLog.TryDequeue(out _);
+                            Interlocked.Decrement(ref _changeLogCount);
                         }
                     };
 
@@ -327,15 +327,12 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object GetChangeLog()
     {
-        lock (_watchLock)
+        return new
         {
-            return new
-            {
-                success = true,
-                changeCount = _changeLog.Count,
-                changes = _changeLog.ToList()
-            };
-        }
+            success = true,
+            changeCount = _changeLogCount,
+            changes = _changeLog.ToArray()
+        };
     }
 
     /// <summary>
@@ -343,11 +340,10 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object ClearChangeLog()
     {
-        lock (_watchLock)
-        {
-            _changeLog.Clear();
-            return new { success = true, message = "Change log cleared" };
-        }
+        // Clear queue by dequeuing all items
+        while (_changeLog.TryDequeue(out _)) { }
+        Interlocked.Exchange(ref _changeLogCount, 0);
+        return new { success = true, message = "Change log cleared" };
     }
 
     /// <summary>

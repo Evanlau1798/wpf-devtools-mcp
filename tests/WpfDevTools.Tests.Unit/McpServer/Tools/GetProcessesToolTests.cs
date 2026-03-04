@@ -42,7 +42,7 @@ public class GetProcessesToolTests
         // All returned processes should match the filter
         foreach (var process in processArray)
         {
-            var name = process.GetProperty("name").GetString();
+            var name = process.GetProperty("processName").GetString();
             name.Should().Contain("TestApp", "all processes should match the filter");
         }
     }
@@ -66,8 +66,8 @@ public class GetProcessesToolTests
         {
             var firstProcess = processArray[0];
             firstProcess.TryGetProperty("processId", out _).Should().BeTrue();
-            firstProcess.TryGetProperty("name", out _).Should().BeTrue();
-            firstProcess.TryGetProperty("title", out _).Should().BeTrue();
+            firstProcess.TryGetProperty("processName", out _).Should().BeTrue();
+            firstProcess.TryGetProperty("windowTitle", out _).Should().BeTrue();
             firstProcess.TryGetProperty("architecture", out _).Should().BeTrue();
         }
     }

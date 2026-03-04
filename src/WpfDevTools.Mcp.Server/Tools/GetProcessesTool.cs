@@ -33,10 +33,10 @@ public class GetProcessesTool
         var processes = filteredProcesses.Select(p => new
         {
             processId = p.ProcessId,
-            name = p.ProcessName,
-            title = p.WindowTitle,
+            processName = p.ProcessName,
+            windowTitle = p.WindowTitle,
             architecture = p.Architecture.ToString(),
-            dotnetVersion = p.DotNetVersion
+            dotNetVersion = p.DotNetVersion
         }).ToList();
 
         return Task.FromResult<object>(new { processes });

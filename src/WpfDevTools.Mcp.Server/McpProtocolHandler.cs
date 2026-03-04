@@ -8,7 +8,6 @@ namespace WpfDevTools.Mcp.Server;
 public class McpProtocolHandler
 {
     private readonly ToolRegistry _toolRegistry;
-    private bool _isInitialized;
 
     public McpProtocolHandler(ToolRegistry? toolRegistry = null)
     {
@@ -60,8 +59,6 @@ public class McpProtocolHandler
     private async Task<object> HandleInitializeAsync(JsonElement request, CancellationToken cancellationToken)
     {
         await Task.CompletedTask; // Suppress async warning
-
-        _isInitialized = true;
 
         return new
         {

@@ -58,6 +58,5 @@ public class GetVisualTreeToolTests
         // Assert
         result.Should().NotBeNull();
         // Note: This will fail until we have actual Named Pipe communication
-        // For now, we're just testing the parameter parsing
     }
 }

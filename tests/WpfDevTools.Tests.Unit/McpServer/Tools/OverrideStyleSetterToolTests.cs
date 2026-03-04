@@ -95,7 +95,5 @@ public class OverrideStyleSetterToolTests
 
         // Assert
         result.Should().NotBeNull();
-        // Note: This will return placeholder until Named Pipe communication is implemented
-        // For now, we're just testing the parameter parsing
     }
 }

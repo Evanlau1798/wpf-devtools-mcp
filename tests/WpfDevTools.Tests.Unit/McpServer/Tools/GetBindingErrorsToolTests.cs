@@ -57,6 +57,5 @@ public class GetBindingErrorsToolTests
 
         // Assert
         result.Should().NotBeNull();
-        // Note: This will return placeholder until Named Pipe communication is implemented
     }
 }

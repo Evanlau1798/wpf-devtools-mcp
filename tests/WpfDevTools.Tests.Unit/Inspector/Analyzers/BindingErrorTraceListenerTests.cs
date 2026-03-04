@@ -5,6 +5,7 @@ using System.Diagnostics;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("BindingErrorTests")]
 public class BindingErrorTraceListenerTests : IDisposable
 {
     public BindingErrorTraceListenerTests()

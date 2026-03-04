@@ -85,6 +85,21 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
         new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string", description = "Root element ID (optional)" }, depth = new { type = "integer", description = "Max depth to traverse" } }, required = new[] { "processId" } },
         async (args, ct) => await new GetLogicalTreeTool(sessionManager).ExecuteAsync(args, ct));
 
+    RegisterTool(registry, "compare_trees",
+        "Compare Visual Tree and Logical Tree of a WPF element",
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string", description = "Element ID to compare trees from" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "compare_trees").ExecuteAsync(args, ct));
+
+    RegisterTool(registry, "serialize_to_xaml",
+        "Serialize a WPF element subtree to XAML markup",
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string", description = "Element ID to serialize" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "serialize_to_xaml").ExecuteAsync(args, ct));
+
+    RegisterTool(registry, "get_namescope",
+        "Get the NameScope of a WPF element",
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string", description = "Element ID to get NameScope from" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "get_namescope").ExecuteAsync(args, ct));
+
     RegisterTool(registry, "get_template_tree",
         "Get the template tree of a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, maxDepth = new { type = "integer", description = "Max depth to traverse" } }, required = new[] { "processId" } },
@@ -105,6 +120,37 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
         "Get the DataContext inheritance chain for a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
         async (args, ct) => await new GetDataContextChainTool(sessionManager).ExecuteAsync(args, ct));
+
+    RegisterTool(registry, "get_binding_value_chain",
+        "Get the binding value resolution chain from source to target",
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, propertyName = new { type = "string", description = "DependencyProperty name to inspect" } }, required = new[] { "processId", "propertyName" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "get_binding_value_chain",
+            a =>
+            {
+                var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
+                if (err != null) return (-1, null, err);
+                string? propertyName = null;
+                if (a.HasValue && a.Value.TryGetProperty("propertyName", out var pn)) propertyName = pn.GetString();
+                if (string.IsNullOrEmpty(propertyName)) return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
+                return (pid, (object?)new { elementId = eid, propertyName }, null);
+            }).ExecuteAsync(args, ct));
+
+    RegisterTool(registry, "force_binding_update",
+        "Force a binding to update its source or target",
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, propertyName = new { type = "string", description = "DependencyProperty name" }, direction = new { type = "string", description = "Update direction: 'Source' or 'Target'" } }, required = new[] { "processId", "propertyName", "direction" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "force_binding_update",
+            a =>
+            {
+                var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
+                if (err != null) return (-1, null, err);
+                string? propertyName = null;
+                string? direction = null;
+                if (a.HasValue && a.Value.TryGetProperty("propertyName", out var pn)) propertyName = pn.GetString();
+                if (a.HasValue && a.Value.TryGetProperty("direction", out var dir)) direction = dir.GetString();
+                if (string.IsNullOrEmpty(propertyName)) return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
+                if (string.IsNullOrEmpty(direction)) return (-1, null, (object)new { success = false, error = "Missing required parameter: direction" });
+                return (pid, (object?)new { elementId = eid, propertyName, direction }, null);
+            }).ExecuteAsync(args, ct));
 
     // === 4. DependencyProperty (5 tools) ===
     RegisterTool(registry, "get_dp_value_source",
@@ -175,6 +221,23 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
         new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
         async (args, ct) => await new ClickElementTool(sessionManager).ExecuteAsync(args, ct));
 
+    RegisterTool(registry, "drag_and_drop",
+        "Simulate drag and drop between two WPF elements",
+        new { type = "object", properties = new { processId = new { type = "integer" }, sourceElementId = new { type = "string", description = "Source element ID" }, targetElementId = new { type = "string", description = "Target element ID" } }, required = new[] { "processId", "sourceElementId", "targetElementId" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "drag_and_drop",
+            a =>
+            {
+                var (pid, _, err) = PipeConnectedToolBase.ParseCommonParams(a);
+                if (err != null) return (-1, null, err);
+                string? sourceElementId = null;
+                string? targetElementId = null;
+                if (a.HasValue && a.Value.TryGetProperty("sourceElementId", out var sp)) sourceElementId = sp.GetString();
+                if (a.HasValue && a.Value.TryGetProperty("targetElementId", out var tp)) targetElementId = tp.GetString();
+                if (string.IsNullOrEmpty(sourceElementId)) return (-1, null, (object)new { success = false, error = "Missing required parameter: sourceElementId" });
+                if (string.IsNullOrEmpty(targetElementId)) return (-1, null, (object)new { success = false, error = "Missing required parameter: targetElementId" });
+                return (pid, (object?)new { sourceElementId, targetElementId }, null);
+            }).ExecuteAsync(args, ct));
+
     RegisterTool(registry, "scroll_to_element",
         "Scroll a WPF element into view",
         new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
@@ -201,6 +264,21 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
         new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
         async (args, ct) => await new GetClippingInfoTool(sessionManager).ExecuteAsync(args, ct));
 
+    RegisterTool(registry, "highlight_element",
+        "Highlight a WPF element with a visual overlay",
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, color = new { type = "string", description = "Highlight color (optional)" }, duration = new { type = "integer", description = "Duration in milliseconds (optional)" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "highlight_element",
+            a =>
+            {
+                var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
+                if (err != null) return (-1, null, err);
+                string? color = null;
+                int? duration = null;
+                if (a.HasValue && a.Value.TryGetProperty("color", out var cp)) color = cp.GetString();
+                if (a.HasValue && a.Value.TryGetProperty("duration", out var dp)) duration = dp.GetInt32();
+                return (pid, (object?)new { elementId = eid, color, duration }, null);
+            }).ExecuteAsync(args, ct));
+
     RegisterTool(registry, "invalidate_layout",
         "Force layout invalidation on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
@@ -226,6 +304,23 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
         "Get validation errors from a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
         async (args, ct) => await new GetValidationErrorsTool(sessionManager).ExecuteAsync(args, ct));
+
+    RegisterTool(registry, "modify_viewmodel",
+        "Modify a ViewModel property value at runtime",
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, propertyName = new { type = "string", description = "Property name to modify" }, value = new { type = "string", description = "New value to set" } }, required = new[] { "processId", "propertyName", "value" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "modify_viewmodel",
+            a =>
+            {
+                var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
+                if (err != null) return (-1, null, err);
+                string? propertyName = null;
+                string? value = null;
+                if (a.HasValue && a.Value.TryGetProperty("propertyName", out var pn)) propertyName = pn.GetString();
+                if (a.HasValue && a.Value.TryGetProperty("value", out var vp)) value = vp.GetString();
+                if (string.IsNullOrEmpty(propertyName)) return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
+                if (string.IsNullOrEmpty(value)) return (-1, null, (object)new { success = false, error = "Missing required parameter: value" });
+                return (pid, (object?)new { elementId = eid, propertyName, value }, null);
+            }).ExecuteAsync(args, ct));
 
     // === 10. Performance (4 tools) ===
     RegisterTool(registry, "get_render_stats",

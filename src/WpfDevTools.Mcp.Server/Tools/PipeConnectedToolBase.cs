@@ -18,7 +18,7 @@ public abstract class PipeConnectedToolBase
     /// Parse processId and optional elementId from JSON arguments.
     /// Returns (processId, elementId, errorResult). If errorResult is non-null, return it immediately.
     /// </summary>
-    protected static (int processId, string? elementId, object? error) ParseCommonParams(JsonElement? arguments)
+    public static (int processId, string? elementId, object? error) ParseCommonParams(JsonElement? arguments)
     {
         int? processId = null;
         string? elementId = null;

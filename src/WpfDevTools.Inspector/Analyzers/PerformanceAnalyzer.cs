@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -9,6 +10,17 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public class PerformanceAnalyzer : DispatcherAnalyzerBase
 {
+    private readonly ElementFinder _elementFinder;
+
+    public PerformanceAnalyzer() : this(new ElementFinder())
+    {
+    }
+
+    public PerformanceAnalyzer(ElementFinder elementFinder)
+    {
+        _elementFinder = elementFinder;
+    }
+
     private static readonly object _lock = new object();
     private static bool _isMonitoring = false;
     private static Stopwatch _frameStopwatch = new Stopwatch();
@@ -277,14 +289,12 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
 
     private DependencyObject? GetRootElement()
     {
-        return Application.Current?.MainWindow;
+        return _elementFinder.GetRootElement();
     }
 
     private DependencyObject? FindElementById(string elementId)
     {
-        // TODO: Implement element lookup by ID
-        // This should search the visual tree for an element with the given name or ID
-        return GetRootElement();
+        return _elementFinder.FindById(elementId);
     }
 
     /// <summary>

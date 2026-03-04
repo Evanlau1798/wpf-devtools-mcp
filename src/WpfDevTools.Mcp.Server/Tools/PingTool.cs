@@ -12,18 +12,18 @@ public class PingTool : PipeConnectedToolBase
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    public Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, _, error) = ParseCommonParams(arguments);
-        if (error != null) return error;
+        if (error != null) return Task.FromResult<object>(error);
 
         if (!_sessionManager.HasSession(processId))
-            return CreateNotConnectedError(processId);
+            return Task.FromResult(CreateNotConnectedError(processId));
 
         // Update last activity
         _sessionManager.UpdateLastActivity(processId);
 
-        return await Task.FromResult<object>(new
+        return Task.FromResult<object>(new
         {
             success = true,
             status = "connected",

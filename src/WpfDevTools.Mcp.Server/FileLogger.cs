@@ -43,9 +43,9 @@ public class FileLogger
                 File.AppendAllText(_logFilePath, logEntry);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore logging errors to prevent crashes
+            Console.Error.WriteLine($"Logging failed: {ex.Message}");
         }
     }
 
@@ -70,9 +70,9 @@ public class FileLogger
                 File.Move(_logFilePath, oldPath);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore rotation errors to prevent crashes
+            Console.Error.WriteLine($"Logging failed: {ex.Message}");
         }
     }
 

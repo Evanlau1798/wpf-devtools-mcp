@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -47,20 +48,94 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
 
     public object GetCommands(string? elementId)
     {
-        // TODO: Implement
-        return new { commands = new object[] { } };
+        return InvokeOnUIThread<object>(() =>
+        {
+            var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
+            if (element == null)
+                return new { success = false, error = "Element not found" };
+
+            var fe = element as FrameworkElement;
+            if (fe?.DataContext == null)
+                return new { success = true, commands = new object[] { } };
+
+            var commands = new List<object>();
+            var dcType = fe.DataContext.GetType();
+            foreach (var prop in dcType.GetProperties())
+            {
+                if (typeof(System.Windows.Input.ICommand).IsAssignableFrom(prop.PropertyType))
+                {
+                    var cmd = prop.GetValue(fe.DataContext) as System.Windows.Input.ICommand;
+                    commands.Add(new
+                    {
+                        name = prop.Name,
+                        type = prop.PropertyType.Name,
+                        canExecute = cmd?.CanExecute(null) ?? false
+                    });
+                }
+            }
+
+            return new { success = true, commands };
+        });
     }
 
     public object ExecuteCommand(string? elementId, string commandName, object? parameter)
     {
-        // TODO: Implement
-        return new { success = false, error = "Not implemented" };
+        return InvokeOnUIThread<object>(() =>
+        {
+            var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
+            if (element == null)
+                return new { success = false, error = "Element not found" };
+
+            var fe = element as FrameworkElement;
+            if (fe?.DataContext == null)
+                return new { success = false, error = "No DataContext found" };
+
+            var prop = fe.DataContext.GetType().GetProperty(commandName);
+            if (prop == null)
+                return new { success = false, error = $"Command '{commandName}' not found" };
+
+            var cmd = prop.GetValue(fe.DataContext) as System.Windows.Input.ICommand;
+            if (cmd == null)
+                return new { success = false, error = $"'{commandName}' is not an ICommand" };
+
+            if (!cmd.CanExecute(parameter))
+                return new { success = false, error = $"Command '{commandName}' cannot execute" };
+
+            cmd.Execute(parameter);
+            return new { success = true, commandName, executed = true };
+        });
     }
 
     public object GetValidationErrors(string? elementId)
     {
-        // TODO: Implement
-        return new { errors = new object[] { } };
+        return InvokeOnUIThread<object>(() =>
+        {
+            var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
+            if (element == null)
+                return new { success = false, error = "Element not found" };
+
+            var errors = new List<object>();
+            if (element is DependencyObject depObj)
+            {
+                var validationErrors = Validation.GetErrors(depObj);
+                foreach (var error in validationErrors)
+                {
+                    errors.Add(new
+                    {
+                        errorContent = error.ErrorContent?.ToString(),
+                        isRuleError = error.RuleInError != null,
+                        ruleType = error.RuleInError?.GetType().Name
+                    });
+                }
+            }
+
+            return new { success = true, errorCount = errors.Count, errors };
+        });
+    }
+
+    private DependencyObject? GetRootElement()
+    {
+        return _elementFinder.GetRootElement();
     }
 
     private static object? ConvertValue(object? value, Type targetType)

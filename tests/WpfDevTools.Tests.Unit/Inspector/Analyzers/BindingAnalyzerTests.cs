@@ -9,6 +9,7 @@ using System.Windows.Data;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("BindingErrorTests")]
 public class BindingAnalyzerTests : IDisposable
 {
     public BindingAnalyzerTests()

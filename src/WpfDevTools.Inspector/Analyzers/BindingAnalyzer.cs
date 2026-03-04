@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Data;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -8,6 +9,17 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public class BindingAnalyzer : DispatcherAnalyzerBase
 {
+    private readonly ElementFinder _elementFinder;
+
+    public BindingAnalyzer() : this(new ElementFinder())
+    {
+    }
+
+    public BindingAnalyzer(ElementFinder elementFinder)
+    {
+        _elementFinder = elementFinder;
+    }
+
     /// <summary>
     /// Get all bindings for an element
     /// </summary>
@@ -289,13 +301,12 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
 
     private DependencyObject? GetRootElement()
     {
-        return Application.Current?.MainWindow;
+        return _elementFinder.GetRootElement();
     }
 
     private DependencyObject? FindElementById(string elementId)
     {
-        // TODO: Implement element lookup by ID
-        return GetRootElement();
+        return _elementFinder.FindById(elementId);
     }
 
     private List<object> GetDependencyPropertiesWithBindings(DependencyObject element)

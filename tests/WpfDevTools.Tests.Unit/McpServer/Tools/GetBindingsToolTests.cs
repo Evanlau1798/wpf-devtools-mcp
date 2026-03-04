@@ -57,7 +57,5 @@ public class GetBindingsToolTests
 
         // Assert
         result.Should().NotBeNull();
-        // Note: This will return placeholder until Named Pipe communication is implemented
-        // For now, we're just testing the parameter parsing
     }
 }

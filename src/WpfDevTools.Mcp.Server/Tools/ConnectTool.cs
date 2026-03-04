@@ -23,66 +23,64 @@ public class ConnectTool
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    public Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask;
-
         int? processId = null;
         if (arguments.HasValue && arguments.Value.TryGetProperty("processId", out var pidProp))
             processId = pidProp.GetInt32();
 
         if (!processId.HasValue)
         {
-            return new
+            return Task.FromResult<object>(new
             {
                 success = false,
                 error = "Missing required parameter: processId"
-            };
+            });
         }
 
         // Check if already connected
         if (_sessionManager.HasSession(processId.Value))
         {
-            return new
+            return Task.FromResult<object>(new
             {
                 success = true,
                 message = "Already connected to process",
                 processId = processId.Value
-            };
+            });
         }
 
         // Validate target process
         var validationError = _injector.ValidateTarget(processId.Value);
         if (validationError != InjectionError.None)
         {
-            return new
+            return Task.FromResult<object>(new
             {
                 success = false,
                 error = GetErrorMessage(validationError, processId.Value)
-            };
+            });
         }
 
         // Perform injection
         var injectionResult = _injector.Inject(processId.Value, _inspectorDllPath);
         if (!injectionResult.Success)
         {
-            return new
+            return Task.FromResult<object>(new
             {
                 success = false,
                 error = injectionResult.ErrorMessage ?? "Injection failed"
-            };
+            });
         }
 
         // Add to session manager (also creates NamedPipeClient)
         _sessionManager.AddSession(processId.Value);
 
-        return new
+        return Task.FromResult<object>(new
         {
             success = true,
             message = "Connected successfully",
             processId = processId.Value,
             pipeName = $"WpfDevTools_{processId.Value}"
-        };
+        });
     }
 
     private static string GetInspectorDllPath()

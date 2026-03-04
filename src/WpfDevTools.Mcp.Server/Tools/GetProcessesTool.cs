@@ -18,10 +18,8 @@ public class GetProcessesTool
     /// <summary>
     /// Execute the tool
     /// </summary>
-    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    public Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask;
-
         string? nameFilter = null;
         if (arguments.HasValue && arguments.Value.TryGetProperty("nameFilter", out var filterProp))
             nameFilter = filterProp.GetString();
@@ -41,6 +39,6 @@ public class GetProcessesTool
             dotnetVersion = p.DotNetVersion
         }).ToList();
 
-        return new { processes };
+        return Task.FromResult<object>(new { processes });
     }
 }

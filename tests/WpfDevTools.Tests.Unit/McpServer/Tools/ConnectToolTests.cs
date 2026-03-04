@@ -43,7 +43,7 @@ public class ConnectToolTests
         resultJson.GetProperty("error").GetString().Should().Contain("processId");
     }
 
-    [Fact(Skip = "Requires system process access which may not be available in all test environments")]
+    [Fact]
     public async Task Execute_WithNonWpfProcess_ShouldReturnError()
     {
         // Arrange

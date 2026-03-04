@@ -24,7 +24,7 @@ public class ProcessInjectorTests
         result.ErrorMessage.Should().Contain("not found");
     }
 
-    [Fact(Skip = "Requires system process access which may not be available in all test environments")]
+    [Fact]
     public void Inject_WithNonWpfProcess_ShouldReturnNotWpfApplicationError()
     {
         // Arrange

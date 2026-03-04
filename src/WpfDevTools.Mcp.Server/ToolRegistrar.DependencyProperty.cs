@@ -22,7 +22,7 @@ public static partial class ToolRegistrar
             });
 
         RegisterTool(registry, "get_dp_metadata",
-            "[DependencyProperty] Get DependencyProperty metadata including default value, inherits flag, affects measure/arrange, and coerce/validation callbacks. Useful for understanding property behavior and framework-level configuration.",
+            "[DependencyProperty] Get DependencyProperty metadata including default value, inherits flag, affects measure/arrange, and coerce/validation callbacks. Useful for understanding property behavior and framework-level configuration. Returns: { defaultValue, inherits, affectsMeasure, affectsArrange, hasCoerceCallback }",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" }, elementId = new { type = "string", description = "Element ID obtained from get_visual_tree or get_logical_tree. Omit to target root window." }, propertyName = new { type = "string", description = "Name of the DependencyProperty to get metadata for (e.g., 'IsEnabled', 'Visibility')" } }, required = new[] { "processId", "propertyName" } },
             async (args, ct) => await new GetDpMetadataTool(sessionManager).ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]

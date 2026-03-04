@@ -12,7 +12,7 @@ public static partial class ToolRegistrar
     private static void RegisterEventTools(ToolRegistry registry, SessionManager sessionManager)
     {
         RegisterTool(registry, "trace_routed_events",
-            "[Event] Start tracing a routed event's propagation path (Tunneling -> Direct -> Bubbling). Returns trace data showing which elements the event passes through. NOTE: Event push requires HTTP+SSE transport (planned).",
+            "[Event] Start tracing a routed event's propagation path (Tunneling -> Direct -> Bubbling). Returns trace data showing which elements the event passes through. NOTE: Event push requires HTTP+SSE transport (planned). Returns: { trace: [{ phase, elementId, elementType, handled }] }",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" }, elementId = new { type = "string", description = "Element ID obtained from get_visual_tree or get_logical_tree. Omit to target root window." }, eventName = new { type = "string", description = "WPF RoutedEvent name, e.g., 'ButtonBase.Click', 'UIElement.MouseDown'" } }, required = new[] { "processId", "eventName" } },
             async (args, ct) => await new TraceRoutedEventsTool(sessionManager).ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]
@@ -22,7 +22,7 @@ public static partial class ToolRegistrar
             });
 
         RegisterTool(registry, "get_event_handlers",
-            "[Event] Get all event handlers attached to a WPF element for a specific routed event. Returns handler method names, declaring types, and whether they handle tunneling/bubbling. Use to check why a button click does nothing.",
+            "[Event] Get all event handlers attached to a WPF element for a specific routed event. Returns handler method names, declaring types, and whether they handle tunneling/bubbling. Use to check why a button click does nothing. Returns: { handlers: [{ methodName, declaringType, handledEventsToo }] }",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" }, elementId = new { type = "string", description = "Element ID obtained from get_visual_tree or get_logical_tree. Omit to target root window." }, eventName = new { type = "string", description = "WPF RoutedEvent name, e.g., 'ButtonBase.Click', 'UIElement.MouseDown'" } }, required = new[] { "processId", "eventName" } },
             async (args, ct) => await new GetEventHandlersTool(sessionManager).ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]

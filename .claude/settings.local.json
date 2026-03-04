@@ -18,7 +18,8 @@
       "Bash(git add:*)",
       "Bash(do echo:*)",
       "Bash(do:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(cat:*)"
     ]
   }
 }

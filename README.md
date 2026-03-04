@@ -246,7 +246,7 @@ List all running WPF applications.
 
 **Parameters**: None
 
-**Returns**: Array of process information (PID, name, title, architecture, .NET version)
+**Returns**: Array of process information (PID, processName, windowTitle, architecture, .NET version)
 
 #### connect
 Connect to a WPF application (performs injection if needed).

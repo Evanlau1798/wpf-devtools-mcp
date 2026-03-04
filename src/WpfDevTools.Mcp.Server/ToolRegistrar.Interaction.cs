@@ -61,7 +61,7 @@ public static partial class ToolRegistrar
             });
 
         RegisterTool(registry, "element_screenshot",
-            "[Interaction] Capture a PNG screenshot of a specific element. Returns base64-encoded image data. The screenshot is taken on the TARGET MACHINE running the WPF app.",
+            "[Interaction] Capture a PNG screenshot of a specific element. Returns base64-encoded image data. The screenshot is taken on the TARGET MACHINE running the WPF app. Returns: { base64Image } or { filePath }",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" }, elementId = new { type = "string", description = "Element ID obtained from get_visual_tree or get_logical_tree. Omit to target root window." }, outputPath = new { type = "string", description = "Optional file path to save screenshot on the target machine. If omitted, returns base64 data." } }, required = new[] { "processId" } },
             async (args, ct) => await new ElementScreenshotTool(sessionManager).ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]

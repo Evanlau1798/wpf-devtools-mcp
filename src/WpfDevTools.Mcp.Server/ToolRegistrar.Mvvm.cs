@@ -43,7 +43,7 @@ public static partial class ToolRegistrar
             });
 
         RegisterTool(registry, "get_validation_errors",
-            "[MVVM] Get validation errors from a WPF element. Returns IDataErrorInfo and INotifyDataErrorInfo validation errors, plus Binding.ValidationRules failures. Useful for understanding form validation state.",
+            "[MVVM] Get validation errors from a WPF element. Returns IDataErrorInfo and INotifyDataErrorInfo validation errors, plus Binding.ValidationRules failures. Useful for understanding form validation state. Returns: { errors: [{ propertyName, errorMessage, errorType }] }",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" }, elementId = new { type = "string", description = "Element ID obtained from get_visual_tree or get_logical_tree. Omit to target root window." } }, required = new[] { "processId" } },
             async (args, ct) => await new GetValidationErrorsTool(sessionManager).ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]

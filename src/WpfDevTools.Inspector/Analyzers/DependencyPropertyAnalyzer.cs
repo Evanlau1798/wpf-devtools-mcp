@@ -258,11 +258,16 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
                         // Increment count and trim oldest entries if over limit
                         var count = Interlocked.Increment(ref _changeLogCount);
-                        if (count > MaxChangeLogEntries)
+                        while (count > MaxChangeLogEntries)
                         {
-                            // Dequeue oldest entry
-                            _changeLog.TryDequeue(out _);
-                            Interlocked.Decrement(ref _changeLogCount);
+                            if (_changeLog.TryDequeue(out _))
+                            {
+                                count = Interlocked.Decrement(ref _changeLogCount);
+                            }
+                            else
+                            {
+                                break; // Queue empty, exit
+                            }
                         }
                     };
 

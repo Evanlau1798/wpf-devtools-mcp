@@ -23,7 +23,7 @@ public static partial class ToolRegistrar
             });
 
         RegisterTool(registry, "get_clipping_info",
-            "[Layout] Get clipping information of a WPF element. Returns whether the element is clipped by any ancestor, the clip bounds, and how much content overflows. Useful for debugging elements that appear cut off.",
+            "[Layout] Get clipping information of a WPF element. Returns whether the element is clipped by any ancestor, the clip bounds, and how much content overflows. Useful for debugging elements that appear cut off. Returns: { isClipped, clipBounds, overflowAmount }",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" }, elementId = new { type = "string", description = "Element ID obtained from get_visual_tree or get_logical_tree. Omit to target root window." } }, required = new[] { "processId" } },
             async (args, ct) => await new GetClippingInfoTool(sessionManager).ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]

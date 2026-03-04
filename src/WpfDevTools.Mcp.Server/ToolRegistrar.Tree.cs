@@ -33,7 +33,7 @@ public static partial class ToolRegistrar
             });
 
         RegisterTool(registry, "serialize_to_xaml",
-            "[Tree] Serialize a WPF element to its XAML representation. Returns the XAML markup string for the element and its children. Useful for understanding how elements are structured in markup.",
+            "[Tree] Serialize a WPF element to its XAML representation. Returns the XAML markup string for the element and its children. Useful for understanding how elements are structured in markup. Returns: { xaml: string }",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" }, elementId = new { type = "string", description = "Element ID obtained from get_visual_tree or get_logical_tree. Omit to target root window." } }, required = new[] { "processId" } },
             async (args, ct) => await new GenericPipeTool(sessionManager, "serialize_to_xaml").ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]
@@ -43,7 +43,7 @@ public static partial class ToolRegistrar
             });
 
         RegisterTool(registry, "get_namescope",
-            "[Tree] Get the XAML NameScope of a WPF element. Returns all named elements (x:Name) registered in the element's scope. Useful for discovering elements by name.",
+            "[Tree] Get the XAML NameScope of a WPF element. Returns all named elements (x:Name) registered in the element's scope. Useful for discovering elements by name. Returns: { names: [{ name, elementId, type }] }",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" }, elementId = new { type = "string", description = "Element ID obtained from get_visual_tree or get_logical_tree. Omit to target root window." } }, required = new[] { "processId" } },
             async (args, ct) => await new GenericPipeTool(sessionManager, "get_namescope").ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]
@@ -52,7 +52,7 @@ public static partial class ToolRegistrar
             });
 
         RegisterTool(registry, "get_template_tree",
-            "[Tree] Get the template Visual Tree of a templated WPF control (Button, ListBox, etc.). Shows the internal rendering structure defined by the control's ControlTemplate. Useful for understanding how a control renders internally.",
+            "[Tree] Get the template Visual Tree of a templated WPF control (Button, ListBox, etc.). Shows the internal rendering structure defined by the control's ControlTemplate. Useful for understanding how a control renders internally. Returns: hierarchical tree (same as get_visual_tree)",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" }, elementId = new { type = "string", description = "Element ID obtained from get_visual_tree or get_logical_tree. Omit to target root window." }, depth = new { type = "integer", description = "Maximum tree traversal depth (1-100). Use 2-4 for large apps. Default varies by tool." } }, required = new[] { "processId" } },
             async (args, ct) => await new GetTemplateTreeTool(sessionManager).ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]
@@ -61,7 +61,7 @@ public static partial class ToolRegistrar
             });
 
         RegisterTool(registry, "compare_trees",
-            "[Tree] Compare Visual and Logical trees to identify structural differences. Returns elements present in one tree but not the other. Useful for understanding template-generated elements vs XAML-defined elements.",
+            "[Tree] Compare Visual and Logical trees to identify structural differences. Returns elements present in one tree but not the other. Useful for understanding template-generated elements vs XAML-defined elements. Returns: { onlyInVisual: [...], onlyInLogical: [...] }",
             new { type = "object", properties = new { processId = new { type = "integer", description = "Process ID of the connected WPF application (from get_processes)" } }, required = new[] { "processId" } },
             async (args, ct) => await new GenericPipeTool(sessionManager, "compare_trees").ExecuteAsync(args, ct).ConfigureAwait(false),
             examples: new object[]

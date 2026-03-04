@@ -27,9 +27,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? GetRootElement()
-                : FindElementById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -91,9 +89,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? GetRootElement()
-                : FindElementById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -148,9 +144,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? GetRootElement()
-                : FindElementById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -168,9 +162,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? GetRootElement()
-                : FindElementById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -347,6 +339,13 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     private DependencyObject? FindElementById(string elementId)
     {
         return _elementFinder.FindById(elementId);
+    }
+
+    private DependencyObject? ResolveElement(string? elementId)
+    {
+        return elementId == null
+            ? GetRootElement()
+            : FindElementById(elementId);
     }
 
     private List<object> GetDependencyPropertiesWithBindings(DependencyObject element)

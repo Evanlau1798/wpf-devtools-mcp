@@ -299,13 +299,11 @@ public class DependencyPropertyAnalyzerTests
         analyzer.WatchChanges("Width", elementId);
 
         // Act - Try to watch again
-        var result = analyzer.WatchChanges("Width", elementId);
+        dynamic result = analyzer.WatchChanges("Width", elementId);
 
         // Assert
-        var resultDict = result as System.Collections.IDictionary;
-        resultDict.Should().NotBeNull();
-        resultDict!["success"].Should().Be(false);
-        resultDict["error"].Should().Be("Already watching this property");
+        ((bool)result.success).Should().BeFalse();
+        ((string)result.error).Should().Be("Already watching this property");
     }
 
     [StaFact]
@@ -321,15 +319,13 @@ public class DependencyPropertyAnalyzerTests
         analyzer.ClearChangeLog();
 
         // Act - Unwatch and trigger changes
-        var unwatchResult = analyzer.UnwatchChanges("Width", elementId);
+        dynamic unwatchResult = analyzer.UnwatchChanges("Width", elementId);
         button.Width = 100;
         button.Width = 200;
         System.Threading.Thread.Sleep(50);
 
         // Assert - Unwatch should succeed
-        var unwatchDict = unwatchResult as System.Collections.IDictionary;
-        unwatchDict.Should().NotBeNull();
-        unwatchDict!["success"].Should().Be(true);
+        ((bool)unwatchResult.success).Should().BeTrue();
 
         // No new changes should be logged
         dynamic logResult = analyzer.GetChangeLog();

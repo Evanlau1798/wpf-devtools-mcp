@@ -426,7 +426,9 @@ public class MvvmAnalyzerTests
             _canExecute = canExecute;
         }
 
+#pragma warning disable CS0067
         public event EventHandler? CanExecuteChanged;
+#pragma warning restore CS0067
 
         public bool CanExecute(object? parameter) => _canExecute(parameter);
         public void Execute(object? parameter) => _execute(parameter);

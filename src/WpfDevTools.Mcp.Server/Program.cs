@@ -244,27 +244,51 @@ static void RegisterDependencyPropertyTools(ToolRegistry registry, SessionManage
     RegisterTool(registry, "get_dp_value_source",
         "Get the value source of a DependencyProperty (local, style, trigger, default, etc.)",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string" } }, required = new[] { "processId", "propertyName" } },
-        async (args, ct) => await new GetDpValueSourceTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetDpValueSourceTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton", propertyName = "IsEnabled" },
+            new { processId = 12345, elementId = "NameTextBox", propertyName = "Text" }
+        });
 
     RegisterTool(registry, "get_dp_metadata",
         "Get DependencyProperty metadata including default value and flags",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string" } }, required = new[] { "processId", "propertyName" } },
-        async (args, ct) => await new GetDpMetadataTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetDpMetadataTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, propertyName = "IsEnabled" },
+            new { processId = 12345, propertyName = "Visibility" }
+        });
 
     RegisterTool(registry, "set_dp_value",
         "Set a DependencyProperty value on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string" }, value = new { type = "string" } }, required = new[] { "processId", "propertyName", "value" } },
-        async (args, ct) => await new SetDpValueTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new SetDpValueTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton", propertyName = "IsEnabled", value = "False" },
+            new { processId = 12345, elementId = "NameTextBox", propertyName = "Text", value = "New Value" }
+        });
 
     RegisterTool(registry, "clear_dp_value",
         "Clear a DependencyProperty local value on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string" } }, required = new[] { "processId", "propertyName" } },
-        async (args, ct) => await new ClearDpValueTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new ClearDpValueTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton", propertyName = "IsEnabled" }
+        });
 
     RegisterTool(registry, "watch_dp_changes",
         "Watch for DependencyProperty value changes on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string" } }, required = new[] { "processId", "propertyName" } },
-        async (args, ct) => await new WatchDpChangesTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new WatchDpChangesTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "NameTextBox", propertyName = "Text" },
+            new { processId = 12345, elementId = "SaveButton", propertyName = "IsEnabled" }
+        });
 }
 
 // === 5. Style/Template (4 tools) ===
@@ -273,22 +297,40 @@ static void RegisterStyleTools(ToolRegistry registry, SessionManager sessionMana
     RegisterTool(registry, "get_applied_styles",
         "Get all applied styles on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetAppliedStylesTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetAppliedStylesTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton" },
+            new { processId = 12345 }
+        });
 
     RegisterTool(registry, "get_triggers",
         "Get triggers from WPF element styles and templates",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetTriggersTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetTriggersTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton" }
+        });
 
     RegisterTool(registry, "get_resource_chain",
         "Get the resource lookup chain for a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, resourceKey = new { type = "string", description = "Resource key to look up" } }, required = new[] { "processId", "resourceKey" } },
-        async (args, ct) => await new GetResourceChainTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetResourceChainTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, resourceKey = "PrimaryBrush" },
+            new { processId = 12345, elementId = "SaveButton", resourceKey = "ButtonStyle" }
+        });
 
     RegisterTool(registry, "override_style_setter",
         "Override a style setter value on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string" }, value = new { type = "string" } }, required = new[] { "processId", "propertyName", "value" } },
-        async (args, ct) => await new OverrideStyleSetterTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new OverrideStyleSetterTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton", propertyName = "Background", value = "Red" }
+        });
 }
 
 // === 6. RoutedEvent (3 tools) ===
@@ -297,17 +339,30 @@ static void RegisterEventTools(ToolRegistry registry, SessionManager sessionMana
     RegisterTool(registry, "trace_routed_events",
         "Trace routed events passing through a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, eventName = new { type = "string", description = "Name of the routed event to trace" } }, required = new[] { "processId", "eventName" } },
-        async (args, ct) => await new TraceRoutedEventsTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new TraceRoutedEventsTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, eventName = "MouseDown" },
+            new { processId = 12345, elementId = "SaveButton", eventName = "Click" }
+        });
 
     RegisterTool(registry, "get_event_handlers",
         "Get all event handlers attached to a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, eventName = new { type = "string", description = "Name of the routed event" } }, required = new[] { "processId", "eventName" } },
-        async (args, ct) => await new GetEventHandlersTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetEventHandlersTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton", eventName = "Click" }
+        });
 
     RegisterTool(registry, "fire_routed_event",
         "Fire a routed event on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, eventName = new { type = "string", description = "Name of the routed event to fire" } }, required = new[] { "processId", "eventName" } },
-        async (args, ct) => await new FireRoutedEventTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new FireRoutedEventTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton", eventName = "Click" }
+        });
 }
 
 // === 7. Interaction (5 tools) ===
@@ -316,7 +371,12 @@ static void RegisterInteractionTools(ToolRegistry registry, SessionManager sessi
     RegisterTool(registry, "click_element",
         "Simulate a mouse click on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new ClickElementTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new ClickElementTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton" },
+            new { processId = 12345, elementId = "ClearButton" }
+        });
 
     RegisterTool(registry, "drag_and_drop",
         "Simulate drag and drop between two WPF elements",
@@ -331,22 +391,40 @@ static void RegisterInteractionTools(ToolRegistry registry, SessionManager sessi
                 if (string.IsNullOrEmpty(sourceElementId)) return (-1, null, (object)new { success = false, error = "Missing required parameter: sourceElementId" });
                 if (string.IsNullOrEmpty(targetElementId)) return (-1, null, (object)new { success = false, error = "Missing required parameter: targetElementId" });
                 return (pid, (object?)new { sourceElementId, targetElementId }, null);
-            }).ExecuteAsync(args, ct));
+            }).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, sourceElementId = "Item1", targetElementId = "Item2" }
+        });
 
     RegisterTool(registry, "scroll_to_element",
         "Scroll a WPF element into view",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new ScrollToElementTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new ScrollToElementTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "NameTextBox" }
+        });
 
     RegisterTool(registry, "simulate_keyboard",
         "Simulate keyboard input on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, key = new { type = "string", description = "Key to simulate (e.g., Enter, Tab, A)" } }, required = new[] { "processId", "key" } },
-        async (args, ct) => await new SimulateKeyboardTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new SimulateKeyboardTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "NameTextBox", key = "Enter" },
+            new { processId = 12345, elementId = "NameTextBox", key = "Tab" }
+        });
 
     RegisterTool(registry, "element_screenshot",
         "Capture a screenshot of a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, outputPath = new { type = "string", description = "File path to save screenshot" } }, required = new[] { "processId" } },
-        async (args, ct) => await new ElementScreenshotTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new ElementScreenshotTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton" },
+            new { processId = 12345 }
+        });
 }
 
 // === 8. Layout (4 tools) ===
@@ -355,12 +433,21 @@ static void RegisterLayoutTools(ToolRegistry registry, SessionManager sessionMan
     RegisterTool(registry, "get_layout_info",
         "Get layout information (position, size, margin, padding) of a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetLayoutInfoTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetLayoutInfoTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton" },
+            new { processId = 12345 }
+        });
 
     RegisterTool(registry, "get_clipping_info",
         "Get clipping information of a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetClippingInfoTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetClippingInfoTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "NameTextBox" }
+        });
 
     RegisterTool(registry, "highlight_element",
         "Highlight a WPF element with a visual overlay",
@@ -373,12 +460,22 @@ static void RegisterLayoutTools(ToolRegistry registry, SessionManager sessionMan
                 var color = ParameterParser.ParseStringParam(a, "color");
                 var duration = ParameterParser.ParseIntParam(a, "duration");
                 return (pid, (object?)new { elementId = eid, color, duration }, null);
-            }).ExecuteAsync(args, ct));
+            }).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton" },
+            new { processId = 12345, elementId = "SaveButton", color = "Red", duration = 3000 }
+        });
 
     RegisterTool(registry, "invalidate_layout",
         "Force layout invalidation on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new InvalidateLayoutTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new InvalidateLayoutTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, elementId = "NameTextBox" }
+        });
 }
 
 // === 9. MVVM (5 tools) ===
@@ -387,22 +484,42 @@ static void RegisterMvvmTools(ToolRegistry registry, SessionManager sessionManag
     RegisterTool(registry, "get_viewmodel",
         "Get the ViewModel (DataContext) of a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetViewModelTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetViewModelTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, elementId = "NameTextBox" }
+        });
 
     RegisterTool(registry, "get_commands",
         "Get all ICommand properties from a WPF element's DataContext",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetCommandsTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetCommandsTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, elementId = "SaveButton" }
+        });
 
     RegisterTool(registry, "execute_command",
         "Execute an ICommand on a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, commandName = new { type = "string", description = "Name of the command to execute" }, parameter = new { type = "string", description = "Optional command parameter" } }, required = new[] { "processId", "commandName" } },
-        async (args, ct) => await new ExecuteCommandTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new ExecuteCommandTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, commandName = "SaveCommand" },
+            new { processId = 12345, elementId = "SaveButton", commandName = "SaveCommand" }
+        });
 
     RegisterTool(registry, "get_validation_errors",
         "Get validation errors from a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetValidationErrorsTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetValidationErrorsTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, elementId = "AgeTextBox" }
+        });
 
     RegisterTool(registry, "modify_viewmodel",
         "Modify a ViewModel property value at runtime",
@@ -417,7 +534,12 @@ static void RegisterMvvmTools(ToolRegistry registry, SessionManager sessionManag
                 if (string.IsNullOrEmpty(propertyName)) return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
                 if (string.IsNullOrEmpty(value)) return (-1, null, (object)new { success = false, error = "Missing required parameter: value" });
                 return (pid, (object?)new { elementId = eid, propertyName, value }, null);
-            }).ExecuteAsync(args, ct));
+            }).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, propertyName = "Name", value = "John Doe" },
+            new { processId = 12345, elementId = "NameTextBox", propertyName = "Age", value = "30" }
+        });
 }
 
 // === 10. Performance (4 tools) ===
@@ -426,22 +548,41 @@ static void RegisterPerformanceTools(ToolRegistry registry, SessionManager sessi
     RegisterTool(registry, "get_render_stats",
         "Get render statistics from a WPF application",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetRenderStatsTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetRenderStatsTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 }
+        });
 
     RegisterTool(registry, "find_binding_leaks",
         "Find potential binding memory leaks in a WPF application",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, threshold = new { type = "integer", description = "Leak detection threshold (default: 100)" } }, required = new[] { "processId" } },
-        async (args, ct) => await new FindBindingLeaksTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new FindBindingLeaksTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, threshold = 50 }
+        });
 
     RegisterTool(registry, "measure_element_render_time",
         "Measure the render time of a WPF element",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new MeasureElementRenderTimeTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new MeasureElementRenderTimeTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, elementId = "SaveButton" }
+        });
 
     RegisterTool(registry, "get_visual_count",
         "Get the count of visual elements in a WPF element subtree",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetVisualCountTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetVisualCountTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, elementId = "NameTextBox" }
+        });
 }
 
 static void RegisterTool(

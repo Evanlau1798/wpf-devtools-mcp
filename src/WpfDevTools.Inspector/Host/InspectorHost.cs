@@ -77,8 +77,23 @@ public class InspectorHost : IDisposable
         }
 
         // Clean up analyzer resources
-        try { PerformanceAnalyzer.ResetMonitoring(); } catch { /* Ignore cleanup errors */ }
-        try { DependencyPropertyAnalyzer.StopAllWatchers(); } catch { /* Ignore cleanup errors */ }
+        try
+        {
+            PerformanceAnalyzer.ResetMonitoring();
+        }
+        catch (Exception ex)
+        {
+            LogError($"Failed to reset performance monitoring: {ex.Message}");
+        }
+
+        try
+        {
+            DependencyPropertyAnalyzer.StopAllWatchers();
+        }
+        catch (Exception ex)
+        {
+            LogError($"Failed to stop DP watchers: {ex.Message}");
+        }
     }
 
     private async Task RunServerLoop(CancellationToken cancellationToken)

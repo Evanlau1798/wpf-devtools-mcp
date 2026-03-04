@@ -180,12 +180,13 @@ public class ConnectTool
         if (uri.IsAbsoluteUri && uri.IsUnc)
             throw new ArgumentException("Network paths are not allowed", nameof(dllPath));
 
-        // Get full path to normalize and check for path traversal
-        var fullPath = Path.GetFullPath(dllPath);
+        // SECURITY: Check for path traversal patterns before normalization
+        // Detect ".." (parent directory), "~" (home directory), and other suspicious patterns
+        if (dllPath.Contains("..") || dllPath.Contains("~"))
+            throw new ArgumentException("Path traversal patterns are not allowed", nameof(dllPath));
 
-        // Verify the normalized path still points to the intended file
-        if (!fullPath.Equals(Path.GetFullPath(dllPath), StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Path traversal detected", nameof(dllPath));
+        // Get full path to normalize
+        var fullPath = Path.GetFullPath(dllPath);
 
         // Prevent system directories
         var systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System);

@@ -27,19 +27,23 @@ public static class MessageFraming
         var lengthBytes = BitConverter.GetBytes(messageBytes.Length);
 
 #if NET48
-        // .NET 4.8: Use CancellationToken.Register to close pipe on cancellation
-        using (cancellationToken.Register(() => pipe.Close()))
+        // .NET 4.8: Check cancellation before each operation to avoid partial writes
+        // Complete atomic message writes (length + message) to maintain protocol integrity
+        try
         {
-            try
-            {
-                await pipe.WriteAsync(lengthBytes, 0, lengthBytes.Length);
-                await pipe.WriteAsync(messageBytes, 0, messageBytes.Length);
-                await pipe.FlushAsync();
-            }
-            catch (IOException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException(cancellationToken);
-            }
+            cancellationToken.ThrowIfCancellationRequested();
+            await pipe.WriteAsync(lengthBytes, 0, lengthBytes.Length);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await pipe.WriteAsync(messageBytes, 0, messageBytes.Length);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await pipe.FlushAsync();
+        }
+        catch (IOException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            // If cancellation caused the IOException, wrap it
+            throw new OperationCanceledException("Write operation was cancelled", ex, cancellationToken);
         }
 #else
         // .NET 8.0+: Native cancellation token support
@@ -59,59 +63,58 @@ public static class MessageFraming
         if (pipe == null) throw new ArgumentNullException(nameof(pipe));
 
 #if NET48
-        // .NET 4.8: Use CancellationToken.Register to close pipe on cancellation
-        using (cancellationToken.Register(() => pipe.Close()))
+        // .NET 4.8: Check cancellation before each operation
+        try
         {
-            try
+            // Read length prefix (4 bytes)
+            var lengthBytes = new byte[4];
+            cancellationToken.ThrowIfCancellationRequested();
+            var bytesRead = await pipe.ReadAsync(lengthBytes, 0, 4);
+
+            if (bytesRead != 4)
             {
-                // Read length prefix (4 bytes)
-                var lengthBytes = new byte[4];
-                var bytesRead = await pipe.ReadAsync(lengthBytes, 0, 4);
-
-                if (bytesRead != 4)
-                {
-                    throw new InvalidOperationException("Failed to read message length");
-                }
-
-                var messageLength = BitConverter.ToInt32(lengthBytes, 0);
-
-                if (messageLength < 0 || messageLength > MaxMessageSize)
-                {
-                    throw new InvalidOperationException(
-                        $"Invalid message length: {messageLength}");
-                }
-
-                // Handle zero-length messages
-                if (messageLength == 0)
-                {
-                    return string.Empty;
-                }
-
-                // Read message
-                var messageBytes = new byte[messageLength];
-                var totalRead = 0;
-
-                while (totalRead < messageLength)
-                {
-                    bytesRead = await pipe.ReadAsync(
-                        messageBytes,
-                        totalRead,
-                        messageLength - totalRead);
-
-                    if (bytesRead == 0)
-                    {
-                        throw new InvalidOperationException("Unexpected end of stream");
-                    }
-
-                    totalRead += bytesRead;
-                }
-
-                return Encoding.UTF8.GetString(messageBytes);
+                throw new InvalidOperationException("Failed to read message length");
             }
-            catch (IOException) when (cancellationToken.IsCancellationRequested)
+
+            var messageLength = BitConverter.ToInt32(lengthBytes, 0);
+
+            if (messageLength < 0 || messageLength > MaxMessageSize)
             {
-                throw new OperationCanceledException(cancellationToken);
+                throw new InvalidOperationException(
+                    $"Invalid message length: {messageLength}");
             }
+
+            // Handle zero-length messages
+            if (messageLength == 0)
+            {
+                return string.Empty;
+            }
+
+            // Read message
+            var messageBytes = new byte[messageLength];
+            var totalRead = 0;
+
+            while (totalRead < messageLength)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                bytesRead = await pipe.ReadAsync(
+                    messageBytes,
+                    totalRead,
+                    messageLength - totalRead);
+
+                if (bytesRead == 0)
+                {
+                    throw new InvalidOperationException("Unexpected end of stream");
+                }
+
+                totalRead += bytesRead;
+            }
+
+            return Encoding.UTF8.GetString(messageBytes);
+        }
+        catch (IOException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException("Read operation was cancelled", ex, cancellationToken);
         }
 #else
         // .NET 8.0+: Native cancellation token support

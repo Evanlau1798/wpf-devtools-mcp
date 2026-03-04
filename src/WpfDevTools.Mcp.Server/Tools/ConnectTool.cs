@@ -64,6 +64,20 @@ public class ConnectTool
             };
         }
 
+        // SECURITY: Rate limit connect attempts to prevent DoS
+        // Use processId as the rate limit key (even if session doesn't exist yet)
+        if (!_sessionManager.CheckRateLimit(processId.Value))
+        {
+            var availableTokens = _sessionManager.GetAvailableTokens(processId.Value);
+            return new
+            {
+                success = false,
+                error = "Rate limit exceeded for connect operations. Please slow down your requests.",
+                availableTokens,
+                retryAfter = "Wait 1 minute for rate limit to reset"
+            };
+        }
+
         // Check if already connected
         if (_sessionManager.HasSession(processId.Value))
         {
@@ -180,15 +194,21 @@ public class ConnectTool
         if (uri.IsAbsoluteUri && uri.IsUnc)
             throw new ArgumentException("Network paths are not allowed", nameof(dllPath));
 
-        // SECURITY: Check for path traversal patterns before normalization
-        // Detect ".." (parent directory), "~" (home directory), and other suspicious patterns
-        if (dllPath.Contains("..") || dllPath.Contains("~"))
-            throw new ArgumentException("Path traversal patterns are not allowed", nameof(dllPath));
-
-        // Get full path to normalize
+        // SECURITY: Normalize path first to prevent traversal attacks
+        // Path.GetFullPath resolves "..", ".", and other relative components
         var fullPath = Path.GetFullPath(dllPath);
 
-        // Prevent system directories
+        // SECURITY: Whitelist approach - only allow DLLs from application directory
+        // This prevents path traversal attacks like "C:\\App\\..\\..\\System32\\evil.dll"
+        var appDir = Path.GetFullPath(AppContext.BaseDirectory);
+        if (!fullPath.StartsWith(appDir, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"DLL must be in application directory. Expected: {appDir}, Got: {fullPath}",
+                nameof(dllPath));
+        }
+
+        // Additional check: Prevent system directories (defense in depth)
         var systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
         var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
 
@@ -209,13 +229,13 @@ public class ConnectTool
     }
 
     /// <summary>
-    /// Verify Authenticode signature of the DLL
+    /// Verify Authenticode signature of the DLL with full certificate chain validation
     /// </summary>
     private static void VerifyAuthenticodeSignature(string filePath)
     {
         try
         {
-            // Use X509Certificate to check if file is signed
+            // Load certificate from signed file
             var cert = System.Security.Cryptography.X509Certificates.X509Certificate.CreateFromSignedFile(filePath);
 
             if (cert == null)
@@ -223,23 +243,49 @@ public class ConnectTool
                 throw new InvalidOperationException("DLL is not digitally signed");
             }
 
-            // Optional: Verify certificate thumbprint against expected value
-            // var expectedThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_THUMBPRINT");
-            // if (!string.IsNullOrEmpty(expectedThumbprint))
-            // {
-            //     var cert2 = new System.Security.Cryptography.X509Certificates.X509Certificate2(cert);
-            //     if (!cert2.Thumbprint.Equals(expectedThumbprint, StringComparison.OrdinalIgnoreCase))
-            //     {
-            //         throw new InvalidOperationException("DLL signature does not match expected certificate");
-            //     }
-            // }
+            // Convert to X509Certificate2 for chain validation
+            var cert2 = new System.Security.Cryptography.X509Certificates.X509Certificate2(cert);
 
+            // SECURITY: Verify certificate chain and trust
+            var chain = new System.Security.Cryptography.X509Certificates.X509Chain();
+            chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.Online;
+            chain.ChainPolicy.RevocationFlag = System.Security.Cryptography.X509Certificates.X509RevocationFlag.EntireChain;
+            chain.ChainPolicy.VerificationFlags = System.Security.Cryptography.X509Certificates.X509VerificationFlags.NoFlag;
+
+            if (!chain.Build(cert2))
+            {
+                var errors = string.Join(", ",
+                    chain.ChainStatus.Select(s => $"{s.Status}: {s.StatusInformation}"));
+                throw new InvalidOperationException(
+                    $"Certificate chain validation failed: {errors}");
+            }
+
+            // SECURITY: Verify certificate is not expired
+            var now = DateTime.Now;
+            if (now < cert2.NotBefore || now > cert2.NotAfter)
+            {
+                throw new InvalidOperationException(
+                    $"Certificate has expired or is not yet valid. Valid from {cert2.NotBefore} to {cert2.NotAfter}");
+            }
+
+            // SECURITY: Optional thumbprint verification for additional security
+            var expectedThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_THUMBPRINT");
+            if (!string.IsNullOrEmpty(expectedThumbprint))
+            {
+                if (!cert2.Thumbprint.Equals(expectedThumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Certificate thumbprint mismatch. Expected: {expectedThumbprint}, Got: {cert2.Thumbprint}");
+                }
+            }
+
+            cert2.Dispose();
             cert.Dispose();
         }
-        catch (System.Security.Cryptography.CryptographicException)
+        catch (System.Security.Cryptography.CryptographicException ex)
         {
             throw new InvalidOperationException(
-                "DLL signature verification failed. The file may not be signed or the signature is invalid.");
+                $"DLL signature verification failed: {ex.Message}", ex);
         }
     }
 }

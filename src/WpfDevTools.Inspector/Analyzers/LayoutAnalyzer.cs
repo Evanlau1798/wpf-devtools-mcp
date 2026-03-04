@@ -42,6 +42,7 @@ public class LayoutAnalyzer : DispatcherAnalyzerBase
 
             return new
             {
+                success = true,
                 actualWidth = fe.ActualWidth,
                 actualHeight = fe.ActualHeight,
                 width = fe.Width,
@@ -97,6 +98,7 @@ public class LayoutAnalyzer : DispatcherAnalyzerBase
 
             return new
             {
+                success = true,
                 clipToBounds = clipToBounds,
                 hasClip = clip != null,
                 clipBounds = clip != null ? new

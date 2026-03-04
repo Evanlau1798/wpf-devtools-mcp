@@ -26,7 +26,7 @@ public class LogicalTreeAnalyzer : DispatcherAnalyzerBase
             }
 
             var tree = WalkLogicalTree(root, depth ?? 10, 0);
-            return new { tree };
+            return new { success = true, tree };
         });
     }
 

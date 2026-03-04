@@ -51,7 +51,7 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
                         value = value?.ToString()
                     });
                 }
-                catch { /* Skip properties that throw */ }
+                catch (Exception) { /* Skip properties with throwing getters */ }
             }
 
             return new

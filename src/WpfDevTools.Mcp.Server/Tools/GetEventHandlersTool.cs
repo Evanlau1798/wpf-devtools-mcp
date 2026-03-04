@@ -16,8 +16,9 @@ public class GetEventHandlersTool : PipeConnectedToolBase
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);
         if (error != null) return error;
+        var eventName = ParseStringParam(arguments, "eventName");
 
         return await SendInspectorRequestAsync(processId, "get_event_handlers",
-            new { elementId }, cancellationToken);
+            new { elementId, eventName }, cancellationToken);
     }
 }

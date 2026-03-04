@@ -61,9 +61,9 @@ public class RequestDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchRequest_WithTimeout_ShouldReturnTimeoutError()
+    public async Task DispatchRequest_WithRemovedTestSlowMethod_ShouldReturnMethodNotFound()
     {
-        // Arrange
+        // Arrange - test_slow debug handler was removed; dispatching it should return MethodNotFound
         var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher();
         var request = new InspectorRequest
         {
@@ -72,18 +72,16 @@ public class RequestDispatcherTests
             Params = null
         };
 
-        var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
-
         // Act
-        var response = await dispatcher.DispatchAsync(request, cts.Token);
+        var response = await dispatcher.DispatchAsync(request, CancellationToken.None);
 
         // Assert
         response.Should().NotBeNull();
         response.Id.Should().Be("test-3");
         response.Result.Should().BeNull();
         response.Error.Should().NotBeNull();
-        response.Error!.Code.Should().Be(ErrorCode.InternalError);
-        response.Error.Message.Should().Contain("cancelled");
+        response.Error!.Code.Should().Be(ErrorCode.MethodNotFound);
+        response.Error.Message.Should().Contain("test_slow");
     }
 
     [Fact]

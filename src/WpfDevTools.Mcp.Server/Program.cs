@@ -188,7 +188,7 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
 
     RegisterTool(registry, "get_resource_chain",
         "Get the resource lookup chain for a WPF element",
-        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, resourceKey = new { type = "string", description = "Resource key to look up" } }, required = new[] { "processId" } },
         async (args, ct) => await new GetResourceChainTool(sessionManager).ExecuteAsync(args, ct));
 
     RegisterTool(registry, "override_style_setter",
@@ -240,7 +240,7 @@ static void RegisterCoreTools(ToolRegistry registry, FileLogger logger)
 
     RegisterTool(registry, "simulate_keyboard",
         "Simulate keyboard input on a WPF element",
-        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, text = new { type = "string", description = "Text to type" } }, required = new[] { "processId", "text" } },
+        new { type = "object", properties = new { processId = new { type = "integer" }, elementId = new { type = "string" }, key = new { type = "string", description = "Key to simulate (e.g., Enter, Tab, A)" } }, required = new[] { "processId", "key" } },
         async (args, ct) => await new SimulateKeyboardTool(sessionManager).ExecuteAsync(args, ct));
 
     RegisterTool(registry, "element_screenshot",

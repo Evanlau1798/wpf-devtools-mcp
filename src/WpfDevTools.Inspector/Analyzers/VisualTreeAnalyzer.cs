@@ -40,7 +40,7 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
             }
 
             // Walk tree
-            var tree = WalkVisualTree(root, maxDepth ?? int.MaxValue, 0);
+            var tree = WalkVisualTree(root, maxDepth ?? 50, 0);
 
             return new { success = true, tree };
         });

@@ -57,11 +57,10 @@ public class RequestDispatcher
             }
         }
 
-        // Simple handlers (ping, test utilities)
+        // Simple handlers
         _simpleHandlers = new Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>>
         {
-            ["ping"] = HandlePingAsync,
-            ["test_slow"] = HandleTestSlowAsync
+            ["ping"] = HandlePingAsync
         };
     }
 
@@ -158,9 +157,4 @@ public class RequestDispatcher
         return new { success = true, status = "pong", timestamp = DateTime.UtcNow };
     }
 
-    private async Task<object> HandleTestSlowAsync(JsonElement? @params, CancellationToken cancellationToken)
-    {
-        await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
-        return new { status = "completed" };
-    }
 }

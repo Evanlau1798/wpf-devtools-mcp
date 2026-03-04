@@ -16,8 +16,9 @@ public class GetResourceChainTool : PipeConnectedToolBase
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);
         if (error != null) return error;
+        var resourceKey = ParseStringParam(arguments, "resourceKey");
 
         return await SendInspectorRequestAsync(processId, "get_resource_chain",
-            new { elementId }, cancellationToken);
+            new { elementId, resourceKey }, cancellationToken);
     }
 }

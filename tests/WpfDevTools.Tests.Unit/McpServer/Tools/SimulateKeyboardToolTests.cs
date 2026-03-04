@@ -14,7 +14,7 @@ public class SimulateKeyboardToolTests
     {
         // Arrange
         var tool = new SimulateKeyboardTool(new SessionManager());
-        var parameters = new { processId = 12345, text = "Hello" };
+        var parameters = new { processId = 12345, key = "Hello" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -31,7 +31,7 @@ public class SimulateKeyboardToolTests
     {
         // Arrange
         var tool = new SimulateKeyboardTool(new SessionManager());
-        var parameters = new { text = "Hello" };
+        var parameters = new { key = "Hello" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -44,7 +44,7 @@ public class SimulateKeyboardToolTests
     }
 
     [Fact]
-    public async Task Execute_WithMissingText_ShouldReturnError()
+    public async Task Execute_WithMissingKey_ShouldReturnError()
     {
         // Arrange
         var sessionManager = new SessionManager();
@@ -59,7 +59,7 @@ public class SimulateKeyboardToolTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("text");
+        resultJson.GetProperty("error").GetString().Should().Contain("key");
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class SimulateKeyboardToolTests
         var sessionManager = new SessionManager();
         sessionManager.AddSession(12345);
         var tool = new SimulateKeyboardTool(sessionManager);
-        var parameters = new { processId = 12345, text = "Hello", elementId = "myTextBox" };
+        var parameters = new { processId = 12345, key = "Hello", elementId = "myTextBox" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);

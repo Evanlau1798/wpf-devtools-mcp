@@ -130,99 +130,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object GetBindingValueChain(DependencyObject element, string propertyName)
     {
-        return InvokeOnUIThread<object>(() =>
-        {
-            if (element == null)
-            {
-                return new { success = false, error = "Element is null" };
-            }
-
-            if (string.IsNullOrEmpty(propertyName))
-            {
-                return new { success = false, error = "propertyName is required" };
-            }
-
-            // Find DependencyProperty
-            var dp = FindDependencyProperty(element, propertyName);
-            if (dp == null)
-            {
-                return new { success = false, error = $"Property '{propertyName}' not found" };
-            }
-
-            // Get binding expression
-            var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
-            if (bindingExpr == null)
-            {
-                return new { success = true, hasBinding = false, message = "No binding on this property" };
-            }
-
-            var chain = new List<object>();
-
-            // Get binding details
-            var binding = bindingExpr.ParentBinding;
-            if (binding != null)
-            {
-                // Track binding for leak detection
-                PerformanceAnalyzer.TrackBinding(binding);
-
-                chain.Add(new
-                {
-                    step = "Binding",
-                    path = binding.Path?.Path,
-                    mode = binding.Mode.ToString(),
-                    updateSourceTrigger = binding.UpdateSourceTrigger.ToString(),
-                    converter = binding.Converter?.GetType().Name
-                });
-            }
-
-            // Get data context chain
-            var current = element as FrameworkElement;
-            while (current != null)
-            {
-                if (current.DataContext != null)
-                {
-                    chain.Add(new
-                    {
-                        step = "DataContext",
-                        elementType = current.GetType().Name,
-                        dataContextType = current.DataContext.GetType().Name,
-                        dataContextValue = current.DataContext.ToString()
-                    });
-                    break;
-                }
-                current = current.Parent as FrameworkElement;
-            }
-
-            // Get resolved value
-            var resolvedValue = bindingExpr.ResolvedSource;
-            if (resolvedValue != null)
-            {
-                chain.Add(new
-                {
-                    step = "ResolvedSource",
-                    sourceType = resolvedValue.GetType().Name,
-                    sourceValue = resolvedValue.ToString()
-                });
-            }
-
-            // Get final value
-            var finalValue = element.GetValue(dp);
-            chain.Add(new
-            {
-                step = "FinalValue",
-                valueType = finalValue?.GetType().Name,
-                value = finalValue?.ToString()
-            });
-
-            return new
-            {
-                success = true,
-                hasBinding = true,
-                propertyName,
-                chainLength = chain.Count,
-                chain
-            };
-        });
+        return InvokeOnUIThread<object>(() => GetBindingValueChainCore(element, propertyName));
     }
 
     /// <summary>
@@ -230,73 +138,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object ForceBindingUpdate(DependencyObject element, string propertyName, string direction)
     {
-        return InvokeOnUIThread<object>(() =>
-        {
-            if (element == null)
-            {
-                return new { success = false, error = "Element is null" };
-            }
-
-            if (string.IsNullOrEmpty(propertyName))
-            {
-                return new { success = false, error = "propertyName is required" };
-            }
-
-            // Find DependencyProperty
-            var dp = FindDependencyProperty(element, propertyName);
-            if (dp == null)
-            {
-                return new { success = false, error = $"Property '{propertyName}' not found" };
-            }
-
-            // Get binding expression
-            var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
-            if (bindingExpr == null)
-            {
-                return new { success = false, error = "No binding on this property" };
-            }
-
-            // Track binding for leak detection
-            var binding = bindingExpr.ParentBinding;
-            if (binding != null)
-            {
-                PerformanceAnalyzer.TrackBinding(binding);
-            }
-
-            try
-            {
-                if (string.Equals(direction, "source", StringComparison.OrdinalIgnoreCase))
-                {
-                    bindingExpr.UpdateSource();
-                    return new
-                    {
-                        success = true,
-                        message = "Binding source updated",
-                        direction = "Source",
-                        propertyName
-                    };
-                }
-                else if (string.Equals(direction, "target", StringComparison.OrdinalIgnoreCase))
-                {
-                    bindingExpr.UpdateTarget();
-                    return new
-                    {
-                        success = true,
-                        message = "Binding target updated",
-                        direction = "Target",
-                        propertyName
-                    };
-                }
-                else
-                {
-                    return new { success = false, error = "Invalid direction. Use 'Source' or 'Target'" };
-                }
-            }
-            catch (Exception ex)
-            {
-                return new { success = false, error = $"Failed to update binding: {ex.Message}" };
-            }
-        });
+        return InvokeOnUIThread<object>(() => ForceBindingUpdateCore(element, propertyName, direction));
     }
 
     /// <summary>
@@ -315,9 +157,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = "Element not found" };
             }
 
-            // Delegate to the existing implementation (which also calls InvokeOnUIThread,
-            // but since we're already on UI thread this is a synchronous re-entry)
-            return GetBindingValueChain(element, propertyName);
+            return GetBindingValueChainCore(element, propertyName);
         });
     }
 
@@ -337,8 +177,176 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = "Element not found" };
             }
 
-            return ForceBindingUpdate(element, propertyName, direction);
+            return ForceBindingUpdateCore(element, propertyName, direction);
         });
+    }
+
+    /// <summary>
+    /// Core implementation for GetBindingValueChain. Must be called on the UI thread.
+    /// </summary>
+    private object GetBindingValueChainCore(DependencyObject element, string propertyName)
+    {
+        if (element == null)
+        {
+            return new { success = false, error = "Element is null" };
+        }
+
+        if (string.IsNullOrEmpty(propertyName))
+        {
+            return new { success = false, error = "propertyName is required" };
+        }
+
+        // Find DependencyProperty
+        var dp = FindDependencyProperty(element, propertyName);
+        if (dp == null)
+        {
+            return new { success = false, error = $"Property '{propertyName}' not found" };
+        }
+
+        // Get binding expression
+        var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
+        if (bindingExpr == null)
+        {
+            return new { success = true, hasBinding = false, message = "No binding on this property" };
+        }
+
+        var chain = new List<object>();
+
+        // Get binding details
+        var binding = bindingExpr.ParentBinding;
+        if (binding != null)
+        {
+            // Track binding for leak detection
+            PerformanceAnalyzer.TrackBinding(binding);
+
+            chain.Add(new
+            {
+                step = "Binding",
+                path = binding.Path?.Path,
+                mode = binding.Mode.ToString(),
+                updateSourceTrigger = binding.UpdateSourceTrigger.ToString(),
+                converter = binding.Converter?.GetType().Name
+            });
+        }
+
+        // Get data context chain
+        var current = element as FrameworkElement;
+        while (current != null)
+        {
+            if (current.DataContext != null)
+            {
+                chain.Add(new
+                {
+                    step = "DataContext",
+                    elementType = current.GetType().Name,
+                    dataContextType = current.DataContext.GetType().Name,
+                    dataContextValue = current.DataContext.ToString()
+                });
+                break;
+            }
+            current = current.Parent as FrameworkElement;
+        }
+
+        // Get resolved value
+        var resolvedValue = bindingExpr.ResolvedSource;
+        if (resolvedValue != null)
+        {
+            chain.Add(new
+            {
+                step = "ResolvedSource",
+                sourceType = resolvedValue.GetType().Name,
+                sourceValue = resolvedValue.ToString()
+            });
+        }
+
+        // Get final value
+        var finalValue = element.GetValue(dp);
+        chain.Add(new
+        {
+            step = "FinalValue",
+            valueType = finalValue?.GetType().Name,
+            value = finalValue?.ToString()
+        });
+
+        return new
+        {
+            success = true,
+            hasBinding = true,
+            propertyName,
+            chainLength = chain.Count,
+            chain
+        };
+    }
+
+    /// <summary>
+    /// Core implementation for ForceBindingUpdate. Must be called on the UI thread.
+    /// </summary>
+    private object ForceBindingUpdateCore(DependencyObject element, string propertyName, string direction)
+    {
+        if (element == null)
+        {
+            return new { success = false, error = "Element is null" };
+        }
+
+        if (string.IsNullOrEmpty(propertyName))
+        {
+            return new { success = false, error = "propertyName is required" };
+        }
+
+        // Find DependencyProperty
+        var dp = FindDependencyProperty(element, propertyName);
+        if (dp == null)
+        {
+            return new { success = false, error = $"Property '{propertyName}' not found" };
+        }
+
+        // Get binding expression
+        var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
+        if (bindingExpr == null)
+        {
+            return new { success = false, error = "No binding on this property" };
+        }
+
+        // Track binding for leak detection
+        var binding = bindingExpr.ParentBinding;
+        if (binding != null)
+        {
+            PerformanceAnalyzer.TrackBinding(binding);
+        }
+
+        try
+        {
+            if (string.Equals(direction, "source", StringComparison.OrdinalIgnoreCase))
+            {
+                bindingExpr.UpdateSource();
+                return new
+                {
+                    success = true,
+                    message = "Binding source updated",
+                    direction = "Source",
+                    propertyName
+                };
+            }
+            else if (string.Equals(direction, "target", StringComparison.OrdinalIgnoreCase))
+            {
+                bindingExpr.UpdateTarget();
+                return new
+                {
+                    success = true,
+                    message = "Binding target updated",
+                    direction = "Target",
+                    propertyName
+                };
+            }
+            else
+            {
+                return new { success = false, error = "Invalid direction. Use 'Source' or 'Target'" };
+            }
+        }
+        catch (Exception ex)
+        {
+            return new { success = false, error = $"Failed to update binding: {ex.Message}" };
+        }
     }
 
     private DependencyObject? GetRootElement()

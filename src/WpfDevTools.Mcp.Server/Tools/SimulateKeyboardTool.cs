@@ -16,12 +16,12 @@ public class SimulateKeyboardTool : PipeConnectedToolBase
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);
         if (error != null) return error;
-        var text = ParseStringParam(arguments, "text");
+        var key = ParseStringParam(arguments, "key");
 
-        if (string.IsNullOrEmpty(text))
-            return CreateMissingParamError("text");
+        if (string.IsNullOrEmpty(key))
+            return CreateMissingParamError("key");
 
         return await SendInspectorRequestAsync(processId, "simulate_keyboard",
-            new { elementId, text }, cancellationToken);
+            new { elementId, key }, cancellationToken);
     }
 }

@@ -5,7 +5,13 @@ using WpfDevTools.Shared.Enums;
 namespace WpfDevTools.Mcp.Server.Tools;
 
 /// <summary>
-/// MCP tool to connect to a WPF process
+/// MCP tool to connect to a WPF process.
+///
+/// This class intentionally does NOT extend PipeConnectedToolBase because the connect
+/// tool is responsible for establishing the Named Pipe connection in the first place.
+/// PipeConnectedToolBase requires an existing pipe session to send inspector requests,
+/// but ConnectTool must inject the Inspector DLL and create the session before any pipe
+/// communication is possible.
 /// </summary>
 public class ConnectTool
 {

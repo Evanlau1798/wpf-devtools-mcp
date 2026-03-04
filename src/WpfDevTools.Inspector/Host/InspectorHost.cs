@@ -106,10 +106,10 @@ public class InspectorHost : IDisposable
                 _pipeServer = CreateSecurePipeServer();
 
                 // Wait for client connection
-                await _pipeServer.WaitForConnectionAsync(cancellationToken);
+                await _pipeServer.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
 
                 // Handle client requests
-                await HandleClientAsync(_pipeServer, cancellationToken);
+                await HandleClientAsync(_pipeServer, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -119,7 +119,7 @@ public class InspectorHost : IDisposable
             catch (IOException ex)
             {
                 LogError($"Pipe I/O error: {ex.Message}");
-                await Task.Delay(1000, cancellationToken);
+                await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -187,22 +187,22 @@ public class InspectorHost : IDisposable
             while (pipe.IsConnected && !cancellationToken.IsCancellationRequested)
             {
                 // Read request
-                var requestJson = await MessageFraming.ReadMessageAsync(pipe, cancellationToken);
+                var requestJson = await MessageFraming.ReadMessageAsync(pipe, cancellationToken).ConfigureAwait(false);
 
                 // Parse request
                 var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
                 if (request == null)
                 {
-                    await SendErrorResponseAsync(pipe, "unknown", "Invalid request format", cancellationToken);
+                    await SendErrorResponseAsync(pipe, "unknown", "Invalid request format", cancellationToken).ConfigureAwait(false);
                     continue;
                 }
 
                 // Process request
-                var response = await ProcessRequestAsync(request, cancellationToken);
+                var response = await ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
 
                 // Send response
                 var responseJson = JsonSerializer.Serialize(response);
-                await MessageFraming.WriteMessageAsync(pipe, responseJson, cancellationToken);
+                await MessageFraming.WriteMessageAsync(pipe, responseJson, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (IOException)
@@ -225,7 +225,7 @@ public class InspectorHost : IDisposable
 
         try
         {
-            return await _dispatcher.DispatchAsync(request, timeoutCts.Token);
+            return await _dispatcher.DispatchAsync(request, timeoutCts.Token).ConfigureAwait(false);
         }
         finally
         {
@@ -254,7 +254,7 @@ public class InspectorHost : IDisposable
             };
 
             var responseJson = JsonSerializer.Serialize(response);
-            await MessageFraming.WriteMessageAsync(pipe, responseJson, cancellationToken);
+            await MessageFraming.WriteMessageAsync(pipe, responseJson, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

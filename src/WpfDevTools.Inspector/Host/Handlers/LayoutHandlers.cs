@@ -30,10 +30,10 @@ public class LayoutHandlers : IRequestHandler
     {
         return method switch
         {
-            "get_layout_info" => await HandleGetLayoutInfoAsync(@params, cancellationToken),
-            "get_clipping_info" => await HandleGetClippingInfoAsync(@params, cancellationToken),
-            "highlight_element" => await HandleHighlightElementAsync(@params, cancellationToken),
-            "invalidate_layout" => await HandleInvalidateLayoutAsync(@params, cancellationToken),
+            "get_layout_info" => await HandleGetLayoutInfoAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_clipping_info" => await HandleGetClippingInfoAsync(@params, cancellationToken).ConfigureAwait(false),
+            "highlight_element" => await HandleHighlightElementAsync(@params, cancellationToken).ConfigureAwait(false),
+            "invalidate_layout" => await HandleInvalidateLayoutAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -43,7 +43,7 @@ public class LayoutHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _layoutAnalyzer.GetLayoutInfo(elementId), cancellationToken);
+            _layoutAnalyzer.GetLayoutInfo(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetClippingInfoAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -51,7 +51,7 @@ public class LayoutHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _layoutAnalyzer.GetClippingInfo(elementId), cancellationToken);
+            _layoutAnalyzer.GetClippingInfo(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleHighlightElementAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -61,7 +61,7 @@ public class LayoutHandlers : IRequestHandler
         var duration = ParameterHelpers.GetIntParam(@params, "duration") ?? InspectorConstants.Defaults.HighlightDuration;
 
         return await Task.Run(() =>
-            _layoutAnalyzer.HighlightElement(elementId, color, duration), cancellationToken);
+            _layoutAnalyzer.HighlightElement(elementId, color, duration), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleInvalidateLayoutAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -69,6 +69,6 @@ public class LayoutHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _layoutAnalyzer.InvalidateLayout(elementId), cancellationToken);
+            _layoutAnalyzer.InvalidateLayout(elementId), cancellationToken).ConfigureAwait(false);
     }
 }

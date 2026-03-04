@@ -42,11 +42,11 @@ public class TreeHandlers : IRequestHandler
     {
         return method switch
         {
-            "get_visual_tree" => await HandleGetVisualTreeAsync(@params, cancellationToken),
-            "get_logical_tree" => await HandleGetLogicalTreeAsync(@params, cancellationToken),
-            "compare_trees" => await HandleCompareTreesAsync(@params, cancellationToken),
-            "serialize_to_xaml" => await HandleSerializeToXamlAsync(@params, cancellationToken),
-            "get_namescope" => await HandleGetNameScopeAsync(@params, cancellationToken),
+            "get_visual_tree" => await HandleGetVisualTreeAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_logical_tree" => await HandleGetLogicalTreeAsync(@params, cancellationToken).ConfigureAwait(false),
+            "compare_trees" => await HandleCompareTreesAsync(@params, cancellationToken).ConfigureAwait(false),
+            "serialize_to_xaml" => await HandleSerializeToXamlAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_namescope" => await HandleGetNameScopeAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -57,7 +57,7 @@ public class TreeHandlers : IRequestHandler
         var depth = ParameterHelpers.GetIntParam(@params, "depth");
 
         return await Task.Run(() =>
-            _visualTreeAnalyzer.GetVisualTree(depth, elementId), cancellationToken);
+            _visualTreeAnalyzer.GetVisualTree(depth, elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetLogicalTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -66,7 +66,7 @@ public class TreeHandlers : IRequestHandler
         var depth = ParameterHelpers.GetIntParam(@params, "depth");
 
         return await Task.Run(() =>
-            _logicalTreeAnalyzer.GetLogicalTree(depth, elementId), cancellationToken);
+            _logicalTreeAnalyzer.GetLogicalTree(depth, elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleCompareTreesAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -74,7 +74,7 @@ public class TreeHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _visualTreeAnalyzer.CompareTree(elementId), cancellationToken);
+            _visualTreeAnalyzer.CompareTree(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleSerializeToXamlAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -99,7 +99,7 @@ public class TreeHandlers : IRequestHandler
                 var xaml = _xamlSerializer.SerializeToXaml(element);
                 return new { success = true, xaml };
             });
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetNameScopeAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -107,6 +107,6 @@ public class TreeHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _visualTreeAnalyzer.GetNameScope(elementId), cancellationToken);
+            _visualTreeAnalyzer.GetNameScope(elementId), cancellationToken).ConfigureAwait(false);
     }
 }

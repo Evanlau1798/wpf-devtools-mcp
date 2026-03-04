@@ -31,11 +31,11 @@ public class DependencyPropertyHandlers : IRequestHandler
     {
         return method switch
         {
-            "get_dp_value_source" => await HandleGetDpValueSourceAsync(@params, cancellationToken),
-            "get_dp_metadata" => await HandleGetDpMetadataAsync(@params, cancellationToken),
-            "set_dp_value" => await HandleSetDpValueAsync(@params, cancellationToken),
-            "clear_dp_value" => await HandleClearDpValueAsync(@params, cancellationToken),
-            "watch_dp_changes" => await HandleWatchDpChangesAsync(@params, cancellationToken),
+            "get_dp_value_source" => await HandleGetDpValueSourceAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_dp_metadata" => await HandleGetDpMetadataAsync(@params, cancellationToken).ConfigureAwait(false),
+            "set_dp_value" => await HandleSetDpValueAsync(@params, cancellationToken).ConfigureAwait(false),
+            "clear_dp_value" => await HandleClearDpValueAsync(@params, cancellationToken).ConfigureAwait(false),
+            "watch_dp_changes" => await HandleWatchDpChangesAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -49,7 +49,7 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            _dependencyPropertyAnalyzer.GetValueSource(propertyName!, elementId), cancellationToken);
+            _dependencyPropertyAnalyzer.GetValueSource(propertyName!, elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleSetDpValueAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -65,7 +65,7 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: value");
 
         return await Task.Run(() =>
-            _dependencyPropertyAnalyzer.SetValue(propertyName!, value, elementId), cancellationToken);
+            _dependencyPropertyAnalyzer.SetValue(propertyName!, value, elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleClearDpValueAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -77,7 +77,7 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            _dependencyPropertyAnalyzer.ClearValue(propertyName!, elementId), cancellationToken);
+            _dependencyPropertyAnalyzer.ClearValue(propertyName!, elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetDpMetadataAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -89,7 +89,7 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            _dependencyPropertyAnalyzer.GetMetadata(propertyName!, elementId), cancellationToken);
+            _dependencyPropertyAnalyzer.GetMetadata(propertyName!, elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleWatchDpChangesAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -101,6 +101,6 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            _dependencyPropertyAnalyzer.WatchChanges(propertyName!, elementId), cancellationToken);
+            _dependencyPropertyAnalyzer.WatchChanges(propertyName!, elementId), cancellationToken).ConfigureAwait(false);
     }
 }

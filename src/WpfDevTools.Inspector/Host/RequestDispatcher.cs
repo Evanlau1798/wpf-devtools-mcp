@@ -78,12 +78,12 @@ public class RequestDispatcher
             // Check simple handlers first
             if (_simpleHandlers.TryGetValue(request.Method, out var simpleHandler))
             {
-                result = await simpleHandler(request.Params, cancellationToken);
+                result = await simpleHandler(request.Params, cancellationToken).ConfigureAwait(false);
             }
             // Check handler map
             else if (_handlerMap.TryGetValue(request.Method, out var handler))
             {
-                result = await handler.HandleAsync(request.Method, request.Params, cancellationToken);
+                result = await handler.HandleAsync(request.Method, request.Params, cancellationToken).ConfigureAwait(false);
             }
             else
             {

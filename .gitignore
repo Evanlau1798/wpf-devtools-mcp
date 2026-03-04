@@ -1,0 +1,29 @@
+# Build outputs
+bin/
+obj/
+*.user
+*.suo
+*.cache
+
+
+# Reference documentation (not committed)
+docs/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Test results
+TestResults/
+*.trx
+coverage.opencover.xml
+coverage-report/
+
+# Temporary files
+*.tmp
+*.log
+
+#claude
+CLAUDE.md
+.claude/coverage-report/

@@ -25,7 +25,7 @@ public class PingTool : PipeConnectedToolBase
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var response = await SendInspectorRequestAsync(processId, "ping", new { }, cancellationToken);
+            var response = await SendInspectorRequestAsync(processId, "ping", new { }, cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
 
             // Update last activity

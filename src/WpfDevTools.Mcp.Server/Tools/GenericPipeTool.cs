@@ -26,7 +26,7 @@ public class GenericPipeTool : PipeConnectedToolBase
         var (processId, parameters, error) = _paramExtractor(arguments);
         if (error != null) return error;
 
-        return await SendInspectorRequestAsync(processId, _method, parameters, cancellationToken);
+        return await SendInspectorRequestAsync(processId, _method, parameters, cancellationToken).ConfigureAwait(false);
     }
 
     private static (int processId, object? parameters, object? error) DefaultParamExtractor(JsonElement? arguments)

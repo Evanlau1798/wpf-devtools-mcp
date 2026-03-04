@@ -31,11 +31,11 @@ public class MvvmHandlers : IRequestHandler
     {
         return method switch
         {
-            "get_viewmodel" => await HandleGetViewModelAsync(@params, cancellationToken),
-            "get_commands" => await HandleGetCommandsAsync(@params, cancellationToken),
-            "execute_command" => await HandleExecuteCommandAsync(@params, cancellationToken),
-            "modify_viewmodel" => await HandleModifyViewModelAsync(@params, cancellationToken),
-            "get_validation_errors" => await HandleGetValidationErrorsAsync(@params, cancellationToken),
+            "get_viewmodel" => await HandleGetViewModelAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_commands" => await HandleGetCommandsAsync(@params, cancellationToken).ConfigureAwait(false),
+            "execute_command" => await HandleExecuteCommandAsync(@params, cancellationToken).ConfigureAwait(false),
+            "modify_viewmodel" => await HandleModifyViewModelAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_validation_errors" => await HandleGetValidationErrorsAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -45,7 +45,7 @@ public class MvvmHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.GetViewModel(elementId), cancellationToken);
+            _mvvmAnalyzer.GetViewModel(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetCommandsAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -53,7 +53,7 @@ public class MvvmHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.GetCommands(elementId), cancellationToken);
+            _mvvmAnalyzer.GetCommands(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleExecuteCommandAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -66,7 +66,7 @@ public class MvvmHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: commandName");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.ExecuteCommand(elementId, commandName!, parameter), cancellationToken);
+            _mvvmAnalyzer.ExecuteCommand(elementId, commandName!, parameter), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleModifyViewModelAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -82,7 +82,7 @@ public class MvvmHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: value");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.ModifyViewModel(elementId, propertyName!, value), cancellationToken);
+            _mvvmAnalyzer.ModifyViewModel(elementId, propertyName!, value), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetValidationErrorsAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -90,6 +90,6 @@ public class MvvmHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.GetValidationErrors(elementId), cancellationToken);
+            _mvvmAnalyzer.GetValidationErrors(elementId), cancellationToken).ConfigureAwait(false);
     }
 }

@@ -34,11 +34,11 @@ public class BindingHandlers : IRequestHandler
     {
         return method switch
         {
-            "get_bindings" => await HandleGetBindingsAsync(@params, cancellationToken),
-            "get_binding_errors" => await HandleGetBindingErrorsAsync(@params, cancellationToken),
-            "get_datacontext_chain" => await HandleGetDataContextChainAsync(@params, cancellationToken),
-            "get_binding_value_chain" => await HandleGetBindingValueChainAsync(@params, cancellationToken),
-            "force_binding_update" => await HandleForceBindingUpdateAsync(@params, cancellationToken),
+            "get_bindings" => await HandleGetBindingsAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_binding_errors" => await HandleGetBindingErrorsAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_datacontext_chain" => await HandleGetDataContextChainAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_binding_value_chain" => await HandleGetBindingValueChainAsync(@params, cancellationToken).ConfigureAwait(false),
+            "force_binding_update" => await HandleForceBindingUpdateAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -48,7 +48,7 @@ public class BindingHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _bindingAnalyzer.GetBindings(elementId), cancellationToken);
+            _bindingAnalyzer.GetBindings(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetBindingErrorsAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -56,7 +56,7 @@ public class BindingHandlers : IRequestHandler
         var clearAfterRead = ParameterHelpers.GetBoolParam(@params, "clearAfterRead") ?? false;
 
         return await Task.Run(() =>
-            _bindingAnalyzer.GetBindingErrors(clearAfterRead), cancellationToken);
+            _bindingAnalyzer.GetBindingErrors(clearAfterRead), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetDataContextChainAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -65,7 +65,7 @@ public class BindingHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _bindingAnalyzer.GetDataContextChain(elementId), cancellationToken);
+            _bindingAnalyzer.GetDataContextChain(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetBindingValueChainAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -78,7 +78,7 @@ public class BindingHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            _bindingAnalyzer.GetBindingValueChain(elementId, propertyName!), cancellationToken);
+            _bindingAnalyzer.GetBindingValueChain(elementId, propertyName!), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleForceBindingUpdateAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -92,6 +92,6 @@ public class BindingHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            _bindingAnalyzer.ForceBindingUpdate(elementId, propertyName!, direction), cancellationToken);
+            _bindingAnalyzer.ForceBindingUpdate(elementId, propertyName!, direction), cancellationToken).ConfigureAwait(false);
     }
 }

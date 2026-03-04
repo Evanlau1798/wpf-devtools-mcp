@@ -40,10 +40,4 @@ public class XamlSerializer
             return $"<!-- Failed to serialize: {ex.Message} -->";
         }
     }
-
-    public string SerializeToXaml(DependencyObject element, bool includeDefaults)
-    {
-        // TODO: Implement option to include/exclude default values
-        return SerializeToXaml(element);
-    }
 }

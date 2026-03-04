@@ -31,11 +31,11 @@ public class InteractionHandlers : IRequestHandler
     {
         return method switch
         {
-            "click_element" => await HandleClickElementAsync(@params, cancellationToken),
-            "scroll_to_element" => await HandleScrollToElementAsync(@params, cancellationToken),
-            "element_screenshot" => await HandleElementScreenshotAsync(@params, cancellationToken),
-            "drag_and_drop" => await HandleDragAndDropAsync(@params, cancellationToken),
-            "simulate_keyboard" => await HandleSimulateKeyboardAsync(@params, cancellationToken),
+            "click_element" => await HandleClickElementAsync(@params, cancellationToken).ConfigureAwait(false),
+            "scroll_to_element" => await HandleScrollToElementAsync(@params, cancellationToken).ConfigureAwait(false),
+            "element_screenshot" => await HandleElementScreenshotAsync(@params, cancellationToken).ConfigureAwait(false),
+            "drag_and_drop" => await HandleDragAndDropAsync(@params, cancellationToken).ConfigureAwait(false),
+            "simulate_keyboard" => await HandleSimulateKeyboardAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -45,7 +45,7 @@ public class InteractionHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _interactionAnalyzer.ClickElement(elementId), cancellationToken);
+            _interactionAnalyzer.ClickElement(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleScrollToElementAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -53,7 +53,7 @@ public class InteractionHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _interactionAnalyzer.ScrollToElement(elementId), cancellationToken);
+            _interactionAnalyzer.ScrollToElement(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleElementScreenshotAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -61,7 +61,7 @@ public class InteractionHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
 
         return await Task.Run(() =>
-            _interactionAnalyzer.TakeScreenshot(elementId), cancellationToken);
+            _interactionAnalyzer.TakeScreenshot(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleDragAndDropAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -71,7 +71,7 @@ public class InteractionHandlers : IRequestHandler
         var dataFormat = ParameterHelpers.GetStringParam(@params, "dataFormat") ?? InspectorConstants.DataFormats.Text;
 
         return await Task.Run(() =>
-            _interactionAnalyzer.DragAndDrop(sourceElementId, targetElementId, dataFormat), cancellationToken);
+            _interactionAnalyzer.DragAndDrop(sourceElementId, targetElementId, dataFormat), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleSimulateKeyboardAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -84,6 +84,6 @@ public class InteractionHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: key");
 
         return await Task.Run(() =>
-            _interactionAnalyzer.SimulateKeyboard(elementId, key!, eventType), cancellationToken);
+            _interactionAnalyzer.SimulateKeyboard(elementId, key!, eventType), cancellationToken).ConfigureAwait(false);
     }
 }

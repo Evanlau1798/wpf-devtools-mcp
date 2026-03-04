@@ -29,9 +29,9 @@ public class EventHandlers : IRequestHandler
     {
         return method switch
         {
-            "trace_routed_events" => await HandleTraceRoutedEventsAsync(@params, cancellationToken),
-            "get_event_handlers" => await HandleGetEventHandlersAsync(@params, cancellationToken),
-            "fire_routed_event" => await HandleFireRoutedEventAsync(@params, cancellationToken),
+            "trace_routed_events" => await HandleTraceRoutedEventsAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_event_handlers" => await HandleGetEventHandlersAsync(@params, cancellationToken).ConfigureAwait(false),
+            "fire_routed_event" => await HandleFireRoutedEventAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -46,7 +46,7 @@ public class EventHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: eventName");
 
         return await Task.Run(() =>
-            _eventAnalyzer.TraceRoutedEvents(elementId, eventName!, duration), cancellationToken);
+            _eventAnalyzer.TraceRoutedEvents(elementId, eventName!, duration), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetEventHandlersAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -58,7 +58,7 @@ public class EventHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: eventName");
 
         return await Task.Run(() =>
-            _eventAnalyzer.GetEventHandlers(elementId, eventName!), cancellationToken);
+            _eventAnalyzer.GetEventHandlers(elementId, eventName!), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleFireRoutedEventAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -71,6 +71,6 @@ public class EventHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: eventName");
 
         return await Task.Run(() =>
-            _eventAnalyzer.FireRoutedEvent(elementId, eventName!, eventArgs), cancellationToken);
+            _eventAnalyzer.FireRoutedEvent(elementId, eventName!, eventArgs), cancellationToken).ConfigureAwait(false);
     }
 }

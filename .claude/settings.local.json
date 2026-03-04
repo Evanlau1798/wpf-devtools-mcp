@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.avaloniaui.net)",
+      "Bash(curl:*)",
+      "Bash(mkdir:*)",
+      "Bash(taskkill:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(find .:*)",
+      "Bash(grep:*)",
+      "Bash(xargs cat:*)",
+      "Bash(python3:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(do echo:*)",
+      "Bash(do:*)"
+    ]
+  }
+}

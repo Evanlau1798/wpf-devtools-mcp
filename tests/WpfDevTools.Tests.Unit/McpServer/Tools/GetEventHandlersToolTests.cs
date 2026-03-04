@@ -14,7 +14,7 @@ public class GetEventHandlersToolTests
     {
         // Arrange
         var tool = new GetEventHandlersTool(new SessionManager());
-        var parameters = new { processId = 12345 };
+        var parameters = new { processId = 12345, eventName = "Click" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -24,6 +24,23 @@ public class GetEventHandlersToolTests
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("not connected");
+    }
+
+    [Fact]
+    public async Task Execute_WithMissingEventName_ShouldReturnError()
+    {
+        // Arrange
+        var tool = new GetEventHandlersTool(new SessionManager());
+        var parameters = new { processId = 12345 };
+
+        // Act
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("eventName");
     }
 
     [Fact]

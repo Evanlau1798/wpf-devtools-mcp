@@ -135,24 +135,24 @@ public class BindingAnalyzer
             return new { success = true, hasBinding = false, message = "No binding on this property" };
         }
 
-        // Track binding for leak detection
-        var binding = bindingExpr.ParentBinding;
-        if (binding != null)
-        {
-            PerformanceAnalyzer.TrackBinding(binding);
-        }
-
         var chain = new List<object>();
 
         // Get binding details
-        chain.Add(new
+        var binding = bindingExpr.ParentBinding;
+        if (binding != null)
         {
-            step = "Binding",
-            path = binding.Path?.Path,
-            mode = binding.Mode.ToString(),
-            updateSourceTrigger = binding.UpdateSourceTrigger.ToString(),
-            converter = binding.Converter?.GetType().Name
-        });
+            // Track binding for leak detection
+            PerformanceAnalyzer.TrackBinding(binding);
+
+            chain.Add(new
+            {
+                step = "Binding",
+                path = binding.Path?.Path,
+                mode = binding.Mode.ToString(),
+                updateSourceTrigger = binding.UpdateSourceTrigger.ToString(),
+                converter = binding.Converter?.GetType().Name
+            });
+        }
 
         // Get data context chain
         var current = element as FrameworkElement;

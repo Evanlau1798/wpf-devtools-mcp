@@ -151,11 +151,12 @@ public class VisualTreeAnalyzer
                 var namedElement = nameScope.FindName(name);
                 if (namedElement != null)
                 {
+                    var depObj = namedElement as DependencyObject;
                     namedElements.Add(new
                     {
                         name,
                         type = namedElement.GetType().Name,
-                        elementId = _elementFinder.GenerateElementId(namedElement as DependencyObject)
+                        elementId = depObj != null ? _elementFinder.GenerateElementId(depObj) : null
                     });
                 }
             }

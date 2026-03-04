@@ -82,74 +82,120 @@ static void RegisterProcessTools(ToolRegistry registry, SessionManager sessionMa
     RegisterTool(registry, "get_processes",
         "List all running WPF processes that can be inspected",
         new { type = "object", properties = new { nameFilter = new { type = "string", description = "Filter processes by name" } } },
-        async (args, ct) => await new GetProcessesTool().ExecuteAsync(args, ct));
+        async (args, ct) => await new GetProcessesTool().ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { },
+            new { nameFilter = "TestApp" }
+        });
 
     RegisterTool(registry, "connect",
         "Connect to a WPF process by injecting the Inspector DLL",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" } }, required = new[] { "processId" } },
-        async (args, ct) => await new ConnectTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new ConnectTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 }
+        });
 
     RegisterTool(registry, "ping",
         "Ping a connected WPF process to check if it is still responsive",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" } }, required = new[] { "processId" } },
-        async (args, ct) => await new PingTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new PingTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 }
+        });
 }
 
 // === 2. Tree & XAML (6 tools) ===
 static void RegisterTreeTools(ToolRegistry registry, SessionManager sessionManager)
 {
     RegisterTool(registry, "get_visual_tree",
-        "Get the Visual Tree of a WPF application",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string", description = "Root element ID (optional)" }, depth = new { type = "integer", description = "Max depth to traverse" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetVisualTreeTool(sessionManager).ExecuteAsync(args, ct));
+        "Get the Visual Tree structure of a WPF application",
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, depth = new { type = "integer", description = "Maximum tree depth (max: 100)" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GetVisualTreeTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, depth = 3 },
+            new { processId = 12345, elementId = "NameTextBox", depth = 2 }
+        });
 
     RegisterTool(registry, "get_logical_tree",
-        "Get the Logical Tree of a WPF application",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string", description = "Root element ID (optional)" }, depth = new { type = "integer", description = "Max depth to traverse" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetLogicalTreeTool(sessionManager).ExecuteAsync(args, ct));
-
-    RegisterTool(registry, "compare_trees",
-        "Compare Visual Tree and Logical Tree of a WPF element",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string", description = "Element ID to compare trees from" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GenericPipeTool(sessionManager, "compare_trees").ExecuteAsync(args, ct));
+        "Get the Logical Tree structure of a WPF application",
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, depth = new { type = "integer", description = "Maximum tree depth (max: 100)" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GetLogicalTreeTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, depth = 5 }
+        });
 
     RegisterTool(registry, "serialize_to_xaml",
-        "Serialize a WPF element subtree to XAML markup",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string", description = "Element ID to serialize" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GenericPipeTool(sessionManager, "serialize_to_xaml").ExecuteAsync(args, ct));
+        "Serialize a WPF element to XAML",
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "serialize_to_xaml").ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, elementId = "SaveButton" }
+        });
 
     RegisterTool(registry, "get_namescope",
         "Get the NameScope of a WPF element",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string", description = "Element ID to get NameScope from" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GenericPipeTool(sessionManager, "get_namescope").ExecuteAsync(args, ct));
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "get_namescope").ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 }
+        });
 
     RegisterTool(registry, "get_template_tree",
-        "Get the template tree of a WPF element",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, maxDepth = new { type = "integer", description = "Max depth to traverse" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetTemplateTreeTool(sessionManager).ExecuteAsync(args, ct));
+        "Get the template Visual Tree of a WPF control",
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GetTemplateTreeTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "SaveButton" }
+        });
+
+    RegisterTool(registry, "compare_trees",
+        "Compare Visual and Logical trees to identify differences",
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GenericPipeTool(sessionManager, "compare_trees").ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 }
+        });
 }
 
 // === 3. Binding Diagnostics (5 tools) ===
 static void RegisterBindingTools(ToolRegistry registry, SessionManager sessionManager)
 {
     RegisterTool(registry, "get_bindings",
-        "Get all data bindings on a WPF element",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetBindingsTool(sessionManager).ExecuteAsync(args, ct));
+        "Get all data bindings on a WPF element or tree",
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, recursive = new { type = "boolean", description = "Include child elements" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GetBindingsTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, elementId = "NameTextBox" },
+            new { processId = 12345, recursive = true }
+        });
 
     RegisterTool(registry, "get_binding_errors",
         "Get all binding errors in a WPF application",
         new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetBindingErrorsTool(sessionManager).ExecuteAsync(args, ct));
-
-    RegisterTool(registry, "get_datacontext_chain",
-        "Get the DataContext inheritance chain for a WPF element",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
-        async (args, ct) => await new GetDataContextChainTool(sessionManager).ExecuteAsync(args, ct));
+        async (args, ct) => await new GetBindingErrorsTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 }
+        });
 
     RegisterTool(registry, "get_binding_value_chain",
-        "Get the binding value resolution chain from source to target",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string", description = "DependencyProperty name to inspect" } }, required = new[] { "processId", "propertyName" } },
+        "Get the complete value resolution chain for a binding",
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string" } }, required = new[] { "processId", "propertyName" } },
         async (args, ct) => await new GenericPipeTool(sessionManager, "get_binding_value_chain",
             a =>
             {
@@ -158,22 +204,38 @@ static void RegisterBindingTools(ToolRegistry registry, SessionManager sessionMa
                 var propertyName = ParameterParser.ParseStringParam(a, "propertyName");
                 if (string.IsNullOrEmpty(propertyName)) return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
                 return (pid, (object?)new { elementId = eid, propertyName }, null);
-            }).ExecuteAsync(args, ct));
+            }).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "NameTextBox", propertyName = "Text" }
+        });
+
+    RegisterTool(registry, "get_datacontext_chain",
+        "Get the DataContext inheritance chain from element to root",
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" } }, required = new[] { "processId" } },
+        async (args, ct) => await new GetDataContextChainTool(sessionManager).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345 },
+            new { processId = 12345, elementId = "ErrorTextBox1" }
+        });
 
     RegisterTool(registry, "force_binding_update",
-        "Force a binding to update its source or target",
-        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string", description = "DependencyProperty name" }, direction = new { type = "string", description = "Update direction: 'Source' or 'Target'" } }, required = new[] { "processId", "propertyName", "direction" } },
+        "Force a binding to update its value",
+        new { type = "object", properties = new { processId = new { type = "integer", description = "Target WPF process ID" }, elementId = new { type = "string" }, propertyName = new { type = "string" } }, required = new[] { "processId", "propertyName" } },
         async (args, ct) => await new GenericPipeTool(sessionManager, "force_binding_update",
             a =>
             {
                 var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
                 if (err != null) return (-1, null, err);
                 var propertyName = ParameterParser.ParseStringParam(a, "propertyName");
-                var direction = ParameterParser.ParseStringParam(a, "direction");
                 if (string.IsNullOrEmpty(propertyName)) return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
-                if (string.IsNullOrEmpty(direction)) return (-1, null, (object)new { success = false, error = "Missing required parameter: direction" });
-                return (pid, (object?)new { elementId = eid, propertyName, direction }, null);
-            }).ExecuteAsync(args, ct));
+                return (pid, (object?)new { elementId = eid, propertyName }, null);
+            }).ExecuteAsync(args, ct),
+        examples: new object[]
+        {
+            new { processId = 12345, elementId = "NameTextBox", propertyName = "Text" }
+        });
 }
 
 // === 4. DependencyProperty (5 tools) ===
@@ -387,13 +449,15 @@ static void RegisterTool(
     string name,
     string description,
     object schema,
-    Func<JsonElement?, CancellationToken, Task<object>> handler)
+    Func<JsonElement?, CancellationToken, Task<object>> handler,
+    object[]? examples = null)
 {
     registry.RegisterTool(new ToolDefinition
     {
         Name = name,
         Description = description,
         Parameters = schema,
+        Examples = examples,
         ExecuteHandler = handler
     });
 }

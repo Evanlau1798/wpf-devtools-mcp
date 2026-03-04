@@ -66,8 +66,14 @@ public class DllInjector
         {
             return InjectionError.ProcessNotFound;
         }
-        catch
+        catch (InvalidOperationException)
         {
+            // Process has exited or access denied
+            return InjectionError.AccessDenied;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // Win32 error accessing process
             return InjectionError.AccessDenied;
         }
 

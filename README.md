@@ -67,12 +67,14 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "wpf-devtools": {
       "command": "dotnet",
-      "args": ["run", "--project", "G:\\wpf-devtools-mcp\\src\\WpfDevTools.Mcp.Server\\WpfDevTools.Mcp.Server.csproj"],
+      "args": ["run", "--project", "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj"],
       "env": {}
     }
   }
 }
 ```
+
+> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory.
 
 ### Cursor
 
@@ -84,12 +86,14 @@ Add to `.cursor/config.json`:
     "servers": {
       "wpf-devtools": {
         "command": "dotnet",
-        "args": ["run", "--project", "G:\\wpf-devtools-mcp\\src\\WpfDevTools.Mcp.Server\\WpfDevTools.Mcp.Server.csproj"]
+        "args": ["run", "--project", "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj"]
       }
     }
   }
 }
 ```
+
+> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory.
 
 ### VS Code with MCP Extension
 
@@ -100,14 +104,14 @@ Add to `settings.json`:
   "mcp.servers": {
     "wpf-devtools": {
       "command": "dotnet",
-      "args": ["run", "--project", "G:\\wpf-devtools-mcp\\src\\WpfDevTools.Mcp.Server\\WpfDevTools.Mcp.Server.csproj"],
+      "args": ["run", "--project", "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj"],
       "transport": "stdio"
     }
   }
 }
 ```
 
-> **Note**: Adjust the project path to match your installation directory.
+> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory.
 
 ## Quick Start
 

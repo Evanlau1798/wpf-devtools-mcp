@@ -2,6 +2,7 @@ using System.IO.Pipes;
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Mcp.Server;
 

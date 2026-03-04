@@ -7,6 +7,7 @@ using System.Text.Json;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Host;
 
@@ -66,7 +67,7 @@ public class InspectorHost : IDisposable
             _isRunning = false;
             taskToWait = _serverTask;
         }
-        taskToWait?.Wait(TimeSpan.FromSeconds(5));
+        taskToWait?.Wait(InspectorConfig.ShutdownTimeout);
 
         // Dispose pipe server after task completes
         lock (_lock)
@@ -76,7 +77,7 @@ public class InspectorHost : IDisposable
         }
 
         // Clean up analyzer resources
-        try { PerformanceAnalyzer.StopMonitoring(); } catch { /* Ignore cleanup errors */ }
+        try { PerformanceAnalyzer.ResetMonitoring(); } catch { /* Ignore cleanup errors */ }
         try { DependencyPropertyAnalyzer.StopAllWatchers(); } catch { /* Ignore cleanup errors */ }
     }
 
@@ -100,10 +101,15 @@ public class InspectorHost : IDisposable
                 // Normal shutdown
                 break;
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
-                LogError($"Server loop error: {ex.Message}");
+                LogError($"Pipe I/O error: {ex.Message}");
                 await Task.Delay(1000, cancellationToken);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                LogError($"Pipe access denied: {ex.Message}");
+                break; // Don't retry on access denied
             }
             finally
             {

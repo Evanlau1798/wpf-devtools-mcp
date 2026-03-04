@@ -1,6 +1,7 @@
 using System.Text.Json;
 using WpfDevTools.Injector;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -103,8 +104,8 @@ public class ConnectTool
 
         try
         {
-            var connectTask = pipeClient.ConnectAsync(TimeSpan.FromSeconds(5));
-            if (!connectTask.Wait(TimeSpan.FromSeconds(5)))
+            var connectTask = pipeClient.ConnectAsync(InspectorConfig.PipeConnectTimeout);
+            if (!connectTask.Wait(InspectorConfig.PipeConnectTimeout))
             {
                 _sessionManager.RemoveSession(processId.Value);
                 return Task.FromResult<object>(new
@@ -114,13 +115,40 @@ public class ConnectTool
                 });
             }
         }
-        catch (Exception ex)
+        catch (AggregateException ex) when (ex.InnerException is TimeoutException)
         {
             _sessionManager.RemoveSession(processId.Value);
             return Task.FromResult<object>(new
             {
                 success = false,
-                error = $"Failed to connect to Inspector: {ex.Message}"
+                error = "Timeout connecting to Inspector Named Pipe"
+            });
+        }
+        catch (TimeoutException)
+        {
+            _sessionManager.RemoveSession(processId.Value);
+            return Task.FromResult<object>(new
+            {
+                success = false,
+                error = "Timeout connecting to Inspector Named Pipe"
+            });
+        }
+        catch (IOException ex)
+        {
+            _sessionManager.RemoveSession(processId.Value);
+            return Task.FromResult<object>(new
+            {
+                success = false,
+                error = $"Pipe communication error: {ex.Message}"
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _sessionManager.RemoveSession(processId.Value);
+            return Task.FromResult<object>(new
+            {
+                success = false,
+                error = $"Access denied to Named Pipe: {ex.Message}"
             });
         }
 
@@ -148,7 +176,9 @@ public class ConnectTool
         if (File.Exists(fallbackDll))
             return fallbackDll;
 
-        throw new FileNotFoundException("Inspector DLL not found", inspectorDll);
+        // Don't expose full path in exception message for security
+        // Log the actual path internally if needed
+        throw new FileNotFoundException("Inspector DLL not found. Please ensure the application is built correctly.");
     }
 
     private static string GetErrorMessage(InjectionError error, int processId)

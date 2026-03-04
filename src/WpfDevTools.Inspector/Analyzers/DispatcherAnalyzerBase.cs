@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using System.ComponentModel;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -27,7 +28,7 @@ public abstract class DispatcherAnalyzerBase
         }
 
         // Otherwise, invoke on UI thread with timeout
-        var actualTimeout = timeout ?? TimeSpan.FromSeconds(5);
+        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
         return Application.Current.Dispatcher.Invoke(
             action,
             DispatcherPriority.Normal,
@@ -54,7 +55,7 @@ public abstract class DispatcherAnalyzerBase
         }
         else
         {
-            var actualTimeout = timeout ?? TimeSpan.FromSeconds(5);
+            var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
             Application.Current.Dispatcher.Invoke(
                 action,
                 DispatcherPriority.Normal,

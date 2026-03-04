@@ -32,6 +32,11 @@ public class FileLogger
         Log("DEBUG", message);
     }
 
+    public void LogWarning(string message)
+    {
+        Log("WARNING", message);
+    }
+
     private void Log(string level, string message)
     {
         try

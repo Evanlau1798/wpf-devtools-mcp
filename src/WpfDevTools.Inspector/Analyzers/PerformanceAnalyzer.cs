@@ -346,4 +346,25 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
             _monitoringStartTime = DateTime.Now;
         }
     }
+
+    /// <summary>
+    /// Reset all monitoring state and clear tracked resources
+    /// Call this when disconnecting from a process to prevent memory leaks
+    /// </summary>
+    public static void ResetMonitoring()
+    {
+        lock (_lock)
+        {
+            _isMonitoring = false;
+            _frameTimes.Clear();
+            _frameCount = 0;
+            _frameStopwatch.Stop();
+            _frameStopwatch.Reset();
+        }
+
+        lock (_bindingLock)
+        {
+            _bindingReferences.Clear();
+        }
+    }
 }

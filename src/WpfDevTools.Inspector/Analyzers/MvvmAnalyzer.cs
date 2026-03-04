@@ -62,11 +62,11 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
                 try
                 {
                     var value = prop.GetValue(dataContext);
-                    properties.Add(new
+                    properties.Add(new Dictionary<string, object?>
                     {
-                        name = prop.Name,
-                        type = prop.PropertyType.Name,
-                        value = value?.ToString()
+                        ["name"] = prop.Name,
+                        ["type"] = prop.PropertyType.Name,
+                        ["value"] = value?.ToString()
                     });
                 }
                 catch (Exception) { /* Skip properties with throwing getters */ }
@@ -109,11 +109,11 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
                 if (typeof(System.Windows.Input.ICommand).IsAssignableFrom(prop.PropertyType))
                 {
                     var cmd = prop.GetValue(fe.DataContext) as System.Windows.Input.ICommand;
-                    commands.Add(new
+                    commands.Add(new Dictionary<string, object?>
                     {
-                        name = prop.Name,
-                        type = prop.PropertyType.Name,
-                        canExecute = cmd?.CanExecute(null) ?? false
+                        ["name"] = prop.Name,
+                        ["type"] = prop.PropertyType.Name,
+                        ["canExecute"] = cmd?.CanExecute(null) ?? false
                     });
                 }
             }
@@ -184,11 +184,11 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
                 var validationErrors = Validation.GetErrors(depObj);
                 foreach (var error in validationErrors)
                 {
-                    errors.Add(new
+                    errors.Add(new Dictionary<string, object?>
                     {
-                        errorContent = error.ErrorContent?.ToString(),
-                        isRuleError = error.RuleInError != null,
-                        ruleType = error.RuleInError?.GetType().Name
+                        ["errorContent"] = error.ErrorContent?.ToString(),
+                        ["isRuleError"] = error.RuleInError != null,
+                        ["ruleType"] = error.RuleInError?.GetType().Name
                     });
                 }
             }

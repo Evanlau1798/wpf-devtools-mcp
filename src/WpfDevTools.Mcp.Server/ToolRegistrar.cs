@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Utilities;
@@ -7,6 +8,7 @@ namespace WpfDevTools.Mcp.Server;
 /// <summary>
 /// Registers all MCP tools into the tool registry
 /// </summary>
+[ExcludeFromCodeCoverage]
 public static partial class ToolRegistrar
 {
     /// <summary>

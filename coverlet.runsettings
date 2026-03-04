@@ -6,6 +6,8 @@
         <Configuration>
           <!-- Exclude MCP Server entry point (top-level statements, requires real STDIO server) -->
           <ExcludeByFile>**/Program.cs</ExcludeByFile>
+          <!-- Exclude ToolRegistrar files (configuration code, only executed when MCP Server starts) -->
+          <ExcludeByFile>**/ToolRegistrar*.cs</ExcludeByFile>
           <!-- Exclude classes marked with [ExcludeFromCodeCoverage] -->
           <ExcludeByAttribute>ExcludeFromCodeCoverage</ExcludeByAttribute>
         </Configuration>

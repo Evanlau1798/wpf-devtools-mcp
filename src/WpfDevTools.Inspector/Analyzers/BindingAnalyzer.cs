@@ -208,13 +208,13 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
         var binding = bindingExpr.ParentBinding;
         if (binding != null)
         {
-            chain.Add(new
+            chain.Add(new Dictionary<string, object?>
             {
-                step = "Binding",
-                path = binding.Path?.Path,
-                mode = binding.Mode.ToString(),
-                updateSourceTrigger = binding.UpdateSourceTrigger.ToString(),
-                converter = binding.Converter?.GetType().Name
+                ["step"] = "Binding",
+                ["path"] = binding.Path?.Path,
+                ["mode"] = binding.Mode.ToString(),
+                ["updateSourceTrigger"] = binding.UpdateSourceTrigger.ToString(),
+                ["converter"] = binding.Converter?.GetType().Name
             });
         }
 
@@ -224,12 +224,12 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
         {
             if (current.DataContext != null)
             {
-                chain.Add(new
+                chain.Add(new Dictionary<string, object?>
                 {
-                    step = "DataContext",
-                    elementType = current.GetType().Name,
-                    dataContextType = current.DataContext.GetType().Name,
-                    dataContextValue = current.DataContext.ToString()
+                    ["step"] = "DataContext",
+                    ["elementType"] = current.GetType().Name,
+                    ["dataContextType"] = current.DataContext.GetType().Name,
+                    ["dataContextValue"] = current.DataContext.ToString()
                 });
                 break;
             }
@@ -240,21 +240,21 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
         var resolvedValue = bindingExpr.ResolvedSource;
         if (resolvedValue != null)
         {
-            chain.Add(new
+            chain.Add(new Dictionary<string, object?>
             {
-                step = "ResolvedSource",
-                sourceType = resolvedValue.GetType().Name,
-                sourceValue = resolvedValue.ToString()
+                ["step"] = "ResolvedSource",
+                ["sourceType"] = resolvedValue.GetType().Name,
+                ["sourceValue"] = resolvedValue.ToString()
             });
         }
 
         // Get final value
         var finalValue = element.GetValue(dp);
-        chain.Add(new
+        chain.Add(new Dictionary<string, object?>
         {
-            step = "FinalValue",
-            valueType = finalValue?.GetType().Name,
-            value = finalValue?.ToString()
+            ["step"] = "FinalValue",
+            ["valueType"] = finalValue?.GetType().Name,
+            ["value"] = finalValue?.ToString()
         });
 
         return new
@@ -353,35 +353,30 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
         var bindings = new List<object>();
         var seenProperties = new HashSet<string>();
 
-        // Walk up the type hierarchy to find all DependencyProperty fields
-        var type = element.GetType();
-        while (type != null && type != typeof(object))
+        // Use LocalValueEnumerator to find all locally set properties (including attached properties)
+        var enumerator = element.GetLocalValueEnumerator();
+        while (enumerator.MoveNext())
         {
-            var dpFields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.DeclaredOnly)
-                .Where(f => f.FieldType == typeof(DependencyProperty));
+            var entry = enumerator.Current;
+            var dp = entry.Property;
 
-            foreach (var field in dpFields)
+            if (dp != null && seenProperties.Add(dp.Name))
             {
-                var dp = field.GetValue(null) as DependencyProperty;
-                if (dp != null && seenProperties.Add(dp.Name))
+                // Try to get binding expression for this property
+                var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
+                if (bindingExpr != null)
                 {
-                    var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
-                    if (bindingExpr != null)
-                    {
-                        var binding = bindingExpr.ParentBinding;
+                    var binding = bindingExpr.ParentBinding;
 
-                        bindings.Add(new
-                        {
-                            propertyName = dp.Name,
-                            path = binding?.Path?.Path,
-                            mode = binding?.Mode.ToString(),
-                            updateSourceTrigger = binding?.UpdateSourceTrigger.ToString()
-                        });
-                    }
+                    bindings.Add(new Dictionary<string, object?>
+                    {
+                        ["propertyName"] = dp.Name,
+                        ["path"] = binding?.Path?.Path,
+                        ["mode"] = binding?.Mode.ToString(),
+                        ["updateSourceTrigger"] = binding?.UpdateSourceTrigger.ToString()
+                    });
                 }
             }
-
-            type = type.BaseType;
         }
 
         return bindings;

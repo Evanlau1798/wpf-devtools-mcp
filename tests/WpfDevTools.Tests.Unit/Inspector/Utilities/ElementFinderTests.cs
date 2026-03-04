@@ -50,4 +50,107 @@ public class ElementFinderTests
         // In unit test environment, both should return null
         element.Should().Be(finder.GetRootElement());
     }
+
+    [Fact]
+    public void FindById_WithEmptyId_ShouldReturnRoot()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+
+        // Act
+        var element = finder.FindById("");
+
+        // Assert
+        element.Should().Be(finder.GetRootElement());
+    }
+
+    [Fact]
+    public void FindById_WithInvalidIdFormat_ShouldReturnNull()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var invalidId = new string('x', 257); // >256 chars
+
+        // Act
+        var element = finder.FindById(invalidId);
+
+        // Assert
+        element.Should().BeNull();
+    }
+
+    [StaFact]
+    public void FindById_WithCachedElement_ShouldReturnFromCache()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        // Act
+        var found = finder.FindById(elementId);
+
+        // Assert
+        found.Should().BeSameAs(button);
+    }
+
+    [StaFact]
+    public void FindById_WithNonExistentId_ShouldReturnNull()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+
+        // Act
+        var element = finder.FindById("Button_99999");
+
+        // Assert
+        element.Should().BeNull();
+    }
+
+    [StaFact]
+    public void GenerateElementId_WithDifferentElements_ShouldReturnDifferentIds()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var button1 = new Button();
+        var button2 = new Button();
+
+        // Act
+        var id1 = finder.GenerateElementId(button1);
+        var id2 = finder.GenerateElementId(button2);
+
+        // Assert
+        id1.Should().NotBe(id2);
+    }
+
+    [StaFact]
+    public void GenerateElementId_ShouldIncludeTypeName()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var textBox = new TextBox();
+
+        // Act
+        var id = finder.GenerateElementId(textBox);
+
+        // Assert
+        id.Should().StartWith("TextBox_");
+    }
+
+    [StaFact]
+    public void FindById_WithVisualTreeSearch_ShouldFindNestedElement()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var parent = new StackPanel();
+        var child = new Button();
+        parent.Children.Add(child);
+
+        var childId = finder.GenerateElementId(child);
+
+        // Act - search from parent
+        var found = finder.FindById(childId, parent);
+
+        // Assert
+        found.Should().BeSameAs(child);
+    }
 }

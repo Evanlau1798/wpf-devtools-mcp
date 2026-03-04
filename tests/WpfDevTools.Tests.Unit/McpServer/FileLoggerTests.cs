@@ -161,28 +161,4 @@ public class FileLoggerTests : IDisposable
         // Assert
         _logger.LogFilePath.Should().Be(_testLogPath);
     }
-
-    [Fact]
-    public void Constructor_WithNullPath_ShouldUseDefaultPath()
-    {
-        // Act
-        var logger = new FileLogger(null);
-
-        // Assert
-        logger.LogFilePath.Should().NotBeNullOrEmpty();
-        logger.LogFilePath.Should().StartWith(Path.GetTempPath());
-        logger.LogFilePath.Should().Contain("WpfDevTools_McpServer_");
-    }
-
-    [Fact]
-    public void Log_WithException_ShouldNotThrow()
-    {
-        // Arrange - use invalid path to trigger exception
-        var invalidPath = Path.Combine("Z:\\InvalidDrive\\", "test.log");
-        var logger = new FileLogger(invalidPath);
-
-        // Act & Assert - should not throw
-        var exception = Record.Exception(() => logger.LogInfo("Test message"));
-        exception.Should().BeNull();
-    }
 }

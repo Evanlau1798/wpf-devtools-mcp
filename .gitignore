@@ -19,6 +19,7 @@ TestResults/
 *.trx
 coverage.opencover.xml
 coverage-report/
+coverage-report.md
 
 # Temporary files
 *.tmp

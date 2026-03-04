@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="WpfDevTools.Tests.Unit" />
+    <InternalsVisibleTo Include="WpfDevTools.Tests.Integration" />
   </ItemGroup>
 
   <ItemGroup>

@@ -155,7 +155,7 @@ public class RequestDispatcher
     private async Task<object> HandlePingAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         await Task.CompletedTask;
-        return new { status = "pong", timestamp = DateTime.UtcNow };
+        return new { success = true, status = "pong", timestamp = DateTime.UtcNow };
     }
 
     private async Task<object> HandleTestSlowAsync(JsonElement? @params, CancellationToken cancellationToken)

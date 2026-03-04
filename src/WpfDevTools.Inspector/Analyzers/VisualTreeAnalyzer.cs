@@ -12,7 +12,7 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
-    public VisualTreeAnalyzer()
+    internal VisualTreeAnalyzer()
     {
         _elementFinder = new ElementFinder();
     }

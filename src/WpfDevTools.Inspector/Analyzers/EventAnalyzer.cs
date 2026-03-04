@@ -11,6 +11,7 @@ public class EventAnalyzer : DispatcherAnalyzerBase
     private readonly ElementFinder _elementFinder;
     private static readonly object _lock = new object();
     private static readonly List<object> _eventTrace = new List<object>();
+    private const int MaxEventTraceEntries = 10000;
     private static bool _isTracing = false;
     private static CancellationTokenSource? _tracingCts = null;
 
@@ -75,6 +76,12 @@ public class EventAnalyzer : DispatcherAnalyzerBase
                             routingStrategy = e.RoutedEvent.RoutingStrategy.ToString(),
                             handled = e.Handled
                         });
+
+                        // Trim oldest entries if over limit
+                        if (_eventTrace.Count > MaxEventTraceEntries)
+                        {
+                            _eventTrace.RemoveRange(0, _eventTrace.Count - MaxEventTraceEntries);
+                        }
                     }
                 }
             });

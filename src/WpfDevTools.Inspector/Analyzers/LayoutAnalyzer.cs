@@ -203,7 +203,7 @@ public class LayoutAnalyzer : DispatcherAnalyzerBase
                 // Remove highlight after duration
                 Task.Delay(duration).ContinueWith(_ =>
                 {
-                    Application.Current?.Dispatcher.Invoke(() =>
+                    InvokeOnUIThread(() =>
                     {
                         adornerLayer.Remove(adorner);
                         _highlights.Remove(key);

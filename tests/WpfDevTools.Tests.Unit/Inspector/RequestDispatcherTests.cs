@@ -53,9 +53,11 @@ public class RequestDispatcherTests
         response.Error.Should().BeNull();
         response.Result.Should().NotBeNull();
 
-        var result = response.Result!.Value.Deserialize<Dictionary<string, string>>();
-        result.Should().ContainKey("status");
-        result!["status"].Should().Be("pong");
+        var result = response.Result!.Value;
+        result.TryGetProperty("success", out var successProp).Should().BeTrue();
+        successProp.GetBoolean().Should().BeTrue();
+        result.TryGetProperty("status", out var statusProp).Should().BeTrue();
+        statusProp.GetString().Should().Be("pong");
     }
 
     [Fact]

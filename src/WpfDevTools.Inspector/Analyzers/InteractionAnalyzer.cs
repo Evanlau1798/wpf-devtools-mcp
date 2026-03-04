@@ -321,11 +321,11 @@ public class InteractionAnalyzer : DispatcherAnalyzerBase
 
                 // Create keyboard event
                 RoutedEvent routedEvent;
-                if (eventType?.ToLower() == "keydown")
+                if (string.Equals(eventType, "keydown", StringComparison.OrdinalIgnoreCase))
                 {
                     routedEvent = Keyboard.KeyDownEvent;
                 }
-                else if (eventType?.ToLower() == "keyup")
+                else if (string.Equals(eventType, "keyup", StringComparison.OrdinalIgnoreCase))
                 {
                     routedEvent = Keyboard.KeyUpEvent;
                 }

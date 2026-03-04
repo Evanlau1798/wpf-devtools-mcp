@@ -12,7 +12,7 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
-    public PerformanceAnalyzer() : this(new ElementFinder())
+    internal PerformanceAnalyzer() : this(new ElementFinder())
     {
     }
 

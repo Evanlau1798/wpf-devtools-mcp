@@ -37,11 +37,28 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = "Element has no DataContext" };
             }
 
+            var dcType = dataContext.GetType();
+            var properties = new List<object>();
+            foreach (var prop in dcType.GetProperties())
+            {
+                try
+                {
+                    var value = prop.GetValue(dataContext);
+                    properties.Add(new
+                    {
+                        name = prop.Name,
+                        type = prop.PropertyType.Name,
+                        value = value?.ToString()
+                    });
+                }
+                catch { /* Skip properties that throw */ }
+            }
+
             return new
             {
                 success = true,
-                type = dataContext.GetType().Name,
-                data = dataContext
+                viewModelType = dcType.Name,
+                properties
             };
         });
     }

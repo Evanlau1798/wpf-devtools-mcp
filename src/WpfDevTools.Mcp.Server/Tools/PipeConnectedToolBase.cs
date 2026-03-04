@@ -40,22 +40,14 @@ public abstract class PipeConnectedToolBase
     /// <summary>
     /// Parse a string parameter from JSON arguments
     /// </summary>
-    public static string? ParseStringParam(JsonElement? arguments, string paramName)
-    {
-        if (arguments.HasValue && arguments.Value.TryGetProperty(paramName, out var prop))
-            return prop.GetString();
-        return null;
-    }
+    protected static string? ParseStringParam(JsonElement? arguments, string paramName)
+        => ParameterParser.ParseStringParam(arguments, paramName);
 
     /// <summary>
     /// Parse an integer parameter from JSON arguments
     /// </summary>
-    public static int? ParseIntParam(JsonElement? arguments, string paramName)
-    {
-        if (arguments.HasValue && arguments.Value.TryGetProperty(paramName, out var prop))
-            return prop.GetInt32();
-        return null;
-    }
+    protected static int? ParseIntParam(JsonElement? arguments, string paramName)
+        => ParameterParser.ParseIntParam(arguments, paramName);
 
     /// <summary>
     /// Create error response for missing required parameter

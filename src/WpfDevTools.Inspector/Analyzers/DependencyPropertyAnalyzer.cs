@@ -13,6 +13,7 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     private static readonly Dictionary<string, (DependencyPropertyDescriptor Descriptor, EventHandler Handler)> _watchers = new();
     private static readonly List<object> _changeLog = new();
     private static readonly object _watchLock = new object();
+    private const int MaxChangeLogEntries = 10000;
 
     public DependencyPropertyAnalyzer(ElementFinder elementFinder)
     {
@@ -53,6 +54,7 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             return new
             {
+                success = true,
                 propertyName = propertyName,
                 baseValueSource = valueSource.BaseValueSource.ToString(),
                 isExpression = valueSource.IsExpression,
@@ -256,6 +258,12 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                                     newValue = newValue?.ToString(),
                                     valueType = newValue?.GetType().Name
                                 });
+
+                                // Trim oldest entries if over limit
+                                if (_changeLog.Count > MaxChangeLogEntries)
+                                {
+                                    _changeLog.RemoveRange(0, _changeLog.Count - MaxChangeLogEntries);
+                                }
                             }
                         };
 

@@ -11,7 +11,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
-    public BindingAnalyzer() : this(new ElementFinder())
+    internal BindingAnalyzer() : this(new ElementFinder())
     {
     }
 
@@ -45,7 +45,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
                 bindings.AddRange(properties);
             }
 
-            return new { bindings };
+            return new { success = true, bindings };
         });
     }
 
@@ -121,7 +121,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
                 }
             }
 
-            return new { chain };
+            return new { success = true, chain };
         });
     }
 
@@ -265,7 +265,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
 
             try
             {
-                if (direction?.ToLower() == "source")
+                if (string.Equals(direction, "source", StringComparison.OrdinalIgnoreCase))
                 {
                     bindingExpr.UpdateSource();
                     return new
@@ -276,7 +276,7 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
                         propertyName
                     };
                 }
-                else if (direction?.ToLower() == "target")
+                else if (string.Equals(direction, "target", StringComparison.OrdinalIgnoreCase))
                 {
                     bindingExpr.UpdateTarget();
                     return new

@@ -9,7 +9,7 @@ namespace WpfDevTools.Shared.Utilities;
 /// Supports structured logging with correlation IDs and performance metrics.
 /// Implements both IDisposable (for sync contexts) and IAsyncDisposable (for async contexts).
 /// </summary>
-public class FileLogger : IDisposable, IAsyncDisposable
+public sealed class FileLogger : IDisposable, IAsyncDisposable
 {
     private readonly string _logFilePath;
     private readonly Channel<string> _logQueue;

@@ -4,7 +4,7 @@ namespace WpfDevTools.Mcp.Server;
 /// Collects performance metrics for MCP server requests
 /// Thread-safe metrics collection with percentile tracking
 /// </summary>
-public class MetricsCollector
+public sealed class MetricsCollector
 {
     private readonly object _lock = new();
     private long _totalRequests;
@@ -148,7 +148,7 @@ public class MetricsCollector
 /// <summary>
 /// Immutable snapshot of metrics at a point in time
 /// </summary>
-public class MetricsSnapshot
+public sealed record MetricsSnapshot
 {
     /// <summary>
     /// Gets the total number of requests processed

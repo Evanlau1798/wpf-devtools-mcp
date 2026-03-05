@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server;
 /// <summary>
 /// Manages active Inspector sessions
 /// </summary>
-public class SessionManager : IDisposable
+public sealed class SessionManager : IDisposable
 {
     private const int MaxSessions = 50;
     private bool _isDisposed;
@@ -242,9 +242,11 @@ public class SessionManager : IDisposable
                 RemoveSession(processId);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Prevent Timer callback exceptions from stopping future cleanup cycles
+            // but log to stderr for diagnostic visibility
+            Console.Error.WriteLine($"Session cleanup failed: {ex.Message}");
         }
     }
 

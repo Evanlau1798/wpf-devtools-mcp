@@ -3,7 +3,7 @@ namespace WpfDevTools.Mcp.Server;
 /// <summary>
 /// Registry for MCP tools
 /// </summary>
-public class ToolRegistry
+public sealed class ToolRegistry
 {
     private readonly Dictionary<string, ToolDefinition> _tools = new();
     private readonly List<ToolDefinition> _toolsInOrder = new();

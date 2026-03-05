@@ -12,7 +12,7 @@ namespace WpfDevTools.Mcp.Server;
 /// <summary>
 /// Named Pipe client for communicating with Inspector DLL
 /// </summary>
-public class NamedPipeClient : IDisposable
+public sealed class NamedPipeClient : IDisposable
 {
     private readonly int _processId;
     private readonly string _pipeName;

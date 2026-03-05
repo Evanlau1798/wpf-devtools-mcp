@@ -1,7 +1,7 @@
 # WPF DevTools MCP Server
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-890%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-868%2B%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 A Model Context Protocol (MCP) server that enables AI agents to deeply inspect and interact with running WPF applications through in-process DLL injection.
@@ -144,7 +144,8 @@ List running WPF applications:
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "get_processes"
+    "name": "get_processes",
+    "arguments": {}
   }
 }
 ```

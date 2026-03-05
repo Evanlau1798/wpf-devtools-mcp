@@ -4,7 +4,7 @@ namespace WpfDevTools.Mcp.Server;
 /// Rate limiter to prevent DoS attacks via rapid tool invocations
 /// Uses token bucket algorithm for smooth rate limiting
 /// </summary>
-public class RateLimiter
+public sealed class RateLimiter
 {
     private readonly int _maxTokens;
     private readonly TimeSpan _refillInterval;
@@ -121,7 +121,7 @@ public interface IRateLimiterManager
 /// <summary>
 /// Rate limiter manager for multiple sessions
 /// </summary>
-public class RateLimiterManager : IRateLimiterManager, IDisposable
+public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
 {
     // CRITICAL FIX: Use mutable class instead of tuple to avoid allocations on every request
     private class RateLimiterEntry

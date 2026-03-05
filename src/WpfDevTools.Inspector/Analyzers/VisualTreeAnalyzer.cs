@@ -17,6 +17,10 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
         _elementFinder = new ElementFinder();
     }
 
+    /// <summary>
+    /// Create a new VisualTreeAnalyzer instance
+    /// </summary>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public VisualTreeAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;
@@ -53,6 +57,7 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
     /// <summary>
     /// Compare Visual Tree and Logical Tree to identify discrepancies
+    /// Optimized with HashSet for O(n+m) instead of O(n*m)
     /// </summary>
     public object CompareTree(string? elementId = null)
     {
@@ -70,12 +75,16 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
             var visualChildren = GetVisualChildren(element);
             var logicalChildren = GetLogicalChildren(element);
 
+            // Use HashSet for O(1) lookups instead of O(n) Any() calls
+            var visualSet = new HashSet<DependencyObject>(visualChildren, ReferenceEqualityComparer.Instance);
+            var logicalSet = new HashSet<DependencyObject>(logicalChildren, ReferenceEqualityComparer.Instance);
+
             var differences = new List<object>();
 
-            // Find elements in visual tree but not in logical tree
+            // Find elements in visual tree but not in logical tree - O(n)
             foreach (var visualChild in visualChildren)
             {
-                if (!logicalChildren.Any(lc => ReferenceEquals(lc, visualChild)))
+                if (!logicalSet.Contains(visualChild))
                 {
                     differences.Add(new
                     {
@@ -86,10 +95,10 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
                 }
             }
 
-            // Find elements in logical tree but not in visual tree
+            // Find elements in logical tree but not in visual tree - O(m)
             foreach (var logicalChild in logicalChildren)
             {
-                if (!visualChildren.Any(vc => ReferenceEquals(vc, logicalChild)))
+                if (!visualSet.Contains(logicalChild))
                 {
                     differences.Add(new
                     {
@@ -133,7 +142,8 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
             if (nameScope != null)
             {
                 // Get all named elements in this scope
-                var names = GetNamesInScope(element);
+                var names = new List<string>();
+                GetNamesInScope(element, names);
 
                 foreach (var name in names)
                 {
@@ -161,24 +171,25 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    private List<string> GetNamesInScope(DependencyObject element)
+    /// <summary>
+    /// Optimized: Pass list as parameter instead of returning and merging
+    /// Avoids creating intermediate List objects at each recursion level
+    /// </summary>
+    private void GetNamesInScope(DependencyObject element, List<string> names)
     {
-        var names = new List<string>();
-
-        // Recursively find all named elements
+        // Add current element's name if it has one
         if (element is FrameworkElement fe && !string.IsNullOrEmpty(fe.Name))
         {
             names.Add(fe.Name);
         }
 
+        // Recursively collect names from children
         var childCount = VisualTreeHelper.GetChildrenCount(element);
         for (int i = 0; i < childCount; i++)
         {
             var child = VisualTreeHelper.GetChild(element, i);
-            names.AddRange(GetNamesInScope(child));
+            GetNamesInScope(child, names);
         }
-
-        return names;
     }
 
     private List<DependencyObject> GetVisualChildren(DependencyObject element)
@@ -235,5 +246,24 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
             childCount = childCount,
             children = children.Count > 0 ? children : null
         };
+    }
+}
+
+/// <summary>
+/// Reference equality comparer for HashSet
+/// Uses reference equality instead of value equality for DependencyObject comparisons
+/// </summary>
+internal class ReferenceEqualityComparer : IEqualityComparer<DependencyObject>
+{
+    public static readonly ReferenceEqualityComparer Instance = new ReferenceEqualityComparer();
+
+    public bool Equals(DependencyObject? x, DependencyObject? y)
+    {
+        return ReferenceEquals(x, y);
+    }
+
+    public int GetHashCode(DependencyObject obj)
+    {
+        return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
     }
 }

@@ -29,6 +29,10 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     private static int _changeLogCount = 0;
     private const int MaxChangeLogEntries = 10000;
 
+    /// <summary>
+    /// Create a new DependencyPropertyAnalyzer instance
+    /// </summary>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public DependencyPropertyAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;
@@ -165,6 +169,7 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 var targetType = dp.PropertyType;
                 var convertedValue = ConvertValue(value, targetType);
 
+                System.Diagnostics.Trace.WriteLine($"[AUDIT] DependencyProperty '{propertyName}' set on element '{elementId ?? "root"}'");
                 depObj.SetValue(dp, convertedValue);
                 return new { success = true, message = $"Property '{propertyName}' set successfully" };
             }
@@ -257,9 +262,15 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 var descriptor = DependencyPropertyDescriptor.FromProperty(dp, depObj.GetType());
                 if (descriptor != null)
                 {
+                    // SECURITY: Use WeakReference to prevent memory leak
+                    // The closure must NOT capture depObj directly, as that creates
+                    // a strong reference preventing GC of the element
+                    var weakElement = new WeakReference<DependencyObject>(depObj);
                     EventHandler handler = (sender, e) =>
                     {
-                        var newValue = depObj.GetValue(dp);
+                        if (!weakElement.TryGetTarget(out var element))
+                            return;
+                        var newValue = element.GetValue(dp);
                         _changeLog.Enqueue(new
                         {
                             timestamp = DateTime.UtcNow,

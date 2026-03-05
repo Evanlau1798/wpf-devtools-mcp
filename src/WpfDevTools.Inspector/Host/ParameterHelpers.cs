@@ -7,6 +7,21 @@ namespace WpfDevTools.Inspector.Host;
 /// </summary>
 public static class ParameterHelpers
 {
+    private const int MaxJsonSizeBytes = 1 * 1024 * 1024; // 1 MB limit for security
+
+    // SECURITY: Configure JsonSerializerOptions with depth and size limits
+    private static readonly JsonSerializerOptions SecureJsonOptions = new JsonSerializerOptions
+    {
+        MaxDepth = 32, // Prevent deeply nested JSON attacks
+        PropertyNameCaseInsensitive = true
+    };
+
+    /// <summary>
+    /// Get string parameter from JSON arguments
+    /// </summary>
+    /// <param name="params">JSON parameters</param>
+    /// <param name="name">Parameter name</param>
+    /// <returns>String value if found, null otherwise</returns>
     public static string? GetStringParam(JsonElement? @params, string name)
     {
         if (@params == null || !@params.HasValue)
@@ -22,6 +37,12 @@ public static class ParameterHelpers
         return null;
     }
 
+    /// <summary>
+    /// Get integer parameter from JSON arguments
+    /// </summary>
+    /// <param name="params">JSON parameters</param>
+    /// <param name="name">Parameter name</param>
+    /// <returns>Integer value if found, null otherwise</returns>
     public static int? GetIntParam(JsonElement? @params, string name)
     {
         if (@params == null || !@params.HasValue) return null;
@@ -33,6 +54,12 @@ public static class ParameterHelpers
         return null;
     }
 
+    /// <summary>
+    /// Get boolean parameter from JSON arguments
+    /// </summary>
+    /// <param name="params">JSON parameters</param>
+    /// <param name="name">Parameter name</param>
+    /// <returns>Boolean value if found, null otherwise</returns>
     public static bool? GetBoolParam(JsonElement? @params, string name)
     {
         if (@params == null || !@params.HasValue) return null;
@@ -44,13 +71,32 @@ public static class ParameterHelpers
         return null;
     }
 
+    /// <summary>
+    /// Get object parameter from JSON arguments and deserialize to type T
+    /// </summary>
+    /// <typeparam name="T">Type to deserialize to</typeparam>
+    /// <param name="params">JSON parameters</param>
+    /// <param name="name">Parameter name</param>
+    /// <returns>Deserialized object if found, default(T) otherwise</returns>
     public static T? GetObjectParam<T>(JsonElement? @params, string name)
     {
         if (@params == null || !@params.HasValue)
             return default;
 
         if (@params.Value.TryGetProperty(name, out var property))
-            return JsonSerializer.Deserialize<T>(property.GetRawText());
+        {
+            var rawText = property.GetRawText();
+
+            // SECURITY: Check size limit before deserialization to prevent memory exhaustion
+            if (rawText.Length > MaxJsonSizeBytes)
+            {
+                throw new InvalidOperationException(
+                    $"JSON payload too large: {rawText.Length} bytes (max: {MaxJsonSizeBytes} bytes)");
+            }
+
+            // SECURITY: Use SecureJsonOptions with MaxDepth = 32 to prevent stack overflow
+            return JsonSerializer.Deserialize<T>(rawText, SecureJsonOptions);
+        }
 
         return default;
     }

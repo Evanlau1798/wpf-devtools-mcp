@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -43,9 +45,15 @@ public class HttpTransport : ITransport, IDisposable
         {
             var builder = WebApplication.CreateBuilder();
 
-            // Use 127.0.0.1 instead of localhost for port 0 support
-            var host = _port == 0 ? "127.0.0.1" : "localhost";
-            builder.WebHost.UseUrls($"http://{host}:{_port}");
+            // SECURITY: Always bind to 127.0.0.1 to prevent external access
+            builder.WebHost.UseUrls($"http://127.0.0.1:{_port}");
+
+            // SECURITY: Enforce request body size limit at Kestrel level
+            // This prevents chunked transfer encoding bypass of Content-Length check
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.Limits.MaxRequestBodySize = MaxBodySizeBytes;
+            });
 
             // Disable logging for tests
             builder.Logging.ClearProviders();
@@ -59,8 +67,13 @@ public class HttpTransport : ITransport, IDisposable
                 var expectedToken = Environment.GetEnvironmentVariable("WPF_DEVTOOLS_AUTH_TOKEN");
                 if (!string.IsNullOrEmpty(expectedToken))
                 {
-                    if (!context.Request.Headers.TryGetValue("Authorization", out var authHeader) ||
-                        (string?)authHeader != $"Bearer {expectedToken}")
+                    var actualHeader = (string?)context.Request.Headers["Authorization"] ?? "";
+                    var expectedHeader = $"Bearer {expectedToken}";
+                    // SECURITY: Use constant-time comparison to prevent timing attacks
+                    var isValid = CryptographicOperations.FixedTimeEquals(
+                        Encoding.UTF8.GetBytes(actualHeader),
+                        Encoding.UTF8.GetBytes(expectedHeader));
+                    if (!context.Request.Headers.TryGetValue("Authorization", out _) || !isValid)
                     {
                         context.Response.StatusCode = 401;
                         await context.Response.WriteAsync("Unauthorized. Set WPF_DEVTOOLS_AUTH_TOKEN environment variable and pass as Bearer token.");

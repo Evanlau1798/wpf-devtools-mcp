@@ -4,8 +4,13 @@ using WpfDevTools.Shared.Utilities;
 // Initialize components
 var logger = new FileLogger();
 var toolRegistry = new ToolRegistry();
-var sessionManager = new SessionManager();
+using var sessionManager = new SessionManager();
 var protocolHandler = new McpProtocolHandler(toolRegistry);
+
+// SECURITY: Global rate limiter to prevent STDIN message flooding
+var globalRateLimiter = new RateLimiter(
+    maxRequestsPerInterval: 100,
+    interval: TimeSpan.FromMinutes(1));
 
 logger.LogInfo("WPF DevTools MCP Server starting...");
 logger.LogInfo($"Log file: {logger.LogFilePath}");
@@ -36,7 +41,27 @@ try
         if (string.IsNullOrWhiteSpace(line))
             continue;
 
-        logger.LogDebug($"Received: {line}");
+        // SECURITY: Check global rate limit to prevent DoS
+        if (!globalRateLimiter.TryAcquire())
+        {
+            logger.LogWarning($"Global rate limit exceeded. Available tokens: {globalRateLimiter.GetAvailableTokens()}");
+
+            // Send error response for rate limit
+            var errorResponse = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                jsonrpc = "2.0",
+                id = (object?)null,
+                error = new
+                {
+                    code = -32000,
+                    message = "Rate limit exceeded. Maximum 100 requests per minute. Please slow down."
+                }
+            });
+            await writer.WriteLineAsync(errorResponse);
+            continue;
+        }
+
+        logger.LogDebug($"Received: ({line.Length} chars)");
 
         try
         {
@@ -44,7 +69,7 @@ try
             if (!string.IsNullOrEmpty(response))
             {
                 await writer.WriteLineAsync(response);
-                logger.LogDebug($"Sent: {response}");
+                logger.LogDebug($"Sent: ({response.Length} chars)");
             }
         }
         catch (Exception ex)

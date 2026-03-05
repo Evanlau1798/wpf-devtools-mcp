@@ -20,25 +20,46 @@ public class GetProcessesTool
     /// </summary>
     public Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        string? nameFilter = null;
-        if (arguments.HasValue && arguments.Value.TryGetProperty("nameFilter", out var filterProp))
-            nameFilter = filterProp.GetString();
-
-        var allProcesses = _detector.GetAllWpfProcesses();
-
-        var filteredProcesses = string.IsNullOrEmpty(nameFilter)
-            ? allProcesses
-            : allProcesses.Where(p => p.ProcessName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        var processes = filteredProcesses.Select(p => new
+        try
         {
-            processId = p.ProcessId,
-            processName = p.ProcessName,
-            windowTitle = p.WindowTitle,
-            architecture = p.Architecture.ToString(),
-            dotNetVersion = p.DotNetVersion
-        }).ToList();
+            string? nameFilter = null;
+            if (arguments.HasValue && arguments.Value.TryGetProperty("nameFilter", out var filterProp))
+                nameFilter = filterProp.GetString();
 
-        return Task.FromResult<object>(new { processes });
+            var allProcesses = _detector.GetAllWpfProcesses();
+
+            var filteredProcesses = string.IsNullOrEmpty(nameFilter)
+                ? allProcesses
+                : allProcesses.Where(p => p.ProcessName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            var processes = filteredProcesses.Select(p => new
+            {
+                processId = p.ProcessId,
+                processName = p.ProcessName,
+                windowTitle = p.WindowTitle,
+                architecture = p.Architecture.ToString(),
+                dotNetVersion = p.DotNetVersion
+            }).ToList();
+
+            if (processes.Count == 0)
+            {
+                return Task.FromResult<object>(new
+                {
+                    success = true,
+                    processes = Array.Empty<object>(),
+                    message = "No WPF processes found. Make sure a WPF application is running."
+                });
+            }
+
+            return Task.FromResult<object>(new { success = true, processes });
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult<object>(new
+            {
+                success = false,
+                error = $"Failed to enumerate processes: {ex.Message}"
+            });
+        }
     }
 }

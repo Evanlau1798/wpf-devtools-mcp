@@ -153,6 +153,31 @@ public class ParameterHelpersTests
         result.Nested!.Id.Should().Be(5);
     }
 
+    [Fact]
+    public void GetObjectParam_WithDeeplyNestedJson_ShouldThrow()
+    {
+        // Arrange: Create deeply nested JSON (depth > 32)
+        var deeplyNested = "{ \"level\": ";
+        for (int i = 0; i < 40; i++)
+        {
+            deeplyNested += "{ \"nested\": ";
+        }
+        deeplyNested += "\"value\"";
+        for (int i = 0; i < 40; i++)
+        {
+            deeplyNested += " }";
+        }
+        deeplyNested += " }";
+
+        // Create wrapper JSON with the deeply nested structure as actual JSON (not string)
+        var wrapperJson = $"{{ \"data\": {deeplyNested} }}";
+        var json = JsonSerializer.Deserialize<JsonElement>(wrapperJson);
+
+        // Act & Assert: Should throw JsonException due to MaxDepth limit
+        Action act = () => ParameterHelpers.GetObjectParam<object>(json, "data");
+        act.Should().Throw<JsonException>();
+    }
+
     private class TestObject
     {
         public string? Name { get; set; }

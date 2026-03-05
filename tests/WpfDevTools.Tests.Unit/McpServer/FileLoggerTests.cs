@@ -4,7 +4,7 @@ using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
-public class FileLoggerTests : IDisposable
+public class FileLoggerTests : IAsyncDisposable
 {
     private readonly string _testLogPath;
     private readonly FileLogger _logger;
@@ -15,8 +15,11 @@ public class FileLoggerTests : IDisposable
         _logger = new FileLogger(_testLogPath);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        // Dispose logger to flush queue
+        await _logger.DisposeAsync();
+
         // Cleanup test log files
         try
         {
@@ -32,10 +35,13 @@ public class FileLoggerTests : IDisposable
     }
 
     [Fact]
-    public void LogInfo_ShouldWriteToFile()
+    public async Task LogInfo_ShouldWriteToFile()
     {
         // Act
         _logger.LogInfo("Test info message");
+
+        // Wait for background queue to process
+        await Task.Delay(100);
 
         // Assert
         File.Exists(_testLogPath).Should().BeTrue();
@@ -45,10 +51,13 @@ public class FileLoggerTests : IDisposable
     }
 
     [Fact]
-    public void LogError_ShouldWriteToFile()
+    public async Task LogError_ShouldWriteToFile()
     {
         // Act
         _logger.LogError("Test error message");
+
+        // Wait for background queue to process
+        await Task.Delay(100);
 
         // Assert
         File.Exists(_testLogPath).Should().BeTrue();
@@ -58,10 +67,13 @@ public class FileLoggerTests : IDisposable
     }
 
     [Fact]
-    public void LogDebug_ShouldWriteToFile()
+    public async Task LogDebug_ShouldWriteToFile()
     {
         // Act
         _logger.LogDebug("Test debug message");
+
+        // Wait for background queue to process
+        await Task.Delay(100);
 
         // Assert
         File.Exists(_testLogPath).Should().BeTrue();
@@ -71,10 +83,13 @@ public class FileLoggerTests : IDisposable
     }
 
     [Fact]
-    public void Log_ShouldIncludeTimestamp()
+    public async Task Log_ShouldIncludeTimestamp()
     {
         // Act
         _logger.LogInfo("Test message");
+
+        // Wait for background queue to process
+        await Task.Delay(100);
 
         // Assert
         var content = File.ReadAllText(_testLogPath);
@@ -83,12 +98,15 @@ public class FileLoggerTests : IDisposable
     }
 
     [Fact]
-    public void Log_WithMultipleMessages_ShouldAppendToFile()
+    public async Task Log_WithMultipleMessages_ShouldAppendToFile()
     {
         // Act
         _logger.LogInfo("Message 1");
         _logger.LogInfo("Message 2");
         _logger.LogInfo("Message 3");
+
+        // Wait for background queue to process
+        await Task.Delay(200);
 
         // Assert
         var content = File.ReadAllText(_testLogPath);
@@ -107,6 +125,9 @@ public class FileLoggerTests : IDisposable
 
         await Task.WhenAll(tasks);
 
+        // Wait for background queue to process
+        await Task.Delay(500);
+
         // Assert
         var content = File.ReadAllText(_testLogPath);
         for (int i = 0; i < 10; i++)
@@ -116,7 +137,7 @@ public class FileLoggerTests : IDisposable
     }
 
     [Fact]
-    public void LogRotation_WhenFileSizeExceeds10MB_ShouldRotate()
+    public async Task LogRotation_WhenFileSizeExceeds10MB_ShouldRotate()
     {
         // Arrange - write large messages to exceed 10MB
         var largeMessage = new string('X', 1024 * 1024); // 1MB message
@@ -126,6 +147,9 @@ public class FileLoggerTests : IDisposable
         {
             _logger.LogInfo(largeMessage);
         }
+
+        // Wait for background queue to process all messages
+        await Task.Delay(2000);
 
         // Assert - old file should exist
         File.Exists(_testLogPath + ".old").Should().BeTrue();
@@ -137,7 +161,7 @@ public class FileLoggerTests : IDisposable
     }
 
     [Fact]
-    public void LogRotation_WhenOldFileExists_ShouldDeleteOldFile()
+    public async Task LogRotation_WhenOldFileExists_ShouldDeleteOldFile()
     {
         // Arrange - create an existing .old file
         File.WriteAllText(_testLogPath + ".old", "Old content");
@@ -148,6 +172,9 @@ public class FileLoggerTests : IDisposable
         {
             _logger.LogInfo(largeMessage);
         }
+
+        // Wait for background queue to process all messages
+        await Task.Delay(2000);
 
         // Assert - old file should be replaced
         File.Exists(_testLogPath + ".old").Should().BeTrue();

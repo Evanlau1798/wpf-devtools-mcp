@@ -15,6 +15,10 @@ public class LayoutAnalyzer : DispatcherAnalyzerBase
     private readonly ElementFinder _elementFinder;
     private static readonly ConcurrentDictionary<string, Border> _highlights = new();
 
+    /// <summary>
+    /// Create a new LayoutAnalyzer instance
+    /// </summary>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public LayoutAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;

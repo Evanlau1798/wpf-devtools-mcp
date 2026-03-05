@@ -10,11 +10,19 @@ public class LayoutHandlers : IRequestHandler
 {
     private readonly LayoutAnalyzer _layoutAnalyzer;
 
+    /// <summary>
+    /// Create a new LayoutHandlers instance
+    /// </summary>
+    /// <param name="layoutAnalyzer">Layout analyzer for layout operations</param>
     public LayoutHandlers(LayoutAnalyzer layoutAnalyzer)
     {
         _layoutAnalyzer = layoutAnalyzer;
     }
 
+    /// <summary>
+    /// Get list of supported method names
+    /// </summary>
+    /// <returns>Enumerable of method names this handler supports</returns>
     public IEnumerable<string> GetSupportedMethods()
     {
         return new[]
@@ -26,6 +34,14 @@ public class LayoutHandlers : IRequestHandler
         };
     }
 
+    /// <summary>
+    /// Handle an Inspector request
+    /// </summary>
+    /// <param name="method">Method name to execute</param>
+    /// <param name="params">JSON parameters for the method</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result object from method execution</returns>
+    /// <exception cref="InvalidOperationException">Thrown when method is not supported</exception>
     public async Task<object> HandleAsync(string method, JsonElement? @params, CancellationToken cancellationToken)
     {
         return method switch

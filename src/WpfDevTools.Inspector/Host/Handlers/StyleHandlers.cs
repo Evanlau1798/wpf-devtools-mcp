@@ -10,11 +10,19 @@ public class StyleHandlers : IRequestHandler
 {
     private readonly StyleAnalyzer _styleAnalyzer;
 
+    /// <summary>
+    /// Create a new StyleHandlers instance
+    /// </summary>
+    /// <param name="styleAnalyzer">Style analyzer for style and template operations</param>
     public StyleHandlers(StyleAnalyzer styleAnalyzer)
     {
         _styleAnalyzer = styleAnalyzer;
     }
 
+    /// <summary>
+    /// Get list of supported method names
+    /// </summary>
+    /// <returns>Enumerable of method names this handler supports</returns>
     public IEnumerable<string> GetSupportedMethods()
     {
         return new[]
@@ -27,6 +35,14 @@ public class StyleHandlers : IRequestHandler
         };
     }
 
+    /// <summary>
+    /// Handle an Inspector request
+    /// </summary>
+    /// <param name="method">Method name to execute</param>
+    /// <param name="params">JSON parameters for the method</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result object from method execution</returns>
+    /// <exception cref="InvalidOperationException">Thrown when method is not supported</exception>
     public async Task<object> HandleAsync(string method, JsonElement? @params, CancellationToken cancellationToken)
     {
         return method switch

@@ -1,3 +1,7 @@
+// Portions of this code are derived from Snoop WPF (https://github.com/snoopwpf/snoopwpf)
+// Licensed under Microsoft Public License (Ms-PL)
+// See LICENSE file for full Ms-PL license text
+
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
@@ -7,9 +11,9 @@ using WpfDevTools.Shared.Enums;
 namespace WpfDevTools.Injector.Injection;
 
 /// <summary>
-/// Injects DLL into target process using CreateRemoteThread
-/// Based on Snoop's injection mechanism
-/// Excluded from code coverage: requires P/Invoke calls to inject into real processes
+/// Injects DLL into target process using CreateRemoteThread.
+/// Based on Snoop's injection mechanism (Ms-PL licensed).
+/// Excluded from code coverage: requires P/Invoke calls to inject into real processes.
 /// </summary>
 [ExcludeFromCodeCoverage]
 public class DllInjector

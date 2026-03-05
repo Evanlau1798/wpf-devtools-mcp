@@ -13,6 +13,7 @@ public class WpfProcessDetector
 
     /// <summary>
     /// Get all WPF processes currently running
+    /// Optimized: Filter by MainWindowHandle first to avoid expensive checks on non-GUI processes
     /// </summary>
     public IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses()
     {
@@ -23,6 +24,14 @@ public class WpfProcessDetector
         {
             try
             {
+                // OPTIMIZATION: Filter early by MainWindowHandle
+                // Most processes don't have a window, so this eliminates ~90% immediately
+                if (process.MainWindowHandle == IntPtr.Zero)
+                {
+                    process.Dispose();
+                    continue;
+                }
+
                 var info = GetProcessInfo(process.Id);
                 if (info != null && info.IsWpfApplication)
                 {

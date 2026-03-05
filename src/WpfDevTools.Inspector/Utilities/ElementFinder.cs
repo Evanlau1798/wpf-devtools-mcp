@@ -5,6 +5,9 @@ using System.Windows.Media;
 
 namespace WpfDevTools.Inspector.Utilities;
 
+/// <summary>
+/// Utility for finding and tracking WPF elements by ID
+/// </summary>
 public class ElementFinder
 {
     // Static to ensure unique IDs across all ElementFinder instances.
@@ -16,11 +19,20 @@ public class ElementFinder
     private int _registrationCount = 0;
     private const int CleanupThreshold = 1000;
 
+    /// <summary>
+    /// Get the root element of the WPF application
+    /// </summary>
+    /// <returns>Root DependencyObject (typically MainWindow), or null if not available</returns>
     public DependencyObject? GetRootElement()
     {
         return Application.Current?.MainWindow;
     }
 
+    /// <summary>
+    /// Generate a unique ID for a WPF element
+    /// </summary>
+    /// <param name="element">Element to generate ID for</param>
+    /// <returns>Unique element ID string</returns>
     public string GenerateElementId(DependencyObject element)
     {
         var elementId = _objectToIdCache.GetOrAdd(element, e =>
@@ -43,7 +55,9 @@ public class ElementFinder
     }
 
     /// <summary>
-    /// Remove dead WeakReferences from the cache
+    /// Remove dead WeakReferences from both caches to prevent memory leaks.
+    /// _objectToIdCache holds strong references as keys, so GC'd elements must
+    /// be removed from both caches to allow proper garbage collection.
     /// </summary>
     private void CleanupDeadReferences()
     {
@@ -61,8 +75,29 @@ public class ElementFinder
         {
             _elementCache.TryRemove(key, out _);
         }
+
+        // Also clean _objectToIdCache: remove entries whose IDs are no longer in _elementCache
+        var deadObjects = new List<DependencyObject>();
+        foreach (var kvp in _objectToIdCache)
+        {
+            if (!_elementCache.ContainsKey(kvp.Value))
+            {
+                deadObjects.Add(kvp.Key);
+            }
+        }
+
+        foreach (var obj in deadObjects)
+        {
+            _objectToIdCache.TryRemove(obj, out _);
+        }
     }
 
+    /// <summary>
+    /// Find element by ID in the Visual Tree
+    /// </summary>
+    /// <param name="elementId">Element ID to search for. If null or empty, returns root element.</param>
+    /// <param name="root">Root element to start search from. If null, uses application root.</param>
+    /// <returns>Found DependencyObject, or null if not found</returns>
     public DependencyObject? FindById(string? elementId, DependencyObject? root = null)
     {
         if (string.IsNullOrEmpty(elementId))

@@ -10,11 +10,19 @@ public class DependencyPropertyHandlers : IRequestHandler
 {
     private readonly DependencyPropertyAnalyzer _dependencyPropertyAnalyzer;
 
+    /// <summary>
+    /// Create a new DependencyPropertyHandlers instance
+    /// </summary>
+    /// <param name="dependencyPropertyAnalyzer">DependencyProperty analyzer</param>
     public DependencyPropertyHandlers(DependencyPropertyAnalyzer dependencyPropertyAnalyzer)
     {
         _dependencyPropertyAnalyzer = dependencyPropertyAnalyzer;
     }
 
+    /// <summary>
+    /// Get list of supported method names
+    /// </summary>
+    /// <returns>Enumerable of method names this handler supports</returns>
     public IEnumerable<string> GetSupportedMethods()
     {
         return new[]
@@ -27,6 +35,14 @@ public class DependencyPropertyHandlers : IRequestHandler
         };
     }
 
+    /// <summary>
+    /// Handle an Inspector request
+    /// </summary>
+    /// <param name="method">Method name to execute</param>
+    /// <param name="params">JSON parameters for the method</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result object from method execution</returns>
+    /// <exception cref="InvalidOperationException">Thrown when method is not supported</exception>
     public async Task<object> HandleAsync(string method, JsonElement? @params, CancellationToken cancellationToken)
     {
         return method switch

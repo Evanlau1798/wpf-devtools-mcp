@@ -25,4 +25,11 @@ public sealed class InspectorRequest
     /// </summary>
     [JsonPropertyName("params")]
     public JsonElement? Params { get; init; }
+
+    /// <summary>
+    /// Correlation ID for tracing requests across the entire call chain
+    /// Optional - used for observability and debugging
+    /// </summary>
+    [JsonPropertyName("correlationId")]
+    public string? CorrelationId { get; init; }
 }

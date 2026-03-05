@@ -218,22 +218,30 @@ Once configured, AI agents can interact with WPF applications using natural lang
 
 ## Architecture
 
-```
-AI Agent (Claude Code/Cursor/etc)
-    ↓ MCP Protocol (STDIO/HTTP+SSE)
-MCP Server (Tool Router, Session Manager)
-    ↓ Named Pipes IPC (0.1-1ms latency)
-Injected Inspector DLL (In-Process)
-    ↓ Direct Memory Access
-Target WPF Application
+```mermaid
+graph TB
+    Agent[AI Agent<br/>Claude Code/Cursor/etc]
+    MCP[MCP Server<br/>Tool Router + Session Manager]
+    Inspector[Inspector DLL<br/>In-Process]
+    WPF[Target WPF Application<br/>Visual Tree + Bindings]
+
+    Agent -->|MCP Protocol<br/>STDIO/HTTP+SSE| MCP
+    MCP -->|Named Pipes IPC<br/>0.1-1ms latency| Inspector
+    Inspector -->|Direct Memory Access<br/>Dispatcher.Invoke| WPF
+
+    style Agent fill:#e1f5ff
+    style MCP fill:#fff4e1
+    style Inspector fill:#ffe1f5
+    style WPF fill:#e1ffe1
 ```
 
 ### Key Design Decisions
 
-- **In-Process Injection**: Required for accessing WPF internals
-- **Named Pipes**: Message mode with length-prefix framing
+- **In-Process Injection**: Required for accessing WPF internals (see [ADR-002](docs/architecture/ADR-002-in-process-injection.md))
+- **Named Pipes**: Message mode with length-prefix framing (see [ADR-001](docs/architecture/ADR-001-named-pipes-for-ipc.md) and [ADR-003](docs/architecture/ADR-003-length-prefix-framing.md))
 - **UI Thread Marshalling**: All Visual Tree operations use `Dispatcher.Invoke()`
 - **Token Efficiency**: All tools support `depth`, `filter`, `compact` parameters
+- **Multi-Targeting**: Supports .NET 8.0 and .NET Framework 4.8 (see [ADR-005](docs/architecture/ADR-005-multi-targeting-strategy.md))
 
 ## MCP Tools (44 Total)
 

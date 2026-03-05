@@ -5,6 +5,7 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public class SessionManager : IDisposable
 {
+    private const int MaxSessions = 50;
     private bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
@@ -32,8 +33,8 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Check if request is allowed under rate limit
     /// </summary>
-    /// <param name="processId">Process ID</param>
-    /// <returns>True if allowed, false if rate limit exceeded</returns>
+    /// <param name="processId">Process ID to check rate limit for</param>
+    /// <returns>True if request is allowed, false if rate limit exceeded</returns>
     public bool CheckRateLimit(int processId)
     {
         return _rateLimiter.TryAcquire(processId);
@@ -42,6 +43,8 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Get available request tokens for monitoring
     /// </summary>
+    /// <param name="processId">Process ID to check available tokens for</param>
+    /// <returns>Number of available request tokens</returns>
     public int GetAvailableTokens(int processId)
     {
         return _rateLimiter.GetAvailableTokens(processId);
@@ -50,10 +53,17 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Add a new session
     /// </summary>
+    /// <param name="processId">Process ID to create session for</param>
+    /// <exception cref="InvalidOperationException">Thrown when maximum session limit is reached or session already exists</exception>
     public void AddSession(int processId)
     {
         lock (_lock)
         {
+            if (_sessions.Count >= MaxSessions)
+            {
+                throw new InvalidOperationException($"Maximum session limit ({MaxSessions}) reached. Remove existing sessions before adding new ones.");
+            }
+
             if (_sessions.ContainsKey(processId))
             {
                 throw new InvalidOperationException($"Session for process {processId} already exists");
@@ -72,6 +82,7 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Remove a session
     /// </summary>
+    /// <param name="processId">Process ID of session to remove</param>
     public void RemoveSession(int processId)
     {
         lock (_lock)
@@ -91,6 +102,8 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Get the NamedPipeClient for a given process
     /// </summary>
+    /// <param name="processId">Process ID to get pipe client for</param>
+    /// <returns>NamedPipeClient instance if session exists, null otherwise</returns>
     public NamedPipeClient? GetPipeClient(int processId)
     {
         lock (_lock)
@@ -102,6 +115,8 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Check if session exists
     /// </summary>
+    /// <param name="processId">Process ID to check</param>
+    /// <returns>True if session exists, false otherwise</returns>
     public bool HasSession(int processId)
     {
         lock (_lock)
@@ -113,6 +128,7 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Get count of active sessions
     /// </summary>
+    /// <returns>Number of active sessions</returns>
     public int GetActiveSessionCount()
     {
         lock (_lock)
@@ -124,6 +140,7 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Get all active session process IDs
     /// </summary>
+    /// <returns>Read-only list of process IDs for all active sessions</returns>
     public IReadOnlyList<int> GetAllSessions()
     {
         lock (_lock)
@@ -135,6 +152,7 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Update last activity time for session by replacing with a new immutable instance
     /// </summary>
+    /// <param name="processId">Process ID of session to update</param>
     public void UpdateLastActivity(int processId)
     {
         lock (_lock)
@@ -153,6 +171,8 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Get last activity time for session
     /// </summary>
+    /// <param name="processId">Process ID to get last activity time for</param>
+    /// <returns>Last activity time in UTC, or DateTime.MinValue if session does not exist</returns>
     public DateTime GetLastActivityTime(int processId)
     {
         lock (_lock)
@@ -166,6 +186,8 @@ public class SessionManager : IDisposable
     /// <summary>
     /// Get sessions that have been idle for longer than specified timeout
     /// </summary>
+    /// <param name="idleTimeout">Idle timeout duration</param>
+    /// <returns>Read-only list of process IDs for idle sessions</returns>
     public IReadOnlyList<int> GetIdleSessions(TimeSpan idleTimeout)
     {
         lock (_lock)
@@ -175,6 +197,56 @@ public class SessionManager : IDisposable
                 .Where(kvp => now - kvp.Value.LastActivity > idleTimeout)
                 .Select(kvp => kvp.Key)
                 .ToList();
+        }
+    }
+
+    /// <summary>
+    /// Clean up sessions for processes that no longer exist
+    /// CRITICAL FIX: Prevents memory leak from dead sessions
+    /// </summary>
+    private void CleanupDeadSessions()
+    {
+        List<int> deadProcessIds;
+
+        lock (_lock)
+        {
+            deadProcessIds = new List<int>();
+
+            foreach (var processId in _sessions.Keys)
+            {
+                if (!IsProcessAlive(processId))
+                {
+                    deadProcessIds.Add(processId);
+                }
+            }
+        }
+
+        // Remove dead sessions outside the lock to avoid holding lock during disposal
+        foreach (var processId in deadProcessIds)
+        {
+            RemoveSession(processId);
+        }
+    }
+
+    /// <summary>
+    /// Check if a process is still running
+    /// </summary>
+    private static bool IsProcessAlive(int processId)
+    {
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(processId);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            // Process doesn't exist
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            // Process has exited
+            return false;
         }
     }
 

@@ -18,8 +18,30 @@ public class ToolDefinition
     public required string Description { get; init; }
 
     /// <summary>
-    /// JSON schema for tool parameters
+    /// JSON schema for tool parameters (JSON Schema Draft 2020-12 format).
+    /// Defines the structure and validation rules for tool input parameters.
     /// </summary>
+    /// <remarks>
+    /// Example schema:
+    /// <code>
+    /// new {
+    ///     type = "object",
+    ///     properties = new {
+    ///         processId = new {
+    ///             type = "integer",
+    ///             description = "Process ID of target WPF application"
+    ///         },
+    ///         elementId = new {
+    ///             type = "string",
+    ///             description = "Optional element ID to inspect"
+    ///         }
+    ///     },
+    ///     required = new[] { "processId" }
+    /// }
+    /// </code>
+    /// The schema follows JSON Schema Draft 2020-12 specification.
+    /// See: https://json-schema.org/draft/2020-12/json-schema-core.html
+    /// </remarks>
     public required object Parameters { get; init; }
 
     /// <summary>

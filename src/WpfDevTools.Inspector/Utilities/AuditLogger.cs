@@ -7,6 +7,12 @@ namespace WpfDevTools.Inspector.Utilities;
 /// </summary>
 public interface IAuditLoggerService
 {
+    /// <summary>
+    /// Log a security audit event
+    /// </summary>
+    /// <param name="category">Event category</param>
+    /// <param name="message">Event message</param>
+    /// <param name="severity">Event severity level</param>
     void LogSecurityEvent(string category, string message, AuditSeverity severity = AuditSeverity.Information);
 }
 
@@ -17,11 +23,22 @@ public class AuditLoggerService : IAuditLoggerService
 {
     private readonly IAuditLogger _logger;
 
+    /// <summary>
+    /// Create a new AuditLoggerService instance
+    /// </summary>
+    /// <param name="logger">Underlying audit logger implementation</param>
+    /// <exception cref="ArgumentNullException">Thrown when logger is null</exception>
     public AuditLoggerService(IAuditLogger logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    /// <summary>
+    /// Log a security audit event
+    /// </summary>
+    /// <param name="category">Event category</param>
+    /// <param name="message">Event message</param>
+    /// <param name="severity">Event severity level</param>
     public void LogSecurityEvent(string category, string message, AuditSeverity severity = AuditSeverity.Information)
     {
         _logger.Log(category, message, severity);
@@ -65,6 +82,12 @@ public static class AuditLogger
 /// </summary>
 public interface IAuditLogger
 {
+    /// <summary>
+    /// Log an audit event
+    /// </summary>
+    /// <param name="category">Event category</param>
+    /// <param name="message">Event message</param>
+    /// <param name="severity">Event severity level</param>
     void Log(string category, string message, AuditSeverity severity);
 }
 
@@ -73,8 +96,11 @@ public interface IAuditLogger
 /// </summary>
 public enum AuditSeverity
 {
+    /// <summary>Informational event</summary>
     Information,
+    /// <summary>Warning event</summary>
     Warning,
+    /// <summary>Error event</summary>
     Error
 }
 
@@ -83,6 +109,12 @@ public enum AuditSeverity
 /// </summary>
 public class TraceAuditLogger : IAuditLogger
 {
+    /// <summary>
+    /// Log an audit event to System.Diagnostics.Trace
+    /// </summary>
+    /// <param name="category">Event category</param>
+    /// <param name="message">Event message</param>
+    /// <param name="severity">Event severity level</param>
     public void Log(string category, string message, AuditSeverity severity)
     {
         var severityStr = severity switch
@@ -108,6 +140,12 @@ public class EventLogAuditLogger : IAuditLogger
     private static bool _sourceAvailable = false;
     private static readonly object _sourceLock = new object();
 
+    /// <summary>
+    /// Log an audit event to Windows Event Log
+    /// </summary>
+    /// <param name="category">Event category</param>
+    /// <param name="message">Event message</param>
+    /// <param name="severity">Event severity level</param>
     public void Log(string category, string message, AuditSeverity severity)
     {
         try

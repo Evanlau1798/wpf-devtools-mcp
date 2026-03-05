@@ -2,8 +2,16 @@ using System.Windows.Media;
 
 namespace WpfDevTools.Inspector.Utilities;
 
+/// <summary>
+/// Helper methods for serializing WPF property values
+/// </summary>
 public static class SerializationHelper
 {
+    /// <summary>
+    /// Serialize a property value to a JSON-friendly format
+    /// </summary>
+    /// <param name="value">Value to serialize</param>
+    /// <returns>Serialized value suitable for JSON, or null if value is null</returns>
     public static object? SerializePropertyValue(object? value)
     {
         if (value == null)

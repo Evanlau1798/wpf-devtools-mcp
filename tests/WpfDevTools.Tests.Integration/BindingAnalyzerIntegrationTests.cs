@@ -66,11 +66,8 @@ public class BindingAnalyzerIntegrationTests
 
             Application.Current.MainWindow.Content = textBox;
 
-            // Force binding evaluation
+            // Force binding evaluation (synchronous)
             textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
-
-            // Small delay to allow error to be captured
-            System.Threading.Thread.Sleep(100);
 
             return analyzer.GetBindingErrors(clearAfterRead: false);
         });

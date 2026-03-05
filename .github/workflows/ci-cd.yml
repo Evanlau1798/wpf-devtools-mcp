@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ main, master ]
 
 jobs:
   build-and-test:
@@ -70,7 +70,7 @@ jobs:
 
   build-nuget:
     runs-on: windows-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
     steps:
     - name: Checkout code

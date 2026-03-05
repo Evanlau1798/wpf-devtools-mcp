@@ -26,6 +26,10 @@ public class InspectorHost : IDisposable
     private bool _isRunning;
     private readonly object _lock = new object();
 
+    /// <summary>
+    /// Create a new InspectorHost instance
+    /// </summary>
+    /// <param name="processId">Process ID of the target WPF application</param>
     public InspectorHost(int processId)
     {
         _processId = processId;
@@ -37,6 +41,9 @@ public class InspectorHost : IDisposable
     /// <summary>
     /// Start the Named Pipe server
     /// </summary>
+    /// <remarks>
+    /// This method is idempotent - calling it multiple times has no effect if server is already running.
+    /// </remarks>
     public void Start()
     {
         lock (_lock)
@@ -55,6 +62,10 @@ public class InspectorHost : IDisposable
     /// <summary>
     /// Stop the Named Pipe server
     /// </summary>
+    /// <remarks>
+    /// This method is idempotent - calling it multiple times has no effect if server is already stopped.
+    /// Waits up to ShutdownTimeout for server task to complete, then disposes resources.
+    /// </remarks>
     public void Stop()
     {
         Task? taskToWait = null;
@@ -69,7 +80,16 @@ public class InspectorHost : IDisposable
             _isRunning = false;
             taskToWait = _serverTask;
         }
-        taskToWait?.Wait(InspectorConfig.ShutdownTimeout);
+
+        // CRITICAL FIX: Check Wait() return value and log timeout
+        if (taskToWait != null)
+        {
+            bool completed = taskToWait.Wait(InspectorConfig.ShutdownTimeout);
+            if (!completed)
+            {
+                LogError($"Server task did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout");
+            }
+        }
 
         // Dispose pipe server after task completes
         lock (_lock)
@@ -214,6 +234,10 @@ public class InspectorHost : IDisposable
         {
             // Client disconnected
         }
+        catch (ObjectDisposedException)
+        {
+            // Pipe was disposed during shutdown - normal cleanup path
+        }
         catch (Exception ex)
         {
             LogError($"Client handling error: {ex.Message}");
@@ -279,12 +303,17 @@ public class InspectorHost : IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets whether the Inspector server is currently running
+    /// </summary>
     public bool IsRunning => _isRunning;
 
+    /// <summary>
+    /// Dispose resources and stop the Inspector server
+    /// </summary>
     public void Dispose()
     {
-        Stop();
+        Stop(); // Stop() already disposes _pipeServer
         _cancellationTokenSource?.Dispose();
-        _pipeServer?.Dispose();
     }
 }

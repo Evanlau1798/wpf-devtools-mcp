@@ -23,6 +23,12 @@ public class ConnectTool
     /// <summary>
     /// Create ConnectTool with dependency injection
     /// </summary>
+    /// <param name="sessionManager">Session manager for tracking active connections</param>
+    /// <param name="injector">Process injector for DLL injection</param>
+    /// <param name="inspectorDllPath">Optional path to Inspector DLL. If null, uses default location.</param>
+    /// <exception cref="ArgumentNullException">Thrown when sessionManager or injector is null</exception>
+    /// <exception cref="FileNotFoundException">Thrown when specified Inspector DLL does not exist</exception>
+    /// <exception cref="ArgumentException">Thrown when DLL path validation fails</exception>
     public ConnectTool(SessionManager sessionManager, IProcessInjector injector, string? inspectorDllPath = null)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
@@ -42,14 +48,22 @@ public class ConnectTool
     /// <summary>
     /// Create ConnectTool (backward compatibility constructor)
     /// </summary>
+    /// <param name="sessionManager">Session manager for tracking active connections</param>
+    /// <param name="inspectorDllPath">Optional path to Inspector DLL. If null, uses default location.</param>
+    /// <exception cref="ArgumentNullException">Thrown when sessionManager is null</exception>
+    /// <exception cref="FileNotFoundException">Thrown when specified Inspector DLL does not exist</exception>
+    /// <exception cref="ArgumentException">Thrown when DLL path validation fails</exception>
     public ConnectTool(SessionManager sessionManager, string? inspectorDllPath = null)
         : this(sessionManager, new ProcessInjector(), inspectorDllPath)
     {
     }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the tool to connect to a WPF process
     /// </summary>
+    /// <param name="arguments">JSON arguments containing processId</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result object with success status and connection details</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         int? processId = null;
@@ -191,6 +205,8 @@ public class ConnectTool
     /// <summary>
     /// Validate DLL path to prevent security issues
     /// </summary>
+    /// <param name="dllPath">Path to DLL file to validate</param>
+    /// <exception cref="ArgumentException">Thrown when path is empty, not a .dll file, is a network path, not in application directory, or in system directories</exception>
     private static void ValidateDllPath(string dllPath)
     {
         if (string.IsNullOrWhiteSpace(dllPath))
@@ -230,8 +246,12 @@ public class ConnectTool
         }
 
         // SECURITY: Verify Authenticode signature (enabled by default for production)
-        // Set environment variable WPFDEVTOOLS_SKIP_SIGNATURE_CHECK=1 to disable (development only)
+#if DEBUG
+        // Only allow skipping signature check in DEBUG builds for development
         var skipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1";
+#else
+        const bool skipSignatureCheck = false;
+#endif
 
         if (!skipSignatureCheck)
         {
@@ -242,6 +262,8 @@ public class ConnectTool
     /// <summary>
     /// Verify Authenticode signature of the DLL with full certificate chain validation
     /// </summary>
+    /// <param name="filePath">Path to file to verify signature</param>
+    /// <exception cref="InvalidOperationException">Thrown when DLL is not signed, certificate chain validation fails, certificate is expired, or thumbprint mismatch</exception>
     private static void VerifyAuthenticodeSignature(string filePath)
     {
         try
@@ -255,10 +277,10 @@ public class ConnectTool
             }
 
             // Convert to X509Certificate2 for chain validation
-            var cert2 = new System.Security.Cryptography.X509Certificates.X509Certificate2(cert);
+            using var cert2 = new System.Security.Cryptography.X509Certificates.X509Certificate2(cert);
 
             // SECURITY: Verify certificate chain and trust
-            var chain = new System.Security.Cryptography.X509Certificates.X509Chain();
+            using var chain = new System.Security.Cryptography.X509Certificates.X509Chain();
             chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.Online;
             chain.ChainPolicy.RevocationFlag = System.Security.Cryptography.X509Certificates.X509RevocationFlag.EntireChain;
             chain.ChainPolicy.VerificationFlags = System.Security.Cryptography.X509Certificates.X509VerificationFlags.NoFlag;
@@ -272,8 +294,8 @@ public class ConnectTool
             }
 
             // SECURITY: Verify certificate is not expired
-            var now = DateTime.Now;
-            if (now < cert2.NotBefore || now > cert2.NotAfter)
+            var now = DateTime.UtcNow;
+            if (now < cert2.NotBefore.ToUniversalTime() || now > cert2.NotAfter.ToUniversalTime())
             {
                 throw new InvalidOperationException(
                     $"Certificate has expired or is not yet valid. Valid from {cert2.NotBefore} to {cert2.NotAfter}");
@@ -290,7 +312,6 @@ public class ConnectTool
                 }
             }
 
-            cert2.Dispose();
             cert.Dispose();
         }
         catch (System.Security.Cryptography.CryptographicException ex)

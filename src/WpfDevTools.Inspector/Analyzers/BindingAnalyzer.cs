@@ -15,6 +15,10 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     {
     }
 
+    /// <summary>
+    /// Create a new BindingAnalyzer instance
+    /// </summary>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public BindingAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;
@@ -23,6 +27,8 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Get all bindings for an element
     /// </summary>
+    /// <param name="elementId">Element ID to get bindings for. If null, uses root element.</param>
+    /// <returns>Result object containing success status and list of bindings</returns>
     public object GetBindings(string? elementId = null)
     {
         return InvokeOnUIThread<object>(() =>
@@ -51,6 +57,8 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// Get binding errors captured by PresentationTraceSources.
     /// Installs the trace listener if not already installed.
     /// </summary>
+    /// <param name="clearAfterRead">If true, clears error list after reading</param>
+    /// <returns>Result object containing success status, error count, and list of binding errors</returns>
     public object GetBindingErrors(bool clearAfterRead = false)
     {
         return InvokeOnUIThread<object>(() =>
@@ -85,6 +93,8 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Get DataContext chain for an element
     /// </summary>
+    /// <param name="elementId">Element ID to get DataContext chain for. If null, uses root element.</param>
+    /// <returns>Result object containing success status and DataContext chain from element to root</returns>
     public object GetDataContextChain(string? elementId = null)
     {
         return InvokeOnUIThread<object>(() =>
@@ -124,6 +134,9 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Get binding value resolution chain from source to target
     /// </summary>
+    /// <param name="element">DependencyObject to analyze</param>
+    /// <param name="propertyName">Name of property to get binding chain for</param>
+    /// <returns>Result object containing binding resolution chain details</returns>
     public object GetBindingValueChain(DependencyObject element, string propertyName)
     {
         return InvokeOnUIThread<object>(() => GetBindingValueChainCore(element, propertyName));
@@ -132,6 +145,10 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Force binding to update source or target
     /// </summary>
+    /// <param name="element">DependencyObject containing the binding</param>
+    /// <param name="propertyName">Name of property with binding to update</param>
+    /// <param name="direction">Update direction: "source" or "target"</param>
+    /// <returns>Result object containing success status and update details</returns>
     public object ForceBindingUpdate(DependencyObject element, string propertyName, string direction)
     {
         return InvokeOnUIThread<object>(() => ForceBindingUpdateCore(element, propertyName, direction));
@@ -140,6 +157,9 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Get binding value chain by elementId (resolves element on UI thread)
     /// </summary>
+    /// <param name="elementId">Element ID to analyze. If null, uses root element.</param>
+    /// <param name="propertyName">Name of property to get binding chain for</param>
+    /// <returns>Result object containing binding resolution chain details</returns>
     public object GetBindingValueChain(string? elementId, string propertyName)
     {
         return InvokeOnUIThread<object>(() =>
@@ -158,6 +178,10 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Force binding update by elementId (resolves element on UI thread)
     /// </summary>
+    /// <param name="elementId">Element ID containing the binding. If null, uses root element.</param>
+    /// <param name="propertyName">Name of property with binding to update</param>
+    /// <param name="direction">Update direction: "source" or "target"</param>
+    /// <returns>Result object containing success status and update details</returns>
     public object ForceBindingUpdate(string? elementId, string propertyName, string direction)
     {
         return InvokeOnUIThread<object>(() =>
@@ -176,6 +200,9 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Core implementation for GetBindingValueChain. Must be called on the UI thread.
     /// </summary>
+    /// <param name="element">DependencyObject to analyze</param>
+    /// <param name="propertyName">Name of property to get binding chain for</param>
+    /// <returns>Result object containing binding resolution chain details</returns>
     private object GetBindingValueChainCore(DependencyObject element, string propertyName)
     {
         if (element == null)
@@ -270,6 +297,10 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Core implementation for ForceBindingUpdate. Must be called on the UI thread.
     /// </summary>
+    /// <param name="element">DependencyObject containing the binding</param>
+    /// <param name="propertyName">Name of property with binding to update</param>
+    /// <param name="direction">Update direction: "source" or "target"</param>
+    /// <returns>Result object containing success status and update details</returns>
     private object ForceBindingUpdateCore(DependencyObject element, string propertyName, string direction)
     {
         if (element == null)

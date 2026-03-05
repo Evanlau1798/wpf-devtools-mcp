@@ -14,6 +14,13 @@ public class TreeHandlers : IRequestHandler
     private readonly XamlSerializer _xamlSerializer;
     private readonly ElementFinder _elementFinder;
 
+    /// <summary>
+    /// Create a new TreeHandlers instance
+    /// </summary>
+    /// <param name="visualTreeAnalyzer">Visual tree analyzer</param>
+    /// <param name="logicalTreeAnalyzer">Logical tree analyzer</param>
+    /// <param name="xamlSerializer">XAML serializer</param>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public TreeHandlers(
         VisualTreeAnalyzer visualTreeAnalyzer,
         LogicalTreeAnalyzer logicalTreeAnalyzer,
@@ -26,6 +33,10 @@ public class TreeHandlers : IRequestHandler
         _elementFinder = elementFinder;
     }
 
+    /// <summary>
+    /// Get list of supported method names
+    /// </summary>
+    /// <returns>Enumerable of method names this handler supports</returns>
     public IEnumerable<string> GetSupportedMethods()
     {
         return new[]
@@ -38,6 +49,14 @@ public class TreeHandlers : IRequestHandler
         };
     }
 
+    /// <summary>
+    /// Handle an Inspector request
+    /// </summary>
+    /// <param name="method">Method name to execute</param>
+    /// <param name="params">JSON parameters for the method</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result object from method execution</returns>
+    /// <exception cref="InvalidOperationException">Thrown when method is not supported</exception>
     public async Task<object> HandleAsync(string method, JsonElement? @params, CancellationToken cancellationToken)
     {
         return method switch

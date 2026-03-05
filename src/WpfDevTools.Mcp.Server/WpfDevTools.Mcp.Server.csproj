@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -6,6 +6,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn)</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.IO.Pipes" Version="4.3.0" />
+    <!-- System.IO.Pipes v4.3.0 removed - included in .NET 8.0 by default (fixes CVE-2017-0248, CVE-2017-0247) -->
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
   </ItemGroup>
 

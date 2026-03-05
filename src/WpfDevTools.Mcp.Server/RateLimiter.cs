@@ -114,10 +114,11 @@ public interface IRateLimiterManager
 /// </summary>
 public class RateLimiterManager : IRateLimiterManager
 {
-    private readonly Dictionary<int, RateLimiter> _limiters = new();
+    private readonly Dictionary<int, (RateLimiter Limiter, DateTime LastAccessed)> _limiters = new();
     private readonly object _lock = new object();
     private readonly int _maxRequestsPerMinute;
     private readonly TimeSpan _interval;
+    private const int MaxEntries = 1000;
 
     /// <summary>
     /// Create rate limiter manager
@@ -138,13 +139,21 @@ public class RateLimiterManager : IRateLimiterManager
     {
         lock (_lock)
         {
-            if (!_limiters.TryGetValue(processId, out var limiter))
+            if (!_limiters.TryGetValue(processId, out var entry))
             {
-                limiter = new RateLimiter(_maxRequestsPerMinute, _interval);
-                _limiters[processId] = limiter;
+                // Evict oldest entries if over limit before adding new one
+                if (_limiters.Count >= MaxEntries)
+                {
+                    EvictOldestEntries(_limiters.Count - MaxEntries + 1);
+                }
+
+                var limiter = new RateLimiter(_maxRequestsPerMinute, _interval);
+                _limiters[processId] = (limiter, DateTime.UtcNow);
+                return limiter.TryAcquire();
             }
 
-            return limiter.TryAcquire();
+            _limiters[processId] = (entry.Limiter, DateTime.UtcNow);
+            return entry.Limiter.TryAcquire();
         }
     }
 
@@ -166,11 +175,52 @@ public class RateLimiterManager : IRateLimiterManager
     {
         lock (_lock)
         {
-            if (_limiters.TryGetValue(processId, out var limiter))
+            if (_limiters.TryGetValue(processId, out var entry))
             {
-                return limiter.GetAvailableTokens();
+                return entry.Limiter.GetAvailableTokens();
             }
             return _maxRequestsPerMinute;
+        }
+    }
+
+    /// <summary>
+    /// Remove entries that haven't been accessed within the specified duration
+    /// </summary>
+    /// <param name="staleDuration">Duration after which an entry is considered stale</param>
+    /// <returns>Number of entries removed</returns>
+    public int RemoveStaleEntries(TimeSpan staleDuration)
+    {
+        lock (_lock)
+        {
+            var cutoff = DateTime.UtcNow - staleDuration;
+            var staleKeys = _limiters
+                .Where(kvp => kvp.Value.LastAccessed < cutoff)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var key in staleKeys)
+            {
+                _limiters.Remove(key);
+            }
+
+            return staleKeys.Count;
+        }
+    }
+
+    /// <summary>
+    /// Evict the oldest entries from the dictionary
+    /// </summary>
+    private void EvictOldestEntries(int count)
+    {
+        var keysToRemove = _limiters
+            .OrderBy(kvp => kvp.Value.LastAccessed)
+            .Take(count)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var key in keysToRemove)
+        {
+            _limiters.Remove(key);
         }
     }
 }

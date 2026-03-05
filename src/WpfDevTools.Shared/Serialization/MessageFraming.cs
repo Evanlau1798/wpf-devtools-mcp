@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO.Pipes;
 using System.Text;
 
@@ -6,15 +7,23 @@ namespace WpfDevTools.Shared.Serialization;
 /// <summary>
 /// Message framing utilities for Named Pipes communication
 /// Uses length-prefix framing to handle message boundaries
+/// Optimized with ArrayPool for buffer reuse to minimize allocations
 /// </summary>
 public static class MessageFraming
 {
     private const int MaxMessageSize = 10 * 1024 * 1024; // 10 MB
+    private const int MinMessageSize = 1; // Minimum 1 byte to prevent zero-length allocation attacks
 
     /// <summary>
     /// Write a message to the pipe with length-prefix framing
     /// Format: [4 bytes length][message bytes]
     /// </summary>
+    /// <param name="pipe">Pipe stream to write to</param>
+    /// <param name="message">Message string to write</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <exception cref="ArgumentNullException">Thrown when pipe or message is null</exception>
+    /// <exception cref="OperationCanceledException">Thrown when operation is cancelled</exception>
+    /// <exception cref="IOException">Thrown when pipe write fails</exception>
     public static async Task WriteMessageAsync(
         PipeStream pipe,
         string message,
@@ -55,7 +64,15 @@ public static class MessageFraming
 
     /// <summary>
     /// Read a message from the pipe with length-prefix framing
+    /// Uses ArrayPool for buffer reuse to minimize allocations
     /// </summary>
+    /// <param name="pipe">Pipe stream to read from</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Message string read from pipe</returns>
+    /// <exception cref="ArgumentNullException">Thrown when pipe is null</exception>
+    /// <exception cref="InvalidOperationException">Thrown when message length is invalid or stream ends unexpectedly</exception>
+    /// <exception cref="OperationCanceledException">Thrown when operation is cancelled</exception>
+    /// <exception cref="IOException">Thrown when pipe read fails</exception>
     public static async Task<string> ReadMessageAsync(
         PipeStream pipe,
         CancellationToken cancellationToken = default)
@@ -90,27 +107,37 @@ public static class MessageFraming
                 return string.Empty;
             }
 
-            // Read message
-            var messageBytes = new byte[messageLength];
-            var totalRead = 0;
-
-            while (totalRead < messageLength)
+            // Rent buffer from ArrayPool instead of allocating
+            var messageBytes = ArrayPool<byte>.Shared.Rent(messageLength);
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                bytesRead = await pipe.ReadAsync(
-                    messageBytes,
-                    totalRead,
-                    messageLength - totalRead);
+                var totalRead = 0;
 
-                if (bytesRead == 0)
+                // Loop is required because Named Pipes may return partial reads
+                while (totalRead < messageLength)
                 {
-                    throw new InvalidOperationException("Unexpected end of stream");
+                    cancellationToken.ThrowIfCancellationRequested();
+                    bytesRead = await pipe.ReadAsync(
+                        messageBytes,
+                        totalRead,
+                        messageLength - totalRead);
+
+                    if (bytesRead == 0)
+                    {
+                        throw new InvalidOperationException("Unexpected end of stream");
+                    }
+
+                    totalRead += bytesRead;
                 }
 
-                totalRead += bytesRead;
+                // Only decode the actual message length, not the entire rented buffer
+                return Encoding.UTF8.GetString(messageBytes, 0, messageLength);
             }
-
-            return Encoding.UTF8.GetString(messageBytes);
+            finally
+            {
+                // Return buffer to pool for reuse
+                ArrayPool<byte>.Shared.Return(messageBytes);
+            }
         }
         catch (IOException ex) when (cancellationToken.IsCancellationRequested)
         {
@@ -141,25 +168,35 @@ public static class MessageFraming
             return string.Empty;
         }
 
-        // Read message
-        var messageBytes = new byte[messageLength];
-        var totalRead = 0;
-
-        while (totalRead < messageLength)
+        // Rent buffer from ArrayPool instead of allocating
+        var messageBytes = ArrayPool<byte>.Shared.Rent(messageLength);
+        try
         {
-            bytesRead = await pipe.ReadAsync(
-                messageBytes.AsMemory(totalRead, messageLength - totalRead),
-                cancellationToken);
+            var totalRead = 0;
 
-            if (bytesRead == 0)
+            // Loop is required because Named Pipes may return partial reads
+            while (totalRead < messageLength)
             {
-                throw new InvalidOperationException("Unexpected end of stream");
+                bytesRead = await pipe.ReadAsync(
+                    messageBytes.AsMemory(totalRead, messageLength - totalRead),
+                    cancellationToken);
+
+                if (bytesRead == 0)
+                {
+                    throw new InvalidOperationException("Unexpected end of stream");
+                }
+
+                totalRead += bytesRead;
             }
 
-            totalRead += bytesRead;
+            // Only decode the actual message length, not the entire rented buffer
+            return Encoding.UTF8.GetString(messageBytes, 0, messageLength);
         }
-
-        return Encoding.UTF8.GetString(messageBytes);
+        finally
+        {
+            // Return buffer to pool for reuse
+            ArrayPool<byte>.Shared.Return(messageBytes);
+        }
 #endif
     }
 }

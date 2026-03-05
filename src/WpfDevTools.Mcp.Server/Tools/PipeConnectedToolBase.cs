@@ -87,6 +87,7 @@ public abstract class PipeConnectedToolBase
                 success = false,
                 error = "Rate limit exceeded. Please slow down your requests.",
                 availableTokens,
+                retryAfterSeconds = 60,
                 retryAfter = "Wait 1 minute for rate limit to reset"
             };
         }

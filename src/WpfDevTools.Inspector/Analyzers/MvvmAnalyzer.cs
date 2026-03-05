@@ -25,7 +25,7 @@ public class MvvmAnalyzer : DispatcherAnalyzerBase
     // Non-matches: PasswordStrength, TokenCount (legitimate properties)
     private static readonly Regex SensitivePropertyPattern = new Regex(
         @"\b(password|pwd|secret|token|key|credential|auth|session|cookie|api[-_]?key|connection[-_]?string)\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
 
     /// <summary>
     /// Initializes a new instance of <see cref="MvvmAnalyzer"/> with the specified element finder.

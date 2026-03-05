@@ -20,6 +20,10 @@ public class InteractionAnalyzer : DispatcherAnalyzerBase
     private static bool? _dragDropReflectionSupported = null;
     private static readonly object _dragDropReflectionLock = new object();
 
+    /// <summary>
+    /// Create a new InteractionAnalyzer instance
+    /// </summary>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public InteractionAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;

@@ -20,6 +20,10 @@ public class EventAnalyzer : DispatcherAnalyzerBase
     private static bool? _reflectionSupported = null;
     private static readonly object _reflectionLock = new object();
 
+    /// <summary>
+    /// Create a new EventAnalyzer instance
+    /// </summary>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public EventAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;
@@ -54,6 +58,8 @@ public class EventAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = $"Event '{eventName}' not found" };
             }
 
+            // CRITICAL FIX: Capture local CTS before starting delay to prevent ObjectDisposedException
+            CancellationTokenSource localCts;
             lock (_lock)
             {
                 _eventTrace.Clear();
@@ -63,6 +69,7 @@ public class EventAnalyzer : DispatcherAnalyzerBase
                 _tracingCts?.Cancel();
                 _tracingCts?.Dispose();
                 _tracingCts = new CancellationTokenSource();
+                localCts = _tracingCts;
             }
 
             // Register event handler
@@ -92,20 +99,17 @@ public class EventAnalyzer : DispatcherAnalyzerBase
             uiElement.AddHandler(routedEvent, handler);
 
             // Stop tracing after capped duration
-            var cts = _tracingCts;
-            Task.Delay(cappedDuration, cts.Token).ContinueWith(task =>
+            // Use local CTS captured before Task.Delay to prevent ObjectDisposedException
+            Task.Delay(cappedDuration, localCts.Token).ContinueWith(_ =>
             {
-                if (!task.IsCanceled)
+                InvokeOnUIThread(() =>
                 {
-                    InvokeOnUIThread(() =>
+                    uiElement.RemoveHandler(routedEvent, handler);
+                    lock (_lock)
                     {
-                        uiElement.RemoveHandler(routedEvent, handler);
-                        lock (_lock)
-                        {
-                            _isTracing = false;
-                        }
-                    });
-                }
+                        _isTracing = false;
+                    }
+                });
             }, TaskScheduler.Default);
 
             return new

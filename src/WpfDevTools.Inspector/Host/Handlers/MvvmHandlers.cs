@@ -10,11 +10,19 @@ public class MvvmHandlers : IRequestHandler
 {
     private readonly MvvmAnalyzer _mvvmAnalyzer;
 
+    /// <summary>
+    /// Create a new MvvmHandlers instance
+    /// </summary>
+    /// <param name="mvvmAnalyzer">MVVM analyzer for ViewModel operations</param>
     public MvvmHandlers(MvvmAnalyzer mvvmAnalyzer)
     {
         _mvvmAnalyzer = mvvmAnalyzer;
     }
 
+    /// <summary>
+    /// Get list of supported method names
+    /// </summary>
+    /// <returns>Enumerable of method names this handler supports</returns>
     public IEnumerable<string> GetSupportedMethods()
     {
         return new[]
@@ -27,6 +35,14 @@ public class MvvmHandlers : IRequestHandler
         };
     }
 
+    /// <summary>
+    /// Handle an Inspector request
+    /// </summary>
+    /// <param name="method">Method name to execute</param>
+    /// <param name="params">JSON parameters for the method</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result object from method execution</returns>
+    /// <exception cref="InvalidOperationException">Thrown when method is not supported</exception>
     public async Task<object> HandleAsync(string method, JsonElement? @params, CancellationToken cancellationToken)
     {
         return method switch

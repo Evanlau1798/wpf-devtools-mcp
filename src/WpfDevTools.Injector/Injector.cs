@@ -33,6 +33,9 @@ public class ProcessInjector : IProcessInjector
     private readonly DllInjector _dllInjector;
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// Create a new ProcessInjector instance
+    /// </summary>
     public ProcessInjector()
     {
         _processDetector = new WpfProcessDetector();

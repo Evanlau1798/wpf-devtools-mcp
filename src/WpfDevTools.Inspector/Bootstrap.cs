@@ -37,51 +37,63 @@ public static class Bootstrap
             return;
         }
 
-        lock (_lock)
+        try
         {
-            if (_isInitialized)
+            lock (_lock)
             {
-                Interlocked.Exchange(ref _isInitializing, 0);
-                LogError("Bootstrap already initialized");
-                return;
-            }
-
-            try
-            {
-                // Find WPF Application instance
-                var app = FindWpfApplication();
-                if (app == null)
+                if (_isInitialized)
                 {
-                    LogError("Failed to find WPF Application instance");
+                    LogError("Bootstrap already initialized");
                     return;
                 }
 
-                // Marshal to UI thread
-                var dispatcher = app.Dispatcher ?? Dispatcher.CurrentDispatcher;
-
-                dispatcher.BeginInvoke(new Action(() =>
+                try
                 {
-                    try
+                    // Find WPF Application instance
+                    var app = FindWpfApplication();
+                    if (app == null)
                     {
-                        InitializeOnUiThread(parameters);
-                        lock (_lock)
+                        LogError("Failed to find WPF Application instance");
+                        return;
+                    }
+
+                    // Marshal to UI thread
+                    var dispatcher = app.Dispatcher ?? Dispatcher.CurrentDispatcher;
+
+                    dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        try
                         {
-                            _isInitialized = true;
+                            InitializeOnUiThread(parameters);
+                            lock (_lock)
+                            {
+                                _isInitialized = true;
+                            }
                         }
-                        Interlocked.Exchange(ref _isInitializing, 0);
-                    }
-                    catch (Exception ex)
-                    {
-                        Interlocked.Exchange(ref _isInitializing, 0);
-                        LogError($"Failed to initialize on UI thread: {ex}");
-                    }
-                }), DispatcherPriority.Normal);
+                        catch (Exception ex)
+                        {
+                            LogError($"Failed to initialize on UI thread: {ex}");
+                        }
+                        finally
+                        {
+                            // Always reset _isInitializing after UI thread work completes
+                            Interlocked.Exchange(ref _isInitializing, 0);
+                        }
+                    }), DispatcherPriority.Normal);
+                }
+                catch (Exception ex)
+                {
+                    LogError($"Bootstrap initialization failed: {ex}");
+                }
             }
-            catch (Exception ex)
-            {
-                Interlocked.Exchange(ref _isInitializing, 0);
-                LogError($"Bootstrap initialization failed: {ex}");
-            }
+        }
+        finally
+        {
+            // CRITICAL FIX: Always reset _isInitializing in finally block
+            // This ensures the flag is reset even if FindWpfApplication() returns null
+            // or any exception occurs before BeginInvoke is called
+            // Use Interlocked.Exchange to ensure thread-safe reset
+            Interlocked.Exchange(ref _isInitializing, 0);
         }
     }
 

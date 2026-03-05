@@ -10,11 +10,19 @@ public class PerformanceHandlers : IRequestHandler
 {
     private readonly PerformanceAnalyzer _performanceAnalyzer;
 
+    /// <summary>
+    /// Create a new PerformanceHandlers instance
+    /// </summary>
+    /// <param name="performanceAnalyzer">Performance analyzer for diagnostics</param>
     public PerformanceHandlers(PerformanceAnalyzer performanceAnalyzer)
     {
         _performanceAnalyzer = performanceAnalyzer;
     }
 
+    /// <summary>
+    /// Get list of supported method names
+    /// </summary>
+    /// <returns>Enumerable of method names this handler supports</returns>
     public IEnumerable<string> GetSupportedMethods()
     {
         return new[]
@@ -26,6 +34,14 @@ public class PerformanceHandlers : IRequestHandler
         };
     }
 
+    /// <summary>
+    /// Handle an Inspector request
+    /// </summary>
+    /// <param name="method">Method name to execute</param>
+    /// <param name="params">JSON parameters for the method</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result object from method execution</returns>
+    /// <exception cref="InvalidOperationException">Thrown when method is not supported</exception>
     public async Task<object> HandleAsync(string method, JsonElement? @params, CancellationToken cancellationToken)
     {
         return method switch

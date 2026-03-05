@@ -15,6 +15,9 @@ public class RequestDispatcher
     private readonly Dictionary<string, IRequestHandler> _handlerMap;
     private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>> _simpleHandlers;
 
+    /// <summary>
+    /// Create a new RequestDispatcher instance and initialize all handlers
+    /// </summary>
     public RequestDispatcher()
     {
         // Initialize shared utilities

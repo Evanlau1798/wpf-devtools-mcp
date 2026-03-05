@@ -11,6 +11,11 @@ namespace WpfDevTools.Inspector.Utilities;
 /// </summary>
 public class XamlSerializer
 {
+    /// <summary>
+    /// Serialize a WPF element to XAML string
+    /// </summary>
+    /// <param name="element">Element to serialize</param>
+    /// <returns>XAML string representation of the element</returns>
     public string SerializeToXaml(DependencyObject element)
     {
         if (element == null)

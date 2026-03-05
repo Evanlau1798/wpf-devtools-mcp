@@ -223,4 +223,49 @@ public class ParameterParserTests
 
         // Assert
         result.Should().BeNull();
-    }}
+    }
+
+    [Theory]
+    [InlineData("../../etc/passwd")]
+    [InlineData("..\\..\\windows\\system32")]
+    [InlineData("element<script>alert(1)</script>")]
+    [InlineData("element\0null")]
+    public void ValidateElementId_WithMaliciousInput_ShouldReturnError(string maliciousId)
+    {
+        // Act
+        var isValid = ParameterParser.ValidateElementId(maliciousId, out var error);
+
+        // Assert
+        isValid.Should().BeFalse();
+        error.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void ValidateElementId_WithVeryLongInput_ShouldReturnError()
+    {
+        // Arrange - create very long string (> 256 chars)
+        var veryLongId = "very_long_" + new string('a', 300);
+
+        // Act
+        var isValid = ParameterParser.ValidateElementId(veryLongId, out var error);
+
+        // Assert
+        isValid.Should().BeFalse();
+        error.Should().NotBeNullOrEmpty();
+    }
+
+    [Theory]
+    [InlineData("Button1")]
+    [InlineData("my-element")]
+    [InlineData("element_123")]
+    [InlineData("Element-With-Hyphen_And_Underscore")]
+    public void ValidateElementId_WithValidInput_ShouldReturnTrue(string validId)
+    {
+        // Act
+        var isValid = ParameterParser.ValidateElementId(validId, out var error);
+
+        // Assert
+        isValid.Should().BeTrue();
+        error.Should().BeNull();
+    }
+}

@@ -26,6 +26,10 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
     {
     }
 
+    /// <summary>
+    /// Create a new PerformanceAnalyzer instance
+    /// </summary>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public PerformanceAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;
@@ -36,7 +40,7 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
     private static readonly object _lock = new object();
     private static bool _isMonitoring = false;
     private static Stopwatch _frameStopwatch = new Stopwatch();
-    private static readonly List<double> _frameTimes = new List<double>();
+    private static readonly CircularBuffer<double> _frameTimes = new CircularBuffer<double>(MaxFrameSamples);
     private static int _frameCount = 0;
     private static DateTime _monitoringStartTime;
 
@@ -74,7 +78,8 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
                     };
                 }
 
-                var avgFrameTime = _frameTimes.Average();
+                var frameTimesArray = _frameTimes.GetItems().ToArray();
+                var avgFrameTime = frameTimesArray.Average();
                 var frameRate = avgFrameTime > 0 ? 1000.0 / avgFrameTime : 0.0;
                 var monitoringDuration = (DateTime.Now - _monitoringStartTime).TotalSeconds;
 
@@ -83,8 +88,8 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
                     success = true,
                     frameRate = Math.Round(frameRate, 2),
                     averageFrameTime = Math.Round(avgFrameTime, 2),
-                    minFrameTime = Math.Round(_frameTimes.Min(), 2),
-                    maxFrameTime = Math.Round(_frameTimes.Max(), 2),
+                    minFrameTime = Math.Round(frameTimesArray.Min(), 2),
+                    maxFrameTime = Math.Round(frameTimesArray.Max(), 2),
                     totalFrames = _frameCount,
                     monitoringDuration = Math.Round(monitoringDuration, 2),
                     visualCount = GetVisualCountInternal()
@@ -270,7 +275,13 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
 
     private static void OnRendering(object? sender, EventArgs e)
     {
-        lock (_lock)
+        // IMPORTANT FIX: Use 1ms timeout instead of immediate skip
+        // This gives a brief window to acquire the lock without blocking rendering
+        // 1ms is acceptable overhead for 60 FPS rendering (16.67ms per frame)
+        if (!System.Threading.Monitor.TryEnter(_lock, TimeSpan.FromMilliseconds(1)))
+            return;
+
+        try
         {
             _frameCount++;
 
@@ -279,15 +290,14 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
                 var frameTime = _frameStopwatch.Elapsed.TotalMilliseconds;
                 _frameStopwatch.Restart();
 
-                // Add frame time to list
+                // Add frame time to circular buffer (O(1) operation)
+                // Automatically overwrites oldest when full - no RemoveAt(0) needed
                 _frameTimes.Add(frameTime);
-
-                // Keep only last N samples
-                if (_frameTimes.Count > MaxFrameSamples)
-                {
-                    _frameTimes.RemoveAt(0);
-                }
             }
+        }
+        finally
+        {
+            System.Threading.Monitor.Exit(_lock);
         }
     }
 

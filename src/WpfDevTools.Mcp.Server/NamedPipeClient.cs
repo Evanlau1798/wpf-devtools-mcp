@@ -93,9 +93,15 @@ public class NamedPipeClient : IDisposable
         T requestParams,
         CancellationToken cancellationToken)
     {
+        // CRITICAL FIX: Capture pipeClient inside lock to prevent race with Dispose()
         NamedPipeClientStream pipeClient;
         lock (_lock)
         {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException(nameof(NamedPipeClient), "Client has been disposed");
+            }
+
             if (!IsConnected || _pipeClient == null)
             {
                 throw new InvalidOperationException("Client is not connected");
@@ -123,6 +129,10 @@ public class NamedPipeClient : IDisposable
             var response = JsonSerializer.Deserialize<InspectorResponse>(responseJson);
 
             return response ?? throw new InvalidOperationException("Invalid response from Inspector");
+        }
+        catch (ObjectDisposedException)
+        {
+            throw new InvalidOperationException("Pipe connection was closed during communication");
         }
         finally
         {

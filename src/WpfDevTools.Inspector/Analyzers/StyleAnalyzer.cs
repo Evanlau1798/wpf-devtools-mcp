@@ -11,6 +11,10 @@ public class StyleAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
+    /// <summary>
+    /// Create a new StyleAnalyzer instance
+    /// </summary>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public StyleAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;

@@ -12,12 +12,21 @@ public class BindingHandlers : IRequestHandler
     private readonly BindingAnalyzer _bindingAnalyzer;
     private readonly ElementFinder _elementFinder;
 
+    /// <summary>
+    /// Create a new BindingHandlers instance
+    /// </summary>
+    /// <param name="bindingAnalyzer">Binding analyzer for diagnostics</param>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public BindingHandlers(BindingAnalyzer bindingAnalyzer, ElementFinder elementFinder)
     {
         _bindingAnalyzer = bindingAnalyzer;
         _elementFinder = elementFinder;
     }
 
+    /// <summary>
+    /// Get list of supported method names
+    /// </summary>
+    /// <returns>Enumerable of method names this handler supports</returns>
     public IEnumerable<string> GetSupportedMethods()
     {
         return new[]
@@ -30,6 +39,14 @@ public class BindingHandlers : IRequestHandler
         };
     }
 
+    /// <summary>
+    /// Handle an Inspector request
+    /// </summary>
+    /// <param name="method">Method name to execute</param>
+    /// <param name="params">JSON parameters for the method</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result object from method execution</returns>
+    /// <exception cref="InvalidOperationException">Thrown when method is not supported</exception>
     public async Task<object> HandleAsync(string method, JsonElement? @params, CancellationToken cancellationToken)
     {
         return method switch

@@ -65,4 +65,37 @@ public class InspectorConfigTests
     {
         InspectorConfig.HeartbeatInterval.Should().BeGreaterThan(InspectorConfig.UIThreadTimeout);
     }
+
+    // ── Timeout clamping tests ───────────────────────────────────────────────
+
+    [Fact]
+    public void ParseTimeout_ExtremelyLargeValue_ClampedToFiveMinutes()
+    {
+        var result = InspectorConfig.ParseTimeout("999999999", TimeSpan.FromSeconds(5));
+        result.Should().BeLessThanOrEqualTo(TimeSpan.FromMinutes(5));
+    }
+
+    [Fact]
+    public void ParseTimeout_ValidValue_ReturnsExact()
+    {
+        var result = InspectorConfig.ParseTimeout("3000", TimeSpan.FromSeconds(5));
+        result.Should().Be(TimeSpan.FromMilliseconds(3000));
+    }
+
+    [Fact]
+    public void ParseTimeout_NullOrEmpty_ReturnsDefault()
+    {
+        var defaultValue = TimeSpan.FromSeconds(5);
+        InspectorConfig.ParseTimeout(null, defaultValue).Should().Be(defaultValue);
+        InspectorConfig.ParseTimeout("", defaultValue).Should().Be(defaultValue);
+        InspectorConfig.ParseTimeout("  ", defaultValue).Should().Be(defaultValue);
+    }
+
+    [Fact]
+    public void ParseTimeout_NegativeOrZero_ReturnsDefault()
+    {
+        var defaultValue = TimeSpan.FromSeconds(5);
+        InspectorConfig.ParseTimeout("0", defaultValue).Should().Be(defaultValue);
+        InspectorConfig.ParseTimeout("-100", defaultValue).Should().Be(defaultValue);
+    }
 }

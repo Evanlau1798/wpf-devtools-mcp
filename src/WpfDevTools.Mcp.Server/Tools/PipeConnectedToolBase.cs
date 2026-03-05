@@ -107,8 +107,9 @@ public abstract class PipeConnectedToolBase
         }
 
         var response = await client.SendRequestAsync(
+            method,
             Guid.NewGuid().ToString("N"),
-            new { method, @params = parameters },
+            parameters,
             ct).ConfigureAwait(false);
 
         if (response.Error != null)

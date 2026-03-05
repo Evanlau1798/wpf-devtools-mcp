@@ -344,7 +344,15 @@ public class InspectorHost : IDisposable
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
 
 #if NET48
-            await sslStream.AuthenticateAsServerAsync(certificate);
+            var authTask = sslStream.AuthenticateAsServerAsync(certificate);
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10), timeoutCts.Token);
+            var completed = await Task.WhenAny(authTask, timeoutTask).ConfigureAwait(false);
+            if (completed == timeoutTask)
+            {
+                sslStream.Dispose();
+                throw new OperationCanceledException("TLS handshake timed out");
+            }
+            await authTask.ConfigureAwait(false); // Propagate any exception
 #else
             var sslOptions = new SslServerAuthenticationOptions
             {

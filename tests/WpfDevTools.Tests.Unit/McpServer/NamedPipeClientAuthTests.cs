@@ -83,7 +83,7 @@ public class NamedPipeClientAuthTests
         // Act
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var response = await client.SendRequestAsync(
-            "test-ping", new { method = "ping" }, cts.Token);
+            "ping", "test-ping", new { }, cts.Token);
 
         // Assert
         response.Should().NotBeNull();

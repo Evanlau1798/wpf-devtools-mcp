@@ -36,29 +36,26 @@ public static class MessageFraming
         var messageBytes = Encoding.UTF8.GetBytes(message);
         var lengthBytes = BitConverter.GetBytes(messageBytes.Length);
 
+        // Combine length prefix and message into single buffer for atomic write
+        var combined = new byte[4 + messageBytes.Length];
+        Buffer.BlockCopy(lengthBytes, 0, combined, 0, 4);
+        Buffer.BlockCopy(messageBytes, 0, combined, 4, messageBytes.Length);
+
 #if NET48
-        // .NET 4.8: Check cancellation before each operation to avoid partial writes
-        // Complete atomic message writes (length + message) to maintain protocol integrity
+        // .NET 4.8: Check cancellation before write
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await stream.WriteAsync(lengthBytes, 0, lengthBytes.Length);
-
-            cancellationToken.ThrowIfCancellationRequested();
-            await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
-
-            cancellationToken.ThrowIfCancellationRequested();
+            await stream.WriteAsync(combined, 0, combined.Length);
             await stream.FlushAsync();
         }
         catch (IOException ex) when (cancellationToken.IsCancellationRequested)
         {
-            // If cancellation caused the IOException, wrap it
             throw new OperationCanceledException("Write operation was cancelled", ex, cancellationToken);
         }
 #else
         // .NET 8.0+: Native cancellation token support
-        await stream.WriteAsync(lengthBytes, cancellationToken);
-        await stream.WriteAsync(messageBytes, cancellationToken);
+        await stream.WriteAsync(combined, cancellationToken);
         await stream.FlushAsync(cancellationToken);
 #endif
     }

@@ -38,7 +38,7 @@ public class NamedPipeClientTests
         var request = new { method = "ping" };
 
         // Act & Assert
-        await client.Invoking(c => c.SendRequestAsync("test-1", request, CancellationToken.None))
+        await client.Invoking(c => c.SendRequestAsync("ping", "test-1", request, CancellationToken.None))
             .Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not connected*");
     }

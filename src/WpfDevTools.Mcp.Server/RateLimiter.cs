@@ -120,7 +120,7 @@ public interface IRateLimiterManager
 /// <summary>
 /// Rate limiter manager for multiple sessions
 /// </summary>
-public class RateLimiterManager : IRateLimiterManager
+public class RateLimiterManager : IRateLimiterManager, IDisposable
 {
     // CRITICAL FIX: Use mutable class instead of tuple to avoid allocations on every request
     private class RateLimiterEntry
@@ -139,6 +139,7 @@ public class RateLimiterManager : IRateLimiterManager
     private readonly object _lock = new object();
     private readonly int _maxRequestsPerMinute;
     private readonly TimeSpan _interval;
+    private readonly System.Threading.Timer _cleanupTimer;
     private const int MaxEntries = 1000;
 
     /// <summary>
@@ -149,6 +150,9 @@ public class RateLimiterManager : IRateLimiterManager
     {
         _maxRequestsPerMinute = maxRequestsPerMinute;
         _interval = TimeSpan.FromMinutes(1);
+        _cleanupTimer = new System.Threading.Timer(
+            _ => RemoveStaleEntries(TimeSpan.FromMinutes(30)),
+            null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
     }
 
     /// <summary>
@@ -245,5 +249,13 @@ public class RateLimiterManager : IRateLimiterManager
         {
             _limiters.Remove(key);
         }
+    }
+
+    /// <summary>
+    /// Dispose the cleanup timer
+    /// </summary>
+    public void Dispose()
+    {
+        _cleanupTimer?.Dispose();
     }
 }

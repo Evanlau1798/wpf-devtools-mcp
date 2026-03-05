@@ -242,9 +242,14 @@ public class NamedPipeClient : IDisposable
     /// Send request and wait for response.
     /// Uses a SemaphoreSlim to serialize pipe access across async calls.
     /// </summary>
-    public async Task<InspectorResponse> SendRequestAsync<T>(
+    /// <param name="method">Inspector method name to call</param>
+    /// <param name="requestId">Unique request identifier</param>
+    /// <param name="requestParams">Parameters to send with the request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    public async Task<InspectorResponse> SendRequestAsync(
+        string method,
         string requestId,
-        T requestParams,
+        object? requestParams,
         CancellationToken cancellationToken)
     {
         await _pipeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -272,7 +277,7 @@ public class NamedPipeClient : IDisposable
             var request = new InspectorRequest
             {
                 Id = requestId,
-                Method = GetMethodName(requestParams),
+                Method = method,
                 Params = requestParams != null ? JsonSerializer.SerializeToElement(requestParams) : null,
                 CorrelationId = correlationId
             };
@@ -295,14 +300,6 @@ public class NamedPipeClient : IDisposable
         {
             _pipeSemaphore.Release();
         }
-    }
-
-    private string GetMethodName<T>(T requestParams)
-    {
-        // Extract method name from request params
-        // For now, use a simple convention
-        var type = requestParams?.GetType();
-        return type?.GetProperty("method")?.GetValue(requestParams)?.ToString() ?? "unknown";
     }
 
     /// <summary>

@@ -46,9 +46,20 @@ public static class InspectorConfig
         "WPF_DEVTOOLS_HEARTBEAT_INTERVAL_MS",
         TimeSpan.FromSeconds(10));
 
+    private static readonly TimeSpan MaxTimeout = TimeSpan.FromMinutes(5);
+
     private static TimeSpan GetTimeoutFromEnv(string envVarName, TimeSpan defaultValue)
     {
         var envValue = Environment.GetEnvironmentVariable(envVarName);
+        return ParseTimeout(envValue, defaultValue);
+    }
+
+    /// <summary>
+    /// Parse and clamp a timeout value from a string (milliseconds).
+    /// Clamps to MaxTimeout (5 minutes) to prevent misconfiguration.
+    /// </summary>
+    internal static TimeSpan ParseTimeout(string? envValue, TimeSpan defaultValue)
+    {
         if (string.IsNullOrWhiteSpace(envValue))
         {
             return defaultValue;
@@ -56,7 +67,8 @@ public static class InspectorConfig
 
         if (int.TryParse(envValue, out var milliseconds) && milliseconds > 0)
         {
-            return TimeSpan.FromMilliseconds(milliseconds);
+            var result = TimeSpan.FromMilliseconds(milliseconds);
+            return result > MaxTimeout ? MaxTimeout : result;
         }
 
         return defaultValue;

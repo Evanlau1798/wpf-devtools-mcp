@@ -322,6 +322,9 @@ public class SessionManager : IDisposable
             // Dispose cleanup timer
             _cleanupTimer?.Dispose();
 
+            // Dispose rate limiter manager
+            (_rateLimiter as IDisposable)?.Dispose();
+
             // Dispose all pipe clients
             foreach (var client in _pipeClients.Values)
             {

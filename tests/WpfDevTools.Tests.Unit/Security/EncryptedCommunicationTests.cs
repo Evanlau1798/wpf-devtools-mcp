@@ -58,7 +58,7 @@ public class EncryptedCommunicationTests : IDisposable
         // Send a ping request over encrypted channel
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var response = await client.SendRequestAsync(
-            "enc-ping", new { method = "ping" }, cts.Token);
+            "ping", "enc-ping", new { }, cts.Token);
 
         // Assert
         response.Should().NotBeNull();
@@ -88,7 +88,7 @@ public class EncryptedCommunicationTests : IDisposable
         _output.WriteLine("Sending request...");
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var response = await client.SendRequestAsync(
-            "enc-no-auth", new { method = "ping" }, cts.Token);
+            "ping", "enc-no-auth", new { }, cts.Token);
 
         // Assert
         _output.WriteLine($"Response received, error={response.Error}");
@@ -113,7 +113,7 @@ public class EncryptedCommunicationTests : IDisposable
         // Act - send request that should produce a response
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var response = await client.SendRequestAsync(
-            "enc-large", new { method = "ping" }, cts.Token);
+            "ping", "enc-large", new { }, cts.Token);
 
         // Assert
         response.Should().NotBeNull();
@@ -159,7 +159,7 @@ public class EncryptedCommunicationTests : IDisposable
         for (int i = 0; i < 5; i++)
         {
             var response = await client.SendRequestAsync(
-                $"enc-multi-{i}", new { method = "ping" }, cts.Token);
+                "ping", $"enc-multi-{i}", new { }, cts.Token);
             response.Should().NotBeNull();
             response.Error.Should().BeNull();
         }

@@ -57,7 +57,7 @@ public class AuthenticationManager
         if (!_isEnabled)
             throw new InvalidOperationException("Authentication is disabled. Cannot retrieve shared secret.");
 
-        return _sharedSecret!;
+        return (byte[])_sharedSecret!.Clone();
     }
 
     private static byte[] LoadOrGenerateSecret(Func<string?> envSecretProvider)

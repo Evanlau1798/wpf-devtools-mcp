@@ -134,12 +134,23 @@ public class NamedPipeClient : IDisposable
 
                 return true;
             }
-            catch (Exception)
+            catch (IOException)
             {
                 if (attempt == maxRetries)
                     return false;
 
-                await Task.Delay(500).ConfigureAwait(false); // Wait before retry
+                await Task.Delay(500).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                if (attempt == maxRetries)
+                    return false;
+
+                await Task.Delay(500).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
             }
         }
 
@@ -157,7 +168,7 @@ public class NamedPipeClient : IDisposable
                     // Accept self-signed certificate with correct subject
                     if (cert == null) return false;
                     using var cert2 = new System.Security.Cryptography.X509Certificates.X509Certificate2(cert);
-                    return cert2.Subject.Contains("CN=WpfDevTools-Inspector");
+                    return cert2.Subject == "CN=WpfDevTools-Inspector";
                 });
 
 #if NET48

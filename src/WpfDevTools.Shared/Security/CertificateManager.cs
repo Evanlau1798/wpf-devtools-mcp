@@ -1,20 +1,26 @@
 using System;
 using System.IO;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 
 namespace WpfDevTools.Shared.Security;
 
 /// <summary>
 /// Manages self-signed X.509 certificates for SslStream encryption.
 /// Certificates are persisted to a specified directory and reused across sessions.
+/// PFX passwords are protected using DPAPI (CurrentUser scope).
 /// </summary>
+#if !NET48
+[SupportedOSPlatform("windows")]
+#endif
 public class CertificateManager
 {
     private const string CertFileName = "server.pfx";
+    private const string PasswordFileName = "server.pwd";
     private const string SubjectName = "CN=WpfDevTools-Inspector";
     private const int RsaKeySize = 2048;
+    private const int PasswordLengthBytes = 32;
 
     private readonly string _certDirectory;
 
@@ -54,13 +60,15 @@ public class CertificateManager
     {
         Directory.CreateDirectory(_certDirectory);
         var certPath = Path.Combine(_certDirectory, CertFileName);
+        var passwordPath = Path.Combine(_certDirectory, PasswordFileName);
 
-        if (File.Exists(certPath))
+        if (File.Exists(certPath) && File.Exists(passwordPath))
         {
             try
             {
+                var password = LoadPassword(passwordPath);
                 var loaded = new X509Certificate2(
-                    certPath, GetCertPassword(),
+                    certPath, password,
                     X509KeyStorageFlags.Exportable);
 
                 if (loaded.NotAfter > DateTime.UtcNow)
@@ -71,14 +79,14 @@ public class CertificateManager
             }
             catch (CryptographicException)
             {
-                // Corrupt file, regenerate
+                // Corrupt file or password mismatch, regenerate
             }
         }
 
-        return CreateAndSaveCertificate(certPath);
+        return CreateAndSaveCertificate(certPath, passwordPath);
     }
 
-    private X509Certificate2 CreateAndSaveCertificate(string certPath)
+    private X509Certificate2 CreateAndSaveCertificate(string certPath, string passwordPath)
     {
         using var rsa = RSA.Create(RsaKeySize);
         var request = new CertificateRequest(
@@ -103,28 +111,47 @@ public class CertificateManager
             DateTimeOffset.UtcNow.AddDays(-1),
             DateTimeOffset.UtcNow.AddYears(1));
 
+        // Generate random password and protect with DPAPI
+        var password = GenerateRandomPassword();
+        SavePassword(passwordPath, password);
+
         // Export and re-import to make the private key persistable
-        var pfxBytes = cert.Export(X509ContentType.Pfx, GetCertPassword());
+        var pfxBytes = cert.Export(X509ContentType.Pfx, password);
         File.WriteAllBytes(certPath, pfxBytes);
         cert.Dispose();
 
         return new X509Certificate2(
-            certPath, GetCertPassword(),
+            certPath, password,
             X509KeyStorageFlags.Exportable);
     }
 
-    private string GetCertPassword()
+    private static string GenerateRandomPassword()
     {
-        var machineId = Environment.MachineName + Environment.UserName;
+        var randomBytes = new byte[PasswordLengthBytes];
 #if NET48
-        using (var sha256 = SHA256.Create())
+        using (var rng = RandomNumberGenerator.Create())
         {
-            var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(machineId));
-            return Convert.ToBase64String(hash);
+            rng.GetBytes(randomBytes);
         }
 #else
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(machineId));
-        return Convert.ToBase64String(hash);
+        RandomNumberGenerator.Fill(randomBytes);
 #endif
+        return Convert.ToBase64String(randomBytes);
+    }
+
+    internal static void SavePassword(string passwordPath, string password)
+    {
+        var passwordBytes = System.Text.Encoding.UTF8.GetBytes(password);
+        var protectedBytes = ProtectedData.Protect(
+            passwordBytes, null, DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(passwordPath, protectedBytes);
+    }
+
+    internal static string LoadPassword(string passwordPath)
+    {
+        var protectedBytes = File.ReadAllBytes(passwordPath);
+        var passwordBytes = ProtectedData.Unprotect(
+            protectedBytes, null, DataProtectionScope.CurrentUser);
+        return System.Text.Encoding.UTF8.GetString(passwordBytes);
     }
 }

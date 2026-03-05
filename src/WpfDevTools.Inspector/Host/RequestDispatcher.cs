@@ -1,6 +1,7 @@
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Inspector.Host.Handlers;
@@ -14,12 +15,16 @@ public class RequestDispatcher
 {
     private readonly Dictionary<string, IRequestHandler> _handlerMap;
     private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>> _simpleHandlers;
+    private readonly FileLogger _logger;
 
     /// <summary>
     /// Create a new RequestDispatcher instance and initialize all handlers
     /// </summary>
-    public RequestDispatcher()
+    /// <param name="logger">Logger for error reporting</param>
+    public RequestDispatcher(FileLogger logger)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
         // Initialize shared utilities
         var elementFinder = new ElementFinder();
         var xamlSerializer = new XamlSerializer();
@@ -161,21 +166,8 @@ public class RequestDispatcher
         return new { success = true, status = "pong", timestamp = DateTime.UtcNow };
     }
 
-    private static readonly string _logPath = System.IO.Path.Combine(
-        System.IO.Path.GetTempPath(),
-        $"WpfDevTools_Inspector_{System.Diagnostics.Process.GetCurrentProcess().Id}.log");
-
-    private static void LogError(string message)
+    private void LogError(string message)
     {
-        try
-        {
-            System.IO.File.AppendAllText(_logPath,
-                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [ERROR] {message}{Environment.NewLine}");
-        }
-        catch
-        {
-            // Ignore logging errors
-        }
+        _logger.LogError(message);
     }
-
 }

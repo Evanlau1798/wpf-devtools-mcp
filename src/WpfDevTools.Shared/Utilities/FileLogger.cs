@@ -224,14 +224,16 @@ public class FileLogger : IDisposable, IAsyncDisposable
 
         try
         {
-            _processingTask.Wait(TimeSpan.FromSeconds(5));
+            if (!_processingTask.Wait(TimeSpan.FromSeconds(5)))
+            {
+                _shutdownCts.Cancel();
+            }
         }
         catch (AggregateException)
         {
             // Expected if cancelled
         }
 
-        _shutdownCts.Cancel();
         _shutdownCts.Dispose();
     }
 

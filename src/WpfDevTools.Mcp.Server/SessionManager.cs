@@ -214,14 +214,21 @@ public class SessionManager : IDisposable
     /// </summary>
     private void PerformCleanup()
     {
-        // Clean up dead sessions
-        CleanupDeadSessions();
-
-        // Clean up idle sessions
-        var idleSessions = GetIdleSessions(IdleTimeout);
-        foreach (var processId in idleSessions)
+        try
         {
-            RemoveSession(processId);
+            // Clean up dead sessions
+            CleanupDeadSessions();
+
+            // Clean up idle sessions
+            var idleSessions = GetIdleSessions(IdleTimeout);
+            foreach (var processId in idleSessions)
+            {
+                RemoveSession(processId);
+            }
+        }
+        catch (Exception)
+        {
+            // Prevent Timer callback exceptions from stopping future cleanup cycles
         }
     }
 

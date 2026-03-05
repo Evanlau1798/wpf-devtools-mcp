@@ -3,6 +3,7 @@ using FluentAssertions;
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Tests.Unit.Inspector;
 
@@ -18,7 +19,7 @@ public class RequestDispatcherErrorPathTests
     // ── Helper ───────────────────────────────────────────────────────────────
 
     private static WpfDevTools.Inspector.Host.RequestDispatcher CreateDispatcher() =>
-        new WpfDevTools.Inspector.Host.RequestDispatcher();
+        new WpfDevTools.Inspector.Host.RequestDispatcher(new FileLogger());
 
     // ── Cancellation error path ───────────────────────────────────────────────
 

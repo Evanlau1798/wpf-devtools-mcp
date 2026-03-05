@@ -43,8 +43,9 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = "Root element not found" };
             }
 
-            // Walk tree
-            var tree = WalkVisualTree(root, maxDepth ?? 50, 0);
+            // Walk tree with hard upper limit of 100
+            var effectiveDepth = Math.Min(maxDepth ?? 50, 100);
+            var tree = WalkVisualTree(root, effectiveDepth, 0);
 
             return new { success = true, tree };
         });

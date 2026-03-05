@@ -37,63 +37,63 @@ public static class Bootstrap
             return;
         }
 
-        try
+        lock (_lock)
         {
-            lock (_lock)
+            if (_isInitialized)
             {
-                if (_isInitialized)
-                {
-                    LogError("Bootstrap already initialized");
-                    return;
-                }
-
-                try
-                {
-                    // Find WPF Application instance
-                    var app = FindWpfApplication();
-                    if (app == null)
-                    {
-                        LogError("Failed to find WPF Application instance");
-                        return;
-                    }
-
-                    // Marshal to UI thread
-                    var dispatcher = app.Dispatcher ?? Dispatcher.CurrentDispatcher;
-
-                    dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        try
-                        {
-                            InitializeOnUiThread(parameters);
-                            lock (_lock)
-                            {
-                                _isInitialized = true;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            LogError($"Failed to initialize on UI thread: {ex}");
-                        }
-                        finally
-                        {
-                            // Always reset _isInitializing after UI thread work completes
-                            Interlocked.Exchange(ref _isInitializing, 0);
-                        }
-                    }), DispatcherPriority.Normal);
-                }
-                catch (Exception ex)
-                {
-                    LogError($"Bootstrap initialization failed: {ex}");
-                }
+                Interlocked.Exchange(ref _isInitializing, 0);
+                LogError("Bootstrap already initialized");
+                return;
             }
-        }
-        finally
-        {
-            // CRITICAL FIX: Always reset _isInitializing in finally block
-            // This ensures the flag is reset even if FindWpfApplication() returns null
-            // or any exception occurs before BeginInvoke is called
-            // Use Interlocked.Exchange to ensure thread-safe reset
-            Interlocked.Exchange(ref _isInitializing, 0);
+
+            try
+            {
+                // Find WPF Application instance
+                var app = FindWpfApplication();
+                if (app == null)
+                {
+                    LogError("Failed to find WPF Application instance");
+                    return; // finally resets _isInitializing
+                }
+
+                // Marshal to UI thread
+                var dispatcher = app.Dispatcher ?? Dispatcher.CurrentDispatcher;
+
+                dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        InitializeOnUiThread(parameters);
+                        lock (_lock)
+                        {
+                            _isInitialized = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LogError($"Failed to initialize on UI thread: {ex}");
+                    }
+                    finally
+                    {
+                        // Reset _isInitializing only after UI thread work completes
+                        Interlocked.Exchange(ref _isInitializing, 0);
+                    }
+                }), DispatcherPriority.Normal);
+
+                // BeginInvoke was called successfully - the callback's finally will reset _isInitializing
+                return;
+            }
+            catch (Exception ex)
+            {
+                LogError($"Bootstrap initialization failed: {ex}");
+            }
+            finally
+            {
+                // Reset _isInitializing if BeginInvoke was NOT called
+                // (FindWpfApplication returned null or exception occurred before BeginInvoke)
+                // If BeginInvoke was called, we already returned above, so this won't execute
+                Interlocked.Exchange(ref _isInitializing, 0);
+            }
         }
     }
 

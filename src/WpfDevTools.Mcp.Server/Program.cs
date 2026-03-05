@@ -40,7 +40,7 @@ try
 
     while (!reader.EndOfStream && !cts.Token.IsCancellationRequested)
     {
-        var line = await reader.ReadLineAsync();
+        var line = await reader.ReadLineAsync(cts.Token).ConfigureAwait(false);
         if (line == null) break;
         if (line.Length > 1_048_576) // 1 MB limit
         {
@@ -66,7 +66,7 @@ try
                     message = "Rate limit exceeded. Maximum 100 requests per minute. Please slow down."
                 }
             });
-            await writer.WriteLineAsync(errorResponse);
+            await writer.WriteLineAsync(errorResponse).ConfigureAwait(false);
             continue;
         }
 
@@ -74,10 +74,10 @@ try
 
         try
         {
-            var response = await protocolHandler.HandleRequestAsync(line, cts.Token);
+            var response = await protocolHandler.HandleRequestAsync(line, cts.Token).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(response))
             {
-                await writer.WriteLineAsync(response);
+                await writer.WriteLineAsync(response).ConfigureAwait(false);
                 logger.LogDebug($"Sent: ({response.Length} chars)");
             }
         }

@@ -12,7 +12,7 @@ public class RequestDispatcherTests
     public async Task DispatchRequest_WithUnknownMethod_ShouldReturnMethodNotFoundError()
     {
         // Arrange
-        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher();
+        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher(new WpfDevTools.Shared.Utilities.FileLogger());
         var request = new InspectorRequest
         {
             Id = "test-1",
@@ -36,7 +36,7 @@ public class RequestDispatcherTests
     public async Task DispatchRequest_WithPingMethod_ShouldReturnPongResult()
     {
         // Arrange
-        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher();
+        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher(new WpfDevTools.Shared.Utilities.FileLogger());
         var request = new InspectorRequest
         {
             Id = "test-2",
@@ -64,7 +64,7 @@ public class RequestDispatcherTests
     public async Task DispatchRequest_WithRemovedTestSlowMethod_ShouldReturnMethodNotFound()
     {
         // Arrange - test_slow debug handler was removed; dispatching it should return MethodNotFound
-        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher();
+        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher(new WpfDevTools.Shared.Utilities.FileLogger());
         var request = new InspectorRequest
         {
             Id = "test-3",
@@ -88,7 +88,7 @@ public class RequestDispatcherTests
     public async Task DispatchRequest_WithInvalidParams_ShouldReturnGracefulResult()
     {
         // Arrange
-        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher();
+        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher(new WpfDevTools.Shared.Utilities.FileLogger());
         var request = new InspectorRequest
         {
             Id = "test-4",

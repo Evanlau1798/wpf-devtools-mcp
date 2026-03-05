@@ -64,7 +64,7 @@ public class InspectorHost : IDisposable
         _pipeName = $"WpfDevTools_{processId}";
         var logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_Inspector_{processId}.log");
         _logger = new FileLogger(logPath);
-        _dispatcher = new RequestDispatcher();
+        _dispatcher = new RequestDispatcher(_logger);
         _authManager = authManager;
         _certManager = certManager;
         _challengeGenerator = new ChallengeGenerator();
@@ -338,8 +338,7 @@ public class InspectorHost : IDisposable
         try
         {
             var certificate = _certManager!.GetOrCreateCertificate();
-            var sslStream = new SslStream(pipe, leaveInnerStreamOpen: true,
-                (sender, cert, chain, errors) => true); // Self-signed cert, already authenticated via Phase 1
+            var sslStream = new SslStream(pipe, leaveInnerStreamOpen: true);
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));

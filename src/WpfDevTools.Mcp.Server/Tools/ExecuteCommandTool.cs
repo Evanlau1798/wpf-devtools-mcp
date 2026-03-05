@@ -7,11 +7,18 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public class ExecuteCommandTool : PipeConnectedToolBase
 {
+    /// <summary>
+    /// Initializes a new instance of the ExecuteCommandTool class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
     public ExecuteCommandTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the execute_command tool to invoke a command in the WPF application
     /// </summary>
+    /// <param name="arguments">JSON arguments containing processId, elementId, commandName, and optional parameter</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result indicating success or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);

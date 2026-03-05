@@ -18,6 +18,10 @@ public class NamedPipeClient : IDisposable
     private readonly SemaphoreSlim _pipeSemaphore = new(1, 1);
     private bool _isDisposed;
 
+    /// <summary>
+    /// Initializes a new instance of the NamedPipeClient class
+    /// </summary>
+    /// <param name="processId">Process ID of the target WPF application</param>
     public NamedPipeClient(int processId)
     {
         _processId = processId;
@@ -148,6 +152,9 @@ public class NamedPipeClient : IDisposable
         return type?.GetProperty("method")?.GetValue(requestParams)?.ToString() ?? "unknown";
     }
 
+    /// <summary>
+    /// Dispose the Named Pipe client and release resources
+    /// </summary>
     public void Dispose()
     {
         lock (_lock)

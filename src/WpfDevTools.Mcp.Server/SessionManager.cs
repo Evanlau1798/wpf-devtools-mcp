@@ -256,6 +256,9 @@ public class SessionManager : IDisposable
         public required DateTime LastActivity { get; init; }
     }
 
+    /// <summary>
+    /// Dispose the session manager and release all resources
+    /// </summary>
     public void Dispose()
     {
         if (_isDisposed)

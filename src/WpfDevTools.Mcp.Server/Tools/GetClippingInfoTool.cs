@@ -7,11 +7,18 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public class GetClippingInfoTool : PipeConnectedToolBase
 {
+    /// <summary>
+    /// Initializes a new instance of the GetClippingInfoTool class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
     public GetClippingInfoTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the get_clipping_info tool to retrieve element clipping information
     /// </summary>
+    /// <param name="arguments">JSON arguments containing processId and optional elementId</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result containing clipping information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);

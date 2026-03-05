@@ -13,11 +13,14 @@ public interface ITransport
     /// <summary>
     /// Start the transport
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Task representing the async operation</returns>
     Task StartAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Stop the transport
     /// </summary>
+    /// <returns>Task representing the async operation</returns>
     Task StopAsync();
 
     /// <summary>
@@ -31,8 +34,15 @@ public interface ITransport
 /// </summary>
 public class MessageReceivedEventArgs : EventArgs
 {
+    /// <summary>
+    /// Gets the received message
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the MessageReceivedEventArgs class
+    /// </summary>
+    /// <param name="message">The received message</param>
     public MessageReceivedEventArgs(string message)
     {
         Message = message;

@@ -11,6 +11,12 @@ public class GenericPipeTool : PipeConnectedToolBase
     private readonly string _method;
     private readonly Func<JsonElement?, (int processId, object? parameters, object? error)> _paramExtractor;
 
+    /// <summary>
+    /// Initializes a new instance of the GenericPipeTool class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
+    /// <param name="method">Inspector method name to invoke</param>
+    /// <param name="paramExtractor">Optional custom parameter extractor function</param>
     public GenericPipeTool(
         SessionManager sessionManager,
         string method,
@@ -21,6 +27,12 @@ public class GenericPipeTool : PipeConnectedToolBase
         _paramExtractor = paramExtractor ?? DefaultParamExtractor;
     }
 
+    /// <summary>
+    /// Execute the generic tool by forwarding request to Inspector
+    /// </summary>
+    /// <param name="arguments">JSON arguments to pass to Inspector</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result from Inspector or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, parameters, error) = _paramExtractor(arguments);

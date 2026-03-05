@@ -9,6 +9,10 @@ public class McpProtocolHandler
 {
     private readonly ToolRegistry _toolRegistry;
 
+    /// <summary>
+    /// Initializes a new instance of the McpProtocolHandler class
+    /// </summary>
+    /// <param name="toolRegistry">Optional tool registry for custom tool registration</param>
     public McpProtocolHandler(ToolRegistry? toolRegistry = null)
     {
         _toolRegistry = toolRegistry ?? new ToolRegistry();

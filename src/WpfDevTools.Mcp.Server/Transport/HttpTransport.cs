@@ -19,10 +19,21 @@ public class HttpTransport : ITransport, IDisposable
     private bool _isRunning;
     private const int MaxBodySizeBytes = 1 * 1024 * 1024; // 1 MB
 
+    /// <summary>
+    /// Gets whether the transport is running
+    /// </summary>
     public bool IsRunning => _isRunning;
 
+    /// <summary>
+    /// Event raised when a message is received
+    /// </summary>
     public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
 
+    /// <summary>
+    /// Initializes a new instance of the HttpTransport class
+    /// </summary>
+    /// <param name="port">Port number to listen on (0 for auto-assign, 1-65535 for specific port)</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when port is not between 0 and 65535</exception>
     public HttpTransport(int port)
     {
         // Port 0 means auto-assign an available port
@@ -34,6 +45,12 @@ public class HttpTransport : ITransport, IDisposable
         _port = port;
     }
 
+    /// <summary>
+    /// Start the HTTP transport server
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Task representing the async operation</returns>
+    /// <exception cref="InvalidOperationException">Thrown when transport is already running or port is in use</exception>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (_isRunning)
@@ -133,6 +150,10 @@ public class HttpTransport : ITransport, IDisposable
         }
     }
 
+    /// <summary>
+    /// Stop the HTTP transport server
+    /// </summary>
+    /// <returns>Task representing the async operation</returns>
     public async Task StopAsync()
     {
         if (_app != null)
@@ -142,6 +163,9 @@ public class HttpTransport : ITransport, IDisposable
         }
     }
 
+    /// <summary>
+    /// Dispose the HTTP transport and release resources
+    /// </summary>
     public void Dispose()
     {
         if (_app != null)

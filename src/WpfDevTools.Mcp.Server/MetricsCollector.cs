@@ -15,6 +15,9 @@ public class MetricsCollector
 
     private const int MaxLatencySamples = 1000;
 
+    /// <summary>
+    /// Initializes a new instance of the MetricsCollector class
+    /// </summary>
     public MetricsCollector()
     {
         _latencies = new CircularBuffer<long>(MaxLatencySamples);
@@ -147,12 +150,43 @@ public class MetricsCollector
 /// </summary>
 public class MetricsSnapshot
 {
+    /// <summary>
+    /// Gets the total number of requests processed
+    /// </summary>
     public long TotalRequests { get; init; }
+
+    /// <summary>
+    /// Gets the number of successful requests
+    /// </summary>
     public long SuccessCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of failed requests
+    /// </summary>
     public long ErrorCount { get; init; }
+
+    /// <summary>
+    /// Gets the error rate (0.0 to 1.0)
+    /// </summary>
     public double ErrorRate { get; init; }
+
+    /// <summary>
+    /// Gets the average latency in milliseconds
+    /// </summary>
     public double AverageLatency { get; init; }
+
+    /// <summary>
+    /// Gets the 50th percentile (median) latency in milliseconds
+    /// </summary>
     public double P50Latency { get; init; }
+
+    /// <summary>
+    /// Gets the 95th percentile latency in milliseconds
+    /// </summary>
     public double P95Latency { get; init; }
+
+    /// <summary>
+    /// Gets the 99th percentile latency in milliseconds
+    /// </summary>
     public double P99Latency { get; init; }
 }

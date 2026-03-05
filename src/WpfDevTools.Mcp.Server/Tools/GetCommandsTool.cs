@@ -7,11 +7,18 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public class GetCommandsTool : PipeConnectedToolBase
 {
+    /// <summary>
+    /// Initializes a new instance of the GetCommandsTool class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
     public GetCommandsTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the get_commands tool to retrieve available commands on an element
     /// </summary>
+    /// <param name="arguments">JSON arguments containing processId and optional elementId</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result containing command information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);

@@ -7,11 +7,18 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public class GetLogicalTreeTool : PipeConnectedToolBase
 {
+    /// <summary>
+    /// Initializes a new instance of the GetLogicalTreeTool class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
     public GetLogicalTreeTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the get_logical_tree tool to retrieve Logical Tree structure
     /// </summary>
+    /// <param name="arguments">JSON arguments containing processId, optional elementId and depth</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result containing Logical Tree data or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);

@@ -7,11 +7,18 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public class GetDpValueSourceTool : PipeConnectedToolBase
 {
+    /// <summary>
+    /// Initializes a new instance of the GetDpValueSourceTool class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
     public GetDpValueSourceTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the get_dp_value_source tool to retrieve DependencyProperty value source
     /// </summary>
+    /// <param name="arguments">JSON arguments containing processId, elementId, and propertyName</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result containing value source information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);

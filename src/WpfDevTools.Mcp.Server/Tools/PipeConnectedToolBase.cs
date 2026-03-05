@@ -8,8 +8,16 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public abstract class PipeConnectedToolBase
 {
+    /// <summary>
+    /// Session manager for tracking connected processes
+    /// </summary>
     protected readonly SessionManager _sessionManager;
 
+    /// <summary>
+    /// Initializes a new instance of the PipeConnectedToolBase class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
+    /// <exception cref="ArgumentNullException">Thrown when sessionManager is null</exception>
     protected PipeConnectedToolBase(SessionManager sessionManager)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));

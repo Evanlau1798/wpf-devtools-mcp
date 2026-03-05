@@ -7,11 +7,18 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public class GetEventHandlersTool : PipeConnectedToolBase
 {
+    /// <summary>
+    /// Initializes a new instance of the GetEventHandlersTool class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
     public GetEventHandlersTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the get_event_handlers tool to retrieve event handlers for a specific event
     /// </summary>
+    /// <param name="arguments">JSON arguments containing processId, elementId, and eventName</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result containing event handler information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);

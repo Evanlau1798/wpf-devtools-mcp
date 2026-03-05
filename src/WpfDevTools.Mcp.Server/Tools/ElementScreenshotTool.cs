@@ -7,11 +7,18 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public class ElementScreenshotTool : PipeConnectedToolBase
 {
+    /// <summary>
+    /// Initializes a new instance of the ElementScreenshotTool class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
     public ElementScreenshotTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the element_screenshot tool to capture a screenshot of an element
     /// </summary>
+    /// <param name="arguments">JSON arguments containing processId, optional elementId, and optional outputPath</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result containing screenshot path or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);

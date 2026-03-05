@@ -10,14 +10,20 @@ public class GetProcessesTool
 {
     private readonly WpfProcessDetector _detector;
 
+    /// <summary>
+    /// Initializes a new instance of the GetProcessesTool class
+    /// </summary>
     public GetProcessesTool()
     {
         _detector = new WpfProcessDetector();
     }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the get_processes tool to list all running WPF processes
     /// </summary>
+    /// <param name="arguments">JSON arguments containing optional nameFilter</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result containing list of WPF processes or error</returns>
     public Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         try

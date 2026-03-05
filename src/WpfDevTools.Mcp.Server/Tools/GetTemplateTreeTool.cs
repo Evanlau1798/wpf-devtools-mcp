@@ -7,11 +7,18 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public class GetTemplateTreeTool : PipeConnectedToolBase
 {
+    /// <summary>
+    /// Initializes a new instance of the GetTemplateTreeTool class
+    /// </summary>
+    /// <param name="sessionManager">Session manager for tracking connected processes</param>
     public GetTemplateTreeTool(SessionManager sessionManager) : base(sessionManager) { }
 
     /// <summary>
-    /// Execute the tool
+    /// Execute the get_template_tree tool to retrieve control template structure
     /// </summary>
+    /// <param name="arguments">JSON arguments containing processId, optional elementId, and optional depth</param>
+    /// <param name="cancellationToken">Cancellation token for async operation</param>
+    /// <returns>Tool result containing template tree data or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);

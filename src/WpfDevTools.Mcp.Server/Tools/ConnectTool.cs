@@ -281,7 +281,14 @@ public class ConnectTool
 
             // SECURITY: Verify certificate chain and trust
             using var chain = new System.Security.Cryptography.X509Certificates.X509Chain();
+
+            // CRITICAL FIX: Use offline revocation mode in DEBUG to prevent network blocking
+            // In RELEASE builds, use online revocation for maximum security
+#if DEBUG
+            chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.Offline;
+#else
             chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.Online;
+#endif
             chain.ChainPolicy.RevocationFlag = System.Security.Cryptography.X509Certificates.X509RevocationFlag.EntireChain;
             chain.ChainPolicy.VerificationFlags = System.Security.Cryptography.X509Certificates.X509VerificationFlags.NoFlag;
 

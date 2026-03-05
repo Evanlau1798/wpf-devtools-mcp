@@ -170,7 +170,9 @@ public class HttpTransport : ITransport, IDisposable
     {
         if (_app != null)
         {
-            Task.Run(() => _app.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(5));
+            // CRITICAL FIX: Use ConfigureAwait(false) to prevent deadlock
+            _app.DisposeAsync().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+            _isRunning = false;
         }
     }
 }

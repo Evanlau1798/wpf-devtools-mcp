@@ -122,7 +122,20 @@ public interface IRateLimiterManager
 /// </summary>
 public class RateLimiterManager : IRateLimiterManager
 {
-    private readonly Dictionary<int, (RateLimiter Limiter, DateTime LastAccessed)> _limiters = new();
+    // CRITICAL FIX: Use mutable class instead of tuple to avoid allocations on every request
+    private class RateLimiterEntry
+    {
+        public RateLimiter Limiter { get; }
+        public DateTime LastAccessed { get; set; }
+
+        public RateLimiterEntry(RateLimiter limiter)
+        {
+            Limiter = limiter;
+            LastAccessed = DateTime.UtcNow;
+        }
+    }
+
+    private readonly Dictionary<int, RateLimiterEntry> _limiters = new();
     private readonly object _lock = new object();
     private readonly int _maxRequestsPerMinute;
     private readonly TimeSpan _interval;
@@ -156,11 +169,13 @@ public class RateLimiterManager : IRateLimiterManager
                 }
 
                 var limiter = new RateLimiter(_maxRequestsPerMinute, _interval);
-                _limiters[processId] = (limiter, DateTime.UtcNow);
+                entry = new RateLimiterEntry(limiter);
+                _limiters[processId] = entry;
                 return limiter.TryAcquire();
             }
 
-            _limiters[processId] = (entry.Limiter, DateTime.UtcNow);
+            // CRITICAL FIX: Update LastAccessed without creating new tuple
+            entry.LastAccessed = DateTime.UtcNow;
             return entry.Limiter.TryAcquire();
         }
     }

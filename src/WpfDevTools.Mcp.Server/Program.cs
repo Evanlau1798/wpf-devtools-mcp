@@ -21,6 +21,15 @@ logger.LogInfo($"Registered {toolRegistry.GetAllTools().Count} tools");
 
 logger.LogInfo("MCP Server ready. Listening on STDIN...");
 
+// CRITICAL FIX: Add cancellation token for graceful shutdown
+using var cts = new CancellationTokenSource();
+Console.CancelKeyPress += (sender, e) =>
+{
+    e.Cancel = true; // Prevent immediate termination
+    cts.Cancel();
+    logger.LogInfo("Shutdown requested (CTRL+C)...");
+};
+
 // STDIO transport loop
 try
 {
@@ -29,7 +38,7 @@ try
     using var reader = new StreamReader(stdin);
     using var writer = new StreamWriter(stdout) { AutoFlush = true };
 
-    while (!reader.EndOfStream)
+    while (!reader.EndOfStream && !cts.Token.IsCancellationRequested)
     {
         var line = await reader.ReadLineAsync();
         if (line == null) break;
@@ -65,18 +74,28 @@ try
 
         try
         {
-            var response = await protocolHandler.HandleRequestAsync(line, CancellationToken.None);
+            var response = await protocolHandler.HandleRequestAsync(line, cts.Token);
             if (!string.IsNullOrEmpty(response))
             {
                 await writer.WriteLineAsync(response);
                 logger.LogDebug($"Sent: ({response.Length} chars)");
             }
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogInfo("Request cancelled due to shutdown");
+            break;
+        }
         catch (Exception ex)
         {
             logger.LogError($"Error processing request: {ex.Message}");
         }
     }
+}
+catch (OperationCanceledException)
+{
+    logger.LogInfo("Shutdown completed gracefully");
+    return 0;
 }
 catch (Exception ex)
 {

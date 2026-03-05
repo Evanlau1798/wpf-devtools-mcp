@@ -1,11 +1,12 @@
 using System.Buffers;
+using System.IO;
 using System.IO.Pipes;
 using System.Text;
 
 namespace WpfDevTools.Shared.Serialization;
 
 /// <summary>
-/// Message framing utilities for Named Pipes communication
+/// Message framing utilities for stream communication (Named Pipes, SslStream, etc.)
 /// Uses length-prefix framing to handle message boundaries
 /// Optimized with ArrayPool for buffer reuse to minimize allocations
 /// </summary>
@@ -15,21 +16,21 @@ public static class MessageFraming
     private const int MinMessageSize = 1; // Minimum 1 byte to prevent zero-length allocation attacks
 
     /// <summary>
-    /// Write a message to the pipe with length-prefix framing
+    /// Write a message to the stream with length-prefix framing
     /// Format: [4 bytes length][message bytes]
     /// </summary>
-    /// <param name="pipe">Pipe stream to write to</param>
+    /// <param name="stream">Stream to write to (PipeStream, SslStream, etc.)</param>
     /// <param name="message">Message string to write</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <exception cref="ArgumentNullException">Thrown when pipe or message is null</exception>
+    /// <exception cref="ArgumentNullException">Thrown when stream or message is null</exception>
     /// <exception cref="OperationCanceledException">Thrown when operation is cancelled</exception>
-    /// <exception cref="IOException">Thrown when pipe write fails</exception>
+    /// <exception cref="IOException">Thrown when write fails</exception>
     public static async Task WriteMessageAsync(
-        PipeStream pipe,
+        Stream stream,
         string message,
         CancellationToken cancellationToken = default)
     {
-        if (pipe == null) throw new ArgumentNullException(nameof(pipe));
+        if (stream == null) throw new ArgumentNullException(nameof(stream));
         if (message == null) throw new ArgumentNullException(nameof(message));
 
         var messageBytes = Encoding.UTF8.GetBytes(message);
@@ -41,13 +42,13 @@ public static class MessageFraming
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await pipe.WriteAsync(lengthBytes, 0, lengthBytes.Length);
+            await stream.WriteAsync(lengthBytes, 0, lengthBytes.Length);
 
             cancellationToken.ThrowIfCancellationRequested();
-            await pipe.WriteAsync(messageBytes, 0, messageBytes.Length);
+            await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
 
             cancellationToken.ThrowIfCancellationRequested();
-            await pipe.FlushAsync();
+            await stream.FlushAsync();
         }
         catch (IOException ex) when (cancellationToken.IsCancellationRequested)
         {
@@ -56,28 +57,28 @@ public static class MessageFraming
         }
 #else
         // .NET 8.0+: Native cancellation token support
-        await pipe.WriteAsync(lengthBytes, cancellationToken);
-        await pipe.WriteAsync(messageBytes, cancellationToken);
-        await pipe.FlushAsync(cancellationToken);
+        await stream.WriteAsync(lengthBytes, cancellationToken);
+        await stream.WriteAsync(messageBytes, cancellationToken);
+        await stream.FlushAsync(cancellationToken);
 #endif
     }
 
     /// <summary>
-    /// Read a message from the pipe with length-prefix framing
+    /// Read a message from the stream with length-prefix framing
     /// Uses ArrayPool for buffer reuse to minimize allocations
     /// </summary>
-    /// <param name="pipe">Pipe stream to read from</param>
+    /// <param name="stream">Stream to read from (PipeStream, SslStream, etc.)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Message string read from pipe</returns>
-    /// <exception cref="ArgumentNullException">Thrown when pipe is null</exception>
+    /// <returns>Message string read from stream</returns>
+    /// <exception cref="ArgumentNullException">Thrown when stream is null</exception>
     /// <exception cref="InvalidOperationException">Thrown when message length is invalid or stream ends unexpectedly</exception>
     /// <exception cref="OperationCanceledException">Thrown when operation is cancelled</exception>
-    /// <exception cref="IOException">Thrown when pipe read fails</exception>
+    /// <exception cref="IOException">Thrown when read fails</exception>
     public static async Task<string> ReadMessageAsync(
-        PipeStream pipe,
+        Stream stream,
         CancellationToken cancellationToken = default)
     {
-        if (pipe == null) throw new ArgumentNullException(nameof(pipe));
+        if (stream == null) throw new ArgumentNullException(nameof(stream));
 
 #if NET48
         // .NET 4.8: Check cancellation before each operation
@@ -86,7 +87,7 @@ public static class MessageFraming
             // Read length prefix (4 bytes)
             var lengthBytes = new byte[4];
             cancellationToken.ThrowIfCancellationRequested();
-            var bytesRead = await pipe.ReadAsync(lengthBytes, 0, 4);
+            var bytesRead = await stream.ReadAsync(lengthBytes, 0, 4);
 
             if (bytesRead != 4)
             {
@@ -117,7 +118,7 @@ public static class MessageFraming
                 while (totalRead < messageLength)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    bytesRead = await pipe.ReadAsync(
+                    bytesRead = await stream.ReadAsync(
                         messageBytes,
                         totalRead,
                         messageLength - totalRead);
@@ -147,7 +148,7 @@ public static class MessageFraming
         // .NET 8.0+: Native cancellation token support
         // Read length prefix (4 bytes)
         var lengthBytes = new byte[4];
-        var bytesRead = await pipe.ReadAsync(lengthBytes, cancellationToken);
+        var bytesRead = await stream.ReadAsync(lengthBytes, cancellationToken);
 
         if (bytesRead != 4)
         {
@@ -177,7 +178,7 @@ public static class MessageFraming
             // Loop is required because Named Pipes may return partial reads
             while (totalRead < messageLength)
             {
-                bytesRead = await pipe.ReadAsync(
+                bytesRead = await stream.ReadAsync(
                     messageBytes.AsMemory(totalRead, messageLength - totalRead),
                     cancellationToken);
 

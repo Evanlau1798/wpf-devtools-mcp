@@ -11,6 +11,8 @@ public class SessionManager : IDisposable
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly IRateLimiterManager _rateLimiter;
     private readonly object _lock = new();
+    private readonly System.Threading.Timer _cleanupTimer;
+    private static readonly TimeSpan IdleTimeout = TimeSpan.FromMinutes(30);
 
     /// <summary>
     /// Create a new SessionManager with dependency injection
@@ -19,6 +21,13 @@ public class SessionManager : IDisposable
     public SessionManager(IRateLimiterManager rateLimiter)
     {
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
+
+        // CRITICAL FIX: Periodic cleanup of dead and idle sessions
+        _cleanupTimer = new System.Threading.Timer(
+            callback: _ => PerformCleanup(),
+            state: null,
+            dueTime: TimeSpan.FromMinutes(1),
+            period: TimeSpan.FromMinutes(1));
     }
 
     /// <summary>
@@ -201,6 +210,22 @@ public class SessionManager : IDisposable
     }
 
     /// <summary>
+    /// Perform cleanup of both dead and idle sessions
+    /// </summary>
+    private void PerformCleanup()
+    {
+        // Clean up dead sessions
+        CleanupDeadSessions();
+
+        // Clean up idle sessions
+        var idleSessions = GetIdleSessions(IdleTimeout);
+        foreach (var processId in idleSessions)
+        {
+            RemoveSession(processId);
+        }
+    }
+
+    /// <summary>
     /// Clean up sessions for processes that no longer exist
     /// CRITICAL FIX: Prevents memory leak from dead sessions
     /// </summary>
@@ -270,6 +295,9 @@ public class SessionManager : IDisposable
                 return;
 
             _isDisposed = true;
+
+            // Dispose cleanup timer
+            _cleanupTimer?.Dispose();
 
             // Dispose all pipe clients
             foreach (var client in _pipeClients.Values)

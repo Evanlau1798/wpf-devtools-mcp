@@ -1,5 +1,7 @@
 using System.IO;
 using System.IO.Pipes;
+using System.Net.Security;
+using System.Security.Authentication;
 using System.Security.Principal;
 using System.Security.AccessControl;
 using System.Text;
@@ -23,6 +25,7 @@ public class InspectorHost : IDisposable
     private readonly string _logPath;
     private readonly RequestDispatcher _dispatcher;
     private readonly AuthenticationManager? _authManager;
+    private readonly CertificateManager? _certManager;
     private readonly ChallengeGenerator _challengeGenerator;
     private NamedPipeServerStream? _pipeServer;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -31,11 +34,11 @@ public class InspectorHost : IDisposable
     private readonly object _lock = new object();
 
     /// <summary>
-    /// Create a new InspectorHost instance without authentication (backward compatible)
+    /// Create a new InspectorHost instance without authentication or encryption (backward compatible)
     /// </summary>
     /// <param name="processId">Process ID of the target WPF application</param>
     public InspectorHost(int processId)
-        : this(processId, null)
+        : this(processId, null, null)
     {
     }
 
@@ -45,12 +48,24 @@ public class InspectorHost : IDisposable
     /// <param name="processId">Process ID of the target WPF application</param>
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     public InspectorHost(int processId, AuthenticationManager? authManager)
+        : this(processId, authManager, null)
+    {
+    }
+
+    /// <summary>
+    /// Create a new InspectorHost instance with optional authentication and encryption
+    /// </summary>
+    /// <param name="processId">Process ID of the target WPF application</param>
+    /// <param name="authManager">Authentication manager (null to disable authentication)</param>
+    /// <param name="certManager">Certificate manager for SslStream encryption (null to disable encryption)</param>
+    public InspectorHost(int processId, AuthenticationManager? authManager, CertificateManager? certManager)
     {
         _processId = processId;
         _pipeName = $"WpfDevTools_{processId}";
         _logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_Inspector_{processId}.log");
         _dispatcher = new RequestDispatcher();
         _authManager = authManager;
+        _certManager = certManager;
         _challengeGenerator = new ChallengeGenerator();
     }
 
@@ -156,8 +171,30 @@ public class InspectorHost : IDisposable
                     }
                 }
 
-                // Handle client requests
-                await HandleClientAsync(_pipeServer, cancellationToken).ConfigureAwait(false);
+                // Establish encrypted stream if certificate manager is provided
+                Stream communicationStream = _pipeServer;
+                SslStream? sslStream = null;
+
+                if (_certManager != null)
+                {
+                    sslStream = await CreateServerSslStreamAsync(_pipeServer, cancellationToken).ConfigureAwait(false);
+                    if (sslStream == null)
+                    {
+                        LogError("TLS handshake failed");
+                        continue;
+                    }
+                    communicationStream = sslStream;
+                }
+
+                try
+                {
+                    // Handle client requests over (possibly encrypted) stream
+                    await HandleClientAsync(communicationStream, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    sslStream?.Dispose();
+                }
             }
             catch (OperationCanceledException)
             {
@@ -294,22 +331,65 @@ public class InspectorHost : IDisposable
         }
     }
 
+    private async Task<SslStream?> CreateServerSslStreamAsync(
+        NamedPipeServerStream pipe, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var certificate = _certManager!.GetOrCreateCertificate();
+            var sslStream = new SslStream(pipe, leaveInnerStreamOpen: true,
+                (sender, cert, chain, errors) => true); // Self-signed cert, already authenticated via Phase 1
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
+
+#if NET48
+            await sslStream.AuthenticateAsServerAsync(certificate);
+#else
+            var sslOptions = new SslServerAuthenticationOptions
+            {
+                ServerCertificate = certificate,
+                ClientCertificateRequired = false,
+                EnabledSslProtocols = SslProtocols.Tls12,
+                CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck
+            };
+            await sslStream.AuthenticateAsServerAsync(sslOptions, timeoutCts.Token).ConfigureAwait(false);
+#endif
+            return sslStream;
+        }
+        catch (OperationCanceledException)
+        {
+            LogError("TLS handshake timed out");
+            return null;
+        }
+        catch (AuthenticationException ex)
+        {
+            LogError($"TLS handshake failed: {ex.Message}");
+            return null;
+        }
+        catch (IOException ex)
+        {
+            LogError($"TLS I/O error: {ex.Message}");
+            return null;
+        }
+    }
+
     private async Task HandleClientAsync(
-        NamedPipeServerStream pipe,
+        Stream stream,
         CancellationToken cancellationToken)
     {
         try
         {
-            while (pipe.IsConnected && !cancellationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 // Read request
-                var requestJson = await MessageFraming.ReadMessageAsync(pipe, cancellationToken).ConfigureAwait(false);
+                var requestJson = await MessageFraming.ReadMessageAsync(stream, cancellationToken).ConfigureAwait(false);
 
                 // Parse request
                 var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
                 if (request == null)
                 {
-                    await SendErrorResponseAsync(pipe, "unknown", "Invalid request format", cancellationToken).ConfigureAwait(false);
+                    await SendErrorResponseAsync(stream, "unknown", "Invalid request format", cancellationToken).ConfigureAwait(false);
                     continue;
                 }
 
@@ -318,7 +398,7 @@ public class InspectorHost : IDisposable
 
                 // Send response
                 var responseJson = JsonSerializer.Serialize(response);
-                await MessageFraming.WriteMessageAsync(pipe, responseJson, cancellationToken).ConfigureAwait(false);
+                await MessageFraming.WriteMessageAsync(stream, responseJson, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (IOException)
@@ -354,7 +434,7 @@ public class InspectorHost : IDisposable
     }
 
     private async Task SendErrorResponseAsync(
-        NamedPipeServerStream pipe,
+        Stream stream,
         string requestId,
         string errorMessage,
         CancellationToken cancellationToken)
@@ -374,7 +454,7 @@ public class InspectorHost : IDisposable
             };
 
             var responseJson = JsonSerializer.Serialize(response);
-            await MessageFraming.WriteMessageAsync(pipe, responseJson, cancellationToken).ConfigureAwait(false);
+            await MessageFraming.WriteMessageAsync(stream, responseJson, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

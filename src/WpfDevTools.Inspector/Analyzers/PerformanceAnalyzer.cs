@@ -44,6 +44,13 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
     private static int _frameCount = 0;
     private static DateTime _monitoringStartTime;
 
+    // CRITICAL FIX: Static constructor to register cleanup on AppDomain unload
+    static PerformanceAnalyzer()
+    {
+        AppDomain.CurrentDomain.ProcessExit += (s, e) => StopMonitoring();
+        AppDomain.CurrentDomain.DomainUnload += (s, e) => StopMonitoring();
+    }
+
     // Keep last 60 frames (1 second at 60 FPS)
     private const int MaxFrameSamples = 60;
 

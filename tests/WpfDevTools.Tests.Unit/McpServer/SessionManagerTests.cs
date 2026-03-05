@@ -1,11 +1,41 @@
 using Xunit;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
 public class SessionManagerTests
 {
+    [Fact]
+    public void AddSession_WithAuthManager_CreatesSessionWithPipeClient()
+    {
+        // Arrange
+        var authManager = new AuthenticationManager(() => Convert.ToBase64String(new byte[32]));
+        using var sm = new SessionManager(authManager: authManager);
+
+        // Act
+        sm.AddSession(99999);
+        var client = sm.GetPipeClient(99999);
+
+        // Assert
+        client.Should().NotBeNull();
+        sm.RemoveSession(99999);
+    }
+
+    [Fact]
+    public void Constructor_WithAuthAndCert_AcceptsParameters()
+    {
+        // Arrange & Act
+        var authManager = new AuthenticationManager(() => Convert.ToBase64String(new byte[32]));
+        var certManager = new CertificateManager(
+            Path.Combine(Path.GetTempPath(), $"test_certs_{Guid.NewGuid()}"));
+        using var sm = new SessionManager(authManager: authManager, certManager: certManager);
+
+        // Assert
+        sm.GetActiveSessionCount().Should().Be(0);
+    }
+
     [Fact]
     public void AddSession_WithValidProcessId_ShouldAddToActiveSessions()
     {

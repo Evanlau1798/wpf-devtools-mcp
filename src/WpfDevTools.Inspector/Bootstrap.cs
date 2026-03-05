@@ -146,13 +146,27 @@ public static class Bootstrap
 
         // Initialize InspectorHost with Named Pipe server
         var processId = System.Diagnostics.Process.GetCurrentProcess().Id;
-        _host = new Host.InspectorHost(processId);
+
+        // Create security managers based on parameters
+        var authEnabled = config.TryGetValue("auth", out var authVal)
+            && string.Equals(authVal, "enabled", StringComparison.OrdinalIgnoreCase);
+        var encryptionEnabled = config.TryGetValue("encryption", out var encVal)
+            && string.Equals(encVal, "enabled", StringComparison.OrdinalIgnoreCase);
+
+        var authManager = authEnabled
+            ? new Shared.Security.AuthenticationManager()
+            : null;
+        var certManager = encryptionEnabled
+            ? new Shared.Security.CertificateManager()
+            : null;
+
+        _host = new Host.InspectorHost(processId, authManager, certManager);
         _host.Start();
 
         // Start capturing binding errors immediately after injection
         BindingErrorTraceListener.Install();
 
-        LogInfo($"Inspector initialized successfully. Named Pipe: WpfDevTools_{processId}");
+        LogInfo($"Inspector initialized. Pipe: WpfDevTools_{processId}, Auth: {authEnabled}, TLS: {encryptionEnabled}");
     }
 
     private static Dictionary<string, string> ParseParameters(string parameters)

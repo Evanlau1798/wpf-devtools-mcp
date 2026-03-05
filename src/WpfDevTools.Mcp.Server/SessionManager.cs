@@ -1,3 +1,5 @@
+using WpfDevTools.Shared.Security;
+
 namespace WpfDevTools.Mcp.Server;
 
 /// <summary>
@@ -10,6 +12,8 @@ public class SessionManager : IDisposable
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly IRateLimiterManager _rateLimiter;
+    private readonly AuthenticationManager? _authManager;
+    private readonly CertificateManager? _certManager;
     private readonly object _lock = new();
     private readonly System.Threading.Timer _cleanupTimer;
     private static readonly TimeSpan IdleTimeout = TimeSpan.FromMinutes(30);
@@ -18,9 +22,16 @@ public class SessionManager : IDisposable
     /// Create a new SessionManager with dependency injection
     /// </summary>
     /// <param name="rateLimiter">Rate limiter manager for controlling request rates</param>
-    public SessionManager(IRateLimiterManager rateLimiter)
+    /// <param name="authManager">Authentication manager (null to disable authentication)</param>
+    /// <param name="certManager">Certificate manager for encryption (null to disable encryption)</param>
+    public SessionManager(
+        IRateLimiterManager rateLimiter,
+        AuthenticationManager? authManager = null,
+        CertificateManager? certManager = null)
     {
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
+        _authManager = authManager;
+        _certManager = certManager;
 
         // CRITICAL FIX: Periodic cleanup of dead and idle sessions
         _cleanupTimer = new System.Threading.Timer(
@@ -34,8 +45,13 @@ public class SessionManager : IDisposable
     /// Create a new SessionManager (backward compatibility constructor)
     /// </summary>
     /// <param name="maxRequestsPerMinute">Maximum requests per minute per session (default: 100)</param>
-    public SessionManager(int maxRequestsPerMinute = 100)
-        : this(new RateLimiterManager(maxRequestsPerMinute))
+    /// <param name="authManager">Authentication manager (null to disable authentication)</param>
+    /// <param name="certManager">Certificate manager for encryption (null to disable encryption)</param>
+    public SessionManager(
+        int maxRequestsPerMinute = 100,
+        AuthenticationManager? authManager = null,
+        CertificateManager? certManager = null)
+        : this(new RateLimiterManager(maxRequestsPerMinute), authManager, certManager)
     {
     }
 
@@ -84,7 +100,7 @@ public class SessionManager : IDisposable
                 LastActivity = DateTime.UtcNow
             };
 
-            _pipeClients[processId] = new NamedPipeClient(processId);
+            _pipeClients[processId] = new NamedPipeClient(processId, _authManager, _certManager);
         }
     }
 

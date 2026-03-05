@@ -259,7 +259,7 @@ public class NamedPipeClient : IDisposable
                     throw new ObjectDisposedException(nameof(NamedPipeClient), "Client has been disposed");
                 }
 
-                if (!IsConnected || _communicationStream == null)
+                if (_pipeClient == null || !_pipeClient.IsConnected || _communicationStream == null)
                 {
                     throw new InvalidOperationException("Client is not connected");
                 }

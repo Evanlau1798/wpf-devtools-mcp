@@ -405,7 +405,21 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             }
         }
         _watchers.Clear();
-        _cleanupTimer?.Dispose();
+        // Stop timer but don't dispose - allow restart via ResetMonitoring
+        _cleanupTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+    }
+
+    /// <summary>
+    /// Reset monitoring state and restart cleanup timer.
+    /// Call after StopAllWatchers when re-initializing.
+    /// </summary>
+    public static void ResetMonitoring()
+    {
+        while (_changeLog.TryDequeue(out _)) { }
+        Interlocked.Exchange(ref _changeLogCount, 0);
+        _cleanupTimer?.Change(
+            TimeSpan.FromSeconds(CleanupIntervalSeconds),
+            TimeSpan.FromSeconds(CleanupIntervalSeconds));
     }
 
     /// <summary>

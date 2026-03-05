@@ -307,6 +307,22 @@ public class DependencyPropertyAnalyzerTests
     }
 
     [StaFact]
+    public void StopAllWatchers_ThenResetMonitoring_ShouldAllowRestart()
+    {
+        // Arrange
+        DependencyPropertyAnalyzer.StopAllWatchers();
+        DependencyPropertyAnalyzer.ResetMonitoring();
+
+        // Act - Should not throw after reset
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var result = analyzer.GetChangeLog();
+
+        // Assert
+        result.Should().NotBeNull();
+    }
+
+    [StaFact]
     public void UnwatchChanges_AfterWatching_ShouldStopWatching()
     {
         // Arrange

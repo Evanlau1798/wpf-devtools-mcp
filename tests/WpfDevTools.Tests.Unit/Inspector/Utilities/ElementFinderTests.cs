@@ -154,4 +154,29 @@ public class ElementFinderTests
         // Assert
         found.Should().BeSameAs(child);
     }
+
+    [StaFact]
+    public void CleanupDeadReferences_RemovesEntriesForCollectedElements()
+    {
+        // Arrange
+        using var finder = new ElementFinder();
+        var id = CreateAndTrackElement(finder);
+
+        // Act - Force GC to collect the unreferenced element
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        finder.CleanupDeadReferences();
+
+        // Assert - Element should no longer be findable by ID
+        var found = finder.FindById(id);
+        found.Should().BeNull();
+    }
+
+    private static string CreateAndTrackElement(ElementFinder finder)
+    {
+        var element = new TextBlock();
+        return finder.GenerateElementId(element);
+    }
 }

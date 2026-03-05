@@ -14,7 +14,7 @@ public class ElementFinder : IDisposable
     // Multiple analyzers may share the same instance, but if separate instances
     // are created (e.g., in tests), static guarantees no ID collisions.
     private static int _nextId = 0;
-    private readonly ConcurrentDictionary<DependencyObject, string> _objectToIdCache = new(ReferenceEqualityComparer.Instance);
+    private readonly ConditionalWeakTable<DependencyObject, string> _objectToIdCache = new();
     private readonly ConcurrentDictionary<string, WeakReference<DependencyObject>> _elementCache = new();
     private readonly System.Threading.Timer _cleanupTimer;
     private const int CleanupIntervalSeconds = 30;
@@ -49,7 +49,7 @@ public class ElementFinder : IDisposable
     /// <returns>Unique element ID string</returns>
     public string GenerateElementId(DependencyObject element)
     {
-        var elementId = _objectToIdCache.GetOrAdd(element, e =>
+        var elementId = _objectToIdCache.GetValue(element, e =>
         {
             var id = Interlocked.Increment(ref _nextId);
             var typeName = e.GetType().Name;
@@ -66,9 +66,9 @@ public class ElementFinder : IDisposable
     }
 
     /// <summary>
-    /// Remove dead WeakReferences from both caches to prevent memory leaks.
-    /// _objectToIdCache holds strong references as keys, so GC'd elements must
-    /// be removed from both caches to allow proper garbage collection.
+    /// Remove dead WeakReferences from _elementCache to prevent memory leaks.
+    /// _objectToIdCache uses ConditionalWeakTable which automatically releases
+    /// entries when keys are garbage collected - no manual cleanup needed.
     /// </summary>
     public void CleanupDeadReferences()
     {
@@ -85,21 +85,6 @@ public class ElementFinder : IDisposable
         foreach (var key in deadKeys)
         {
             _elementCache.TryRemove(key, out _);
-        }
-
-        // Also clean _objectToIdCache: remove entries whose IDs are no longer in _elementCache
-        var deadObjects = new List<DependencyObject>();
-        foreach (var kvp in _objectToIdCache)
-        {
-            if (!_elementCache.ContainsKey(kvp.Value))
-            {
-                deadObjects.Add(kvp.Key);
-            }
-        }
-
-        foreach (var obj in deadObjects)
-        {
-            _objectToIdCache.TryRemove(obj, out _);
         }
     }
 
@@ -174,29 +159,5 @@ public class ElementFinder : IDisposable
     public void Dispose()
     {
         _cleanupTimer?.Dispose();
-    }
-}
-
-/// <summary>
-/// Comparer that uses reference equality for DependencyObject keys.
-/// A custom implementation is needed because the BCL's System.Collections.Generic.ReferenceEqualityComparer
-/// (.NET 5+) implements IEqualityComparer{object}, which cannot be used as IEqualityComparer{DependencyObject}
-/// due to IEqualityComparer{T} being contravariant (in T). ConcurrentDictionary{DependencyObject, string}
-/// requires IEqualityComparer{DependencyObject} specifically.
-/// </summary>
-internal sealed class ReferenceEqualityComparer : IEqualityComparer<DependencyObject>
-{
-    public static readonly ReferenceEqualityComparer Instance = new();
-
-    private ReferenceEqualityComparer() { }
-
-    public bool Equals(DependencyObject? x, DependencyObject? y)
-    {
-        return ReferenceEquals(x, y);
-    }
-
-    public int GetHashCode(DependencyObject obj)
-    {
-        return RuntimeHelpers.GetHashCode(obj);
     }
 }

@@ -1,6 +1,7 @@
 using System.IO.Pipes;
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
 using WpfDevTools.Shared.Configuration;
 
@@ -13,19 +14,31 @@ public class NamedPipeClient : IDisposable
 {
     private readonly int _processId;
     private readonly string _pipeName;
+    private readonly AuthenticationManager? _authManager;
     private NamedPipeClientStream? _pipeClient;
     private readonly object _lock = new();
     private readonly SemaphoreSlim _pipeSemaphore = new(1, 1);
     private bool _isDisposed;
 
     /// <summary>
-    /// Initializes a new instance of the NamedPipeClient class
+    /// Initializes a new instance of the NamedPipeClient class without authentication
     /// </summary>
     /// <param name="processId">Process ID of the target WPF application</param>
     public NamedPipeClient(int processId)
+        : this(processId, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the NamedPipeClient class with optional authentication
+    /// </summary>
+    /// <param name="processId">Process ID of the target WPF application</param>
+    /// <param name="authManager">Authentication manager (null to disable authentication)</param>
+    public NamedPipeClient(int processId, AuthenticationManager? authManager)
     {
         _processId = processId;
         _pipeName = $"WpfDevTools_{processId}";
+        _authManager = authManager;
     }
 
     /// <summary>
@@ -74,6 +87,15 @@ public class NamedPipeClient : IDisposable
                 using var cts = new CancellationTokenSource(timeout);
                 await localClient.ConnectAsync(cts.Token).ConfigureAwait(false);
 
+                // Perform authentication if enabled
+                if (_authManager != null && _authManager.IsAuthenticationEnabled)
+                {
+                    if (!await AuthenticateToInspectorAsync(localClient, cts.Token).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+                }
+
                 return true;
             }
             catch (Exception)
@@ -88,6 +110,46 @@ public class NamedPipeClient : IDisposable
         return false;
     }
 
+    private async Task<bool> AuthenticateToInspectorAsync(
+        NamedPipeClientStream pipe, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // 1. Read 32-byte challenge from server
+            var challenge = new byte[32];
+            var totalRead = 0;
+            while (totalRead < 32)
+            {
+                var read = await pipe.ReadAsync(challenge, totalRead, 32 - totalRead, cancellationToken).ConfigureAwait(false);
+                if (read == 0) return false;
+                totalRead += read;
+            }
+
+            // 2. Compute HMAC-SHA256 response
+            var calculator = new ResponseCalculator(_authManager!.GetSharedSecret());
+            var response = calculator.ComputeResponse(challenge);
+
+            // 3. Send response
+            await pipe.WriteAsync(response, 0, response.Length, cancellationToken).ConfigureAwait(false);
+            await pipe.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+            // 4. Read 1-byte result from server (1=success, 0=failure)
+            var resultBuf = new byte[1];
+            var resultRead = await pipe.ReadAsync(resultBuf, 0, 1, cancellationToken).ConfigureAwait(false);
+            if (resultRead == 0) return false;
+
+            return resultBuf[0] == 1;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>
     /// Send request and wait for response.
     /// Uses a SemaphoreSlim to serialize pipe access across async calls.
@@ -97,33 +159,37 @@ public class NamedPipeClient : IDisposable
         T requestParams,
         CancellationToken cancellationToken)
     {
-        // CRITICAL FIX: Capture pipeClient inside lock to prevent race with Dispose()
-        NamedPipeClientStream pipeClient;
-        lock (_lock)
-        {
-            if (_isDisposed)
-            {
-                throw new ObjectDisposedException(nameof(NamedPipeClient), "Client has been disposed");
-            }
-
-            if (!IsConnected || _pipeClient == null)
-            {
-                throw new InvalidOperationException("Client is not connected");
-            }
-            pipeClient = _pipeClient;
-        }
-
-        // Create request
-        var request = new InspectorRequest
-        {
-            Id = requestId,
-            Method = GetMethodName(requestParams),
-            Params = requestParams != null ? JsonSerializer.SerializeToElement(requestParams) : null
-        };
-
         await _pipeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // CRITICAL FIX: Re-check disposed state after acquiring semaphore
+            NamedPipeClientStream pipeClient;
+            lock (_lock)
+            {
+                if (_isDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(NamedPipeClient), "Client has been disposed");
+                }
+
+                if (!IsConnected || _pipeClient == null)
+                {
+                    throw new InvalidOperationException("Client is not connected");
+                }
+                pipeClient = _pipeClient;
+            }
+
+            // CRITICAL FIX: Generate correlation ID for request tracing
+            var correlationId = Guid.NewGuid().ToString();
+
+            // Create request
+            var request = new InspectorRequest
+            {
+                Id = requestId,
+                Method = GetMethodName(requestParams),
+                Params = requestParams != null ? JsonSerializer.SerializeToElement(requestParams) : null,
+                CorrelationId = correlationId
+            };
+
             // Serialize and send
             var requestJson = JsonSerializer.Serialize(request);
             await MessageFraming.WriteMessageAsync(pipeClient, requestJson, cancellationToken).ConfigureAwait(false);
@@ -157,15 +223,22 @@ public class NamedPipeClient : IDisposable
     /// </summary>
     public void Dispose()
     {
+        NamedPipeClientStream? pipeToDispose = null;
+
         lock (_lock)
         {
             if (_isDisposed)
                 return;
 
             _isDisposed = true;
-            _pipeClient?.Dispose();
+            pipeToDispose = _pipeClient;
             _pipeClient = null;
-            _pipeSemaphore?.Dispose();
         }
+
+        // CRITICAL FIX: Dispose pipe and semaphore outside lock
+        // Wait briefly to allow in-flight operations to complete
+        pipeToDispose?.Dispose();
+        System.Threading.Thread.Sleep(100);
+        _pipeSemaphore?.Dispose();
     }
 }

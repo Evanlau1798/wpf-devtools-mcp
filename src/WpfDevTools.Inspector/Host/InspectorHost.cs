@@ -6,8 +6,10 @@ using System.Text;
 using System.Text.Json;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
 using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Host;
 
@@ -20,6 +22,8 @@ public class InspectorHost : IDisposable
     private readonly string _pipeName;
     private readonly string _logPath;
     private readonly RequestDispatcher _dispatcher;
+    private readonly AuthenticationManager? _authManager;
+    private readonly ChallengeGenerator _challengeGenerator;
     private NamedPipeServerStream? _pipeServer;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _serverTask;
@@ -27,15 +31,27 @@ public class InspectorHost : IDisposable
     private readonly object _lock = new object();
 
     /// <summary>
-    /// Create a new InspectorHost instance
+    /// Create a new InspectorHost instance without authentication (backward compatible)
     /// </summary>
     /// <param name="processId">Process ID of the target WPF application</param>
     public InspectorHost(int processId)
+        : this(processId, null)
+    {
+    }
+
+    /// <summary>
+    /// Create a new InspectorHost instance with optional authentication
+    /// </summary>
+    /// <param name="processId">Process ID of the target WPF application</param>
+    /// <param name="authManager">Authentication manager (null to disable authentication)</param>
+    public InspectorHost(int processId, AuthenticationManager? authManager)
     {
         _processId = processId;
         _pipeName = $"WpfDevTools_{processId}";
         _logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_Inspector_{processId}.log");
         _dispatcher = new RequestDispatcher();
+        _authManager = authManager;
+        _challengeGenerator = new ChallengeGenerator();
     }
 
     /// <summary>
@@ -130,6 +146,16 @@ public class InspectorHost : IDisposable
                 // Wait for client connection
                 await _pipeServer.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
 
+                // Authenticate client if authentication is enabled
+                if (_authManager != null && _authManager.IsAuthenticationEnabled)
+                {
+                    if (!await AuthenticateClientAsync(_pipeServer, cancellationToken).ConfigureAwait(false))
+                    {
+                        LogError("Authentication failed: client provided invalid response");
+                        continue; // finally block will dispose pipe, loop creates new one
+                    }
+                }
+
                 // Handle client requests
                 await HandleClientAsync(_pipeServer, cancellationToken).ConfigureAwait(false);
             }
@@ -201,6 +227,71 @@ public class InspectorHost : IDisposable
             0,
             pipeSecurity);
 #endif
+    }
+
+    private async Task<bool> AuthenticateClientAsync(
+        NamedPipeServerStream pipe,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+            var token = timeoutCts.Token;
+
+            // 1. Generate and send 32-byte challenge
+            var challenge = _challengeGenerator.GenerateChallenge();
+            await pipe.WriteAsync(challenge, 0, challenge.Length, token).ConfigureAwait(false);
+            await pipe.FlushAsync(token).ConfigureAwait(false);
+
+            // 2. Read 32-byte response from client
+            var response = new byte[32];
+            var totalRead = 0;
+            while (totalRead < 32)
+            {
+                var read = await pipe.ReadAsync(response, totalRead, 32 - totalRead, token).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    await SendAuthResult(pipe, false, token).ConfigureAwait(false);
+                    return false;
+                }
+                totalRead += read;
+            }
+
+            // 3. Verify response using HMAC-SHA256
+            var calculator = new ResponseCalculator(_authManager!.GetSharedSecret());
+            var isValid = calculator.VerifyResponse(challenge, response);
+
+            // 4. Send 1-byte result to client (1=success, 0=failure)
+            await SendAuthResult(pipe, isValid, token).ConfigureAwait(false);
+
+            return isValid;
+        }
+        catch (OperationCanceledException)
+        {
+            LogError("Authentication timed out");
+            return false;
+        }
+        catch (IOException ex)
+        {
+            LogError($"Authentication I/O error: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static async Task SendAuthResult(
+        NamedPipeServerStream pipe, bool success, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var resultByte = new byte[] { (byte)(success ? 1 : 0) };
+            await pipe.WriteAsync(resultByte, 0, 1, cancellationToken).ConfigureAwait(false);
+            await pipe.FlushAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Best effort - client may have already disconnected
+        }
     }
 
     private async Task HandleClientAsync(

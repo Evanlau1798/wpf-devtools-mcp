@@ -102,4 +102,46 @@ public class McpProtocolHandlerTests
         var responseObj = JsonSerializer.Deserialize<JsonElement>(response);
         responseObj.GetProperty("error").GetProperty("code").GetInt32().Should().Be(-32601); // Method not found
     }
+
+    [Fact]
+    public async Task HandleRequest_ResourcesList_ReturnsEmptyList()
+    {
+        // Arrange
+        var handler = new McpProtocolHandler();
+        var request = JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            id = 1,
+            method = "resources/list"
+        });
+
+        // Act
+        var response = await handler.HandleRequestAsync(request, CancellationToken.None);
+
+        // Assert
+        response.Should().NotBeNull();
+        var responseObj = JsonSerializer.Deserialize<JsonElement>(response!);
+        responseObj.GetProperty("result").GetProperty("resources").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task HandleRequest_PromptsList_ReturnsEmptyList()
+    {
+        // Arrange
+        var handler = new McpProtocolHandler();
+        var request = JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            id = 1,
+            method = "prompts/list"
+        });
+
+        // Act
+        var response = await handler.HandleRequestAsync(request, CancellationToken.None);
+
+        // Assert
+        response.Should().NotBeNull();
+        var responseObj = JsonSerializer.Deserialize<JsonElement>(response!);
+        responseObj.GetProperty("result").GetProperty("prompts").GetArrayLength().Should().Be(0);
+    }
 }

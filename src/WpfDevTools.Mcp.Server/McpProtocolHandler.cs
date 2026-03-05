@@ -57,6 +57,8 @@ public class McpProtocolHandler
                 "initialize" => await HandleInitializeAsync(request, cancellationToken).ConfigureAwait(false),
                 "tools/list" => await HandleToolsListAsync(cancellationToken).ConfigureAwait(false),
                 "tools/call" => await HandleToolsCallAsync(request, cancellationToken).ConfigureAwait(false),
+                "resources/list" => new { resources = Array.Empty<object>() },
+                "prompts/list" => new { prompts = Array.Empty<object>() },
                 _ => throw new MethodNotFoundException($"Method not found: {method}")
             };
 

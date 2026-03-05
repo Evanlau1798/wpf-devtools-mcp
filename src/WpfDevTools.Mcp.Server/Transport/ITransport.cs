@@ -24,13 +24,39 @@ public interface ITransport
     Task StopAsync();
 
     /// <summary>
-    /// Event raised when a message is received
+    /// Event raised when a request is received, allowing the handler to set a response
     /// </summary>
-    event EventHandler<MessageReceivedEventArgs>? MessageReceived;
+    event EventHandler<RequestReceivedEventArgs>? RequestReceived;
 }
 
 /// <summary>
-/// Event args for message received event
+/// Event args for request received event with response support
+/// </summary>
+public class RequestReceivedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Gets the received request message
+    /// </summary>
+    public string RequestJson { get; }
+
+    /// <summary>
+    /// Gets or sets the response JSON to send back to the client.
+    /// If null, the transport returns a generic error.
+    /// </summary>
+    public string? ResponseJson { get; set; }
+
+    /// <summary>
+    /// Initializes a new instance of the RequestReceivedEventArgs class
+    /// </summary>
+    /// <param name="requestJson">The received request message</param>
+    public RequestReceivedEventArgs(string requestJson)
+    {
+        RequestJson = requestJson;
+    }
+}
+
+/// <summary>
+/// Event args for message received event (backward compatible, used by SSE)
 /// </summary>
 public class MessageReceivedEventArgs : EventArgs
 {

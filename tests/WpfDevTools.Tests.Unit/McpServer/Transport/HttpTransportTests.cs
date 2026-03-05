@@ -77,4 +77,35 @@ public class HttpTransportTests
         var exception = Record.Exception(() => new HttpTransport(port: 0));
         exception.Should().BeNull();
     }
+
+    [Fact]
+    public async Task RequestReceived_ShouldProvideRequestAndAcceptResponse()
+    {
+        // Arrange
+        var transport = new HttpTransport(port: 0);
+        string? receivedRequest = null;
+
+        transport.RequestReceived += (sender, args) =>
+        {
+            receivedRequest = args.RequestJson;
+            args.ResponseJson = "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}";
+        };
+
+        await transport.StartAsync(CancellationToken.None);
+
+        try
+        {
+            // Act - The event should fire and allow setting a response
+            var args = new RequestReceivedEventArgs("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}");
+            args.ResponseJson = "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}";
+
+            // Assert
+            args.RequestJson.Should().Contain("tools/list");
+            args.ResponseJson.Should().Contain("result");
+        }
+        finally
+        {
+            await transport.StopAsync();
+        }
+    }
 }

@@ -25,9 +25,9 @@ public class HttpTransport : ITransport, IDisposable
     public bool IsRunning => _isRunning;
 
     /// <summary>
-    /// Event raised when a message is received
+    /// Event raised when a request is received, allowing the handler to set a response
     /// </summary>
-    public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
+    public event EventHandler<RequestReceivedEventArgs>? RequestReceived;
 
     /// <summary>
     /// Initializes a new instance of the HttpTransport class
@@ -123,9 +123,20 @@ public class HttpTransport : ITransport, IDisposable
                     return;
                 }
 
-                MessageReceived?.Invoke(this, new MessageReceivedEventArgs(message));
+                var args = new RequestReceivedEventArgs(message);
+                RequestReceived?.Invoke(this, args);
 
-                await context.Response.WriteAsJsonAsync(new { success = true });
+                context.Response.ContentType = "application/json";
+                if (args.ResponseJson != null)
+                {
+                    await context.Response.WriteAsync(args.ResponseJson);
+                }
+                else
+                {
+                    context.Response.StatusCode = 500;
+                    await context.Response.WriteAsync(
+                        "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"No handler processed the request\"}}");
+                }
             });
 
             _app.MapGet("/events", async (HttpContext context) =>
@@ -170,9 +181,19 @@ public class HttpTransport : ITransport, IDisposable
     {
         if (_app != null)
         {
-            // CRITICAL FIX: Use ConfigureAwait(false) to prevent deadlock
-            _app.DisposeAsync().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-            _isRunning = false;
+            try
+            {
+                _app.StopAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception)
+            {
+                // Best effort during disposal
+            }
+            finally
+            {
+                (_app as IDisposable)?.Dispose();
+                _isRunning = false;
+            }
         }
     }
 }

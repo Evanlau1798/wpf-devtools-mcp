@@ -25,6 +25,9 @@ coverage-report.md
 *.tmp
 *.log
 
+# Worktrees
+.worktrees/
+
 #claude
 CLAUDE.md
 .claude/coverage-report/

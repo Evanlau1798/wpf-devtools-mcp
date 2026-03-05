@@ -11,7 +11,7 @@ namespace WpfDevTools.Tests.Unit.Inspector;
 public class BootstrapConcurrencyTests
 {
     [Fact]
-    public void Initialize_ConcurrentCalls_ShouldOnlyInitializeOnce()
+    public async Task Initialize_ConcurrentCalls_ShouldOnlyInitializeOnce()
     {
         // Arrange - Reset static state using reflection
         var bootstrapType = Type.GetType("WpfDevTools.Inspector.Bootstrap, WpfDevTools.Inspector");
@@ -51,12 +51,8 @@ public class BootstrapConcurrencyTests
             }));
         }
 
-        // Assert - Should not throw and _isInitializing should be reset to 0
-        var act = async () => await Task.WhenAll(tasks);
-        act.Should().NotThrowAsync();
-
-        // Wait for all tasks to complete
-        Task.WaitAll(tasks.ToArray(), TimeSpan.FromSeconds(5));
+        // Assert - Should not throw
+        await Task.WhenAll(tasks);
 
         // Verify _isInitializing is reset to 0 (not stuck at 1)
         var isInitializingValue = (int)isInitializingField.GetValue(null)!;

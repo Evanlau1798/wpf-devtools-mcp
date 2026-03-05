@@ -8,6 +8,7 @@ public class RateLimiter
 {
     private readonly int _maxTokens;
     private readonly TimeSpan _refillInterval;
+    private readonly Func<DateTime> _timeProvider;
     private int _tokens;
     private DateTime _lastRefill;
     private readonly object _lock = new object();
@@ -17,12 +18,13 @@ public class RateLimiter
     /// </summary>
     /// <param name="maxRequestsPerInterval">Maximum requests allowed per interval</param>
     /// <param name="interval">Time interval for rate limiting</param>
-    public RateLimiter(int maxRequestsPerInterval, TimeSpan interval)
+    public RateLimiter(int maxRequestsPerInterval, TimeSpan interval, Func<DateTime>? timeProvider = null)
     {
         _maxTokens = maxRequestsPerInterval;
         _refillInterval = interval;
+        _timeProvider = timeProvider ?? (() => DateTime.UtcNow);
         _tokens = maxRequestsPerInterval;
-        _lastRefill = DateTime.UtcNow;
+        _lastRefill = _timeProvider();
     }
 
     /// <summary>
@@ -65,7 +67,7 @@ public class RateLimiter
         lock (_lock)
         {
             _tokens = _maxTokens;
-            _lastRefill = DateTime.UtcNow;
+            _lastRefill = _timeProvider();
         }
     }
 
@@ -73,7 +75,7 @@ public class RateLimiter
     {
         // CRITICAL FIX: Cache DateTime.UtcNow to prevent time skew issues
         // If system clock changes between calls, calculations could be incorrect
-        var now = DateTime.UtcNow;
+        var now = _timeProvider();
         var elapsed = now - _lastRefill;
 
         if (elapsed >= _refillInterval)

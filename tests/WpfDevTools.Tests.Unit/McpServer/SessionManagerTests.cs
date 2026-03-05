@@ -90,7 +90,7 @@ public class SessionManagerTests
         var initialTime = manager.GetLastActivityTime(processId);
 
         // Wait to ensure timestamp can change (avoid same-tick updates)
-        Task.Delay(10).Wait();
+        Thread.Sleep(10);
 
         // Act
         manager.UpdateLastActivity(processId);
@@ -108,7 +108,7 @@ public class SessionManagerTests
         manager.AddSession(100);
 
         // Wait to ensure session becomes idle
-        Task.Delay(150).Wait();
+        Thread.Sleep(150);
 
         manager.AddSession(200); // Fresh session
 

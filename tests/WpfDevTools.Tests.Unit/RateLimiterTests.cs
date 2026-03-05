@@ -9,8 +9,9 @@ public class RateLimiterTests
     [Fact]
     public void RefillTokens_ShouldNotBeAffectedByTimeSkew()
     {
-        // Arrange: Create a rate limiter with 10 tokens per minute
-        var limiter = new RateLimiter(10, TimeSpan.FromMinutes(1));
+        // Arrange: Create a rate limiter with 10 tokens per minute, using controllable time
+        var currentTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var limiter = new RateLimiter(10, TimeSpan.FromMinutes(1), () => currentTime);
 
         // Act: Consume all tokens
         for (int i = 0; i < 10; i++)
@@ -22,8 +23,8 @@ public class RateLimiterTests
         limiter.TryAcquire().Should().BeFalse();
         limiter.GetAvailableTokens().Should().Be(0);
 
-        // Wait for refill interval to pass
-        Thread.Sleep(TimeSpan.FromMinutes(1).Add(TimeSpan.FromMilliseconds(100)));
+        // Advance time past refill interval
+        currentTime = currentTime.AddMinutes(1).AddMilliseconds(100);
 
         // Assert: Tokens should be refilled
         limiter.GetAvailableTokens().Should().Be(10);
@@ -34,7 +35,8 @@ public class RateLimiterTests
     public void RefillTokens_ShouldCalculateIntervalsCorrectly()
     {
         // Arrange: Create a rate limiter with 5 tokens per second
-        var limiter = new RateLimiter(5, TimeSpan.FromSeconds(1));
+        var currentTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var limiter = new RateLimiter(5, TimeSpan.FromSeconds(1), () => currentTime);
 
         // Consume all tokens
         for (int i = 0; i < 5; i++)
@@ -42,8 +44,8 @@ public class RateLimiterTests
             limiter.TryAcquire().Should().BeTrue();
         }
 
-        // Wait for 2 seconds (should refill 2 * 5 = 10 tokens, capped at 5)
-        Thread.Sleep(TimeSpan.FromSeconds(2).Add(TimeSpan.FromMilliseconds(100)));
+        // Advance time by 2 seconds (should refill 2 * 5 = 10 tokens, capped at 5)
+        currentTime = currentTime.AddSeconds(2).AddMilliseconds(100);
 
         // Assert: Should have max tokens (5), not 10
         limiter.GetAvailableTokens().Should().Be(5);
@@ -53,7 +55,8 @@ public class RateLimiterTests
     public void RefillTokens_ShouldHandlePartialIntervals()
     {
         // Arrange: Create a rate limiter with 10 tokens per minute
-        var limiter = new RateLimiter(10, TimeSpan.FromMinutes(1));
+        var currentTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var limiter = new RateLimiter(10, TimeSpan.FromMinutes(1), () => currentTime);
 
         // Consume all tokens
         for (int i = 0; i < 10; i++)
@@ -61,14 +64,14 @@ public class RateLimiterTests
             limiter.TryAcquire().Should().BeTrue();
         }
 
-        // Wait for half the interval (should not refill yet)
-        Thread.Sleep(TimeSpan.FromSeconds(30));
+        // Advance time by half the interval (should not refill yet)
+        currentTime = currentTime.AddSeconds(30);
 
         // Assert: No refill yet (partial interval)
         limiter.GetAvailableTokens().Should().Be(0);
 
-        // Wait for the rest of the interval
-        Thread.Sleep(TimeSpan.FromSeconds(30).Add(TimeSpan.FromMilliseconds(100)));
+        // Advance time past the full interval
+        currentTime = currentTime.AddSeconds(30).AddMilliseconds(100);
 
         // Assert: Now tokens should be refilled
         limiter.GetAvailableTokens().Should().Be(10);

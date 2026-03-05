@@ -18,6 +18,7 @@ public class RateLimiter
     /// </summary>
     /// <param name="maxRequestsPerInterval">Maximum requests allowed per interval</param>
     /// <param name="interval">Time interval for rate limiting</param>
+    /// <param name="timeProvider">Optional time provider for testing (defaults to DateTime.UtcNow)</param>
     public RateLimiter(int maxRequestsPerInterval, TimeSpan interval, Func<DateTime>? timeProvider = null)
     {
         _maxTokens = maxRequestsPerInterval;

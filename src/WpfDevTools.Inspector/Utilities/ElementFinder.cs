@@ -8,7 +8,7 @@ namespace WpfDevTools.Inspector.Utilities;
 /// <summary>
 /// Utility for finding and tracking WPF elements by ID
 /// </summary>
-public class ElementFinder
+public class ElementFinder : IDisposable
 {
     // Static to ensure unique IDs across all ElementFinder instances.
     // Multiple analyzers may share the same instance, but if separate instances
@@ -16,8 +16,22 @@ public class ElementFinder
     private static int _nextId = 0;
     private readonly ConcurrentDictionary<DependencyObject, string> _objectToIdCache = new(ReferenceEqualityComparer.Instance);
     private readonly ConcurrentDictionary<string, WeakReference<DependencyObject>> _elementCache = new();
-    private int _registrationCount = 0;
-    private const int CleanupThreshold = 1000;
+    private readonly System.Threading.Timer _cleanupTimer;
+    private const int CleanupIntervalSeconds = 30;
+
+    /// <summary>
+    /// Create a new ElementFinder instance with timer-based cleanup
+    /// </summary>
+    public ElementFinder()
+    {
+        // CRITICAL FIX: Use timer-based cleanup instead of count-based
+        // This prevents GC pressure spikes in large UIs with rapid element creation
+        _cleanupTimer = new System.Threading.Timer(
+            callback: _ => CleanupDeadReferences(),
+            state: null,
+            dueTime: TimeSpan.FromSeconds(CleanupIntervalSeconds),
+            period: TimeSpan.FromSeconds(CleanupIntervalSeconds));
+    }
 
     /// <summary>
     /// Get the root element of the WPF application
@@ -45,11 +59,8 @@ public class ElementFinder
         // Cache the element with WeakReference
         _elementCache[elementId] = new WeakReference<DependencyObject>(element);
 
-        // Periodic cleanup of dead WeakReferences
-        if (Interlocked.Increment(ref _registrationCount) % CleanupThreshold == 0)
-        {
-            CleanupDeadReferences();
-        }
+        // CRITICAL FIX: Removed count-based cleanup trigger
+        // Cleanup now runs on a timer (every 30 seconds) to prevent GC pressure spikes
 
         return elementId;
     }
@@ -59,7 +70,7 @@ public class ElementFinder
     /// _objectToIdCache holds strong references as keys, so GC'd elements must
     /// be removed from both caches to allow proper garbage collection.
     /// </summary>
-    private void CleanupDeadReferences()
+    public void CleanupDeadReferences()
     {
         var deadKeys = new List<string>();
 
@@ -155,6 +166,14 @@ public class ElementFinder
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Dispose resources (cleanup timer)
+    /// </summary>
+    public void Dispose()
+    {
+        _cleanupTimer?.Dispose();
     }
 }
 

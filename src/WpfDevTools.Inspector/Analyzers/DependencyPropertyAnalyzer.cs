@@ -29,6 +29,20 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     private static int _changeLogCount = 0;
     private const int MaxChangeLogEntries = 10000;
 
+    // CRITICAL FIX: Timer for periodic cleanup of dead watchers
+    private static readonly System.Threading.Timer _cleanupTimer;
+    private const int CleanupIntervalSeconds = 30;
+
+    static DependencyPropertyAnalyzer()
+    {
+        // Initialize cleanup timer (runs every 30 seconds)
+        _cleanupTimer = new System.Threading.Timer(
+            callback: _ => CleanupDeadWatchers(),
+            state: null,
+            dueTime: TimeSpan.FromSeconds(CleanupIntervalSeconds),
+            period: TimeSpan.FromSeconds(CleanupIntervalSeconds));
+    }
+
     /// <summary>
     /// Create a new DependencyPropertyAnalyzer instance
     /// </summary>
@@ -391,5 +405,30 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             }
         }
         _watchers.Clear();
+        _cleanupTimer?.Dispose();
+    }
+
+    /// <summary>
+    /// CRITICAL FIX: Clean up watchers for garbage-collected elements
+    /// This prevents dead watchers from accumulating over time
+    /// </summary>
+    private static void CleanupDeadWatchers()
+    {
+        var deadKeys = new List<string>();
+
+        foreach (var kvp in _watchers)
+        {
+            // Check if element is still alive
+            if (!kvp.Value.ElementRef.TryGetTarget(out _))
+            {
+                deadKeys.Add(kvp.Key);
+            }
+        }
+
+        // Remove dead watchers
+        foreach (var key in deadKeys)
+        {
+            _watchers.TryRemove(key, out _);
+        }
     }
 }

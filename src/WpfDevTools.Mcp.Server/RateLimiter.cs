@@ -71,6 +71,8 @@ public class RateLimiter
 
     private void RefillTokens()
     {
+        // CRITICAL FIX: Cache DateTime.UtcNow to prevent time skew issues
+        // If system clock changes between calls, calculations could be incorrect
         var now = DateTime.UtcNow;
         var elapsed = now - _lastRefill;
 
@@ -81,7 +83,11 @@ public class RateLimiter
             var tokensToAdd = intervalsElapsed * _maxTokens;
 
             _tokens = Math.Min(_tokens + tokensToAdd, _maxTokens);
-            _lastRefill = now;
+
+            // CRITICAL FIX: Update _lastRefill based on actual intervals elapsed
+            // This ensures consistent refill timing even with time drift
+            // Example: if 2.5 intervals passed, advance by exactly 2 intervals
+            _lastRefill = _lastRefill.Add(TimeSpan.FromTicks(intervalsElapsed * _refillInterval.Ticks));
         }
     }
 }

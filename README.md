@@ -1,7 +1,7 @@
 # WPF DevTools MCP Server
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-687%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-890%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 A Model Context Protocol (MCP) server that enables AI agents to deeply inspect and interact with running WPF applications through in-process DLL injection.
@@ -215,6 +215,55 @@ Once configured, AI agents can interact with WPF applications using natural lang
 "Find potential binding memory leaks in the application"
 → Agent uses: find_binding_leaks → get_bindings (for details)
 ```
+
+## Security
+
+WPF DevTools MCP Server includes multiple layers of security to protect Named Pipe IPC communication.
+
+### Authentication
+
+Challenge-Response authentication using HMAC-SHA256 prevents unauthorized connections to Inspector DLLs.
+
+**How it works**:
+1. Inspector generates a 32-byte random challenge
+2. MCP Server computes HMAC-SHA256 response using the shared secret
+3. Inspector verifies the response using constant-time comparison
+4. Connection proceeds only if authentication succeeds
+
+**Configuration**:
+
+```bash
+# Set shared secret (base64-encoded, minimum 32 bytes)
+export WPFDEVTOOLS_AUTH_SECRET=$(openssl rand -base64 32)
+```
+
+If `WPFDEVTOOLS_AUTH_SECRET` is not set, a random secret is auto-generated per session.
+
+### Communication Encryption
+
+All Named Pipe communication can be encrypted using TLS 1.2 over SslStream with self-signed X.509 certificates.
+
+**Features**:
+- RSA 2048-bit self-signed certificates with auto-generation and file persistence
+- TLS 1.2 encryption (TLS 1.3 is incompatible with Named Pipes on Windows)
+- Certificate reuse across sessions (stored in `%APPDATA%\WpfDevTools\certs\`)
+- Machine-specific PFX password protection
+
+### Async Logging
+
+Both MCP Server and Inspector use non-blocking async logging via bounded Channel queues:
+- No UI thread blocking even under high error frequency
+- Automatic log rotation at 10 MB
+- Background queue processing with graceful shutdown flush
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `WPFDEVTOOLS_AUTH_SECRET` | Base64-encoded shared secret (min 32 bytes) | Auto-generated |
+| `WPFDEVTOOLS_REQUIRE_SIGNATURE` | Require Authenticode DLL signature | `0` (disabled) |
+
+For production deployment guidance, see [Security Policy](SECURITY.md).
 
 ## Architecture
 

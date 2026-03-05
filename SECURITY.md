@@ -39,6 +39,61 @@ Please include the following information in your report:
   - Medium: 4-8 weeks
   - Low: Next release cycle
 
+## Implemented Security Mechanisms
+
+### Challenge-Response Authentication
+
+WPF DevTools uses HMAC-SHA256 Challenge-Response authentication to verify MCP Server identity before allowing Named Pipe communication.
+
+**Protocol**:
+1. Inspector generates 32-byte cryptographic random challenge
+2. Inspector sends challenge to MCP Server over Named Pipe
+3. MCP Server computes `HMAC-SHA256(shared_secret, challenge)` and sends 32-byte response
+4. Inspector verifies response using constant-time comparison (`CryptographicOperations.FixedTimeEquals`)
+5. Inspector sends 1-byte result (1=success, 0=failure)
+
+**Key Management**:
+- 256-bit shared secret (minimum 32 bytes)
+- Auto-generated via `RandomNumberGenerator` if `WPFDEVTOOLS_AUTH_SECRET` environment variable is not set
+- Environment variable accepts Base64-encoded secret
+- Authentication has a 5-second timeout to prevent hung connections
+
+### TLS 1.2 Encryption
+
+All Named Pipe IPC can be encrypted using SslStream with self-signed X.509 certificates.
+
+**Implementation Details**:
+- **Algorithm**: RSA 2048-bit key, SHA-256 signature
+- **Protocol**: TLS 1.2 (TLS 1.3 is incompatible with Named Pipes on Windows)
+- **Certificate**: Self-signed, valid for 1 year, with Server Authentication EKU
+- **Storage**: PFX file in `%APPDATA%\WpfDevTools\certs\server.pfx`
+- **Password**: Machine-specific (derived from `SHA256(MachineName + UserName)`)
+- **Client Validation**: Verifies server certificate subject contains `CN=WpfDevTools-Inspector`
+
+**Forward Compatibility**: Authentication and encryption are optional. Connections without authentication/encryption remain supported for backward compatibility.
+
+### Named Pipe ACL Restrictions
+
+Named Pipes are created with explicit ACL rules:
+- Current user: Full Control
+- SYSTEM account: Full Control
+- All other users: Denied
+
+### Async File Logging
+
+Logging uses non-blocking `Channel<T>` based async I/O:
+- Bounded channel (10,000 entries max) with DropOldest overflow policy
+- Background task processes log queue without blocking callers
+- Automatic log rotation at 10 MB
+- Graceful flush on dispose (5-second timeout)
+
+### Rate Limiting
+
+MCP Server STDIN transport includes global rate limiting:
+- Default: 100 requests per minute
+- Configurable via `RateLimiter` class
+- Returns JSON-RPC error response when exceeded
+
 ## Security Considerations
 
 ### DLL Injection
@@ -62,11 +117,16 @@ Please include the following information in your report:
 
 **Mitigations**:
 - ACL-restricted pipes (current user + SYSTEM only)
+- Challenge-Response authentication (HMAC-SHA256)
+- TLS 1.2 encryption via SslStream (optional)
 - Local-only communication (no network access)
 - Message size limits (10 MB max)
 - Timeout protection on all operations
+- Rate limiting (100 requests/minute default)
 
 **Recommendations**:
+- Set `WPFDEVTOOLS_AUTH_SECRET` environment variable in production
+- Enable TLS encryption for sensitive environments
 - Run MCP Server and target application under the same user account
 - Do not expose Named Pipes to untrusted processes
 
@@ -140,4 +200,4 @@ For security-related questions or concerns, please contact the project maintaine
 
 ---
 
-**Last Updated**: 2026-03-05
+**Last Updated**: 2026-03-06

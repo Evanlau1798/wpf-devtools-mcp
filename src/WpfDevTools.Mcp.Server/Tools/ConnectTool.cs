@@ -231,7 +231,7 @@ public class ConnectTool
         if (!fullPath.StartsWith(appDir, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
-                $"DLL must be in application directory. Expected: {appDir}, Got: {fullPath}",
+                "DLL must be located within the application directory",
                 nameof(dllPath));
         }
 

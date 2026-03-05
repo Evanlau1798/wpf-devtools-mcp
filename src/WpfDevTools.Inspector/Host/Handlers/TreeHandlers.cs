@@ -45,7 +45,8 @@ public class TreeHandlers : IRequestHandler
             "get_logical_tree",
             "compare_trees",
             "serialize_to_xaml",
-            "get_namescope"
+            "get_namescope",
+            "get_template_tree"
         };
     }
 
@@ -66,6 +67,7 @@ public class TreeHandlers : IRequestHandler
             "compare_trees" => await HandleCompareTreesAsync(@params, cancellationToken).ConfigureAwait(false),
             "serialize_to_xaml" => await HandleSerializeToXamlAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_namescope" => await HandleGetNameScopeAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_template_tree" => await HandleGetTemplateTreeAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -127,5 +129,14 @@ public class TreeHandlers : IRequestHandler
 
         return await Task.Run(() =>
             _visualTreeAnalyzer.GetNameScope(elementId), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<object> HandleGetTemplateTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var depth = ParameterHelpers.GetIntParam(@params, "depth");
+
+        return await Task.Run(() =>
+            _visualTreeAnalyzer.GetTemplateTree(elementId, depth), cancellationToken).ConfigureAwait(false);
     }
 }

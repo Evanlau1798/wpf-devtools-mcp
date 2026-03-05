@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Markup;
 using WpfDevTools.Inspector.Utilities;
@@ -193,6 +194,44 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
         }
     }
 
+    /// <summary>
+    /// Get template Visual Tree of a templated control
+    /// </summary>
+    public object GetTemplateTree(string? elementId, int? maxDepth = null)
+    {
+        return InvokeOnUIThread<object>(() =>
+        {
+            if (string.IsNullOrEmpty(elementId))
+            {
+                return new { success = false, error = "elementId is required for get_template_tree" };
+            }
+
+            var element = _elementFinder.FindById(elementId);
+            if (element == null)
+            {
+                return new { success = false, error = "Element not found" };
+            }
+
+            if (element is not Control control || control.Template == null)
+            {
+                return new { success = false, error = "Element is not a templated control or has no template" };
+            }
+
+            var templateRoot = VisualTreeHelper.GetChildrenCount(control) > 0
+                ? VisualTreeHelper.GetChild(control, 0)
+                : null;
+
+            if (templateRoot == null)
+            {
+                return new { success = false, error = "No template visual tree found" };
+            }
+
+            var effectiveDepth = Math.Min(maxDepth ?? 10, 100);
+            var tree = WalkVisualTree(templateRoot, effectiveDepth, 0);
+            return new { success = true, tree };
+        });
+    }
+
     private List<DependencyObject> GetVisualChildren(DependencyObject element)
     {
         var children = new List<DependencyObject>();
@@ -226,9 +265,16 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
     private object WalkVisualTree(DependencyObject element, int maxDepth, int currentDepth)
     {
+        var elementId = _elementFinder.GenerateElementId(element);
+
         if (currentDepth >= maxDepth)
         {
-            return new { type = element.GetType().Name, childCount = VisualTreeHelper.GetChildrenCount(element) };
+            return new
+            {
+                elementId,
+                type = element.GetType().Name,
+                childCount = VisualTreeHelper.GetChildrenCount(element)
+            };
         }
 
         var children = new List<object>();
@@ -242,6 +288,7 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
         return new
         {
+            elementId,
             type = element.GetType().Name,
             name = (element as FrameworkElement)?.Name,
             childCount = childCount,

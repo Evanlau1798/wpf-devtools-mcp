@@ -190,6 +190,8 @@ public class MvvmAnalyzerIntegrationTests
 
         public bool CanExecute(object? parameter) => _canExecute(parameter);
         public void Execute(object? parameter) => _execute(parameter);
+#pragma warning disable CS0067 // ICommand interface requirement
         public event EventHandler? CanExecuteChanged;
+#pragma warning restore CS0067
     }
 }

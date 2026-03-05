@@ -67,7 +67,7 @@ All Named Pipe IPC can be encrypted using SslStream with self-signed X.509 certi
 - **Protocol**: TLS 1.2 (TLS 1.3 is incompatible with Named Pipes on Windows)
 - **Certificate**: Self-signed, valid for 1 year, with Server Authentication EKU
 - **Storage**: PFX file in `%APPDATA%\WpfDevTools\certs\server.pfx`
-- **Password**: Machine-specific (derived from `SHA256(MachineName + UserName)`)
+- **Password**: Random 32-byte password, protected via DPAPI (CurrentUser scope)
 - **Client Validation**: Verifies server certificate subject contains `CN=WpfDevTools-Inspector`
 
 **Forward Compatibility**: Authentication and encryption are optional. Connections without authentication/encryption remain supported for backward compatibility.

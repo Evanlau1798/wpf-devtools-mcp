@@ -113,7 +113,7 @@ public class HttpTransport : ITransport, IDisposable
                 }
 
                 using var reader = new StreamReader(context.Request.Body);
-                var message = await reader.ReadToEndAsync();
+                var message = await reader.ReadToEndAsync(context.RequestAborted);
 
                 // Additional check after reading (in case Content-Length was not set)
                 if (message.Length > MaxBodySizeBytes)

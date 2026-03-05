@@ -29,7 +29,6 @@ public class StyleHandlers : IRequestHandler
         {
             "get_applied_styles",
             "get_triggers",
-            "get_template_tree",
             "get_resource_chain",
             "override_style_setter"
         };
@@ -49,7 +48,6 @@ public class StyleHandlers : IRequestHandler
         {
             "get_applied_styles" => await HandleGetAppliedStylesAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_triggers" => await HandleGetTriggersAsync(@params, cancellationToken).ConfigureAwait(false),
-            "get_template_tree" => await HandleGetTemplateTreeAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_resource_chain" => await HandleGetResourceChainAsync(@params, cancellationToken).ConfigureAwait(false),
             "override_style_setter" => await HandleOverrideStyleSetterAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
@@ -70,14 +68,6 @@ public class StyleHandlers : IRequestHandler
 
         return await Task.Run(() =>
             _styleAnalyzer.GetTriggers(elementId), cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<object> HandleGetTemplateTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
-    {
-        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
-
-        return await Task.Run(() =>
-            _styleAnalyzer.GetTemplateTree(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetResourceChainAsync(JsonElement? @params, CancellationToken cancellationToken)

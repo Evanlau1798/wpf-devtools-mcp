@@ -61,12 +61,13 @@ public class HandlerRoutingTests
             new ElementFinder());
         var methods = handler.GetSupportedMethods().ToList();
 
-        methods.Should().HaveCount(5);
+        methods.Should().HaveCount(6);
         methods.Should().Contain("get_visual_tree");
         methods.Should().Contain("get_logical_tree");
         methods.Should().Contain("compare_trees");
         methods.Should().Contain("serialize_to_xaml");
         methods.Should().Contain("get_namescope");
+        methods.Should().Contain("get_template_tree");
     }
 
     [Fact]
@@ -102,6 +103,18 @@ public class HandlerRoutingTests
             new XamlSerializer(),
             new ElementFinder());
         var result = await handler.HandleAsync("compare_trees", null, CancellationToken.None);
+        result.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task TreeHandlers_HandleAsync_GetTemplateTree_ShouldReturnResult()
+    {
+        var handler = new TreeHandlers(
+            new VisualTreeAnalyzer(new ElementFinder()),
+            new LogicalTreeAnalyzer(new ElementFinder()),
+            new XamlSerializer(),
+            new ElementFinder());
+        var result = await handler.HandleAsync("get_template_tree", null, CancellationToken.None);
         result.Should().NotBeNull();
     }
 
@@ -228,10 +241,9 @@ public class HandlerRoutingTests
         var handler = new StyleHandlers(new StyleAnalyzer(new ElementFinder()));
         var methods = handler.GetSupportedMethods().ToList();
 
-        methods.Should().HaveCount(5);
+        methods.Should().HaveCount(4);
         methods.Should().Contain("get_applied_styles");
         methods.Should().Contain("get_triggers");
-        methods.Should().Contain("get_template_tree");
         methods.Should().Contain("get_resource_chain");
         methods.Should().Contain("override_style_setter");
     }
@@ -249,14 +261,6 @@ public class HandlerRoutingTests
     {
         var handler = new StyleHandlers(new StyleAnalyzer(new ElementFinder()));
         var result = await handler.HandleAsync("get_triggers", null, CancellationToken.None);
-        result.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task StyleHandlers_HandleAsync_GetTemplateTree_ShouldReturnResult()
-    {
-        var handler = new StyleHandlers(new StyleAnalyzer(new ElementFinder()));
-        var result = await handler.HandleAsync("get_template_tree", null, CancellationToken.None);
         result.Should().NotBeNull();
     }
 

@@ -2,7 +2,7 @@ using WpfDevTools.Mcp.Server;
 using WpfDevTools.Shared.Utilities;
 
 // Initialize components
-var logger = new FileLogger();
+using var logger = new FileLogger();
 var toolRegistry = new ToolRegistry();
 using var sessionManager = new SessionManager();
 var protocolHandler = new McpProtocolHandler(toolRegistry);

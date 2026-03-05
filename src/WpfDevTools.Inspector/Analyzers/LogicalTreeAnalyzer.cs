@@ -50,9 +50,11 @@ public class LogicalTreeAnalyzer : DispatcherAnalyzerBase
 
     private object WalkLogicalTree(DependencyObject element, int maxDepth, int currentDepth)
     {
+        var elementId = _elementFinder.GenerateElementId(element);
+
         if (currentDepth >= maxDepth)
         {
-            return new { type = element.GetType().Name };
+            return new { elementId, type = element.GetType().Name };
         }
 
         var children = new List<object>();
@@ -66,6 +68,7 @@ public class LogicalTreeAnalyzer : DispatcherAnalyzerBase
 
         return new
         {
+            elementId,
             type = element.GetType().Name,
             name = (element as FrameworkElement)?.Name,
             childCount = children.Count,

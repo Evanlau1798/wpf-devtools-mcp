@@ -125,6 +125,28 @@ public class ResponseCalculatorTests
     }
 
     [Fact]
+    public void ComputeResponse_CallerModifiesSecret_DoesNotAffectCalculation()
+    {
+        // Arrange
+        var secret = new byte[32];
+        new Random(42).NextBytes(secret);
+        var calculator = new ResponseCalculator(secret);
+
+        var challenge = new byte[32];
+        new Random(99).NextBytes(challenge);
+
+        var response1 = calculator.ComputeResponse(challenge);
+
+        // Act - Caller modifies the original secret array
+        Array.Clear(secret, 0, secret.Length);
+
+        var response2 = calculator.ComputeResponse(challenge);
+
+        // Assert - Should still produce the same response (defensive copy)
+        response1.Should().Equal(response2);
+    }
+
+    [Fact]
     public void Constructor_WithNullSecret_ShouldThrowArgumentNullException()
     {
         // Act

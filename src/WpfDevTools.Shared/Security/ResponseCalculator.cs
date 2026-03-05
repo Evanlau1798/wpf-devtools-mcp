@@ -24,7 +24,7 @@ public class ResponseCalculator
         if (sharedSecret.Length == 0)
             throw new ArgumentException("Shared secret cannot be empty", nameof(sharedSecret));
 
-        _sharedSecret = sharedSecret;
+        _sharedSecret = (byte[])sharedSecret.Clone();
     }
 
     /// <summary>

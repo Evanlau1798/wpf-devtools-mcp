@@ -1,22 +1,22 @@
 using System.Threading.Channels;
 using System.Text.Json;
 
-namespace WpfDevTools.Mcp.Server;
+namespace WpfDevTools.Shared.Utilities;
 
 /// <summary>
-/// Async file-based logger for MCP Server using background queue
-/// Logs to file instead of stdout to avoid interfering with JSON-RPC communication
-/// Uses Channel for non-blocking async I/O to prevent thread pool starvation
-/// Supports structured logging with correlation IDs and performance metrics
+/// Async file-based logger using background queue.
+/// Uses Channel for non-blocking async I/O to prevent thread pool starvation.
+/// Supports structured logging with correlation IDs and performance metrics.
+/// Implements both IDisposable (for sync contexts) and IAsyncDisposable (for async contexts).
 /// </summary>
-public class FileLogger : IAsyncDisposable
+public class FileLogger : IDisposable, IAsyncDisposable
 {
     private readonly string _logFilePath;
     private readonly Channel<string> _logQueue;
     private readonly Task _processingTask;
     private readonly CancellationTokenSource _shutdownCts;
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
-    private const int MaxQueueCapacity = 10000; // Prevent unbounded memory growth
+    private const int MaxQueueCapacity = 10000;
 
     /// <summary>
     /// Create a new FileLogger instance
@@ -26,12 +26,11 @@ public class FileLogger : IAsyncDisposable
     {
         _logFilePath = logFilePath ?? Path.Combine(
             Path.GetTempPath(),
-            $"WpfDevTools_McpServer_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+            $"WpfDevTools_{DateTime.Now:yyyyMMdd_HHmmss}.log");
 
-        // Create bounded channel to prevent memory exhaustion
         _logQueue = Channel.CreateBounded<string>(new BoundedChannelOptions(MaxQueueCapacity)
         {
-            FullMode = BoundedChannelFullMode.DropOldest // Drop oldest if queue full
+            FullMode = BoundedChannelFullMode.DropOldest
         });
 
         _shutdownCts = new CancellationTokenSource();
@@ -75,11 +74,11 @@ public class FileLogger : IAsyncDisposable
     }
 
     /// <summary>
-    /// Log a structured message with additional context fields for observability
+    /// Log a structured message with additional context fields
     /// </summary>
     /// <param name="level">Log level (INFO, ERROR, etc.)</param>
     /// <param name="message">Log message</param>
-    /// <param name="context">Additional structured context (will be serialized as JSON)</param>
+    /// <param name="context">Additional structured context (serialized as JSON)</param>
     public void LogStructured(string level, string message, object? context = null)
     {
         try
@@ -102,9 +101,9 @@ public class FileLogger : IAsyncDisposable
     }
 
     /// <summary>
-    /// Log a request with structured fields for observability and performance tracking
+    /// Log a request with structured fields for observability
     /// </summary>
-    /// <param name="method">Method name (e.g., "get_visual_tree")</param>
+    /// <param name="method">Method name</param>
     /// <param name="correlationId">Correlation ID for tracing</param>
     /// <param name="processId">Target process ID</param>
     /// <param name="durationMs">Request duration in milliseconds</param>
@@ -128,13 +127,10 @@ public class FileLogger : IAsyncDisposable
         try
         {
             var logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}";
-
-            // Non-blocking write to channel (returns immediately)
             _logQueue.Writer.TryWrite(logEntry);
         }
         catch (Exception ex)
         {
-            // Fallback to console if channel write fails
             Console.Error.WriteLine($"Logging failed: {ex.Message}");
         }
     }
@@ -143,16 +139,39 @@ public class FileLogger : IAsyncDisposable
     {
         try
         {
+#if NET48
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (await _logQueue.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (_logQueue.Reader.TryRead(out var logEntry))
+                    {
+                        try
+                        {
+                            RotateIfNeeded();
+                            using (var writer = new StreamWriter(_logFilePath, append: true))
+                            {
+                                await writer.WriteAsync(logEntry).ConfigureAwait(false);
+                            }
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            Console.Error.WriteLine($"Logging failed: {ex.Message}");
+                        }
+                    }
+                }
+            }
+#else
             await foreach (var logEntry in _logQueue.Reader.ReadAllAsync(cancellationToken))
             {
                 try
                 {
                     RotateIfNeeded();
-                    await File.AppendAllTextAsync(_logFilePath, logEntry, cancellationToken);
+                    await File.AppendAllTextAsync(_logFilePath, logEntry, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
-                    // Shutdown requested - exit gracefully
                     break;
                 }
                 catch (Exception ex)
@@ -160,6 +179,7 @@ public class FileLogger : IAsyncDisposable
                     Console.Error.WriteLine($"Logging failed: {ex.Message}");
                 }
             }
+#endif
         }
         catch (OperationCanceledException)
         {
@@ -172,20 +192,14 @@ public class FileLogger : IAsyncDisposable
         try
         {
             if (!File.Exists(_logFilePath))
-            {
                 return;
-            }
 
             var fileInfo = new FileInfo(_logFilePath);
             if (fileInfo.Length >= MaxFileSizeBytes)
             {
                 var oldPath = _logFilePath + ".old";
-
-                // Delete existing .old file if present
                 if (File.Exists(oldPath))
-                {
                     File.Delete(oldPath);
-                }
 
                 File.Move(_logFilePath, oldPath);
             }
@@ -202,25 +216,68 @@ public class FileLogger : IAsyncDisposable
     public string LogFilePath => _logFilePath;
 
     /// <summary>
-    /// Dispose resources and flush remaining log entries
+    /// Synchronous dispose - signals shutdown and waits for flush
     /// </summary>
-    /// <returns>ValueTask representing the async disposal operation</returns>
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        // Signal shutdown
-        _logQueue.Writer.Complete();
+        _logQueue.Writer.TryComplete();
 
-        // Wait for background task to finish processing remaining logs
         try
         {
-            await _processingTask.WaitAsync(TimeSpan.FromSeconds(5));
+            _processingTask.Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (AggregateException)
+        {
+            // Expected if cancelled
+        }
+
+        _shutdownCts.Cancel();
+        _shutdownCts.Dispose();
+    }
+
+    /// <summary>
+    /// Async dispose - signals shutdown and waits for flush
+    /// </summary>
+    public
+#if NET48
+        ValueTask DisposeAsync()
+    {
+        _logQueue.Writer.TryComplete();
+
+        try
+        {
+            if (!_processingTask.Wait(TimeSpan.FromSeconds(5)))
+            {
+                _shutdownCts.Cancel();
+            }
+        }
+        catch (AggregateException)
+        {
+            // Expected if cancelled
+        }
+
+        _shutdownCts.Dispose();
+        return default;
+    }
+#else
+        async ValueTask DisposeAsync()
+    {
+        _logQueue.Writer.TryComplete();
+
+        try
+        {
+            await _processingTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
-            // Force shutdown if taking too long
             _shutdownCts.Cancel();
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during shutdown
         }
 
         _shutdownCts.Dispose();
     }
+#endif
 }

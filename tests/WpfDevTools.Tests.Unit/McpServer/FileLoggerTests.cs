@@ -1,6 +1,6 @@
 using Xunit;
 using FluentAssertions;
-using WpfDevTools.Mcp.Server;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 

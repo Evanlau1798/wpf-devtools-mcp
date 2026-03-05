@@ -22,7 +22,7 @@ public class InspectorHost : IDisposable
 {
     private readonly int _processId;
     private readonly string _pipeName;
-    private readonly string _logPath;
+    private readonly FileLogger _logger;
     private readonly RequestDispatcher _dispatcher;
     private readonly AuthenticationManager? _authManager;
     private readonly CertificateManager? _certManager;
@@ -62,7 +62,8 @@ public class InspectorHost : IDisposable
     {
         _processId = processId;
         _pipeName = $"WpfDevTools_{processId}";
-        _logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_Inspector_{processId}.log");
+        var logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_Inspector_{processId}.log");
+        _logger = new FileLogger(logPath);
         _dispatcher = new RequestDispatcher();
         _authManager = authManager;
         _certManager = certManager;
@@ -464,14 +465,7 @@ public class InspectorHost : IDisposable
 
     private void LogError(string message)
     {
-        try
-        {
-            File.AppendAllText(_logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [ERROR] {message}{Environment.NewLine}");
-        }
-        catch
-        {
-            // Ignore logging errors
-        }
+        _logger.LogError(message);
     }
 
     /// <summary>
@@ -486,5 +480,6 @@ public class InspectorHost : IDisposable
     {
         Stop(); // Stop() already disposes _pipeServer
         _cancellationTokenSource?.Dispose();
+        _logger.Dispose();
     }
 }

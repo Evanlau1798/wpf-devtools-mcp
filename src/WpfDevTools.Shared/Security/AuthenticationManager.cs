@@ -81,7 +81,14 @@ public class AuthenticationManager
     private static byte[] GenerateSecureSecret()
     {
         var secret = new byte[MinSecretLength];
+#if NET48
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(secret);
+        }
+#else
         RandomNumberGenerator.Fill(secret);
+#endif
         return secret;
     }
 }

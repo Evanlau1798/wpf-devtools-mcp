@@ -34,7 +34,8 @@ public static class MvvmMcpTools
     public static Task<CallToolResult> GetViewModel(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -43,7 +44,7 @@ public static class MvvmMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetViewModelTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_commands", ReadOnly = true)]
@@ -69,7 +70,8 @@ public static class MvvmMcpTools
     public static Task<CallToolResult> GetCommands(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -78,7 +80,7 @@ public static class MvvmMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetCommandsTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "execute_command", Destructive = true)]
@@ -107,7 +109,8 @@ public static class MvvmMcpTools
         int processId,
         string commandName,
         string? elementId = null,
-        string? parameter = null)
+        string? parameter = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -118,7 +121,7 @@ public static class MvvmMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new ExecuteCommandTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_validation_errors", ReadOnly = true)]
@@ -145,7 +148,8 @@ public static class MvvmMcpTools
     public static Task<CallToolResult> GetValidationErrors(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -154,7 +158,7 @@ public static class MvvmMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetValidationErrorsTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "modify_viewmodel", Destructive = true)]
@@ -184,7 +188,8 @@ public static class MvvmMcpTools
         int processId,
         string propertyName,
         string value,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -207,6 +212,6 @@ public static class MvvmMcpTools
                     return (pid, (object?)new { elementId = eid, propertyName = prop, value = val }, null);
                 }).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

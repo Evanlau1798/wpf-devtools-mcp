@@ -33,7 +33,8 @@ public static class PerformanceMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetRenderStats(
         SessionManager sessionManager,
-        int processId)
+        int processId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId));
@@ -41,7 +42,7 @@ public static class PerformanceMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetRenderStatsTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "find_binding_leaks", ReadOnly = true)]
@@ -66,7 +67,8 @@ public static class PerformanceMcpTools
     public static Task<CallToolResult> FindBindingLeaks(
         SessionManager sessionManager,
         int processId,
-        int? threshold = null)
+        int? threshold = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -75,7 +77,7 @@ public static class PerformanceMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new FindBindingLeaksTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "measure_element_render_time", ReadOnly = true)]
@@ -100,7 +102,8 @@ public static class PerformanceMcpTools
     public static Task<CallToolResult> MeasureElementRenderTime(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -109,7 +112,7 @@ public static class PerformanceMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new MeasureElementRenderTimeTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_visual_count", ReadOnly = true)]
@@ -134,7 +137,8 @@ public static class PerformanceMcpTools
     public static Task<CallToolResult> GetVisualCount(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -143,6 +147,6 @@ public static class PerformanceMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetVisualCountTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

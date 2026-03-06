@@ -20,13 +20,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- System.IO.Pipes v4.3.0 removed - included in .NET 8.0 by default (fixes CVE-2017-0248, CVE-2017-0247) -->
     <PackageReference Include="ModelContextProtocol" Version="1.0.0" />
-    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageReference Include="System.Text.Json" Version="10.0.3" />
   </ItemGroup>

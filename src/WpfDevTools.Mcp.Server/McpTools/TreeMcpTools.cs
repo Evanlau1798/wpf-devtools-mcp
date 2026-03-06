@@ -36,7 +36,8 @@ public static class TreeMcpTools
         SessionManager sessionManager,
         int processId,
         string? elementId = null,
-        int? depth = null)
+        int? depth = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -46,7 +47,7 @@ public static class TreeMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetVisualTreeTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_logical_tree", ReadOnly = true)]
@@ -70,7 +71,8 @@ public static class TreeMcpTools
         SessionManager sessionManager,
         int processId,
         string? elementId = null,
-        int? depth = null)
+        int? depth = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -80,7 +82,7 @@ public static class TreeMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetLogicalTreeTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "serialize_to_xaml", ReadOnly = true)]
@@ -103,7 +105,8 @@ public static class TreeMcpTools
     public static Task<CallToolResult> SerializeToXaml(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -112,7 +115,7 @@ public static class TreeMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GenericPipeTool(sessionManager, "serialize_to_xaml").ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_namescope", ReadOnly = true)]
@@ -134,7 +137,8 @@ public static class TreeMcpTools
     public static Task<CallToolResult> GetNamescope(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -143,7 +147,7 @@ public static class TreeMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GenericPipeTool(sessionManager, "get_namescope").ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_template_tree", ReadOnly = true)]
@@ -167,7 +171,8 @@ public static class TreeMcpTools
         SessionManager sessionManager,
         int processId,
         string elementId,
-        int? depth = null)
+        int? depth = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -177,7 +182,7 @@ public static class TreeMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetTemplateTreeTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "compare_trees", ReadOnly = true)]
@@ -198,7 +203,8 @@ public static class TreeMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> CompareTrees(
         SessionManager sessionManager,
-        int processId)
+        int processId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId));
@@ -206,6 +212,6 @@ public static class TreeMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GenericPipeTool(sessionManager, "compare_trees").ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

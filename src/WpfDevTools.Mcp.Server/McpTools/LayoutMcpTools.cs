@@ -37,7 +37,8 @@ public static class LayoutMcpTools
     public static Task<CallToolResult> GetLayoutInfo(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -46,7 +47,7 @@ public static class LayoutMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetLayoutInfoTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_clipping_info", ReadOnly = true)]
@@ -71,7 +72,8 @@ public static class LayoutMcpTools
     public static Task<CallToolResult> GetClippingInfo(
         SessionManager sessionManager,
         int processId,
-        string elementId)
+        string elementId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -80,7 +82,7 @@ public static class LayoutMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetClippingInfoTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "highlight_element", Destructive = true)]
@@ -107,7 +109,8 @@ public static class LayoutMcpTools
         int processId,
         string? elementId = null,
         string? color = null,
-        int? duration = null)
+        int? duration = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -126,7 +129,7 @@ public static class LayoutMcpTools
                     return (pid, (object?)new { elementId = eid, color = c, duration = d }, null);
                 }).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "invalidate_layout", Destructive = true)]
@@ -149,7 +152,8 @@ public static class LayoutMcpTools
     public static Task<CallToolResult> InvalidateLayout(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -158,6 +162,6 @@ public static class LayoutMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new InvalidateLayoutTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

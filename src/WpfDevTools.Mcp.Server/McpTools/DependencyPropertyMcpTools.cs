@@ -36,7 +36,8 @@ public static class DependencyPropertyMcpTools
         SessionManager sessionManager,
         int processId,
         string propertyName,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -46,7 +47,7 @@ public static class DependencyPropertyMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetDpValueSourceTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_dp_metadata", ReadOnly = true)]
@@ -71,7 +72,8 @@ public static class DependencyPropertyMcpTools
         SessionManager sessionManager,
         int processId,
         string propertyName,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -81,7 +83,7 @@ public static class DependencyPropertyMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetDpMetadataTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "set_dp_value", Destructive = true)]
@@ -109,7 +111,8 @@ public static class DependencyPropertyMcpTools
         int processId,
         string propertyName,
         string value,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -120,7 +123,7 @@ public static class DependencyPropertyMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new SetDpValueTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "clear_dp_value", Destructive = true)]
@@ -144,7 +147,8 @@ public static class DependencyPropertyMcpTools
         SessionManager sessionManager,
         int processId,
         string propertyName,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -154,7 +158,7 @@ public static class DependencyPropertyMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new ClearDpValueTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "watch_dp_changes", ReadOnly = true)]
@@ -180,7 +184,8 @@ public static class DependencyPropertyMcpTools
         SessionManager sessionManager,
         int processId,
         string propertyName,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -190,6 +195,6 @@ public static class DependencyPropertyMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new WatchDpChangesTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

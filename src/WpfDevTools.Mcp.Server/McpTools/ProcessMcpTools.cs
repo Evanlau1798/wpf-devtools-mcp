@@ -35,7 +35,8 @@ public static class ProcessMcpTools
         "- { }\n" +
         "- { nameFilter: \"TestApp\" }")]
     public static Task<CallToolResult> GetProcesses(
-        string? nameFilter = null)
+        string? nameFilter = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("nameFilter", nameFilter));
@@ -43,7 +44,7 @@ public static class ProcessMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetProcessesTool().ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "connect", Idempotent = true)]
@@ -69,7 +70,8 @@ public static class ProcessMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
-        int processId)
+        int processId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId));
@@ -77,7 +79,7 @@ public static class ProcessMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new ConnectTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "ping", Idempotent = true)]
@@ -101,7 +103,8 @@ public static class ProcessMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> Ping(
         SessionManager sessionManager,
-        int processId)
+        int processId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId));
@@ -109,6 +112,6 @@ public static class ProcessMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new PingTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

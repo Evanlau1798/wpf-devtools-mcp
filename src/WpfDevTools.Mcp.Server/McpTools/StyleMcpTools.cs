@@ -36,7 +36,8 @@ public static class StyleMcpTools
     public static Task<CallToolResult> GetAppliedStyles(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -45,7 +46,7 @@ public static class StyleMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetAppliedStylesTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_triggers", ReadOnly = true)]
@@ -72,7 +73,8 @@ public static class StyleMcpTools
     public static Task<CallToolResult> GetTriggers(
         SessionManager sessionManager,
         int processId,
-        string elementId)
+        string elementId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -81,7 +83,7 @@ public static class StyleMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetTriggersTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_resource_chain", ReadOnly = true)]
@@ -110,7 +112,8 @@ public static class StyleMcpTools
         SessionManager sessionManager,
         int processId,
         string resourceKey,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -120,7 +123,7 @@ public static class StyleMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetResourceChainTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "override_style_setter", Destructive = true)]
@@ -149,7 +152,8 @@ public static class StyleMcpTools
         int processId,
         string propertyName,
         string value,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -160,6 +164,6 @@ public static class StyleMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new OverrideStyleSetterTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

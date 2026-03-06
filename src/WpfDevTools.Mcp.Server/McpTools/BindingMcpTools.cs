@@ -38,7 +38,8 @@ public static class BindingMcpTools
         SessionManager sessionManager,
         int processId,
         string? elementId = null,
-        bool? recursive = null)
+        bool? recursive = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -48,7 +49,7 @@ public static class BindingMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetBindingsTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_binding_errors", ReadOnly = true)]
@@ -73,7 +74,8 @@ public static class BindingMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetBindingErrors(
         SessionManager sessionManager,
-        int processId)
+        int processId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId));
@@ -81,7 +83,7 @@ public static class BindingMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetBindingErrorsTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_binding_value_chain", ReadOnly = true)]
@@ -108,7 +110,8 @@ public static class BindingMcpTools
         SessionManager sessionManager,
         int processId,
         string propertyName,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -127,7 +130,7 @@ public static class BindingMcpTools
                     return (pid, (object?)new { elementId = eid, propertyName = prop }, null);
                 }).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_datacontext_chain", ReadOnly = true)]
@@ -152,7 +155,8 @@ public static class BindingMcpTools
     public static Task<CallToolResult> GetDataContextChain(
         SessionManager sessionManager,
         int processId,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -161,7 +165,7 @@ public static class BindingMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetDataContextChainTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "force_binding_update", Destructive = true)]
@@ -186,7 +190,8 @@ public static class BindingMcpTools
         SessionManager sessionManager,
         int processId,
         string propertyName,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -205,6 +210,6 @@ public static class BindingMcpTools
                     return (pid, (object?)new { elementId = eid, propertyName = prop }, null);
                 }).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

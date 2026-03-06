@@ -78,7 +78,7 @@ public static class ToolCallHelper
                 return true;
             }
         }
-        catch
+        catch (JsonException)
         {
             // If we can't parse, assume success
         }

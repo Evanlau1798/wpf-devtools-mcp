@@ -34,7 +34,8 @@ public static class InteractionMcpTools
     public static Task<CallToolResult> ClickElement(
         SessionManager sessionManager,
         int processId,
-        string elementId)
+        string elementId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -43,7 +44,7 @@ public static class InteractionMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new ClickElementTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "drag_and_drop", Destructive = true)]
@@ -70,7 +71,8 @@ public static class InteractionMcpTools
         SessionManager sessionManager,
         int processId,
         string sourceElementId,
-        string targetElementId)
+        string targetElementId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -92,7 +94,7 @@ public static class InteractionMcpTools
                     return (pid, (object?)new { sourceElementId = src, targetElementId = tgt }, null);
                 }).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "scroll_to_element", Destructive = true)]
@@ -115,7 +117,8 @@ public static class InteractionMcpTools
     public static Task<CallToolResult> ScrollToElement(
         SessionManager sessionManager,
         int processId,
-        string elementId)
+        string elementId,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -124,7 +127,7 @@ public static class InteractionMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new ScrollToElementTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "simulate_keyboard", Destructive = true)]
@@ -151,7 +154,8 @@ public static class InteractionMcpTools
         SessionManager sessionManager,
         int processId,
         string key,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -161,7 +165,7 @@ public static class InteractionMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new SimulateKeyboardTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "element_screenshot", ReadOnly = true)]
@@ -188,7 +192,8 @@ public static class InteractionMcpTools
         SessionManager sessionManager,
         int processId,
         string? elementId = null,
-        string? outputPath = null)
+        string? outputPath = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -198,6 +203,6 @@ public static class InteractionMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new ElementScreenshotTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

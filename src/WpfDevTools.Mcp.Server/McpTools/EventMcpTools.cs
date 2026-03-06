@@ -38,7 +38,8 @@ public static class EventMcpTools
         SessionManager sessionManager,
         int processId,
         string eventName,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -48,7 +49,7 @@ public static class EventMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new TraceRoutedEventsTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "get_event_handlers", ReadOnly = true)]
@@ -76,7 +77,8 @@ public static class EventMcpTools
         SessionManager sessionManager,
         int processId,
         string eventName,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -86,7 +88,7 @@ public static class EventMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new GetEventHandlersTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     [McpServerTool(Name = "fire_routed_event", Destructive = true)]
@@ -112,7 +114,8 @@ public static class EventMcpTools
         SessionManager sessionManager,
         int processId,
         string eventName,
-        string? elementId = null)
+        string? elementId = null,
+        CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
@@ -122,6 +125,6 @@ public static class EventMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => new FireRoutedEventTool(sessionManager).ExecuteAsync(a, ct),
             args,
-            CancellationToken.None);
+            cancellationToken);
     }
 }

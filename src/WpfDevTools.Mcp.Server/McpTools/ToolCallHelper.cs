@@ -12,9 +12,6 @@ public static class ToolCallHelper
 {
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
 
-    // Timeout for all tool executions (except connect which has its own 30s timeout)
-    private const int DefaultToolTimeoutSeconds = 5;
-
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -50,8 +47,8 @@ public static class ToolCallHelper
     /// Execute a tool and wrap the result as a CallToolResult.
     /// Detects tool errors by checking for { success: false } in the result.
     /// Uses single-pass serialization: object -> JsonElement -> check error -> raw text.
-    /// CRITICAL FIX: Enforces 5-second timeout on all tool executions to prevent server hang
-    /// if target process is frozen or unresponsive.
+    /// CRITICAL FIX: Enforces timeout (from McpServerConfiguration) on all tool executions
+    /// to prevent server hang if target process is frozen or unresponsive.
     /// </summary>
     /// <param name="execute">The tool's ExecuteAsync function</param>
     /// <param name="args">JSON arguments for the tool</param>
@@ -65,7 +62,7 @@ public static class ToolCallHelper
         // CRITICAL FIX: Enforce timeout on all tool executions
         // Prevents server hang if target process is frozen or unresponsive
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(DefaultToolTimeoutSeconds));
+        cts.CancelAfter(TimeSpan.FromSeconds(McpServerConfiguration.DefaultToolTimeoutSeconds));
 
         try
         {
@@ -89,7 +86,7 @@ public static class ToolCallHelper
                     Text = JsonSerializer.Serialize(new
                     {
                         success = false,
-                        error = $"Tool execution timed out after {DefaultToolTimeoutSeconds} seconds. Target process may be frozen or unresponsive."
+                        error = $"Tool execution timed out after {McpServerConfiguration.DefaultToolTimeoutSeconds} seconds. Target process may be frozen or unresponsive."
                     }, SerializerOptions)
                 }],
                 IsError = true

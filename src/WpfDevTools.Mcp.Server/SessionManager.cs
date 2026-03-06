@@ -7,12 +7,6 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public sealed class SessionManager : IDisposable
 {
-    // Maximum concurrent sessions to prevent resource exhaustion
-    // 50 sessions = reasonable limit for typical debugging scenarios
-    // Each session holds: 1 NamedPipeClient + 1 RateLimiter + session metadata (~10KB per session)
-    // Total memory: ~500KB for session tracking (negligible)
-    // Limit primarily prevents accidental DoS via rapid connection attempts
-    private const int MaxSessions = 50;
     private bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
@@ -21,7 +15,6 @@ public sealed class SessionManager : IDisposable
     private readonly CertificateManager? _certManager;
     private readonly object _lock = new();
     private readonly System.Threading.Timer _cleanupTimer;
-    private static readonly TimeSpan IdleTimeout = TimeSpan.FromMinutes(30);
 
     /// <summary>
     /// Create a new SessionManager with dependency injection
@@ -42,18 +35,18 @@ public sealed class SessionManager : IDisposable
         _cleanupTimer = new System.Threading.Timer(
             callback: _ => PerformCleanup(),
             state: null,
-            dueTime: TimeSpan.FromMinutes(1),
-            period: TimeSpan.FromMinutes(1));
+            dueTime: McpServerConfiguration.SessionCleanupInterval,
+            period: McpServerConfiguration.SessionCleanupInterval);
     }
 
     /// <summary>
     /// Create a new SessionManager (backward compatibility constructor)
     /// </summary>
-    /// <param name="maxRequestsPerMinute">Maximum requests per minute per session (default: 100)</param>
+    /// <param name="maxRequestsPerMinute">Maximum requests per minute per session (default from McpServerConfiguration)</param>
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     /// <param name="certManager">Certificate manager for encryption (null to disable encryption)</param>
     public SessionManager(
-        int maxRequestsPerMinute = 100,
+        int maxRequestsPerMinute = McpServerConfiguration.RateLimitRequestsPerMinute,
         AuthenticationManager? authManager = null,
         CertificateManager? certManager = null)
         : this(new RateLimiterManager(maxRequestsPerMinute), authManager, certManager)
@@ -89,9 +82,9 @@ public sealed class SessionManager : IDisposable
     {
         lock (_lock)
         {
-            if (_sessions.Count >= MaxSessions)
+            if (_sessions.Count >= McpServerConfiguration.MaxSessions)
             {
-                throw new InvalidOperationException($"Maximum session limit ({MaxSessions}) reached. Remove existing sessions before adding new ones.");
+                throw new InvalidOperationException($"Maximum session limit ({McpServerConfiguration.MaxSessions}) reached. Remove existing sessions before adding new ones.");
             }
 
             if (_sessions.ContainsKey(processId))
@@ -241,7 +234,7 @@ public sealed class SessionManager : IDisposable
             CleanupDeadSessions();
 
             // Clean up idle sessions
-            var idleSessions = GetIdleSessions(IdleTimeout);
+            var idleSessions = GetIdleSessions(McpServerConfiguration.SessionIdleTimeout);
             foreach (var processId in idleSessions)
             {
                 RemoveSession(processId);
@@ -340,7 +333,7 @@ public sealed class SessionManager : IDisposable
             _isDisposed = true;
 
             // Dispose cleanup timer
-            _cleanupTimer?.Dispose();
+            _cleanupTimer.Dispose();
 
             // Dispose rate limiter manager
             (_rateLimiter as IDisposable)?.Dispose();

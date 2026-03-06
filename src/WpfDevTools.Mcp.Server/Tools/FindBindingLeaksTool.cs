@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to find binding leaks in WPF application
 /// </summary>
-public class FindBindingLeaksTool : PipeConnectedToolBase
+public sealed class FindBindingLeaksTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the FindBindingLeaksTool class

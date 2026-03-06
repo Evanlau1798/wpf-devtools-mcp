@@ -24,8 +24,7 @@ public static class TreeMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  tree: { elementId, type, name, childCount, children: [...] },\n" +
-        "  totalElements: integer\n" +
+        "  tree: { elementId, type, name, childCount, children: [...] }\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -125,11 +124,12 @@ public static class TreeMcpTools
         "[Tree] Get the XAML NameScope of a WPF element. " +
         "Returns all named elements (x:Name) registered in the element's scope.\n\n" +
         "USE WHEN: You need to discover all named elements in a window or UserControl.\n" +
-        "DO NOT USE: For finding elements by type (use get_visual_tree with filter instead).\n\n" +
+        "DO NOT USE: For finding elements by type (use get_visual_tree to browse the tree instead).\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  names: [{ name, elementId, type }]\n" +
+        "  namedElementCount: integer,\n" +
+        "  namedElements: [{ name, elementId, type }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -196,8 +196,10 @@ public static class TreeMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  onlyInVisual: [{ elementId, type }],\n" +
-        "  onlyInLogical: [{ elementId, type }]\n" +
+        "  visualChildCount: integer,\n" +
+        "  logicalChildCount: integer,\n" +
+        "  differenceCount: integer,\n" +
+        "  differences: [{ type: \"VisualOnly\"|\"LogicalOnly\", elementType, elementId }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +

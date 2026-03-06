@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get ViewModel from WPF elements
 /// </summary>
-public class GetViewModelTool : PipeConnectedToolBase
+public sealed class GetViewModelTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetViewModelTool class

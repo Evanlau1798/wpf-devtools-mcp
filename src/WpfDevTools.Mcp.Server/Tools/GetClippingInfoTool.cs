@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get clipping information from WPF elements
 /// </summary>
-public class GetClippingInfoTool : PipeConnectedToolBase
+public sealed class GetClippingInfoTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetClippingInfoTool class

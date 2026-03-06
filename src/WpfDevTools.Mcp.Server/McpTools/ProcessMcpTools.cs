@@ -59,8 +59,8 @@ public static class ProcessMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  connected: boolean,\n" +
-        "  message: string\n" +
+        "  message: string,\n" +
+        "  processId: number\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"access denied\" -> run MCP server as administrator\n" +
@@ -84,7 +84,7 @@ public static class ProcessMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "ping", Idempotent = true)]
+    [McpServerTool(Name = "ping", ReadOnly = true, Idempotent = true)]
     [Description(
         "[Process] Check connection health and measure round-trip latency to the Inspector DLL " +
         "in the target process. Returns latency in milliseconds.\n\n" +
@@ -94,8 +94,10 @@ public static class ProcessMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  status: string,\n" +
+        "  processId: number,\n" +
         "  latencyMs: number,\n" +
-        "  connected: boolean\n" +
+        "  lastActivity: string\n" +
         "}\n\n" +
         "Typical latency: 0.1-1ms (Named Pipes). >100ms indicates performance issues.\n\n" +
         "ERRORS:\n" +

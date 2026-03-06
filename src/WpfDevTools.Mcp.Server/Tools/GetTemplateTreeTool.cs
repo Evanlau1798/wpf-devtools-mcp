@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get template tree from WPF elements
 /// </summary>
-public class GetTemplateTreeTool : PipeConnectedToolBase
+public sealed class GetTemplateTreeTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetTemplateTreeTool class

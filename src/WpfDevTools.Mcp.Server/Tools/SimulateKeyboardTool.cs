@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to simulate keyboard input on WPF elements
 /// </summary>
-public class SimulateKeyboardTool : PipeConnectedToolBase
+public sealed class SimulateKeyboardTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the SimulateKeyboardTool class

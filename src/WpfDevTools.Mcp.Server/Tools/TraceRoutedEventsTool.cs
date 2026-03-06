@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to trace routed events in WPF application
 /// </summary>
-public class TraceRoutedEventsTool : PipeConnectedToolBase
+public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the TraceRoutedEventsTool class

@@ -16,7 +16,7 @@ public class SessionManagerGapTests
     public void UpdateLastActivity_WithNonExistentSession_ShouldNotThrow()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Act
         var act = () => manager.UpdateLastActivity(99999);
@@ -29,7 +29,7 @@ public class SessionManagerGapTests
     public void UpdateLastActivity_WithNonExistentSession_ShouldNotCreateSession()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Act
         manager.UpdateLastActivity(99999);
@@ -47,7 +47,7 @@ public class SessionManagerGapTests
     public void GetLastActivityTime_WithNonExistentSession_ShouldReturnMinValue()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Act
         var result = manager.GetLastActivityTime(99999);
@@ -60,7 +60,7 @@ public class SessionManagerGapTests
     public void GetLastActivityTime_AfterRemovingSession_ShouldReturnMinValue()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(12345);
         var activityTime = manager.GetLastActivityTime(12345);
         activityTime.Should().NotBe(DateTime.MinValue); // sanity check: was valid
@@ -82,7 +82,7 @@ public class SessionManagerGapTests
     public void GetPipeClient_WithNonExistentProcessId_ShouldReturnNull()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Act
         var result = manager.GetPipeClient(99999);
@@ -95,7 +95,7 @@ public class SessionManagerGapTests
     public void GetPipeClient_AfterRemovingSession_ShouldReturnNull()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(12345);
         manager.GetPipeClient(12345).Should().NotBeNull(); // sanity check
 
@@ -116,7 +116,7 @@ public class SessionManagerGapTests
     public void Dispose_WithMultipleClients_ShouldClearAllSessions()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(100);
         manager.AddSession(200);
         manager.AddSession(300);
@@ -125,34 +125,32 @@ public class SessionManagerGapTests
         // Act
         manager.Dispose();
 
-        // Assert - all sessions should be cleared
-        manager.GetActiveSessionCount().Should().Be(0);
-        manager.HasSession(100).Should().BeFalse();
-        manager.HasSession(200).Should().BeFalse();
-        manager.HasSession(300).Should().BeFalse();
+        // Assert - all public methods should throw ObjectDisposedException after dispose
+        var act = () => manager.GetActiveSessionCount();
+        act.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]
-    public void Dispose_WithMultipleClients_ShouldClearAllPipeClients()
+    public void Dispose_WithMultipleClients_ShouldRejectSubsequentCalls()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(100);
         manager.AddSession(200);
 
         // Act
         manager.Dispose();
 
-        // Assert - pipe clients should be null after dispose
-        manager.GetPipeClient(100).Should().BeNull();
-        manager.GetPipeClient(200).Should().BeNull();
+        // Assert - public methods should throw ObjectDisposedException after dispose
+        var act = () => manager.GetPipeClient(100);
+        act.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]
     public void Dispose_CalledTwice_ShouldNotThrow()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(12345);
 
         // Act - double dispose
@@ -167,7 +165,7 @@ public class SessionManagerGapTests
     public void Dispose_CalledTwice_ShouldRemainDisposed()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(100);
         manager.AddSession(200);
 
@@ -175,16 +173,16 @@ public class SessionManagerGapTests
         manager.Dispose();
         manager.Dispose();
 
-        // Assert - should stay clean
-        manager.GetActiveSessionCount().Should().Be(0);
-        manager.GetAllSessions().Should().BeEmpty();
+        // Assert - should stay disposed and reject operations
+        var act = () => manager.GetActiveSessionCount();
+        act.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]
     public void Dispose_WithNoSessions_ShouldNotThrow()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Act
         var act = () => manager.Dispose();
@@ -201,7 +199,7 @@ public class SessionManagerGapTests
     public void GetIdleSessions_WithNoSessions_ShouldReturnEmpty()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Act
         var idleSessions = manager.GetIdleSessions(TimeSpan.FromMinutes(1));
@@ -214,7 +212,7 @@ public class SessionManagerGapTests
     public void GetIdleSessions_WithZeroTimeout_ShouldReturnAllSessions()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(100);
         manager.AddSession(200);
 
@@ -237,7 +235,7 @@ public class SessionManagerGapTests
     public void GetAllSessions_WithNoSessions_ShouldReturnEmpty()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Act
         var sessions = manager.GetAllSessions();
@@ -247,19 +245,17 @@ public class SessionManagerGapTests
     }
 
     [Fact]
-    public void GetAllSessions_AfterDispose_ShouldReturnEmpty()
+    public void GetAllSessions_AfterDispose_ShouldThrowObjectDisposed()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(100);
         manager.AddSession(200);
         manager.Dispose();
 
-        // Act
-        var sessions = manager.GetAllSessions();
-
-        // Assert
-        sessions.Should().BeEmpty();
+        // Act & Assert
+        var act = () => manager.GetAllSessions();
+        act.Should().Throw<ObjectDisposedException>();
     }
 
     #endregion

@@ -22,7 +22,7 @@ public sealed class NamedPipeClient : IDisposable
     private Stream? _communicationStream;
     private readonly object _lock = new();
     private readonly SemaphoreSlim _pipeSemaphore = new(1, 1);
-    private bool _isDisposed;
+    private volatile bool _isDisposed;
 
     /// <summary>
     /// Initializes a new instance of the NamedPipeClient class without authentication
@@ -79,12 +79,17 @@ public sealed class NamedPipeClient : IDisposable
     /// <summary>
     /// Connect to Inspector with timeout and retry
     /// </summary>
-    public async Task<bool> ConnectAsync(TimeSpan timeout, int maxRetries = 3)
+    /// <param name="timeout">Connection timeout per attempt</param>
+    /// <param name="maxRetries">Maximum number of retry attempts</param>
+    /// <param name="cancellationToken">External cancellation token to abort the entire connect operation</param>
+    public async Task<bool> ConnectAsync(TimeSpan timeout, int maxRetries = 3, CancellationToken cancellationToken = default)
     {
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 NamedPipeClientStream localClient;
                 lock (_lock)
                 {
@@ -100,7 +105,8 @@ public sealed class NamedPipeClient : IDisposable
                     localClient = _pipeClient;
                 }
 
-                using var cts = new CancellationTokenSource(timeout);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(timeout);
                 await localClient.ConnectAsync(cts.Token).ConfigureAwait(false);
 
                 // Perform authentication if enabled
@@ -148,9 +154,18 @@ public sealed class NamedPipeClient : IDisposable
 
                 await Task.Delay(500).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // External cancellation requested - propagate immediately
+                throw;
+            }
             catch (OperationCanceledException)
             {
-                return false;
+                // Internal timeout - treat as retry-able
+                if (attempt == maxRetries)
+                    return false;
+
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -162,13 +177,27 @@ public sealed class NamedPipeClient : IDisposable
     {
         try
         {
+            var expectedThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_THUMBPRINT");
             var sslStream = new SslStream(pipe, leaveInnerStreamOpen: true,
                 (sender, cert, chain, errors) =>
                 {
-                    // Accept self-signed certificate with correct subject
                     if (cert == null) return false;
                     using var cert2 = new System.Security.Cryptography.X509Certificates.X509Certificate2(cert);
-                    return cert2.Subject == "CN=WpfDevTools-Inspector";
+
+                    // Verify subject name
+                    if (cert2.Subject != "CN=WpfDevTools-Inspector")
+                        return false;
+
+                    // If thumbprint is configured, pin to that specific certificate
+                    if (!string.IsNullOrWhiteSpace(expectedThumbprint))
+                    {
+                        return string.Equals(
+                            cert2.Thumbprint,
+                            expectedThumbprint,
+                            StringComparison.OrdinalIgnoreCase);
+                    }
+
+                    return true;
                 });
 
 #if NET48
@@ -214,7 +243,7 @@ public sealed class NamedPipeClient : IDisposable
             }
 
             // 2. Compute HMAC-SHA256 response
-            var calculator = new ResponseCalculator(_authManager!.GetSharedSecret());
+            using var calculator = new ResponseCalculator(_authManager!.GetSharedSecret());
             var response = calculator.ComputeResponse(challenge);
 
             // 3. Send response
@@ -329,6 +358,10 @@ public sealed class NamedPipeClient : IDisposable
             try { streamToDispose.Dispose(); } catch (IOException) { }
         }
         try { pipeToDispose?.Dispose(); } catch (IOException) { }
-        _pipeSemaphore?.Dispose();
+
+        // NOTE: _pipeSemaphore is intentionally NOT disposed here.
+        // A concurrent SendRequestAsync may still be holding/awaiting the semaphore.
+        // Disposing it while awaited would throw ObjectDisposedException.
+        // SemaphoreSlim is lightweight and will be collected by GC.
     }
 }

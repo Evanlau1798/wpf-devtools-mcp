@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to fire routed events on WPF elements
 /// </summary>
-public class FireRoutedEventTool : PipeConnectedToolBase
+public sealed class FireRoutedEventTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the FireRoutedEventTool class

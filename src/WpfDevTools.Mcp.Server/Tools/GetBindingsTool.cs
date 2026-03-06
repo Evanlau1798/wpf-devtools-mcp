@@ -6,7 +6,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get bindings from WPF elements
 /// </summary>
-public class GetBindingsTool : PipeConnectedToolBase
+public sealed class GetBindingsTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetBindingsTool class

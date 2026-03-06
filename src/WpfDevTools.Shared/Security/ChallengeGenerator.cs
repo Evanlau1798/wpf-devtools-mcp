@@ -6,7 +6,7 @@ namespace WpfDevTools.Shared.Security;
 /// <summary>
 /// Generates cryptographically secure random challenges for authentication
 /// </summary>
-public class ChallengeGenerator
+public sealed class ChallengeGenerator
 {
     /// <summary>
     /// Generates a cryptographically secure random challenge

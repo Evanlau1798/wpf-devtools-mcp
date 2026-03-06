@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to capture screenshots of WPF elements
 /// </summary>
-public class ElementScreenshotTool : PipeConnectedToolBase
+public sealed class ElementScreenshotTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the ElementScreenshotTool class

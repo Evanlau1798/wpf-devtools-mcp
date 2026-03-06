@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get event handlers from WPF elements
 /// </summary>
-public class GetEventHandlersTool : PipeConnectedToolBase
+public sealed class GetEventHandlersTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetEventHandlersTool class

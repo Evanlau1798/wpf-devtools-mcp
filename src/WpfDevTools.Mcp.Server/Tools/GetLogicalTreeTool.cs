@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get Logical Tree from WPF process
 /// </summary>
-public class GetLogicalTreeTool : PipeConnectedToolBase
+public sealed class GetLogicalTreeTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetLogicalTreeTool class

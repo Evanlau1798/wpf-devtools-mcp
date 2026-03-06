@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get triggers from WPF element styles
 /// </summary>
-public class GetTriggersTool : PipeConnectedToolBase
+public sealed class GetTriggersTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetTriggersTool class

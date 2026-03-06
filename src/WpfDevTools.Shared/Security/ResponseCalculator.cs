@@ -4,11 +4,13 @@ using System.Security.Cryptography;
 namespace WpfDevTools.Shared.Security;
 
 /// <summary>
-/// Calculates and verifies HMAC-SHA256 responses for challenge-response authentication
+/// Calculates and verifies HMAC-SHA256 responses for challenge-response authentication.
+/// Implements IDisposable to securely zero the shared secret from memory on disposal.
 /// </summary>
-public class ResponseCalculator
+public sealed class ResponseCalculator : IDisposable
 {
     private readonly byte[] _sharedSecret;
+    private volatile bool _isDisposed;
 
     /// <summary>
     /// Initializes a new instance of ResponseCalculator
@@ -33,8 +35,11 @@ public class ResponseCalculator
     /// <param name="challenge">Challenge bytes</param>
     /// <returns>32-byte HMAC-SHA256 hash</returns>
     /// <exception cref="ArgumentNullException">Thrown when challenge is null</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed</exception>
     public byte[] ComputeResponse(byte[] challenge)
     {
+        ThrowIfDisposed();
+
         if (challenge == null)
             throw new ArgumentNullException(nameof(challenge));
 
@@ -43,15 +48,18 @@ public class ResponseCalculator
     }
 
     /// <summary>
-    /// Verifies that the response matches the expected HMAC-SHA256 hash of the challenge
-    /// Uses constant-time comparison to prevent timing attacks
+    /// Verifies that the response matches the expected HMAC-SHA256 hash of the challenge.
+    /// Uses constant-time comparison to prevent timing attacks.
     /// </summary>
     /// <param name="challenge">Challenge bytes</param>
     /// <param name="response">Response bytes to verify</param>
     /// <returns>True if response is valid, false otherwise</returns>
     /// <exception cref="ArgumentNullException">Thrown when challenge or response is null</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed</exception>
     public bool VerifyResponse(byte[] challenge, byte[] response)
     {
+        ThrowIfDisposed();
+
         if (challenge == null)
             throw new ArgumentNullException(nameof(challenge));
 
@@ -60,5 +68,23 @@ public class ResponseCalculator
 
         var expected = ComputeResponse(challenge);
         return CryptographicOperations.FixedTimeEquals(expected, response);
+    }
+
+    /// <summary>
+    /// Securely zeros the shared secret from memory and releases resources
+    /// </summary>
+    public void Dispose()
+    {
+        if (_isDisposed)
+            return;
+
+        _isDisposed = true;
+        Array.Clear(_sharedSecret, 0, _sharedSecret.Length);
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_isDisposed)
+            throw new ObjectDisposedException(nameof(ResponseCalculator));
     }
 }

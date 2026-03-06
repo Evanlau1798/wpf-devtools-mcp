@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get visual element count from WPF application
 /// </summary>
-public class GetVisualCountTool : PipeConnectedToolBase
+public sealed class GetVisualCountTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetVisualCountTool class

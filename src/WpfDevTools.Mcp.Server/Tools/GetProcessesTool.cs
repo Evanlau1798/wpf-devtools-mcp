@@ -6,7 +6,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to list all WPF processes
 /// </summary>
-public class GetProcessesTool
+public sealed class GetProcessesTool
 {
     private readonly WpfProcessDetector _detector;
 

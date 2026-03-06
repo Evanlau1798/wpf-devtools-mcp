@@ -6,7 +6,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to ping a connected WPF process
 /// </summary>
-public class PingTool : PipeConnectedToolBase
+public sealed class PingTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the PingTool class

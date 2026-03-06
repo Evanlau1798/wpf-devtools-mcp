@@ -40,9 +40,10 @@ public class XamlSerializer
 
             return sb.ToString();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return "<!-- Failed to serialize element to XAML -->";
+            System.Diagnostics.Debug.WriteLine($"XamlSerializer: Failed to serialize element: {ex.Message}");
+            return $"<!-- Failed to serialize element to XAML: {ex.GetType().Name} -->";
         }
     }
 }

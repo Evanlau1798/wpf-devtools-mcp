@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to scroll WPF elements into view
 /// </summary>
-public class ScrollToElementTool : PipeConnectedToolBase
+public sealed class ScrollToElementTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the ScrollToElementTool class

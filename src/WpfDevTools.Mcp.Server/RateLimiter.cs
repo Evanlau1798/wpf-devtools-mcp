@@ -123,7 +123,10 @@ public interface IRateLimiterManager
 /// </summary>
 public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
 {
-    // CRITICAL FIX: Use mutable class instead of tuple to avoid allocations on every request
+    // INTENTIONAL DEVIATION from project immutability principle:
+    // LastAccessed is mutated in-place to avoid allocating a new entry on every TryAcquire() call.
+    // TryAcquire() is called on every tool invocation (~100/min/session), so minimizing
+    // GC pressure here is a justified performance trade-off. Access is serialized by _lock.
     private class RateLimiterEntry
     {
         public RateLimiter Limiter { get; }
@@ -141,6 +144,7 @@ public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
     private readonly int _maxRequestsPerMinute;
     private readonly TimeSpan _interval;
     private readonly System.Threading.Timer _cleanupTimer;
+    private volatile bool _isDisposed;
     private const int MaxEntries = 1000;
 
     /// <summary>
@@ -152,7 +156,7 @@ public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
         _maxRequestsPerMinute = maxRequestsPerMinute;
         _interval = TimeSpan.FromMinutes(1);
         _cleanupTimer = new System.Threading.Timer(
-            _ => RemoveStaleEntries(TimeSpan.FromMinutes(30)),
+            _ => { if (!_isDisposed) RemoveStaleEntries(TimeSpan.FromMinutes(30)); },
             null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
     }
 
@@ -257,6 +261,7 @@ public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
     /// </summary>
     public void Dispose()
     {
+        _isDisposed = true;
         _cleanupTimer?.Dispose();
     }
 }

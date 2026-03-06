@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to watch DependencyProperty changes
 /// </summary>
-public class WatchDpChangesTool : PipeConnectedToolBase
+public sealed class WatchDpChangesTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the WatchDpChangesTool class

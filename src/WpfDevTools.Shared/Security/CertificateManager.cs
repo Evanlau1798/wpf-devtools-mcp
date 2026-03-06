@@ -14,7 +14,7 @@ namespace WpfDevTools.Shared.Security;
 #if !NET48
 [SupportedOSPlatform("windows")]
 #endif
-public class CertificateManager
+public sealed class CertificateManager
 {
     private const string CertFileName = "server.pfx";
     private const string PasswordFileName = "server.pwd";
@@ -142,9 +142,16 @@ public class CertificateManager
     internal static void SavePassword(string passwordPath, string password)
     {
         var passwordBytes = System.Text.Encoding.UTF8.GetBytes(password);
-        var protectedBytes = ProtectedData.Protect(
-            passwordBytes, null, DataProtectionScope.CurrentUser);
-        File.WriteAllBytes(passwordPath, protectedBytes);
+        try
+        {
+            var protectedBytes = ProtectedData.Protect(
+                passwordBytes, null, DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(passwordPath, protectedBytes);
+        }
+        finally
+        {
+            Array.Clear(passwordBytes, 0, passwordBytes.Length);
+        }
     }
 
     internal static string LoadPassword(string passwordPath)
@@ -152,6 +159,13 @@ public class CertificateManager
         var protectedBytes = File.ReadAllBytes(passwordPath);
         var passwordBytes = ProtectedData.Unprotect(
             protectedBytes, null, DataProtectionScope.CurrentUser);
-        return System.Text.Encoding.UTF8.GetString(passwordBytes);
+        try
+        {
+            return System.Text.Encoding.UTF8.GetString(passwordBytes);
+        }
+        finally
+        {
+            Array.Clear(passwordBytes, 0, passwordBytes.Length);
+        }
     }
 }

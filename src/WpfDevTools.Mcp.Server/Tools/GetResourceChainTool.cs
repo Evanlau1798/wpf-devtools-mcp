@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get resource chain from WPF elements
 /// </summary>
-public class GetResourceChainTool : PipeConnectedToolBase
+public sealed class GetResourceChainTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetResourceChainTool class

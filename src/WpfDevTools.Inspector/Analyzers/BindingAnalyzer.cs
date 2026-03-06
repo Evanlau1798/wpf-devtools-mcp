@@ -7,7 +7,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF Bindings
 /// </summary>
-public class BindingAnalyzer : DispatcherAnalyzerBase
+public sealed class BindingAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -362,21 +362,11 @@ public class BindingAnalyzer : DispatcherAnalyzerBase
         }
     }
 
-    private DependencyObject? GetRootElement()
-    {
-        return _elementFinder.GetRootElement();
-    }
-
-    private DependencyObject? FindElementById(string elementId)
-    {
-        return _elementFinder.FindById(elementId);
-    }
-
     private DependencyObject? ResolveElement(string? elementId)
     {
         return elementId == null
-            ? GetRootElement()
-            : FindElementById(elementId);
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
     }
 
     private List<object> GetDependencyPropertiesWithBindings(DependencyObject element)

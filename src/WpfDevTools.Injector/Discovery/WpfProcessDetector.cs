@@ -38,9 +38,9 @@ public class WpfProcessDetector
                     wpfProcesses.Add(info);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Access denied or process exited - skip
+                System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to inspect process: {ex.Message}");
             }
             finally
             {
@@ -87,9 +87,9 @@ public class WpfProcessDetector
             // Process has exited
             return null;
         }
-        catch
+        catch (Exception ex)
         {
-            // Access denied or other error
+            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Error getting process info for PID {processId}: {ex.Message}");
             return null;
         }
     }
@@ -120,9 +120,9 @@ public class WpfProcessDetector
                 return ProcessArchitecture.X86;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Access denied
+            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to detect architecture: {ex.Message}");
         }
 
         return ProcessArchitecture.Unknown;
@@ -142,10 +142,10 @@ public class WpfProcessDetector
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Access denied or 64-bit process from 32-bit app
-            // Fallback: check window class
+            // Access denied or 64-bit process from 32-bit app - fallback to window class check
+            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Module enumeration failed, falling back to window class check: {ex.Message}");
             return HasWpfWindowClass(process);
         }
 
@@ -163,9 +163,9 @@ public class WpfProcessDetector
                 return className?.IndexOf("HwndWrapper", StringComparison.Ordinal) >= 0;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore
+            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to check WPF window class: {ex.Message}");
         }
 
         return false;
@@ -190,9 +190,9 @@ public class WpfProcessDetector
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Access denied
+            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to detect .NET version: {ex.Message}");
         }
 
         return null;
@@ -206,8 +206,9 @@ public class WpfProcessDetector
                 ? null
                 : process.MainWindowTitle;
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to get window title: {ex.Message}");
             return null;
         }
     }
@@ -218,9 +219,9 @@ public class WpfProcessDetector
         {
             return process.MainModule?.FileName;
         }
-        catch
+        catch (Exception ex)
         {
-            // Access denied
+            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to get executable path: {ex.Message}");
             return null;
         }
     }

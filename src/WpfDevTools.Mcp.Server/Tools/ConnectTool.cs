@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// but ConnectTool must inject the Inspector DLL and create the session before any pipe
 /// communication is possible.
 /// </summary>
-public class ConnectTool
+public sealed class ConnectTool
 {
     private readonly IProcessInjector _injector;
     private readonly SessionManager _sessionManager;
@@ -151,7 +151,7 @@ public class ConnectTool
             };
         }
 
-        var connected = await pipeClient.ConnectAsync(InspectorConfig.PipeConnectTimeout).ConfigureAwait(false);
+        var connected = await pipeClient.ConnectAsync(InspectorConfig.PipeConnectTimeout, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!connected)
         {
             _sessionManager.RemoveSession(processId.Value);
@@ -216,9 +216,9 @@ public class ConnectTool
         if (!dllPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("DLL path must have .dll extension", nameof(dllPath));
 
-        // Prevent network paths
-        var uri = new Uri(dllPath, UriKind.RelativeOrAbsolute);
-        if (uri.IsAbsoluteUri && uri.IsUnc)
+        // Prevent network paths (UNC: \\server\share or //server/share)
+        if (dllPath.StartsWith(@"\\", StringComparison.Ordinal) ||
+            dllPath.StartsWith("//", StringComparison.Ordinal))
             throw new ArgumentException("Network paths are not allowed", nameof(dllPath));
 
         // SECURITY: Normalize path first to prevent traversal attacks
@@ -270,7 +270,7 @@ public class ConnectTool
         try
         {
             // Load certificate from signed file
-            var cert = System.Security.Cryptography.X509Certificates.X509Certificate.CreateFromSignedFile(filePath);
+            using var cert = System.Security.Cryptography.X509Certificates.X509Certificate.CreateFromSignedFile(filePath);
 
             if (cert == null)
             {
@@ -319,8 +319,6 @@ public class ConnectTool
                         $"Certificate thumbprint mismatch. Expected: {expectedThumbprint}, Got: {cert2.Thumbprint}");
                 }
             }
-
-            cert.Dispose();
         }
         catch (System.Security.Cryptography.CryptographicException ex)
         {

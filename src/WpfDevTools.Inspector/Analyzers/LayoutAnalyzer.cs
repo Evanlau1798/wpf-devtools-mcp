@@ -10,7 +10,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF Layout information
 /// </summary>
-public class LayoutAnalyzer : DispatcherAnalyzerBase
+public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private static readonly ConcurrentDictionary<string, Border> _highlights = new();
@@ -182,9 +182,10 @@ public class LayoutAnalyzer : DispatcherAnalyzerBase
                 {
                     parsedColor = (Color)ColorConverter.ConvertFromString(color);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    parsedColor = Colors.Red; // Fallback to red for invalid color strings
+                    System.Diagnostics.Debug.WriteLine($"LayoutAnalyzer: Invalid color '{color}', falling back to Red: {ex.Message}");
+                    parsedColor = Colors.Red;
                 }
                 var brush = new SolidColorBrush(parsedColor);
 

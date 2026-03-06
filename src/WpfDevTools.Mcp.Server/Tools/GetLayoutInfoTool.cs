@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get layout information from WPF elements
 /// </summary>
-public class GetLayoutInfoTool : PipeConnectedToolBase
+public sealed class GetLayoutInfoTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetLayoutInfoTool class

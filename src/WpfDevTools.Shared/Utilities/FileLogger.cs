@@ -26,7 +26,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     {
         _logFilePath = logFilePath ?? Path.Combine(
             Path.GetTempPath(),
-            $"WpfDevTools_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+            $"WpfDevTools_{DateTime.UtcNow:yyyyMMdd_HHmmss}.log");
 
         _logQueue = Channel.CreateBounded<string>(new BoundedChannelOptions(MaxQueueCapacity)
         {
@@ -85,7 +85,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         {
             var logEntry = new
             {
-                timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"),
                 level,
                 message,
                 context
@@ -96,7 +96,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Structured logging failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Structured logging failed: {ex.Message}");
         }
     }
 
@@ -126,12 +126,12 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     {
         try
         {
-            var logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}";
+            var logEntry = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}";
             _logQueue.Writer.TryWrite(logEntry);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Logging failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Logging failed: {ex.Message}");
         }
     }
 
@@ -156,7 +156,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException)
                         {
-                            Console.Error.WriteLine($"Logging failed: {ex.Message}");
+                            System.Diagnostics.Debug.WriteLine($"Logging failed: {ex.Message}");
                         }
                     }
                 }
@@ -176,7 +176,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Logging failed: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Logging failed: {ex.Message}");
                 }
             }
 #endif
@@ -206,7 +206,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Log rotation failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Log rotation failed: {ex.Message}");
         }
     }
 

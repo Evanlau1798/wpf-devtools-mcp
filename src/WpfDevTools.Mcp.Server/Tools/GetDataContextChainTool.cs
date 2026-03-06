@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get DataContext chain from WPF elements
 /// </summary>
-public class GetDataContextChainTool : PipeConnectedToolBase
+public sealed class GetDataContextChainTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetDataContextChainTool class

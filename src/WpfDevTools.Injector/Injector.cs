@@ -112,8 +112,9 @@ public class ProcessInjector : IProcessInjector
                 return InjectionError.ProcessNotFound;
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Injector: Process {processId} validation failed: {ex.Message}");
             return InjectionError.ProcessNotFound;
         }
 
@@ -150,29 +151,36 @@ public class ProcessInjector : IProcessInjector
     {
         try
         {
-            // Simple heuristic: check if DLL path contains architecture indicators
-            var lowerPath = dllPath.ToLowerInvariant();
+            // Read PE header to determine architecture (reliable, unlike path heuristics)
+            using var stream = new FileStream(dllPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var reader = new BinaryReader(stream);
 
-            if (lowerPath.Contains("x64") || lowerPath.Contains("win-x64"))
-            {
-                return ProcessArchitecture.X64;
-            }
-            else if (lowerPath.Contains("x86") || lowerPath.Contains("win-x86"))
-            {
-                return ProcessArchitecture.X86;
-            }
-            else if (lowerPath.Contains("arm64") || lowerPath.Contains("win-arm64"))
-            {
-                return ProcessArchitecture.ARM64;
-            }
+            // DOS header: magic number "MZ"
+            if (reader.ReadUInt16() != 0x5A4D) // "MZ"
+                return ProcessArchitecture.Unknown;
 
-            // Default: assume same as current process
-            return Environment.Is64BitProcess
-                ? ProcessArchitecture.X64
-                : ProcessArchitecture.X86;
+            // PE header offset at 0x3C
+            stream.Seek(0x3C, SeekOrigin.Begin);
+            var peOffset = reader.ReadInt32();
+
+            // PE signature: "PE\0\0"
+            stream.Seek(peOffset, SeekOrigin.Begin);
+            if (reader.ReadUInt32() != 0x00004550) // "PE\0\0"
+                return ProcessArchitecture.Unknown;
+
+            // Machine type (2 bytes after PE signature)
+            var machine = reader.ReadUInt16();
+            return machine switch
+            {
+                0x014C => ProcessArchitecture.X86,    // IMAGE_FILE_MACHINE_I386
+                0x8664 => ProcessArchitecture.X64,    // IMAGE_FILE_MACHINE_AMD64
+                0xAA64 => ProcessArchitecture.ARM64,  // IMAGE_FILE_MACHINE_ARM64
+                _ => ProcessArchitecture.Unknown
+            };
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Injector: Failed to read PE header for '{dllPath}': {ex.Message}");
             return ProcessArchitecture.Unknown;
         }
     }

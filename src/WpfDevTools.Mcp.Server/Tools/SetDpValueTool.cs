@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to set DependencyProperty value
 /// </summary>
-public class SetDpValueTool : PipeConnectedToolBase
+public sealed class SetDpValueTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the SetDpValueTool class

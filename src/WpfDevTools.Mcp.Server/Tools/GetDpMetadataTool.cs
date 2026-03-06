@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get DependencyProperty metadata
 /// </summary>
-public class GetDpMetadataTool : PipeConnectedToolBase
+public sealed class GetDpMetadataTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetDpMetadataTool class

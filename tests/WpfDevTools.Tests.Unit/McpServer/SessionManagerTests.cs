@@ -40,7 +40,7 @@ public class SessionManagerTests
     public void AddSession_WithValidProcessId_ShouldAddToActiveSessions()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         var processId = 12345;
 
         // Act
@@ -55,7 +55,7 @@ public class SessionManagerTests
     public void AddSession_WithDuplicateProcessId_ShouldThrowException()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         var processId = 12345;
         manager.AddSession(processId);
 
@@ -69,7 +69,7 @@ public class SessionManagerTests
     public void RemoveSession_WithExistingProcessId_ShouldRemoveFromActiveSessions()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         var processId = 12345;
         manager.AddSession(processId);
 
@@ -85,7 +85,7 @@ public class SessionManagerTests
     public void RemoveSession_WithNonExistingProcessId_ShouldNotThrow()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Act & Assert
         var act = () => manager.RemoveSession(99999);
@@ -96,7 +96,7 @@ public class SessionManagerTests
     public void GetAllSessions_WithMultipleSessions_ShouldReturnAllProcessIds()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(100);
         manager.AddSession(200);
         manager.AddSession(300);
@@ -113,7 +113,7 @@ public class SessionManagerTests
     public void UpdateLastActivity_WithExistingSession_ShouldUpdateTimestamp()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         var processId = 12345;
         manager.AddSession(processId);
 
@@ -134,7 +134,7 @@ public class SessionManagerTests
     public void GetIdleSessions_WithIdleTimeout_ShouldReturnIdleSessions()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
         manager.AddSession(100);
 
         // Wait to ensure session becomes idle

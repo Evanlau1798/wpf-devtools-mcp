@@ -15,7 +15,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// - Property blacklist prevents modification of sensitive properties using regex patterns
 /// - All modifications are logged for audit purposes
 /// </summary>
-public class MvvmAnalyzer : DispatcherAnalyzerBase
+public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 

@@ -18,7 +18,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 ///
 /// Thread Safety: All static state is protected by locks (_lock, _bindingLock)
 /// </summary>
-public class PerformanceAnalyzer : DispatcherAnalyzerBase
+public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -88,7 +88,7 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
                 var frameTimesArray = _frameTimes.GetItems().ToArray();
                 var avgFrameTime = frameTimesArray.Average();
                 var frameRate = avgFrameTime > 0 ? 1000.0 / avgFrameTime : 0.0;
-                var monitoringDuration = (DateTime.Now - _monitoringStartTime).TotalSeconds;
+                var monitoringDuration = (DateTime.UtcNow - _monitoringStartTime).TotalSeconds;
 
                 return new
                 {
@@ -273,7 +273,7 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
             if (!_isMonitoring)
             {
                 _isMonitoring = true;
-                _monitoringStartTime = DateTime.Now;
+                _monitoringStartTime = DateTime.UtcNow;
                 _frameStopwatch.Start();
                 CompositionTarget.Rendering += OnRendering;
             }
@@ -367,7 +367,7 @@ public class PerformanceAnalyzer : DispatcherAnalyzerBase
             _frameTimes.Clear();
             _frameCount = 0;
             _frameStopwatch.Reset();
-            _monitoringStartTime = DateTime.Now;
+            _monitoringStartTime = DateTime.UtcNow;
         }
     }
 

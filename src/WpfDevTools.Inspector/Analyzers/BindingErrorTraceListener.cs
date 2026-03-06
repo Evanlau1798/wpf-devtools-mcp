@@ -139,10 +139,8 @@ public sealed class BindingErrorTraceListener : TraceListener
     /// </summary>
     public void ClearErrors()
     {
-        while (_errors.TryDequeue(out _))
-        {
-            Interlocked.Decrement(ref _errorCount);
-        }
+        while (_errors.TryDequeue(out _)) { }
+        Interlocked.Exchange(ref _errorCount, 0);
     }
 
     private void EnqueueError(BindingErrorInfo error)
@@ -171,9 +169,9 @@ public sealed class BindingErrorTraceListener : TraceListener
                 var source = PresentationTraceSources.DataBindingSource;
                 source.Listeners.Remove(_instance.Value);
             }
-            catch
+            catch (Exception ex)
             {
-                // PresentationTraceSources may not be available in test contexts
+                System.Diagnostics.Debug.WriteLine($"BindingErrorTraceListener: Failed to remove listener (may not be available in test contexts): {ex.Message}");
             }
         }
 

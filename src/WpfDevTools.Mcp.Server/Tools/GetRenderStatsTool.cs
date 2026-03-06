@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get render statistics from WPF application
 /// </summary>
-public class GetRenderStatsTool : PipeConnectedToolBase
+public sealed class GetRenderStatsTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetRenderStatsTool class

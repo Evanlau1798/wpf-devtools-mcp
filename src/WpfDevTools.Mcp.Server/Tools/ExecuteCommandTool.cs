@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to execute commands in WPF application
 /// </summary>
-public class ExecuteCommandTool : PipeConnectedToolBase
+public sealed class ExecuteCommandTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the ExecuteCommandTool class

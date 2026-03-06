@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get applied styles from WPF elements
 /// </summary>
-public class GetAppliedStylesTool : PipeConnectedToolBase
+public sealed class GetAppliedStylesTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetAppliedStylesTool class

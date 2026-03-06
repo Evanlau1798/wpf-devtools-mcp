@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get commands from WPF elements
 /// </summary>
-public class GetCommandsTool : PipeConnectedToolBase
+public sealed class GetCommandsTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetCommandsTool class

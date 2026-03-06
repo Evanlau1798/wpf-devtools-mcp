@@ -8,7 +8,7 @@ namespace WpfDevTools.Inspector.Utilities;
 /// <summary>
 /// Utility for finding and tracking WPF elements by ID
 /// </summary>
-public class ElementFinder : IDisposable
+public sealed class ElementFinder : IDisposable
 {
     // Static to ensure unique IDs across all ElementFinder instances.
     // Multiple analyzers may share the same instance, but if separate instances

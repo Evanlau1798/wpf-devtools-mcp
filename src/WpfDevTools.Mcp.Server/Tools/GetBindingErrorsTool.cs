@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get binding errors from WPF application
 /// </summary>
-public class GetBindingErrorsTool : PipeConnectedToolBase
+public sealed class GetBindingErrorsTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetBindingErrorsTool class

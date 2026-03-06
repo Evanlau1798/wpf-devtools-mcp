@@ -7,7 +7,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF styles, triggers, and templates
 /// </summary>
-public class StyleAnalyzer : DispatcherAnalyzerBase
+public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -255,6 +255,7 @@ public class StyleAnalyzer : DispatcherAnalyzerBase
                 // Set local value (overrides style)
                 var targetType = dp.PropertyType;
                 var convertedValue = ConvertValue(value, targetType);
+                AuditLogger.LogSecurityEvent("StyleOverride", $"Property '{propertyName}' overridden on element '{elementId ?? "root"}'");
                 fe.SetValue(dp, convertedValue);
 
                 return new

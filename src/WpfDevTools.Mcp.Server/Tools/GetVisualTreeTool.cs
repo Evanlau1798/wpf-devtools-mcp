@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get Visual Tree from WPF process
 /// </summary>
-public class GetVisualTreeTool : PipeConnectedToolBase
+public sealed class GetVisualTreeTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetVisualTreeTool class

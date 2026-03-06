@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to clear DependencyProperty local value
 /// </summary>
-public class ClearDpValueTool : PipeConnectedToolBase
+public sealed class ClearDpValueTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the ClearDpValueTool class

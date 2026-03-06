@@ -8,7 +8,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// Provides logical tree structure including element types, names, and child relationships.
 /// All operations are marshalled to the UI thread via <see cref="DispatcherAnalyzerBase"/>.
 /// </summary>
-public class LogicalTreeAnalyzer : DispatcherAnalyzerBase
+public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 

@@ -9,7 +9,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF Visual Tree
 /// </summary>
-public class VisualTreeAnalyzer : DispatcherAnalyzerBase
+public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -45,7 +45,7 @@ public class VisualTreeAnalyzer : DispatcherAnalyzerBase
             }
 
             // Walk tree with hard upper limit of 100
-            var effectiveDepth = Math.Min(maxDepth ?? 50, 100);
+            var effectiveDepth = Math.Min(maxDepth ?? 10, 100);
             var tree = WalkVisualTree(root, effectiveDepth, 0);
 
             return new { success = true, tree };

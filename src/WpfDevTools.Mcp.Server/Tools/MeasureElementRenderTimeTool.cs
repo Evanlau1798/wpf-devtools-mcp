@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to measure element render time in WPF application
 /// </summary>
-public class MeasureElementRenderTimeTool : PipeConnectedToolBase
+public sealed class MeasureElementRenderTimeTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the MeasureElementRenderTimeTool class

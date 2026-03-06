@@ -14,7 +14,7 @@ namespace WpfDevTools.Inspector;
 [ExcludeFromCodeCoverage]
 public static class Bootstrap
 {
-    private static bool _isInitialized;
+    private static volatile bool _isInitialized;
     private static int _isInitializing; // 0 = not initializing, 1 = initializing
     private static readonly object _lock = new object();
     private static Host.InspectorHost? _host;
@@ -45,6 +45,8 @@ public static class Bootstrap
                 LogError("Bootstrap already initialized");
                 return;
             }
+
+            var beginInvokeCalled = false;
 
             try
             {
@@ -81,7 +83,7 @@ public static class Bootstrap
                 }), DispatcherPriority.Normal);
 
                 // BeginInvoke was called successfully - the callback's finally will reset _isInitializing
-                return;
+                beginInvokeCalled = true;
             }
             catch (Exception ex)
             {
@@ -89,10 +91,12 @@ public static class Bootstrap
             }
             finally
             {
-                // Reset _isInitializing if BeginInvoke was NOT called
-                // (FindWpfApplication returned null or exception occurred before BeginInvoke)
-                // If BeginInvoke was called, we already returned above, so this won't execute
-                Interlocked.Exchange(ref _isInitializing, 0);
+                // Reset _isInitializing only if BeginInvoke was NOT called.
+                // When BeginInvoke succeeded, the callback's finally handles the reset.
+                if (!beginInvokeCalled)
+                {
+                    Interlocked.Exchange(ref _isInitializing, 0);
+                }
             }
         }
     }
@@ -124,9 +128,9 @@ public static class Bootstrap
                         }
                     }
                 }
-                catch
+                catch (Exception assemblyEx)
                 {
-                    // Continue searching
+                    System.Diagnostics.Debug.WriteLine($"Bootstrap: Failed to search assembly for Application type: {assemblyEx.Message}");
                 }
             }
 #endif
@@ -212,11 +216,11 @@ public static class Bootstrap
     {
         try
         {
-            File.AppendAllText(_logFilePath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}");
+            File.AppendAllText(_logFilePath, $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}");
         }
-        catch
+        catch (Exception logEx)
         {
-            // Ignore logging errors
+            System.Diagnostics.Debug.WriteLine($"Bootstrap: Failed to write log file: {logEx.Message}");
         }
     }
 

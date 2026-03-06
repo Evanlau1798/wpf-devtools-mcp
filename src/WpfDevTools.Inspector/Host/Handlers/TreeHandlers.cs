@@ -119,7 +119,7 @@ public class TreeHandlers : IRequestHandler
 
                 var xaml = _xamlSerializer.SerializeToXaml(element);
                 return new { success = true, xaml };
-            });
+            }, System.Windows.Threading.DispatcherPriority.Normal);
         }, cancellationToken).ConfigureAwait(false);
     }
 

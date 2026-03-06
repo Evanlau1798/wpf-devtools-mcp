@@ -1,7 +1,7 @@
 # WPF DevTools MCP Server
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-1056%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1063%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-83%25%20(unit)-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
@@ -290,7 +290,9 @@ Both MCP Server and Inspector use non-blocking async logging via bounded Channel
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `WPFDEVTOOLS_AUTH_SECRET` | Base64-encoded shared secret (min 32 bytes) | Auto-generated |
-| `WPFDEVTOOLS_REQUIRE_SIGNATURE` | Require Authenticode DLL signature | `0` (disabled) |
+| `WPFDEVTOOLS_CERT_DIR` | Directory for TLS certificates | `%APPDATA%\WpfDevTools\certs` |
+| `WPFDEVTOOLS_CERT_THUMBPRINT` | Pin to specific certificate thumbprint for TLS validation | Not set (any valid cert accepted) |
+| `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK` | Skip Authenticode DLL signature check (DEBUG builds only) | `0` (always verify in Release) |
 
 For production deployment guidance, see [Security Policy](SECURITY.md).
 
@@ -328,7 +330,7 @@ graph TB
 - **In-Process Injection**: Required for accessing WPF internals (see [ADR-002](docs/architecture/ADR-002-in-process-injection.md))
 - **Named Pipes**: Message mode with length-prefix framing (see [ADR-001](docs/architecture/ADR-001-named-pipes-for-ipc.md) and [ADR-003](docs/architecture/ADR-003-length-prefix-framing.md))
 - **UI Thread Marshalling**: All Visual Tree operations use `Dispatcher.Invoke()`
-- **Token Efficiency**: All tools support `depth`, `filter`, `compact` parameters
+- **Token Efficiency**: Tree tools support `depth` parameter; use `elementId` to scope operations
 - **Multi-Targeting**: Supports .NET 8.0 and .NET Framework 4.8 (see [ADR-005](docs/architecture/ADR-005-multi-targeting-strategy.md))
 
 ## MCP Tools (44 Total)
@@ -338,7 +340,8 @@ graph TB
 #### get_processes
 List all running WPF applications.
 
-**Parameters**: None
+**Parameters**:
+- `nameFilter` (optional): Filter processes by name (case-insensitive substring match)
 
 **Returns**: Array of process information (PID, processName, windowTitle, architecture, .NET version)
 
@@ -365,9 +368,8 @@ Retrieve the Visual Tree structure.
 
 **Parameters**:
 - `processId` (required): Process ID
-- `depth` (optional): Maximum tree depth (default: unlimited)
-- `filter` (optional): Filter by element type
-- `compact` (optional): Return minimal properties (default: false)
+- `elementId` (optional): Root element ID (omit for root window)
+- `depth` (optional): Maximum tree depth (default: 10)
 
 **Returns**: Visual Tree structure
 
@@ -410,7 +412,7 @@ Get the template Visual Tree.
 **Parameters**:
 - `processId` (required): Process ID
 - `elementId` (required): Element ID
-- `depth` (optional): Maximum tree depth (default: unlimited, max: 100)
+- `depth` (optional): Maximum tree depth (default: 10, max: 100)
 
 **Returns**: Template tree structure
 
@@ -956,7 +958,7 @@ dotnet build
 dotnet test
 
 # Run with coverage
-dotnet test /p:CollectCoverage=true
+dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage"
 
 # Build release
 dotnet build -c Release

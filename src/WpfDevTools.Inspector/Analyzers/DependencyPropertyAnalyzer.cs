@@ -18,7 +18,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// Thread Safety: ConcurrentDictionary and ConcurrentQueue provide thread-safe operations
 /// Memory Safety: WeakReference prevents memory leaks when elements are GC'd
 /// </summary>
-public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
+public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -183,7 +183,7 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 var targetType = dp.PropertyType;
                 var convertedValue = ConvertValue(value, targetType);
 
-                System.Diagnostics.Trace.WriteLine($"[AUDIT] DependencyProperty '{propertyName}' set on element '{elementId ?? "root"}'");
+                AuditLogger.LogSecurityEvent("DependencyProperty", $"Property '{propertyName}' set on element '{elementId ?? "root"}'");
                 depObj.SetValue(dp, convertedValue);
                 return new { success = true, message = $"Property '{propertyName}' set successfully" };
             }
@@ -399,9 +399,9 @@ public class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                     kvp.Value.Descriptor.RemoveValueChanged(element, kvp.Value.Handler);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore cleanup errors during shutdown
+                System.Diagnostics.Debug.WriteLine($"DependencyPropertyAnalyzer: Failed to cleanup watcher: {ex.Message}");
             }
         }
         _watchers.Clear();

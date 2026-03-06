@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to get validation errors from WPF application
 /// </summary>
-public class GetValidationErrorsTool : PipeConnectedToolBase
+public sealed class GetValidationErrorsTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the GetValidationErrorsTool class

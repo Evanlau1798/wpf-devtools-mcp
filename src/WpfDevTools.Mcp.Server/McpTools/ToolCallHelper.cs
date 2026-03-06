@@ -11,12 +11,19 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class ToolCallHelper
 {
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
+    private static MetricsCollector? _metrics;
 
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     };
+
+    /// <summary>
+    /// Set the MetricsCollector instance for recording tool execution metrics.
+    /// Called once during DI initialization from Program.cs.
+    /// </summary>
+    internal static void SetMetricsCollector(MetricsCollector metrics) => _metrics = metrics;
 
     /// <summary>
     /// Build a JsonElement from a dictionary of named parameters.
@@ -53,22 +60,28 @@ public static class ToolCallHelper
     /// <param name="execute">The tool's ExecuteAsync function</param>
     /// <param name="args">JSON arguments for the tool</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <param name="toolName">Tool name for metrics (auto-populated from caller method name)</param>
     /// <returns>CallToolResult with IsError set appropriately</returns>
     public static async Task<CallToolResult> ExecuteAndWrapAsync(
         Func<JsonElement?, CancellationToken, Task<object>> execute,
         JsonElement? args,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [System.Runtime.CompilerServices.CallerMemberName] string toolName = "unknown")
     {
         // CRITICAL FIX: Enforce timeout on all tool executions
         // Prevents server hang if target process is frozen or unresponsive
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(McpServerConfiguration.DefaultToolTimeoutSeconds));
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var result = await execute(args, cts.Token).ConfigureAwait(false);
+            sw.Stop();
             var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
             var isError = IsToolResultError(jsonElement);
+
+            _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, !isError);
 
             return new CallToolResult()
             {
@@ -78,6 +91,9 @@ public static class ToolCallHelper
         }
         catch (OperationCanceledException) when (cts.Token.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
+            sw.Stop();
+            _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
+
             // Timeout occurred (our CTS was cancelled, but caller's token was not)
             return new CallToolResult()
             {
@@ -87,6 +103,26 @@ public static class ToolCallHelper
                     {
                         success = false,
                         error = $"Tool execution timed out after {McpServerConfiguration.DefaultToolTimeoutSeconds} seconds. Target process may be frozen or unresponsive."
+                    }, SerializerOptions)
+                }],
+                IsError = true
+            };
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            sw.Stop();
+            _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
+
+            // Catch-all: wrap unexpected exceptions as error results instead of
+            // letting them propagate to the MCP SDK layer unhandled
+            return new CallToolResult()
+            {
+                Content = [new TextContentBlock()
+                {
+                    Text = JsonSerializer.Serialize(new
+                    {
+                        success = false,
+                        error = $"Tool execution failed: {ex.Message}"
                     }, SerializerOptions)
                 }],
                 IsError = true
@@ -132,7 +168,11 @@ public static class ToolCallHelper
         => (T)ToolCache.GetOrAdd(key, _ => factory());
 
     /// <summary>
-    /// Clear the tool cache. Only for use in tests to ensure test isolation.
+    /// Clear the tool cache and metrics. Only for use in tests to ensure test isolation.
     /// </summary>
-    internal static void ResetCacheForTesting() => ToolCache.Clear();
+    internal static void ResetCacheForTesting()
+    {
+        ToolCache.Clear();
+        _metrics = null;
+    }
 }

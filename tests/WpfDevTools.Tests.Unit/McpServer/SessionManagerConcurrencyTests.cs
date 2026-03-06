@@ -14,7 +14,7 @@ public class SessionManagerConcurrencyTests
     public void CleanupDeadSessions_ShouldRemoveSessionsForDeadProcesses()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Add a session for a process that doesn't exist
         var deadProcessId = 99999; // Very unlikely to exist
@@ -39,7 +39,7 @@ public class SessionManagerConcurrencyTests
     public void CleanupDeadSessions_ShouldKeepSessionsForLiveProcesses()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Add a session for current process (guaranteed to be alive)
         var currentProcessId = Process.GetCurrentProcess().Id;
@@ -63,7 +63,7 @@ public class SessionManagerConcurrencyTests
     public void AddSession_WithMaxSessionsReached_ShouldThrowException()
     {
         // Arrange
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         // Add 50 sessions (MaxSessions limit)
         for (int i = 1; i <= 50; i++)

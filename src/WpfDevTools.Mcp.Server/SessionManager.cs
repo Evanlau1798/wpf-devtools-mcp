@@ -7,7 +7,7 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public sealed class SessionManager : IDisposable
 {
-    private bool _isDisposed;
+    private volatile bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly IRateLimiterManager _rateLimiter;
@@ -58,8 +58,10 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     /// <param name="processId">Process ID to check rate limit for</param>
     /// <returns>True if request is allowed, false if rate limit exceeded</returns>
+    /// <exception cref="ObjectDisposedException">Thrown when session manager has been disposed</exception>
     public bool CheckRateLimit(int processId)
     {
+        ThrowIfDisposed();
         return _rateLimiter.TryAcquire(processId);
     }
 
@@ -80,6 +82,7 @@ public sealed class SessionManager : IDisposable
     /// <exception cref="InvalidOperationException">Thrown when maximum session limit is reached or session already exists</exception>
     public void AddSession(int processId)
     {
+        ThrowIfDisposed();
         lock (_lock)
         {
             if (_sessions.Count >= McpServerConfiguration.MaxSessions)
@@ -108,6 +111,7 @@ public sealed class SessionManager : IDisposable
     /// <param name="processId">Process ID of session to remove</param>
     public void RemoveSession(int processId)
     {
+        ThrowIfDisposed();
         lock (_lock)
         {
             _sessions.Remove(processId);
@@ -129,6 +133,7 @@ public sealed class SessionManager : IDisposable
     /// <returns>NamedPipeClient instance if session exists, null otherwise</returns>
     public NamedPipeClient? GetPipeClient(int processId)
     {
+        ThrowIfDisposed();
         lock (_lock)
         {
             return _pipeClients.TryGetValue(processId, out var client) ? client : null;
@@ -142,6 +147,7 @@ public sealed class SessionManager : IDisposable
     /// <returns>True if session exists, false otherwise</returns>
     public bool HasSession(int processId)
     {
+        ThrowIfDisposed();
         lock (_lock)
         {
             return _sessions.ContainsKey(processId);
@@ -154,6 +160,7 @@ public sealed class SessionManager : IDisposable
     /// <returns>Number of active sessions</returns>
     public int GetActiveSessionCount()
     {
+        ThrowIfDisposed();
         lock (_lock)
         {
             return _sessions.Count;
@@ -166,6 +173,7 @@ public sealed class SessionManager : IDisposable
     /// <returns>Read-only list of process IDs for all active sessions</returns>
     public IReadOnlyList<int> GetAllSessions()
     {
+        ThrowIfDisposed();
         lock (_lock)
         {
             return _sessions.Keys.ToList();
@@ -178,6 +186,7 @@ public sealed class SessionManager : IDisposable
     /// <param name="processId">Process ID of session to update</param>
     public void UpdateLastActivity(int processId)
     {
+        ThrowIfDisposed();
         lock (_lock)
         {
             if (_sessions.TryGetValue(processId, out var session))
@@ -198,6 +207,7 @@ public sealed class SessionManager : IDisposable
     /// <returns>Last activity time in UTC, or DateTime.MinValue if session does not exist</returns>
     public DateTime GetLastActivityTime(int processId)
     {
+        ThrowIfDisposed();
         lock (_lock)
         {
             return _sessions.TryGetValue(processId, out var session)
@@ -213,6 +223,7 @@ public sealed class SessionManager : IDisposable
     /// <returns>Read-only list of process IDs for idle sessions</returns>
     public IReadOnlyList<int> GetIdleSessions(TimeSpan idleTimeout)
     {
+        ThrowIfDisposed();
         lock (_lock)
         {
             var now = DateTime.UtcNow;
@@ -228,6 +239,8 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     private void PerformCleanup()
     {
+        if (_isDisposed) return;
+
         try
         {
             // Clean up dead sessions
@@ -254,9 +267,10 @@ public sealed class SessionManager : IDisposable
                 var logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_SessionManager_Cleanup_{DateTime.UtcNow:yyyyMMdd}.log");
                 File.AppendAllText(logPath, $"[{DateTime.UtcNow:O}] Cleanup error: {ex}\n");
             }
-            catch
+            catch (Exception logEx)
             {
-                // Last resort: swallow to prevent timer crash
+                // Last resort: write to debug output to prevent timer crash
+                System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to log cleanup error: {logEx.Message}");
             }
         }
     }
@@ -317,6 +331,12 @@ public sealed class SessionManager : IDisposable
         public required DateTime LastActivity { get; init; }
     }
 
+    private void ThrowIfDisposed()
+    {
+        if (_isDisposed)
+            throw new ObjectDisposedException(nameof(SessionManager));
+    }
+
     /// <summary>
     /// Dispose the session manager and release all resources
     /// </summary>
@@ -345,9 +365,9 @@ public sealed class SessionManager : IDisposable
                 {
                     client.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore disposal errors
+                    System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to dispose pipe client: {ex.Message}");
                 }
             }
 

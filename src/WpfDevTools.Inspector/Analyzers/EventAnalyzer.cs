@@ -6,7 +6,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes and traces WPF RoutedEvents
 /// </summary>
-public class EventAnalyzer : DispatcherAnalyzerBase
+public sealed class EventAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private static readonly object _lock = new object();
@@ -100,6 +100,8 @@ public class EventAnalyzer : DispatcherAnalyzerBase
 
             // Stop tracing after capped duration
             // Use local CTS captured before Task.Delay to prevent ObjectDisposedException
+            // Check that localCts is still the current _tracingCts before stopping,
+            // to prevent a stale continuation from cancelling a newer trace session.
             Task.Delay(cappedDuration, localCts.Token).ContinueWith(_ =>
             {
                 InvokeOnUIThread(() =>
@@ -107,10 +109,13 @@ public class EventAnalyzer : DispatcherAnalyzerBase
                     uiElement.RemoveHandler(routedEvent, handler);
                     lock (_lock)
                     {
-                        _isTracing = false;
+                        if (ReferenceEquals(_tracingCts, localCts))
+                        {
+                            _isTracing = false;
+                        }
                     }
                 });
-            }, TaskScheduler.Default);
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
 
             return new
             {

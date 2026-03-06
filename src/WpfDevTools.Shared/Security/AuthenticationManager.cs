@@ -6,14 +6,16 @@ namespace WpfDevTools.Shared.Security;
 /// <summary>
 /// Manages shared secret for challenge-response authentication.
 /// Supports loading from environment variable or auto-generating.
+/// Implements IDisposable to securely zero the shared secret from memory.
 /// </summary>
-public class AuthenticationManager
+public sealed class AuthenticationManager : IDisposable
 {
     private const int MinSecretLength = 32;
     private const string EnvVarName = "WPFDEVTOOLS_AUTH_SECRET";
 
     private readonly byte[]? _sharedSecret;
     private readonly bool _isEnabled;
+    private volatile bool _isDisposed;
 
     /// <summary>
     /// Creates an AuthenticationManager that loads secret from environment or auto-generates one.
@@ -54,6 +56,9 @@ public class AuthenticationManager
     /// <exception cref="InvalidOperationException">Thrown when authentication is disabled</exception>
     public byte[] GetSharedSecret()
     {
+        if (_isDisposed)
+            throw new ObjectDisposedException(nameof(AuthenticationManager));
+
         if (!_isEnabled)
             throw new InvalidOperationException("Authentication is disabled. Cannot retrieve shared secret.");
 
@@ -90,5 +95,21 @@ public class AuthenticationManager
         RandomNumberGenerator.Fill(secret);
 #endif
         return secret;
+    }
+
+    /// <summary>
+    /// Securely zeros the shared secret from memory
+    /// </summary>
+    public void Dispose()
+    {
+        if (_isDisposed)
+            return;
+
+        _isDisposed = true;
+
+        if (_sharedSecret != null)
+        {
+            Array.Clear(_sharedSecret, 0, _sharedSecret.Length);
+        }
     }
 }

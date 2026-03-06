@@ -63,10 +63,12 @@ public static class BindingMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  errorCount: integer,\n" +
         "  errors: [{\n" +
-        "    elementType, elementName, propertyName, bindingPath,\n" +
-        "    errorType: 'PathError'|'ConverterError'|'ValidationError',\n" +
-        "    errorMessage\n" +
+        "    timestamp: string (ISO 8601),\n" +
+        "    message: string,\n" +
+        "    eventType: string,\n" +
+        "    sourceId: string\n" +
         "  }]\n" +
         "}\n\n" +
         "Empty errors array means no binding errors detected.\n\n" +

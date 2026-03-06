@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to simulate mouse click on WPF elements
 /// </summary>
-public class ClickElementTool : PipeConnectedToolBase
+public sealed class ClickElementTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the ClickElementTool class

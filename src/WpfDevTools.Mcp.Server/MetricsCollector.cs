@@ -12,6 +12,7 @@ public sealed class MetricsCollector
     private long _errorCount;
     private readonly CircularBuffer<long> _latencies;
     private long _totalLatency;
+    private readonly Dictionary<string, MethodMetrics> _methodMetrics = new();
 
     private const int MaxLatencySamples = 1000;
 
@@ -39,6 +40,16 @@ public sealed class MetricsCollector
                 _errorCount++;
 
             _latencies.Add(latencyMs);
+
+            // Track per-method metrics
+            if (!_methodMetrics.TryGetValue(method, out var methodStats))
+            {
+                methodStats = new MethodMetrics();
+                _methodMetrics[method] = methodStats;
+            }
+            methodStats.TotalCalls++;
+            methodStats.TotalLatency += latencyMs;
+            if (!success) methodStats.ErrorCount++;
         }
     }
 
@@ -52,6 +63,17 @@ public sealed class MetricsCollector
             var latencyArray = _latencies.GetItems().ToArray();
             Array.Sort(latencyArray);
 
+            var methodSnapshots = _methodMetrics.ToDictionary(
+                kvp => kvp.Key,
+                kvp => new MethodMetricsSnapshot
+                {
+                    TotalCalls = kvp.Value.TotalCalls,
+                    ErrorCount = kvp.Value.ErrorCount,
+                    AverageLatency = kvp.Value.TotalCalls > 0
+                        ? (double)kvp.Value.TotalLatency / kvp.Value.TotalCalls
+                        : 0
+                });
+
             return new MetricsSnapshot
             {
                 TotalRequests = _totalRequests,
@@ -61,7 +83,8 @@ public sealed class MetricsCollector
                 AverageLatency = _totalRequests > 0 ? (double)_totalLatency / _totalRequests : 0,
                 P50Latency = CalculatePercentile(latencyArray, 0.50),
                 P95Latency = CalculatePercentile(latencyArray, 0.95),
-                P99Latency = CalculatePercentile(latencyArray, 0.99)
+                P99Latency = CalculatePercentile(latencyArray, 0.99),
+                MethodMetrics = methodSnapshots
             };
         }
     }
@@ -78,7 +101,15 @@ public sealed class MetricsCollector
             _errorCount = 0;
             _totalLatency = 0;
             _latencies.Clear();
+            _methodMetrics.Clear();
         }
+    }
+
+    private class MethodMetrics
+    {
+        public long TotalCalls;
+        public long ErrorCount;
+        public long TotalLatency;
     }
 
     private static double CalculatePercentile(long[] sortedValues, double percentile)
@@ -189,4 +220,31 @@ public sealed record MetricsSnapshot
     /// Gets the 99th percentile latency in milliseconds
     /// </summary>
     public double P99Latency { get; init; }
+
+    /// <summary>
+    /// Gets per-method (tool) metrics for observability
+    /// </summary>
+    public IReadOnlyDictionary<string, MethodMetricsSnapshot> MethodMetrics { get; init; }
+        = new Dictionary<string, MethodMetricsSnapshot>();
+}
+
+/// <summary>
+/// Immutable snapshot of per-method metrics
+/// </summary>
+public sealed record MethodMetricsSnapshot
+{
+    /// <summary>
+    /// Total calls to this method
+    /// </summary>
+    public long TotalCalls { get; init; }
+
+    /// <summary>
+    /// Number of errors for this method
+    /// </summary>
+    public long ErrorCount { get; init; }
+
+    /// <summary>
+    /// Average latency for this method in milliseconds
+    /// </summary>
+    public double AverageLatency { get; init; }
 }

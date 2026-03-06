@@ -6,7 +6,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// Generic pipe-connected tool that delegates to the Inspector via Named Pipes.
 /// Used for tools that simply forward requests without custom logic.
 /// </summary>
-public class GenericPipeTool : PipeConnectedToolBase
+public sealed class GenericPipeTool : PipeConnectedToolBase
 {
     private readonly string _method;
     private readonly Func<JsonElement?, (int processId, object? parameters, object? error)> _paramExtractor;

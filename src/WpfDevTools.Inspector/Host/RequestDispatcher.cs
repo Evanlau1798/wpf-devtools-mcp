@@ -11,11 +11,12 @@ namespace WpfDevTools.Inspector.Host;
 /// <summary>
 /// Dispatches incoming requests to appropriate handlers
 /// </summary>
-public class RequestDispatcher
+public sealed class RequestDispatcher : IDisposable
 {
     private readonly Dictionary<string, IRequestHandler> _handlerMap;
     private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>> _simpleHandlers;
     private readonly FileLogger _logger;
+    private readonly ElementFinder _elementFinder;
 
     /// <summary>
     /// Create a new RequestDispatcher instance and initialize all handlers
@@ -26,7 +27,8 @@ public class RequestDispatcher
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Initialize shared utilities
-        var elementFinder = new ElementFinder();
+        _elementFinder = new ElementFinder();
+        var elementFinder = _elementFinder;
         var xamlSerializer = new XamlSerializer();
 
         // Initialize analyzers
@@ -169,5 +171,13 @@ public class RequestDispatcher
     private void LogError(string message)
     {
         _logger.LogError(message);
+    }
+
+    /// <summary>
+    /// Dispose the ElementFinder to stop its cleanup timer
+    /// </summary>
+    public void Dispose()
+    {
+        _elementFinder.Dispose();
     }
 }

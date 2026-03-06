@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to invalidate layout for WPF elements
 /// </summary>
-public class InvalidateLayoutTool : PipeConnectedToolBase
+public sealed class InvalidateLayoutTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the InvalidateLayoutTool class

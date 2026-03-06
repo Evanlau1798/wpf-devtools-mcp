@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// MCP tool to override style setter values
 /// </summary>
-public class OverrideStyleSetterTool : PipeConnectedToolBase
+public sealed class OverrideStyleSetterTool : PipeConnectedToolBase
 {
     /// <summary>
     /// Initializes a new instance of the OverrideStyleSetterTool class

@@ -207,6 +207,9 @@ public class McpToolAttributeTests
     [InlineData("invalidate_layout")]
     [InlineData("drag_and_drop")]
     [InlineData("simulate_keyboard")]
+    [InlineData("force_binding_update")]
+    [InlineData("scroll_to_element")]
+    [InlineData("highlight_element")]
     public void DestructiveTools_ShouldBeMarkedDestructive(string toolName)
     {
         var tool = AllTools.First(t => t.Attr.Name == toolName);

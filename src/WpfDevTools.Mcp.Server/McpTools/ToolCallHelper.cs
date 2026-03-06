@@ -35,8 +35,7 @@ public static class ToolCallHelper
         if (dict.Count == 0)
             return null;
 
-        var json = JsonSerializer.Serialize(dict, SerializerOptions);
-        return JsonSerializer.Deserialize<JsonElement>(json);
+        return JsonSerializer.SerializeToElement(dict, SerializerOptions);
     }
 
     /// <summary>

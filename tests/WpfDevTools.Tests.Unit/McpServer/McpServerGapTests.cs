@@ -348,11 +348,12 @@ public class McpServerGapTests
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert - will get pipe not connected error but should not be processId error
+        // Assert - will get pipe not connected error but should not be "missing processId" error
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         var errorText = resultJson.TryGetProperty("error", out var errorProp) ? errorProp.GetString() : "";
-        errorText.Should().NotContain("processId");
+        errorText.Should().NotContain("Missing required parameter: processId");
+        errorText.Should().Contain("Named pipe not connected"); // Should be pipe connection error, not parameter error
     }
 
     #endregion

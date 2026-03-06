@@ -22,10 +22,6 @@ try
     // DI: Core services (singletons shared across all tool invocations)
     builder.Services.AddSingleton(fileLogger);
     builder.Services.AddSingleton<SessionManager>();
-    builder.Services.AddSingleton(new RateLimiter(
-        maxRequestsPerInterval: 100,
-        interval: TimeSpan.FromMinutes(1)));
-    builder.Services.AddSingleton<MetricsCollector>();
 
     // MCP Server configuration
     builder.Services.AddMcpServer(options =>

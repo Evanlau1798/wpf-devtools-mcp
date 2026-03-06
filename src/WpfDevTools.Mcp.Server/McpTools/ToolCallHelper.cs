@@ -80,24 +80,6 @@ public static class ToolCallHelper
     }
 
     /// <summary>
-    /// Detect if a tool result indicates an error by checking for success: false.
-    /// Parses the JSON string first — use the JsonElement overload when possible.
-    /// </summary>
-    internal static bool IsToolResultError(string json)
-    {
-        try
-        {
-            var element = JsonSerializer.Deserialize<JsonElement>(json);
-            return IsToolResultError(element);
-        }
-        catch (JsonException)
-        {
-            // If we can't parse, assume success
-            return false;
-        }
-    }
-
-    /// <summary>
     /// Get or create a cached tool instance. Tools are stateless wrappers that only hold
     /// a SessionManager reference and are thread-safe, so a single instance can be reused
     /// across concurrent calls.
@@ -114,4 +96,9 @@ public static class ToolCallHelper
     /// <param name="factory">Factory to create the tool if not cached</param>
     internal static T CachedTool<T>(string key, Func<T> factory) where T : class
         => (T)ToolCache.GetOrAdd(key, _ => factory());
+
+    /// <summary>
+    /// Clear the tool cache. Only for use in tests to ensure test isolation.
+    /// </summary>
+    internal static void ResetCacheForTesting() => ToolCache.Clear();
 }

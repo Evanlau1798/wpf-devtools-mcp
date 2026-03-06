@@ -83,6 +83,16 @@ public class ToolCallHelperTests
         nf.GetString().Should().Be("TestApp");
     }
 
+    [Fact]
+    public void BuildJsonArgs_WithBooleanFalse_ShouldIncludeIt()
+    {
+        var result = ToolCallHelper.BuildJsonArgs(("recursive", false));
+
+        result.Should().NotBeNull();
+        result!.Value.TryGetProperty("recursive", out var val).Should().BeTrue();
+        val.GetBoolean().Should().BeFalse();
+    }
+
     // === ExecuteAndWrapAsync Tests ===
 
     [Fact]
@@ -164,43 +174,6 @@ public class ToolCallHelperTests
     }
 
     // === IsToolResultError Tests ===
-
-    [Fact]
-    public void IsToolResultError_WithSuccessTrue_ShouldReturnFalse()
-    {
-        var json = """{"success":true,"data":"test"}""";
-        ToolCallHelper.IsToolResultError(json).Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsToolResultError_WithSuccessFalse_ShouldReturnTrue()
-    {
-        var json = """{"success":false,"error":"Something went wrong"}""";
-        ToolCallHelper.IsToolResultError(json).Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsToolResultError_WithNoSuccessField_ShouldReturnFalse()
-    {
-        var json = """{"data":"test","count":5}""";
-        ToolCallHelper.IsToolResultError(json).Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsToolResultError_WithInvalidJson_ShouldReturnFalse()
-    {
-        var json = "not valid json";
-        ToolCallHelper.IsToolResultError(json).Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsToolResultError_WithEmptyJson_ShouldReturnFalse()
-    {
-        var json = "{}";
-        ToolCallHelper.IsToolResultError(json).Should().BeFalse();
-    }
-
-    // === IsToolResultError (JsonElement overload) Tests ===
 
     [Fact]
     public void IsToolResultError_JsonElement_WithSuccessFalse_ShouldReturnTrue()

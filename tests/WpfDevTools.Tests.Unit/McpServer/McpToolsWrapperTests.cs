@@ -14,7 +14,11 @@ public class McpToolsWrapperTests : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
 
-    public void Dispose() => _sessionManager.Dispose();
+    public void Dispose()
+    {
+        _sessionManager.Dispose();
+        ToolCallHelper.ResetCacheForTesting();
+    }
 
     // === Process Tools ===
 

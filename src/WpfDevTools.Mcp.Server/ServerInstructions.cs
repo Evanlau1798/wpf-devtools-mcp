@@ -33,7 +33,6 @@ public static class ServerInstructions
         - If timeout occurs, process may be frozen or unresponsive
 
         === RATE LIMITS ===
-        - Global: 100 requests/minute (returns error -32000 when exceeded)
         - Per-session: 100 requests/minute per connected process
         - Tree tools: Use depth parameter to limit response size
         - Performance tools: Avoid calling in tight loops

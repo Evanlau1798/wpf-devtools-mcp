@@ -47,7 +47,7 @@ public static class EventMcpTools
             ("eventName", eventName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new TraceRoutedEventsTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<TraceRoutedEventsTool>("TraceRoutedEventsTool", () => new TraceRoutedEventsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -86,7 +86,7 @@ public static class EventMcpTools
             ("eventName", eventName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetEventHandlersTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetEventHandlersTool>("GetEventHandlersTool", () => new GetEventHandlersTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -123,7 +123,7 @@ public static class EventMcpTools
             ("eventName", eventName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new FireRoutedEventTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<FireRoutedEventTool>("FireRoutedEventTool", () => new FireRoutedEventTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

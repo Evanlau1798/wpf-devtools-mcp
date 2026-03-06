@@ -8,9 +8,10 @@ namespace WpfDevTools.Mcp.Server;
 /// Enables integration with the SDK's logging pipeline while preserving
 /// the Channel-based async I/O and log rotation capabilities of FileLogger.
 /// </summary>
-public sealed class FileLoggerProvider : ILoggerProvider
+public sealed class FileLoggerProvider : ILoggerProvider, IAsyncDisposable
 {
     private readonly FileLogger _fileLogger;
+    private volatile bool _disposed;
 
     /// <summary>
     /// Creates a new FileLoggerProvider wrapping an existing FileLogger instance
@@ -23,28 +24,42 @@ public sealed class FileLoggerProvider : ILoggerProvider
 
     /// <inheritdoc />
     public ILogger CreateLogger(string categoryName) =>
-        new FileLoggerAdapter(_fileLogger, categoryName);
+        new FileLoggerAdapter(this, _fileLogger, categoryName);
 
     /// <inheritdoc />
     public void Dispose()
     {
-        // FileLogger lifecycle managed externally (registered as singleton in DI)
+        _disposed = true;
+        // FileLogger lifecycle managed externally (registered as singleton in DI,
+        // disposed in Program.cs finally block)
+    }
+
+    /// <summary>
+    /// Async dispose signals adapters to stop writing, preventing log loss during shutdown
+    /// </summary>
+    public ValueTask DisposeAsync()
+    {
+        Dispose();
+        return ValueTask.CompletedTask;
     }
 
     private sealed class FileLoggerAdapter : ILogger
     {
+        private readonly FileLoggerProvider _provider;
         private readonly FileLogger _fileLogger;
         private readonly string _categoryName;
 
-        public FileLoggerAdapter(FileLogger fileLogger, string categoryName)
+        public FileLoggerAdapter(FileLoggerProvider provider, FileLogger fileLogger, string categoryName)
         {
+            _provider = provider;
             _fileLogger = fileLogger;
             _categoryName = categoryName;
         }
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
-        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Information;
+        public bool IsEnabled(LogLevel logLevel) =>
+            !_provider._disposed && logLevel >= LogLevel.Information;
 
         public void Log<TState>(
             LogLevel logLevel,

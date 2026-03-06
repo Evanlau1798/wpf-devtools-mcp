@@ -42,7 +42,7 @@ public static class MvvmMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetViewModelTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetViewModelTool>("GetViewModelTool", () => new GetViewModelTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -78,7 +78,7 @@ public static class MvvmMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetCommandsTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetCommandsTool>("GetCommandsTool", () => new GetCommandsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -119,7 +119,7 @@ public static class MvvmMcpTools
             ("parameter", parameter));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new ExecuteCommandTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ExecuteCommandTool>("ExecuteCommandTool", () => new ExecuteCommandTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -156,7 +156,7 @@ public static class MvvmMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetValidationErrorsTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetValidationErrorsTool>("GetValidationErrorsTool", () => new GetValidationErrorsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -198,7 +198,7 @@ public static class MvvmMcpTools
             ("value", value));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GenericPipeTool(sessionManager, "modify_viewmodel",
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("modify_viewmodel", () => new GenericPipeTool(sessionManager, "modify_viewmodel",
                 a =>
                 {
                     var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
@@ -210,7 +210,7 @@ public static class MvvmMcpTools
                     if (string.IsNullOrEmpty(val))
                         return (-1, null, (object)new { success = false, error = "Missing required parameter: value" });
                     return (pid, (object?)new { elementId = eid, propertyName = prop, value = val }, null);
-                }).ExecuteAsync(a, ct),
+                })).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using ModelContextProtocol.Protocol;
 
@@ -9,6 +10,8 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 /// </summary>
 public static class ToolCallHelper
 {
+    private static readonly ConcurrentDictionary<string, object> ToolCache = new();
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -57,7 +60,7 @@ public static class ToolCallHelper
 
         return new CallToolResult()
         {
-            Content = new List<ContentBlock> { new TextContentBlock() { Text = json } },
+            Content = [new TextContentBlock() { Text = json }],
             IsError = isError
         };
     }
@@ -84,4 +87,14 @@ public static class ToolCallHelper
 
         return false;
     }
+
+    /// <summary>
+    /// Get or create a cached tool instance. Tools are stateless (only hold SessionManager
+    /// reference) and thread-safe, so a single instance can be reused across concurrent calls.
+    /// </summary>
+    /// <typeparam name="T">Tool type</typeparam>
+    /// <param name="key">Unique cache key (typically the MCP tool name)</param>
+    /// <param name="factory">Factory to create the tool if not cached</param>
+    internal static T CachedTool<T>(string key, Func<T> factory) where T : class
+        => (T)ToolCache.GetOrAdd(key, _ => factory());
 }

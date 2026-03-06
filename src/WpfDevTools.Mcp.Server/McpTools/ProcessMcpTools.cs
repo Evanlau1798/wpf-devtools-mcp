@@ -42,7 +42,7 @@ public static class ProcessMcpTools
             ("nameFilter", nameFilter));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetProcessesTool().ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetProcessesTool>("GetProcessesTool", () => new GetProcessesTool()).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -77,7 +77,7 @@ public static class ProcessMcpTools
             ("processId", processId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new ConnectTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ConnectTool>("ConnectTool", () => new ConnectTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -110,7 +110,7 @@ public static class ProcessMcpTools
             ("processId", processId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new PingTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<PingTool>("PingTool", () => new PingTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

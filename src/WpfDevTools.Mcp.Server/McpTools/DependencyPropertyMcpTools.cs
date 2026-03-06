@@ -45,7 +45,7 @@ public static class DependencyPropertyMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetDpValueSourceTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetDpValueSourceTool>("GetDpValueSourceTool", () => new GetDpValueSourceTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -81,7 +81,7 @@ public static class DependencyPropertyMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetDpMetadataTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetDpMetadataTool>("GetDpMetadataTool", () => new GetDpMetadataTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -121,7 +121,7 @@ public static class DependencyPropertyMcpTools
             ("value", value));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new SetDpValueTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<SetDpValueTool>("SetDpValueTool", () => new SetDpValueTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -156,7 +156,7 @@ public static class DependencyPropertyMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new ClearDpValueTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ClearDpValueTool>("ClearDpValueTool", () => new ClearDpValueTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -193,7 +193,7 @@ public static class DependencyPropertyMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new WatchDpChangesTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<WatchDpChangesTool>("WatchDpChangesTool", () => new WatchDpChangesTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

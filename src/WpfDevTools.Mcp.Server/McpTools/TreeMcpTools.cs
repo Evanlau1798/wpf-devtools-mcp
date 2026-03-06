@@ -45,7 +45,7 @@ public static class TreeMcpTools
             ("depth", depth));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetVisualTreeTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetVisualTreeTool>("GetVisualTreeTool", () => new GetVisualTreeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -80,7 +80,7 @@ public static class TreeMcpTools
             ("depth", depth));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetLogicalTreeTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetLogicalTreeTool>("GetLogicalTreeTool", () => new GetLogicalTreeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -113,7 +113,7 @@ public static class TreeMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GenericPipeTool(sessionManager, "serialize_to_xaml").ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("serialize_to_xaml", () => new GenericPipeTool(sessionManager, "serialize_to_xaml")).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -145,7 +145,7 @@ public static class TreeMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GenericPipeTool(sessionManager, "get_namescope").ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("get_namescope", () => new GenericPipeTool(sessionManager, "get_namescope")).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -180,7 +180,7 @@ public static class TreeMcpTools
             ("depth", depth));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetTemplateTreeTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetTemplateTreeTool>("GetTemplateTreeTool", () => new GetTemplateTreeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -210,7 +210,7 @@ public static class TreeMcpTools
             ("processId", processId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GenericPipeTool(sessionManager, "compare_trees").ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("compare_trees", () => new GenericPipeTool(sessionManager, "compare_trees")).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

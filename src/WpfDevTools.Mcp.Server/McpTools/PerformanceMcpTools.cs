@@ -40,7 +40,7 @@ public static class PerformanceMcpTools
             ("processId", processId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetRenderStatsTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetRenderStatsTool>("GetRenderStatsTool", () => new GetRenderStatsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -75,7 +75,7 @@ public static class PerformanceMcpTools
             ("threshold", threshold));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new FindBindingLeaksTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<FindBindingLeaksTool>("FindBindingLeaksTool", () => new FindBindingLeaksTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -110,7 +110,7 @@ public static class PerformanceMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new MeasureElementRenderTimeTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<MeasureElementRenderTimeTool>("MeasureElementRenderTimeTool", () => new MeasureElementRenderTimeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -145,7 +145,7 @@ public static class PerformanceMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetVisualCountTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetVisualCountTool>("GetVisualCountTool", () => new GetVisualCountTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

@@ -47,7 +47,7 @@ public static class BindingMcpTools
             ("recursive", recursive));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetBindingsTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetBindingsTool>("GetBindingsTool", () => new GetBindingsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -81,7 +81,7 @@ public static class BindingMcpTools
             ("processId", processId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetBindingErrorsTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetBindingErrorsTool>("GetBindingErrorsTool", () => new GetBindingErrorsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -119,7 +119,7 @@ public static class BindingMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GenericPipeTool(sessionManager, "get_binding_value_chain",
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("get_binding_value_chain", () => new GenericPipeTool(sessionManager, "get_binding_value_chain",
                 a =>
                 {
                     var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
@@ -128,7 +128,7 @@ public static class BindingMcpTools
                     if (string.IsNullOrEmpty(prop))
                         return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
                     return (pid, (object?)new { elementId = eid, propertyName = prop }, null);
-                }).ExecuteAsync(a, ct),
+                })).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -163,7 +163,7 @@ public static class BindingMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetDataContextChainTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetDataContextChainTool>("GetDataContextChainTool", () => new GetDataContextChainTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -199,7 +199,7 @@ public static class BindingMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GenericPipeTool(sessionManager, "force_binding_update",
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("force_binding_update", () => new GenericPipeTool(sessionManager, "force_binding_update",
                 a =>
                 {
                     var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
@@ -208,7 +208,7 @@ public static class BindingMcpTools
                     if (string.IsNullOrEmpty(prop))
                         return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
                     return (pid, (object?)new { elementId = eid, propertyName = prop }, null);
-                }).ExecuteAsync(a, ct),
+                })).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

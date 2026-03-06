@@ -42,7 +42,7 @@ public static class InteractionMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new ClickElementTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ClickElementTool>("ClickElementTool", () => new ClickElementTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -80,7 +80,7 @@ public static class InteractionMcpTools
             ("targetElementId", targetElementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GenericPipeTool(sessionManager, "drag_and_drop",
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("drag_and_drop", () => new GenericPipeTool(sessionManager, "drag_and_drop",
                 a =>
                 {
                     var (pid, _, err) = PipeConnectedToolBase.ParseCommonParams(a);
@@ -92,7 +92,7 @@ public static class InteractionMcpTools
                     if (string.IsNullOrEmpty(tgt))
                         return (-1, null, (object)new { success = false, error = "Missing required parameter: targetElementId" });
                     return (pid, (object?)new { sourceElementId = src, targetElementId = tgt }, null);
-                }).ExecuteAsync(a, ct),
+                })).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -125,7 +125,7 @@ public static class InteractionMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new ScrollToElementTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ScrollToElementTool>("ScrollToElementTool", () => new ScrollToElementTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -163,7 +163,7 @@ public static class InteractionMcpTools
             ("key", key));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new SimulateKeyboardTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<SimulateKeyboardTool>("SimulateKeyboardTool", () => new SimulateKeyboardTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -201,7 +201,7 @@ public static class InteractionMcpTools
             ("outputPath", outputPath));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new ElementScreenshotTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ElementScreenshotTool>("ElementScreenshotTool", () => new ElementScreenshotTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

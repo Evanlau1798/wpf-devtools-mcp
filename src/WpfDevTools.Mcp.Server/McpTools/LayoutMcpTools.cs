@@ -45,7 +45,7 @@ public static class LayoutMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetLayoutInfoTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetLayoutInfoTool>("GetLayoutInfoTool", () => new GetLayoutInfoTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -80,7 +80,7 @@ public static class LayoutMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GetClippingInfoTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetClippingInfoTool>("GetClippingInfoTool", () => new GetClippingInfoTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -119,7 +119,7 @@ public static class LayoutMcpTools
             ("duration", duration));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new GenericPipeTool(sessionManager, "highlight_element",
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("highlight_element", () => new GenericPipeTool(sessionManager, "highlight_element",
                 a =>
                 {
                     var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
@@ -127,7 +127,7 @@ public static class LayoutMcpTools
                     var c = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(a, "color");
                     var d = WpfDevTools.Shared.Utilities.ParameterParser.ParseIntParam(a, "duration");
                     return (pid, (object?)new { elementId = eid, color = c, duration = d }, null);
-                }).ExecuteAsync(a, ct),
+                })).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -160,7 +160,7 @@ public static class LayoutMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => new InvalidateLayoutTool(sessionManager).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<InvalidateLayoutTool>("InvalidateLayoutTool", () => new InvalidateLayoutTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

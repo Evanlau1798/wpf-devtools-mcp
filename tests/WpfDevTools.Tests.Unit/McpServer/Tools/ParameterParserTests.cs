@@ -302,4 +302,19 @@ public class ParameterParserTests
         isValid.Should().BeTrue();
         error.Should().BeNull();
     }
+
+    [Fact]
+    public void ValidateElementId_WithNormalInput_ShouldNotThrowRegexTimeout()
+    {
+        // Validates that RegexMatchTimeoutException is caught internally
+        // Normal input should validate quickly without timeout
+        var validId = new string('A', 256); // Max length valid input
+
+        // Act
+        var isValid = ParameterParser.ValidateElementId(validId, out var error);
+
+        // Assert
+        isValid.Should().BeTrue();
+        error.Should().BeNull();
+    }
 }

@@ -82,15 +82,15 @@ public sealed class RateLimiter
         if (elapsed >= _refillInterval)
         {
             // Refill tokens based on elapsed intervals
-            var intervalsElapsed = (int)(elapsed.TotalMilliseconds / _refillInterval.TotalMilliseconds);
-            var tokensToAdd = intervalsElapsed * _maxTokens;
+            var intervalsElapsed = (long)(elapsed.TotalMilliseconds / _refillInterval.TotalMilliseconds);
+            var tokensToAdd = (int)Math.Min(intervalsElapsed * _maxTokens, _maxTokens);
 
             _tokens = Math.Min(_tokens + tokensToAdd, _maxTokens);
 
             // CRITICAL FIX: Update _lastRefill based on actual intervals elapsed
             // This ensures consistent refill timing even with time drift
             // Example: if 2.5 intervals passed, advance by exactly 2 intervals
-            _lastRefill = _lastRefill.Add(TimeSpan.FromTicks(intervalsElapsed * _refillInterval.Ticks));
+            _lastRefill = _lastRefill.Add(TimeSpan.FromTicks((long)intervalsElapsed * _refillInterval.Ticks));
         }
     }
 }

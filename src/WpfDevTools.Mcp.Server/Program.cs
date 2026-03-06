@@ -46,6 +46,7 @@ try
     if (!string.IsNullOrWhiteSpace(authSecretEnv))
     {
         authManager = new AuthenticationManager(() => authSecretEnv);
+        authSecretEnv = null; // Clear secret from local scope to reduce memory residue
         builder.Services.AddSingleton(authManager);
         fileLogger.LogInfo("Authentication enabled via WPFDEVTOOLS_AUTH_SECRET");
     }

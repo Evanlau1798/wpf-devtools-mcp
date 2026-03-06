@@ -82,7 +82,7 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "measure_element_render_time", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "measure_element_render_time", OpenWorld = false, ReadOnly = false)]
     [Description(
         "[Performance] Measure the render time of a WPF element in milliseconds. " +
         "Forces a re-render and measures the time taken.\n\n" +

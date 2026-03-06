@@ -138,9 +138,17 @@ public static class ParameterParser
         }
 
         // SECURITY: Only allow alphanumeric, hyphen, and underscore
-        if (!ElementIdPattern.IsMatch(elementId))
+        try
         {
-            error = "elementId contains invalid characters (only alphanumeric, hyphen, and underscore allowed)";
+            if (!ElementIdPattern.IsMatch(elementId))
+            {
+                error = "elementId contains invalid characters (only alphanumeric, hyphen, and underscore allowed)";
+                return false;
+            }
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            error = "elementId validation timed out";
             return false;
         }
 

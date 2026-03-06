@@ -119,19 +119,37 @@ Security deployment guidance lives in `SECURITY.md`.
 - New features and fixes are expected to follow TDD: failing test first, minimal implementation second, refactor third.
 - WPF-specific STA constraints are documented in the repository instructions and test suite conventions.
 
+## Architecture
+
+```text
+AI Agent (Claude Code / Cursor / etc.)
+    | MCP Protocol (STDIO)
+MCP Server (Tool Router, Session Manager)
+    | Named Pipes IPC (0.1-1ms latency)
+Injected Inspector DLL (In-Process)
+    | Direct Memory Access
+Target WPF Application
+```
+
+DLL injection uses the `CreateRemoteThread` technique (Snoop-based). Once injected, the Inspector DLL runs in the target process and communicates with the MCP Server over Named Pipes using JSON-RPC with length-prefix framing.
+
 ## Repository Layout
 
 ```text
 src/
-  WpfDevTools.Mcp.Server/
-  WpfDevTools.Inspector/
-  WpfDevTools.Injector/
-  WpfDevTools.Shared/
+  WpfDevTools.Mcp.Server/   # MCP Server (STDIO transport, tool routing, session management)
+  WpfDevTools.Inspector/     # Injected DLL (Visual Tree, Binding, DP analyzers)
+  WpfDevTools.Injector/      # Process injection (CreateRemoteThread)
+  WpfDevTools.Shared/        # Shared types, security, IPC protocol
 tests/
   WpfDevTools.Tests.Unit/
   WpfDevTools.Tests.Integration/
-  WpfDevTools.Tests.TestApp/
+  WpfDevTools.Tests.TestApp/  # Test WPF application with intentional binding errors
 ```
+
+## License
+
+MIT. DLL injection code includes Snoop-based components under Ms-PL attribution.
 
 ## Status Summary
 

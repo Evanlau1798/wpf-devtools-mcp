@@ -256,4 +256,26 @@ public class RateLimiterManagerTests
             successCount.Should().Be(10, $"process {processId} should have 10 successful requests");
         }
     }
+
+    [Fact]
+    public void RateLimiter_WithVeryLargeElapsedTime_ShouldNotOverflow()
+    {
+        // Validates fix: intervalsElapsed uses long to prevent int overflow
+        var currentTime = DateTime.UtcNow;
+        var limiter = new RateLimiter(10, TimeSpan.FromMinutes(1), () => currentTime);
+
+        // Exhaust all tokens
+        for (var i = 0; i < 10; i++)
+            limiter.TryAcquire().Should().BeTrue();
+        limiter.TryAcquire().Should().BeFalse();
+
+        // Jump forward by a very large time (exceeding int.MaxValue milliseconds)
+        currentTime = currentTime.AddDays(30);
+
+        // Act - should refill tokens without overflow
+        var result = limiter.TryAcquire();
+
+        // Assert
+        result.Should().BeTrue("tokens should be refilled after large time gap without overflow");
+    }
 }

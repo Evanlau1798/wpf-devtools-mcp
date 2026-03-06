@@ -7,6 +7,11 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public sealed class SessionManager : IDisposable
 {
+    // Maximum concurrent sessions to prevent resource exhaustion
+    // 50 sessions = reasonable limit for typical debugging scenarios
+    // Each session holds: 1 NamedPipeClient + 1 RateLimiter + session metadata (~10KB per session)
+    // Total memory: ~500KB for session tracking (negligible)
+    // Limit primarily prevents accidental DoS via rapid connection attempts
     private const int MaxSessions = 50;
     private bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();

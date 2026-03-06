@@ -78,4 +78,49 @@ public class ServerInstructionsTests
     {
         ServerInstructions.Value.Should().Contain("LIMITATIONS");
     }
+
+    [Fact]
+    public void Value_ShouldContainAllToolCategories()
+    {
+        // Check for key tool category concepts (case-insensitive, flexible matching)
+        var categoryKeywords = new[] {
+            ("Process", "process"),
+            ("Tree", "Tree"),
+            ("Binding", "Binding"),
+            ("DependencyProperty", "DependencyProperty"),
+            ("Style", "Style"),
+            ("Event", "Event"),
+            ("Interaction", "interaction"),
+            ("Layout", "Layout"),
+            ("MVVM", "MVVM"),
+            ("Performance", "Performance")
+        };
+
+        foreach (var (category, keyword) in categoryKeywords)
+        {
+            ServerInstructions.Value.Should().Contain(keyword,
+                $"ServerInstructions should mention '{category}' tool category (checking for '{keyword}')");
+        }
+    }
+
+    [Fact]
+    public void Value_ShouldHaveValidStructure()
+    {
+        // Check for section headers with === markers
+        ServerInstructions.Value.Should().Contain("===");
+
+        // Check for workflow examples
+        ServerInstructions.Value.Should().Contain("Workflow 1");
+        ServerInstructions.Value.Should().Contain("Workflow 2");
+        ServerInstructions.Value.Should().Contain("Workflow 3");
+        ServerInstructions.Value.Should().Contain("Workflow 4");
+    }
+
+    [Fact]
+    public void Value_ShouldBeReasonablyLong()
+    {
+        // ServerInstructions should be comprehensive (at least 2000 characters)
+        ServerInstructions.Value.Length.Should().BeGreaterThan(2000,
+            "ServerInstructions should provide comprehensive guidance");
+    }
 }

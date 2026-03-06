@@ -827,12 +827,12 @@ public partial class App : Application
 
 ## HTTP+SSE Transport
 
-> **⚠️ Note**: HTTP+SSE transport is planned but not yet implemented. Currently only STDIO transport is supported.
+> **⚠️ Note**: The MCP SDK v1.0.0 supports HTTP+SSE transport, but this server currently only implements STDIO transport. HTTP+SSE support is planned for Phase 2.
 
 For web-based AI agents, HTTP+SSE transport will be available in a future release:
 
 ```bash
-# Planned feature - not yet available
+# Planned feature - SDK supports it, implementation pending
 dotnet run --project src/WpfDevTools.Mcp.Server/ -- --transport http --port 3000
 ```
 

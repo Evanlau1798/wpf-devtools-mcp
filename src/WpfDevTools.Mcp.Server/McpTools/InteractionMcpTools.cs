@@ -150,7 +150,7 @@ public static class InteractionMcpTools
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("WPF Key enum name to simulate, such as Enter or Tab.")] string key,
         [Description("Optional focused element ID that should receive the key input.")] string? elementId = null,
-        [Description("Optional keyboard event type, such as KeyDown or KeyUp.")] string? eventType = null,
+        [Description("Optional keyboard event type: 'KeyDown' (default) or 'KeyUp'.")] string? eventType = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

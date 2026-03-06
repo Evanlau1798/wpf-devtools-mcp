@@ -7,7 +7,7 @@ We welcome contributions! Please follow these guidelines to ensure a smooth coll
 - Follow C# coding conventions and .NET best practices
 - Use meaningful variable and method names
 - Keep methods small and focused (< 50 lines)
-- Keep files focused (< 800 lines)
+- Keep files focused (< 500 lines)
 - Use immutable patterns (avoid mutation)
 - Handle errors explicitly at every level
 

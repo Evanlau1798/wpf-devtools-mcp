@@ -19,6 +19,12 @@ public sealed class AuthenticationManager : IDisposable
 
     /// <summary>
     /// Creates an AuthenticationManager that loads secret from environment or auto-generates one.
+    /// <para>
+    /// WARNING: When no environment variable is set, a random secret is auto-generated.
+    /// Both the MCP Server and the Inspector DLL must share the same secret for authentication
+    /// to succeed. In production, always set WPFDEVTOOLS_AUTH_SECRET to a shared base64 secret.
+    /// Use <see cref="CreateDisabled"/> when authentication is not needed (e.g., testing).
+    /// </para>
     /// </summary>
     /// <param name="envSecretProvider">
     /// Optional function to provide the environment variable value.

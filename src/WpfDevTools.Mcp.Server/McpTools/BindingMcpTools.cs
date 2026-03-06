@@ -183,13 +183,14 @@ public static class BindingMcpTools
         "- \"no binding\" -> property has no binding\n" +
         "- \"propertyName required\" -> must specify which property\n\n" +
         "Examples:\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
+        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }\n" +
+        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\", direction: \"Target\" }")]
     public static Task<CallToolResult> ForceBindingUpdate(
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name whose binding should be refreshed.")] string propertyName,
         [Description("Optional element ID that owns the binding. Omit for the root window.")] string? elementId = null,
-        [Description("Optional update direction: Source or Target.")] string? direction = null,
+        [Description("Optional update direction: 'Source' (push UI value to ViewModel) or 'Target' (pull ViewModel value to UI). Default: both.")] string? direction = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

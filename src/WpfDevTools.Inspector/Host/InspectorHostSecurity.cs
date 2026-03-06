@@ -87,8 +87,18 @@ public sealed partial class InspectorHost
             }
 
             // 3. Verify response using HMAC-SHA256
-            using var calculator = new ResponseCalculator(_authManager!.GetSharedSecret());
-            var isValid = calculator.VerifyResponse(challenge, response);
+            // GetSharedSecret returns a clone; zero it after use to minimize secret exposure in memory
+            var secretCopy = _authManager!.GetSharedSecret();
+            bool isValid;
+            try
+            {
+                using var calculator = new ResponseCalculator(secretCopy);
+                isValid = calculator.VerifyResponse(challenge, response);
+            }
+            finally
+            {
+                Array.Clear(secretCopy, 0, secretCopy.Length);
+            }
 
             // 4. Send 1-byte result to client (1=success, 0=failure)
             await SendAuthResult(pipe, isValid, token).ConfigureAwait(false);

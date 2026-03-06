@@ -178,7 +178,7 @@ public sealed class NamedPipeClient : IDisposable
                 if (attempt == maxRetries)
                     return false;
 
-                await Task.Delay(500).ConfigureAwait(false);
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             }
             catch (TimeoutException)
             {
@@ -187,7 +187,7 @@ public sealed class NamedPipeClient : IDisposable
                 if (attempt == maxRetries)
                     return false;
 
-                await Task.Delay(500).ConfigureAwait(false);
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -311,8 +311,18 @@ public sealed class NamedPipeClient : IDisposable
             }
 
             // 2. Compute HMAC-SHA256 response
-            using var calculator = new ResponseCalculator(_authManager!.GetSharedSecret());
-            var response = calculator.ComputeResponse(challenge);
+            // GetSharedSecret returns a clone; zero it after use to minimize secret exposure in memory
+            var secretCopy = _authManager!.GetSharedSecret();
+            byte[] response;
+            try
+            {
+                using var calculator = new ResponseCalculator(secretCopy);
+                response = calculator.ComputeResponse(challenge);
+            }
+            finally
+            {
+                Array.Clear(secretCopy, 0, secretCopy.Length);
+            }
 
             // 3. Send response
             await pipe.WriteAsync(response, 0, response.Length, cancellationToken).ConfigureAwait(false);

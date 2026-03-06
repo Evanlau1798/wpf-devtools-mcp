@@ -19,6 +19,7 @@ public static class ServerInstructions
 
         === PARAMETER CONVENTIONS ===
         - processId: integer, from get_processes, required by all tools except get_processes
+        - nameFilter: string, optional on get_processes, case-insensitive substring match on process name
         - elementId: string, from get_visual_tree/get_logical_tree, optional (omit = root window)
         - depth: integer (1-100), controls tree traversal depth, default=10
         - propertyName: string, DependencyProperty name (e.g., 'Text', 'IsEnabled')

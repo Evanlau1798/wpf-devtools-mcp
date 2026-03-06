@@ -32,11 +32,13 @@ public sealed class SessionManager : IDisposable
         _certManager = certManager;
 
         // CRITICAL FIX: Periodic cleanup of dead and idle sessions
+        // Uses one-shot timer (Infinite period) to prevent overlapping callbacks.
+        // Timer is rescheduled at the end of PerformCleanup.
         _cleanupTimer = new System.Threading.Timer(
             callback: _ => PerformCleanup(),
             state: null,
             dueTime: McpServerConfiguration.SessionCleanupInterval,
-            period: McpServerConfiguration.SessionCleanupInterval);
+            period: Timeout.InfiniteTimeSpan);
     }
 
     /// <summary>
@@ -271,6 +273,15 @@ public sealed class SessionManager : IDisposable
             {
                 // Last resort: write to debug output to prevent timer crash
                 System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to log cleanup error: {logEx.Message}");
+            }
+        }
+        finally
+        {
+            // Reschedule the one-shot timer for the next cleanup cycle
+            if (!_isDisposed)
+            {
+                try { _cleanupTimer.Change(McpServerConfiguration.SessionCleanupInterval, Timeout.InfiniteTimeSpan); }
+                catch (ObjectDisposedException) { /* Timer disposed during shutdown */ }
             }
         }
     }

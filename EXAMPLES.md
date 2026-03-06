@@ -78,8 +78,7 @@ You want to understand how ViewModels are structured and what commands are avail
     "name": "get_visual_tree",
     "arguments": {
       "processId": 12345,
-      "depth": 2,
-      "compact": true
+      "depth": 2
     }
   }
 }
@@ -261,7 +260,7 @@ You want to automate UI testing by simulating user interactions.
     "name": "get_visual_tree",
     "arguments": {
       "processId": 12345,
-      "filter": "Button"
+      "depth": 2
     }
   }
 }
@@ -417,11 +416,8 @@ You want to monitor property changes in real-time.
   }
 }
 
-// 2. Connect to SSE endpoint to receive change events
-// GET /events
-// Events will be pushed as:
-// event: dp_changed
-// data: {"elementId": "progressBar", "propertyName": "Value", "newValue": 50}
+// 2. In STDIO mode, poll with get_dp_value_source to check for changes.
+// (HTTP+SSE transport with push events is planned but not yet implemented.)
 
 // 3. Modify the property to trigger a change
 {
@@ -434,7 +430,7 @@ You want to monitor property changes in real-time.
       "processId": 12345,
       "elementId": "progressBar",
       "propertyName": "Value",
-      "value": "75"
+      "value": 75
     }
   }
 }
@@ -510,29 +506,27 @@ An element is clipped or not visible, and you want to understand why.
 
 ### Efficient Tree Traversal
 
-Always use `depth` and `compact` parameters to minimize token usage:
+Always use the `depth` parameter to minimize token usage:
 
 ```json
 {
   "name": "get_visual_tree",
   "arguments": {
     "processId": 12345,
-    "depth": 3,
-    "compact": true
+    "depth": 3
   }
 }
 ```
 
-### Filtering Results
+### Filtering Processes
 
-Use `filter` parameter to narrow down results:
+Use `nameFilter` on `get_processes` to narrow down results:
 
 ```json
 {
-  "name": "get_visual_tree",
+  "name": "get_processes",
   "arguments": {
-    "processId": 12345,
-    "filter": "Button"
+    "nameFilter": "MyApp"
   }
 }
 ```

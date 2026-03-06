@@ -41,7 +41,39 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 3. Use tree tools first (`get_visual_tree`, `get_logical_tree`) to obtain `elementId` values.
 4. Move to diagnostics (`get_bindings`, `get_binding_errors`, `get_dp_value_source`) or interaction tools (`click_element`, `simulate_keyboard`, `element_screenshot`).
 
-## MCP Client Notes
+## MCP Client Configuration
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "wpf-devtools": {
+      "command": "dotnet",
+      "args": ["run", "--project", "C:\\path\\to\\src\\WpfDevTools.Mcp.Server", "--no-build"]
+    }
+  }
+}
+```
+
+### VS Code / Cursor
+
+Add to `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "wpf-devtools": {
+      "command": "dotnet",
+      "args": ["run", "--project", "C:\\path\\to\\src\\WpfDevTools.Mcp.Server", "--no-build"]
+    }
+  }
+}
+```
+
+### General Notes
 
 - Register this server as a local STDIO command.
 - Keep all logs off `stdout`; the server already routes operational logs to stderr and file output.

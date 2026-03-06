@@ -127,7 +127,7 @@ public static class EventMcpTools
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("WPF routed event name to raise, such as Click.")] string eventName,
         [Description("Optional target element ID that should receive the routed event.")] string? elementId = null,
-        [Description("Optional JSON payload for custom routed event arguments.")] JsonElement? eventArgs = null,
+        [Description("Optional JSON payload for custom routed event arguments. Currently unused for standard RoutedEvents (Click, MouseDown); reserved for custom events.")] JsonElement? eventArgs = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

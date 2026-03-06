@@ -379,4 +379,118 @@ public class ToolCallHelperTests
         var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
         textContent!.Text.Should().Contain("completed");
     }
+
+    // === Catch-all exception handler tests ===
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenToolThrowsException_ShouldReturnErrorResult()
+    {
+        // Arrange: Tool throws a non-cancellation exception
+        Func<JsonElement?, CancellationToken, Task<object>> faultyTool = (args, ct) =>
+            throw new InvalidOperationException("Something went wrong internally");
+
+        // Act
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(faultyTool, null, CancellationToken.None);
+
+        // Assert: Should be caught by catch-all and wrapped as error result
+        result.Should().NotBeNull();
+        result.IsError.Should().BeTrue();
+        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
+        textContent!.Text.Should().Contain("Tool execution failed");
+        textContent.Text.Should().Contain("Something went wrong internally");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenToolThrowsArgumentException_ShouldWrapAsError()
+    {
+        // Arrange: Tool throws ArgumentException (another non-cancellation type)
+        Func<JsonElement?, CancellationToken, Task<object>> faultyTool = (args, ct) =>
+            throw new ArgumentException("Invalid parameter value");
+
+        // Act
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(faultyTool, null, CancellationToken.None);
+
+        // Assert
+        result.IsError.Should().BeTrue();
+        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
+        textContent!.Text.Should().Contain("Invalid parameter value");
+    }
+
+    // === Metrics recording tests ===
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithMetrics_ShouldRecordSuccessMetrics()
+    {
+        // Arrange
+        var metrics = new MetricsCollector();
+        ToolCallHelper.SetMetricsCollector(metrics);
+        try
+        {
+            // Act
+            await ToolCallHelper.ExecuteAndWrapAsync(
+                (args, ct) => Task.FromResult<object>(new { success = true }),
+                null,
+                CancellationToken.None);
+
+            // Assert
+            var snapshot = metrics.GetSnapshot();
+            snapshot.TotalRequests.Should().BeGreaterThanOrEqualTo(1);
+            snapshot.SuccessCount.Should().BeGreaterThanOrEqualTo(1);
+            snapshot.ErrorCount.Should().Be(0);
+        }
+        finally
+        {
+            ToolCallHelper.ResetCacheForTesting();
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithMetrics_ShouldRecordErrorMetrics()
+    {
+        // Arrange
+        var metrics = new MetricsCollector();
+        ToolCallHelper.SetMetricsCollector(metrics);
+        try
+        {
+            // Act
+            await ToolCallHelper.ExecuteAndWrapAsync(
+                (args, ct) => Task.FromResult<object>(new { success = false, error = "test error" }),
+                null,
+                CancellationToken.None);
+
+            // Assert
+            var snapshot = metrics.GetSnapshot();
+            snapshot.TotalRequests.Should().BeGreaterThanOrEqualTo(1);
+            snapshot.ErrorCount.Should().BeGreaterThanOrEqualTo(1);
+        }
+        finally
+        {
+            ToolCallHelper.ResetCacheForTesting();
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithMetrics_WhenExceptionThrown_ShouldRecordAsError()
+    {
+        // Arrange
+        var metrics = new MetricsCollector();
+        ToolCallHelper.SetMetricsCollector(metrics);
+        try
+        {
+            // Act
+            await ToolCallHelper.ExecuteAndWrapAsync(
+                (args, ct) => throw new InvalidOperationException("boom"),
+                null,
+                CancellationToken.None);
+
+            // Assert
+            var snapshot = metrics.GetSnapshot();
+            snapshot.TotalRequests.Should().BeGreaterThanOrEqualTo(1);
+            snapshot.ErrorCount.Should().BeGreaterThanOrEqualTo(1);
+        }
+        finally
+        {
+            ToolCallHelper.ResetCacheForTesting();
+        }
+    }
 }

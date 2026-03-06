@@ -290,7 +290,13 @@ public sealed class ConnectTool
         // RELEASE builds ALWAYS verify signatures - no exceptions
 #if DEBUG
         var skipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1";
-        if (!skipSignatureCheck)
+        if (skipSignatureCheck)
+        {
+            System.Diagnostics.Trace.TraceWarning(
+                "[SECURITY] DLL signature verification bypassed via WPFDEVTOOLS_SKIP_SIGNATURE_CHECK. " +
+                "This is only allowed in DEBUG builds.");
+        }
+        else
         {
             VerifyAuthenticodeSignature(fullPath);
         }

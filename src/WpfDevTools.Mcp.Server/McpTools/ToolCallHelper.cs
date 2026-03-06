@@ -28,7 +28,7 @@ public static class ToolCallHelper
     /// <summary>
     /// Build a JsonElement from a dictionary of named parameters.
     /// Null values are excluded from the resulting JSON object.
-    /// Note: value types (int, bool) are boxed via the object? parameter ??acceptable
+    /// Note: value types (int, bool) are boxed via the object? parameter, which is acceptable
     /// since tool calls are not a hot path (~1-10 calls/second).
     /// </summary>
     /// <param name="parameters">Named parameter tuples</param>
@@ -152,7 +152,7 @@ public static class ToolCallHelper
     /// <para>
     /// IMPORTANT: This cache is static and process-lifetime. The factory captures the
     /// SessionManager from the first invocation. This is correct because SessionManager
-    /// is registered as a DI singleton in Program.cs ??only one instance exists per process.
+    /// is registered as a DI singleton in Program.cs, so only one instance exists per process.
     /// </para>
     /// <para>
     /// CRITICAL ASSUMPTION: If the hosting model ever changes to support multiple server

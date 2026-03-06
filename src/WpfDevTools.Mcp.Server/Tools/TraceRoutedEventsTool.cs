@@ -24,11 +24,12 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         var (processId, elementId, error) = ParseCommonParams(arguments);
         if (error != null) return error;
         var eventName = ParseStringParam(arguments, "eventName");
+        var duration = ParseIntParam(arguments, "duration");
 
         if (string.IsNullOrEmpty(eventName))
             return CreateMissingParamError("eventName");
 
         return await SendInspectorRequestAsync(processId, "trace_routed_events",
-            new { elementId, eventName }, cancellationToken);
+            new { elementId, eventName, duration }, cancellationToken);
     }
 }

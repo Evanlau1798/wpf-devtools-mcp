@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class PerformanceMcpTools
 {
-    [McpServerTool(Name = "get_render_stats", ReadOnly = true)]
+    [McpServerTool(Name = "get_render_stats", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Performance] Get render statistics from a WPF application. Returns frame rate, " +
         "render time, dirty region count, and other WPF rendering pipeline metrics.\n\n" +
@@ -35,7 +35,7 @@ public static class PerformanceMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetRenderStats(
         SessionManager sessionManager,
-        int processId,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -47,7 +47,7 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "find_binding_leaks", ReadOnly = true)]
+    [McpServerTool(Name = "find_binding_leaks", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Performance] Detect potential binding memory leaks by tracking live binding references. " +
         "Threshold is the minimum number of live bindings on a single element to flag as suspicious.\n\n" +
@@ -68,8 +68,8 @@ public static class PerformanceMcpTools
         "- { processId: 12345, threshold: 50 }")]
     public static Task<CallToolResult> FindBindingLeaks(
         SessionManager sessionManager,
-        int processId,
-        int? threshold = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional minimum live-binding count that should be flagged as suspicious.")] int? threshold = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -82,7 +82,7 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "measure_element_render_time", ReadOnly = true)]
+    [McpServerTool(Name = "measure_element_render_time", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Performance] Measure the render time of a WPF element in milliseconds. " +
         "Forces a re-render and measures the time taken.\n\n" +
@@ -103,8 +103,8 @@ public static class PerformanceMcpTools
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> MeasureElementRenderTime(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID whose render time should be measured. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -117,7 +117,7 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_visual_count", ReadOnly = true)]
+    [McpServerTool(Name = "get_visual_count", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Performance] Get the count of visual elements in a WPF element subtree. " +
         "High counts (>5000) may indicate performance issues.\n\n" +
@@ -138,8 +138,8 @@ public static class PerformanceMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> GetVisualCount(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID whose visual subtree should be counted. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

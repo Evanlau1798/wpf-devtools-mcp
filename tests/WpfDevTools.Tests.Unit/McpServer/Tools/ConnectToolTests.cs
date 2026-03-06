@@ -1,6 +1,10 @@
 using Xunit;
 using FluentAssertions;
 using System.Text.Json;
+using System.Reflection;
+using WpfDevTools.Injector;
+using WpfDevTools.Injector.Injection;
+using WpfDevTools.Shared.Enums;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using static WpfDevTools.Tests.Unit.TestHelpers;
@@ -50,23 +54,11 @@ public class ConnectToolTests
     {
         // Arrange
         using var _ = new SkipSignatureCheckScope();
-        var tool = new ConnectTool(new SessionManager());
-
-        // Find a system process that is definitely not WPF (e.g., svchost, System, Idle)
-        var systemProcesses = System.Diagnostics.Process.GetProcessesByName("svchost");
-        if (systemProcesses.Length == 0)
-        {
-            // Fallback to other system processes
-            systemProcesses = System.Diagnostics.Process.GetProcessesByName("System");
-        }
-
-        if (systemProcesses.Length == 0)
-        {
-            return; // Skip if no suitable process found
-        }
-
-        var nonWpfProcessId = systemProcesses[0].Id;
-        var parameters = new { processId = nonWpfProcessId };
+        var tool = new ConnectTool(
+            new SessionManager(),
+            new FakeProcessInjector { ValidationResult = InjectionError.NotWpfApplication },
+            GetTestInspectorDllPath());
+        var parameters = new { processId = 12345 };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -75,12 +67,7 @@ public class ConnectToolTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-
-        // Cleanup
-        foreach (var proc in systemProcesses)
-        {
-            proc.Dispose();
-        }
+        resultJson.GetProperty("error").GetString().Should().Contain("not a WPF application");
     }
 
     [Fact]
@@ -118,7 +105,9 @@ public class ConnectToolTests
 
         // Act & Assert - should throw due to path validation
         var act = () => new ConnectTool(new SessionManager(), maliciousPath);
-        act.Should().Throw<ArgumentException>();
+        act.Should().Throw<Exception>()
+            .Where(ex => ex.GetType() == typeof(ArgumentException) || ex.GetType() == typeof(FileNotFoundException),
+                "malicious or invalid DLL paths must never be accepted");
     }
 
     [Fact]
@@ -132,6 +121,37 @@ public class ConnectToolTests
         var act = () => new ConnectTool(new SessionManager(), outsidePath);
         act.Should().Throw<ArgumentException>()
             .WithMessage("*application directory*");
+    }
+
+    [Fact]
+    public void Constructor_WithTrustedSolutionRelativeDllPath_ShouldNotThrow()
+    {
+        using var _ = new SkipSignatureCheckScope();
+
+        var solutionRoot = FindSolutionRoot();
+        var artifactsDir = Path.Combine(solutionRoot, ".test-artifacts");
+        Directory.CreateDirectory(artifactsDir);
+
+        var trustedDllPath = Path.Combine(artifactsDir, "WpfDevTools.Inspector.dll");
+        File.WriteAllText(trustedDllPath, string.Empty);
+
+        try
+        {
+            var act = () => new ConnectTool(new SessionManager(), trustedDllPath);
+            act.Should().NotThrow();
+        }
+        finally
+        {
+            if (File.Exists(trustedDllPath))
+            {
+                File.Delete(trustedDllPath);
+            }
+
+            if (Directory.Exists(artifactsDir) && !Directory.EnumerateFileSystemEntries(artifactsDir).Any())
+            {
+                Directory.Delete(artifactsDir);
+            }
+        }
     }
 
     [Fact]
@@ -155,5 +175,41 @@ public class ConnectToolTests
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("Rate limit");
     }
-}
 
+    private static string FindSolutionRoot()
+    {
+        var current = new DirectoryInfo(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
+
+        while (current != null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "WpfDevTools.sln")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new InvalidOperationException("Could not locate solution root for ConnectTool test.");
+    }
+
+    private static string GetTestInspectorDllPath()
+    {
+        return Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
+    }
+
+    private sealed class FakeProcessInjector : IProcessInjector
+    {
+        public InjectionError ValidationResult { get; init; } = InjectionError.None;
+
+        public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
+        {
+            return InjectionResult.CreateFailure(processId, InjectionError.Unknown, "Inject should not be called in this test");
+        }
+
+        public InjectionError ValidateTarget(int processId)
+        {
+            return ValidationResult;
+        }
+    }
+}

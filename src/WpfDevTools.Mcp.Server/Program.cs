@@ -18,6 +18,7 @@ AuthenticationManager? authManager = null;
 try
 {
     var builder = Host.CreateApplicationBuilder(args);
+    var serverVersion = ServerMetadata.GetDisplayVersion();
 
     // Logging: stderr for STDIO compatibility + file for persistence
     builder.Logging.ClearProviders();
@@ -61,7 +62,7 @@ try
     // MCP Server configuration
     builder.Services.AddMcpServer(options =>
     {
-        options.ServerInfo = new() { Name = "wpf-devtools-mcp", Version = "0.1.0" };
+        options.ServerInfo = new() { Name = "wpf-devtools-mcp", Version = serverVersion };
         options.ServerInstructions = ServerInstructions.Value;
     })
     .WithStdioServerTransport()

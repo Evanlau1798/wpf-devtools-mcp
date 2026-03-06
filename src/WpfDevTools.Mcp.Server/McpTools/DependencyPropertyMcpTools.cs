@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class DependencyPropertyMcpTools
 {
-    [McpServerTool(Name = "get_dp_value_source", ReadOnly = true)]
+    [McpServerTool(Name = "get_dp_value_source", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[DependencyProperty] Get the value source of a DependencyProperty. " +
         "Returns where the current value comes from: Default, Inherited, Style, Trigger, " +
@@ -36,9 +36,9 @@ public static class DependencyPropertyMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
     public static Task<CallToolResult> GetDpValueSource(
         SessionManager sessionManager,
-        int processId,
-        string propertyName,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("DependencyProperty name to inspect, such as Text or IsEnabled.")] string propertyName,
+        [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -52,7 +52,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_dp_metadata", ReadOnly = true)]
+    [McpServerTool(Name = "get_dp_metadata", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[DependencyProperty] Get DependencyProperty metadata including default value, " +
         "inherits flag, affects measure/arrange, and coerce/validation callbacks.\n\n" +
@@ -72,9 +72,9 @@ public static class DependencyPropertyMcpTools
         "- { processId: 12345, propertyName: \"Visibility\" }")]
     public static Task<CallToolResult> GetDpMetadata(
         SessionManager sessionManager,
-        int processId,
-        string propertyName,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("DependencyProperty name whose metadata should be returned.")] string propertyName,
+        [Description("Optional element ID used to resolve owner-specific metadata.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -88,7 +88,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "set_dp_value", Destructive = true)]
+    [McpServerTool(Name = "set_dp_value", OpenWorld = false, Destructive = true)]
     [Description(
         "[DependencyProperty] Set a DependencyProperty value at runtime. " +
         "Value is a string that gets type-converted.\n\n" +
@@ -110,10 +110,10 @@ public static class DependencyPropertyMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\", value: \"New Value\" }")]
     public static Task<CallToolResult> SetDpValue(
         SessionManager sessionManager,
-        int processId,
-        string propertyName,
-        string value,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("DependencyProperty name to set at runtime.")] string propertyName,
+        [Description("New property value encoded as a string for WPF type conversion.")] string value,
+        [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -128,7 +128,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "clear_dp_value", Destructive = true)]
+    [McpServerTool(Name = "clear_dp_value", OpenWorld = false, Destructive = true)]
     [Description(
         "[DependencyProperty] Clear a DependencyProperty local value, " +
         "reverting it to its inherited, styled, or default value.\n\n" +
@@ -147,9 +147,9 @@ public static class DependencyPropertyMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }")]
     public static Task<CallToolResult> ClearDpValue(
         SessionManager sessionManager,
-        int processId,
-        string propertyName,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("DependencyProperty name whose local value should be cleared.")] string propertyName,
+        [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -163,30 +163,31 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "watch_dp_changes", ReadOnly = true)]
+    [McpServerTool(Name = "watch_dp_changes", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[DependencyProperty] Register a listener for property value changes. " +
-        "NOTE: In STDIO transport, change events are NOT pushed. Use get_dp_value_source to poll for changes.\n\n" +
-        "USE WHEN: HTTP+SSE transport is available (planned Phase 2+).\n" +
-        "DO NOT USE: In STDIO mode - events cannot be pushed; use polling instead.\n\n" +
+        "CURRENT STDIO BEHAVIOR: registration-only. Change events are NOT pushed to the client; use get_dp_value_source to poll for changes.\n\n" +
+        "USE WHEN: You are preparing for future push-capable transports, or you explicitly want watch registration state.\n" +
+        "DO NOT USE: Expecting real-time event delivery over STDIO - use polling instead.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  watching: boolean,\n" +
-        "  note: 'Events require HTTP+SSE transport'\n" +
+        "  message: string,\n" +
+        "  propertyName: string,\n" +
+        "  elementId: string|null\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is valid\n" +
-        "- \"transport not supported\" -> STDIO cannot push events\n\n" +
+        "- \"already watching this property\" -> watcher already exists for this element/property pair\n\n" +
         "Examples:\n" +
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }\n" +
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }")]
     public static Task<CallToolResult> WatchDpChanges(
         SessionManager sessionManager,
-        int processId,
-        string propertyName,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("DependencyProperty name to watch for runtime changes.")] string propertyName,
+        [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

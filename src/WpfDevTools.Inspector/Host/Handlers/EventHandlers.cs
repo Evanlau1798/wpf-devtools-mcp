@@ -61,8 +61,33 @@ public class EventHandlers : IRequestHandler
         if (string.IsNullOrEmpty(eventName))
             throw new ArgumentException("Missing required parameter: eventName");
 
-        return await Task.Run(() =>
+        var startResult = await Task.Run(() =>
             _eventAnalyzer.TraceRoutedEvents(elementId, eventName!, duration), cancellationToken).ConfigureAwait(false);
+
+        var startPayload = JsonSerializer.SerializeToElement(startResult);
+        if (startPayload.TryGetProperty("success", out var successProperty) && !successProperty.GetBoolean())
+        {
+            return startResult;
+        }
+
+        await Task.Delay(duration, cancellationToken).ConfigureAwait(false);
+
+        var traceResult = _eventAnalyzer.GetEventTrace();
+        var tracePayload = JsonSerializer.SerializeToElement(traceResult);
+
+        if (tracePayload.TryGetProperty("success", out var traceSuccess) && traceSuccess.GetBoolean())
+        {
+            return new
+            {
+                success = true,
+                eventName,
+                duration,
+                eventCount = tracePayload.GetProperty("eventCount").GetInt32(),
+                events = tracePayload.GetProperty("events")
+            };
+        }
+
+        return traceResult;
     }
 
     private async Task<object> HandleGetEventHandlersAsync(JsonElement? @params, CancellationToken cancellationToken)

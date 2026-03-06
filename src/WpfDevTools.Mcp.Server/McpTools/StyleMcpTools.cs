@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class StyleMcpTools
 {
-    [McpServerTool(Name = "get_applied_styles", ReadOnly = true)]
+    [McpServerTool(Name = "get_applied_styles", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Style] Get all applied styles on a WPF element. Returns style type, target type, " +
         "setters (property+value), and whether it's an implicit or explicit style.\n\n" +
@@ -37,8 +37,8 @@ public static class StyleMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetAppliedStyles(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID whose applied styles should be returned. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -51,7 +51,7 @@ public static class StyleMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_triggers", ReadOnly = true)]
+    [McpServerTool(Name = "get_triggers", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Style] Get all triggers from a WPF element's styles and templates. " +
         "Returns trigger type (Property/Data/Event/MultiTrigger), conditions, and setter actions.\n\n" +
@@ -74,8 +74,8 @@ public static class StyleMcpTools
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> GetTriggers(
         SessionManager sessionManager,
-        int processId,
-        string elementId,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Element ID whose style and template triggers should be listed.")] string elementId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -88,7 +88,7 @@ public static class StyleMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_resource_chain", ReadOnly = true)]
+    [McpServerTool(Name = "get_resource_chain", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Style] Get the resource lookup chain for a XAML resource key. " +
         "Shows which ResourceDictionary at which level (element, window, app, theme) provides the resource.\n\n" +
@@ -112,9 +112,9 @@ public static class StyleMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", resourceKey: \"ButtonStyle\" }")]
     public static Task<CallToolResult> GetResourceChain(
         SessionManager sessionManager,
-        int processId,
-        string resourceKey,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("XAML resource key to resolve, such as PrimaryBrush or ButtonStyle.")] string resourceKey,
+        [Description("Optional starting element ID for resource lookup. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -128,7 +128,7 @@ public static class StyleMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "override_style_setter", Destructive = true)]
+    [McpServerTool(Name = "override_style_setter", OpenWorld = false, Destructive = true)]
     [Description(
         "[Style] Override a style setter value on a WPF element at runtime. " +
         "Applies a local value that takes precedence over the style.\n\n" +
@@ -151,10 +151,10 @@ public static class StyleMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"Background\", value: \"Red\" }")]
     public static Task<CallToolResult> OverrideStyleSetter(
         SessionManager sessionManager,
-        int processId,
-        string propertyName,
-        string value,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Style-backed property name to override at runtime.")] string propertyName,
+        [Description("New property value serialized as a string.")] string value,
+        [Description("Optional element ID whose style setter should be overridden.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

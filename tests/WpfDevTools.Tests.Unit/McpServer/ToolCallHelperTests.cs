@@ -359,4 +359,24 @@ public class ToolCallHelperTests
         var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
         textContent!.Text.Should().Contain("timed out");
     }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithCustomTimeoutOverride_ShouldAllowLongerRunningTool()
+    {
+        Func<JsonElement?, CancellationToken, Task<object>> slowButValidTool = async (args, ct) =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(1200), ct);
+            return new { success = true, message = "completed" };
+        };
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            slowButValidTool,
+            null,
+            CancellationToken.None,
+            timeoutSeconds: 2);
+
+        result.IsError.Should().BeFalse();
+        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
+        textContent!.Text.Should().Contain("completed");
+    }
 }

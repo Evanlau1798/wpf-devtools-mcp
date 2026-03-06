@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class MvvmMcpTools
 {
-    [McpServerTool(Name = "get_viewmodel", ReadOnly = true)]
+    [McpServerTool(Name = "get_viewmodel", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[MVVM] Get the ViewModel (DataContext) of an element. Returns: typeName, " +
         "all properties with their current values, and whether INotifyPropertyChanged is implemented.\n\n" +
@@ -35,8 +35,8 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> GetViewModel(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID whose DataContext should be inspected. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -49,7 +49,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_commands", ReadOnly = true)]
+    [McpServerTool(Name = "get_commands", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[MVVM] Get all ICommand properties from the ViewModel. Returns: commandName, " +
         "canExecute status, commandType. Use to check why a button is disabled.\n\n" +
@@ -71,8 +71,8 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> GetCommands(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID whose ViewModel commands should be listed. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -85,7 +85,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "execute_command", Destructive = true)]
+    [McpServerTool(Name = "execute_command", OpenWorld = false, Destructive = true)]
     [Description(
         "[MVVM] Execute an ICommand on the ViewModel. Checks CanExecute first. " +
         "Returns execution result.\n\n" +
@@ -108,10 +108,10 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", commandName: \"SaveCommand\" }")]
     public static Task<CallToolResult> ExecuteCommand(
         SessionManager sessionManager,
-        int processId,
-        string commandName,
-        string? elementId = null,
-        string? parameter = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("ICommand property name to execute, such as SaveCommand.")] string commandName,
+        [Description("Optional element ID whose DataContext provides the command. Omit for the root window.")] string? elementId = null,
+        [Description("Optional command parameter serialized as a string.")] string? parameter = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -126,7 +126,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_validation_errors", ReadOnly = true)]
+    [McpServerTool(Name = "get_validation_errors", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[MVVM] Get validation errors from a WPF element. Returns IDataErrorInfo " +
         "and INotifyDataErrorInfo validation errors, plus Binding.ValidationRules failures.\n\n" +
@@ -149,8 +149,8 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"AgeTextBox\" }")]
     public static Task<CallToolResult> GetValidationErrors(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID whose validation errors should be returned. Omit to inspect the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -163,7 +163,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "modify_viewmodel", Destructive = true)]
+    [McpServerTool(Name = "modify_viewmodel", OpenWorld = false, Destructive = true)]
     [Description(
         "[MVVM] Modify a ViewModel property value via reflection. UI updates automatically " +
         "ONLY if the ViewModel implements INotifyPropertyChanged. Check get_viewmodel first to confirm property name.\n\n" +
@@ -187,10 +187,10 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Age\", value: \"30\" }")]
     public static Task<CallToolResult> ModifyViewModel(
         SessionManager sessionManager,
-        int processId,
-        string propertyName,
-        string value,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("ViewModel property name to update at runtime.")] string propertyName,
+        [Description("New property value serialized as a string.")] string value,
+        [Description("Optional element ID whose DataContext owns the property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

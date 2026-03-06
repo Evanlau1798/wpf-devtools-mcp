@@ -151,7 +151,9 @@ public sealed class ConnectTool
             };
         }
 
-        var connected = await pipeClient.ConnectAsync(InspectorConfig.PipeConnectTimeout, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var connected = await pipeClient.ConnectAsync(
+            TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!connected)
         {
             _sessionManager.RemoveSession(processId.Value);
@@ -173,21 +175,60 @@ public sealed class ConnectTool
     private static string GetInspectorDllPath()
     {
         var serverDir = AppContext.BaseDirectory;
-        var inspectorDll = Path.Combine(serverDir, "WpfDevTools.Inspector.dll");
-
-        if (File.Exists(inspectorDll))
-            return inspectorDll;
-
-        // Fallback to development path
-        var fallbackDll = Path.Combine(serverDir, "..", "..", "..", "..", "WpfDevTools.Inspector", "bin", "Debug", "net8.0-windows", "WpfDevTools.Inspector.dll");
-        fallbackDll = Path.GetFullPath(fallbackDll);
-
-        if (File.Exists(fallbackDll))
-            return fallbackDll;
+        foreach (var candidate in EnumerateInspectorDllCandidates(serverDir))
+        {
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
 
         // Don't expose full path in exception message for security
         // Log the actual path internally if needed
         throw new FileNotFoundException("Inspector DLL not found. Please ensure the application is built correctly.");
+    }
+
+    private static IEnumerable<string> EnumerateInspectorDllCandidates(string serverDir)
+    {
+        yield return Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Inspector.dll"));
+
+        var solutionRoot = GetSolutionRoot(serverDir);
+        if (solutionRoot == null)
+        {
+            yield break;
+        }
+
+        var inspectorBinRoot = Path.Combine(solutionRoot, "src", "WpfDevTools.Inspector", "bin");
+        var configurations = new[] { "Debug", "Release" };
+        var frameworks = new[] { "net8.0-windows", "net48" };
+
+        foreach (var configuration in configurations)
+        {
+            foreach (var framework in frameworks)
+            {
+                yield return Path.GetFullPath(Path.Combine(
+                    inspectorBinRoot,
+                    configuration,
+                    framework,
+                    "WpfDevTools.Inspector.dll"));
+            }
+        }
+    }
+
+    private static string? GetSolutionRoot(string startDirectory)
+    {
+        var current = new DirectoryInfo(Path.GetFullPath(startDirectory));
+        while (current != null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "WpfDevTools.sln")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        return null;
     }
 
     private static string GetErrorMessage(InjectionError error, int processId)
@@ -227,11 +268,10 @@ public sealed class ConnectTool
 
         // SECURITY: Whitelist approach - only allow DLLs from application directory
         // This prevents path traversal attacks like "C:\\App\\..\\..\\System32\\evil.dll"
-        var appDir = Path.GetFullPath(AppContext.BaseDirectory);
-        if (!fullPath.StartsWith(appDir, StringComparison.OrdinalIgnoreCase))
+        if (!IsUnderTrustedRoot(fullPath))
         {
             throw new ArgumentException(
-                "DLL must be located within the application directory",
+                "DLL must be located within the application directory or trusted WpfDevTools workspace",
                 nameof(dllPath));
         }
 
@@ -258,6 +298,39 @@ public sealed class ConnectTool
         // RELEASE builds ALWAYS verify signatures - no environment variable check
         VerifyAuthenticodeSignature(fullPath);
 #endif
+    }
+
+    private static bool IsUnderTrustedRoot(string fullPath)
+    {
+        foreach (var trustedRoot in GetTrustedRoots())
+        {
+            if (IsPathWithinRoot(fullPath, trustedRoot))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> GetTrustedRoots()
+    {
+        yield return Path.GetFullPath(AppContext.BaseDirectory);
+
+        var solutionRoot = GetSolutionRoot(AppContext.BaseDirectory);
+        if (solutionRoot != null)
+        {
+            yield return solutionRoot;
+        }
+    }
+
+    private static bool IsPathWithinRoot(string fullPath, string rootPath)
+    {
+        var normalizedFullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(fullPath));
+        var normalizedRootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
+
+        return normalizedFullPath.Equals(normalizedRootPath, StringComparison.OrdinalIgnoreCase) ||
+               normalizedFullPath.StartsWith(normalizedRootPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

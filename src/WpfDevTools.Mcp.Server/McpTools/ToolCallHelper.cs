@@ -66,12 +66,15 @@ public static class ToolCallHelper
         Func<JsonElement?, CancellationToken, Task<object>> execute,
         JsonElement? args,
         CancellationToken cancellationToken,
+        int? timeoutSeconds = null,
         [System.Runtime.CompilerServices.CallerMemberName] string toolName = "unknown")
     {
+        var effectiveTimeoutSeconds = timeoutSeconds ?? McpServerConfiguration.DefaultToolTimeoutSeconds;
+
         // CRITICAL FIX: Enforce timeout on all tool executions
         // Prevents server hang if target process is frozen or unresponsive
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(McpServerConfiguration.DefaultToolTimeoutSeconds));
+        cts.CancelAfter(TimeSpan.FromSeconds(effectiveTimeoutSeconds));
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
@@ -102,7 +105,7 @@ public static class ToolCallHelper
                     Text = JsonSerializer.Serialize(new
                     {
                         success = false,
-                        error = $"Tool execution timed out after {McpServerConfiguration.DefaultToolTimeoutSeconds} seconds. Target process may be frozen or unresponsive."
+                        error = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive."
                     }, SerializerOptions)
                 }],
                 IsError = true

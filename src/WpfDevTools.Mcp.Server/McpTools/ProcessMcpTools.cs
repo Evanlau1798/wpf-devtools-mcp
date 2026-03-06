@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class ProcessMcpTools
 {
-    [McpServerTool(Name = "get_processes", ReadOnly = true)]
+    [McpServerTool(Name = "get_processes", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Process] List all running WPF processes available for inspection. " +
         "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion.\n\n" +
@@ -37,7 +37,7 @@ public static class ProcessMcpTools
         "- { }\n" +
         "- { nameFilter: \"TestApp\" }")]
     public static Task<CallToolResult> GetProcesses(
-        string? nameFilter = null,
+        [Description("Optional case-insensitive substring filter for the target process name.")] string? nameFilter = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -49,7 +49,7 @@ public static class ProcessMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "connect", Destructive = true, Idempotent = true)]
+    [McpServerTool(Name = "connect", OpenWorld = false, Destructive = true, Idempotent = true)]
     [Description(
         "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +
@@ -72,7 +72,7 @@ public static class ProcessMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
-        int processId,
+        [Description("Target WPF process ID returned by get_processes.")] int processId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -81,10 +81,11 @@ public static class ProcessMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ConnectTool>("ConnectTool", () => new ConnectTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            timeoutSeconds: McpServerConfiguration.ConnectTimeoutSeconds);
     }
 
-    [McpServerTool(Name = "ping", ReadOnly = true, Idempotent = true)]
+    [McpServerTool(Name = "ping", OpenWorld = false, ReadOnly = true, Idempotent = true)]
     [Description(
         "[Process] Check connection health and measure round-trip latency to the Inspector DLL " +
         "in the target process. Returns latency in milliseconds.\n\n" +
@@ -107,7 +108,7 @@ public static class ProcessMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> Ping(
         SessionManager sessionManager,
-        int processId,
+        [Description("Connected WPF process ID to ping.")] int processId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

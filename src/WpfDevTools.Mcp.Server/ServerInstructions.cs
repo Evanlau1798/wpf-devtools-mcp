@@ -10,7 +10,7 @@ public static class ServerInstructions
     /// The complete server instructions text
     /// </summary>
     public const string Value = """
-        WPF DevTools MCP Server: Deep inspection and interaction with running WPF applications via in-process DLL injection. Provides 44 tools across 10 categories for Visual Tree inspection, Binding diagnostics, MVVM debugging, DependencyProperty analysis, Style/Template inspection, RoutedEvent tracing, element interaction, layout analysis, and performance profiling.
+        WPF DevTools MCP Server: Deep inspection and interaction with running WPF applications via in-process DLL injection. Provides process discovery, visual/logical tree inspection, binding diagnostics, MVVM debugging, DependencyProperty analysis, style/template inspection, routed event diagnostics, element interaction, layout analysis, and performance profiling.
 
         === MANDATORY WORKFLOW ===
         1. get_processes -> discover running WPF apps and their processIds
@@ -65,6 +65,7 @@ public static class ServerInstructions
         - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
         - Check IsEnabled with get_dp_value_source before click_element to avoid errors
         - Use get_binding_errors as first diagnostic step for data display issues
+        - In STDIO transport, prefer polling workflows over push-style watcher/event streaming expectations
         - Avoid calling performance tools (get_render_stats, measure_element_render_time) in loops
         - When debugging, start broad (get_binding_errors) then narrow (get_bindings on specific element)
         - For MVVM apps, inspect ViewModel first (get_viewmodel, get_commands) before modifying
@@ -105,7 +106,7 @@ public static class ServerInstructions
         On error: { success: false, error: string }
 
         === LIMITATIONS ===
-        - STDIO transport: Cannot push events (watch_dp_changes requires polling)
+        - STDIO transport: Cannot push live watcher/event streams; use request-response diagnostics and polling workflows
         - Self-contained single-file apps and Native AOT apps: Cannot inject (use SDK mode)
         - Changes are NOT persisted to XAML files
         """;

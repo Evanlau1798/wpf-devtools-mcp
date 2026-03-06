@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class InteractionMcpTools
 {
-    [McpServerTool(Name = "click_element", Destructive = true)]
+    [McpServerTool(Name = "click_element", OpenWorld = false, Destructive = true)]
     [Description(
         "[Interaction] Simulate a mouse click on a WPF element. " +
         "Raises the full WPF click event pipeline.\n\n" +
@@ -35,8 +35,8 @@ public static class InteractionMcpTools
         "- { processId: 12345, elementId: \"ClearButton\" }")]
     public static Task<CallToolResult> ClickElement(
         SessionManager sessionManager,
-        int processId,
-        string elementId,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Element ID of the clickable control.")] string elementId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -49,7 +49,7 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "drag_and_drop", Destructive = true)]
+    [McpServerTool(Name = "drag_and_drop", OpenWorld = false, Destructive = true)]
     [Description(
         "[Interaction] Simulate drag and drop between two WPF elements. " +
         "Raises DragEnter, DragOver, and Drop events on the target.\n\n" +
@@ -71,9 +71,9 @@ public static class InteractionMcpTools
         "- { processId: 12345, sourceElementId: \"Item1\", targetElementId: \"Item2\" }")]
     public static Task<CallToolResult> DragAndDrop(
         SessionManager sessionManager,
-        int processId,
-        string sourceElementId,
-        string targetElementId,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Element ID that acts as the drag source.")] string sourceElementId,
+        [Description("Element ID that acts as the drop target.")] string targetElementId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -90,7 +90,7 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "scroll_to_element", Destructive = true)]
+    [McpServerTool(Name = "scroll_to_element", OpenWorld = false, Destructive = true)]
     [Description(
         "[Interaction] Scroll a WPF element into view within its parent ScrollViewer. " +
         "Calls BringIntoView() on the element.\n\n" +
@@ -109,8 +109,8 @@ public static class InteractionMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> ScrollToElement(
         SessionManager sessionManager,
-        int processId,
-        string elementId,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Element ID that should be brought into view.")] string elementId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -123,7 +123,7 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "simulate_keyboard", Destructive = true)]
+    [McpServerTool(Name = "simulate_keyboard", OpenWorld = false, Destructive = true)]
     [Description(
         "[Interaction] Simulate a keyboard key press on an element. " +
         "Key parameter uses WPF Key enum names.\n\n" +
@@ -145,9 +145,9 @@ public static class InteractionMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", key: \"Tab\" }")]
     public static Task<CallToolResult> SimulateKeyboard(
         SessionManager sessionManager,
-        int processId,
-        string key,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("WPF Key enum name to simulate, such as Enter or Tab.")] string key,
+        [Description("Optional focused element ID that should receive the key input.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -161,7 +161,7 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "element_screenshot", ReadOnly = true)]
+    [McpServerTool(Name = "element_screenshot", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Interaction] Capture a PNG screenshot of a specific element. " +
         "Returns base64-encoded image data. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
@@ -183,9 +183,9 @@ public static class InteractionMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> ElementScreenshot(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
-        string? outputPath = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID to capture. Omit for the root window.")] string? elementId = null,
+        [Description("Optional filesystem path on the target machine where the PNG should be written.")] string? outputPath = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

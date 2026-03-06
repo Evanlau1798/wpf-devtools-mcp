@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class BindingMcpTools
 {
-    [McpServerTool(Name = "get_bindings", ReadOnly = true)]
+    [McpServerTool(Name = "get_bindings", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Binding] Get all DataBindings on an element. Shows binding path, mode " +
         "(OneWay/TwoWay/OneTime), source type, converter, and current status.\n\n" +
@@ -38,9 +38,9 @@ public static class BindingMcpTools
         "- { processId: 12345, recursive: true }")]
     public static Task<CallToolResult> GetBindings(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
-        bool? recursive = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID to inspect. Omit for the root window.")] string? elementId = null,
+        [Description("When true, inspect descendant elements under the chosen root as well.")] bool? recursive = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -54,7 +54,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_binding_errors", ReadOnly = true)]
+    [McpServerTool(Name = "get_binding_errors", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Binding] Get ALL binding errors captured since Inspector connected. " +
         "FIRST tool to use when debugging data display issues.\n\n" +
@@ -78,7 +78,7 @@ public static class BindingMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetBindingErrors(
         SessionManager sessionManager,
-        int processId,
+        [Description("Connected WPF process ID whose captured binding errors should be returned.")] int processId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -90,7 +90,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_binding_value_chain", ReadOnly = true)]
+    [McpServerTool(Name = "get_binding_value_chain", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Binding] Get the complete value resolution chain for a binding on a specific property. " +
         "Shows each step from source to target including converters, fallback values, and StringFormat.\n\n" +
@@ -112,9 +112,9 @@ public static class BindingMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
     public static Task<CallToolResult> GetBindingValueChain(
         SessionManager sessionManager,
-        int processId,
-        string propertyName,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("DependencyProperty name whose binding value chain should be traced, such as Text.")] string propertyName,
+        [Description("Optional element ID that owns the bound property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -131,7 +131,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_datacontext_chain", ReadOnly = true)]
+    [McpServerTool(Name = "get_datacontext_chain", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Binding] Get the DataContext inheritance chain from an element up to the root. " +
         "Shows each ancestor's DataContext type and value.\n\n" +
@@ -152,8 +152,8 @@ public static class BindingMcpTools
         "- { processId: 12345, elementId: \"ErrorTextBox1\" }")]
     public static Task<CallToolResult> GetDataContextChain(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID whose DataContext inheritance path should be returned.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -166,7 +166,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "force_binding_update", Destructive = true)]
+    [McpServerTool(Name = "force_binding_update", OpenWorld = false, Destructive = true)]
     [Description(
         "[Binding] Force a binding to re-evaluate and transfer the current value. " +
         "Use for UpdateSourceTrigger=Explicit bindings or when the source value changed but the UI didn't update.\n\n" +
@@ -186,9 +186,9 @@ public static class BindingMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
     public static Task<CallToolResult> ForceBindingUpdate(
         SessionManager sessionManager,
-        int processId,
-        string propertyName,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("DependencyProperty name whose binding should be refreshed.")] string propertyName,
+        [Description("Optional element ID that owns the binding. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

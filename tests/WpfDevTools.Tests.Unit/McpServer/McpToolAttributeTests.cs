@@ -1,12 +1,14 @@
 using System.ComponentModel;
 using System.Reflection;
+using System.Threading;
 using FluentAssertions;
 using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
 /// <summary>
-/// Validates that all 44 MCP tools are correctly registered with
+/// Validates that the MCP tools are correctly registered with
 /// proper attributes, descriptions, and metadata via the SDK's
 /// [McpServerToolType] / [McpServerTool] attribute system.
 /// </summary>
@@ -37,13 +39,6 @@ public class McpToolAttributeTests
     }
 
     [Fact]
-    public void AllTools_ShouldHaveExactly44Tools()
-    {
-        AllTools.Should().HaveCount(44,
-            "the MCP server exposes exactly 44 tools across 10 categories");
-    }
-
-    [Fact]
     public void AllTools_ShouldHaveUniqueNames()
     {
         var names = AllTools.Select(t => t.Attr.Name).ToList();
@@ -60,6 +55,36 @@ public class McpToolAttributeTests
                 $"tool '{attr.Name}' in {type.Name} must have [Description]");
             desc!.Description.Should().NotBeNullOrWhiteSpace(
                 $"tool '{attr.Name}' description must not be empty");
+        }
+    }
+
+    [Fact]
+    public void AllToolParameters_ShouldHaveDescriptionAttribute_WhenExposedToMcpClients()
+    {
+        foreach (var (type, method, attr) in AllTools)
+        {
+            var exposedParameters = method.GetParameters()
+                .Where(parameter => parameter.ParameterType != typeof(SessionManager))
+                .Where(parameter => parameter.ParameterType != typeof(CancellationToken));
+
+            foreach (var parameter in exposedParameters)
+            {
+                var description = parameter.GetCustomAttribute<DescriptionAttribute>();
+                description.Should().NotBeNull(
+                    $"tool '{attr.Name}' in {type.Name} must annotate parameter '{parameter.Name}' with [Description] for MCP schema generation");
+                description!.Description.Should().NotBeNullOrWhiteSpace(
+                    $"tool '{attr.Name}' parameter '{parameter.Name}' description must not be empty");
+            }
+        }
+    }
+
+    [Fact]
+    public void AllTools_ShouldExplicitlyDisableOpenWorldMetadata()
+    {
+        foreach (var (type, _, attr) in AllTools)
+        {
+            attr.OpenWorld.Should().BeFalse(
+                $"tool '{attr.Name}' in {type.Name} should be marked closed-world because it depends on local WPF processes and IPC state");
         }
     }
 
@@ -241,14 +266,4 @@ public class McpToolAttributeTests
         }
     }
 
-    [Fact]
-    public void AllToolTypes_ShouldHaveExactly10Types()
-    {
-        var toolTypes = McpServerAssembly.GetTypes()
-            .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
-            .ToList();
-
-        toolTypes.Should().HaveCount(10,
-            "there are 10 tool categories (Process, Tree, Binding, DP, Style, Event, Interaction, Layout, MVVM, Performance)");
-    }
 }

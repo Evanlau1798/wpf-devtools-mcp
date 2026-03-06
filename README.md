@@ -1,8 +1,8 @@
 # WPF DevTools MCP Server
 
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-1063%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-83%25%20(unit)-brightgreen)
+![Build Status](https://img.shields.io/badge/build-validated-brightgreen)
+![Tests](https://img.shields.io/badge/tests-unit%20%2B%20integration-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-target%2080%25%2B-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![MCP](https://img.shields.io/badge/MCP-2024--11--05-orange)
@@ -29,7 +29,7 @@ A Model Context Protocol (MCP) server that enables AI agents to deeply inspect a
 First free, open-source MCP server providing WPF-specific deep inspection capabilities that are impossible with out-of-process tools:
 - Direct access to `BindingOperations`, `DependencyPropertyHelper`, and Visual Tree internals
 - In-process execution for accurate binding error detection
-- Real-time property change watching
+- Property watching and event diagnostics work best as request/response tools today; real-time push delivery requires future HTTP transport
 - Command execution with CanExecute validation
 
 ## Installation
@@ -61,10 +61,8 @@ dotnet test
 # IMPORTANT: Use coverlet.runsettings for correct coverage calculation
 dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage"
 
-# Current Coverage Status: 83.17% ✅ (Exceeds 80% target)
-# - Unit Tests: 83.17% line coverage, 74.1% branch coverage
-# - Integration Tests: 27.25% (normal, tests end-to-end flows)
-# Note: Unit test coverage is the primary metric
+# Coverage target: keep unit coverage at or above 80%
+# Note: unit coverage is the primary quality gate; integration coverage tracks end-to-end behavior
 ```
 
 ## Configuration
@@ -145,10 +143,10 @@ Add to `settings.json`:
 
 After configuring your AI client (see Configuration above), simply ask your AI agent:
 
-1. **"List all running WPF processes"** → Uses `get_processes`
-2. **"Connect to process [PID]"** → Uses `connect`
-3. **"Show me the visual tree"** → Uses `get_visual_tree`
-4. **"Find any binding errors"** → Uses `get_binding_errors`
+1. **"List all running WPF processes"** ??Uses `get_processes`
+2. **"Connect to process [PID]"** ??Uses `connect`
+3. **"Show me the visual tree"** ??Uses `get_visual_tree`
+4. **"Find any binding errors"** ??Uses `get_binding_errors`
 
 ### Manual Testing (Developer Mode)
 
@@ -218,31 +216,31 @@ Once configured, AI agents can interact with WPF applications using natural lang
 **Example 1: Debugging Binding Errors**
 ```
 "Show me all binding errors in the running WPF application"
-→ Agent uses: get_processes → connect → get_binding_errors
+??Agent uses: get_processes ??connect ??get_binding_errors
 ```
 
 **Example 2: Inspecting UI Structure**
 ```
 "What's the visual tree structure of the main window?"
-→ Agent uses: get_processes → connect → get_visual_tree
+??Agent uses: get_processes ??connect ??get_visual_tree
 ```
 
 **Example 3: Testing User Interactions**
 ```
 "Click the 'Submit' button and check if the command executed"
-→ Agent uses: get_visual_tree (find button) → click_element → get_commands
+??Agent uses: get_visual_tree (find button) ??click_element ??get_commands
 ```
 
 **Example 4: MVVM Debugging**
 ```
 "What's the current DataContext and what commands are available?"
-→ Agent uses: get_viewmodel → get_commands
+??Agent uses: get_viewmodel ??get_commands
 ```
 
 **Example 5: Performance Analysis**
 ```
 "Find potential binding memory leaks in the application"
-→ Agent uses: find_binding_leaks → get_bindings (for details)
+??Agent uses: find_binding_leaks ??get_bindings (for details)
 ```
 
 ## Security
@@ -261,9 +259,11 @@ Challenge-Response authentication using HMAC-SHA256 prevents unauthorized connec
 
 **Configuration**:
 
-```bash
+```powershell
 # Set shared secret (base64-encoded, minimum 32 bytes)
-export WPFDEVTOOLS_AUTH_SECRET=$(openssl rand -base64 32)
+$secretBytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Fill($secretBytes)
+$env:WPFDEVTOOLS_AUTH_SECRET = [Convert]::ToBase64String($secretBytes)
 ```
 
 If `WPFDEVTOOLS_AUTH_SECRET` is not set, a random secret is auto-generated per session.
@@ -298,11 +298,11 @@ For production deployment guidance, see [Security Policy](SECURITY.md).
 
 ## MCP Protocol Compliance
 
-This server implements MCP protocol version `2024-11-05` using the [official C# MCP SDK](https://github.com/modelcontextprotocol/csharp-sdk) (`ModelContextProtocol` v1.0.0 NuGet package). Protocol compliance, JSON-RPC handling, and transport management are provided by the SDK.
+This server implements MCP protocol version `2024-11-05` using the [official C# MCP SDK](https://modelcontextprotocol.github.io/csharp-sdk/api/ModelContextProtocol.html) (`ModelContextProtocol` v1.0.0 NuGet package). Protocol compliance, JSON-RPC handling, and transport management are provided by the SDK.
 
 **SDK Integration**:
-- **44 tools** registered via `[McpServerTool]` attributes with rich, AI-optimized `[Description]` text
-- **Automatic JSON Schema generation** for tool parameters by the SDK
+- **Rich MCP tool surface** registered via `[McpServerTool]` attributes with AI-optimized `[Description]` text
+- **Automatic JSON Schema generation** for tool parameters by the SDK, backed by per-parameter `[Description]` metadata
 - **DI integration** via `Microsoft.Extensions.Hosting` for `SessionManager`, `RateLimiter`, and `MetricsCollector`
 - **STDIO transport** via `WithStdioServerTransport()` for AI agent communication
 
@@ -315,7 +315,7 @@ graph TB
     Inspector[Inspector DLL<br/>In-Process]
     WPF[Target WPF Application<br/>Visual Tree + Bindings]
 
-    Agent -->|MCP Protocol<br/>STDIO/HTTP+SSE| MCP
+    Agent -->|MCP Protocol<br/>STDIO (current)<br/>HTTP+SSE (planned)| MCP
     MCP -->|Named Pipes IPC<br/>0.1-1ms latency| Inspector
     Inspector -->|Direct Memory Access<br/>Dispatcher.Invoke| WPF
 
@@ -333,9 +333,9 @@ graph TB
 - **Token Efficiency**: Tree tools support `depth` parameter; use `elementId` to scope operations
 - **Multi-Targeting**: Supports .NET 8.0 and .NET Framework 4.8 (see [ADR-005](docs/architecture/ADR-005-multi-targeting-strategy.md))
 
-## MCP Tools (44 Total)
+## MCP Tools
 
-### 1. Process Management (3 tools)
+### 1. Process Management
 
 #### get_processes
 List all running WPF applications.
@@ -361,7 +361,7 @@ Verify connection health and measure latency.
 
 **Returns**: Latency in milliseconds
 
-### 2. Tree & XAML (6 tools)
+### 2. Tree & XAML
 
 #### get_visual_tree
 Retrieve the Visual Tree structure.
@@ -416,7 +416,7 @@ Get the template Visual Tree.
 
 **Returns**: Template tree structure
 
-### 3. Binding Diagnostics (5 tools)
+### 3. Binding Diagnostics
 
 #### get_bindings
 Get all bindings for an element or tree.
@@ -441,7 +441,7 @@ Get the complete value resolution chain for a binding.
 
 **Parameters**:
 - `processId` (required): Process ID
-- `elementId` (required): Element ID
+- `elementId` (optional): Element ID (defaults to root window)
 - `propertyName` (required): Property name
 
 **Returns**: Value chain from source to target
@@ -460,12 +460,12 @@ Force a binding to update.
 
 **Parameters**:
 - `processId` (required): Process ID
-- `elementId` (required): Element ID
+- `elementId` (optional): Element ID (defaults to root window)
 - `propertyName` (required): Property name
 
 **Returns**: Update result
 
-### 4. DependencyProperty (5 tools)
+### 4. DependencyProperty
 
 #### get_dp_value_source
 Get the value source for a DependencyProperty.
@@ -515,16 +515,16 @@ Watch for DependencyProperty changes.
 - `elementId` (required): Element ID
 - `propertyName` (required): Property name
 
-**Returns**: Subscription ID (events pushed via SSE)
+**Returns**: Watch registration status. In the current STDIO transport, this is registration-only; events are not pushed, so poll with `get_dp_value_source` instead.
 
-### 5. Style/Template (4 tools)
+### 5. Style/Template
 
 #### get_applied_styles
 Get all applied styles for an element.
 
 **Parameters**:
 - `processId` (required): Process ID
-- `elementId` (required): Element ID
+- `elementId` (optional): Element ID (defaults to root window)
 
 **Returns**: Array of applied styles
 
@@ -542,7 +542,7 @@ Get the resource lookup chain.
 
 **Parameters**:
 - `processId` (required): Process ID
-- `elementId` (required): Element ID
+- `elementId` (optional): Element ID (defaults to root window)
 - `resourceKey` (required): Resource key
 
 **Returns**: Resource chain from element to application
@@ -552,13 +552,13 @@ Override a style setter value.
 
 **Parameters**:
 - `processId` (required): Process ID
-- `elementId` (required): Element ID
+- `elementId` (optional): Element ID (defaults to root window)
 - `propertyName` (required): Property name
 - `value` (required): New value
 
 **Returns**: Success status
 
-### 6. RoutedEvent (3 tools)
+### 6. RoutedEvent
 
 #### trace_routed_events
 Trace routed event propagation.
@@ -566,15 +566,17 @@ Trace routed event propagation.
 **Parameters**:
 - `processId` (required): Process ID
 - `eventName` (required): Event name
+- `elementId` (optional): Element ID to scope tracing
+- `durationMs` (optional): Capture window in milliseconds
 
-**Returns**: Event trace (tunneling → bubbling)
+**Returns**: Collected event trace records after the capture window completes (`eventCount`, `events`). For ongoing push-style event streaming, wait for future HTTP transport support.
 
 #### get_event_handlers
 Get all handlers for a routed event.
 
 **Parameters**:
 - `processId` (required): Process ID
-- `elementId` (required): Element ID
+- `elementId` (optional): Element ID to scope inspection
 - `eventName` (required): Event name
 
 **Returns**: Array of event handlers
@@ -584,12 +586,12 @@ Fire a routed event.
 
 **Parameters**:
 - `processId` (required): Process ID
-- `elementId` (required): Element ID
+- `elementId` (optional): Element ID to target
 - `eventName` (required): Event name
 
 **Returns**: Success status
 
-### 7. Interaction (5 tools)
+### 7. Interaction
 
 #### click_element
 Simulate a mouse click on an element.
@@ -640,7 +642,7 @@ Capture a screenshot of an element.
 
 **Returns**: Base64-encoded PNG image
 
-### 8. Layout (4 tools)
+### 8. Layout
 
 #### get_layout_info
 Get layout information for an element.
@@ -680,7 +682,7 @@ Force a layout update.
 
 **Returns**: Success status
 
-### 9. MVVM (5 tools)
+### 9. MVVM
 
 #### get_viewmodel
 Get ViewModel from DataContext.
@@ -731,7 +733,7 @@ Get all validation errors.
 
 **Returns**: Array of validation errors
 
-### 10. Performance (4 tools)
+### 10. Performance
 
 #### get_render_stats
 Get rendering statistics.
@@ -774,7 +776,7 @@ For applications that cannot use DLL injection (single-file apps, Native AOT, et
 
 ### Installation
 
-> **⚠️ Note**: Currently requires building from source. NuGet package coming soon.
+> **?蹎? Note**: Currently requires building from source. NuGet package coming soon.
 
 **Step 1: Build the SDK project**
 
@@ -829,22 +831,21 @@ public partial class App : Application
 
 ## HTTP+SSE Transport
 
-> **⚠️ Note**: The MCP SDK v1.0.0 provides HTTP+SSE transport support via `WithHttpServerTransport()`. This server currently uses STDIO transport (`WithStdioServerTransport()`) for AI agent compatibility. HTTP+SSE implementation is planned for Phase 2 to enable:
-> - Web-based AI agents
-> - Server-sent events for property change notifications (watch_dp_changes)
-> - Multi-client support
+> **Current status**: this repository currently implements **STDIO transport only** via `WithStdioServerTransport()`.
+>
+> The official MCP C# SDK also supports HTTP transport, but this server does **not** currently expose an HTTP listener, SSE endpoint, or transport-selection CLI options.
 
-For web-based AI agents, HTTP+SSE transport will be available in a future release:
+### What this means today
 
-```bash
-# Planned feature - SDK provides WithHttpServerTransport(), implementation pending
-dotnet run --project src/WpfDevTools.Mcp.Server/ -- --transport http --port 3000
-```
+- `watch_dp_changes` can register the watch request, but STDIO clients cannot receive pushed events
+- Use `get_dp_value_source` polling when you need to observe property changes in the current release
+- Multi-client and browser-based scenarios remain future work
 
-### Planned Endpoints (via SDK)
+### Planned future work
 
-- `POST /mcp` - Send MCP requests (SDK-provided)
-- `GET /events` - Subscribe to SSE events for property changes (SDK-provided)
+- Add an HTTP transport entrypoint on top of the official SDK
+- Add event delivery semantics suitable for `watch_dp_changes`
+- Document concrete HTTP routes only when that transport is implemented
 
 ## Troubleshooting
 
@@ -936,16 +937,16 @@ dotnet run --project src/WpfDevTools.Mcp.Server/ -- --transport http --port 3000
 
 ```
 src/
-├── WpfDevTools.Mcp.Server/       # MCP Server (STDIO/HTTP)
-├── WpfDevTools.Inspector/        # Injected DLL
-├── WpfDevTools.Inspector.Sdk/    # Opt-in SDK
-├── WpfDevTools.Injector/         # DLL injection
-└── WpfDevTools.Shared/           # Shared types
+?謚??? WpfDevTools.Mcp.Server/       # MCP Server (STDIO today, HTTP planned)
+?謚??? WpfDevTools.Inspector/        # Injected DLL
+?謚??? WpfDevTools.Inspector.Sdk/    # Opt-in SDK
+?謚??? WpfDevTools.Injector/         # DLL injection
+????? WpfDevTools.Shared/           # Shared types
 
 tests/
-├── WpfDevTools.Tests.Unit/       # Unit tests
-├── WpfDevTools.Tests.Integration/ # Integration tests
-└── WpfDevTools.Tests.TestApp/    # Test WPF app
+?謚??? WpfDevTools.Tests.Unit/       # Unit tests
+?謚??? WpfDevTools.Tests.Integration/ # Integration tests
+????? WpfDevTools.Tests.TestApp/    # Test WPF app
 ```
 
 ### Build Commands
@@ -996,3 +997,4 @@ MIT License - see LICENSE file for details
 
 - DLL injection based on [Snoop WPF](https://github.com/snoopwpf/snoopwpf) (Ms-PL)
 - MCP Protocol by [Anthropic](https://modelcontextprotocol.io/)
+

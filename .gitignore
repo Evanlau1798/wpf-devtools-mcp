@@ -33,3 +33,4 @@ CLAUDE.md
 .claude/coverage-report/
 .claude/settings.local.json
 .claude/
+AGENTS.md

@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class LayoutMcpTools
 {
-    [McpServerTool(Name = "get_layout_info", ReadOnly = true)]
+    [McpServerTool(Name = "get_layout_info", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Layout] Get layout information of a WPF element. Returns: actualWidth, actualHeight, " +
         "desiredSize, renderSize, margin, padding, horizontalAlignment, verticalAlignment, " +
@@ -38,8 +38,8 @@ public static class LayoutMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetLayoutInfo(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID whose layout metrics should be returned. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -52,7 +52,7 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_clipping_info", ReadOnly = true)]
+    [McpServerTool(Name = "get_clipping_info", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Layout] Get clipping information of a WPF element. Returns whether the element " +
         "is clipped by any ancestor, the clip bounds, and how much content overflows.\n\n" +
@@ -73,8 +73,8 @@ public static class LayoutMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> GetClippingInfo(
         SessionManager sessionManager,
-        int processId,
-        string elementId,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Element ID whose clipping state should be analyzed.")] string elementId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -87,7 +87,7 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "highlight_element", Destructive = true)]
+    [McpServerTool(Name = "highlight_element", OpenWorld = false, Destructive = true)]
     [Description(
         "[Layout] Visually highlight an element with a colored border overlay. " +
         "Useful for confirming you have the right element. Color accepts WPF color names " +
@@ -108,10 +108,10 @@ public static class LayoutMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", color: \"Red\", duration: 3000 }")]
     public static Task<CallToolResult> HighlightElement(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
-        string? color = null,
-        int? duration = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID to highlight. Omit for the root window.")] string? elementId = null,
+        [Description("Optional WPF color name or hex color string for the highlight overlay.")] string? color = null,
+        [Description("Optional highlight duration in milliseconds before the overlay is removed.")] int? duration = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -129,7 +129,7 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "invalidate_layout", Destructive = true)]
+    [McpServerTool(Name = "invalidate_layout", OpenWorld = false, Destructive = true)]
     [Description(
         "[Layout] Force layout invalidation on a WPF element, causing it to re-measure " +
         "and re-arrange. Use after modifying properties that affect layout to force an immediate update.\n\n" +
@@ -148,8 +148,8 @@ public static class LayoutMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> InvalidateLayout(
         SessionManager sessionManager,
-        int processId,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID whose layout should be invalidated. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

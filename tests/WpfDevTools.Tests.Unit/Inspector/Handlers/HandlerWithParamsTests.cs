@@ -4,6 +4,7 @@ using System.Text.Json;
 using WpfDevTools.Inspector.Host.Handlers;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
+using System.Windows.Controls;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Handlers;
 
@@ -241,6 +242,25 @@ public class HandlerWithParamsTests
         var result = await handler.HandleAsync("trace_routed_events", @params, CancellationToken.None);
 
         result.Should().NotBeNull();
+    }
+
+    [StaFact]
+    public async Task EventHandlers_TraceRoutedEvents_WithValidElement_ShouldReturnTracePayloadShape()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var handler = new EventHandlers(analyzer);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+        var @params = JsonSerializer.SerializeToElement(new { elementId, eventName = "Click", duration = 25 });
+
+        var result = await handler.HandleAsync("trace_routed_events", @params, CancellationToken.None);
+
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonSerializer.Deserialize<JsonElement>(json);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.TryGetProperty("eventCount", out _).Should().BeTrue();
+        doc.TryGetProperty("events", out _).Should().BeTrue();
     }
 
     [Fact]

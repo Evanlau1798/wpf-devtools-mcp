@@ -14,47 +14,56 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class EventMcpTools
 {
-    [McpServerTool(Name = "trace_routed_events", ReadOnly = true)]
+    [McpServerTool(Name = "trace_routed_events", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Event] Start tracing a routed event's propagation path " +
-        "(Tunneling -> Direct -> Bubbling). Returns trace data showing which elements the event passes through.\n\n" +
-        "USE WHEN: Debugging event handling issues; understanding why an event is handled/not handled.\n" +
-        "DO NOT USE: In STDIO mode expecting real-time push (events require HTTP+SSE transport).\n\n" +
+        "[Event] Trace a routed event over a short capture window and return the collected event records. " +
+        "Use this to see whether a routed event fired, how many records were captured, and the handled state of each record.\n\n" +
+        "USE WHEN: Debugging event handling issues; confirming whether Click/MouseDown style events are firing.\n" +
+        "DO NOT USE: As a long-running subscription. This tool blocks until the capture window completes and then returns the collected records.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  trace: [{\n" +
-        "    phase: 'Tunneling'|'Direct'|'Bubbling',\n" +
-        "    elementId, elementType, handled: boolean\n" +
+        "  eventName: string,\n" +
+        "  duration: integer,\n" +
+        "  eventCount: integer,\n" +
+        "  events: [{\n" +
+        "    timestamp, sender, routingStrategy, handled\n" +
         "  }]\n" +
         "}\n\n" +
-        "NOTE: Event push requires HTTP+SSE transport (planned Phase 2+).\n\n" +
+        "TIP: Keep durationMs small (250-2000) so the trace completes quickly in STDIO clients.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"invalid event name\" -> verify eventName is a valid WPF RoutedEvent\n" +
         "- \"eventName required\" -> must specify which event to trace\n\n" +
         "Examples:\n" +
-        "- { processId: 12345, eventName: \"MouseDown\" }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }")]
+        "- { processId: 12345, eventName: \"MouseDown\", durationMs: 500 }\n" +
+        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", durationMs: 1000 }")]
     public static Task<CallToolResult> TraceRoutedEvents(
         SessionManager sessionManager,
-        int processId,
-        string eventName,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("WPF routed event name to trace, such as Click or MouseDown.")] string eventName,
+        [Description("Optional element ID to scope the event trace. Omit for the root window.")] string? elementId = null,
+        [Description("Optional capture window in milliseconds. Use smaller values for interactive STDIO sessions.")] int? durationMs = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("eventName", eventName));
+            ("eventName", eventName),
+            ("duration", durationMs));
+
+        var timeoutSeconds = Math.Max(
+            McpServerConfiguration.DefaultToolTimeoutSeconds,
+            (int)Math.Ceiling(((durationMs ?? 5000) / 1000d) + 2));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<TraceRoutedEventsTool>("TraceRoutedEventsTool", () => new TraceRoutedEventsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            timeoutSeconds: timeoutSeconds);
     }
 
-    [McpServerTool(Name = "get_event_handlers", ReadOnly = true)]
+    [McpServerTool(Name = "get_event_handlers", OpenWorld = false, ReadOnly = true)]
     [Description(
         "[Event] Get all event handlers attached to a WPF element for a specific routed event. " +
         "Returns handler method names, declaring types, and whether they handle tunneling/bubbling.\n\n" +
@@ -77,9 +86,9 @@ public static class EventMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }")]
     public static Task<CallToolResult> GetEventHandlers(
         SessionManager sessionManager,
-        int processId,
-        string eventName,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("WPF routed event name whose handlers should be listed.")] string eventName,
+        [Description("Optional element ID whose handlers should be inspected. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -93,7 +102,7 @@ public static class EventMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "fire_routed_event", Destructive = true)]
+    [McpServerTool(Name = "fire_routed_event", OpenWorld = false, Destructive = true)]
     [Description(
         "[Event] Fire a routed event on a WPF element. " +
         "Triggers the full WPF routed event pipeline (Tunneling -> Direct -> Bubbling).\n\n" +
@@ -114,9 +123,9 @@ public static class EventMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }")]
     public static Task<CallToolResult> FireRoutedEvent(
         SessionManager sessionManager,
-        int processId,
-        string eventName,
-        string? elementId = null,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("WPF routed event name to raise, such as Click.")] string eventName,
+        [Description("Optional target element ID that should receive the routed event.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

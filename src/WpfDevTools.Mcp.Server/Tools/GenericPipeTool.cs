@@ -47,4 +47,75 @@ public class GenericPipeTool : PipeConnectedToolBase
         if (error != null) return (-1, null, error);
         return (processId, new { elementId }, null);
     }
+
+    /// <summary>
+    /// Parameter extractor for tools that require elementId and propertyName.
+    /// Used by: get_binding_value_chain, get_dp_value_source, etc.
+    /// </summary>
+    public static (int processId, object? parameters, object? error) ExtractElementAndPropertyParams(JsonElement? arguments)
+    {
+        var (processId, elementId, error) = ParseCommonParams(arguments);
+        if (error != null) return (-1, null, error);
+
+        var propertyName = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "propertyName");
+        if (string.IsNullOrEmpty(propertyName))
+            return (-1, null, CreateMissingParamError("propertyName"));
+
+        return (processId, new { elementId, propertyName }, null);
+    }
+
+    /// <summary>
+    /// Parameter extractor for tools that require elementId, propertyName, and value.
+    /// Used by: modify_viewmodel, set_dp_value, etc.
+    /// </summary>
+    public static (int processId, object? parameters, object? error) ExtractElementPropertyAndValueParams(JsonElement? arguments)
+    {
+        var (processId, elementId, error) = ParseCommonParams(arguments);
+        if (error != null) return (-1, null, error);
+
+        var propertyName = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "propertyName");
+        if (string.IsNullOrEmpty(propertyName))
+            return (-1, null, CreateMissingParamError("propertyName"));
+
+        var value = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "value");
+        if (string.IsNullOrEmpty(value))
+            return (-1, null, CreateMissingParamError("value"));
+
+        return (processId, new { elementId, propertyName, value }, null);
+    }
+
+    /// <summary>
+    /// Parameter extractor for highlight_element tool.
+    /// Requires processId, optional elementId, color, and duration.
+    /// </summary>
+    public static (int processId, object? parameters, object? error) ExtractHighlightElementParams(JsonElement? arguments)
+    {
+        var (processId, elementId, error) = ParseCommonParams(arguments);
+        if (error != null) return (-1, null, error);
+
+        var color = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "color");
+        var duration = WpfDevTools.Shared.Utilities.ParameterParser.ParseIntParam(arguments, "duration");
+
+        return (processId, new { elementId, color, duration }, null);
+    }
+
+    /// <summary>
+    /// Parameter extractor for drag_and_drop tool.
+    /// Requires processId, sourceElementId, and targetElementId.
+    /// </summary>
+    public static (int processId, object? parameters, object? error) ExtractDragAndDropParams(JsonElement? arguments)
+    {
+        var (processId, _, error) = ParseCommonParams(arguments);
+        if (error != null) return (-1, null, error);
+
+        var sourceElementId = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "sourceElementId");
+        if (string.IsNullOrEmpty(sourceElementId))
+            return (-1, null, CreateMissingParamError("sourceElementId"));
+
+        var targetElementId = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "targetElementId");
+        if (string.IsNullOrEmpty(targetElementId))
+            return (-1, null, CreateMissingParamError("targetElementId"));
+
+        return (processId, new { sourceElementId, targetElementId }, null);
+    }
 }

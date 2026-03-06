@@ -121,16 +121,10 @@ public static class BindingMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("get_binding_value_chain", () => new GenericPipeTool(sessionManager, "get_binding_value_chain",
-                a =>
-                {
-                    var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
-                    if (err != null) return (-1, null, err);
-                    var prop = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(a, "propertyName");
-                    if (string.IsNullOrEmpty(prop))
-                        return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
-                    return (pid, (object?)new { elementId = eid, propertyName = prop }, null);
-                })).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+                "get_binding_value_chain",
+                () => new GenericPipeTool(sessionManager, "get_binding_value_chain", GenericPipeTool.ExtractElementAndPropertyParams)
+            ).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -201,16 +195,10 @@ public static class BindingMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("force_binding_update", () => new GenericPipeTool(sessionManager, "force_binding_update",
-                a =>
-                {
-                    var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
-                    if (err != null) return (-1, null, err);
-                    var prop = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(a, "propertyName");
-                    if (string.IsNullOrEmpty(prop))
-                        return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
-                    return (pid, (object?)new { elementId = eid, propertyName = prop }, null);
-                })).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+                "force_binding_update",
+                () => new GenericPipeTool(sessionManager, "force_binding_update", GenericPipeTool.ExtractElementAndPropertyParams)
+            ).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

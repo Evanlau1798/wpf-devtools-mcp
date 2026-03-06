@@ -82,19 +82,10 @@ public static class InteractionMcpTools
             ("targetElementId", targetElementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("drag_and_drop", () => new GenericPipeTool(sessionManager, "drag_and_drop",
-                a =>
-                {
-                    var (pid, _, err) = PipeConnectedToolBase.ParseCommonParams(a);
-                    if (err != null) return (-1, null, err);
-                    var src = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(a, "sourceElementId");
-                    var tgt = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(a, "targetElementId");
-                    if (string.IsNullOrEmpty(src))
-                        return (-1, null, (object)new { success = false, error = "Missing required parameter: sourceElementId" });
-                    if (string.IsNullOrEmpty(tgt))
-                        return (-1, null, (object)new { success = false, error = "Missing required parameter: targetElementId" });
-                    return (pid, (object?)new { sourceElementId = src, targetElementId = tgt }, null);
-                })).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+                "drag_and_drop",
+                () => new GenericPipeTool(sessionManager, "drag_and_drop", GenericPipeTool.ExtractDragAndDropParams)
+            ).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

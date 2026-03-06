@@ -200,19 +200,10 @@ public static class MvvmMcpTools
             ("value", value));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("modify_viewmodel", () => new GenericPipeTool(sessionManager, "modify_viewmodel",
-                a =>
-                {
-                    var (pid, eid, err) = PipeConnectedToolBase.ParseCommonParams(a);
-                    if (err != null) return (-1, null, err);
-                    var prop = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(a, "propertyName");
-                    var val = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(a, "value");
-                    if (string.IsNullOrEmpty(prop))
-                        return (-1, null, (object)new { success = false, error = "Missing required parameter: propertyName" });
-                    if (string.IsNullOrEmpty(val))
-                        return (-1, null, (object)new { success = false, error = "Missing required parameter: value" });
-                    return (pid, (object?)new { elementId = eid, propertyName = prop, value = val }, null);
-                })).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+                "modify_viewmodel",
+                () => new GenericPipeTool(sessionManager, "modify_viewmodel", GenericPipeTool.ExtractElementPropertyAndValueParams)
+            ).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

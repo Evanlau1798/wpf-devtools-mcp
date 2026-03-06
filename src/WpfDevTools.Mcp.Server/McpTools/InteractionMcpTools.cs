@@ -1,0 +1,203 @@
+using System.ComponentModel;
+using ModelContextProtocol.Server;
+using ModelContextProtocol.Protocol;
+using WpfDevTools.Mcp.Server.Tools;
+
+namespace WpfDevTools.Mcp.Server.McpTools;
+
+/// <summary>
+/// MCP SDK wrapper for Interaction tools (5 tools).
+/// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
+/// </summary>
+[McpServerToolType]
+public static class InteractionMcpTools
+{
+    [McpServerTool(Name = "click_element", Destructive = true)]
+    [Description(
+        "[Interaction] Simulate a mouse click on a WPF element. " +
+        "Raises the full WPF click event pipeline.\n\n" +
+        "USE WHEN: Testing button handlers, navigation, or click-triggered logic.\n" +
+        "DO NOT USE: On disabled elements (check IsEnabled first with get_dp_value_source).\n\n" +
+        "WARNING: This triggers real application logic (e.g., button handlers, navigation, data modifications).\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  clicked: boolean\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"element not found\" -> verify elementId from get_visual_tree\n" +
+        "- \"element not clickable\" -> element is disabled or not a clickable type\n\n" +
+        "Examples:\n" +
+        "- { processId: 12345, elementId: \"SaveButton\" }\n" +
+        "- { processId: 12345, elementId: \"ClearButton\" }")]
+    public static Task<CallToolResult> ClickElement(
+        SessionManager sessionManager,
+        int processId,
+        string elementId)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => new ClickElementTool(sessionManager).ExecuteAsync(a, ct),
+            args,
+            CancellationToken.None);
+    }
+
+    [McpServerTool(Name = "drag_and_drop", Destructive = true)]
+    [Description(
+        "[Interaction] Simulate drag and drop between two WPF elements. " +
+        "Raises DragEnter, DragOver, and Drop events on the target.\n\n" +
+        "USE WHEN: Testing drag-drop functionality, reordering items, or file drop handlers.\n" +
+        "DO NOT USE: Without verifying both elements exist first.\n\n" +
+        "WARNING: This triggers real application logic.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  dropped: boolean\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"source not found\" -> verify sourceElementId\n" +
+        "- \"target not found\" -> verify targetElementId\n" +
+        "- \"sourceElementId required\" -> must specify drag source\n" +
+        "- \"targetElementId required\" -> must specify drop target\n\n" +
+        "Examples:\n" +
+        "- { processId: 12345, sourceElementId: \"Item1\", targetElementId: \"Item2\" }")]
+    public static Task<CallToolResult> DragAndDrop(
+        SessionManager sessionManager,
+        int processId,
+        string sourceElementId,
+        string targetElementId)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("sourceElementId", sourceElementId),
+            ("targetElementId", targetElementId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => new GenericPipeTool(sessionManager, "drag_and_drop",
+                a =>
+                {
+                    var (pid, _, err) = PipeConnectedToolBase.ParseCommonParams(a);
+                    if (err != null) return (-1, null, err);
+                    var src = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(a, "sourceElementId");
+                    var tgt = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(a, "targetElementId");
+                    if (string.IsNullOrEmpty(src))
+                        return (-1, null, (object)new { success = false, error = "Missing required parameter: sourceElementId" });
+                    if (string.IsNullOrEmpty(tgt))
+                        return (-1, null, (object)new { success = false, error = "Missing required parameter: targetElementId" });
+                    return (pid, (object?)new { sourceElementId = src, targetElementId = tgt }, null);
+                }).ExecuteAsync(a, ct),
+            args,
+            CancellationToken.None);
+    }
+
+    [McpServerTool(Name = "scroll_to_element", Destructive = true)]
+    [Description(
+        "[Interaction] Scroll a WPF element into view within its parent ScrollViewer. " +
+        "Calls BringIntoView() on the element.\n\n" +
+        "USE WHEN: Element is off-screen before taking screenshot or clicking; testing scroll behavior.\n" +
+        "DO NOT USE: On elements not inside a ScrollViewer (has no effect).\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  scrolled: boolean\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"element not found\" -> verify elementId\n" +
+        "- \"elementId required\" -> must specify which element to scroll to\n\n" +
+        "Examples:\n" +
+        "- { processId: 12345, elementId: \"NameTextBox\" }")]
+    public static Task<CallToolResult> ScrollToElement(
+        SessionManager sessionManager,
+        int processId,
+        string elementId)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => new ScrollToElementTool(sessionManager).ExecuteAsync(a, ct),
+            args,
+            CancellationToken.None);
+    }
+
+    [McpServerTool(Name = "simulate_keyboard", Destructive = true)]
+    [Description(
+        "[Interaction] Simulate a keyboard key press on an element. " +
+        "Key parameter uses WPF Key enum names.\n\n" +
+        "USE WHEN: Testing keyboard shortcuts, Enter key submission, Tab navigation, or key event handlers.\n" +
+        "DO NOT USE: For text input (use set_dp_value on Text property instead).\n\n" +
+        "WARNING: This triggers real application logic.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  keyPressed: boolean\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"element not found\" -> verify elementId\n" +
+        "- \"invalid key\" -> key name not recognized (use WPF Key enum names)\n" +
+        "- \"key required\" -> must specify which key to press\n\n" +
+        "Examples:\n" +
+        "- { processId: 12345, elementId: \"NameTextBox\", key: \"Enter\" }\n" +
+        "- { processId: 12345, elementId: \"NameTextBox\", key: \"Tab\" }")]
+    public static Task<CallToolResult> SimulateKeyboard(
+        SessionManager sessionManager,
+        int processId,
+        string key,
+        string? elementId = null)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId),
+            ("key", key));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => new SimulateKeyboardTool(sessionManager).ExecuteAsync(a, ct),
+            args,
+            CancellationToken.None);
+    }
+
+    [McpServerTool(Name = "element_screenshot", ReadOnly = true)]
+    [Description(
+        "[Interaction] Capture a PNG screenshot of a specific element. " +
+        "Returns base64-encoded image data. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
+        "USE WHEN: Visual verification needed; documenting UI state; debugging rendering issues.\n" +
+        "DO NOT USE: On off-screen elements (use scroll_to_element first).\n\n" +
+        "PERFORMANCE: Large elements produce large base64 strings. Use outputPath for big screenshots.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  base64Image: string (if no outputPath),\n" +
+        "  filePath: string (if outputPath specified)\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"element not found\" -> verify elementId\n" +
+        "- \"render failed\" -> element may be collapsed or have zero size\n\n" +
+        "Examples:\n" +
+        "- { processId: 12345, elementId: \"SaveButton\" }\n" +
+        "- { processId: 12345 }")]
+    public static Task<CallToolResult> ElementScreenshot(
+        SessionManager sessionManager,
+        int processId,
+        string? elementId = null,
+        string? outputPath = null)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId),
+            ("outputPath", outputPath));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => new ElementScreenshotTool(sessionManager).ExecuteAsync(a, ct),
+            args,
+            CancellationToken.None);
+    }
+}

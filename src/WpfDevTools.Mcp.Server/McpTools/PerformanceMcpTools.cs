@@ -1,0 +1,148 @@
+using System.ComponentModel;
+using ModelContextProtocol.Server;
+using ModelContextProtocol.Protocol;
+using WpfDevTools.Mcp.Server.Tools;
+
+namespace WpfDevTools.Mcp.Server.McpTools;
+
+/// <summary>
+/// MCP SDK wrapper for Performance tools (4 tools).
+/// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
+/// </summary>
+[McpServerToolType]
+public static class PerformanceMcpTools
+{
+    [McpServerTool(Name = "get_render_stats", ReadOnly = true)]
+    [Description(
+        "[Performance] Get render statistics from a WPF application. Returns frame rate, " +
+        "render time, dirty region count, and other WPF rendering pipeline metrics.\n\n" +
+        "USE WHEN: UI feels slow or laggy; investigating rendering performance issues.\n" +
+        "DO NOT USE: For memory leaks (use find_binding_leaks instead).\n\n" +
+        "PERFORMANCE: This tool measures rendering metrics over a short period (1-2 seconds).\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  frameRate: number,\n" +
+        "  avgRenderTime: number (ms),\n" +
+        "  dirtyRegionCount: number,\n" +
+        "  visualCount: number\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n\n" +
+        "Examples:\n" +
+        "- { processId: 12345 }")]
+    public static Task<CallToolResult> GetRenderStats(
+        SessionManager sessionManager,
+        int processId)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => new GetRenderStatsTool(sessionManager).ExecuteAsync(a, ct),
+            args,
+            CancellationToken.None);
+    }
+
+    [McpServerTool(Name = "find_binding_leaks", ReadOnly = true)]
+    [Description(
+        "[Performance] Detect potential binding memory leaks by tracking live binding references. " +
+        "Threshold is the minimum number of live bindings on a single element to flag as suspicious.\n\n" +
+        "USE WHEN: Memory usage grows over time; suspecting binding-related memory leaks.\n" +
+        "DO NOT USE: On apps with legitimately many bindings per element (e.g., data grids).\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  suspects: [{\n" +
+        "    elementId, elementType, bindingCount: number\n" +
+        "  }]\n" +
+        "}\n\n" +
+        "Empty suspects array means no leak candidates found.\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n\n" +
+        "Examples:\n" +
+        "- { processId: 12345 }\n" +
+        "- { processId: 12345, threshold: 50 }")]
+    public static Task<CallToolResult> FindBindingLeaks(
+        SessionManager sessionManager,
+        int processId,
+        int? threshold = null)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("threshold", threshold));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => new FindBindingLeaksTool(sessionManager).ExecuteAsync(a, ct),
+            args,
+            CancellationToken.None);
+    }
+
+    [McpServerTool(Name = "measure_element_render_time", ReadOnly = true)]
+    [Description(
+        "[Performance] Measure the render time of a WPF element in milliseconds. " +
+        "Forces a re-render and measures the time taken.\n\n" +
+        "USE WHEN: Identifying slow-rendering elements; profiling UI performance.\n" +
+        "DO NOT USE: Repeatedly in a loop (causes performance overhead).\n\n" +
+        "PERFORMANCE: This tool forces a re-render, which may briefly impact UI responsiveness.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  renderTimeMs: number,\n" +
+        "  elementId\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"element not found\" -> verify elementId\n\n" +
+        "Examples:\n" +
+        "- { processId: 12345 }\n" +
+        "- { processId: 12345, elementId: \"SaveButton\" }")]
+    public static Task<CallToolResult> MeasureElementRenderTime(
+        SessionManager sessionManager,
+        int processId,
+        string? elementId = null)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => new MeasureElementRenderTimeTool(sessionManager).ExecuteAsync(a, ct),
+            args,
+            CancellationToken.None);
+    }
+
+    [McpServerTool(Name = "get_visual_count", ReadOnly = true)]
+    [Description(
+        "[Performance] Get the count of visual elements in a WPF element subtree. " +
+        "High counts (>5000) may indicate performance issues.\n\n" +
+        "USE WHEN: UI feels slow; need to identify overly complex subtrees.\n" +
+        "DO NOT USE: For memory usage (use find_binding_leaks instead).\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  count: number,\n" +
+        "  elementId\n" +
+        "}\n\n" +
+        "Guideline: <1000 = good, 1000-5000 = acceptable, >5000 = potential performance issue.\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"element not found\" -> verify elementId\n\n" +
+        "Examples:\n" +
+        "- { processId: 12345 }\n" +
+        "- { processId: 12345, elementId: \"NameTextBox\" }")]
+    public static Task<CallToolResult> GetVisualCount(
+        SessionManager sessionManager,
+        int processId,
+        string? elementId = null)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => new GetVisualCountTool(sessionManager).ExecuteAsync(a, ct),
+            args,
+            CancellationToken.None);
+    }
+}

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -139,13 +140,33 @@ public abstract class PipeConnectedToolBase
             parameters,
             ct).ConfigureAwait(false);
 
+        _sessionManager.UpdateLastActivity(processId);
+
         if (response.Error != null)
         {
-            return new { success = false, error = response.Error.Message };
+            return CreateInspectorError(response.Error);
         }
 
         return response.Result.HasValue
             ? (object)response.Result.Value
             : new { success = true };
+    }
+
+    private static object CreateInspectorError(InspectorError error)
+    {
+        return error.Data.HasValue
+            ? new
+            {
+                success = false,
+                error = error.Message,
+                errorCode = error.Code.ToString(),
+                errorData = error.Data.Value
+            }
+            : new
+            {
+                success = false,
+                error = error.Message,
+                errorCode = error.Code.ToString()
+            };
     }
 }

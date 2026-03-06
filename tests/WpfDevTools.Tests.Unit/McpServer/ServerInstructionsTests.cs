@@ -74,6 +74,13 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldDescribeStructuredErrorMetadata()
+    {
+        ServerInstructions.Value.Should().Contain("errorCode");
+        ServerInstructions.Value.Should().Contain("errorData");
+    }
+
+    [Fact]
     public void Value_ShouldContainLimitations()
     {
         ServerInstructions.Value.Should().Contain("LIMITATIONS");

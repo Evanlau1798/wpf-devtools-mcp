@@ -399,9 +399,23 @@ public sealed class NamedPipeClient : IDisposable
 
             // Read response
             var responseJson = await MessageFraming.ReadMessageAsync(commStream, cancellationToken).ConfigureAwait(false);
-            var response = JsonSerializer.Deserialize<InspectorResponse>(responseJson);
+            var response = JsonSerializer.Deserialize<InspectorResponse>(responseJson)
+                ?? throw new InvalidOperationException("Invalid response from Inspector");
 
-            return response ?? throw new InvalidOperationException("Invalid response from Inspector");
+            if (!string.Equals(response.Id, requestId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Unexpected response id '{response.Id}' for request '{requestId}'.");
+            }
+
+            if (!string.IsNullOrEmpty(response.CorrelationId) &&
+                !string.Equals(response.CorrelationId, correlationId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Unexpected response correlation id '{response.CorrelationId}' for request '{correlationId}'.");
+            }
+
+            return response;
         }
         catch (ObjectDisposedException)
         {

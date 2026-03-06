@@ -46,6 +46,15 @@ public class ReadmeDocumentationTests
     }
 
     [Fact]
+    public void Readme_ShouldDocumentStructuredInspectorErrors()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("errorCode");
+        content.Should().Contain("errorData");
+    }
+
+    [Fact]
     public void Program_ShouldUseEmptyApplicationBuilder_ForStdioServer()
     {
         var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/Program.cs"));

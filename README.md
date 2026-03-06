@@ -87,6 +87,7 @@ Add to `.vscode/mcp.json`:
 
 - `element_screenshot` returns `base64Image`, `width`, `height`, and `format`.
 - `set_dp_value`, `modify_viewmodel`, and `override_style_setter` accept raw JSON values, not string-only payloads.
+- Inspector-originated failures may also return `errorCode` and optional `errorData` alongside `error`.
 - `compare_trees` accepts an optional `elementId`.
 - `force_binding_update` accepts an optional `direction`.
 - `drag_and_drop` accepts an optional `dataFormat`.

@@ -105,7 +105,9 @@ public static class ServerInstructions
 
         === RESPONSE FORMAT ===
         All tools return JSON: { success: boolean, ...fields }
-        On error: { success: false, error: string }
+        On error: { success: false, error: string, errorCode?: string, errorData?: object }
+        - errorCode is the Inspector error enum name when the request reached the in-process Inspector
+        - errorData is optional structured context for automated recovery logic
 
         === LIMITATIONS ===
         - STDIO transport: Cannot push live watcher/event streams; use request-response diagnostics and polling workflows

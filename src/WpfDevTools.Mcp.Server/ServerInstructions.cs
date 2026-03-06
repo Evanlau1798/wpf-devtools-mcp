@@ -52,8 +52,10 @@ public static class ServerInstructions
         - Performance slow? -> get_visual_count, get_render_stats, find_binding_leaks
 
         === TOKEN EFFICIENCY ===
-        - Use depth=2-3 on tree tools for large apps
-        - Use elementId to scope tools to a subtree
+        - Use depth=1 for immediate children only (fastest)
+        - Use depth=2-3 for typical UI exploration (recommended)
+        - Use depth=5+ only when deep tree analysis is necessary
+        - Use elementId to scope tools to a subtree instead of full tree
         - Use nameFilter on get_processes to reduce response size
 
         === DESTRUCTIVE TOOLS (modify running app - changes NOT persisted to XAML) ===
@@ -81,7 +83,7 @@ public static class ServerInstructions
         - "not connected" -> call connect(processId) first, then retry
         - "Access denied" -> restart MCP server as administrator
         - "Not a WPF application" -> use get_processes to find correct processId
-        - "Architecture mismatch" -> ensure server and target app match (x64 vs x86)
+        - "Architecture mismatch" -> ensure server and target app match (x64 vs x86); check architecture with get_processes, rebuild server for correct platform if needed
         - "timeout" -> process may be frozen; try ping() to verify connection
         - "element not found" -> verify elementId from get_visual_tree/get_logical_tree
         - "property not found" -> verify propertyName spelling and element type

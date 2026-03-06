@@ -173,6 +173,46 @@ public class ToolCallHelperTests
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenToolExceedsTimeout_ShouldReturnTimeoutError()
+    {
+        // Arrange: Create a tool that takes 10 seconds (exceeds 5s timeout)
+        Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), ct);
+            return new { success = true };
+        };
+
+        // Act: Execute with no external cancellation
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None);
+
+        // Assert: Should return timeout error
+        result.Should().NotBeNull();
+        result.IsError.Should().BeTrue();
+        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
+        textContent.Should().NotBeNull();
+        textContent!.Text.Should().Contain("timed out");
+        textContent.Text.Should().Contain("5 seconds");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenExternalCancellation_ShouldPropagateCorrectly()
+    {
+        // Arrange: Create a tool that respects cancellation
+        Func<JsonElement?, CancellationToken, Task<object>> cancellableTool = async (args, ct) =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), ct);
+            return new { success = true };
+        };
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+
+        // Act & Assert: Should throw OperationCanceledException (not return timeout error)
+        var act = () => ToolCallHelper.ExecuteAndWrapAsync(cancellableTool, null, cts.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     // === IsToolResultError Tests ===
 
     [Fact]

@@ -242,13 +242,24 @@ public sealed class SessionManager : IDisposable
                 RemoveSession(processId);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // CRITICAL FIX: Log cleanup failures to file (STDIO-safe)
+            // Cannot use ILogger here as it may not be available in timer callback
             // Prevent Timer callback exceptions from stopping future cleanup cycles.
             // STDIO MCP servers should not write to Console (stderr is technically safe
             // but we avoid it for consistency). Errors are swallowed since this is a
             // background cleanup operation - individual session cleanup failures are
             // non-critical.
+            try
+            {
+                var logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_SessionManager_Cleanup_{DateTime.UtcNow:yyyyMMdd}.log");
+                File.AppendAllText(logPath, $"[{DateTime.UtcNow:O}] Cleanup error: {ex}\n");
+            }
+            catch
+            {
+                // Last resort: swallow to prevent timer crash
+            }
         }
     }
 

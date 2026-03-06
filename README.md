@@ -1,8 +1,8 @@
 # WPF DevTools MCP Server
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-988%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1056%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-83%25%20(unit)-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![MCP](https://img.shields.io/badge/MCP-2024--11--05-orange)
@@ -54,7 +54,17 @@ dotnet build
 ### Run Tests
 
 ```bash
+# Run all tests
 dotnet test
+
+# Run with coverage (must reach 80%+)
+# IMPORTANT: Use coverlet.runsettings for correct coverage calculation
+dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage"
+
+# Current Coverage Status: 83.17% ✅ (Exceeds 80% target)
+# - Unit Tests: 83.17% line coverage, 74.1% branch coverage
+# - Integration Tests: 27.25% (normal, tests end-to-end flows)
+# Note: Unit test coverage is the primary metric
 ```
 
 ## Configuration

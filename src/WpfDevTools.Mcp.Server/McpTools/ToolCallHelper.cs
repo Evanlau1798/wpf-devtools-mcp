@@ -47,6 +47,8 @@ public static class ToolCallHelper
     /// Execute a tool and wrap the result as a CallToolResult.
     /// Detects tool errors by checking for { success: false } in the result.
     /// Uses single-pass serialization: object -> JsonElement -> check error -> raw text.
+    /// CRITICAL FIX: Enforces 5-second timeout on all tool executions to prevent server hang
+    /// if target process is frozen or unresponsive.
     /// </summary>
     /// <param name="execute">The tool's ExecuteAsync function</param>
     /// <param name="args">JSON arguments for the tool</param>
@@ -57,15 +59,39 @@ public static class ToolCallHelper
         JsonElement? args,
         CancellationToken cancellationToken)
     {
-        var result = await execute(args, cancellationToken).ConfigureAwait(false);
-        var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
-        var isError = IsToolResultError(jsonElement);
+        // CRITICAL FIX: Enforce 5-second timeout on all tool executions
+        // Prevents server hang if target process is frozen or unresponsive
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(5));
 
-        return new CallToolResult()
+        try
         {
-            Content = [new TextContentBlock() { Text = jsonElement.GetRawText() }],
-            IsError = isError
-        };
+            var result = await execute(args, cts.Token).ConfigureAwait(false);
+            var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
+            var isError = IsToolResultError(jsonElement);
+
+            return new CallToolResult()
+            {
+                Content = [new TextContentBlock() { Text = jsonElement.GetRawText() }],
+                IsError = isError
+            };
+        }
+        catch (OperationCanceledException) when (cts.Token.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            // Timeout occurred (our CTS was cancelled, but caller's token was not)
+            return new CallToolResult()
+            {
+                Content = [new TextContentBlock()
+                {
+                    Text = JsonSerializer.Serialize(new
+                    {
+                        success = false,
+                        error = "Tool execution timed out after 5 seconds. Target process may be frozen or unresponsive."
+                    }, SerializerOptions)
+                }],
+                IsError = true
+            };
+        }
     }
 
     /// <summary>
@@ -86,9 +112,17 @@ public static class ToolCallHelper
     /// <para>
     /// IMPORTANT: This cache is static and process-lifetime. The factory captures the
     /// SessionManager from the first invocation. This is correct because SessionManager
-    /// is registered as a DI singleton — only one instance exists per process. If the
-    /// hosting model ever changes to support multiple server instances per process,
-    /// this cache must be scoped accordingly.
+    /// is registered as a DI singleton in Program.cs — only one instance exists per process.
+    /// </para>
+    /// <para>
+    /// CRITICAL ASSUMPTION: If the hosting model ever changes to support multiple server
+    /// instances per process (e.g., multi-tenant scenarios), this cache MUST be scoped
+    /// to the server instance, not static. Current implementation assumes single-server-per-process.
+    /// </para>
+    /// <para>
+    /// Thread Safety: ConcurrentDictionary.GetOrAdd is thread-safe. Multiple concurrent calls
+    /// with the same key will result in only one factory invocation, with all callers receiving
+    /// the same instance.
     /// </para>
     /// </summary>
     /// <typeparam name="T">Tool type</typeparam>

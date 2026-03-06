@@ -26,7 +26,13 @@ public class GetTemplateTreeTool : PipeConnectedToolBase
         var depth = ParseIntParam(arguments, "depth");
 
         if (depth.HasValue && depth.Value > 100)
-            return new { success = false, error = "depth must be between 0 and 100" };
+            return new
+            {
+                success = false,
+                error = "depth must be between 0 and 100. Use smaller depth values for better performance (depth=2-3 recommended for most cases).",
+                providedDepth = depth,
+                suggestedAction = "retry_with_valid_depth"
+            };
 
         return await SendInspectorRequestAsync(processId, "get_template_tree",
             new { elementId, depth }, cancellationToken);

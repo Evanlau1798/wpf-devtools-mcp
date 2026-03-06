@@ -160,9 +160,9 @@ public static class ToolCallHelper
     /// to the server instance, not static. Current implementation assumes single-server-per-process.
     /// </para>
     /// <para>
-    /// Thread Safety: ConcurrentDictionary.GetOrAdd is thread-safe. Multiple concurrent calls
-    /// with the same key will result in only one factory invocation, with all callers receiving
-    /// the same instance.
+    /// Thread Safety: ConcurrentDictionary.GetOrAdd is thread-safe. The factory delegate may
+    /// be invoked by multiple threads concurrently, but only one result is stored and returned
+    /// to all callers. Extra instances created by concurrent factory calls are discarded by GC.
     /// </para>
     /// </summary>
     /// <typeparam name="T">Tool type</typeparam>

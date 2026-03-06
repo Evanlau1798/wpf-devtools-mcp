@@ -34,6 +34,10 @@ dotnet build
 dotnet run --project src/WpfDevTools.Mcp.Server/
 ```
 
+> **Security note**: By default the server runs without authentication or encryption.
+> For production use, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR`.
+> See [SECURITY.md](SECURITY.md) for details.
+
 ### Typical MCP workflow
 
 1. Call `get_processes` to discover WPF targets.

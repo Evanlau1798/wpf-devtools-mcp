@@ -5,7 +5,6 @@ obj/
 *.suo
 *.cache
 
-
 # Reference documentation (not committed)
 docs/
 
@@ -24,9 +23,23 @@ coverage-report.md
 # Temporary files
 *.tmp
 *.log
+build-output.txt
+test-output.txt
+unit-test-output.txt
+
+# Secrets and local certificates
+.env
+.env.*
+!.env.example
+*.pfx
+*.pwd
+*.key
+*.secret
+cert/
 
 # Worktrees
 .worktrees/
+.dotnet-home/
 
 #claude
 CLAUDE.md

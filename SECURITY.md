@@ -1,203 +1,77 @@
-# Security Policy
+# Security
 
-## Supported Versions
+This document describes the security controls that are actually implemented in the current codebase.
 
-We release security updates for the following versions:
+## Threat Model
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | ✓ Supported        |
-| < 0.1   | ✗ Not Supported    |
+The server can inspect and manipulate live WPF UI state. That means the relevant risks are:
 
-## Reporting a Vulnerability
+- a local process impersonating the inspector pipe endpoint
+- unauthenticated access to UI inspection or mutation tools
+- loading an unexpected inspector DLL during `connect`
+- leaking secrets or certificates through documentation or local files
 
-**Please do NOT report security vulnerabilities through public GitHub issues.**
+## Implemented Controls
 
-Instead, please report them via one of the following methods:
+### 1. DLL signature verification
 
-1. **Email**: Send details to the project maintainer (see GitHub profile)
-2. **GitHub Security Advisory**: Use the "Security" tab → "Report a vulnerability"
+- `connect` validates the inspector DLL before loading it.
+- Development-only bypass is available through `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK=1`.
+- Do not enable that bypass outside local development.
 
-### What to Include
+### 2. Named pipe authentication
 
-Please include the following information in your report:
+- Set `WPFDEVTOOLS_AUTH_SECRET` to enable HMAC challenge-response authentication.
+- The shared secret must be base64 encoded.
+- If the variable is not set, authentication is disabled.
 
-- Type of vulnerability (e.g., code injection, privilege escalation, information disclosure)
-- Full paths of source file(s) related to the vulnerability
-- Location of the affected source code (tag/branch/commit or direct URL)
-- Step-by-step instructions to reproduce the issue
-- Proof-of-concept or exploit code (if possible)
-- Impact of the vulnerability (what an attacker could achieve)
+### 3. TLS over named pipes
 
-### Response Timeline
+- Set `WPFDEVTOOLS_CERT_DIR` to enable TLS on the pipe connection.
+- The server creates or reuses a certificate inside that directory.
+- The client validates the inspector certificate subject and pins the expected thumbprint.
+- `WPFDEVTOOLS_CERT_THUMBPRINT` can override the expected thumbprint explicitly.
 
-- **Initial Response**: Within 48 hours
-- **Status Update**: Within 7 days
-- **Fix Timeline**: Depends on severity
-  - Critical: 1-2 weeks
-  - High: 2-4 weeks
-  - Medium: 4-8 weeks
-  - Low: Next release cycle
+### 4. Pipe access limits
 
-## Implemented Security Mechanisms
+- Inspector pipe ACLs are scoped to the current user and SYSTEM.
+- Requests are serialized through the pipe client and bounded by message framing limits.
+- Session-level request limiting is enforced by the server rate limiter.
 
-### Challenge-Response Authentication
+## Supported Environment Variables
 
-WPF DevTools uses HMAC-SHA256 Challenge-Response authentication to verify MCP Server identity before allowing Named Pipe communication.
+| Variable | Effect | Recommended usage |
+| --- | --- | --- |
+| `WPFDEVTOOLS_AUTH_SECRET` | Enables HMAC authentication | Set in production and shared securely between server and inspector |
+| `WPFDEVTOOLS_CERT_DIR` | Enables TLS using a local certificate directory | Use a directory with restricted filesystem permissions |
+| `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Use when you need deterministic certificate selection |
+| `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK` | Skips DLL signature validation | Local development only |
 
-**Protocol**:
-1. Inspector generates 32-byte cryptographic random challenge
-2. Inspector sends challenge to MCP Server over Named Pipe
-3. MCP Server computes `HMAC-SHA256(shared_secret, challenge)` and sends 32-byte response
-4. Inspector verifies response using constant-time comparison (`CryptographicOperations.FixedTimeEquals`)
-5. Inspector sends 1-byte result (1=success, 0=failure)
+No other `WPFDEVTOOLS_*` environment variable is currently implemented by the shipping server.
 
-**Key Management**:
-- 256-bit shared secret (minimum 32 bytes)
-- Auto-generated via `RandomNumberGenerator` if `WPFDEVTOOLS_AUTH_SECRET` environment variable is not set
-- Environment variable accepts Base64-encoded secret
-- Authentication has a 5-second timeout to prevent hung connections
+## Deployment Guidance
 
-### TLS 1.2 Encryption
+### Recommended production posture
 
-All Named Pipe IPC can be encrypted using SslStream with self-signed X.509 certificates.
+1. Set `WPFDEVTOOLS_AUTH_SECRET`.
+2. Set `WPFDEVTOOLS_CERT_DIR`.
+3. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT` if certificate identity must be fixed explicitly.
+4. Keep `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK` unset.
 
-**Implementation Details**:
-- **Algorithm**: RSA 2048-bit key, SHA-256 signature
-- **Protocol**: TLS 1.2 (TLS 1.3 is incompatible with Named Pipes on Windows)
-- **Certificate**: Self-signed, valid for 1 year, with Server Authentication EKU
-- **Storage**: PFX file in `%APPDATA%\WpfDevTools\certs\server.pfx`
-- **Password**: Random 32-byte password, protected via DPAPI (CurrentUser scope)
-- **Client Validation**: Verifies server certificate subject contains `CN=WpfDevTools-Inspector`
+### Secret handling
 
-**Forward Compatibility**: Authentication and encryption are optional. Connections without authentication/encryption remain supported for backward compatibility.
+- Store real secrets outside the repository.
+- Keep `.env`, certificate exports, private keys, and password files out of source control.
+- Prefer environment injection from your shell, CI secret store, or deployment system.
 
-### Named Pipe ACL Restrictions
+## Observability
 
-Named Pipes are created with explicit ACL rules:
-- Current user: Full Control
-- SYSTEM account: Full Control
-- All other users: Denied
+- MCP server logs write to file and stderr.
+- Inspector request logs include method name, correlation ID, process ID, duration, and success state.
+- When log backpressure drops entries, the logger emits a warning record once capacity becomes available again.
 
-### Async File Logging
+## Current Limitations
 
-Logging uses non-blocking `Channel<T>` based async I/O:
-- Bounded channel (10,000 entries max) with DropOldest overflow policy
-- Background task processes log queue without blocking callers
-- Automatic log rotation at 10 MB
-- Graceful flush on dispose (5-second timeout)
-
-### Rate Limiting
-
-MCP Server STDIN transport includes global rate limiting:
-- Default: 100 requests per minute
-- Configurable via `RateLimiter` class
-- Returns JSON-RPC error response when exceeded
-
-## Security Considerations
-
-### DLL Injection
-
-**Risk**: WPF DevTools uses DLL injection to inspect target applications.
-
-**Mitigations**:
-- Requires administrator privileges
-- DLL path validation (no network paths, no system directories, no path traversal)
-- Optional Authenticode signature verification
-- Inspector runs in-process with target application (same security context)
-
-**Recommendations**:
-- Only inject into applications you trust
-- Enable code signing verification in production: `WPFDEVTOOLS_REQUIRE_SIGNATURE=1`
-- Review DLL source code before building
-
-### Named Pipes Communication
-
-**Risk**: Inter-process communication via Named Pipes.
-
-**Mitigations**:
-- ACL-restricted pipes (current user + SYSTEM only)
-- Challenge-Response authentication (HMAC-SHA256)
-- TLS 1.2 encryption via SslStream (optional)
-- Local-only communication (no network access)
-- Message size limits (10 MB max)
-- Timeout protection on all operations
-- Rate limiting (100 requests/minute default)
-
-**Recommendations**:
-- Set `WPFDEVTOOLS_AUTH_SECRET` environment variable in production
-- Enable TLS encryption for sensitive environments
-- Run MCP Server and target application under the same user account
-- Do not expose Named Pipes to untrusted processes
-
-### Reflection-Based Property Modification
-
-**Risk**: `modify_viewmodel` and `execute_command` tools use reflection to modify application state.
-
-**Mitigations**:
-- Property blacklist prevents modification of sensitive properties (password, token, secret, etc.)
-- Audit logging of all modifications
-- Command execution requires `CanExecute` check
-
-**Recommendations**:
-- Use read-only tools (`get_viewmodel`, `get_bindings`) when possible
-- Review audit logs regularly
-- Consider implementing custom property whitelist for your application
-
-### Information Disclosure
-
-**Risk**: MCP tools can read application state, including potentially sensitive data.
-
-**Mitigations**:
-- Error messages sanitized to prevent path disclosure
-- No automatic data exfiltration
-- All operations require explicit MCP tool calls
-
-**Recommendations**:
-- Do not use on applications handling sensitive data in production
-- Intended for development and debugging only
-- Clear sensitive data from memory before inspection
-
-## Known Limitations
-
-1. **Self-Contained Single-File Apps**: Cannot inject (Snoop limitation)
-2. **Native AOT Apps**: Cannot inject
-3. **Trimmed Apps**: May fail if dependencies removed
-4. **Antivirus Software**: May block injection (requires code signing)
-
-## Security Best Practices
-
-### For Developers
-
-1. **Enable Code Signing**: Set `WPFDEVTOOLS_REQUIRE_SIGNATURE=1`
-2. **Review Audit Logs**: Check for unauthorized property modifications
-3. **Limit Tool Usage**: Use only necessary tools, avoid `execute_command` in production
-4. **Update Regularly**: Apply security patches promptly
-
-### For Users
-
-1. **Verify Source**: Only use official releases or build from source
-2. **Check Signatures**: Verify DLL signatures before injection
-3. **Isolate Environment**: Use in development/test environments only
-4. **Monitor Activity**: Watch for unexpected behavior after injection
-
-## Security Updates
-
-Security updates will be announced via:
-- GitHub Security Advisories
-- Release notes (CHANGELOG.md)
-- GitHub Releases page
-
-Subscribe to repository notifications to receive security alerts.
-
-## Acknowledgments
-
-We appreciate responsible disclosure of security vulnerabilities. Contributors who report valid security issues will be acknowledged in release notes (unless they prefer to remain anonymous).
-
-## Contact
-
-For security-related questions or concerns, please contact the project maintainers through GitHub.
-
----
-
-**Last Updated**: 2026-03-06
+- Authentication and TLS are opt-in, not automatic.
+- TLS uses locally managed certificates rather than OS-trusted PKI by default.
+- HTTP transport is not part of the current shipping server, so this document covers STDIO plus named-pipe inspector communication only.

@@ -6,6 +6,7 @@ using System.Security.Principal;
 using System.Security.AccessControl;
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Security;
@@ -38,7 +39,12 @@ public sealed partial class InspectorHost : IDisposable
     /// </summary>
     /// <param name="processId">Process ID of the target WPF application</param>
     public InspectorHost(int processId)
-        : this(processId, null, null)
+        : this(processId, CreatePipeName(processId), null, null)
+    {
+    }
+
+    internal InspectorHost(int processId, string pipeName)
+        : this(processId, pipeName, null, null)
     {
     }
 
@@ -48,7 +54,7 @@ public sealed partial class InspectorHost : IDisposable
     /// <param name="processId">Process ID of the target WPF application</param>
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     public InspectorHost(int processId, AuthenticationManager? authManager)
-        : this(processId, authManager, null)
+        : this(processId, CreatePipeName(processId), authManager, null)
     {
     }
 
@@ -59,9 +65,20 @@ public sealed partial class InspectorHost : IDisposable
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     /// <param name="certManager">Certificate manager for SslStream encryption (null to disable encryption)</param>
     public InspectorHost(int processId, AuthenticationManager? authManager, CertificateManager? certManager)
+        : this(processId, CreatePipeName(processId), authManager, certManager)
+    {
+    }
+
+    internal InspectorHost(
+        int processId,
+        string pipeName,
+        AuthenticationManager? authManager,
+        CertificateManager? certManager)
     {
         _processId = processId;
-        _pipeName = $"WpfDevTools_{processId}";
+        _pipeName = string.IsNullOrWhiteSpace(pipeName)
+            ? CreatePipeName(processId)
+            : pipeName;
         var logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_Inspector_{processId}.log");
         _logger = new FileLogger(logPath);
         _dispatcher = new RequestDispatcher(_logger);
@@ -69,6 +86,8 @@ public sealed partial class InspectorHost : IDisposable
         _certManager = certManager;
         _challengeGenerator = new ChallengeGenerator();
     }
+
+    private static string CreatePipeName(int processId) => $"WpfDevTools_{processId}";
 
     /// <summary>
     /// Start the Named Pipe server
@@ -90,6 +109,7 @@ public sealed partial class InspectorHost : IDisposable
             _isRunning = true;
         }
     }
+
 
     /// <summary>
     /// Stop the Named Pipe server
@@ -253,8 +273,18 @@ public sealed partial class InspectorHost : IDisposable
                     continue;
                 }
 
+                var stopwatch = Stopwatch.StartNew();
                 // Process request
                 var response = await ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
+                stopwatch.Stop();
+
+                _logger.LogRequest(
+                    request.Method,
+                    request.CorrelationId,
+                    _processId,
+                    stopwatch.ElapsedMilliseconds,
+                    response.Error == null,
+                    response.Error?.Message);
 
                 // Send response
                 var responseJson = JsonSerializer.Serialize(response);
@@ -342,3 +372,10 @@ public sealed partial class InspectorHost : IDisposable
         _logger.Dispose();
     }
 }
+
+
+
+
+
+
+

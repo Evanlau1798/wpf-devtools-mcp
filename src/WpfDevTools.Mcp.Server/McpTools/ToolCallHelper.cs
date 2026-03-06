@@ -28,7 +28,7 @@ public static class ToolCallHelper
     /// <summary>
     /// Build a JsonElement from a dictionary of named parameters.
     /// Null values are excluded from the resulting JSON object.
-    /// Note: value types (int, bool) are boxed via the object? parameter — acceptable
+    /// Note: value types (int, bool) are boxed via the object? parameter ??acceptable
     /// since tool calls are not a hot path (~1-10 calls/second).
     /// </summary>
     /// <param name="parameters">Named parameter tuples</param>
@@ -60,6 +60,7 @@ public static class ToolCallHelper
     /// <param name="execute">The tool's ExecuteAsync function</param>
     /// <param name="args">JSON arguments for the tool</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <param name="timeoutSeconds">Optional override for tool timeout in seconds.</param>
     /// <param name="toolName">Tool name for metrics (auto-populated from caller method name)</param>
     /// <returns>CallToolResult with IsError set appropriately</returns>
     public static async Task<CallToolResult> ExecuteAndWrapAsync(
@@ -151,7 +152,7 @@ public static class ToolCallHelper
     /// <para>
     /// IMPORTANT: This cache is static and process-lifetime. The factory captures the
     /// SessionManager from the first invocation. This is correct because SessionManager
-    /// is registered as a DI singleton in Program.cs — only one instance exists per process.
+    /// is registered as a DI singleton in Program.cs ??only one instance exists per process.
     /// </para>
     /// <para>
     /// CRITICAL ASSUMPTION: If the hosting model ever changes to support multiple server
@@ -179,3 +180,5 @@ public static class ToolCallHelper
         _metrics = null;
     }
 }
+
+

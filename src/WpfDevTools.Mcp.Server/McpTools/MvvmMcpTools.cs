@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
@@ -189,7 +190,7 @@ public static class MvvmMcpTools
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("ViewModel property name to update at runtime.")] string propertyName,
-        [Description("New property value serialized as a string.")] string value,
+        [Description("New property value encoded as raw JSON.")] JsonElement value,
         [Description("Optional element ID whose DataContext owns the property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

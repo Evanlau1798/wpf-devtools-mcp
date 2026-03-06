@@ -17,7 +17,8 @@ public class RequestDispatcherTests
         {
             Id = "test-1",
             Method = "unknown_method",
-            Params = null
+            Params = null,
+            CorrelationId = "corr-1"
         };
 
         // Act
@@ -26,6 +27,7 @@ public class RequestDispatcherTests
         // Assert
         response.Should().NotBeNull();
         response.Id.Should().Be("test-1");
+        response.CorrelationId.Should().Be("corr-1");
         response.Result.Should().BeNull();
         response.Error.Should().NotBeNull();
         response.Error!.Code.Should().Be(ErrorCode.MethodNotFound);
@@ -58,6 +60,27 @@ public class RequestDispatcherTests
         successProp.GetBoolean().Should().BeTrue();
         result.TryGetProperty("status", out var statusProp).Should().BeTrue();
         statusProp.GetString().Should().Be("pong");
+    }
+
+    [Fact]
+    public async Task DispatchRequest_WithPingMethod_ShouldPreserveCorrelationId()
+    {
+        // Arrange
+        var dispatcher = new WpfDevTools.Inspector.Host.RequestDispatcher(new WpfDevTools.Shared.Utilities.FileLogger());
+        var request = new InspectorRequest
+        {
+            Id = "test-2b",
+            Method = "ping",
+            Params = null,
+            CorrelationId = "corr-ping"
+        };
+
+        // Act
+        var response = await dispatcher.DispatchAsync(request, CancellationToken.None);
+
+        // Assert
+        response.Error.Should().BeNull();
+        response.CorrelationId.Should().Be("corr-ping");
     }
 
     [Fact]

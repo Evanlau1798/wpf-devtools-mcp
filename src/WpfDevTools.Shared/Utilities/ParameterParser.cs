@@ -92,6 +92,22 @@ public static class ParameterParser
     }
 
     /// <summary>
+    /// Parse a raw JSON parameter from JSON arguments
+    /// </summary>
+    /// <param name="arguments">JSON element containing arguments</param>
+    /// <param name="paramName">Name of parameter to parse</param>
+    /// <returns>Cloned JsonElement if parameter exists, null otherwise</returns>
+    public static JsonElement? ParseJsonParam(JsonElement? arguments, string paramName)
+    {
+        if (arguments.HasValue && arguments.Value.TryGetProperty(paramName, out var prop))
+        {
+            return prop.Clone();
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Validate elementId format to prevent path traversal and injection attacks
     /// </summary>
     /// <param name="elementId">Element ID to validate</param>

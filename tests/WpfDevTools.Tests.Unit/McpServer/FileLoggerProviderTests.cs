@@ -78,14 +78,14 @@ public class FileLoggerProviderTests : IDisposable
     }
 
     [Fact]
-    public void Logger_BeginScope_ShouldReturnNull()
+    public void Logger_BeginScope_ShouldReturnDisposable()
     {
         using var provider = new FileLoggerProvider(_fileLogger);
         var logger = provider.CreateLogger("Test");
 
         var scope = logger.BeginScope("test scope");
 
-        scope.Should().BeNull();
+        scope.Should().NotBeNull();
     }
 
     [Fact]
@@ -177,6 +177,26 @@ public class FileLoggerProviderTests : IDisposable
         content.Should().Contain("[ErrorTest]");
         content.Should().Contain("Something failed");
         content.Should().Contain("test-exception");
+    }
+
+    [Fact]
+    public async Task Logger_LogInformation_WithScope_ShouldWriteScopeContextToFile()
+    {
+        using var provider = new FileLoggerProvider(_fileLogger);
+        var logger = provider.CreateLogger("ScopedCategory");
+
+        using (logger.BeginScope("session-42"))
+        {
+            logger.LogInformation("Scoped message");
+        }
+
+        await Task.Delay(200);
+        _fileLogger.Dispose();
+
+        var content = await File.ReadAllTextAsync(_logFilePath);
+        content.Should().Contain("ScopedCategory");
+        content.Should().Contain("Scoped message");
+        content.Should().Contain("session-42");
     }
 
     [Fact]

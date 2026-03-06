@@ -8,9 +8,10 @@ namespace WpfDevTools.Mcp.Server;
 /// Enables integration with the SDK's logging pipeline while preserving
 /// the Channel-based async I/O and log rotation capabilities of FileLogger.
 /// </summary>
-public sealed class FileLoggerProvider : ILoggerProvider, IAsyncDisposable
+public sealed class FileLoggerProvider : ILoggerProvider, IAsyncDisposable, ISupportExternalScope
 {
     private readonly FileLogger _fileLogger;
+    private IExternalScopeProvider _scopeProvider = new LoggerExternalScopeProvider();
     private volatile bool _disposed;
 
     /// <summary>
@@ -27,18 +28,18 @@ public sealed class FileLoggerProvider : ILoggerProvider, IAsyncDisposable
         new FileLoggerAdapter(this, _fileLogger, categoryName);
 
     /// <inheritdoc />
+    public void SetScopeProvider(IExternalScopeProvider scopeProvider)
+    {
+        _scopeProvider = scopeProvider ?? new LoggerExternalScopeProvider();
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         _disposed = true;
-        // FileLogger lifecycle managed externally (registered as singleton in DI,
-        // disposed in Program.cs finally block)
     }
 
-    /// <summary>
-    /// Async dispose required by the hosting infrastructure (IHost calls IAsyncDisposable
-    /// on registered providers during shutdown). The actual work is synchronous since we
-    /// only flip a flag — FileLogger's Channel-based flush is managed externally.
-    /// </summary>
+    /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
         Dispose();
@@ -58,7 +59,8 @@ public sealed class FileLoggerProvider : ILoggerProvider, IAsyncDisposable
             _categoryName = categoryName;
         }
 
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull =>
+            _provider._scopeProvider.Push(state);
 
         public bool IsEnabled(LogLevel logLevel) =>
             !_provider._disposed && logLevel >= LogLevel.Information;
@@ -71,28 +73,38 @@ public sealed class FileLoggerProvider : ILoggerProvider, IAsyncDisposable
             Func<TState, Exception?, string> formatter)
         {
             if (!IsEnabled(logLevel))
+            {
                 return;
+            }
 
             var message = $"[{_categoryName}] {formatter(state, exception)}";
+            var scopes = CaptureScopes();
+            var structuredState = state as IEnumerable<KeyValuePair<string, object?>>;
 
-            if (exception != null)
+            _fileLogger.LogStructured(MapLevel(logLevel), message, new
             {
-                message += $"\n{exception}";
-            }
-
-            switch (logLevel)
-            {
-                case LogLevel.Error:
-                case LogLevel.Critical:
-                    _fileLogger.LogError(message);
-                    break;
-                case LogLevel.Warning:
-                    _fileLogger.LogWarning(message);
-                    break;
-                default:
-                    _fileLogger.LogInfo(message);
-                    break;
-            }
+                category = _categoryName,
+                eventId = eventId.Id,
+                eventName = eventId.Name,
+                state = structuredState,
+                scopes,
+                exception = exception?.ToString()
+            });
         }
+
+        private List<string> CaptureScopes()
+        {
+            var scopes = new List<string>();
+            _provider._scopeProvider.ForEachScope((scope, state) => state.Add(scope?.ToString() ?? string.Empty), scopes);
+            return scopes;
+        }
+
+        private static string MapLevel(LogLevel logLevel) => logLevel switch
+        {
+            LogLevel.Critical => "CRITICAL",
+            LogLevel.Error => "ERROR",
+            LogLevel.Warning => "WARNING",
+            _ => "INFO"
+        };
     }
 }

@@ -16,16 +16,15 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
     /// <summary>
     /// Execute the element_screenshot tool to capture a screenshot of an element
     /// </summary>
-    /// <param name="arguments">JSON arguments containing processId, optional elementId, and optional outputPath</param>
+    /// <param name="arguments">JSON arguments containing processId and optional elementId</param>
     /// <param name="cancellationToken">Cancellation token for async operation</param>
     /// <returns>Tool result containing screenshot path or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);
         if (error != null) return error;
-        var outputPath = ParseStringParam(arguments, "outputPath");
 
         return await SendInspectorRequestAsync(processId, "element_screenshot",
-            new { elementId, outputPath }, cancellationToken);
+            new { elementId }, cancellationToken);
     }
 }

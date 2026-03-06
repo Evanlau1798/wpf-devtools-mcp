@@ -1,1000 +1,110 @@
 # WPF DevTools MCP Server
 
-![Build Status](https://img.shields.io/badge/build-validated-brightgreen)
-![Tests](https://img.shields.io/badge/tests-unit%20%2B%20integration-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-target%2080%25%2B-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
-![MCP](https://img.shields.io/badge/MCP-2024--11--05-orange)
+`wpf-devtools-mcp` is a Model Context Protocol server for inspecting and interacting with running WPF applications. It bridges MCP clients to an in-process inspector so agents can query visual trees, inspect bindings, analyze dependency properties, and trigger UI interactions that out-of-process tooling cannot access.
 
-A Model Context Protocol (MCP) server that enables AI agents to deeply inspect and interact with running WPF applications through in-process DLL injection.
+## Current State
 
-## Features
+- Shipping transport is STDIO only. The server is wired through `WithStdioServerTransport()`.
+- The server bootstrap uses `Host.CreateEmptyApplicationBuilder(...)` so the process does not inherit default console logging that could pollute `stdout`.
+- MCP clients should treat tool discovery as the source of truth for detailed schemas; this README stays intentionally high level.
+- HTTP/SSE work remains planned and is not part of the current server binary.
 
-### Core Capabilities
+## Why This Server Exists
 
-- **Process Management**: Discover and connect to running WPF applications
-- **Visual Tree Inspection**: Browse and analyze the Visual and Logical trees
-- **Binding Diagnostics**: Detect and diagnose binding errors and DataContext chains
-- **MVVM Support**: Inspect ViewModels, execute commands, and modify properties
-- **DependencyProperty Analysis**: Analyze value sources, metadata, and precedence
-- **Style & Template Inspection**: Examine applied styles, triggers, and templates
-- **RoutedEvent Tracing**: Trace event routing and fire custom events
-- **Layout Analysis**: Inspect layout information, clipping, and transforms
-- **Performance Diagnostics**: Measure render statistics and detect binding leaks
-- **Element Interaction**: Click elements, simulate keyboard input, and capture screenshots
-
-### Unique Value Proposition
-
-First free, open-source MCP server providing WPF-specific deep inspection capabilities that are impossible with out-of-process tools:
-- Direct access to `BindingOperations`, `DependencyPropertyHelper`, and Visual Tree internals
-- In-process execution for accurate binding error detection
-- Property watching and event diagnostics work best as request/response tools today; real-time push delivery requires future HTTP transport
-- Command execution with CanExecute validation
-
-## Installation
-
-### Prerequisites
-
-- .NET 8.0 SDK or later
-- .NET Framework 4.8 targeting pack (for multi-targeting support)
-- Windows 10 or later
-- Administrator privileges may be required for DLL injection
-- Target WPF application must be running
-- Visual Studio 2022 or VS Code (optional)
-
-### Build from Source
-
-```bash
-git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
-cd wpf-devtools-mcp
-dotnet build
-```
-
-### Run Tests
-
-```bash
-# Run all tests
-dotnet test
-
-# Run with coverage (must reach 80%+)
-# IMPORTANT: Use coverlet.runsettings for correct coverage calculation
-dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage"
-
-# Coverage target: keep unit coverage at or above 80%
-# Note: unit coverage is the primary quality gate; integration coverage tracks end-to-end behavior
-```
-
-## Configuration
-
-### Claude Desktop
-
-Add to `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "wpf-devtools": {
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj",
-        "--no-build"
-      ],
-      "env": {}
-    }
-  }
-}
-```
-
-> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory. Run `dotnet build` once before first use. The `--no-build` flag is recommended for faster startup per the [official MCP documentation](https://modelcontextprotocol.io/docs/develop/build-server#c).
-
-### Cursor
-
-Add to `.cursor/mcp.json`:
-
-```json
-{
-  "mcp": {
-    "servers": {
-      "wpf-devtools": {
-        "command": "dotnet",
-        "args": [
-          "run",
-          "--project",
-          "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj",
-          "--no-build"
-        ]
-      }
-    }
-  }
-}
-```
-
-> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory. Run `dotnet build` once before first use.
-
-### VS Code with MCP Extension
-
-Add to `settings.json`:
-
-```json
-{
-  "mcp.servers": {
-    "wpf-devtools": {
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj",
-        "--no-build"
-      ],
-      "transport": "stdio"
-    }
-  }
-}
-```
-
-> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory. Run `dotnet build` once before first use.
+- WPF binding internals, dependency property precedence, and routed event graphs require in-process access.
+- AI agents need compact, reliable diagnostics instead of raw Visual Tree dumps or protocol trivia.
+- The project focuses on AI-friendly tool metadata, predictable workflows, and safe-by-default documentation.
 
 ## Quick Start
 
-### Using with an AI Agent (Recommended)
+### Prerequisites
 
-After configuring your AI client (see Configuration above), simply ask your AI agent:
+- Windows with .NET SDK 8.0+
+- A target WPF application running under the same user account
 
-1. **"List all running WPF processes"** ??Uses `get_processes`
-2. **"Connect to process [PID]"** ??Uses `connect`
-3. **"Show me the visual tree"** ??Uses `get_visual_tree`
-4. **"Find any binding errors"** ??Uses `get_binding_errors`
+### Build
 
-### Manual Testing (Developer Mode)
+```powershell
+dotnet build
+```
 
-Start the MCP server directly:
+### Run the server
 
-```bash
+```powershell
 dotnet run --project src/WpfDevTools.Mcp.Server/
 ```
 
-The server communicates via STDIO using the MCP protocol.
+### Typical MCP workflow
 
-### Raw MCP Protocol (Advanced)
+1. Call `get_processes` to discover WPF targets.
+2. Call `connect(processId)` before any process-specific tool.
+3. Use tree tools first (`get_visual_tree`, `get_logical_tree`) to obtain `elementId` values.
+4. Move to diagnostics (`get_bindings`, `get_binding_errors`, `get_dp_value_source`) or interaction tools (`click_element`, `simulate_keyboard`, `element_screenshot`).
 
-For direct protocol interaction, the server accepts JSON-RPC messages over STDIO.
+## MCP Client Notes
 
-List running WPF applications:
+- Register this server as a local STDIO command.
+- Keep all logs off `stdout`; the server already routes operational logs to stderr and file output.
+- Prefer MCP tool discovery instead of hard-coding request shapes in prompts or scripts.
 
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "get_processes",
-    "arguments": {}
-  }
-}
-```
+## Important Contract Notes
 
-Connect to a specific process:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/call",
-  "params": {
-    "name": "connect",
-    "arguments": {
-      "processId": 12345
-    }
-  }
-}
-```
-
-Inspect the Visual Tree:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 3,
-  "method": "tools/call",
-  "params": {
-    "name": "get_visual_tree",
-    "arguments": {
-      "processId": 12345,
-      "depth": 3
-    }
-  }
-}
-```
-
-## Usage with AI Agents
-
-Once configured, AI agents can interact with WPF applications using natural language:
-
-**Example 1: Debugging Binding Errors**
-```
-"Show me all binding errors in the running WPF application"
-??Agent uses: get_processes ??connect ??get_binding_errors
-```
-
-**Example 2: Inspecting UI Structure**
-```
-"What's the visual tree structure of the main window?"
-??Agent uses: get_processes ??connect ??get_visual_tree
-```
-
-**Example 3: Testing User Interactions**
-```
-"Click the 'Submit' button and check if the command executed"
-??Agent uses: get_visual_tree (find button) ??click_element ??get_commands
-```
-
-**Example 4: MVVM Debugging**
-```
-"What's the current DataContext and what commands are available?"
-??Agent uses: get_viewmodel ??get_commands
-```
-
-**Example 5: Performance Analysis**
-```
-"Find potential binding memory leaks in the application"
-??Agent uses: find_binding_leaks ??get_bindings (for details)
-```
+- `element_screenshot` returns `base64Image`, `width`, `height`, and `format`.
+- `set_dp_value`, `modify_viewmodel`, and `override_style_setter` accept raw JSON values, not string-only payloads.
+- `compare_trees` accepts an optional `elementId`.
+- `force_binding_update` accepts an optional `direction`.
+- `drag_and_drop` accepts an optional `dataFormat`.
+- `simulate_keyboard` accepts an optional `eventType`.
+- `fire_routed_event` accepts optional JSON `eventArgs`.
 
 ## Security
 
-WPF DevTools MCP Server includes multiple layers of security to protect Named Pipe IPC communication.
+The current implementation supports opt-in transport hardening through environment variables.
 
-### Authentication
+| Variable | Purpose | Notes |
+| --- | --- | --- |
+| `WPFDEVTOOLS_AUTH_SECRET` | Enables HMAC challenge-response authentication | Use a base64 secret in production |
+| `WPFDEVTOOLS_CERT_DIR` | Enables TLS over named pipes using a local certificate store | Use a private directory per environment |
+| `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected inspector certificate | Useful when you want strict certificate selection |
+| `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK` | Disables DLL signature verification for local development only | Do not enable in production |
 
-Challenge-Response authentication using HMAC-SHA256 prevents unauthorized connections to Inspector DLLs.
+Security deployment guidance lives in `SECURITY.md`.
 
-**How it works**:
-1. Inspector generates a 32-byte random challenge
-2. MCP Server computes HMAC-SHA256 response using the shared secret
-3. Inspector verifies the response using constant-time comparison
-4. Connection proceeds only if authentication succeeds
+## Documentation Map
 
-**Configuration**:
+- `SECURITY.md` — supported security settings and deployment guidance
+- `EXAMPLES.md` — usage examples for common tools and workflows
+- Detailed MCP tool metadata is maintained in code through the official SDK attributes to reduce README drift.
 
-```powershell
-# Set shared secret (base64-encoded, minimum 32 bytes)
-$secretBytes = New-Object byte[] 32
-[System.Security.Cryptography.RandomNumberGenerator]::Fill($secretBytes)
-$env:WPFDEVTOOLS_AUTH_SECRET = [Convert]::ToBase64String($secretBytes)
-```
+## Official References
 
-If `WPFDEVTOOLS_AUTH_SECRET` is not set, a random secret is auto-generated per session.
+- [MCP build-server guide (C#)](https://modelcontextprotocol.io/docs/develop/build-server#c)
+- [ModelContextProtocol C# SDK API](https://csharp.sdk.modelcontextprotocol.io/api/ModelContextProtocol.html)
 
-### Communication Encryption
+## Development Notes
 
-All Named Pipe communication can be encrypted using TLS 1.2 over SslStream with self-signed X.509 certificates.
+- Production code and tests aim to stay below 500 lines per file.
+- New features and fixes are expected to follow TDD: failing test first, minimal implementation second, refactor third.
+- WPF-specific STA constraints are documented in the repository instructions and test suite conventions.
 
-**Features**:
-- RSA 2048-bit self-signed certificates with auto-generation and file persistence
-- TLS 1.2 encryption (TLS 1.3 is incompatible with Named Pipes on Windows)
-- Certificate reuse across sessions (stored in `%APPDATA%\WpfDevTools\certs\`)
-- Machine-specific PFX password protection
+## Repository Layout
 
-### Async Logging
-
-Both MCP Server and Inspector use non-blocking async logging via bounded Channel queues:
-- No UI thread blocking even under high error frequency
-- Automatic log rotation at 10 MB
-- Background queue processing with graceful shutdown flush
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `WPFDEVTOOLS_AUTH_SECRET` | Base64-encoded shared secret (min 32 bytes) | Auto-generated |
-| `WPFDEVTOOLS_CERT_DIR` | Directory for TLS certificates | `%APPDATA%\WpfDevTools\certs` |
-| `WPFDEVTOOLS_CERT_THUMBPRINT` | Pin to specific certificate thumbprint for TLS validation | Not set (any valid cert accepted) |
-| `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK` | Skip Authenticode DLL signature check (DEBUG builds only) | `0` (always verify in Release) |
-
-For production deployment guidance, see [Security Policy](SECURITY.md).
-
-## MCP Protocol Compliance
-
-This server implements MCP protocol version `2024-11-05` using the [official C# MCP SDK](https://modelcontextprotocol.github.io/csharp-sdk/api/ModelContextProtocol.html) (`ModelContextProtocol` v1.0.0 NuGet package). Protocol compliance, JSON-RPC handling, and transport management are provided by the SDK.
-
-**SDK Integration**:
-- **Rich MCP tool surface** registered via `[McpServerTool]` attributes with AI-optimized `[Description]` text
-- **Automatic JSON Schema generation** for tool parameters by the SDK, backed by per-parameter `[Description]` metadata
-- **DI integration** via `Microsoft.Extensions.Hosting` for `SessionManager`, `RateLimiter`, and `MetricsCollector`
-- **STDIO transport** via `WithStdioServerTransport()` for AI agent communication
-
-## Architecture
-
-```mermaid
-graph TB
-    Agent[AI Agent<br/>Claude Code/Cursor/etc]
-    MCP[MCP Server<br/>Tool Router + Session Manager]
-    Inspector[Inspector DLL<br/>In-Process]
-    WPF[Target WPF Application<br/>Visual Tree + Bindings]
-
-    Agent -->|MCP Protocol<br/>STDIO (current)<br/>HTTP+SSE (planned)| MCP
-    MCP -->|Named Pipes IPC<br/>0.1-1ms latency| Inspector
-    Inspector -->|Direct Memory Access<br/>Dispatcher.Invoke| WPF
-
-    style Agent fill:#e1f5ff
-    style MCP fill:#fff4e1
-    style Inspector fill:#ffe1f5
-    style WPF fill:#e1ffe1
-```
-
-### Key Design Decisions
-
-- **In-Process Injection**: Required for accessing WPF internals (see [ADR-002](docs/architecture/ADR-002-in-process-injection.md))
-- **Named Pipes**: Message mode with length-prefix framing (see [ADR-001](docs/architecture/ADR-001-named-pipes-for-ipc.md) and [ADR-003](docs/architecture/ADR-003-length-prefix-framing.md))
-- **UI Thread Marshalling**: All Visual Tree operations use `Dispatcher.Invoke()`
-- **Token Efficiency**: Tree tools support `depth` parameter; use `elementId` to scope operations
-- **Multi-Targeting**: Supports .NET 8.0 and .NET Framework 4.8 (see [ADR-005](docs/architecture/ADR-005-multi-targeting-strategy.md))
-
-## MCP Tools
-
-### 1. Process Management
-
-#### get_processes
-List all running WPF applications.
-
-**Parameters**:
-- `nameFilter` (optional): Filter processes by name (case-insensitive substring match)
-
-**Returns**: Array of process information (PID, processName, windowTitle, architecture, .NET version)
-
-#### connect
-Connect to a WPF application (performs injection if needed).
-
-**Parameters**:
-- `processId` (required): Process ID to connect to
-
-**Returns**: Connection status
-
-#### ping
-Verify connection health and measure latency.
-
-**Parameters**:
-- `processId` (required): Process ID
-
-**Returns**: Latency in milliseconds
-
-### 2. Tree & XAML
-
-#### get_visual_tree
-Retrieve the Visual Tree structure.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Root element ID (omit for root window)
-- `depth` (optional): Maximum tree depth (default: 10)
-
-**Returns**: Visual Tree structure
-
-#### get_logical_tree
-Retrieve the Logical Tree structure.
-
-**Parameters**: Same as `get_visual_tree`
-
-**Returns**: Logical Tree structure
-
-#### compare_trees
-Compare Visual and Logical trees to identify differences.
-
-**Parameters**:
-- `processId` (required): Process ID
-
-**Returns**: Comparison result with differences highlighted
-
-#### serialize_to_xaml
-Serialize element to XAML.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (default: root)
-
-**Returns**: XAML string
-
-#### get_namescope
-Get NameScope for element lookup.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (default: root)
-
-**Returns**: NameScope dictionary
-
-#### get_template_tree
-Get the template Visual Tree.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-- `depth` (optional): Maximum tree depth (default: 10, max: 100)
-
-**Returns**: Template tree structure
-
-### 3. Binding Diagnostics
-
-#### get_bindings
-Get all bindings for an element or tree.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (default: root)
-- `recursive` (optional): Include child elements (default: false)
-
-**Returns**: Array of binding information
-
-#### get_binding_errors
-Get all binding errors in the application.
-
-**Parameters**:
-- `processId` (required): Process ID
-
-**Returns**: Array of binding errors with details
-
-#### get_binding_value_chain
-Get the complete value resolution chain for a binding.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (defaults to root window)
-- `propertyName` (required): Property name
-
-**Returns**: Value chain from source to target
-
-#### get_datacontext_chain
-Get the DataContext inheritance chain.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (default: root)
-
-**Returns**: DataContext chain from element to root
-
-#### force_binding_update
-Force a binding to update.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (defaults to root window)
-- `propertyName` (required): Property name
-
-**Returns**: Update result
-
-### 4. DependencyProperty
-
-#### get_dp_value_source
-Get the value source for a DependencyProperty.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-- `propertyName` (required): Property name
-
-**Returns**: Value source (Local, Style, Template, Inherited, Default)
-
-#### get_dp_metadata
-Get metadata for a DependencyProperty.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `propertyName` (required): Property name
-
-**Returns**: Property metadata
-
-#### set_dp_value
-Set a DependencyProperty value.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-- `propertyName` (required): Property name
-- `value` (required): New value
-
-**Returns**: Success status
-
-#### clear_dp_value
-Clear a DependencyProperty local value.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-- `propertyName` (required): Property name
-
-**Returns**: Success status
-
-#### watch_dp_changes
-Watch for DependencyProperty changes.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-- `propertyName` (required): Property name
-
-**Returns**: Watch registration status. In the current STDIO transport, this is registration-only; events are not pushed, so poll with `get_dp_value_source` instead.
-
-### 5. Style/Template
-
-#### get_applied_styles
-Get all applied styles for an element.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (defaults to root window)
-
-**Returns**: Array of applied styles
-
-#### get_triggers
-Get all triggers for an element.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-
-**Returns**: Array of triggers with conditions
-
-#### get_resource_chain
-Get the resource lookup chain.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (defaults to root window)
-- `resourceKey` (required): Resource key
-
-**Returns**: Resource chain from element to application
-
-#### override_style_setter
-Override a style setter value.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (defaults to root window)
-- `propertyName` (required): Property name
-- `value` (required): New value
-
-**Returns**: Success status
-
-### 6. RoutedEvent
-
-#### trace_routed_events
-Trace routed event propagation.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `eventName` (required): Event name
-- `elementId` (optional): Element ID to scope tracing
-- `durationMs` (optional): Capture window in milliseconds
-
-**Returns**: Collected event trace records after the capture window completes (`eventCount`, `events`). For ongoing push-style event streaming, wait for future HTTP transport support.
-
-#### get_event_handlers
-Get all handlers for a routed event.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID to scope inspection
-- `eventName` (required): Event name
-
-**Returns**: Array of event handlers
-
-#### fire_routed_event
-Fire a routed event.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID to target
-- `eventName` (required): Event name
-
-**Returns**: Success status
-
-### 7. Interaction
-
-#### click_element
-Simulate a mouse click on an element.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-
-**Returns**: Success status
-
-#### drag_and_drop
-Simulate drag and drop.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `sourceElementId` (required): Source element ID
-- `targetElementId` (required): Target element ID
-- `dataFormat` (optional): Data format (default: "Text")
-
-**Returns**: Success status
-
-#### scroll_to_element
-Scroll an element into view.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-
-**Returns**: Success status
-
-#### simulate_keyboard
-Simulate keyboard input.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-- `key` (required): Key name (e.g., "A", "Enter", "Escape", "Tab")
-- `eventType` (optional): "KeyDown" or "KeyUp" (default: "KeyDown")
-
-**Returns**: Success status
-
-#### element_screenshot
-Capture a screenshot of an element.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-
-**Returns**: Base64-encoded PNG image
-
-### 8. Layout
-
-#### get_layout_info
-Get layout information for an element.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-
-**Returns**: Layout information (ActualWidth, ActualHeight, DesiredSize, RenderSize)
-
-#### highlight_element
-Highlight an element in the UI.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-- `color` (optional): Highlight color (default: "Red")
-- `duration` (optional): Highlight duration in ms (default: 2000)
-
-**Returns**: Success status
-
-#### get_clipping_info
-Get clipping information for an element.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-
-**Returns**: Clipping geometry
-
-#### invalidate_layout
-Force a layout update.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (default: root)
-
-**Returns**: Success status
-
-### 9. MVVM
-
-#### get_viewmodel
-Get ViewModel from DataContext.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-
-**Returns**: ViewModel type and properties
-
-#### get_commands
-Get all ICommand properties from ViewModel.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-
-**Returns**: Array of commands with CanExecute status
-
-#### execute_command
-Execute a command.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-- `commandName` (required): Command name
-- `parameter` (optional): Command parameter
-
-**Returns**: Execution result
-
-#### modify_viewmodel
-Modify a ViewModel property.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (required): Element ID
-- `propertyName` (required): Property name
-- `value` (required): New value
-
-**Returns**: Success status
-
-#### get_validation_errors
-Get all validation errors.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (default: all)
-
-**Returns**: Array of validation errors
-
-### 10. Performance
-
-#### get_render_stats
-Get rendering statistics.
-
-**Parameters**:
-- `processId` (required): Process ID
-
-**Returns**: Frame rate, frame time, visual count
-
-#### find_binding_leaks
-Find potential binding memory leaks.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `threshold` (optional): Leak threshold (default: 100)
-
-**Returns**: Array of potential leaks
-
-#### measure_element_render_time
-Measure element render time.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (default: root)
-
-**Returns**: Render time in milliseconds
-
-#### get_visual_count
-Get visual element count.
-
-**Parameters**:
-- `processId` (required): Process ID
-- `elementId` (optional): Element ID (default: root)
-
-**Returns**: Total visual element count
-
-## SDK Mode (Opt-in)
-
-For applications that cannot use DLL injection (single-file apps, Native AOT, etc.), use the SDK mode:
-
-### Installation
-
-> **?蹎? Note**: Currently requires building from source. NuGet package coming soon.
-
-**Step 1: Build the SDK project**
-
-```bash
-# Navigate to the SDK project directory
-cd src/WpfDevTools.Inspector.Sdk/
-
-# Build the SDK for your target framework
-dotnet build -c Release
-
-# The output DLL will be in:
-# bin/Release/net8.0-windows/WpfDevTools.Inspector.Sdk.dll
-```
-
-**Step 2: Reference the SDK in your WPF application**
-
-Option A: Add project reference (if in same solution):
-```bash
-dotnet add reference path/to/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj
-```
-
-Option B: Add DLL reference directly:
-```xml
-<!-- In your .csproj file -->
-<ItemGroup>
-  <Reference Include="WpfDevTools.Inspector.Sdk">
-    <HintPath>path\to\WpfDevTools.Inspector.Sdk.dll</HintPath>
-  </Reference>
-</ItemGroup>
-```
-
-### Usage
-
-```csharp
-using WpfDevTools.Inspector.Sdk;
-
-public partial class App : Application
-{
-    protected override void OnStartup(StartupEventArgs e)
-    {
-        base.OnStartup(e);
-        InspectorSdk.Initialize();
-    }
-
-    protected override void OnExit(ExitEventArgs e)
-    {
-        InspectorSdk.Shutdown();
-        base.OnExit(e);
-    }
-}
-```
-
-## HTTP+SSE Transport
-
-> **Current status**: this repository currently implements **STDIO transport only** via `WithStdioServerTransport()`.
->
-> The official MCP C# SDK also supports HTTP transport, but this server does **not** currently expose an HTTP listener, SSE endpoint, or transport-selection CLI options.
-
-### What this means today
-
-- `watch_dp_changes` can register the watch request, but STDIO clients cannot receive pushed events
-- Use `get_dp_value_source` polling when you need to observe property changes in the current release
-- Multi-client and browser-based scenarios remain future work
-
-### Planned future work
-
-- Add an HTTP transport entrypoint on top of the official SDK
-- Add event delivery semantics suitable for `watch_dp_changes`
-- Document concrete HTTP routes only when that transport is implemented
-
-## Troubleshooting
-
-### DLL Injection Fails
-
-**Symptom**: `connect` tool returns "Injection failed"
-
-**Possible Causes**:
-1. Architecture mismatch (x86 vs x64)
-2. Antivirus blocking injection
-3. Self-contained single-file app
-4. Native AOT app
-
-**Solutions**:
-1. Ensure MCP Server architecture matches target app
-2. Add exception to antivirus
-3. Use SDK mode instead
-
-### Binding Errors Not Detected
-
-**Symptom**: `get_binding_errors` returns empty array
-
-**Possible Causes**:
-1. Binding errors occur before connection
-2. PresentationTraceSources not enabled
-
-**Solutions**:
-1. Connect early in application lifecycle
-2. Enable PresentationTraceSources in app.config
-
-### Named Pipe Connection Timeout
-
-**Symptom**: Connection hangs or times out
-
-**Possible Causes**:
-1. Inspector DLL failed to initialize
-2. UI thread blocked
-3. Firewall blocking Named Pipes
-
-**Solutions**:
-1. Check MCP Server log: `%TEMP%\WpfDevTools_McpServer_<timestamp>.log`
-   Check Inspector log: `%TEMP%\WpfDevTools_Inspector_<PID>.log`
-2. Ensure UI thread is responsive
-3. Allow Named Pipes in firewall
-
-### Performance Issues
-
-**Symptom**: Application becomes slow after connection
-
-**Possible Causes**:
-1. Deep tree traversal with no depth limit
-2. Too many property change watchers
-3. Frequent screenshot captures
-
-**Solutions**:
-1. Use `depth` parameter to limit tree traversal
-2. Unwatch properties when done
-3. Capture screenshots sparingly
-
-## Supported Platforms
-
-### Operating Systems
-- Windows 10 (version 1809 or later)
-- Windows 11
-- Windows Server 2019 or later
-
-### .NET Versions
-- .NET 8.0 or later (MCP Server)
-- .NET Framework 4.8 or later (Target WPF applications)
-- Multi-targeting support for both .NET 8.0 and .NET Framework 4.8
-
-### Architectures
-- x86 (32-bit)
-- x64 (64-bit)
-- ARM64 (Windows on ARM)
-
-> **Note**: The Inspector DLL must match the target application's architecture.
-
-### Known Limitations
-- **Self-contained single-file apps**: Cannot inject DLL (use SDK mode)
-- **Native AOT apps**: Cannot inject DLL (use SDK mode)
-- **Trimmed apps**: May fail if required dependencies are removed
-- **Antivirus software**: May block DLL injection (requires code signing or exceptions)
-- **Protected processes**: Cannot inject into system processes or protected applications
-
-## Development
-
-### Project Structure
-
-```
+```text
 src/
-?謚??? WpfDevTools.Mcp.Server/       # MCP Server (STDIO today, HTTP planned)
-?謚??? WpfDevTools.Inspector/        # Injected DLL
-?謚??? WpfDevTools.Inspector.Sdk/    # Opt-in SDK
-?謚??? WpfDevTools.Injector/         # DLL injection
-????? WpfDevTools.Shared/           # Shared types
-
+  WpfDevTools.Mcp.Server/
+  WpfDevTools.Inspector/
+  WpfDevTools.Injector/
+  WpfDevTools.Shared/
 tests/
-?謚??? WpfDevTools.Tests.Unit/       # Unit tests
-?謚??? WpfDevTools.Tests.Integration/ # Integration tests
-????? WpfDevTools.Tests.TestApp/    # Test WPF app
+  WpfDevTools.Tests.Unit/
+  WpfDevTools.Tests.Integration/
+  WpfDevTools.Tests.TestApp/
 ```
 
-### Build Commands
+## Status Summary
 
-```bash
-# Build all projects
-dotnet build
-
-# Run tests
-dotnet test
-
-# Run with coverage
-dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage"
-
-# Build release
-dotnet build -c Release
-
-# Build for specific architecture (must match target WPF app)
-dotnet build -r win-x64
-dotnet build -r win-x86
-dotnet build -r win-arm64
-```
-
-### Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
-
-- Coding standards and best practices
-- Test-driven development workflow
-- Branch naming and commit format
-- Pull request process
-- Code review checklist
-
-## Roadmap
-
-- **Phase 1 (Current)**: Core inspection tools, STDIO transport, DLL injection
-- **Phase 2**: HTTP+SSE transport for web-based AI agents, improved MVVM tooling
-- **Phase 3**: Performance diagnostics, advanced event tracing, SDK NuGet package
-- **Phase 4**: VS Code extension, MCP Prompt Templates, community plugins
-
-See [docs/proposal.md](docs/proposal.md) for the full development plan.
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Acknowledgments
-
-- DLL injection based on [Snoop WPF](https://github.com/snoopwpf/snoopwpf) (Ms-PL)
-- MCP Protocol by [Anthropic](https://modelcontextprotocol.io/)
-
+- Official C# SDK: in use
+- STDIO transport: in use
+- HTTP transport: planned
+- Tool metadata: maintained in code
+- README tool catalog: intentionally minimized to prevent schema drift

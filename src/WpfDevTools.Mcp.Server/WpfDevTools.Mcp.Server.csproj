@@ -27,8 +27,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
-    <ProjectReference Include="..\WpfDevTools.Injector\WpfDevTools.Injector.csproj" />
+    <ProjectReference Include="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj">
+      <SetTargetFramework>TargetFramework=net8.0;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
+    </ProjectReference>
+    <ProjectReference Include="..\WpfDevTools.Injector\WpfDevTools.Injector.csproj">
+      <SetTargetFramework>TargetFramework=net8.0;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>

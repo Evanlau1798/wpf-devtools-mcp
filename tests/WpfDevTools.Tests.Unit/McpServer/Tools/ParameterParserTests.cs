@@ -225,6 +225,40 @@ public class ParameterParserTests
         result.Should().BeNull();
     }
 
+    [Fact]
+    public void ParseJsonParam_WithObjectValue_ShouldReturnClonedElement()
+    {
+        var args = JsonSerializer.SerializeToElement(new { value = new { count = 2, enabled = true } });
+
+        var result = ParameterParser.ParseJsonParam(args, "value");
+
+        result.Should().NotBeNull();
+        result!.Value.ValueKind.Should().Be(JsonValueKind.Object);
+        result.Value.GetProperty("count").GetInt32().Should().Be(2);
+        result.Value.GetProperty("enabled").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseJsonParam_WithNumberValue_ShouldReturnNumberElement()
+    {
+        var args = JsonSerializer.SerializeToElement(new { value = 123 });
+
+        var result = ParameterParser.ParseJsonParam(args, "value");
+
+        result.Should().NotBeNull();
+        result!.Value.GetInt32().Should().Be(123);
+    }
+
+    [Fact]
+    public void ParseJsonParam_WithMissingKey_ShouldReturnNull()
+    {
+        var args = JsonSerializer.SerializeToElement(new { other = "value" });
+
+        var result = ParameterParser.ParseJsonParam(args, "value");
+
+        result.Should().BeNull();
+    }
+
     [Theory]
     [InlineData("../../etc/passwd")]
     [InlineData("..\\..\\windows\\system32")]

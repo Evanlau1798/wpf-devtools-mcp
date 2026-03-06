@@ -15,6 +15,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     private readonly Channel<string> _logQueue;
     private readonly Task _processingTask;
     private readonly CancellationTokenSource _shutdownCts;
+    private int _droppedEntries;
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
     private const int MaxQueueCapacity = 10000;
 
@@ -26,7 +27,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     {
         _logFilePath = logFilePath ?? Path.Combine(
             Path.GetTempPath(),
-            $"WpfDevTools_{DateTime.UtcNow:yyyyMMdd_HHmmss}.log");
+            $"WpfDevTools_McpServer_{DateTime.UtcNow:yyyyMMdd_HHmmss}.log");
 
         _logQueue = Channel.CreateBounded<string>(new BoundedChannelOptions(MaxQueueCapacity)
         {
@@ -92,7 +93,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
             };
 
             var json = JsonSerializer.Serialize(logEntry);
-            _logQueue.Writer.TryWrite(json + Environment.NewLine);
+            EnqueueLogEntry(json + Environment.NewLine);
         }
         catch (Exception ex)
         {
@@ -127,11 +128,44 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         try
         {
             var logEntry = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}";
-            _logQueue.Writer.TryWrite(logEntry);
+            EnqueueLogEntry(logEntry);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Logging failed: {ex.Message}");
+        }
+    }
+
+    private void EnqueueLogEntry(string logEntry)
+    {
+        if (!_logQueue.Writer.TryWrite(logEntry))
+        {
+            Interlocked.Increment(ref _droppedEntries);
+            return;
+        }
+
+        FlushDroppedEntryWarning();
+    }
+
+    private void FlushDroppedEntryWarning()
+    {
+        var droppedEntries = Interlocked.Exchange(ref _droppedEntries, 0);
+        if (droppedEntries <= 0)
+        {
+            return;
+        }
+
+        var warning = JsonSerializer.Serialize(new
+        {
+            timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+            level = "WARNING",
+            message = "Dropped log entries due to logger backpressure",
+            context = new { droppedEntries }
+        }) + Environment.NewLine;
+
+        if (!_logQueue.Writer.TryWrite(warning))
+        {
+            Interlocked.Add(ref _droppedEntries, droppedEntries);
         }
     }
 

@@ -91,4 +91,19 @@ public class GenericPipeToolTests
         doc.RootElement.GetProperty("success").GetBoolean().Should().BeFalse();
         doc.RootElement.GetProperty("error").GetString().Should().Contain("processId");
     }
+
+    [Fact]
+    public void ExtractElementPropertyAndValueParams_WithNumericValue_ShouldAcceptJsonValue()
+    {
+        var arguments = ToJsonElement(new { processId = 12345, propertyName = "Width", value = 100, elementId = "Button_1" });
+
+        var (_, parameters, error) = GenericPipeTool.ExtractElementPropertyAndValueParams(arguments);
+
+        error.Should().BeNull();
+        parameters.Should().NotBeNull();
+
+        var json = JsonSerializer.SerializeToElement(parameters!);
+        json.GetProperty("propertyName").GetString().Should().Be("Width");
+        json.GetProperty("value").GetInt32().Should().Be(100);
+    }
 }

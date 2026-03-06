@@ -140,7 +140,26 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                 var bounds = VisualTreeHelper.GetDescendantBounds(uiElement);
                 if (bounds.IsEmpty)
                 {
-                    return new { success = false, error = "Element has no visual bounds" };
+                    var renderSize = uiElement.RenderSize;
+                    if ((renderSize.Width <= 0 || renderSize.Height <= 0) && uiElement is FrameworkElement frameworkElement)
+                    {
+                        var fallbackWidth = frameworkElement.Width;
+                        var fallbackHeight = frameworkElement.Height;
+                        if (!double.IsNaN(fallbackWidth) && fallbackWidth > 0 && !double.IsNaN(fallbackHeight) && fallbackHeight > 0)
+                        {
+                            frameworkElement.Measure(new Size(fallbackWidth, fallbackHeight));
+                            frameworkElement.Arrange(new Rect(0, 0, fallbackWidth, fallbackHeight));
+                            frameworkElement.UpdateLayout();
+                            renderSize = frameworkElement.RenderSize;
+                        }
+                    }
+
+                    if (renderSize.Width <= 0 || renderSize.Height <= 0)
+                    {
+                        return new { success = false, error = "Element has no visual bounds" };
+                    }
+
+                    bounds = new Rect(0, 0, renderSize.Width, renderSize.Height);
                 }
 
                 const int MaxDimensionPixels = 3840;
@@ -172,12 +191,12 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
 
                 using var stream = new MemoryStream();
                 encoder.Save(stream);
-                var imageData = Convert.ToBase64String(stream.ToArray());
+                var base64Image = Convert.ToBase64String(stream.ToArray());
 
                 return new
                 {
                     success = true,
-                    imageData,
+                    base64Image,
                     width = (int)bounds.Width,
                     height = (int)bounds.Height,
                     format = "png"

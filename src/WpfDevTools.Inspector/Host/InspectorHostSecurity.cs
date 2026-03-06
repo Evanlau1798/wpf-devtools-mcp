@@ -135,7 +135,11 @@ public sealed partial class InspectorHost
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
 
 #if NET48
-            var authTask = sslStream.AuthenticateAsServerAsync(certificate);
+            var authTask = sslStream.AuthenticateAsServerAsync(
+                certificate,
+                clientCertificateRequired: false,
+                enabledSslProtocols: SslProtocols.Tls12,
+                checkCertificateRevocation: false);
             var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10), timeoutCts.Token);
             var completed = await Task.WhenAny(authTask, timeoutTask).ConfigureAwait(false);
             if (completed == timeoutTask)
@@ -173,3 +177,5 @@ public sealed partial class InspectorHost
         }
     }
 }
+
+

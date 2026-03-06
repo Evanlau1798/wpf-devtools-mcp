@@ -21,6 +21,7 @@ public sealed class CertificateManager
     private const string SubjectName = "CN=WpfDevTools-Inspector";
     private const int RsaKeySize = 2048;
     private const int PasswordLengthBytes = 32;
+    private static readonly object SyncRoot = new();
 
     private readonly string _certDirectory;
 
@@ -58,32 +59,35 @@ public sealed class CertificateManager
     /// <returns>X509Certificate2 with private key</returns>
     public X509Certificate2 GetOrCreateCertificate()
     {
-        Directory.CreateDirectory(_certDirectory);
-        var certPath = Path.Combine(_certDirectory, CertFileName);
-        var passwordPath = Path.Combine(_certDirectory, PasswordFileName);
-
-        if (File.Exists(certPath) && File.Exists(passwordPath))
+        lock (SyncRoot)
         {
-            try
-            {
-                var password = LoadPassword(passwordPath);
-                var loaded = new X509Certificate2(
-                    certPath, password,
-                    X509KeyStorageFlags.Exportable);
+            Directory.CreateDirectory(_certDirectory);
+            var certPath = Path.Combine(_certDirectory, CertFileName);
+            var passwordPath = Path.Combine(_certDirectory, PasswordFileName);
 
-                if (loaded.NotAfter > DateTime.UtcNow)
-                    return loaded;
-
-                // Certificate expired, regenerate
-                loaded.Dispose();
-            }
-            catch (CryptographicException)
+            if (File.Exists(certPath) && File.Exists(passwordPath))
             {
-                // Corrupt file or password mismatch, regenerate
+                try
+                {
+                    var password = LoadPassword(passwordPath);
+                    var loaded = new X509Certificate2(
+                        certPath, password,
+                        X509KeyStorageFlags.Exportable);
+
+                    if (loaded.NotAfter > DateTime.UtcNow)
+                        return loaded;
+
+                    // Certificate expired, regenerate
+                    loaded.Dispose();
+                }
+                catch (CryptographicException)
+                {
+                    // Corrupt file or password mismatch, regenerate
+                }
             }
+
+            return CreateAndSaveCertificate(certPath, passwordPath);
         }
-
-        return CreateAndSaveCertificate(certPath, passwordPath);
     }
 
     private X509Certificate2 CreateAndSaveCertificate(string certPath, string passwordPath)

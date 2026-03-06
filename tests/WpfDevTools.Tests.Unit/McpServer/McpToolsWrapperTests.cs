@@ -132,7 +132,7 @@ public class McpToolsWrapperTests : IDisposable
     public async Task SetDpValue_WithUnconnectedProcess_ShouldReturnError()
     {
         var result = await DependencyPropertyMcpTools.SetDpValue(
-            _sessionManager, processId: 99999, propertyName: "Text", value: "test");
+            _sessionManager, processId: 99999, propertyName: "Text", value: System.Text.Json.JsonSerializer.SerializeToElement("test"));
 
         result.Should().NotBeNull();
         result.IsError.Should().BeTrue();
@@ -305,7 +305,7 @@ public class McpToolsWrapperTests : IDisposable
     [Fact]
     public async Task OverrideStyleSetter_WithUnconnectedProcess_ShouldReturnError()
     {
-        var result = await StyleMcpTools.OverrideStyleSetter(_sessionManager, processId: 99999, propertyName: "Background", value: "Red");
+        var result = await StyleMcpTools.OverrideStyleSetter(_sessionManager, processId: 99999, propertyName: "Background", value: System.Text.Json.JsonSerializer.SerializeToElement("Red"));
         result.IsError.Should().BeTrue();
     }
 
@@ -382,7 +382,7 @@ public class McpToolsWrapperTests : IDisposable
     [Fact]
     public async Task ModifyViewModel_WithUnconnectedProcess_ShouldReturnError()
     {
-        var result = await MvvmMcpTools.ModifyViewModel(_sessionManager, processId: 99999, propertyName: "Name", value: "test");
+        var result = await MvvmMcpTools.ModifyViewModel(_sessionManager, processId: 99999, propertyName: "Name", value: System.Text.Json.JsonSerializer.SerializeToElement("test"));
         result.IsError.Should().BeTrue();
     }
 

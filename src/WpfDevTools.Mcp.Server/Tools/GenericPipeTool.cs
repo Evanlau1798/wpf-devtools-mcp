@@ -61,7 +61,9 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
         if (string.IsNullOrEmpty(propertyName))
             return (-1, null, CreateMissingParamError("propertyName"));
 
-        return (processId, new { elementId, propertyName }, null);
+        var direction = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "direction");
+
+        return (processId, new { elementId, propertyName, direction }, null);
     }
 
     /// <summary>
@@ -77,11 +79,11 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
         if (string.IsNullOrEmpty(propertyName))
             return (-1, null, CreateMissingParamError("propertyName"));
 
-        var value = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "value");
-        if (string.IsNullOrEmpty(value))
+        var value = WpfDevTools.Shared.Utilities.ParameterParser.ParseJsonParam(arguments, "value");
+        if (value == null)
             return (-1, null, CreateMissingParamError("value"));
 
-        return (processId, new { elementId, propertyName, value }, null);
+        return (processId, new { elementId, propertyName, value = value.Value }, null);
     }
 
     /// <summary>
@@ -116,6 +118,8 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
         if (string.IsNullOrEmpty(targetElementId))
             return (-1, null, CreateMissingParamError("targetElementId"));
 
-        return (processId, new { sourceElementId, targetElementId }, null);
+        var dataFormat = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "dataFormat");
+
+        return (processId, new { sourceElementId, targetElementId, dataFormat }, null);
     }
 }

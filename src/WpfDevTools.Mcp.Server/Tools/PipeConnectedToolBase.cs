@@ -31,24 +31,38 @@ public abstract class PipeConnectedToolBase
     {
         int? processId = null;
         string? elementId = null;
+        var shouldValidateElementId = false;
 
         if (arguments.HasValue)
         {
-            if (arguments.Value.TryGetProperty("processId", out var pidProp))
-            {
-                if (!pidProp.TryGetInt32(out var parsedPid))
-                    return (-1, null, new { success = false, error = "processId must be a valid 32-bit integer" });
-                processId = parsedPid;
-            }
+            processId = ParameterParser.ParseIntParam(arguments, "processId");
+
             if (arguments.Value.TryGetProperty("elementId", out var eidProp))
-                elementId = eidProp.GetString();
+            {
+                if (eidProp.ValueKind == JsonValueKind.Null)
+                {
+                    elementId = null;
+                }
+                else if (eidProp.ValueKind == JsonValueKind.String)
+                {
+                    elementId = eidProp.GetString();
+                    shouldValidateElementId = true;
+                }
+                else
+                {
+                    return (-1, null, CreateInvalidParamError("elementId must be a string when provided"));
+                }
+            }
         }
 
         if (!processId.HasValue)
             return (-1, elementId, CreateMissingParamError("processId"));
 
         if (processId.Value <= 0)
-            return (-1, elementId, CreateMissingParamError("processId must be a positive integer"));
+            return (-1, elementId, CreateInvalidParamError("processId must be a positive integer"));
+
+        if (shouldValidateElementId && !ParameterParser.ValidateElementId(elementId, out var elementIdError))
+            return (-1, elementId, CreateInvalidParamError(elementIdError!));
 
         return (processId.Value, elementId, null);
     }
@@ -70,6 +84,12 @@ public abstract class PipeConnectedToolBase
     /// </summary>
     protected static object CreateMissingParamError(string paramName) =>
         new { success = false, error = $"Missing required parameter: {paramName}" };
+
+    /// <summary>
+    /// Create error response for invalid parameter value.
+    /// </summary>
+    protected static object CreateInvalidParamError(string message) =>
+        new { success = false, error = message };
 
     /// <summary>
     /// Create error response for not-connected process

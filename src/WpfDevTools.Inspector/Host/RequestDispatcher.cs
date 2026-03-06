@@ -100,6 +100,7 @@ public sealed class RequestDispatcher : IDisposable
                 return new InspectorResponse
                 {
                     Id = request.Id,
+                    CorrelationId = request.CorrelationId,
                     Result = null,
                     Error = new InspectorError
                     {
@@ -113,6 +114,7 @@ public sealed class RequestDispatcher : IDisposable
             return new InspectorResponse
             {
                 Id = request.Id,
+                CorrelationId = request.CorrelationId,
                 Result = JsonSerializer.SerializeToElement(result),
                 Error = null
             };
@@ -122,6 +124,7 @@ public sealed class RequestDispatcher : IDisposable
             return new InspectorResponse
             {
                 Id = request.Id,
+                CorrelationId = request.CorrelationId,
                 Result = null,
                 Error = new InspectorError
                 {
@@ -136,6 +139,7 @@ public sealed class RequestDispatcher : IDisposable
             return new InspectorResponse
             {
                 Id = request.Id,
+                CorrelationId = request.CorrelationId,
                 Result = null,
                 Error = new InspectorError
                 {
@@ -151,6 +155,7 @@ public sealed class RequestDispatcher : IDisposable
             return new InspectorResponse
             {
                 Id = request.Id,
+                CorrelationId = request.CorrelationId,
                 Result = null,
                 Error = new InspectorError
                 {

@@ -17,7 +17,10 @@ AuthenticationManager? authManager = null;
 
 try
 {
-    var builder = Host.CreateApplicationBuilder(args);
+    var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings
+    {
+        Args = args
+    });
     var serverVersion = ServerMetadata.GetDisplayVersion();
 
     // Logging: stderr for STDIO compatibility + file for persistence

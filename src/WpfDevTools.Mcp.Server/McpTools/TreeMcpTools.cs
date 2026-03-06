@@ -208,10 +208,12 @@ public static class TreeMcpTools
     public static Task<CallToolResult> CompareTrees(
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID to compare from instead of the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
-            ("processId", processId));
+            ("processId", processId),
+            ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("compare_trees", () => new GenericPipeTool(sessionManager, "compare_trees")).ExecuteAsync(a, ct),

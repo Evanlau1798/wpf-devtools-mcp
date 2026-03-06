@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
@@ -91,7 +92,7 @@ public static class DependencyPropertyMcpTools
     [McpServerTool(Name = "set_dp_value", OpenWorld = false, Destructive = true)]
     [Description(
         "[DependencyProperty] Set a DependencyProperty value at runtime. " +
-        "Value is a string that gets type-converted.\n\n" +
+        "Value is forwarded as raw JSON so numbers, booleans, objects, and strings keep their shape.\n\n" +
         "USE WHEN: Testing UI behavior with different property values; debugging layout/styling issues.\n" +
         "DO NOT USE: For permanent changes (changes are NOT persisted to XAML).\n\n" +
         "WARNING: This modifies the running app. Changes are lost on app restart.\n\n" +
@@ -112,7 +113,7 @@ public static class DependencyPropertyMcpTools
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name to set at runtime.")] string propertyName,
-        [Description("New property value encoded as a string for WPF type conversion.")] string value,
+        [Description("New property value encoded as raw JSON.")] JsonElement value,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

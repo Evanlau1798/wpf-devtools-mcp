@@ -74,12 +74,14 @@ public static class InteractionMcpTools
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Element ID that acts as the drag source.")] string sourceElementId,
         [Description("Element ID that acts as the drop target.")] string targetElementId,
+        [Description("Optional WPF data format for the drag payload, such as Text.")] string? dataFormat = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("sourceElementId", sourceElementId),
-            ("targetElementId", targetElementId));
+            ("targetElementId", targetElementId),
+            ("dataFormat", dataFormat));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
@@ -148,12 +150,14 @@ public static class InteractionMcpTools
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("WPF Key enum name to simulate, such as Enter or Tab.")] string key,
         [Description("Optional focused element ID that should receive the key input.")] string? elementId = null,
+        [Description("Optional keyboard event type, such as KeyDown or KeyUp.")] string? eventType = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("key", key));
+            ("key", key),
+            ("eventType", eventType));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<SimulateKeyboardTool>("SimulateKeyboardTool", () => new SimulateKeyboardTool(sessionManager)).ExecuteAsync(a, ct),
@@ -167,12 +171,14 @@ public static class InteractionMcpTools
         "Returns base64-encoded image data. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
         "USE WHEN: Visual verification needed; documenting UI state; debugging rendering issues.\n" +
         "DO NOT USE: On off-screen elements (use scroll_to_element first).\n\n" +
-        "PERFORMANCE: Large elements produce large base64 strings. Use outputPath for big screenshots.\n\n" +
+        "PERFORMANCE: Large elements produce large base64 strings. Prefer smaller targets in interactive STDIO sessions.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  base64Image: string (if no outputPath),\n" +
-        "  filePath: string (if outputPath specified)\n" +
+        "  base64Image: string,\n" +
+        "  width: number,\n" +
+        "  height: number,\n" +
+        "  format: 'png'\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -185,13 +191,11 @@ public static class InteractionMcpTools
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Optional element ID to capture. Omit for the root window.")] string? elementId = null,
-        [Description("Optional filesystem path on the target machine where the PNG should be written.")] string? outputPath = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId),
-            ("outputPath", outputPath));
+            ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ElementScreenshotTool>("ElementScreenshotTool", () => new ElementScreenshotTool(sessionManager)).ExecuteAsync(a, ct),

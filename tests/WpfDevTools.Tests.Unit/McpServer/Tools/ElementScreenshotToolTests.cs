@@ -44,13 +44,13 @@ public class ElementScreenshotToolTests
     }
 
     [Fact]
-    public async Task Execute_WithValidParameters_ShouldIncludeElementIdAndOutputPath()
+    public async Task Execute_WithValidParameters_ShouldAcceptElementIdWithoutOutputPath()
     {
         // Arrange
         var sessionManager = new SessionManager();
         sessionManager.AddSession(12345);
         var tool = new ElementScreenshotTool(sessionManager);
-        var parameters = new { processId = 12345, elementId = "myControl", outputPath = "screenshot.png" };
+        var parameters = new { processId = 12345, elementId = "myControl" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);

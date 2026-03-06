@@ -24,7 +24,7 @@ public sealed class SetDpValueTool : PipeConnectedToolBase
         var (processId, elementId, error) = ParseCommonParams(arguments);
         if (error != null) return error;
         var propertyName = ParseStringParam(arguments, "propertyName");
-        var value = ParseStringParam(arguments, "value");
+        var value = WpfDevTools.Shared.Utilities.ParameterParser.ParseJsonParam(arguments, "value");
 
         if (string.IsNullOrEmpty(propertyName))
             return CreateMissingParamError("propertyName");
@@ -33,6 +33,6 @@ public sealed class SetDpValueTool : PipeConnectedToolBase
             return CreateMissingParamError("value");
 
         return await SendInspectorRequestAsync(processId, "set_dp_value",
-            new { elementId, propertyName, value }, cancellationToken);
+            new { elementId, propertyName, value = value.Value }, cancellationToken);
     }
 }

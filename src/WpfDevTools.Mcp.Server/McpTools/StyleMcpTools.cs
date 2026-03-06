@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
@@ -153,7 +154,7 @@ public static class StyleMcpTools
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Style-backed property name to override at runtime.")] string propertyName,
-        [Description("New property value serialized as a string.")] string value,
+        [Description("New property value encoded as raw JSON.")] JsonElement value,
         [Description("Optional element ID whose style setter should be overridden.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

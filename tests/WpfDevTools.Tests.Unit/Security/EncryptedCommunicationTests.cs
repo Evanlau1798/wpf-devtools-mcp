@@ -16,13 +16,16 @@ namespace WpfDevTools.Tests.Unit.Security;
 public class EncryptedCommunicationTests : IDisposable
 {
     private readonly string _tempCertDir;
+    private readonly string _otherTempCertDir;
     private readonly ITestOutputHelper _output;
 
     public EncryptedCommunicationTests(ITestOutputHelper output)
     {
         _output = output;
         _tempCertDir = Path.Combine(Path.GetTempPath(), "WpfDevTools_Test_" + Guid.NewGuid());
+        _otherTempCertDir = Path.Combine(Path.GetTempPath(), "WpfDevTools_Test_" + Guid.NewGuid());
         Directory.CreateDirectory(_tempCertDir);
+        Directory.CreateDirectory(_otherTempCertDir);
     }
 
     public void Dispose()
@@ -31,8 +34,31 @@ public class EncryptedCommunicationTests : IDisposable
         {
             if (Directory.Exists(_tempCertDir))
                 Directory.Delete(_tempCertDir, recursive: true);
+
+            if (Directory.Exists(_otherTempCertDir))
+                Directory.Delete(_otherTempCertDir, recursive: true);
         }
         catch { }
+    }
+
+    [Fact]
+    public async Task EncryptedPipe_WithDifferentPinnedCertificate_ShouldRejectConnection()
+    {
+        // Arrange
+        var pid = Random.Shared.Next(100_000, 999_999);
+        var serverCertManager = new CertificateManager(_tempCertDir);
+        var clientCertManager = new CertificateManager(_otherTempCertDir);
+
+        using var host = new InspectorHost(pid, authManager: null, serverCertManager);
+        host.Start();
+
+        using var client = new NamedPipeClient(pid, authManager: null, clientCertManager);
+
+        // Act
+        var connected = await client.ConnectAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        connected.Should().BeFalse("client should pin to its expected certificate thumbprint");
     }
 
     [Fact]

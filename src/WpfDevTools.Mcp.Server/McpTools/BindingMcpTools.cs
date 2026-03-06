@@ -189,12 +189,14 @@ public static class BindingMcpTools
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name whose binding should be refreshed.")] string propertyName,
         [Description("Optional element ID that owns the binding. Omit for the root window.")] string? elementId = null,
+        [Description("Optional update direction: Source or Target.")] string? direction = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("propertyName", propertyName));
+            ("propertyName", propertyName),
+            ("direction", direction));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
@@ -126,12 +127,14 @@ public static class EventMcpTools
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("WPF routed event name to raise, such as Click.")] string eventName,
         [Description("Optional target element ID that should receive the routed event.")] string? elementId = null,
+        [Description("Optional JSON payload for custom routed event arguments.")] JsonElement? eventArgs = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("eventName", eventName));
+            ("eventName", eventName),
+            ("eventArgs", eventArgs));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<FireRoutedEventTool>("FireRoutedEventTool", () => new FireRoutedEventTool(sessionManager)).ExecuteAsync(a, ct),

@@ -29,7 +29,12 @@ public sealed class NamedPipeClient : IDisposable
     /// </summary>
     /// <param name="processId">Process ID of the target WPF application</param>
     public NamedPipeClient(int processId)
-        : this(processId, null, null)
+        : this(processId, BuildPipeName(processId), null, null)
+    {
+    }
+
+    internal NamedPipeClient(int processId, string pipeName)
+        : this(processId, pipeName, null, null)
     {
     }
 
@@ -39,7 +44,7 @@ public sealed class NamedPipeClient : IDisposable
     /// <param name="processId">Process ID of the target WPF application</param>
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     public NamedPipeClient(int processId, AuthenticationManager? authManager)
-        : this(processId, authManager, null)
+        : this(processId, BuildPipeName(processId), authManager, null)
     {
     }
 
@@ -50,12 +55,25 @@ public sealed class NamedPipeClient : IDisposable
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     /// <param name="certManager">Certificate manager for SslStream encryption (null to disable encryption)</param>
     public NamedPipeClient(int processId, AuthenticationManager? authManager, CertificateManager? certManager)
+        : this(processId, BuildPipeName(processId), authManager, certManager)
+    {
+    }
+
+    internal NamedPipeClient(
+        int processId,
+        string pipeName,
+        AuthenticationManager? authManager,
+        CertificateManager? certManager)
     {
         _processId = processId;
-        _pipeName = $"WpfDevTools_{processId}";
+        _pipeName = string.IsNullOrWhiteSpace(pipeName)
+            ? BuildPipeName(processId)
+            : pipeName;
         _authManager = authManager;
         _certManager = certManager;
     }
+
+    private static string BuildPipeName(int processId) => $"WpfDevTools_{processId}";
 
     /// <summary>
     /// Pipe name
@@ -114,6 +132,7 @@ public sealed class NamedPipeClient : IDisposable
                 {
                     if (!await AuthenticateToInspectorAsync(localClient, cts.Token).ConfigureAwait(false))
                     {
+                        ResetConnectionState();
                         return false;
                     }
                 }
@@ -123,7 +142,10 @@ public sealed class NamedPipeClient : IDisposable
                 {
                     var sslStream = await CreateClientSslStreamAsync(localClient, cts.Token).ConfigureAwait(false);
                     if (sslStream == null)
+                    {
+                        ResetConnectionState();
                         return false;
+                    }
 
                     lock (_lock)
                     {
@@ -140,8 +162,19 @@ public sealed class NamedPipeClient : IDisposable
 
                 return true;
             }
+            catch (UnauthorizedAccessException)
+            {
+                ResetConnectionState();
+
+                if (attempt == maxRetries)
+                    return false;
+
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+            }
             catch (IOException)
             {
+                ResetConnectionState();
+
                 if (attempt == maxRetries)
                     return false;
 
@@ -149,6 +182,8 @@ public sealed class NamedPipeClient : IDisposable
             }
             catch (TimeoutException)
             {
+                ResetConnectionState();
+
                 if (attempt == maxRetries)
                     return false;
 
@@ -156,11 +191,15 @@ public sealed class NamedPipeClient : IDisposable
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                ResetConnectionState();
+
                 // External cancellation requested - propagate immediately
                 throw;
             }
             catch (OperationCanceledException)
             {
+                ResetConnectionState();
+
                 // Internal timeout - treat as retry-able
                 if (attempt == maxRetries)
                     return false;
@@ -172,12 +211,33 @@ public sealed class NamedPipeClient : IDisposable
         return false;
     }
 
+    private void ResetConnectionState()
+    {
+        NamedPipeClientStream? pipeToDispose = null;
+        Stream? streamToDispose = null;
+
+        lock (_lock)
+        {
+            streamToDispose = _communicationStream;
+            pipeToDispose = _pipeClient;
+            _communicationStream = null;
+            _pipeClient = null;
+        }
+
+        if (streamToDispose != null && !ReferenceEquals(streamToDispose, pipeToDispose))
+        {
+            try { streamToDispose.Dispose(); } catch (IOException) { }
+        }
+
+        try { pipeToDispose?.Dispose(); } catch (IOException) { }
+    }
+
     private async Task<SslStream?> CreateClientSslStreamAsync(
         NamedPipeClientStream pipe, CancellationToken cancellationToken)
     {
         try
         {
-            var expectedThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_THUMBPRINT");
+            var expectedThumbprint = GetExpectedServerThumbprint();
             var sslStream = new SslStream(pipe, leaveInnerStreamOpen: true,
                 (sender, cert, chain, errors) =>
                 {
@@ -189,19 +249,16 @@ public sealed class NamedPipeClient : IDisposable
                         return false;
 
                     // If thumbprint is configured, pin to that specific certificate
-                    if (!string.IsNullOrWhiteSpace(expectedThumbprint))
-                    {
-                        return string.Equals(
-                            cert2.Thumbprint,
-                            expectedThumbprint,
-                            StringComparison.OrdinalIgnoreCase);
-                    }
-
-                    return true;
+                    return !string.IsNullOrWhiteSpace(expectedThumbprint)
+                        && string.Equals(cert2.Thumbprint, expectedThumbprint, StringComparison.OrdinalIgnoreCase);
                 });
 
 #if NET48
-            await sslStream.AuthenticateAsClientAsync("WpfDevTools-Inspector");
+            await sslStream.AuthenticateAsClientAsync(
+                "WpfDevTools-Inspector",
+                null,
+                SslProtocols.Tls12,
+                checkCertificateRevocation: false);
 #else
             var sslOptions = new SslClientAuthenticationOptions
             {
@@ -225,6 +282,17 @@ public sealed class NamedPipeClient : IDisposable
         {
             return null;
         }
+    }
+
+    private string? GetExpectedServerThumbprint()
+    {
+        var configuredThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_THUMBPRINT");
+        if (!string.IsNullOrWhiteSpace(configuredThumbprint))
+        {
+            return configuredThumbprint;
+        }
+
+        return _certManager?.GetOrCreateCertificate().Thumbprint;
     }
 
     private async Task<bool> AuthenticateToInspectorAsync(

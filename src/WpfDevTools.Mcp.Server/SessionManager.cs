@@ -242,11 +242,13 @@ public sealed class SessionManager : IDisposable
                 RemoveSession(processId);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            // Prevent Timer callback exceptions from stopping future cleanup cycles
-            // but log to stderr for diagnostic visibility
-            Console.Error.WriteLine($"Session cleanup failed: {ex.Message}");
+            // Prevent Timer callback exceptions from stopping future cleanup cycles.
+            // STDIO MCP servers should not write to Console (stderr is technically safe
+            // but we avoid it for consistency). Errors are swallowed since this is a
+            // background cleanup operation - individual session cleanup failures are
+            // non-critical.
         }
     }
 

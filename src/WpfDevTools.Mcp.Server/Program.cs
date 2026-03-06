@@ -1,11 +1,16 @@
+using System.Diagnostics;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Shared.Utilities;
+
+// IMPORTANT: STDIO-based MCP servers must NEVER write to stdout (Console.WriteLine).
+// All logging goes to file via FileLogger. See: https://modelcontextprotocol.io/docs/develop/build-server#c
 
 // Initialize components
 using var logger = new FileLogger();
 var toolRegistry = new ToolRegistry();
 using var sessionManager = new SessionManager();
 var protocolHandler = new McpProtocolHandler(toolRegistry);
+var metrics = new MetricsCollector();
 
 // SECURITY: Global rate limiter to prevent STDIN message flooding
 var globalRateLimiter = new RateLimiter(
@@ -21,7 +26,7 @@ logger.LogInfo($"Registered {toolRegistry.GetAllTools().Count} tools");
 
 logger.LogInfo("MCP Server ready. Listening on STDIN...");
 
-// CRITICAL FIX: Add cancellation token for graceful shutdown
+// Graceful shutdown via cancellation token
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (sender, e) =>
 {
@@ -55,7 +60,6 @@ try
         {
             logger.LogWarning($"Global rate limit exceeded. Available tokens: {globalRateLimiter.GetAvailableTokens()}");
 
-            // Send error response for rate limit
             var errorResponse = System.Text.Json.JsonSerializer.Serialize(new
             {
                 jsonrpc = "2.0",
@@ -72,13 +76,17 @@ try
 
         logger.LogDebug($"Received: ({line.Length} chars)");
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             var response = await protocolHandler.HandleRequestAsync(line, cts.Token).ConfigureAwait(false);
+            stopwatch.Stop();
+
             if (!string.IsNullOrEmpty(response))
             {
                 await writer.WriteLineAsync(response).ConfigureAwait(false);
-                logger.LogDebug($"Sent: ({response.Length} chars)");
+                logger.LogDebug($"Sent: ({response.Length} chars, {stopwatch.ElapsedMilliseconds}ms)");
+                metrics.RecordRequest("request", stopwatch.ElapsedMilliseconds, success: true);
             }
         }
         catch (OperationCanceledException)
@@ -88,6 +96,8 @@ try
         }
         catch (Exception ex)
         {
+            stopwatch.Stop();
+            metrics.RecordRequest("request", stopwatch.ElapsedMilliseconds, success: false);
             logger.LogError($"Error processing request: {ex.Message}");
         }
     }
@@ -95,7 +105,6 @@ try
 catch (OperationCanceledException)
 {
     logger.LogInfo("Shutdown completed gracefully");
-    return 0;
 }
 catch (Exception ex)
 {
@@ -103,5 +112,9 @@ catch (Exception ex)
     return 1;
 }
 
-logger.LogInfo("MCP Server shutting down.");
+// Log final metrics summary
+var snapshot = metrics.GetSnapshot();
+logger.LogInfo($"MCP Server shutting down. Total requests: {snapshot.TotalRequests}, " +
+    $"Success: {snapshot.SuccessCount}, Errors: {snapshot.ErrorCount}, " +
+    $"Avg latency: {snapshot.AverageLatency:F1}ms, P95: {snapshot.P95Latency:F1}ms");
 return 0;

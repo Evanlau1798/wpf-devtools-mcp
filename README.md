@@ -1,8 +1,11 @@
 # WPF DevTools MCP Server
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-868%2B%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-897%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-81%25-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
+![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
+![MCP](https://img.shields.io/badge/MCP-2024--11--05-orange)
 
 A Model Context Protocol (MCP) server that enables AI agents to deeply inspect and interact with running WPF applications through in-process DLL injection.
 
@@ -65,14 +68,19 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "wpf-devtools": {
       "command": "dotnet",
-      "args": ["run", "--project", "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj"],
+      "args": [
+        "run",
+        "--project",
+        "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj",
+        "--no-build"
+      ],
       "env": {}
     }
   }
 }
 ```
 
-> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory.
+> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory. Run `dotnet build` once before first use. The `--no-build` flag is recommended for faster startup per the [official MCP documentation](https://modelcontextprotocol.io/docs/develop/build-server#c).
 
 ### Cursor
 
@@ -84,14 +92,19 @@ Add to `.cursor/mcp.json`:
     "servers": {
       "wpf-devtools": {
         "command": "dotnet",
-        "args": ["run", "--project", "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj"]
+        "args": [
+          "run",
+          "--project",
+          "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj",
+          "--no-build"
+        ]
       }
     }
   }
 }
 ```
 
-> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory.
+> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory. Run `dotnet build` once before first use.
 
 ### VS Code with MCP Extension
 
@@ -102,14 +115,19 @@ Add to `settings.json`:
   "mcp.servers": {
     "wpf-devtools": {
       "command": "dotnet",
-      "args": ["run", "--project", "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj"],
+      "args": [
+        "run",
+        "--project",
+        "/path/to/wpf-devtools-mcp/src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj",
+        "--no-build"
+      ],
       "transport": "stdio"
     }
   }
 }
 ```
 
-> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory.
+> **Note**: Replace `/path/to/wpf-devtools-mcp` with your actual installation directory. Run `dotnet build` once before first use.
 
 ## Quick Start
 
@@ -265,6 +283,17 @@ Both MCP Server and Inspector use non-blocking async logging via bounded Channel
 | `WPFDEVTOOLS_REQUIRE_SIGNATURE` | Require Authenticode DLL signature | `0` (disabled) |
 
 For production deployment guidance, see [Security Policy](SECURITY.md).
+
+## MCP Protocol Compliance
+
+This server implements MCP protocol version `2024-11-05` with a custom JSON-RPC handler optimized for WPF tooling needs. While the [official C# MCP SDK](https://github.com/modelcontextprotocol/csharp-sdk) (`ModelContextProtocol` NuGet package) provides `[McpServerTool]` attribute-based registration, this project uses a manual registration approach to support:
+
+- **44 tools** with rich, AI-optimized descriptions and examples
+- **Custom parameter extraction** for WPF-specific types (elementId, processId)
+- **Per-session rate limiting** and metrics collection
+- **Named Pipe IPC** integration with DLL injection workflow
+
+The server correctly handles all required MCP methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, and `notifications/initialized`.
 
 ## Architecture
 

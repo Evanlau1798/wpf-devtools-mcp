@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj" />
+    <ProjectReference Include="..\WpfDevTools.Tests.TestApp\WpfDevTools.Tests.TestApp.csproj" />
   </ItemGroup>
 
 </Project>

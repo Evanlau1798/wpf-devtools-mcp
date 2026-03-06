@@ -135,7 +135,7 @@ public class HttpTransport : ITransport, IDisposable
                 {
                     context.Response.StatusCode = 500;
                     await context.Response.WriteAsync(
-                        "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"No handler processed the request\"}}");
+                        "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"No handler processed the request\"}}");
                 }
             });
 

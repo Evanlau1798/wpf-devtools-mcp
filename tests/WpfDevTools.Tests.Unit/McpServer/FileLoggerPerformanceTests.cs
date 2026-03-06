@@ -18,6 +18,9 @@ public class FileLoggerPerformanceTests : IDisposable
 
     public void Dispose()
     {
+        // Dispose logger first to release file handle
+        _logger.Dispose();
+
         // Cleanup
         try
         {
@@ -65,8 +68,8 @@ public class FileLoggerPerformanceTests : IDisposable
 
         await Task.WhenAll(tasks);
 
-        // Wait for background queue to flush
-        await Task.Delay(1000);
+        // Dispose logger to flush background queue and release file handle
+        _logger.Dispose();
 
         // Assert - all messages should be written
         var content = File.ReadAllText(_testLogPath);

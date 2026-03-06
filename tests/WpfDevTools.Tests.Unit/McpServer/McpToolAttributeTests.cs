@@ -197,6 +197,7 @@ public class McpToolAttributeTests
     }
 
     [Theory]
+    [InlineData("connect")]
     [InlineData("set_dp_value")]
     [InlineData("clear_dp_value")]
     [InlineData("click_element")]

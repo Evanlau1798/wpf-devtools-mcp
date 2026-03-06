@@ -199,4 +199,34 @@ public class ToolCallHelperTests
         var json = "{}";
         ToolCallHelper.IsToolResultError(json).Should().BeFalse();
     }
+
+    // === IsToolResultError (JsonElement overload) Tests ===
+
+    [Fact]
+    public void IsToolResultError_JsonElement_WithSuccessFalse_ShouldReturnTrue()
+    {
+        var element = JsonSerializer.Deserialize<JsonElement>("""{"success":false,"error":"fail"}""");
+        ToolCallHelper.IsToolResultError(element).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsToolResultError_JsonElement_WithSuccessTrue_ShouldReturnFalse()
+    {
+        var element = JsonSerializer.Deserialize<JsonElement>("""{"success":true}""");
+        ToolCallHelper.IsToolResultError(element).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsToolResultError_JsonElement_WithNoSuccessField_ShouldReturnFalse()
+    {
+        var element = JsonSerializer.Deserialize<JsonElement>("""{"data":"test"}""");
+        ToolCallHelper.IsToolResultError(element).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsToolResultError_JsonElement_WithNonObjectKind_ShouldReturnFalse()
+    {
+        var element = JsonSerializer.Deserialize<JsonElement>("""[1,2,3]""");
+        ToolCallHelper.IsToolResultError(element).Should().BeFalse();
+    }
 }

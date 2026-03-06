@@ -35,7 +35,9 @@ public sealed class FileLoggerProvider : ILoggerProvider, IAsyncDisposable
     }
 
     /// <summary>
-    /// Async dispose signals adapters to stop writing, preventing log loss during shutdown
+    /// Async dispose required by the hosting infrastructure (IHost calls IAsyncDisposable
+    /// on registered providers during shutdown). The actual work is synchronous since we
+    /// only flip a flag — FileLogger's Channel-based flush is managed externally.
     /// </summary>
     public ValueTask DisposeAsync()
     {

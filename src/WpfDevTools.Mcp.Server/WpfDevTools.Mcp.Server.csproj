@@ -7,8 +7,6 @@
     <Nullable>enable</Nullable>
     <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- CS1591: McpTools methods use [Description] attribute instead of XML doc comments -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

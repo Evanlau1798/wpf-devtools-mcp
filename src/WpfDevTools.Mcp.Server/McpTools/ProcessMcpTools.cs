@@ -3,6 +3,8 @@ using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
 
+#pragma warning disable CS1591 // McpTools use [Description] attribute instead of XML doc comments
+
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
@@ -47,7 +49,7 @@ public static class ProcessMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "connect", Idempotent = true)]
+    [McpServerTool(Name = "connect", Destructive = true, Idempotent = true)]
     [Description(
         "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +

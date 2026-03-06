@@ -144,4 +144,54 @@ public class FileLoggerProviderTests : IDisposable
 
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public async Task Logger_LogInformation_ShouldWriteToFile()
+    {
+        using var provider = new FileLoggerProvider(_fileLogger);
+        var logger = provider.CreateLogger("ContentTest");
+
+        logger.LogInformation("Hello from test {Id}", 42);
+
+        // FileLogger uses Channel-based async I/O; give it time to flush
+        await Task.Delay(200);
+        _fileLogger.Dispose();
+
+        var content = await File.ReadAllTextAsync(_logFilePath);
+        content.Should().Contain("[ContentTest]");
+        content.Should().Contain("Hello from test 42");
+    }
+
+    [Fact]
+    public async Task Logger_LogError_ShouldWriteExceptionToFile()
+    {
+        using var provider = new FileLoggerProvider(_fileLogger);
+        var logger = provider.CreateLogger("ErrorTest");
+
+        logger.LogError(new InvalidOperationException("test-exception"), "Something failed");
+
+        await Task.Delay(200);
+        _fileLogger.Dispose();
+
+        var content = await File.ReadAllTextAsync(_logFilePath);
+        content.Should().Contain("[ErrorTest]");
+        content.Should().Contain("Something failed");
+        content.Should().Contain("test-exception");
+    }
+
+    [Fact]
+    public async Task Logger_AfterDispose_ShouldNotWriteToFile()
+    {
+        var provider = new FileLoggerProvider(_fileLogger);
+        var logger = provider.CreateLogger("DisposedTest");
+
+        provider.Dispose();
+        logger.LogInformation("Should not appear");
+
+        await Task.Delay(200);
+        _fileLogger.Dispose();
+
+        var content = File.Exists(_logFilePath) ? await File.ReadAllTextAsync(_logFilePath) : "";
+        content.Should().NotContain("Should not appear");
+    }
 }

@@ -21,6 +21,8 @@ public static class ToolCallHelper
     /// <summary>
     /// Build a JsonElement from a dictionary of named parameters.
     /// Null values are excluded from the resulting JSON object.
+    /// Note: value types (int, bool) are boxed via the object? parameter — acceptable
+    /// since tool calls are not a hot path (~1-10 calls/second).
     /// </summary>
     /// <param name="parameters">Named parameter tuples</param>
     /// <returns>JsonElement containing the parameters, or null if all values are null</returns>
@@ -44,6 +46,7 @@ public static class ToolCallHelper
     /// <summary>
     /// Execute a tool and wrap the result as a CallToolResult.
     /// Detects tool errors by checking for { success: false } in the result.
+    /// Uses single-pass serialization: object -> JsonElement -> check error -> raw text.
     /// </summary>
     /// <param name="execute">The tool's ExecuteAsync function</param>
     /// <param name="args">JSON arguments for the tool</param>
@@ -55,42 +58,56 @@ public static class ToolCallHelper
         CancellationToken cancellationToken)
     {
         var result = await execute(args, cancellationToken).ConfigureAwait(false);
-        var json = JsonSerializer.Serialize(result, SerializerOptions);
-        var isError = IsToolResultError(json);
+        var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
+        var isError = IsToolResultError(jsonElement);
 
         return new CallToolResult()
         {
-            Content = [new TextContentBlock() { Text = json }],
+            Content = [new TextContentBlock() { Text = jsonElement.GetRawText() }],
             IsError = isError
         };
     }
 
     /// <summary>
-    /// Detect if a tool result indicates an error by checking for success: false
+    /// Detect if a tool result indicates an error by checking for success: false.
+    /// Accepts a pre-parsed JsonElement to avoid redundant deserialization.
+    /// </summary>
+    internal static bool IsToolResultError(JsonElement element)
+    {
+        return element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty("success", out var successProp)
+            && successProp.ValueKind == JsonValueKind.False;
+    }
+
+    /// <summary>
+    /// Detect if a tool result indicates an error by checking for success: false.
+    /// Parses the JSON string first — use the JsonElement overload when possible.
     /// </summary>
     internal static bool IsToolResultError(string json)
     {
         try
         {
             var element = JsonSerializer.Deserialize<JsonElement>(json);
-
-            if (element.TryGetProperty("success", out var successProp)
-                && successProp.ValueKind == JsonValueKind.False)
-            {
-                return true;
-            }
+            return IsToolResultError(element);
         }
         catch (JsonException)
         {
             // If we can't parse, assume success
+            return false;
         }
-
-        return false;
     }
 
     /// <summary>
-    /// Get or create a cached tool instance. Tools are stateless (only hold SessionManager
-    /// reference) and thread-safe, so a single instance can be reused across concurrent calls.
+    /// Get or create a cached tool instance. Tools are stateless wrappers that only hold
+    /// a SessionManager reference and are thread-safe, so a single instance can be reused
+    /// across concurrent calls.
+    /// <para>
+    /// IMPORTANT: This cache is static and process-lifetime. The factory captures the
+    /// SessionManager from the first invocation. This is correct because SessionManager
+    /// is registered as a DI singleton — only one instance exists per process. If the
+    /// hosting model ever changes to support multiple server instances per process,
+    /// this cache must be scoped accordingly.
+    /// </para>
     /// </summary>
     /// <typeparam name="T">Tool type</typeparam>
     /// <param name="key">Unique cache key (typically the MCP tool name)</param>

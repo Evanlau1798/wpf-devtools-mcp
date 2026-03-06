@@ -8,6 +8,8 @@
     <Version>0.1.0</Version>
     <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591: McpTools use [Description] attributes instead of XML doc comments -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

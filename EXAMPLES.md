@@ -55,7 +55,7 @@ Your WPF application has binding errors, but you're not sure which bindings are 
     "name": "get_datacontext_chain",
     "arguments": {
       "processId": 12345,
-      "elementId": "errorElement1"
+      "elementId": "TextBlock_3"
     }
   }
 }
@@ -92,7 +92,7 @@ You want to understand how ViewModels are structured and what commands are avail
     "name": "get_viewmodel",
     "arguments": {
       "processId": 12345,
-      "elementId": "mainWindow"
+      "elementId": "Window_0"
     }
   }
 }
@@ -106,7 +106,7 @@ You want to understand how ViewModels are structured and what commands are avail
     "name": "get_commands",
     "arguments": {
       "processId": 12345,
-      "elementId": "mainWindow"
+      "elementId": "Window_0"
     }
   }
 }
@@ -120,7 +120,7 @@ You want to understand how ViewModels are structured and what commands are avail
     "name": "execute_command",
     "arguments": {
       "processId": 12345,
-      "elementId": "mainWindow",
+      "elementId": "Window_0",
       "commandName": "SaveCommand"
     }
   }
@@ -144,7 +144,7 @@ A property has an unexpected value, and you want to understand where it comes fr
     "name": "get_dp_value_source",
     "arguments": {
       "processId": 12345,
-      "elementId": "myButton",
+      "elementId": "Button_1",
       "propertyName": "Background"
     }
   }
@@ -159,7 +159,7 @@ A property has an unexpected value, and you want to understand where it comes fr
     "name": "get_applied_styles",
     "arguments": {
       "processId": 12345,
-      "elementId": "myButton"
+      "elementId": "Button_1"
     }
   }
 }
@@ -173,7 +173,7 @@ A property has an unexpected value, and you want to understand where it comes fr
     "name": "get_resource_chain",
     "arguments": {
       "processId": 12345,
-      "elementId": "myButton",
+      "elementId": "Button_1",
       "resourceKey": "ButtonStyle"
     }
   }
@@ -237,7 +237,7 @@ Your application is slow, and you want to identify performance bottlenecks.
     "name": "measure_element_render_time",
     "arguments": {
       "processId": 12345,
-      "elementId": "complexControl"
+      "elementId": "DataGrid_1"
     }
   }
 }
@@ -274,7 +274,7 @@ You want to automate UI testing by simulating user interactions.
     "name": "click_element",
     "arguments": {
       "processId": 12345,
-      "elementId": "submitButton"
+      "elementId": "Button_2"
     }
   }
 }
@@ -288,7 +288,7 @@ You want to automate UI testing by simulating user interactions.
     "name": "set_dp_value",
     "arguments": {
       "processId": 12345,
-      "elementId": "usernameTextBox",
+      "elementId": "TextBox_1",
       "propertyName": "Text",
       "value": "admin"
     }
@@ -304,7 +304,7 @@ You want to automate UI testing by simulating user interactions.
     "name": "simulate_keyboard",
     "arguments": {
       "processId": 12345,
-      "elementId": "usernameTextBox",
+      "elementId": "TextBox_1",
       "key": "Tab"
     }
   }
@@ -319,7 +319,7 @@ You want to automate UI testing by simulating user interactions.
     "name": "element_screenshot",
     "arguments": {
       "processId": 12345,
-      "elementId": "mainWindow"
+      "elementId": "Window_0"
     }
   }
 }
@@ -369,7 +369,7 @@ You want to understand how a routed event propagates through the Visual Tree.
     "name": "get_event_handlers",
     "arguments": {
       "processId": 12345,
-      "elementId": "myButton",
+      "elementId": "Button_1",
       "eventName": "Click"
     }
   }
@@ -384,7 +384,7 @@ You want to understand how a routed event propagates through the Visual Tree.
     "name": "fire_routed_event",
     "arguments": {
       "processId": 12345,
-      "elementId": "myButton",
+      "elementId": "Button_1",
       "eventName": "CustomEvent"
     }
   }
@@ -411,7 +411,7 @@ You want to monitor property changes in real-time.
     "name": "watch_dp_changes",
     "arguments": {
       "processId": 12345,
-      "elementId": "progressBar",
+      "elementId": "ProgressBar_1",
       "propertyName": "Value"
     }
   }
@@ -429,7 +429,7 @@ You want to monitor property changes in real-time.
     "name": "set_dp_value",
     "arguments": {
       "processId": 12345,
-      "elementId": "progressBar",
+      "elementId": "ProgressBar_1",
       "propertyName": "Value",
       "value": 75
     }
@@ -454,7 +454,7 @@ An element is clipped or not visible, and you want to understand why.
     "name": "get_layout_info",
     "arguments": {
       "processId": 12345,
-      "elementId": "myControl"
+      "elementId": "StackPanel_2"
     }
   }
 }
@@ -468,7 +468,7 @@ An element is clipped or not visible, and you want to understand why.
     "name": "get_clipping_info",
     "arguments": {
       "processId": 12345,
-      "elementId": "myControl"
+      "elementId": "StackPanel_2"
     }
   }
 }
@@ -482,7 +482,7 @@ An element is clipped or not visible, and you want to understand why.
     "name": "highlight_element",
     "arguments": {
       "processId": 12345,
-      "elementId": "myControl",
+      "elementId": "StackPanel_2",
       "duration": 5000
     }
   }
@@ -497,7 +497,7 @@ An element is clipped or not visible, and you want to understand why.
     "name": "invalidate_layout",
     "arguments": {
       "processId": 12345,
-      "elementId": "myControl"
+      "elementId": "StackPanel_2"
     }
   }
 }

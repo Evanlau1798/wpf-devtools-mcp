@@ -3,8 +3,6 @@ using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
 
-#pragma warning disable CS1591 // McpTools use [Description] attribute instead of XML doc comments
-
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>

@@ -249,8 +249,11 @@ public sealed class NamedPipeClient : IDisposable
                         return false;
 
                     // If thumbprint is configured, pin to that specific certificate
-                    return !string.IsNullOrWhiteSpace(expectedThumbprint)
-                        && string.Equals(cert2.Thumbprint, expectedThumbprint, StringComparison.OrdinalIgnoreCase);
+                    // If no thumbprint available, accept any cert with valid subject name (already checked above)
+                    if (string.IsNullOrWhiteSpace(expectedThumbprint))
+                        return true;
+
+                    return string.Equals(cert2.Thumbprint, expectedThumbprint, StringComparison.OrdinalIgnoreCase);
                 });
 
 #if NET48

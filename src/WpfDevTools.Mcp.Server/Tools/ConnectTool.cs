@@ -289,12 +289,16 @@ public sealed class ConnectTool
         // CRITICAL FIX: Environment variable bypass only in DEBUG builds for testing
         // RELEASE builds ALWAYS verify signatures - no exceptions
 #if DEBUG
-        var skipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1";
+        // NOTE: This bypass is for local development only. CI pipelines using DEBUG builds
+        // must NOT set WPFDEVTOOLS_SKIP_SIGNATURE_CHECK. RELEASE builds always verify.
+        var skipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1"
+            && Environment.GetEnvironmentVariable("CI") == null
+            && Environment.GetEnvironmentVariable("TF_BUILD") == null;
         if (skipSignatureCheck)
         {
             System.Diagnostics.Trace.TraceWarning(
                 "[SECURITY] DLL signature verification bypassed via WPFDEVTOOLS_SKIP_SIGNATURE_CHECK. " +
-                "This is only allowed in DEBUG builds.");
+                "This is only allowed in DEBUG builds outside CI.");
         }
         else
         {

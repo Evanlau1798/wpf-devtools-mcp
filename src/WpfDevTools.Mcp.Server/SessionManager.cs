@@ -271,7 +271,13 @@ public sealed class SessionManager : IDisposable
             // non-critical.
             try
             {
-                var logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_SessionManager_Cleanup_{DateTime.UtcNow:yyyyMMdd}.log");
+                var logPath = Path.Combine(Path.GetTempPath(), "WpfDevTools_SessionManager_Cleanup.log");
+                // Rotate if over 1 MB to prevent unbounded growth
+                if (File.Exists(logPath) && new FileInfo(logPath).Length > 1_048_576)
+                {
+                    try { File.Delete(logPath + ".old"); } catch { /* best effort */ }
+                    try { File.Move(logPath, logPath + ".old"); } catch { /* best effort */ }
+                }
                 File.AppendAllText(logPath, $"[{DateTime.UtcNow:O}] Cleanup error: {ex}\n");
             }
             catch (Exception logEx)

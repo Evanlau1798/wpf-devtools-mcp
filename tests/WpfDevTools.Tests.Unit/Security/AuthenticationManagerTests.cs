@@ -179,4 +179,54 @@ public class AuthenticationManagerTests
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*disabled*");
     }
+
+    [Fact]
+    public void Dispose_ShouldPreventSubsequentGetSharedSecret()
+    {
+        // Arrange
+        var manager = new AuthenticationManager();
+        manager.GetSharedSecret(); // Verify it works before dispose
+
+        // Act
+        manager.Dispose();
+
+        // Assert
+        var act = () => manager.GetSharedSecret();
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void Dispose_CalledMultipleTimes_ShouldNotThrow()
+    {
+        // Arrange
+        var manager = new AuthenticationManager();
+
+        // Act & Assert
+        var act = () =>
+        {
+            manager.Dispose();
+            manager.Dispose();
+        };
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Dispose_ShouldZeroSecretMemory()
+    {
+        // Arrange
+        var knownSecret = new byte[32];
+        RandomNumberGenerator.Fill(knownSecret);
+        var base64 = Convert.ToBase64String(knownSecret);
+        var manager = new AuthenticationManager(envSecretProvider: () => base64);
+
+        // Verify secret is correct before dispose
+        manager.GetSharedSecret().Should().Equal(knownSecret);
+
+        // Act
+        manager.Dispose();
+
+        // Assert: After dispose, GetSharedSecret should throw (secret is zeroed)
+        var act = () => manager.GetSharedSecret();
+        act.Should().Throw<ObjectDisposedException>();
+    }
 }

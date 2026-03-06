@@ -292,7 +292,8 @@ public sealed class NamedPipeClient : IDisposable
             return configuredThumbprint;
         }
 
-        return _certManager?.GetOrCreateCertificate().Thumbprint;
+        using var cert = _certManager?.GetOrCreateCertificate();
+        return cert?.Thumbprint;
     }
 
     private async Task<bool> AuthenticateToInspectorAsync(

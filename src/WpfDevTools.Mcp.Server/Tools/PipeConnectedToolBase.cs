@@ -103,10 +103,12 @@ public abstract class PipeConnectedToolBase
     protected async Task<object> SendInspectorRequestAsync(
         int processId, string method, object? parameters, CancellationToken ct)
     {
-        if (!_sessionManager.HasSession(processId))
+        // Get pipe client atomically - avoids TOCTOU race between HasSession and GetPipeClient
+        var client = _sessionManager.GetPipeClient(processId);
+        if (client == null)
             return CreateNotConnectedError(processId);
 
-        // SECURITY: Check rate limit to prevent DoS attacks
+        // SECURITY: Check rate limit to prevent DoS attacks (only for connected sessions)
         if (!_sessionManager.CheckRateLimit(processId))
         {
             var availableTokens = _sessionManager.GetAvailableTokens(processId);
@@ -120,8 +122,7 @@ public abstract class PipeConnectedToolBase
             };
         }
 
-        var client = _sessionManager.GetPipeClient(processId);
-        if (client == null || !client.IsConnected)
+        if (!client.IsConnected)
         {
             return new
             {

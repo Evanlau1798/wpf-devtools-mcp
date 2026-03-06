@@ -255,6 +255,11 @@ public sealed class SessionManager : IDisposable
                 RemoveSession(processId);
             }
         }
+        catch (ObjectDisposedException)
+        {
+            // SessionManager was disposed during cleanup - safe to ignore
+            return;
+        }
         catch (Exception ex)
         {
             // CRITICAL FIX: Log cleanup failures to file (STDIO-safe)

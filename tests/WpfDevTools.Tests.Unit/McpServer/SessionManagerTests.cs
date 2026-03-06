@@ -149,4 +149,43 @@ public class SessionManagerTests
         idleSessions.Should().Contain(100);
         idleSessions.Should().NotContain(200);
     }
+
+    [Fact]
+    public void Dispose_ImmediatelyAfterCreation_ShouldNotThrow()
+    {
+        // Validates C2: Dispose during cleanup timer shouldn't cause race condition
+        var manager = new SessionManager();
+        manager.AddSession(100);
+
+        // Act: dispose immediately (timer callback may be pending)
+        var act = () => manager.Dispose();
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Dispose_ShouldPreventFurtherOperations()
+    {
+        // Arrange
+        var manager = new SessionManager();
+        manager.Dispose();
+
+        // Act & Assert
+        var act = () => manager.HasSession(100);
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void GetPipeClient_WhenNoSession_ShouldReturnNull()
+    {
+        // Validates C4: GetPipeClient returns null for non-existent sessions
+        using var manager = new SessionManager();
+
+        // Act
+        var client = manager.GetPipeClient(99999);
+
+        // Assert
+        client.Should().BeNull();
+    }
 }

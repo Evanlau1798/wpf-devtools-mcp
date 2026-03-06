@@ -185,7 +185,7 @@ public static class MvvmMcpTools
         "- \"value required\" -> must provide new value\n\n" +
         "Examples:\n" +
         "- { processId: 12345, propertyName: \"Name\", value: \"John Doe\" }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Age\", value: \"30\" }")]
+        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Age\", value: 30 }")]
     public static Task<CallToolResult> ModifyViewModel(
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,

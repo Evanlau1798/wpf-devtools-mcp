@@ -107,8 +107,9 @@ public static class DependencyPropertyMcpTools
         "- \"conversion failed\" -> value string cannot be converted to property type\n" +
         "- \"value required\" -> must provide value parameter\n\n" +
         "Examples:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", value: \"False\" }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\", value: \"New Value\" }")]
+        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", value: false }\n" +
+        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\", value: \"New Value\" }\n" +
+        "- { processId: 12345, elementId: \"Panel\", propertyName: \"Width\", value: 200 }")]
     public static Task<CallToolResult> SetDpValue(
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,

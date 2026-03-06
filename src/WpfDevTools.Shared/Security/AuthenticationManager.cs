@@ -115,7 +115,13 @@ public sealed class AuthenticationManager : IDisposable
 
         if (_sharedSecret != null)
         {
+#if NET48
+            // Array.Clear is an internal CLR call and not optimized away by the .NET Framework JIT
             Array.Clear(_sharedSecret, 0, _sharedSecret.Length);
+#else
+            // CryptographicOperations.ZeroMemory is guaranteed not to be optimized away by the JIT
+            CryptographicOperations.ZeroMemory(_sharedSecret);
+#endif
         }
     }
 }

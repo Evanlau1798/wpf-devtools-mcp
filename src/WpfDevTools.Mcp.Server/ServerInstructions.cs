@@ -101,6 +101,7 @@ public static class ServerInstructions
         - "timeout" -> process may be frozen; try ping() to verify connection
         - "element not found" -> verify elementId from get_visual_tree/get_logical_tree
         - "property not found" -> verify propertyName spelling and element type
+        - "Rate limit exceeded" -> wait 1 minute, then retry. Response includes { availableTokens, retryAfterSeconds: 60 }
 
         === RESPONSE FORMAT ===
         All tools return JSON: { success: boolean, ...fields }

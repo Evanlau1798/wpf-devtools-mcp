@@ -279,22 +279,23 @@ You want to automate UI testing by simulating user interactions.
   }
 }
 
-// 3. Simulate keyboard input in a TextBox (send individual key presses)
+// 3. Set text via DependencyProperty (preferred for text input)
 {
   "jsonrpc": "2.0",
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "simulate_keyboard",
+    "name": "set_dp_value",
     "arguments": {
       "processId": 12345,
       "elementId": "usernameTextBox",
-      "key": "T"
+      "propertyName": "Text",
+      "value": "admin"
     }
   }
 }
 
-// Repeat for each character, or use Tab to move to the next field
+// 4. Use simulate_keyboard for navigation/shortcuts (not for text input)
 {
   "jsonrpc": "2.0",
   "id": "3b",
@@ -309,7 +310,7 @@ You want to automate UI testing by simulating user interactions.
   }
 }
 
-// 4. Capture a screenshot for verification
+// 5. Capture a screenshot for verification
 {
   "jsonrpc": "2.0",
   "id": 4,
@@ -323,7 +324,7 @@ You want to automate UI testing by simulating user interactions.
   }
 }
 
-// 5. Verify validation errors
+// 6. Verify validation errors
 {
   "jsonrpc": "2.0",
   "id": 5,

@@ -28,6 +28,7 @@ public static class InteractionMcpTools
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"elementId required\" -> must specify which element to click\n" +
         "- \"element not found\" -> verify elementId from get_visual_tree\n" +
         "- \"element not clickable\" -> element is disabled or not a clickable type\n\n" +
         "Examples:\n" +

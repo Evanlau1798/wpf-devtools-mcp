@@ -57,6 +57,13 @@ try
         fileLogger.LogInfo($"TLS encryption enabled via WPFDEVTOOLS_CERT_DIR: {certDirEnv}");
     }
 
+    if (authManager == null && certManager == null)
+    {
+        fileLogger.LogWarning(
+            "Neither authentication (WPFDEVTOOLS_AUTH_SECRET) nor TLS encryption (WPFDEVTOOLS_CERT_DIR) is configured. " +
+            "Named Pipe communication will be unprotected. Set these environment variables for production use.");
+    }
+
     builder.Services.AddSingleton(sp => new SessionManager(
         sp.GetRequiredService<IRateLimiterManager>(),
         authManager,

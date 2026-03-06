@@ -44,7 +44,7 @@ public static class EventMcpTools
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("WPF routed event name to trace, such as Click or MouseDown.")] string eventName,
         [Description("Optional element ID to scope the event trace. Omit for the root window.")] string? elementId = null,
-        [Description("Optional capture window in milliseconds. Use smaller values for interactive STDIO sessions.")] int? durationMs = null,
+        [Description("Optional capture window in milliseconds (default: 5000). Use smaller values (250-2000) for interactive STDIO sessions.")] int? durationMs = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

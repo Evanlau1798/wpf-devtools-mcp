@@ -13,9 +13,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class EventMcpTools
 {
+    private const string EventMetadata = "CATEGORY: Event | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
     [McpServerTool(Name = "trace_routed_events", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Event] Trace a routed event over a short capture window and return the collected event records. " +
+        EventMetadata + "[Event] Trace a routed event over a short capture window and return the collected event records. " +
         "Use this to see whether a routed event fired, how many records were captured, and the handled state of each record.\n\n" +
         "USE WHEN: Debugging event handling issues; confirming whether Click/MouseDown style events are firing.\n" +
         "DO NOT USE: As a long-running subscription. This tool blocks until the capture window completes and then returns the collected records.\n\n" +
@@ -34,7 +35,7 @@ public static class EventMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"invalid event name\" -> verify eventName is a valid WPF RoutedEvent\n" +
         "- \"eventName required\" -> must specify which event to trace\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, eventName: \"MouseDown\", durationMs: 500 }\n" +
         "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", durationMs: 1000 }")]
     public static Task<CallToolResult> TraceRoutedEvents(
@@ -64,7 +65,7 @@ public static class EventMcpTools
 
     [McpServerTool(Name = "get_event_handlers", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Event] Get all event handlers attached to a WPF element for a specific routed event. " +
+        EventMetadata + "[Event] Get all event handlers attached to a WPF element for a specific routed event. " +
         "Returns handler method names, declaring types, and whether they handle tunneling/bubbling.\n\n" +
         "USE WHEN: Button click does nothing; need to verify event handlers are attached.\n" +
         "DO NOT USE: Without eventName - it's required.\n\n" +
@@ -81,7 +82,7 @@ public static class EventMcpTools
         "- \"element not found\" -> verify elementId\n" +
         "- \"invalid event name\" -> verify eventName is valid\n" +
         "- \"eventName required\" -> must specify which event\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }")]
     public static Task<CallToolResult> GetEventHandlers(
         SessionManager sessionManager,
@@ -103,7 +104,7 @@ public static class EventMcpTools
 
     [McpServerTool(Name = "fire_routed_event", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Event] Fire a routed event on a WPF element. " +
+        EventMetadata + "[Event] Fire a routed event on a WPF element. " +
         "Triggers the full WPF routed event pipeline (Tunneling -> Direct -> Bubbling).\n\n" +
         "USE WHEN: Testing event handlers programmatically; simulating user interactions.\n" +
         "DO NOT USE: For mouse clicks (use click_element instead); for keyboard input (use simulate_keyboard).\n\n" +
@@ -118,7 +119,7 @@ public static class EventMcpTools
         "- \"element not found\" -> verify elementId\n" +
         "- \"invalid event name\" -> verify eventName is valid\n" +
         "- \"eventName required\" -> must specify which event\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }")]
     public static Task<CallToolResult> FireRoutedEvent(
         SessionManager sessionManager,
@@ -140,3 +141,6 @@ public static class EventMcpTools
             cancellationToken);
     }
 }
+
+
+

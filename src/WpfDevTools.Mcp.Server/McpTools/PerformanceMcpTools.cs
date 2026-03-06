@@ -12,9 +12,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class PerformanceMcpTools
 {
+    private const string PerformanceMetadata = "CATEGORY: Performance | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
     [McpServerTool(Name = "get_render_stats", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Performance] Get render statistics from a WPF application. Returns frame rate, " +
+        PerformanceMetadata + "[Performance] Get render statistics from a WPF application. Returns frame rate, " +
         "render time, dirty region count, and other WPF rendering pipeline metrics.\n\n" +
         "USE WHEN: UI feels slow or laggy; investigating rendering performance issues.\n" +
         "DO NOT USE: For memory leaks (use find_binding_leaks instead).\n\n" +
@@ -29,7 +30,7 @@ public static class PerformanceMcpTools
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetRenderStats(
         SessionManager sessionManager,
@@ -47,7 +48,7 @@ public static class PerformanceMcpTools
 
     [McpServerTool(Name = "find_binding_leaks", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Performance] Detect potential binding memory leaks by tracking live binding references. " +
+        PerformanceMetadata + "[Performance] Detect potential binding memory leaks by tracking live binding references. " +
         "Threshold is the minimum number of live bindings on a single element to flag as suspicious.\n\n" +
         "USE WHEN: Memory usage grows over time; suspecting binding-related memory leaks.\n" +
         "DO NOT USE: On apps with legitimately many bindings per element (e.g., data grids).\n\n" +
@@ -61,7 +62,7 @@ public static class PerformanceMcpTools
         "Empty suspects array means no leak candidates found.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
         "- { processId: 12345, threshold: 50 }")]
     public static Task<CallToolResult> FindBindingLeaks(
@@ -82,7 +83,7 @@ public static class PerformanceMcpTools
 
     [McpServerTool(Name = "measure_element_render_time", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Performance] Measure the render time of a WPF element in milliseconds. " +
+        PerformanceMetadata + "[Performance] Measure the render time of a WPF element in milliseconds. " +
         "Forces a re-render and measures the time taken.\n\n" +
         "USE WHEN: Identifying slow-rendering elements; profiling UI performance.\n" +
         "DO NOT USE: Repeatedly in a loop (causes performance overhead).\n\n" +
@@ -96,7 +97,7 @@ public static class PerformanceMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> MeasureElementRenderTime(
@@ -117,7 +118,7 @@ public static class PerformanceMcpTools
 
     [McpServerTool(Name = "get_visual_count", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Performance] Get the count of visual elements in a WPF element subtree. " +
+        PerformanceMetadata + "[Performance] Get the count of visual elements in a WPF element subtree. " +
         "High counts (>5000) may indicate performance issues.\n\n" +
         "USE WHEN: UI feels slow; need to identify overly complex subtrees.\n" +
         "DO NOT USE: For memory usage (use find_binding_leaks instead).\n\n" +
@@ -131,7 +132,7 @@ public static class PerformanceMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> GetVisualCount(
@@ -150,3 +151,6 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 }
+
+
+

@@ -12,9 +12,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class InteractionMcpTools
 {
+    private const string InteractionMetadata = "CATEGORY: Interaction | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
     [McpServerTool(Name = "click_element", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Interaction] Simulate a mouse click on a WPF element. " +
+        InteractionMetadata + "[Interaction] Simulate a mouse click on a WPF element. " +
         "Raises the full WPF click event pipeline.\n\n" +
         "USE WHEN: Testing button handlers, navigation, or click-triggered logic.\n" +
         "DO NOT USE: On disabled elements (check IsEnabled first with get_dp_value_source).\n\n" +
@@ -29,7 +30,7 @@ public static class InteractionMcpTools
         "- \"elementId required\" -> must specify which element to click\n" +
         "- \"element not found\" -> verify elementId from get_visual_tree\n" +
         "- \"element not clickable\" -> element is disabled or not a clickable type\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\" }\n" +
         "- { processId: 12345, elementId: \"ClearButton\" }")]
     public static Task<CallToolResult> ClickElement(
@@ -50,7 +51,7 @@ public static class InteractionMcpTools
 
     [McpServerTool(Name = "drag_and_drop", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Interaction] Simulate drag and drop between two WPF elements. " +
+        InteractionMetadata + "[Interaction] Simulate drag and drop between two WPF elements. " +
         "Raises DragEnter, DragOver, and Drop events on the target.\n\n" +
         "USE WHEN: Testing drag-drop functionality, reordering items, or file drop handlers.\n" +
         "DO NOT USE: Without verifying both elements exist first.\n\n" +
@@ -66,7 +67,7 @@ public static class InteractionMcpTools
         "- \"target not found\" -> verify targetElementId\n" +
         "- \"sourceElementId required\" -> must specify drag source\n" +
         "- \"targetElementId required\" -> must specify drop target\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, sourceElementId: \"Item1\", targetElementId: \"Item2\" }")]
     public static Task<CallToolResult> DragAndDrop(
         SessionManager sessionManager,
@@ -93,7 +94,7 @@ public static class InteractionMcpTools
 
     [McpServerTool(Name = "scroll_to_element", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Interaction] Scroll a WPF element into view within its parent ScrollViewer. " +
+        InteractionMetadata + "[Interaction] Scroll a WPF element into view within its parent ScrollViewer. " +
         "Calls BringIntoView() on the element.\n\n" +
         "USE WHEN: Element is off-screen before taking screenshot or clicking; testing scroll behavior.\n" +
         "DO NOT USE: On elements not inside a ScrollViewer (has no effect).\n\n" +
@@ -106,7 +107,7 @@ public static class InteractionMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
         "- \"elementId required\" -> must specify which element to scroll to\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> ScrollToElement(
         SessionManager sessionManager,
@@ -126,7 +127,7 @@ public static class InteractionMcpTools
 
     [McpServerTool(Name = "simulate_keyboard", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Interaction] Simulate a keyboard key press on an element. " +
+        InteractionMetadata + "[Interaction] Simulate a keyboard key press on an element. " +
         "Key parameter uses WPF Key enum names.\n\n" +
         "USE WHEN: Testing keyboard shortcuts, Enter key submission, Tab navigation, or key event handlers.\n" +
         "DO NOT USE: For text input (use set_dp_value on Text property instead).\n\n" +
@@ -141,7 +142,7 @@ public static class InteractionMcpTools
         "- \"element not found\" -> verify elementId\n" +
         "- \"invalid key\" -> key name not recognized (use WPF Key enum names)\n" +
         "- \"key required\" -> must specify which key to press\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"NameTextBox\", key: \"Enter\" }\n" +
         "- { processId: 12345, elementId: \"NameTextBox\", key: \"Tab\" }")]
     public static Task<CallToolResult> SimulateKeyboard(
@@ -166,7 +167,7 @@ public static class InteractionMcpTools
 
     [McpServerTool(Name = "element_screenshot", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Interaction] Capture a PNG screenshot of a specific element. " +
+        InteractionMetadata + "[Interaction] Capture a PNG screenshot of a specific element. " +
         "Returns base64-encoded image data. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
         "USE WHEN: Visual verification needed; documenting UI state; debugging rendering issues.\n" +
         "DO NOT USE: On off-screen elements (use scroll_to_element first).\n\n" +
@@ -183,7 +184,7 @@ public static class InteractionMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
         "- \"render failed\" -> element may be collapsed or have zero size\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\" }\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> ElementScreenshot(
@@ -202,3 +203,6 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 }
+
+
+

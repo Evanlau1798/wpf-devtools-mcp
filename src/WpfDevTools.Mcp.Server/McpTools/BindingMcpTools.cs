@@ -12,9 +12,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class BindingMcpTools
 {
+    private const string BindingMetadata = "CATEGORY: Binding | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
     [McpServerTool(Name = "get_bindings", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Binding] Get all DataBindings on an element. Shows binding path, mode " +
+        BindingMetadata + "[Binding] Get all DataBindings on an element. Shows binding path, mode " +
         "(OneWay/TwoWay/OneTime), source type, converter, and current status.\n\n" +
         "USE WHEN: You need to inspect binding configuration on a specific element or subtree.\n" +
         "DO NOT USE: recursive=true on large apps without elementId scope (will be slow).\n\n" +
@@ -30,7 +31,7 @@ public static class BindingMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId from get_visual_tree\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
         "- { processId: 12345, elementId: \"NameTextBox\" }\n" +
         "- { processId: 12345, recursive: true }")]
@@ -54,7 +55,7 @@ public static class BindingMcpTools
 
     [McpServerTool(Name = "get_binding_errors", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Binding] Get ALL binding errors captured since Inspector connected. " +
+        BindingMetadata + "[Binding] Get ALL binding errors captured since Inspector connected. " +
         "FIRST tool to use when debugging data display issues.\n\n" +
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
         "DO NOT USE: Before calling connect() - errors are only captured after injection.\n\n" +
@@ -72,7 +73,7 @@ public static class BindingMcpTools
         "Empty errors array means no binding errors detected.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetBindingErrors(
         SessionManager sessionManager,
@@ -90,7 +91,7 @@ public static class BindingMcpTools
 
     [McpServerTool(Name = "get_binding_value_chain", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Binding] Get the complete value resolution chain for a binding on a specific property. " +
+        BindingMetadata + "[Binding] Get the complete value resolution chain for a binding on a specific property. " +
         "Shows each step from source to target including converters, fallback values, and StringFormat.\n\n" +
         "USE WHEN: Binding doesn't error but shows unexpected value; need to trace value transformation.\n" +
         "DO NOT USE: Without propertyName - it's required.\n\n" +
@@ -106,7 +107,7 @@ public static class BindingMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"no binding\" -> property has no binding (check with get_bindings first)\n" +
         "- \"propertyName required\" -> must specify which property to inspect\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
     public static Task<CallToolResult> GetBindingValueChain(
         SessionManager sessionManager,
@@ -131,7 +132,7 @@ public static class BindingMcpTools
 
     [McpServerTool(Name = "get_datacontext_chain", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Binding] Get the DataContext inheritance chain from an element up to the root. " +
+        BindingMetadata + "[Binding] Get the DataContext inheritance chain from an element up to the root. " +
         "Shows each ancestor's DataContext type and value.\n\n" +
         "USE WHEN: Binding path is correct but can't find source; need to understand DataContext inheritance.\n" +
         "DO NOT USE: When binding error already shows the issue (use get_binding_errors first).\n\n" +
@@ -145,7 +146,7 @@ public static class BindingMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId is valid\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
         "- { processId: 12345, elementId: \"ErrorTextBox1\" }")]
     public static Task<CallToolResult> GetDataContextChain(
@@ -166,7 +167,7 @@ public static class BindingMcpTools
 
     [McpServerTool(Name = "force_binding_update", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Binding] Force a binding to re-evaluate and transfer the current value. " +
+        BindingMetadata + "[Binding] Force a binding to re-evaluate and transfer the current value. " +
         "Use for UpdateSourceTrigger=Explicit bindings or when the source value changed but the UI didn't update.\n\n" +
         "USE WHEN: UI is stale despite source changes; testing UpdateSourceTrigger=Explicit bindings.\n" +
         "DO NOT USE: As a workaround for broken INotifyPropertyChanged (fix the ViewModel instead).\n\n" +
@@ -180,7 +181,7 @@ public static class BindingMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"no binding\" -> property has no binding\n" +
         "- \"propertyName required\" -> must specify which property\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }\n" +
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\", direction: \"Target\" }")]
     public static Task<CallToolResult> ForceBindingUpdate(
@@ -206,3 +207,6 @@ public static class BindingMcpTools
             cancellationToken);
     }
 }
+
+
+

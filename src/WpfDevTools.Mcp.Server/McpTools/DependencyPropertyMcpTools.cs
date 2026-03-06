@@ -13,9 +13,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class DependencyPropertyMcpTools
 {
+    private const string DependencyPropertyMetadata = "CATEGORY: DependencyProperty | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
     [McpServerTool(Name = "get_dp_value_source", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[DependencyProperty] Get the value source of a DependencyProperty. " +
+        DependencyPropertyMetadata + "[DependencyProperty] Get the value source of a DependencyProperty. " +
         "Returns where the current value comes from: Default, Inherited, Style, Trigger, " +
         "TemplateBinding, LocalValue, or Animation.\n\n" +
         "USE WHEN: Property has unexpected value; need to understand precedence (Style vs LocalValue vs Animation).\n" +
@@ -30,7 +31,7 @@ public static class DependencyPropertyMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
         "- \"propertyName required\" -> must specify which property\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }\n" +
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
     public static Task<CallToolResult> GetDpValueSource(
@@ -53,7 +54,7 @@ public static class DependencyPropertyMcpTools
 
     [McpServerTool(Name = "get_dp_metadata", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[DependencyProperty] Get DependencyProperty metadata including default value, " +
+        DependencyPropertyMetadata + "[DependencyProperty] Get DependencyProperty metadata including default value, " +
         "inherits flag, affects measure/arrange, and coerce/validation callbacks.\n\n" +
         "USE WHEN: You need to understand property behavior at framework level (inheritance, layout impact).\n" +
         "DO NOT USE: For runtime value inspection (use get_dp_value_source instead).\n\n" +
@@ -66,7 +67,7 @@ public static class DependencyPropertyMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, propertyName: \"IsEnabled\" }\n" +
         "- { processId: 12345, propertyName: \"Visibility\" }")]
     public static Task<CallToolResult> GetDpMetadata(
@@ -89,7 +90,7 @@ public static class DependencyPropertyMcpTools
 
     [McpServerTool(Name = "set_dp_value", OpenWorld = false, Destructive = true)]
     [Description(
-        "[DependencyProperty] Set a DependencyProperty value at runtime. " +
+        DependencyPropertyMetadata + "[DependencyProperty] Set a DependencyProperty value at runtime. " +
         "Value is forwarded as raw JSON so numbers, booleans, objects, and strings keep their shape.\n\n" +
         "USE WHEN: Testing UI behavior with different property values; debugging layout/styling issues.\n" +
         "DO NOT USE: For permanent changes (changes are NOT persisted to XAML).\n\n" +
@@ -104,7 +105,7 @@ public static class DependencyPropertyMcpTools
         "- \"property not found\" -> verify propertyName is valid\n" +
         "- \"conversion failed\" -> value string cannot be converted to property type\n" +
         "- \"value required\" -> must provide value parameter\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", value: false }\n" +
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\", value: \"New Value\" }\n" +
         "- { processId: 12345, elementId: \"Panel\", propertyName: \"Width\", value: 200 }")]
@@ -130,7 +131,7 @@ public static class DependencyPropertyMcpTools
 
     [McpServerTool(Name = "clear_dp_value", OpenWorld = false, Destructive = true)]
     [Description(
-        "[DependencyProperty] Clear a DependencyProperty local value, " +
+        DependencyPropertyMetadata + "[DependencyProperty] Clear a DependencyProperty local value, " +
         "reverting it to its inherited, styled, or default value.\n\n" +
         "USE WHEN: Removing overrides applied by set_dp_value; testing default/inherited behavior.\n" +
         "DO NOT USE: On properties without local values (has no effect).\n\n" +
@@ -143,7 +144,7 @@ public static class DependencyPropertyMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is valid\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }")]
     public static Task<CallToolResult> ClearDpValue(
         SessionManager sessionManager,
@@ -165,7 +166,7 @@ public static class DependencyPropertyMcpTools
 
     [McpServerTool(Name = "watch_dp_changes", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[DependencyProperty] Register a listener for property value changes. " +
+        DependencyPropertyMetadata + "[DependencyProperty] Register a listener for property value changes. " +
         "CURRENT STDIO BEHAVIOR: registration-only. Change events are NOT pushed to the client; use get_dp_value_source to poll for changes.\n\n" +
         "USE WHEN: You are preparing for future push-capable transports, or you explicitly want watch registration state.\n" +
         "DO NOT USE: Expecting real-time event delivery over STDIO - use polling instead.\n\n" +
@@ -180,7 +181,7 @@ public static class DependencyPropertyMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is valid\n" +
         "- \"already watching this property\" -> watcher already exists for this element/property pair\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }\n" +
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }")]
     public static Task<CallToolResult> WatchDpChanges(
@@ -201,3 +202,6 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 }
+
+
+

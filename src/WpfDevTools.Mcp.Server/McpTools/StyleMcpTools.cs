@@ -13,9 +13,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class StyleMcpTools
 {
+    private const string StyleMetadata = "CATEGORY: Style | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
     [McpServerTool(Name = "get_applied_styles", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Style] Get all applied styles on a WPF element. Returns style type, target type, " +
+        StyleMetadata + "[Style] Get all applied styles on a WPF element. Returns style type, target type, " +
         "setters (property+value), and whether it's an implicit or explicit style.\n\n" +
         "USE WHEN: Element has unexpected appearance; need to understand which styles are applied.\n" +
         "DO NOT USE: For runtime property values (use get_dp_value_source instead).\n\n" +
@@ -31,7 +32,7 @@ public static class StyleMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\" }\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetAppliedStyles(
@@ -52,7 +53,7 @@ public static class StyleMcpTools
 
     [McpServerTool(Name = "get_triggers", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Style] Get all triggers from a WPF element's styles and templates. " +
+        StyleMetadata + "[Style] Get all triggers from a WPF element's styles and templates. " +
         "Returns trigger type (Property/Data/Event/MultiTrigger), conditions, and setter actions.\n\n" +
         "USE WHEN: Conditional styling not working; need to understand trigger logic.\n" +
         "DO NOT USE: For static styles (use get_applied_styles instead).\n\n" +
@@ -69,7 +70,7 @@ public static class StyleMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
         "- \"elementId required\" -> must specify which element\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> GetTriggers(
         SessionManager sessionManager,
@@ -89,7 +90,7 @@ public static class StyleMcpTools
 
     [McpServerTool(Name = "get_resource_chain", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Style] Get the resource lookup chain for a XAML resource key. " +
+        StyleMetadata + "[Style] Get the resource lookup chain for a XAML resource key. " +
         "Shows which ResourceDictionary at which level (element, window, app, theme) provides the resource.\n\n" +
         "USE WHEN: Resource not found errors; need to understand resource lookup order.\n" +
         "DO NOT USE: Without resourceKey - it's required.\n\n" +
@@ -106,7 +107,7 @@ public static class StyleMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
         "- \"resourceKey required\" -> must specify which resource to look up\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, resourceKey: \"PrimaryBrush\" }\n" +
         "- { processId: 12345, elementId: \"SaveButton\", resourceKey: \"ButtonStyle\" }")]
     public static Task<CallToolResult> GetResourceChain(
@@ -129,7 +130,7 @@ public static class StyleMcpTools
 
     [McpServerTool(Name = "override_style_setter", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Style] Override a style setter value on a WPF element at runtime. " +
+        StyleMetadata + "[Style] Override a style setter value on a WPF element at runtime. " +
         "Applies a local value that takes precedence over the style.\n\n" +
         "USE WHEN: Testing different style values; debugging style precedence issues.\n" +
         "DO NOT USE: For permanent changes (not persisted to XAML).\n\n" +
@@ -146,7 +147,7 @@ public static class StyleMcpTools
         "- \"conversion failed\" -> value cannot be converted to property type\n" +
         "- \"propertyName required\" -> must specify which property\n" +
         "- \"value required\" -> must provide new value\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"Background\", value: \"Red\" }")]
     public static Task<CallToolResult> OverrideStyleSetter(
         SessionManager sessionManager,
@@ -168,3 +169,6 @@ public static class StyleMcpTools
             cancellationToken);
     }
 }
+
+
+

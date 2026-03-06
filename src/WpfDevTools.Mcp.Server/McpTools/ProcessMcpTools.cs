@@ -12,9 +12,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class ProcessMcpTools
 {
+    private const string ProcessMetadata = "CATEGORY: Process | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
     [McpServerTool(Name = "get_processes", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Process] List all running WPF processes available for inspection. " +
+        ProcessMetadata + "[Process] List all running WPF processes available for inspection. " +
         "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion.\n\n" +
         "USE WHEN: Starting a new inspection session; discovering available WPF applications.\n" +
         "DO NOT USE: Repeatedly in a loop (process list changes infrequently).\n\n" +
@@ -31,7 +32,7 @@ public static class ProcessMcpTools
         "}\n\n" +
         "ERRORS:\n" +
         "- \"access denied\" -> run MCP server as administrator\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { }\n" +
         "- { nameFilter: \"TestApp\" }")]
     public static Task<CallToolResult> GetProcesses(
@@ -49,7 +50,7 @@ public static class ProcessMcpTools
 
     [McpServerTool(Name = "connect", OpenWorld = false, Destructive = true, Idempotent = true)]
     [Description(
-        "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
+        ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +
         "USE WHEN: After get_processes, before using any inspection tools.\n" +
         "DO NOT USE: On already-connected processes (returns immediately with success=true).\n\n" +
@@ -66,7 +67,7 @@ public static class ProcessMcpTools
         "- \"architecture mismatch\" -> server and target app must match (x64 vs x86)\n" +
         "- \"timeout\" -> connection took >30s, process may be unresponsive\n" +
         "- \"processId required\" -> must specify which process to connect to\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
@@ -85,7 +86,7 @@ public static class ProcessMcpTools
 
     [McpServerTool(Name = "ping", OpenWorld = false, ReadOnly = true, Idempotent = true)]
     [Description(
-        "[Process] Check connection health and measure round-trip latency to the Inspector DLL " +
+        ProcessMetadata + "[Process] Check connection health and measure round-trip latency to the Inspector DLL " +
         "in the target process. Returns latency in milliseconds.\n\n" +
         "USE WHEN: Verifying connection is still alive; measuring IPC performance.\n" +
         "DO NOT USE: Before calling connect() (will fail).\n\n" +
@@ -102,7 +103,7 @@ public static class ProcessMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"timeout\" -> process may be frozen or unresponsive\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> Ping(
         SessionManager sessionManager,
@@ -118,3 +119,6 @@ public static class ProcessMcpTools
             cancellationToken);
     }
 }
+
+
+

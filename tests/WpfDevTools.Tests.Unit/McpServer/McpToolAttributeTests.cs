@@ -59,6 +59,36 @@ public class McpToolAttributeTests
     }
 
     [Fact]
+    public void AllTools_ShouldIncludeStructuredCategoryAndSafetyMetadata_ForAiFriendlyDiscovery()
+    {
+        foreach (var (_, method, attr) in AllTools)
+        {
+            var description = method.GetCustomAttribute<DescriptionAttribute>();
+
+            description.Should().NotBeNull();
+            description!.Description.Should().Contain("CATEGORY:",
+                $"tool '{attr.Name}' should expose a category header for AI-friendly discovery");
+            description.Description.Should().Contain("SAFETY:",
+                $"tool '{attr.Name}' should expose safety guidance in the description header");
+        }
+    }
+
+    [Fact]
+    public void AllTools_ShouldUseUppercaseExamplesHeading_ForConsistentPromptExtraction()
+    {
+        foreach (var (_, method, attr) in AllTools)
+        {
+            var description = method.GetCustomAttribute<DescriptionAttribute>();
+
+            description.Should().NotBeNull();
+            description!.Description.Should().Contain("EXAMPLES:",
+                $"tool '{attr.Name}' should use a consistent EXAMPLES heading for prompt extraction");
+            description.Description.Should().NotContain("Examples:",
+                $"tool '{attr.Name}' should avoid mixed examples heading casing");
+        }
+    }
+
+    [Fact]
     public void AllToolParameters_ShouldHaveDescriptionAttribute_WhenExposedToMcpClients()
     {
         foreach (var (type, method, attr) in AllTools)

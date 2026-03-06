@@ -12,9 +12,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class LayoutMcpTools
 {
+    private const string LayoutMetadata = "CATEGORY: Layout | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
     [McpServerTool(Name = "get_layout_info", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Layout] Get layout information of a WPF element. Returns: actualWidth, actualHeight, " +
+        LayoutMetadata + "[Layout] Get layout information of a WPF element. Returns: actualWidth, actualHeight, " +
         "desiredSize, renderSize, margin, padding, horizontalAlignment, verticalAlignment, " +
         "position relative to parent and window.\n\n" +
         "USE WHEN: Element has wrong size, position, or alignment; debugging layout issues.\n" +
@@ -31,7 +32,7 @@ public static class LayoutMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\" }\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetLayoutInfo(
@@ -52,7 +53,7 @@ public static class LayoutMcpTools
 
     [McpServerTool(Name = "get_clipping_info", OpenWorld = false, ReadOnly = true)]
     [Description(
-        "[Layout] Get clipping information of a WPF element. Returns whether the element " +
+        LayoutMetadata + "[Layout] Get clipping information of a WPF element. Returns whether the element " +
         "is clipped by any ancestor, the clip bounds, and how much content overflows.\n\n" +
         "USE WHEN: Element appears cut off or partially hidden; debugging ScrollViewer issues.\n" +
         "DO NOT USE: For general layout info (use get_layout_info instead).\n\n" +
@@ -67,7 +68,7 @@ public static class LayoutMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
         "- \"elementId required\" -> must specify which element to check\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> GetClippingInfo(
         SessionManager sessionManager,
@@ -87,7 +88,7 @@ public static class LayoutMcpTools
 
     [McpServerTool(Name = "highlight_element", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Layout] Visually highlight an element with a colored border overlay. " +
+        LayoutMetadata + "[Layout] Visually highlight an element with a colored border overlay. " +
         "Useful for confirming you have the right element. Color accepts WPF color names " +
         "('Red', 'Blue', 'Yellow') or hex. Auto-removes after duration.\n\n" +
         "USE WHEN: Verifying element identification; showing users which element you're inspecting.\n" +
@@ -101,7 +102,7 @@ public static class LayoutMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
         "- \"invalid color\" -> use WPF color names or hex format\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\" }\n" +
         "- { processId: 12345, elementId: \"SaveButton\", color: \"Red\", duration: 3000 }")]
     public static Task<CallToolResult> HighlightElement(
@@ -129,7 +130,7 @@ public static class LayoutMcpTools
 
     [McpServerTool(Name = "invalidate_layout", OpenWorld = false, Destructive = true)]
     [Description(
-        "[Layout] Force layout invalidation on a WPF element, causing it to re-measure " +
+        LayoutMetadata + "[Layout] Force layout invalidation on a WPF element, causing it to re-measure " +
         "and re-arrange. Use after modifying properties that affect layout to force an immediate update.\n\n" +
         "USE WHEN: Layout doesn't update after property changes; testing layout behavior.\n" +
         "DO NOT USE: Repeatedly in a loop (causes performance issues).\n\n" +
@@ -141,7 +142,7 @@ public static class LayoutMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
-        "Examples:\n" +
+        "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> InvalidateLayout(
@@ -160,3 +161,6 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 }
+
+
+

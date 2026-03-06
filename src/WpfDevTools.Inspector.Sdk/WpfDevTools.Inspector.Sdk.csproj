@@ -12,11 +12,17 @@
     <Authors>WpfDevTools</Authors>
     <Description>Opt-in SDK for WPF DevTools MCP Server - enables inspection without DLL injection</Description>
     <PackageTags>wpf;devtools;mcp;debugging;inspection</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj" />
     <ProjectReference Include="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

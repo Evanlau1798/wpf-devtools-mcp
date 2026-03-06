@@ -1,8 +1,8 @@
 # WPF DevTools MCP Server
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-897%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-81%25-brightgreen)
+![Tests](https://img.shields.io/badge/tests-988%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![MCP](https://img.shields.io/badge/MCP-2024--11--05-orange)
@@ -286,14 +286,13 @@ For production deployment guidance, see [Security Policy](SECURITY.md).
 
 ## MCP Protocol Compliance
 
-This server implements MCP protocol version `2024-11-05` with a custom JSON-RPC handler optimized for WPF tooling needs. While the [official C# MCP SDK](https://github.com/modelcontextprotocol/csharp-sdk) (`ModelContextProtocol` NuGet package) provides `[McpServerTool]` attribute-based registration, this project uses a manual registration approach to support:
+This server implements MCP protocol version `2024-11-05` using the [official C# MCP SDK](https://github.com/modelcontextprotocol/csharp-sdk) (`ModelContextProtocol` v1.0.0 NuGet package). Protocol compliance, JSON-RPC handling, and transport management are provided by the SDK.
 
-- **44 tools** with rich, AI-optimized descriptions and examples
-- **Custom parameter extraction** for WPF-specific types (elementId, processId)
-- **Per-session rate limiting** and metrics collection
-- **Named Pipe IPC** integration with DLL injection workflow
-
-The server correctly handles all required MCP methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, and `notifications/initialized`.
+**SDK Integration**:
+- **44 tools** registered via `[McpServerTool]` attributes with rich, AI-optimized `[Description]` text
+- **Automatic JSON Schema generation** for tool parameters by the SDK
+- **DI integration** via `Microsoft.Extensions.Hosting` for `SessionManager`, `RateLimiter`, and `MetricsCollector`
+- **STDIO transport** via `WithStdioServerTransport()` for AI agent communication
 
 ## Architecture
 

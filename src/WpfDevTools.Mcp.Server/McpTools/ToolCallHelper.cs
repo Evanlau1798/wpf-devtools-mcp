@@ -12,6 +12,9 @@ public static class ToolCallHelper
 {
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
 
+    // Timeout for all tool executions (except connect which has its own 30s timeout)
+    private const int DefaultToolTimeoutSeconds = 5;
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -59,10 +62,10 @@ public static class ToolCallHelper
         JsonElement? args,
         CancellationToken cancellationToken)
     {
-        // CRITICAL FIX: Enforce 5-second timeout on all tool executions
+        // CRITICAL FIX: Enforce timeout on all tool executions
         // Prevents server hang if target process is frozen or unresponsive
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(5));
+        cts.CancelAfter(TimeSpan.FromSeconds(DefaultToolTimeoutSeconds));
 
         try
         {
@@ -86,7 +89,7 @@ public static class ToolCallHelper
                     Text = JsonSerializer.Serialize(new
                     {
                         success = false,
-                        error = "Tool execution timed out after 5 seconds. Target process may be frozen or unresponsive."
+                        error = $"Tool execution timed out after {DefaultToolTimeoutSeconds} seconds. Target process may be frozen or unresponsive."
                     }, SerializerOptions)
                 }],
                 IsError = true

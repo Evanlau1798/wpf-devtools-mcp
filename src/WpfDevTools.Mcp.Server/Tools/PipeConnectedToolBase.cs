@@ -103,7 +103,13 @@ public abstract class PipeConnectedToolBase
         var client = _sessionManager.GetPipeClient(processId);
         if (client == null || !client.IsConnected)
         {
-            return new { success = false, error = $"Named pipe not connected for process {processId}" };
+            return new
+            {
+                success = false,
+                error = $"Named pipe not connected for process {processId}. The Inspector DLL may have crashed or the target process exited. Try reconnecting with connect(processId: {processId}).",
+                processId,
+                suggestedAction = "reconnect"
+            };
         }
 
         var response = await client.SendRequestAsync(

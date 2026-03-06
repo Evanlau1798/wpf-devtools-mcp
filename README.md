@@ -827,19 +827,22 @@ public partial class App : Application
 
 ## HTTP+SSE Transport
 
-> **⚠️ Note**: The MCP SDK v1.0.0 supports HTTP+SSE transport, but this server currently only implements STDIO transport. HTTP+SSE support is planned for Phase 2.
+> **⚠️ Note**: The MCP SDK v1.0.0 provides HTTP+SSE transport support via `WithHttpServerTransport()`. This server currently uses STDIO transport (`WithStdioServerTransport()`) for AI agent compatibility. HTTP+SSE implementation is planned for Phase 2 to enable:
+> - Web-based AI agents
+> - Server-sent events for property change notifications (watch_dp_changes)
+> - Multi-client support
 
 For web-based AI agents, HTTP+SSE transport will be available in a future release:
 
 ```bash
-# Planned feature - SDK supports it, implementation pending
+# Planned feature - SDK provides WithHttpServerTransport(), implementation pending
 dotnet run --project src/WpfDevTools.Mcp.Server/ -- --transport http --port 3000
 ```
 
-### Planned Endpoints
+### Planned Endpoints (via SDK)
 
-- `POST /mcp` - Send MCP requests
-- `GET /events` - Subscribe to SSE events (property changes, etc.)
+- `POST /mcp` - Send MCP requests (SDK-provided)
+- `GET /events` - Subscribe to SSE events for property changes (SDK-provided)
 
 ## Troubleshooting
 

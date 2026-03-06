@@ -58,6 +58,18 @@ public static class ServerInstructions
         - Use elementId to scope tools to a subtree instead of full tree
         - Use nameFilter on get_processes to reduce response size
 
+        === AI AGENT BEST PRACTICES ===
+        - Always call get_processes first to discover available WPF apps
+        - Store processId in conversation context after successful connect()
+        - Use depth=2-3 for initial tree exploration; increase only if needed
+        - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
+        - Check IsEnabled with get_dp_value_source before click_element to avoid errors
+        - Use get_binding_errors as first diagnostic step for data display issues
+        - Avoid calling performance tools (get_render_stats, measure_element_render_time) in loops
+        - When debugging, start broad (get_binding_errors) then narrow (get_bindings on specific element)
+        - For MVVM apps, inspect ViewModel first (get_viewmodel, get_commands) before modifying
+        - Remember: all destructive changes are runtime-only and NOT persisted to XAML
+
         === DESTRUCTIVE TOOLS (modify running app - changes NOT persisted to XAML) ===
         - set_dp_value, clear_dp_value, override_style_setter: change property/style values
         - modify_viewmodel: change ViewModel properties

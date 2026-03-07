@@ -5,6 +5,7 @@ using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Tests.TestApp;
 using System.Windows;
 using System.Windows.Controls;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -128,11 +129,14 @@ public class TestAppCustomControlIntegrationTests
             customButton.CustomClick += (s, e) => { /* test handler */ };
 
             Application.Current.MainWindow.Content = customButton;
+            var elementId = elementFinder.GenerateElementId(customButton);
 
-            return analyzer.FireRoutedEvent(elementId: null, eventName: "CustomClick", eventArgs: null);
+            return analyzer.FireRoutedEvent(elementId: elementId, eventName: "CustomClick", eventArgs: null);
         });
 
-        result.Should().NotBeNull();
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonSerializer.Deserialize<JsonElement>(json);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
@@ -153,11 +157,15 @@ public class TestAppCustomControlIntegrationTests
             customButton.CustomClick += (s, e) => { /* handler */ };
 
             Application.Current.MainWindow.Content = customButton;
+            var elementId = elementFinder.GenerateElementId(customButton);
 
-            return analyzer.GetEventHandlers(elementId: null, eventName: "CustomClick");
+            return analyzer.GetEventHandlers(elementId: elementId, eventName: "CustomClick");
         });
 
-        result.Should().NotBeNull();
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonSerializer.Deserialize<JsonElement>(json);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.GetProperty("handlerCount").GetInt32().Should().BeGreaterThan(0);
     }
 
     [Fact]

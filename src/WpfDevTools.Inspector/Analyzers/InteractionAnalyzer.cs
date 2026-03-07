@@ -16,10 +16,6 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
-    // Reflection support for DragAndDrop
-    private static bool? _dragDropReflectionSupported = null;
-    private static readonly object _dragDropReflectionLock = new object();
-
     /// <summary>
     /// Create a new InteractionAnalyzer instance
     /// </summary>
@@ -49,8 +45,23 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
             {
                 if (element is ButtonBase button)
                 {
-                    // Raise Click event directly
-                    button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
+                    if (button.Command != null && button.Command.CanExecute(button.CommandParameter))
+                    {
+                        button.Command.Execute(button.CommandParameter);
+                    }
+
+                    var onClick = button.GetType().GetMethod(
+                        "OnClick",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+                    if (onClick != null)
+                    {
+                        onClick.Invoke(button, null);
+                    }
+                    else
+                    {
+                        button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
+                    }
 
                     return new
                     {
@@ -217,7 +228,7 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
         return InvokeOnUIThread<object>(() =>
         {
             // Check reflection support on first use
-            if (!IsDragDropReflectionSupported())
+            if (!InteractionDragDropHelper.IsReflectionSupported())
             {
                 return new
                 {
@@ -252,8 +263,12 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
 
             try
             {
+                var originalTargetText = targetElement is TextBox targetTextBox
+                    ? targetTextBox.Text
+                    : null;
+
                 // Create drag data
-                var data = new DataObject(dataFormat, sourceElement);
+                var data = InteractionDragDropHelper.CreateDataObject(sourceElement, dataFormat);
 
                 // Use reflection to create DragEventArgs (constructor is internal)
                 var dragEventArgsType = typeof(DragEventArgs);
@@ -265,11 +280,7 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
 
                 if (constructor == null)
                 {
-                    // Mark reflection as unsupported for future calls
-                    lock (_dragDropReflectionLock)
-                    {
-                        _dragDropReflectionSupported = false;
-                    }
+                    InteractionDragDropHelper.MarkReflectionUnsupported();
 
                     return new
                     {
@@ -302,6 +313,12 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                 });
                 dropArgs.RoutedEvent = DragDrop.DropEvent;
                 targetUI.RaiseEvent(dropArgs);
+
+                InteractionDragDropHelper.NormalizeTextDropResult(
+                    sourceElement,
+                    targetElement,
+                    dataFormat,
+                    originalTargetText);
 
                 return new
                 {
@@ -402,28 +419,4 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    /// <summary>
-    /// Check if reflection-based drag and drop simulation is supported
-    /// </summary>
-    private static bool IsDragDropReflectionSupported()
-    {
-        lock (_dragDropReflectionLock)
-        {
-            // Cache the result after first check
-            if (_dragDropReflectionSupported.HasValue)
-            {
-                return _dragDropReflectionSupported.Value;
-            }
-
-            // Check if the internal constructor exists
-            var constructor = typeof(DragEventArgs).GetConstructor(
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
-                null,
-                new[] { typeof(IDataObject), typeof(DragDropKeyStates), typeof(DragDropEffects), typeof(DependencyObject), typeof(Point) },
-                null);
-
-            _dragDropReflectionSupported = constructor != null;
-            return _dragDropReflectionSupported.Value;
-        }
-    }
 }

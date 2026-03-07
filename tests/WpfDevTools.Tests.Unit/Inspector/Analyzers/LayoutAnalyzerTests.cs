@@ -4,6 +4,7 @@ using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 using System.Windows.Controls;
 using System.Windows;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
@@ -38,6 +39,28 @@ public class LayoutAnalyzerTests
                 layoutInfo.Keys.Cast<string>().Should().Contain("height");
             }
         }
+    }
+
+    [StaFact]
+    public void GetLayoutInfo_WithAutoSizingDefaults_ShouldSerializeNonFiniteValuesAsNull()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.GetLayoutInfo(elementId);
+
+        Action serialize = () => _ = JsonSerializer.Serialize(result);
+        serialize.Should().NotThrow();
+
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonSerializer.Deserialize<JsonElement>(json);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.GetProperty("width").ValueKind.Should().Be(JsonValueKind.Null);
+        doc.GetProperty("height").ValueKind.Should().Be(JsonValueKind.Null);
+        doc.GetProperty("maxWidth").ValueKind.Should().Be(JsonValueKind.Null);
+        doc.GetProperty("maxHeight").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
     [StaFact]

@@ -48,33 +48,38 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
             return new
             {
                 success = true,
-                actualWidth = fe.ActualWidth,
-                actualHeight = fe.ActualHeight,
-                width = fe.Width,
-                height = fe.Height,
-                minWidth = fe.MinWidth,
-                minHeight = fe.MinHeight,
-                maxWidth = fe.MaxWidth,
-                maxHeight = fe.MaxHeight,
+                actualWidth = NormalizeDouble(fe.ActualWidth),
+                actualHeight = NormalizeDouble(fe.ActualHeight),
+                width = NormalizeDouble(fe.Width),
+                height = NormalizeDouble(fe.Height),
+                minWidth = NormalizeDouble(fe.MinWidth),
+                minHeight = NormalizeDouble(fe.MinHeight),
+                maxWidth = NormalizeDouble(fe.MaxWidth),
+                maxHeight = NormalizeDouble(fe.MaxHeight),
                 desiredSize = new
                 {
-                    width = fe.DesiredSize.Width,
-                    height = fe.DesiredSize.Height
+                    width = NormalizeDouble(fe.DesiredSize.Width),
+                    height = NormalizeDouble(fe.DesiredSize.Height)
                 },
                 renderSize = new
                 {
-                    width = fe.RenderSize.Width,
-                    height = fe.RenderSize.Height
+                    width = NormalizeDouble(fe.RenderSize.Width),
+                    height = NormalizeDouble(fe.RenderSize.Height)
                 },
                 margin = new
                 {
-                    left = fe.Margin.Left,
-                    top = fe.Margin.Top,
-                    right = fe.Margin.Right,
-                    bottom = fe.Margin.Bottom
+                    left = NormalizeDouble(fe.Margin.Left),
+                    top = NormalizeDouble(fe.Margin.Top),
+                    right = NormalizeDouble(fe.Margin.Right),
+                    bottom = NormalizeDouble(fe.Margin.Bottom)
                 }
             };
         });
+    }
+
+    private static double? NormalizeDouble(double value)
+    {
+        return !double.IsNaN(value) && !double.IsInfinity(value) ? value : null;
     }
 
     /// <summary>

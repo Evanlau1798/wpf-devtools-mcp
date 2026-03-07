@@ -4,6 +4,7 @@ using WpfDevTools.Inspector.Analyzers;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
@@ -160,6 +161,46 @@ public class DispatcherAnalyzerBaseTests
         brush!.Color.Should().Be(Colors.Red);
     }
 
+
+    [Fact]
+    public void ConvertValue_WithJsonNumberToDouble_ShouldConvert()
+    {
+        // Arrange
+        var value = JsonSerializer.Deserialize<JsonElement>("220");
+
+        // Act
+        var result = TestAnalyzer.TestConvertValue(value, typeof(double));
+
+        // Assert
+        result.Should().Be(220.0);
+    }
+
+    [Fact]
+    public void ConvertValue_WithJsonStringToString_ShouldConvert()
+    {
+        // Arrange
+        var value = JsonSerializer.Deserialize<JsonElement>("\"Codex\"");
+
+        // Act
+        var result = TestAnalyzer.TestConvertValue(value, typeof(string));
+
+        // Assert
+        result.Should().Be("Codex");
+    }
+
+    [StaFact]
+    public void ConvertValue_WithJsonStringToBrush_ShouldConvert()
+    {
+        // Arrange
+        var value = JsonSerializer.Deserialize<JsonElement>("\"Orange\"");
+
+        // Act
+        var result = TestAnalyzer.TestConvertValue(value, typeof(Brush));
+
+        // Assert
+        result.Should().BeOfType<SolidColorBrush>();
+        ((SolidColorBrush)result!).Color.Should().Be(Colors.Orange);
+    }
     [StaFact]
     public void FindDependencyProperty_WithValidProperty_ShouldReturnProperty()
     {

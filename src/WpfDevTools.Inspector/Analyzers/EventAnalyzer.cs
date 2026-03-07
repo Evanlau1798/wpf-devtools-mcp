@@ -16,7 +16,7 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
     private static CancellationTokenSource? _tracingCts = null;
 
     // Reflection support for GetEventHandlers
-    private const string EVENT_HANDLERS_STORE_FIELD = "EventHandlersStore";
+    private const string EVENT_HANDLERS_STORE_MEMBER = "EventHandlersStore";
     private static bool? _reflectionSupported = null;
     private static readonly object _reflectionLock = new object();
 
@@ -262,27 +262,20 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
 
                 // Use reflection to get event handlers
                 // Note: This accesses internal WPF structures and may not work in all .NET versions
-                var eventHandlersStoreField = typeof(UIElement).GetField(
-                    EVENT_HANDLERS_STORE_FIELD,
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var eventHandlersStore = GetEventHandlersStore(uiElement);
 
-                if (eventHandlersStoreField == null)
+                if (eventHandlersStore == null)
                 {
-                    // Mark reflection as unsupported for future calls
-                    lock (_reflectionLock)
-                    {
-                        _reflectionSupported = false;
-                    }
-
                     return new
                     {
-                        success = false,
-                        error = "Event handler inspection not available",
-                        note = $"Internal field '{EVENT_HANDLERS_STORE_FIELD}' not found in this .NET version"
+                        success = true,
+                        eventName,
+                        handlerCount = 0,
+                        handlers = Array.Empty<object>(),
+                        message = "No handlers found"
                     };
                 }
 
-                var eventHandlersStore = eventHandlersStoreField.GetValue(uiElement);
                 if (eventHandlersStore != null)
                 {
                     var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
@@ -349,12 +342,36 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
             }
 
             // Check if the internal field exists
-            var field = typeof(UIElement).GetField(
-                EVENT_HANDLERS_STORE_FIELD,
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-
-            _reflectionSupported = field != null;
+            _reflectionSupported = GetEventHandlersStoreMember() != null;
             return _reflectionSupported.Value;
         }
+    }
+
+    private static object? GetEventHandlersStore(UIElement element)
+    {
+        var member = GetEventHandlersStoreMember();
+
+        return member switch
+        {
+            System.Reflection.FieldInfo field => field.GetValue(element),
+            System.Reflection.PropertyInfo property => property.GetValue(element),
+            _ => null
+        };
+    }
+
+    private static System.Reflection.MemberInfo? GetEventHandlersStoreMember()
+    {
+        var field = typeof(UIElement).GetField(
+            EVENT_HANDLERS_STORE_MEMBER,
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        if (field != null)
+        {
+            return field;
+        }
+
+        return typeof(UIElement).GetProperty(
+            EVENT_HANDLERS_STORE_MEMBER,
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
     }
 }

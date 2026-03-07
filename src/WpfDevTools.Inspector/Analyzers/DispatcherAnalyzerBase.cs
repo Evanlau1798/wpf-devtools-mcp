@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using System.ComponentModel;
+using System.Text.Json;
 using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -79,6 +80,12 @@ public abstract class DispatcherAnalyzerBase
     protected static object? ConvertValue(object? value, Type targetType)
     {
         if (value == null) return null;
+
+        value = value is JsonElement jsonElement
+            ? ConvertJsonElement(jsonElement, targetType)
+            : value;
+
+        if (value == null) return null;
         if (targetType.IsAssignableFrom(value.GetType())) return value;
 
         // Try TypeConverter first (handles WPF types like Brush, Thickness, etc.)
@@ -90,6 +97,31 @@ public abstract class DispatcherAnalyzerBase
 
         // Fallback to Convert.ChangeType for simple types
         return Convert.ChangeType(value, targetType);
+    }
+
+    private static object? ConvertJsonElement(JsonElement value, Type targetType)
+    {
+        return value.ValueKind switch
+        {
+            JsonValueKind.Null => null,
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.True or JsonValueKind.False => value.GetBoolean(),
+            JsonValueKind.Number => DeserializeJsonNumber(value, targetType),
+            JsonValueKind.Object or JsonValueKind.Array => JsonSerializer.Deserialize(value.GetRawText(), targetType),
+            _ => value.GetRawText()
+        };
+    }
+
+    private static object DeserializeJsonNumber(JsonElement value, Type targetType)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(value.GetRawText(), targetType) ?? value.GetDouble();
+        }
+        catch (JsonException)
+        {
+            return value.GetDouble();
+        }
     }
 
     /// <summary>

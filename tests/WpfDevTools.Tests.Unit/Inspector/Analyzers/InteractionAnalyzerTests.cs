@@ -3,6 +3,8 @@ using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
@@ -28,6 +30,27 @@ public class InteractionAnalyzerTests
         result.Should().NotBeNull();
     }
 
+
+    [StaFact]
+    public void ClickElement_WithButtonCommand_ShouldExecuteCommand()
+    {
+        // Arrange
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var executed = false;
+        var button = new Button
+        {
+            Command = new TestCommand(() => executed = true)
+        };
+        var elementId = finder.GenerateElementId(button);
+
+        // Act
+        var result = analyzer.ClickElement(elementId);
+
+        // Assert
+        executed.Should().BeTrue();
+        result.Should().NotBeNull();
+    }
     [StaFact]
     public void ScrollToElement_WithValidElement_ShouldBringIntoView()
     {
@@ -117,5 +140,25 @@ public class InteractionAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+    }
+
+    private sealed class TestCommand : ICommand
+    {
+        private readonly Action _execute;
+
+        public TestCommand(Action execute)
+        {
+            _execute = execute;
+        }
+
+        public event EventHandler? CanExecuteChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public bool CanExecute(object? parameter) => true;
+
+        public void Execute(object? parameter) => _execute();
     }
 }

@@ -86,13 +86,48 @@ public class EventAnalyzerTests
         var result = analyzer.GetEventHandlers(elementId, "Click");
 
         // Assert
-        result.Should().NotBeNull();
-        var resultDict = result as System.Collections.IDictionary;
-        if (resultDict != null)
-        {
-            resultDict.Keys.Cast<string>().Should().Contain("success");
-            resultDict.Keys.Cast<string>().Should().Contain("handlers");
-            resultDict["success"].Should().Be(true);
-        }
+        var json = System.Text.Json.JsonSerializer.Serialize(result);
+        var doc = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.GetProperty("handlerCount").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    [StaFact]
+    public void GetEventHandlers_WithAttachedClickHandler_ShouldReturnSuccessAndHandlerMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var button = new Button();
+        button.Click += OnButtonClick;
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.GetEventHandlers(elementId, "Click");
+
+        var json = System.Text.Json.JsonSerializer.Serialize(result);
+        var doc = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.GetProperty("handlerCount").GetInt32().Should().BeGreaterThan(0);
+        doc.GetProperty("handlers")[0].GetProperty("methodName").GetString().Should().Be(nameof(OnButtonClick));
+    }
+
+    [StaFact]
+    public void GetEventHandlers_WithoutAttachedHandlers_ShouldReturnSuccessWithEmptyCollection()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.GetEventHandlers(elementId, "Click");
+
+        var json = System.Text.Json.JsonSerializer.Serialize(result);
+        var doc = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.GetProperty("handlerCount").GetInt32().Should().Be(0);
+        doc.GetProperty("handlers").GetArrayLength().Should().Be(0);
+    }
+
+    private static void OnButtonClick(object sender, System.Windows.RoutedEventArgs e)
+    {
     }
 }

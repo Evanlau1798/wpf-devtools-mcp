@@ -110,7 +110,6 @@ The current implementation supports opt-in transport hardening through environme
 | `WPFDEVTOOLS_AUTH_SECRET` | Enables HMAC challenge-response authentication | Use a base64 secret in production |
 | `WPFDEVTOOLS_CERT_DIR` | Enables TLS over named pipes using a local certificate store | Use a private directory per environment |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected inspector certificate | Useful when you want strict certificate selection |
-| `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK` | Disables DLL signature verification for local development only | Do not enable in production |
 
 Security deployment guidance lives in `SECURITY.md`.
 

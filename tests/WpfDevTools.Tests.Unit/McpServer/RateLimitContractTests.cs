@@ -16,7 +16,6 @@ public class RateLimitContractTests
     public async Task ConnectTool_RateLimitResponse_ShouldContainRetryAfterSeconds()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var sessionManager = new SessionManager(maxRequestsPerMinute: 1);
         var tool = new ConnectTool(sessionManager);
         var parameters = new { processId = 12345 };
@@ -39,7 +38,6 @@ public class RateLimitContractTests
     public async Task ConnectTool_RateLimitResponse_ShouldContainHumanReadableRetryAfter()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var sessionManager = new SessionManager(maxRequestsPerMinute: 1);
         var tool = new ConnectTool(sessionManager);
         var parameters = new { processId = 12345 };
@@ -61,7 +59,6 @@ public class RateLimitContractTests
     public async Task ConnectTool_RateLimitResponse_ShouldContainAvailableTokens()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var sessionManager = new SessionManager(maxRequestsPerMinute: 1);
         var tool = new ConnectTool(sessionManager);
         var parameters = new { processId = 12345 };

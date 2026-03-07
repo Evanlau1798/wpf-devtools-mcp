@@ -8,86 +8,29 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public class SignaturePolicyTests
 {
     // === Policy decision tests (pure logic, no file system) ===
+    // Policy contract: trusted-root-only model
+    //   - Release builds ALWAYS verify signatures
+    //   - Debug builds skip verification (path already validated as trusted root)
 
     [Fact]
     public void Evaluate_ReleaseBuild_ShouldAlwaysVerify()
     {
-        var result = SignaturePolicy.Evaluate(
-            isDebugBuild: false,
-            isTrustedRoot: true,
-            hasSkipEnvVar: true,
-            isCi: false);
+        var result = SignaturePolicy.Evaluate(isDebugBuild: false);
 
         result.Should().Be(SignaturePolicy.Action.Verify,
-            "RELEASE builds must always verify signatures regardless of other flags");
+            "RELEASE builds must always verify signatures");
     }
 
     [Fact]
-    public void Evaluate_DebugBuild_TrustedRoot_ShouldSkip()
+    public void Evaluate_DebugBuild_ShouldSkip()
     {
-        var result = SignaturePolicy.Evaluate(
-            isDebugBuild: true,
-            isTrustedRoot: true,
-            hasSkipEnvVar: false,
-            isCi: false);
+        var result = SignaturePolicy.Evaluate(isDebugBuild: true);
 
         result.Should().Be(SignaturePolicy.Action.Skip,
-            "DEBUG builds should skip verification for DLLs in trusted roots");
+            "DEBUG builds skip verification (path already validated as trusted root)");
     }
 
-    [Fact]
-    public void Evaluate_DebugBuild_UntrustedPath_WithEnvVar_NoCi_ShouldSkip()
-    {
-        var result = SignaturePolicy.Evaluate(
-            isDebugBuild: true,
-            isTrustedRoot: false,
-            hasSkipEnvVar: true,
-            isCi: false);
-
-        result.Should().Be(SignaturePolicy.Action.Skip,
-            "DEBUG builds with env var bypass should skip for untrusted paths outside CI");
-    }
-
-    [Fact]
-    public void Evaluate_DebugBuild_UntrustedPath_WithEnvVar_InCi_ShouldVerify()
-    {
-        var result = SignaturePolicy.Evaluate(
-            isDebugBuild: true,
-            isTrustedRoot: false,
-            hasSkipEnvVar: true,
-            isCi: true);
-
-        result.Should().Be(SignaturePolicy.Action.Verify,
-            "CI environments must always verify even in DEBUG with env var set");
-    }
-
-    [Fact]
-    public void Evaluate_DebugBuild_UntrustedPath_NoEnvVar_ShouldVerify()
-    {
-        var result = SignaturePolicy.Evaluate(
-            isDebugBuild: true,
-            isTrustedRoot: false,
-            hasSkipEnvVar: false,
-            isCi: false);
-
-        result.Should().Be(SignaturePolicy.Action.Verify,
-            "DEBUG builds without env var must verify for untrusted paths");
-    }
-
-    [Fact]
-    public void Evaluate_DebugBuild_UntrustedPath_NoEnvVar_InCi_ShouldVerify()
-    {
-        var result = SignaturePolicy.Evaluate(
-            isDebugBuild: true,
-            isTrustedRoot: false,
-            hasSkipEnvVar: false,
-            isCi: true);
-
-        result.Should().Be(SignaturePolicy.Action.Verify,
-            "CI without env var must always verify");
-    }
-
-    // === Integration: ConnectTool behavior with signature policy ===
+    // === Integration: ConnectTool path validation ===
 
     [Fact]
     public void ConnectTool_DebugBuild_TrustedRoot_ShouldNotThrow()
@@ -108,38 +51,36 @@ public class SignaturePolicyTests
     }
 
     [Fact]
-    public void ConnectTool_UntrustedDll_ErrorMessage_ShouldBeEnglishAndActionable()
+    public void ConnectTool_UntrustedPath_ShouldAlwaysBeRejected()
     {
-#if DEBUG
-        // Create DLL outside trusted roots to trigger actual verification
-        var tempDir = Path.Combine(Path.GetTempPath(), $"wpfdevtools_sigtest_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
-        var untrustedDllPath = Path.Combine(tempDir, "WpfDevTools.Inspector.dll");
+        // Untrusted path must be rejected regardless of build configuration
+        var untrustedPath = Path.Combine(Path.GetTempPath(), "WpfDevTools.Inspector.dll");
+
+        var act = () => new ConnectTool(new SessionManager(), untrustedPath);
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*application directory*",
+                "untrusted DLL paths must always be rejected before reaching signature check");
+    }
+
+    [Fact]
+    public void ConnectTool_UntrustedPath_WithEnvVar_ShouldStillBeRejected()
+    {
+        // WPFDEVTOOLS_SKIP_SIGNATURE_CHECK must NOT bypass path validation
+        var untrustedPath = Path.Combine(Path.GetTempPath(), "WpfDevTools.Inspector.dll");
+        var previousValue = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
 
         try
         {
-            // Copy or create a minimal DLL file
-            var sourceDll = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
-            if (File.Exists(sourceDll))
-                File.Copy(sourceDll, untrustedDllPath);
-            else
-                File.WriteAllBytes(untrustedDllPath, new byte[] { 0x4D, 0x5A });
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", "1");
 
-            var act = () => new ConnectTool(new SessionManager(), untrustedDllPath);
-
-            // Should throw because DLL is outside trusted roots and unsigned
-            // The exception should have path validation error (untrusted path)
+            var act = () => new ConnectTool(new SessionManager(), untrustedPath);
             act.Should().Throw<ArgumentException>()
                 .WithMessage("*application directory*",
-                    "untrusted DLL paths must be rejected with clear English error message");
+                    "env var must NOT bypass trusted-root path validation");
         }
         finally
         {
-            if (Directory.Exists(tempDir))
-                Directory.Delete(tempDir, true);
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", previousValue);
         }
-#else
-        Assert.True(true, "RELEASE mode always verifies - tested by Constructor_WithUnsignedDllInTrustedRoot_ShouldNotThrowInDebug");
-#endif
     }
 }

@@ -254,7 +254,7 @@ public sealed class ConnectTool
             InjectionError.ProcessNotFound => $"Process {processId} not found or has exited",
             InjectionError.NotWpfApplication => $"Process {processId} is not a WPF application",
             InjectionError.AccessDenied => $"Access denied to process {processId}. Try running as administrator.",
-            InjectionError.ArchitectureMismatch => $"Architecture mismatch for process {processId}",
+            InjectionError.ArchitectureMismatch => $"Architecture mismatch for process {processId}. Ensure the MCP server architecture matches the target process (both x64 or both x86).",
             _ => $"Validation failed: {error}"
         };
     }
@@ -302,12 +302,9 @@ public sealed class ConnectTool
         }
 
         // SECURITY: Verify Authenticode signature using extracted policy
-        var signatureAction = SignaturePolicy.Evaluate(
-            isDebugBuild: IsDebugBuild,
-            isTrustedRoot: IsUnderTrustedRoot(fullPath),
-            hasSkipEnvVar: Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1",
-            isCi: Environment.GetEnvironmentVariable("CI") != null
-                || Environment.GetEnvironmentVariable("TF_BUILD") != null);
+        // Path is already validated as trusted root above; policy only decides
+        // whether to verify the signature based on build configuration.
+        var signatureAction = SignaturePolicy.Evaluate(isDebugBuild: IsDebugBuild);
 
         if (signatureAction == SignaturePolicy.Action.Skip)
         {

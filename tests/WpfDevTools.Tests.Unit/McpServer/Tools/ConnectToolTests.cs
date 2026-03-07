@@ -17,7 +17,6 @@ public class ConnectToolTests
     public async Task Execute_WithInvalidProcessId_ShouldReturnError()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var tool = new ConnectTool(new SessionManager());
         var parameters = new { processId = 999999 };
 
@@ -35,7 +34,6 @@ public class ConnectToolTests
     public async Task Execute_WithMissingProcessId_ShouldReturnError()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var tool = new ConnectTool(new SessionManager());
         var parameters = new { };
 
@@ -53,7 +51,6 @@ public class ConnectToolTests
     public async Task Execute_WithNonWpfProcess_ShouldReturnError()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var tool = new ConnectTool(
             new SessionManager(),
             new FakeProcessInjector { ValidationResult = InjectionError.NotWpfApplication },
@@ -89,18 +86,6 @@ public class ConnectToolTests
 #endif
     }
 
-    [Fact]
-    public void Constructor_WithSkipSignatureCheck_ShouldNotThrow()
-    {
-        // Arrange
-        using var _ = new SkipSignatureCheckScope();
-        var unsignedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
-
-        // Act & Assert - should not throw when signature check is skipped
-        var act = () => new ConnectTool(new SessionManager(), unsignedDllPath);
-        act.Should().NotThrow();
-    }
-
     [Theory]
     [InlineData("..\\..\\System32\\evil.dll")]
     [InlineData("C:\\Windows\\System32\\evil.dll")]
@@ -108,7 +93,6 @@ public class ConnectToolTests
     public void Constructor_WithMaliciousPath_ShouldThrow(string maliciousPath)
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
 
         // Act & Assert - should throw due to path validation
         var act = () => new ConnectTool(new SessionManager(), maliciousPath);
@@ -121,7 +105,6 @@ public class ConnectToolTests
     public void Constructor_WithPathOutsideAppDirectory_ShouldThrow()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var outsidePath = Path.Combine(Path.GetTempPath(), "evil.dll");
 
         // Act & Assert - should throw because path is outside application directory
@@ -133,7 +116,7 @@ public class ConnectToolTests
     [Fact]
     public void Constructor_WithTrustedSolutionRelativeDllPath_ShouldNotThrow()
     {
-        using var _ = new SkipSignatureCheckScope();
+
 
         var solutionRoot = FindSolutionRoot();
         var artifactsDir = Path.Combine(solutionRoot, ".test-artifacts");
@@ -165,7 +148,6 @@ public class ConnectToolTests
     public async Task Execute_WithArchitectureMismatch_ShouldReturnError()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var tool = new ConnectTool(
             new SessionManager(),
             new FakeProcessInjector { ValidationResult = InjectionError.ArchitectureMismatch },
@@ -186,7 +168,7 @@ public class ConnectToolTests
     public async Task Execute_AlreadyConnected_ShouldReturnSuccessImmediately()
     {
         // Arrange: simulate a process that's already in the session manager
-        using var _ = new SkipSignatureCheckScope();
+
         var sessionManager = new SessionManager();
         sessionManager.AddSession(42);
 
@@ -209,7 +191,6 @@ public class ConnectToolTests
     public async Task Execute_InjectionFailure_ShouldPropagateError()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var injector = new FakeProcessInjector
         {
             ValidationResult = InjectionError.None,
@@ -235,7 +216,7 @@ public class ConnectToolTests
     public async Task Execute_WhenPipeConnectionCancelled_ShouldCleanupSession()
     {
         // Arrange: injection succeeds, but CancellationToken fires during pipe connection
-        using var _ = new SkipSignatureCheckScope();
+
         var sessionManager = new SessionManager();
         var tool = new ConnectTool(
             sessionManager,
@@ -259,7 +240,7 @@ public class ConnectToolTests
     public async Task Execute_WhenPipeConnectionFails_ShouldCleanupSession()
     {
         // Arrange: injection succeeds, but pipe connection returns false (no Inspector server)
-        using var _ = new SkipSignatureCheckScope();
+
         var sessionManager = new SessionManager();
         var tool = new ConnectTool(
             sessionManager,
@@ -281,7 +262,6 @@ public class ConnectToolTests
     public async Task Execute_RateLimitExceeded_ShouldReturnError()
     {
         // Arrange
-        using var _ = new SkipSignatureCheckScope();
         var sessionManager = new SessionManager(maxRequestsPerMinute: 2);
         var tool = new ConnectTool(sessionManager);
         var parameters = new { processId = 12345 };

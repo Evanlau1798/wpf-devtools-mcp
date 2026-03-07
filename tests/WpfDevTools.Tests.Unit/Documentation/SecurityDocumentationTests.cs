@@ -9,7 +9,6 @@ public class SecurityDocumentationTests
     [InlineData("WPFDEVTOOLS_AUTH_SECRET")]
     [InlineData("WPFDEVTOOLS_CERT_DIR")]
     [InlineData("WPFDEVTOOLS_CERT_THUMBPRINT")]
-    [InlineData("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK")]
     public void Documentation_ShouldMentionSupportedEnvironmentVariables(string variableName)
     {
         var content = ReadDocumentation();
@@ -19,6 +18,7 @@ public class SecurityDocumentationTests
 
     [Theory]
     [InlineData("WPFDEVTOOLS_REQUIRE_SIGNATURE")]
+    [InlineData("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK")]
     [InlineData("WPFDEVTOOLS_ENCRYPTION_MODE")]
     [InlineData("WPFDEVTOOLS_MAX_SESSIONS")]
     [InlineData("WPFDEVTOOLS_RATE_LIMIT")]

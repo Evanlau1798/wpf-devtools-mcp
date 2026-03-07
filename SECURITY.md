@@ -16,9 +16,9 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 ### 1. DLL signature verification
 
 - `connect` validates the inspector DLL before loading it.
-- **Debug builds**: Signature verification is automatically skipped for DLLs within the application directory or solution root. No environment variable is needed for local development.
+- **Debug builds**: Signature verification is automatically skipped for DLLs within trusted roots (application directory or solution root). No environment variable is needed for local development.
 - **Release builds**: Signature verification is always enforced. The Inspector DLL must be Authenticode-signed.
-- `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK=1`: Available in Debug builds for DLLs outside trusted roots. Do not enable in production or CI.
+- **Path validation**: Only DLLs within trusted roots (application directory or solution workspace) are accepted. DLLs outside trusted roots are rejected regardless of build configuration or environment variables.
 
 ### 2. Named pipe authentication
 
@@ -46,7 +46,6 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 | `WPFDEVTOOLS_AUTH_SECRET` | Enables HMAC authentication | Set in production and shared securely between server and inspector |
 | `WPFDEVTOOLS_CERT_DIR` | Enables TLS using a local certificate directory | Use a directory with restricted filesystem permissions |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Use when you need deterministic certificate selection |
-| `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK` | Skips DLL signature validation | Local development only |
 
 No other `WPFDEVTOOLS_*` environment variable is currently implemented by the shipping server.
 
@@ -57,7 +56,6 @@ No other `WPFDEVTOOLS_*` environment variable is currently implemented by the sh
 1. Set `WPFDEVTOOLS_AUTH_SECRET`.
 2. Set `WPFDEVTOOLS_CERT_DIR`.
 3. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT` if certificate identity must be fixed explicitly.
-4. Keep `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK` unset.
 
 ### Secret handling
 

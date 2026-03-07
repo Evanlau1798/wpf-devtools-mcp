@@ -182,13 +182,42 @@ public class ProcessInjector : IProcessInjector
         };
     }
 
+    /// <summary>
+    /// Generate a context-aware error message for architecture mismatches.
+    /// Distinguishes between DLL/target mismatch and injector/target bitness mismatch
+    /// so that users (and AI agents) can take the correct recovery action.
+    /// </summary>
+    /// <param name="processArch">Target process architecture</param>
+    /// <param name="dllArch">DLL architecture (Unknown = AnyCPU)</param>
+    /// <param name="isInjector64Bit">Whether the injector/server process is 64-bit</param>
+    /// <returns>Actionable error message identifying the root cause</returns>
+    public static string GetArchitectureErrorMessage(
+        ProcessArchitecture processArch, ProcessArchitecture dllArch, bool isInjector64Bit)
+    {
+        // Check if DLL itself is the problem (native DLL vs target mismatch)
+        if (dllArch != ProcessArchitecture.Unknown &&
+            processArch != ProcessArchitecture.Unknown &&
+            processArch != dllArch)
+        {
+            return $"Architecture mismatch: process is {processArch}, " +
+                   $"but Inspector DLL is {dllArch}. " +
+                   $"Use a matching Inspector build.";
+        }
+
+        // Injector/server vs target bitness mismatch
+        var injectorArch = isInjector64Bit ? ProcessArchitecture.X64 : ProcessArchitecture.X86;
+        return $"Architecture mismatch: target process is {processArch}, " +
+               $"but the current MCP server/injector is {injectorArch}. " +
+               (dllArch == ProcessArchitecture.Unknown
+                   ? "The AnyCPU Inspector DLL is not the problem; restart the MCP server with matching bitness."
+                   : "Restart the MCP server with matching bitness.");
+    }
+
     private string GetArchitectureErrorMessage(int processId, ProcessArchitecture dllArch)
     {
         var processInfo = _processDetector.GetProcessInfo(processId);
         var processArch = processInfo?.Architecture ?? ProcessArchitecture.Unknown;
 
-        return $"Architecture mismatch: Process is {processArch}, " +
-               $"but Inspector DLL is {dllArch}. " +
-               $"Use matching architecture build.";
+        return GetArchitectureErrorMessage(processArch, dllArch, Environment.Is64BitProcess);
     }
 }

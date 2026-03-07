@@ -33,6 +33,12 @@ public sealed class WpfProcessInfo
     public string? DotNetVersion { get; init; }
 
     /// <summary>
+    /// Target CLR runtime type (NetFramework or NetCore).
+    /// Detected from loaded modules (clr.dll vs coreclr.dll).
+    /// </summary>
+    public TargetRuntime Runtime { get; init; }
+
+    /// <summary>
     /// Whether this is a WPF application
     /// </summary>
     public required bool IsWpfApplication { get; init; }

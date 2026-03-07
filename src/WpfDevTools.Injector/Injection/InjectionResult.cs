@@ -32,17 +32,30 @@ public sealed class InjectionResult
     /// </summary>
     public string? DllPath { get; init; }
 
+    /// <summary>Bootstrap exit code from remote thread (diagnostic, not readiness)</summary>
+    public int? BootstrapExitCode { get; init; }
+
+    /// <summary>Stage at which bootstrap failed (null if successful)</summary>
+    public BootstrapStage? FailedAtStage { get; init; }
+
+    /// <summary>Named Pipe name (populated on success)</summary>
+    public string? PipeName { get; init; }
+
     /// <summary>
     /// Create a successful result
     /// </summary>
-    public static InjectionResult CreateSuccess(int processId, string dllPath)
+    public static InjectionResult CreateSuccess(
+        int processId, string dllPath,
+        int? bootstrapExitCode = null, string? pipeName = null)
     {
         return new InjectionResult
         {
             Success = true,
             Error = InjectionError.None,
             ProcessId = processId,
-            DllPath = dllPath
+            DllPath = dllPath,
+            BootstrapExitCode = bootstrapExitCode,
+            PipeName = pipeName
         };
     }
 
@@ -52,14 +65,18 @@ public sealed class InjectionResult
     public static InjectionResult CreateFailure(
         int processId,
         InjectionError error,
-        string errorMessage)
+        string errorMessage,
+        BootstrapStage? failedAtStage = null,
+        int? bootstrapExitCode = null)
     {
         return new InjectionResult
         {
             Success = false,
             Error = error,
             ErrorMessage = errorMessage,
-            ProcessId = processId
+            ProcessId = processId,
+            FailedAtStage = failedAtStage,
+            BootstrapExitCode = bootstrapExitCode
         };
     }
 }

@@ -99,6 +99,33 @@ public class InjectionResultTests
         result.ErrorMessage.Should().BeNull();
     }
 
+    [Fact]
+    public void CreateSuccess_WithBootstrapInfo_ShouldPopulateDiagnostics()
+    {
+        var result = InjectionResult.CreateSuccess(1234, "test.dll",
+            bootstrapExitCode: 0, pipeName: "WpfDevTools_1234");
+
+        result.Success.Should().BeTrue();
+        result.BootstrapExitCode.Should().Be(0);
+        result.PipeName.Should().Be("WpfDevTools_1234");
+        result.FailedAtStage.Should().BeNull();
+    }
+
+    [Fact]
+    public void CreateFailure_WithStageInfo_ShouldPopulateDiagnostics()
+    {
+        var result = InjectionResult.CreateFailure(1234,
+            InjectionError.BootstrapFailed,
+            "CLR hosting failed",
+            failedAtStage: BootstrapStage.ClrHosting,
+            bootstrapExitCode: 0x11);
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be(InjectionError.BootstrapFailed);
+        result.FailedAtStage.Should().Be(BootstrapStage.ClrHosting);
+        result.BootstrapExitCode.Should().Be(0x11);
+    }
+
     [Theory]
     [InlineData(InjectionError.AllocationFailed, "Memory allocation failed")]
     [InlineData(InjectionError.WriteFailed, "Write to process failed")]

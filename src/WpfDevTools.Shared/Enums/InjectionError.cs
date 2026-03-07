@@ -56,6 +56,18 @@ public enum InjectionError
     Timeout = 9,
 
     /// <summary>
+    /// Bootstrapper executed but bootstrap process failed.
+    /// Check BootstrapExitCode and FailedAtStage for details.
+    /// </summary>
+    BootstrapFailed = 10,
+
+    /// <summary>
+    /// Bootstrap completed successfully but Named Pipe did not become ready
+    /// within the configured timeout. Target UI thread may be blocked.
+    /// </summary>
+    PipeReadyTimeout = 11,
+
+    /// <summary>
     /// Unknown error
     /// </summary>
     Unknown = 99

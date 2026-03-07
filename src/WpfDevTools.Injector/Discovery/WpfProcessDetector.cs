@@ -66,6 +66,8 @@ public class WpfProcessDetector
             var windowTitle = GetMainWindowTitle(process);
             var executablePath = GetExecutablePath(process);
 
+            var runtime = DetectRuntime(process);
+
             return new WpfProcessInfo
             {
                 ProcessId = processId,
@@ -73,6 +75,7 @@ public class WpfProcessDetector
                 WindowTitle = windowTitle,
                 Architecture = architecture,
                 DotNetVersion = dotNetVersion,
+                Runtime = runtime,
                 IsWpfApplication = isWpf,
                 ExecutablePath = executablePath
             };
@@ -169,6 +172,31 @@ public class WpfProcessDetector
         }
 
         return false;
+    }
+
+    private TargetRuntime DetectRuntime(Process process)
+    {
+        try
+        {
+            foreach (ProcessModule module in process.Modules)
+            {
+                var moduleName = module.ModuleName?.ToLowerInvariant();
+                if (moduleName != null)
+                {
+                    if (moduleName.IndexOf("clr.dll", StringComparison.Ordinal) >= 0)
+                        return TargetRuntime.NetFramework;
+                    if (moduleName.IndexOf("coreclr.dll", StringComparison.Ordinal) >= 0)
+                        return TargetRuntime.NetCore;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"WpfProcessDetector: Failed to detect runtime: {ex.Message}");
+        }
+
+        return TargetRuntime.Unknown;
     }
 
     private string? DetectDotNetVersion(Process process)

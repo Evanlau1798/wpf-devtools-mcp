@@ -10,6 +10,10 @@ namespace WpfDevTools.Injector.Discovery;
 public class WpfProcessDetector
 {
     private const string WpfAssemblyName = "PresentationFramework";
+    private const ushort ImageFileMachineUnknown = 0x0000;
+    private const ushort ImageFileMachineI386 = 0x014c;
+    private const ushort ImageFileMachineAmd64 = 0x8664;
+    private const ushort ImageFileMachineArm64 = 0xAA64;
 
     /// <summary>
     /// Get all WPF processes currently running
@@ -101,26 +105,19 @@ public class WpfProcessDetector
     {
         try
         {
-            // Check if process is 64-bit
-            if (Environment.Is64BitOperatingSystem)
-            {
-                if (IsWow64Process(process.Handle, out bool isWow64))
-                {
-                    if (isWow64)
-                    {
-                        return ProcessArchitecture.X86;
-                    }
-                    else
-                    {
-                        // Could be x64 or ARM64
-                        // For now, assume x64 (ARM64 detection requires more complex logic)
-                        return ProcessArchitecture.X64;
-                    }
-                }
-            }
-            else
+            if (!Environment.Is64BitOperatingSystem)
             {
                 return ProcessArchitecture.X86;
+            }
+
+            if (TryDetectArchitectureWithIsWow64Process2(process.Handle, out var architecture))
+            {
+                return architecture;
+            }
+
+            if (IsWow64Process(process.Handle, out bool isWow64))
+            {
+                return isWow64 ? ProcessArchitecture.X86 : ProcessArchitecture.X64;
             }
         }
         catch (Exception ex)
@@ -129,6 +126,70 @@ public class WpfProcessDetector
         }
 
         return ProcessArchitecture.Unknown;
+    }
+
+    /// <summary>
+    /// Classify a process architecture from <c>IsWow64Process2</c> machine values.
+    /// Extracted as pure logic so ARM64/x64/x86 combinations can be unit tested.
+    /// </summary>
+    public static ProcessArchitecture DetectArchitectureFromMachineTypes(
+        ushort processMachine,
+        ushort nativeMachine,
+        bool is64BitOperatingSystem)
+    {
+        if (!is64BitOperatingSystem)
+        {
+            return ProcessArchitecture.X86;
+        }
+
+        return processMachine switch
+        {
+            ImageFileMachineI386 => ProcessArchitecture.X86,
+            ImageFileMachineAmd64 => ProcessArchitecture.X64,
+            ImageFileMachineArm64 => ProcessArchitecture.ARM64,
+            ImageFileMachineUnknown => nativeMachine switch
+            {
+                ImageFileMachineAmd64 => ProcessArchitecture.X64,
+                ImageFileMachineArm64 => ProcessArchitecture.ARM64,
+                ImageFileMachineI386 => ProcessArchitecture.X86,
+                _ => ProcessArchitecture.Unknown
+            },
+            _ => nativeMachine switch
+            {
+                ImageFileMachineArm64 => ProcessArchitecture.ARM64,
+                ImageFileMachineAmd64 => ProcessArchitecture.X64,
+                _ => ProcessArchitecture.Unknown
+            }
+        };
+    }
+
+    private static bool TryDetectArchitectureWithIsWow64Process2(
+        IntPtr processHandle,
+        out ProcessArchitecture architecture)
+    {
+        architecture = ProcessArchitecture.Unknown;
+
+        try
+        {
+            if (!IsWow64Process2(processHandle, out ushort processMachine, out ushort nativeMachine))
+            {
+                return false;
+            }
+
+            architecture = DetectArchitectureFromMachineTypes(
+                processMachine,
+                nativeMachine,
+                Environment.Is64BitOperatingSystem);
+            return architecture != ProcessArchitecture.Unknown;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
     }
 
     private bool IsWpfApplication(Process process)
@@ -288,6 +349,13 @@ public class WpfProcessDetector
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWow64Process(IntPtr hProcess, out bool isWow64);
+
+    [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "IsWow64Process2")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWow64Process2(
+        IntPtr hProcess,
+        out ushort processMachine,
+        out ushort nativeMachine);
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);

@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using Xunit;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
@@ -28,6 +29,27 @@ public class SignaturePolicyTests
 
         result.Should().Be(SignaturePolicy.Action.Skip,
             "DEBUG builds skip verification (path already validated as trusted root)");
+    }
+
+    // === Revocation mode tests ===
+    // Contract: Debug uses Offline (no network blocking), Release uses Online (max security)
+
+    [Fact]
+    public void GetRevocationMode_DebugBuild_ShouldReturnOffline()
+    {
+        var mode = SignaturePolicy.GetRevocationMode(isDebugBuild: true);
+
+        mode.Should().Be(X509RevocationMode.Offline,
+            "DEBUG builds must use Offline revocation to prevent network blocking during development");
+    }
+
+    [Fact]
+    public void GetRevocationMode_ReleaseBuild_ShouldReturnOnline()
+    {
+        var mode = SignaturePolicy.GetRevocationMode(isDebugBuild: false);
+
+        mode.Should().Be(X509RevocationMode.Online,
+            "RELEASE builds must use Online revocation for maximum security");
     }
 
     // === Integration: ConnectTool path validation ===

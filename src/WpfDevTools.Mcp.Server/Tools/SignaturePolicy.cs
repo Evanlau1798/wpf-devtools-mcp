@@ -1,3 +1,5 @@
+using System.Security.Cryptography.X509Certificates;
+
 namespace WpfDevTools.Mcp.Server.Tools;
 
 /// <summary>
@@ -37,5 +39,17 @@ public static class SignaturePolicy
         // DEBUG builds skip verification for trusted root DLLs
         // (path already validated as trusted root by caller)
         return Action.Skip;
+    }
+
+    /// <summary>
+    /// Determine the certificate revocation check mode based on build configuration.
+    /// Debug uses Offline to prevent network blocking during development.
+    /// Release uses Online for maximum security.
+    /// </summary>
+    /// <param name="isDebugBuild">Whether this is a DEBUG build</param>
+    /// <returns>The revocation mode to use for certificate chain validation</returns>
+    public static X509RevocationMode GetRevocationMode(bool isDebugBuild)
+    {
+        return isDebugBuild ? X509RevocationMode.Offline : X509RevocationMode.Online;
     }
 }

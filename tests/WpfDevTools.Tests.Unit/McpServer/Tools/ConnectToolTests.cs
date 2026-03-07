@@ -320,5 +320,14 @@ public class ConnectToolTests
         {
             return ValidationResult;
         }
+
+        public InjectionResult InjectWithBootstrap(InjectionRequest request)
+        {
+            if (ShouldFailInjection)
+            {
+                return InjectionResult.CreateFailure(request.ProcessId, InjectionError.BootstrapFailed, InjectionErrorMessage);
+            }
+            return InjectionResult.CreateSuccess(request.ProcessId, request.InspectorDllPath);
+        }
     }
 }

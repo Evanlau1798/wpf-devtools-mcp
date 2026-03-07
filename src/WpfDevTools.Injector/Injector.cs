@@ -20,6 +20,13 @@ public interface IProcessInjector
     /// Validate target process
     /// </summary>
     InjectionError ValidateTarget(int processId);
+
+    /// <summary>
+    /// Inject Inspector DLL via native bootstrapper into target WPF process.
+    /// Two-step injection: LoadLibraryW(bootstrapper) + CreateRemoteThread(BootstrapInspector).
+    /// Verifies pipe readiness before returning success.
+    /// </summary>
+    InjectionResult InjectWithBootstrap(InjectionRequest request);
 }
 
 /// <summary>
@@ -83,6 +90,22 @@ public class ProcessInjector : IProcessInjector
 
         // Perform injection
         return _dllInjector.Inject(processId, dllPath, actualTimeout);
+    }
+
+    /// <summary>
+    /// Inject Inspector DLL via native bootstrapper.
+    /// Full implementation in Phase 4 (requires native bootstrapper from Phase 3).
+    /// </summary>
+    public InjectionResult InjectWithBootstrap(InjectionRequest request)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        return InjectionResult.CreateFailure(
+            request.ProcessId,
+            InjectionError.BootstrapFailed,
+            "Bootstrap injection not yet implemented. Requires Phase 3 native bootstrapper.",
+            failedAtStage: BootstrapStage.LoadLibrary);
     }
 
     /// <summary>

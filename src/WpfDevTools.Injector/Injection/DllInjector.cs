@@ -235,6 +235,112 @@ public class DllInjector
         }
     }
 
+    /// <summary>
+    /// Two-step injection:
+    /// Step 1: CreateRemoteThread(LoadLibraryW, bootstrapperPath) to load native DLL
+    /// Step 2: Find remote BootstrapInspector address via PE export RVA + remote base,
+    ///         write params to target memory, CreateRemoteThread(BootstrapInspector, params)
+    /// </summary>
+    /// <returns>Step 2 remote thread exit code, or negative value on failure</returns>
+    public int InjectAndCallExport(
+        IntPtr hProcess,
+        string bootstrapperPath,
+        string exportName,
+        string parameters,
+        TimeSpan timeout)
+    {
+        // Step 1: Load bootstrapper via LoadLibraryW
+        if (!LoadLibraryRemote(hProcess, bootstrapperPath, timeout))
+            return -1;
+
+        // Find remote module base
+        var remoteBase = RemoteModuleResolver.FindModuleBase(hProcess, bootstrapperPath);
+        if (remoteBase == IntPtr.Zero)
+            return -2;
+
+        // Read local PE to get export RVA
+        var exportRva = PeExportReader.GetExportRva(bootstrapperPath, exportName);
+        if (exportRva == null)
+            return -3;
+
+        // Compute remote function address
+        var remoteFuncAddr = IntPtr.Add(remoteBase, (int)exportRva.Value);
+
+        // Write parameters to target process memory
+        var paramBytes = Encoding.Unicode.GetBytes(parameters + "\0");
+        var remoteParamAddr = VirtualAllocEx(hProcess, IntPtr.Zero,
+            (uint)paramBytes.Length, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if (remoteParamAddr == IntPtr.Zero)
+            return -4;
+
+        if (!WriteProcessMemory(hProcess, remoteParamAddr, paramBytes,
+            (uint)paramBytes.Length, out _))
+        {
+            VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
+            return -5;
+        }
+
+        // Step 2: CreateRemoteThread calling exported function
+        var hThread = CreateRemoteThread(hProcess, IntPtr.Zero, 0,
+            remoteFuncAddr, remoteParamAddr, 0, IntPtr.Zero);
+        if (hThread == IntPtr.Zero)
+        {
+            VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
+            return -6;
+        }
+
+        var waitResult = WaitForSingleObject(hThread, (uint)timeout.TotalMilliseconds);
+        const uint WAIT_OBJECT_0 = 0x00000000;
+        if (waitResult != WAIT_OBJECT_0)
+        {
+            CloseHandle(hThread);
+            VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
+            return -7;
+        }
+
+        GetExitCodeThread(hThread, out uint exitCode);
+        CloseHandle(hThread);
+        VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
+
+        return (int)exitCode;
+    }
+
+    private bool LoadLibraryRemote(IntPtr hProcess, string dllPath, TimeSpan timeout)
+    {
+        var kernel32 = GetModuleHandle("kernel32.dll");
+        var loadLibraryAddr = GetProcAddress(kernel32, "LoadLibraryW");
+        if (loadLibraryAddr == IntPtr.Zero)
+            return false;
+
+        var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
+        var size = (uint)dllPathBytes.Length;
+
+        var allocatedMemory = VirtualAllocEx(hProcess, IntPtr.Zero, size,
+            MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if (allocatedMemory == IntPtr.Zero)
+            return false;
+
+        if (!WriteProcessMemory(hProcess, allocatedMemory, dllPathBytes, size, out _))
+        {
+            VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
+            return false;
+        }
+
+        var hThread = CreateRemoteThread(hProcess, IntPtr.Zero, 0,
+            loadLibraryAddr, allocatedMemory, 0, IntPtr.Zero);
+        if (hThread == IntPtr.Zero)
+        {
+            VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
+            return false;
+        }
+
+        var waitResult = WaitForSingleObject(hThread, (uint)timeout.TotalMilliseconds);
+        CloseHandle(hThread);
+        VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
+
+        return waitResult == 0x00000000; // WAIT_OBJECT_0
+    }
+
     private string GetErrorMessage(InjectionError error)
     {
         return error switch
@@ -304,4 +410,7 @@ public class DllInjector
 
     [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
     private static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetExitCodeThread(IntPtr hThread, out uint lpExitCode);
 }

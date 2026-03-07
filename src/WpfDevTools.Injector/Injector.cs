@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Enums;
@@ -94,19 +95,106 @@ public class ProcessInjector : IProcessInjector
 
     /// <summary>
     /// Inject Inspector DLL via native bootstrapper.
-    /// Full implementation in Phase 4 (requires native bootstrapper from Phase 3).
+    /// Two-step injection: LoadLibraryW(bootstrapper) + CreateRemoteThread(BootstrapInspector).
+    /// Polls for Named Pipe readiness after bootstrap.
     /// </summary>
     public InjectionResult InjectWithBootstrap(InjectionRequest request)
     {
         if (request == null)
             throw new ArgumentNullException(nameof(request));
 
-        return InjectionResult.CreateFailure(
-            request.ProcessId,
-            InjectionError.BootstrapFailed,
-            "Bootstrap injection not yet implemented. Requires Phase 3 native bootstrapper.",
-            failedAtStage: BootstrapStage.LoadLibrary);
+        var validationError = ValidateTarget(request.ProcessId);
+        if (validationError != InjectionError.None)
+        {
+            return InjectionResult.CreateFailure(
+                request.ProcessId, validationError,
+                $"Target validation failed: {validationError}");
+        }
+
+        var parameters = $"{request.InspectorDllPath};{request.ExpectedPipeName}";
+
+        var hProcess = OpenProcess(
+            PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+            PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
+            false, (uint)request.ProcessId);
+
+        if (hProcess == IntPtr.Zero)
+        {
+            return InjectionResult.CreateFailure(
+                request.ProcessId, InjectionError.AccessDenied,
+                "Failed to open target process");
+        }
+
+        try
+        {
+            var exitCode = _dllInjector.InjectAndCallExport(
+                hProcess,
+                request.BootstrapperDllPath,
+                "BootstrapInspector",
+                parameters,
+                request.InjectionTimeout);
+
+            if (exitCode < 0)
+            {
+                return InjectionResult.CreateFailure(
+                    request.ProcessId,
+                    InjectionError.BootstrapFailed,
+                    $"Injection mechanism failed at step {-exitCode}",
+                    failedAtStage: BootstrapStage.LoadLibrary);
+            }
+
+            var interpretation = BootstrapResultInterpreter.Interpret(exitCode);
+            if (interpretation.Error != InjectionError.None)
+            {
+                return InjectionResult.CreateFailure(
+                    request.ProcessId,
+                    interpretation.Error,
+                    interpretation.Message ?? "Bootstrap failed",
+                    failedAtStage: interpretation.Stage,
+                    bootstrapExitCode: exitCode);
+            }
+
+            var probe = new PipeReadyProbe();
+            var pipeReady = probe.WaitForPipeReady(
+                request.ExpectedPipeName,
+                request.PipeReadyTimeout,
+                CancellationToken.None);
+
+            if (!pipeReady)
+            {
+                return InjectionResult.CreateFailure(
+                    request.ProcessId,
+                    InjectionError.PipeReadyTimeout,
+                    $"Bootstrap completed (exit code 0) but Named Pipe '{request.ExpectedPipeName}' " +
+                    "did not become ready within timeout.",
+                    failedAtStage: BootstrapStage.PipeReady,
+                    bootstrapExitCode: exitCode);
+            }
+
+            return InjectionResult.CreateSuccess(
+                request.ProcessId,
+                request.InspectorDllPath,
+                bootstrapExitCode: exitCode,
+                pipeName: request.ExpectedPipeName);
+        }
+        finally
+        {
+            CloseHandle(hProcess);
+        }
     }
+
+    private const uint PROCESS_CREATE_THREAD = 0x0002;
+    private const uint PROCESS_QUERY_INFORMATION = 0x0400;
+    private const uint PROCESS_VM_OPERATION = 0x0008;
+    private const uint PROCESS_VM_WRITE = 0x0020;
+    private const uint PROCESS_VM_READ = 0x0010;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, uint dwProcessId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseHandle(IntPtr hObject);
 
     /// <summary>
     /// Validate target process

@@ -128,12 +128,15 @@ public static class ToolCallHelper
             sw.Stop();
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
 
-            // Catch-all: wrap unexpected exceptions as error results instead of
-            // letting them propagate to the MCP SDK layer unhandled
+            // Classify exception into stable error code and sanitized message
+            // to prevent localized OS text or internal details from leaking to clients
+            var (errorCode, sanitizedMessage) = ClassifyException(ex);
+
             var exceptionPayload = JsonSerializer.SerializeToElement(new
             {
                 success = false,
-                error = $"Tool execution failed: {ex.Message}"
+                error = sanitizedMessage,
+                errorCode
             }, SerializerOptions);
 
             return new CallToolResult()
@@ -147,6 +150,23 @@ public static class ToolCallHelper
                 IsError = true
             };
         }
+    }
+
+    /// <summary>
+    /// Classify an exception into a stable error code and sanitized message.
+    /// Prevents localized OS text or internal implementation details from leaking to clients.
+    /// </summary>
+    internal static (string errorCode, string message) ClassifyException(Exception ex)
+    {
+        return ex switch
+        {
+            InvalidOperationException => ("OperationError", $"Operation failed: {ex.Message}"),
+            FileNotFoundException => ("FileNotFound", "Required file not found"),
+            UnauthorizedAccessException => ("AccessDenied", "Access denied"),
+            ArgumentException => ("InvalidArgument", $"Invalid argument: {ex.Message}"),
+            System.Security.Cryptography.CryptographicException => ("SecurityError", "Security verification failed"),
+            _ => ("InternalError", "An internal error occurred during tool execution")
+        };
     }
 
     /// <summary>

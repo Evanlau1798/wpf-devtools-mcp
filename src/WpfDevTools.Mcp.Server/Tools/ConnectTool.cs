@@ -287,23 +287,32 @@ public sealed class ConnectTool
         }
 
         // SECURITY: Verify Authenticode signature
-        // CRITICAL FIX: Environment variable bypass only in DEBUG builds for testing
         // RELEASE builds ALWAYS verify signatures - no exceptions
 #if DEBUG
-        // NOTE: This bypass is for local development only. CI pipelines using DEBUG builds
-        // must NOT set WPFDEVTOOLS_SKIP_SIGNATURE_CHECK. RELEASE builds always verify.
-        var skipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1"
-            && Environment.GetEnvironmentVariable("CI") == null
-            && Environment.GetEnvironmentVariable("TF_BUILD") == null;
-        if (skipSignatureCheck)
+        // DEBUG builds: auto-skip signature verification for DLLs within trusted roots
+        // (application directory or solution root). This enables frictionless local development
+        // without needing Authenticode code signing.
+        if (IsUnderTrustedRoot(fullPath))
         {
-            System.Diagnostics.Trace.TraceWarning(
-                "[SECURITY] DLL signature verification bypassed via WPFDEVTOOLS_SKIP_SIGNATURE_CHECK. " +
-                "This is only allowed in DEBUG builds outside CI.");
+            System.Diagnostics.Trace.TraceInformation(
+                "[SECURITY] DLL signature verification skipped for trusted-root DLL in DEBUG build.");
         }
         else
         {
-            VerifyAuthenticodeSignature(fullPath);
+            // For DLLs outside trusted roots, allow env var bypass (non-CI only)
+            var skipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1"
+                && Environment.GetEnvironmentVariable("CI") == null
+                && Environment.GetEnvironmentVariable("TF_BUILD") == null;
+            if (skipSignatureCheck)
+            {
+                System.Diagnostics.Trace.TraceWarning(
+                    "[SECURITY] DLL signature verification bypassed via WPFDEVTOOLS_SKIP_SIGNATURE_CHECK. " +
+                    "This is only allowed in DEBUG builds outside CI.");
+            }
+            else
+            {
+                VerifyAuthenticodeSignature(fullPath);
+            }
         }
 #else
         // RELEASE builds ALWAYS verify signatures - no environment variable check
@@ -406,8 +415,12 @@ public sealed class ConnectTool
         }
         catch (System.Security.Cryptography.CryptographicException ex)
         {
+            // Produce non-localized, actionable error message instead of raw OS text
+            // (e.g., the raw message may be localized like "找不到要求的物件。")
             throw new InvalidOperationException(
-                $"DLL signature verification failed: {ex.Message}", ex);
+                "Inspector DLL is not digitally signed or has an invalid signature. " +
+                "In development, use a DEBUG build which auto-skips signature verification for local DLLs. " +
+                "In production, sign the DLL with Authenticode.", ex);
         }
     }
 }

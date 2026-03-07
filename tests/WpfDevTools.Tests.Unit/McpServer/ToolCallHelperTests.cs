@@ -380,10 +380,10 @@ public class ToolCallHelperTests
         textContent!.Text.Should().Contain("completed");
     }
 
-    // === Catch-all exception handler tests ===
+    // === Structured error contract tests ===
 
     [Fact]
-    public async Task ExecuteAndWrapAsync_WhenToolThrowsException_ShouldReturnErrorResult()
+    public async Task ExecuteAndWrapAsync_WhenToolThrowsException_ShouldReturnErrorWithErrorCode()
     {
         // Arrange: Tool throws a non-cancellation exception
         Func<JsonElement?, CancellationToken, Task<object>> faultyTool = (args, ct) =>
@@ -392,18 +392,19 @@ public class ToolCallHelperTests
         // Act
         var result = await ToolCallHelper.ExecuteAndWrapAsync(faultyTool, null, CancellationToken.None);
 
-        // Assert: Should be caught by catch-all and wrapped as error result
+        // Assert: Should include errorCode for machine recovery
         result.Should().NotBeNull();
         result.IsError.Should().BeTrue();
-        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
-        textContent!.Text.Should().Contain("Tool execution failed");
-        textContent.Text.Should().Contain("Something went wrong internally");
+        var structured = result.StructuredContent!.Value;
+        structured.GetProperty("success").GetBoolean().Should().BeFalse();
+        structured.GetProperty("errorCode").GetString().Should().Be("OperationError");
+        structured.GetProperty("error").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public async Task ExecuteAndWrapAsync_WhenToolThrowsArgumentException_ShouldWrapAsError()
+    public async Task ExecuteAndWrapAsync_WhenToolThrowsArgumentException_ShouldReturnInvalidArgumentCode()
     {
-        // Arrange: Tool throws ArgumentException (another non-cancellation type)
+        // Arrange
         Func<JsonElement?, CancellationToken, Task<object>> faultyTool = (args, ct) =>
             throw new ArgumentException("Invalid parameter value");
 
@@ -412,8 +413,68 @@ public class ToolCallHelperTests
 
         // Assert
         result.IsError.Should().BeTrue();
-        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
-        textContent!.Text.Should().Contain("Invalid parameter value");
+        var structured = result.StructuredContent!.Value;
+        structured.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenCryptographicException_ShouldReturnSecurityErrorCode()
+    {
+        // Arrange: Simulates signature verification failure
+        Func<JsonElement?, CancellationToken, Task<object>> faultyTool = (args, ct) =>
+            throw new System.Security.Cryptography.CryptographicException("localized OS error text");
+
+        // Act
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(faultyTool, null, CancellationToken.None);
+
+        // Assert: Error code should be SecurityError, message should NOT contain raw localized text
+        result.IsError.Should().BeTrue();
+        var structured = result.StructuredContent!.Value;
+        structured.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+        structured.GetProperty("error").GetString().Should().NotContain("localized OS error text");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenUnknownException_ShouldReturnInternalErrorCode()
+    {
+        // Arrange: Unknown exception type should not leak raw message
+        Func<JsonElement?, CancellationToken, Task<object>> faultyTool = (args, ct) =>
+            throw new NotSupportedException("internal implementation detail");
+
+        // Act
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(faultyTool, null, CancellationToken.None);
+
+        // Assert: Should use InternalError code and hide raw message
+        result.IsError.Should().BeTrue();
+        var structured = result.StructuredContent!.Value;
+        structured.GetProperty("errorCode").GetString().Should().Be("InternalError");
+        structured.GetProperty("error").GetString().Should().NotContain("internal implementation detail");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenFileNotFound_ShouldReturnFileNotFoundCode()
+    {
+        Func<JsonElement?, CancellationToken, Task<object>> faultyTool = (args, ct) =>
+            throw new FileNotFoundException("secret file path info");
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(faultyTool, null, CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        var structured = result.StructuredContent!.Value;
+        structured.GetProperty("errorCode").GetString().Should().Be("FileNotFound");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenAccessDenied_ShouldReturnAccessDeniedCode()
+    {
+        Func<JsonElement?, CancellationToken, Task<object>> faultyTool = (args, ct) =>
+            throw new UnauthorizedAccessException("detailed access info");
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(faultyTool, null, CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        var structured = result.StructuredContent!.Value;
+        structured.GetProperty("errorCode").GetString().Should().Be("AccessDenied");
     }
 
     // === Metrics recording tests ===

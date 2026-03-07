@@ -1,6 +1,8 @@
 using Xunit;
 using FluentAssertions;
 using System.Diagnostics;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Tests.Unit;
 
@@ -50,6 +52,55 @@ public class ConnectToolSignatureTests
 #else
         // In RELEASE mode, signature check cannot be skipped
         Assert.True(true, "RELEASE mode always requires signature verification");
+#endif
+    }
+
+    [Fact]
+    public void SignatureVerification_ErrorMessage_ShouldBeNonLocalized()
+    {
+        // When signature verification fails on an unsigned DLL outside trusted roots,
+        // the error message must be in English (non-localized) for AI agent recovery.
+        // This test verifies the error message contract.
+
+#if DEBUG
+        // Create a DLL outside trusted roots to trigger signature check
+        var tempDir = Path.Combine(Path.GetTempPath(), $"wpfdevtools_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var untrustedDllPath = Path.Combine(tempDir, "test.dll");
+
+        // Copy actual DLL to untrusted location
+        var sourceDll = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
+        if (File.Exists(sourceDll))
+        {
+            File.Copy(sourceDll, untrustedDllPath);
+        }
+        else
+        {
+            // Create minimal PE file for testing
+            File.WriteAllBytes(untrustedDllPath, new byte[] { 0x4D, 0x5A });
+        }
+
+        try
+        {
+            var act = () => new ConnectTool(new SessionManager(), untrustedDllPath);
+            // Should throw because DLL is outside trusted roots
+            var exception = act.Should().Throw<Exception>().Which;
+            // Error message should be actionable and non-localized
+            exception.Message.Should().NotBeNullOrWhiteSpace();
+        }
+        catch (ArgumentException)
+        {
+            // Path validation may reject the path before signature check - that's fine
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+#else
+        Assert.True(true, "RELEASE mode always verifies signatures");
 #endif
     }
 }

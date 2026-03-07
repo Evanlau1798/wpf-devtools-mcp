@@ -95,13 +95,17 @@ public static class ServerInstructions
 
         === ERROR RECOVERY ===
         - "not connected" -> call connect(processId) first, then retry
-        - "Access denied" -> restart MCP server as administrator
+        - "Access denied" (errorCode: AccessDenied) -> restart MCP server as administrator
         - "Not a WPF application" -> use get_processes to find correct processId
-        - "Architecture mismatch" -> ensure server and target app match (x64 vs x86); check architecture with get_processes, rebuild server for correct platform if needed
+        - "Architecture mismatch" -> Inspector DLL and target process architectures differ; error includes actual architectures. AnyCPU DLLs are auto-detected and compatible with any platform
+        - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
         - "timeout" -> process may be frozen; try ping() to verify connection
         - "element not found" -> verify elementId from get_visual_tree/get_logical_tree
         - "property not found" -> verify propertyName spelling and element type
         - "Rate limit exceeded" -> wait 1 minute, then retry. Response includes { availableTokens, retryAfterSeconds: 60 }
+        - errorCode "InternalError" -> an unexpected server error; retry or report the issue
+        - errorCode "FileNotFound" -> required file is missing; verify build output
+        - errorCode "OperationError" -> operation failed; check error message for details
 
         === RESPONSE FORMAT ===
         All tools return JSON: { success: boolean, ...fields }

@@ -40,6 +40,11 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 > For production use, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR`.
 > See [SECURITY.md](SECURITY.md) for details.
 
+> **Local development note**: Use a `Debug` build (`dotnet build` defaults to Debug).
+> Debug builds automatically skip DLL signature verification for local DLLs,
+> allowing `connect` to work without Authenticode code signing.
+> The Inspector DLL is built as AnyCPU and is compatible with both x86 and x64 target processes.
+
 ### Typical MCP workflow
 
 1. Call `get_processes` to discover WPF targets.

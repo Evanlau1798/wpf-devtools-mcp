@@ -71,15 +71,22 @@ public class ConnectToolTests
     }
 
     [Fact]
-    public void Constructor_WithUnsignedDll_ShouldThrowWhenSignatureCheckEnabled()
+    public void Constructor_WithUnsignedDllInTrustedRoot_ShouldNotThrowInDebug()
     {
-        // Arrange - ensure signature check is enabled (no skip scope)
+        // In DEBUG builds, unsigned DLLs within trusted roots (app/solution directory)
+        // should NOT require signature verification - this enables local development
+        // without needing Authenticode code signing.
         var unsignedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
 
-        // Act & Assert - should throw because DLL is not signed (or signature invalid)
+#if DEBUG
+        var act = () => new ConnectTool(new SessionManager(), unsignedDllPath);
+        act.Should().NotThrow(
+            "DEBUG builds should auto-skip signature verification for DLLs in trusted roots");
+#else
         var act = () => new ConnectTool(new SessionManager(), unsignedDllPath);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*signature*");
+#endif
     }
 
     [Fact]
@@ -155,6 +162,76 @@ public class ConnectToolTests
     }
 
     [Fact]
+    public async Task Execute_WithArchitectureMismatch_ShouldReturnError()
+    {
+        // Arrange
+        using var _ = new SkipSignatureCheckScope();
+        var tool = new ConnectTool(
+            new SessionManager(),
+            new FakeProcessInjector { ValidationResult = InjectionError.ArchitectureMismatch },
+            GetTestInspectorDllPath());
+        var parameters = new { processId = 12345 };
+
+        // Act
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("Architecture mismatch");
+    }
+
+    [Fact]
+    public async Task Execute_AlreadyConnected_ShouldReturnSuccessImmediately()
+    {
+        // Arrange: simulate a process that's already in the session manager
+        using var _ = new SkipSignatureCheckScope();
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(42);
+
+        var tool = new ConnectTool(
+            sessionManager,
+            new FakeProcessInjector(),
+            GetTestInspectorDllPath());
+        var parameters = new { processId = 42 };
+
+        // Act: connect to already-connected process
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        // Assert: should return success=true immediately (idempotent)
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("message").GetString().Should().Contain("Already connected");
+    }
+
+    [Fact]
+    public async Task Execute_InjectionFailure_ShouldPropagateError()
+    {
+        // Arrange
+        using var _ = new SkipSignatureCheckScope();
+        var injector = new FakeProcessInjector
+        {
+            ValidationResult = InjectionError.None,
+            ShouldFailInjection = true,
+            InjectionErrorMessage = "DLL load failed in target process"
+        };
+        var tool = new ConnectTool(
+            new SessionManager(),
+            injector,
+            GetTestInspectorDllPath());
+        var parameters = new { processId = 12345 };
+
+        // Act
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        // Assert
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("DLL load failed");
+    }
+
+    [Fact]
     public async Task Execute_RateLimitExceeded_ShouldReturnError()
     {
         // Arrange
@@ -201,10 +278,16 @@ public class ConnectToolTests
     private sealed class FakeProcessInjector : IProcessInjector
     {
         public InjectionError ValidationResult { get; init; } = InjectionError.None;
+        public bool ShouldFailInjection { get; init; }
+        public string InjectionErrorMessage { get; init; } = "Injection failed";
 
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
         {
-            return InjectionResult.CreateFailure(processId, InjectionError.Unknown, "Inject should not be called in this test");
+            if (ShouldFailInjection)
+            {
+                return InjectionResult.CreateFailure(processId, InjectionError.Unknown, InjectionErrorMessage);
+            }
+            return InjectionResult.CreateSuccess(processId, dllPath);
         }
 
         public InjectionError ValidateTarget(int processId)

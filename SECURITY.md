@@ -16,8 +16,9 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 ### 1. DLL signature verification
 
 - `connect` validates the inspector DLL before loading it.
-- Development-only bypass is available through `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK=1`.
-- Do not enable that bypass outside local development.
+- **Debug builds**: Signature verification is automatically skipped for DLLs within the application directory or solution root. No environment variable is needed for local development.
+- **Release builds**: Signature verification is always enforced. The Inspector DLL must be Authenticode-signed.
+- `WPFDEVTOOLS_SKIP_SIGNATURE_CHECK=1`: Available in Debug builds for DLLs outside trusted roots. Do not enable in production or CI.
 
 ### 2. Named pipe authentication
 

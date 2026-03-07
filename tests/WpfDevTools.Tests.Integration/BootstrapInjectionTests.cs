@@ -8,17 +8,25 @@ using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace WpfDevTools.Tests.Integration;
 
 /// <summary>
 /// End-to-end bootstrap injection tests.
 /// ConnectTool_ThenPingTool requires native bootstrapper DLLs built.
-/// ConnectTool_WhenBootstrapFails uses fault injection (no native DLLs needed).
+/// ConnectTool_WhenBootstrapFails uses fault injection with FakeProcessDetector (no TestApp needed).
 /// </summary>
 public class BootstrapInjectionTests : IDisposable
 {
+    private readonly ITestOutputHelper _output;
     private System.Diagnostics.Process? _testApp;
+    private string? _dummyBootstrapperPath;
+
+    public BootstrapInjectionTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
 
     private System.Diagnostics.Process StartTestApp()
     {
@@ -38,11 +46,11 @@ public class BootstrapInjectionTests : IDisposable
     [Trait("Category", "Integration")]
     public async Task ConnectTool_ThenPingTool_ShouldSucceed()
     {
-        // Skip if native bootstrapper DLLs are not built
-        var bootstrapperExists = HasNativeBootstrapper();
-        if (!bootstrapperExists)
+        if (!HasNativeBootstrapper())
         {
-            // Cannot run without native bootstrapper - skip gracefully
+            _output.WriteLine(
+                "SKIPPED: Native bootstrapper DLLs not found. " +
+                "Build the C++ bootstrapper project first.");
             return;
         }
 
@@ -77,25 +85,23 @@ public class BootstrapInjectionTests : IDisposable
     [Trait("Category", "Integration")]
     public async Task ConnectTool_WhenBootstrapFails_ShouldReturnStageError()
     {
-        _testApp = StartTestApp();
-
-        // Ensure dummy bootstrapper exists so DLL discovery succeeds
         EnsureDummyBootstrapperExists();
 
         var sessionManager = new SessionManager();
         var faultInjector = new FaultBootstrapInjector(
             InjectionResult.CreateFailure(
-                _testApp.Id,
+                12345,
                 InjectionError.BootstrapFailed,
                 "Fault bootstrapper forced ManagedEntrypoint failure",
                 bootstrapExitCode: 0x12,
                 failedAtStage: BootstrapStage.ManagedEntrypoint));
 
+        // Use FakeProcessDetector to avoid starting a real TestApp
         var connectTool = new ConnectTool(
-            sessionManager, faultInjector, new WpfProcessDetector());
+            sessionManager, faultInjector, new FakeProcessDetector());
 
         var args = JsonSerializer.Deserialize<JsonElement>(
-            JsonSerializer.Serialize(new { processId = _testApp.Id }));
+            JsonSerializer.Serialize(new { processId = 12345 }));
 
         var result = await connectTool.ExecuteAsync(args, CancellationToken.None);
         var resultJson = JsonSerializer.Deserialize<JsonElement>(
@@ -114,23 +120,21 @@ public class BootstrapInjectionTests : IDisposable
         {
             var dlls = Directory.GetFiles(artifactsDir,
                 "WpfDevTools.Bootstrapper.*.dll", SearchOption.AllDirectories);
-            // Only count real DLLs (non-zero size, not dummy test files)
             if (dlls.Any(d => new FileInfo(d).Length > 0)) return true;
         }
 
-        // Also check AppContext.BaseDirectory (must be real, not dummy)
         var localPath = Path.Combine(
             AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
         return File.Exists(localPath) && new FileInfo(localPath).Length > 0;
     }
 
-    private static void EnsureDummyBootstrapperExists()
+    private void EnsureDummyBootstrapperExists()
     {
-        var path = Path.Combine(
+        _dummyBootstrapperPath = Path.Combine(
             AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
-        if (!File.Exists(path))
+        if (!File.Exists(_dummyBootstrapperPath))
         {
-            File.WriteAllBytes(path, Array.Empty<byte>());
+            File.WriteAllBytes(_dummyBootstrapperPath, Array.Empty<byte>());
         }
     }
 
@@ -162,6 +166,21 @@ public class BootstrapInjectionTests : IDisposable
         throw new InvalidOperationException("Solution root not found");
     }
 
+    private sealed class FakeProcessDetector : WpfProcessDetector
+    {
+        public override WpfProcessInfo? GetProcessInfo(int processId)
+        {
+            return new WpfProcessInfo
+            {
+                ProcessId = processId,
+                ProcessName = "TestApp",
+                Architecture = ProcessArchitecture.X64,
+                Runtime = TargetRuntime.NetCore,
+                IsWpfApplication = true
+            };
+        }
+    }
+
     private sealed class FaultBootstrapInjector : IProcessInjector
     {
         private readonly InjectionResult _result;
@@ -184,6 +203,12 @@ public class BootstrapInjectionTests : IDisposable
             _testApp.Kill();
             _testApp.WaitForExit(5000);
             _testApp.Dispose();
+        }
+
+        if (_dummyBootstrapperPath != null && File.Exists(_dummyBootstrapperPath))
+        {
+            try { File.Delete(_dummyBootstrapperPath); }
+            catch { /* best effort cleanup */ }
         }
     }
 }

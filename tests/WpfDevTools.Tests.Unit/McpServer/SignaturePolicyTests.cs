@@ -1,7 +1,6 @@
 using System.Security.Cryptography.X509Certificates;
 using Xunit;
 using FluentAssertions;
-using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -60,11 +59,11 @@ public class SignaturePolicyTests
         var trustedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
 
 #if DEBUG
-        var act = () => ConnectTool.ValidateDllPath(trustedDllPath);
+        var act = () => DllPathValidator.ValidateDllPath(trustedDllPath);
         act.Should().NotThrow(
             "DEBUG builds auto-skip signature verification for trusted root DLLs");
 #else
-        var act = () => ConnectTool.ValidateDllPath(trustedDllPath);
+        var act = () => DllPathValidator.ValidateDllPath(trustedDllPath);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*signature*");
 #endif
@@ -75,7 +74,7 @@ public class SignaturePolicyTests
     {
         var untrustedPath = Path.Combine(Path.GetTempPath(), "WpfDevTools.Inspector.dll");
 
-        var act = () => ConnectTool.ValidateDllPath(untrustedPath);
+        var act = () => DllPathValidator.ValidateDllPath(untrustedPath);
         act.Should().Throw<ArgumentException>()
             .WithMessage("*application directory*",
                 "untrusted DLL paths must always be rejected before reaching signature check");
@@ -91,7 +90,7 @@ public class SignaturePolicyTests
         {
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", "1");
 
-            var act = () => ConnectTool.ValidateDllPath(untrustedPath);
+            var act = () => DllPathValidator.ValidateDllPath(untrustedPath);
             act.Should().Throw<ArgumentException>()
                 .WithMessage("*application directory*",
                     "env var must NOT bypass trusted-root path validation");

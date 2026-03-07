@@ -12,8 +12,10 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
-public class ConnectToolTests
+public class ConnectToolTests : IDisposable
 {
+    private string? _dummyBootstrapperPath;
+
     private static ConnectTool CreateTool(
         SessionManager? sessionManager = null,
         FakeProcessInjector? injector = null)
@@ -22,6 +24,25 @@ public class ConnectToolTests
             sessionManager ?? new SessionManager(),
             injector ?? new FakeProcessInjector(),
             new FakeProcessDetector());
+    }
+
+    private void EnsureDummyBootstrapperExists()
+    {
+        _dummyBootstrapperPath = Path.Combine(
+            AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
+        if (!File.Exists(_dummyBootstrapperPath))
+        {
+            File.WriteAllBytes(_dummyBootstrapperPath, Array.Empty<byte>());
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_dummyBootstrapperPath != null && File.Exists(_dummyBootstrapperPath))
+        {
+            try { File.Delete(_dummyBootstrapperPath); }
+            catch { /* best effort cleanup */ }
+        }
     }
 
     [Fact]
@@ -73,11 +94,11 @@ public class ConnectToolTests
         var unsignedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
 
 #if DEBUG
-        var act = () => ConnectTool.ValidateDllPath(unsignedDllPath);
+        var act = () => DllPathValidator.ValidateDllPath(unsignedDllPath);
         act.Should().NotThrow(
             "DEBUG builds should auto-skip signature verification for DLLs in trusted roots");
 #else
-        var act = () => ConnectTool.ValidateDllPath(unsignedDllPath);
+        var act = () => DllPathValidator.ValidateDllPath(unsignedDllPath);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*signature*");
 #endif
@@ -88,7 +109,7 @@ public class ConnectToolTests
     [InlineData("\\\\network\\share\\evil.dll")]
     public void ValidateDllPath_WithMaliciousPath_ShouldThrow(string maliciousPath)
     {
-        var act = () => ConnectTool.ValidateDllPath(maliciousPath);
+        var act = () => DllPathValidator.ValidateDllPath(maliciousPath);
         act.Should().Throw<ArgumentException>();
     }
 
@@ -97,7 +118,7 @@ public class ConnectToolTests
     {
         var outsidePath = Path.Combine(Path.GetTempPath(), "evil.dll");
 
-        var act = () => ConnectTool.ValidateDllPath(outsidePath);
+        var act = () => DllPathValidator.ValidateDllPath(outsidePath);
         act.Should().Throw<ArgumentException>()
             .WithMessage("*application directory*");
     }
@@ -114,7 +135,7 @@ public class ConnectToolTests
 
         try
         {
-            var act = () => ConnectTool.ValidateDllPath(trustedDllPath);
+            var act = () => DllPathValidator.ValidateDllPath(trustedDllPath);
             act.Should().NotThrow();
         }
         finally
@@ -255,16 +276,6 @@ public class ConnectToolTests
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("Rate limit");
-    }
-
-    private static string EnsureDummyBootstrapperExists()
-    {
-        var path = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
-        if (!File.Exists(path))
-        {
-            File.WriteAllBytes(path, Array.Empty<byte>());
-        }
-        return path;
     }
 
     private static string FindSolutionRoot()

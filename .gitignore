@@ -27,6 +27,10 @@ coverage-report.md
 build-output.txt
 test-output.txt
 unit-test-output.txt
+tmp/
+artifacts/
+src/WpfDevTools.Bootstrapper/Debug/
+src/WpfDevTools.Bootstrapper/Release/
 
 # Secrets and local certificates
 .env

@@ -48,4 +48,18 @@ public class BootstrapBridgeTests
 
         result.Should().BeOneOf(0, -1);
     }
+
+    [Fact]
+    public void Net8InspectorAssembly_ShouldHaveRuntimeConfigNextToAssembly()
+    {
+#if NET8_0_OR_GREATER
+        var assemblyPath = typeof(BootstrapBridge).Assembly.Location;
+        var runtimeConfigPath = Path.Combine(
+            Path.GetDirectoryName(assemblyPath)!,
+            $"{Path.GetFileNameWithoutExtension(assemblyPath)}.runtimeconfig.json");
+
+        File.Exists(runtimeConfigPath).Should().BeTrue(
+            "hostfxr bootstrap requires a runtimeconfig.json next to WpfDevTools.Inspector.dll");
+#endif
+    }
 }

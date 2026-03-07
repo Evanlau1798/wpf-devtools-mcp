@@ -24,8 +24,53 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Resolve native host SDK paths
+      shell: pwsh
+      run: |
+        $rid = switch ('${{ matrix.platform }}') {
+          'x64' { 'win-x64' }
+          'x86' { 'win-x86' }
+          default { throw "Unsupported bootstrapper platform: ${{ matrix.platform }}" }
+        }
+
+        $packRoot = Join-Path $env:ProgramFiles 'dotnet\packs'
+        $packDir = Get-ChildItem (Join-Path $packRoot "Microsoft.NETCore.App.Host.$rid") -Directory |
+          Sort-Object { [version]$_.Name } -Descending |
+          Select-Object -First 1
+
+        if (-not $packDir) {
+          throw "Could not locate Microsoft.NETCore.App.Host pack for $rid"
+        }
+
+        $nativeDir = Join-Path $packDir.FullName "runtimes\$rid\native"
+        if (-not (Test-Path $nativeDir)) {
+          throw "Could not locate native host directory: $nativeDir"
+        }
+
+        "BOOTSTRAPPER_NATIVE_DIR=$nativeDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
     - name: Restore dependencies
       run: dotnet restore
+
+    - name: Build native bootstrapper
+      shell: pwsh
+      run: |
+        $platform = switch ('${{ matrix.platform }}') {
+          'x86' { 'Win32' }
+          'x64' { 'x64' }
+          default { throw "Unsupported bootstrapper platform: ${{ matrix.platform }}" }
+        }
+
+        & msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj `
+          /m `
+          /nologo `
+          "/p:Configuration=${{ matrix.configuration }}" `
+          "/p:Platform=$platform" `
+          "/p:NetHostIncludeDir=$env:BOOTSTRAPPER_NATIVE_DIR" `
+          "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR"
 
     - name: Build
       run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -p:Platform=${{ matrix.platform }} -nodeReuse:false -p:UseSharedCompilation=false
@@ -73,8 +118,42 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Resolve native host SDK paths
+      shell: pwsh
+      run: |
+        $rid = 'win-x64'
+        $packRoot = Join-Path $env:ProgramFiles 'dotnet\packs'
+        $packDir = Get-ChildItem (Join-Path $packRoot "Microsoft.NETCore.App.Host.$rid") -Directory |
+          Sort-Object { [version]$_.Name } -Descending |
+          Select-Object -First 1
+
+        if (-not $packDir) {
+          throw "Could not locate Microsoft.NETCore.App.Host pack for $rid"
+        }
+
+        $nativeDir = Join-Path $packDir.FullName "runtimes\$rid\native"
+        if (-not (Test-Path $nativeDir)) {
+          throw "Could not locate native host directory: $nativeDir"
+        }
+
+        "BOOTSTRAPPER_NATIVE_DIR=$nativeDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
     - name: Restore dependencies
       run: dotnet restore
+
+    - name: Build native bootstrapper
+      shell: pwsh
+      run: |
+        & msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj `
+          /m `
+          /nologo `
+          "/p:Configuration=Debug" `
+          "/p:Platform=x64" `
+          "/p:NetHostIncludeDir=$env:BOOTSTRAPPER_NATIVE_DIR" `
+          "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR"
 
     - name: Run tests with coverage
       run: dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage" --results-directory ./TestResults -nodeReuse:false -p:UseSharedCompilation=false

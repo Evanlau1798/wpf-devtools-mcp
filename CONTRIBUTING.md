@@ -85,11 +85,14 @@ Before submitting your pull request, ensure:
 git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
 cd wpf-devtools-mcp
 
-# Build all projects
+# Build managed projects
 dotnet build
 
-# Run all tests
-dotnet test
+# Build the native bootstrapper required by live bootstrap integration tests
+"C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /m /p:Configuration=Debug /p:Platform=x64 /p:NetHostIncludeDir="C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Host.win-x64\<version>\runtimes\win-x64\native" /p:NetHostLibDir="C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Host.win-x64\<version>\runtimes\win-x64\native"
+
+# Run all tests after build (separate step avoids file-lock issues)
+dotnet test --no-build
 
 # Run specific test project
 dotnet test tests/WpfDevTools.Tests.Unit/
@@ -100,6 +103,8 @@ dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage"
 # Build for release
 dotnet build -c Release
 ```
+
+If you run `tests/WpfDevTools.Tests.Integration/BootstrapInjectionTests.cs`, build the matching native bootstrapper artifact first. The smoke test now fails fast when bootstrapper DLLs are missing so CI and local runs cannot report false green coverage.
 
 **Test Coverage Requirements:**
 - Minimum: 80% line coverage (MANDATORY)

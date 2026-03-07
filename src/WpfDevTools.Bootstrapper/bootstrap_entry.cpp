@@ -23,7 +23,7 @@ static bool ParseParams(const wchar_t* params,
     return !outInspectorPath.empty() && !outPipeName.empty();
 }
 
-// Fallback: read params from temp config file
+// Fallback: read params from temp config file.
 static bool ReadConfigFile(DWORD pid,
     std::wstring& outInspectorPath, std::wstring& outPipeName)
 {
@@ -34,7 +34,7 @@ static bool ReadConfigFile(DWORD pid,
     std::wstring configPath = std::wstring(tempPath)
         + L"WpfDevTools_Bootstrap_" + std::to_wstring(pid) + L".json";
 
-    // Simple JSON parse — look for inspectorDllPath and pipeName values
+    // Simple JSON parse: look for inspectorDllPath and pipeName values.
     std::ifstream file(configPath);
     if (!file.is_open())
         return false;
@@ -42,7 +42,6 @@ static bool ReadConfigFile(DWORD pid,
     std::string line;
     while (std::getline(file, line))
     {
-        // Minimal parsing for "key": "value" format
         auto findValue = [&](const std::string& key) -> std::wstring {
             auto pos = line.find("\"" + key + "\"");
             if (pos == std::string::npos) return L"";
@@ -67,19 +66,17 @@ static bool ReadConfigFile(DWORD pid,
     }
 
     file.close();
-    // Cleanup temp file
     DeleteFileW(configPath.c_str());
 
     return !outInspectorPath.empty() && !outPipeName.empty();
 }
 
-// Exported function — called via CreateRemoteThread (Step 2)
+// Exported function called via CreateRemoteThread (step 2).
 extern "C" __declspec(dllexport) DWORD WINAPI BootstrapInspector(LPVOID lpParameter)
 {
     std::wstring inspectorDllPath;
     std::wstring pipeName;
 
-    // Try inline params first, then config file
     auto params = static_cast<const wchar_t*>(lpParameter);
     if (!ParseParams(params, inspectorDllPath, pipeName))
     {
@@ -88,25 +85,20 @@ extern "C" __declspec(dllexport) DWORD WINAPI BootstrapInspector(LPVOID lpParame
             return ExitCodes::InspectorPathInvalid;
     }
 
-    // Build parameters string for managed bridge: "inspectorDllPath;pipeName"
     std::wstring managedParams = inspectorDllPath + L";" + pipeName;
 
-    // Detect which CLR is loaded
     HMODULE hClr = GetModuleHandleW(L"clr.dll");
     HMODULE hCoreclr = GetModuleHandleW(L"coreclr.dll");
 
     if (hClr != nullptr)
     {
-        // .NET Framework path
         return HostNetFramework(inspectorDllPath.c_str(), managedParams.c_str());
     }
-    else if (hCoreclr != nullptr)
+
+    if (hCoreclr != nullptr)
     {
-        // .NET Core/5+ path
         return HostNetCore(inspectorDllPath.c_str(), managedParams.c_str());
     }
-    else
-    {
-        return ExitCodes::NoClrFound;
-    }
+
+    return ExitCodes::NoClrFound;
 }

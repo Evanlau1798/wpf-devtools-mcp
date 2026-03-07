@@ -178,23 +178,40 @@ public class WpfProcessDetector
     {
         try
         {
-            foreach (ProcessModule module in process.Modules)
-            {
-                var moduleName = module.ModuleName?.ToLowerInvariant();
-                if (moduleName != null)
-                {
-                    if (moduleName.IndexOf("clr.dll", StringComparison.Ordinal) >= 0)
-                        return TargetRuntime.NetFramework;
-                    if (moduleName.IndexOf("coreclr.dll", StringComparison.Ordinal) >= 0)
-                        return TargetRuntime.NetCore;
-                }
-            }
+            var moduleNames = process.Modules
+                .Cast<ProcessModule>()
+                .Select(module => module.ModuleName)
+                .ToArray();
+
+            return DetectRuntimeFromModuleNames(moduleNames);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine(
                 $"WpfProcessDetector: Failed to detect runtime: {ex.Message}");
         }
+
+        return TargetRuntime.Unknown;
+    }
+
+    /// <summary>
+    /// Detect the target runtime from loaded module file names.
+    /// Exact file-name matching is used so that <c>coreclr.dll</c>
+    /// is not misdiagnosed as <c>clr.dll</c>.
+    /// </summary>
+    public static TargetRuntime DetectRuntimeFromModuleNames(IEnumerable<string?> moduleNames)
+    {
+        var fileNames = moduleNames
+            .Where(moduleName => !string.IsNullOrWhiteSpace(moduleName))
+            .Select(moduleName => Path.GetFileName(moduleName!)?.ToLowerInvariant())
+            .Where(fileName => !string.IsNullOrWhiteSpace(fileName))
+            .ToArray();
+
+        if (fileNames.Contains("coreclr.dll", StringComparer.Ordinal))
+            return TargetRuntime.NetCore;
+
+        if (fileNames.Contains("clr.dll", StringComparer.Ordinal))
+            return TargetRuntime.NetFramework;
 
         return TargetRuntime.Unknown;
     }
@@ -206,15 +223,15 @@ public class WpfProcessDetector
             // Check for .NET Framework or .NET Core/5+ runtime DLLs
             foreach (ProcessModule module in process.Modules)
             {
-                var moduleName = module.ModuleName?.ToLowerInvariant();
+                var moduleName = Path.GetFileName(module.ModuleName)?.ToLowerInvariant();
 
-                if (moduleName?.IndexOf("clr.dll", StringComparison.Ordinal) >= 0)
-                {
-                    return ".NET Framework";
-                }
-                else if (moduleName?.IndexOf("coreclr.dll", StringComparison.Ordinal) >= 0)
+                if (string.Equals(moduleName, "coreclr.dll", StringComparison.Ordinal))
                 {
                     return ".NET Core/5+";
+                }
+                else if (string.Equals(moduleName, "clr.dll", StringComparison.Ordinal))
+                {
+                    return ".NET Framework";
                 }
             }
         }

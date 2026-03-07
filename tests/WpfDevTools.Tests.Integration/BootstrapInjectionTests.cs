@@ -46,13 +46,9 @@ public class BootstrapInjectionTests : IDisposable
     [Trait("Category", "Integration")]
     public async Task ConnectTool_ThenPingTool_ShouldSucceed()
     {
-        if (!HasNativeBootstrapper())
-        {
-            _output.WriteLine(
-                "SKIPPED: Native bootstrapper DLLs not found. " +
-                "Build the C++ bootstrapper project first.");
-            return;
-        }
+        HasNativeBootstrapper().Should().BeTrue(
+            "the live bootstrap smoke test must fail fast when native bootstrapper artifacts are missing; " +
+            "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
 
         _testApp = StartTestApp();
 
@@ -68,8 +64,18 @@ public class BootstrapInjectionTests : IDisposable
         var connectResult = await connectTool.ExecuteAsync(connectArgs, CancellationToken.None);
         var connectJson = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(connectResult));
+        var connectError = connectJson.TryGetProperty("error", out var errorProp)
+            ? errorProp.GetString()
+            : null;
+        var connectStage = connectJson.TryGetProperty("stage", out var stageProp)
+            ? stageProp.GetString()
+            : null;
+        var connectExitCode = connectJson.TryGetProperty("exitCode", out var exitCodeProp)
+            ? exitCodeProp.ToString()
+            : null;
         connectJson.GetProperty("success").GetBoolean().Should().BeTrue(
-            "connect should succeed with real injection");
+            $"connect should succeed with real injection. Error={connectError ?? "<none>"}, " +
+            $"Stage={connectStage ?? "<none>"}, ExitCode={connectExitCode ?? "<none>"}");
 
         var pingArgs = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(new { processId = _testApp.Id }));

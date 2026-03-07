@@ -6,6 +6,34 @@ namespace WpfDevTools.Tests.Unit.Injector;
 
 public class RuntimeDetectionTests
 {
+    [Fact]
+    public void DetectRuntimeFromModuleNames_WhenCoreClrIsPresent_ShouldReturnNetCore()
+    {
+        var runtime = WpfDevTools.Injector.Discovery.WpfProcessDetector.DetectRuntimeFromModuleNames(
+            new[]
+            {
+                @"C:\Program Files\dotnet\shared\Microsoft.NETCore.App\8.0.24\coreclr.dll",
+                @"C:\Windows\System32\kernel32.dll"
+            });
+
+        runtime.Should().Be(TargetRuntime.NetCore,
+            "coreclr.dll must not be misdiagnosed as clr.dll");
+    }
+
+    [Fact]
+    public void DetectRuntimeFromModuleNames_WhenClrAndCoreClrBothAppear_ShouldPreferNetCore()
+    {
+        var runtime = WpfDevTools.Injector.Discovery.WpfProcessDetector.DetectRuntimeFromModuleNames(
+            new[]
+            {
+                @"C:\Windows\System32\clr.dll",
+                @"C:\Program Files\dotnet\shared\Microsoft.NETCore.App\8.0.24\coreclr.dll"
+            });
+
+        runtime.Should().Be(TargetRuntime.NetCore,
+            "modern .NET WPF targets may still load additional CLR-related modules, but coreclr.dll should win");
+    }
+
     [Theory]
     [InlineData(TargetRuntime.NetFramework, "net48")]
     [InlineData(TargetRuntime.NetCore, "net8.0-windows")]

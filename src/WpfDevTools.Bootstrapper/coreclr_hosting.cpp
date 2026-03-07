@@ -24,6 +24,17 @@ using hostfxr_close_fn = int(HOSTFXR_CALLTYPE*)(
 // Bridge function pointer: [UnmanagedCallersOnly] static int RunNative(IntPtr, int)
 using bridge_fn = int(CORECLR_DELEGATE_CALLTYPE*)(const uint8_t* args, int32_t sizeBytes);
 
+constexpr int HostfxrSuccess = 0;
+constexpr int HostfxrSuccessHostAlreadyInitialized = 1;
+constexpr int HostfxrSuccessDifferentRuntimeProperties = 2;
+
+static bool IsHostfxrInitializationSuccess(int rc)
+{
+    return rc == HostfxrSuccess ||
+        rc == HostfxrSuccessHostAlreadyInitialized ||
+        rc == HostfxrSuccessDifferentRuntimeProperties;
+}
+
 static std::wstring GetRuntimeConfigPath(const wchar_t* inspectorDllPath)
 {
     std::wstring path(inspectorDllPath);
@@ -73,7 +84,7 @@ DWORD HostNetCore(const wchar_t* inspectorDllPath, const wchar_t* parameters)
     auto runtimeConfig = GetRuntimeConfigPath(inspectorDllPath);
     hostfxr_handle cxt = nullptr;
     rc = initFn(runtimeConfig.c_str(), nullptr, &cxt);
-    if (rc != 0 || cxt == nullptr)
+    if (!IsHostfxrInitializationSuccess(rc) || cxt == nullptr)
     {
         if (cxt) closeFn(cxt);
         FreeLibrary(hHostfxr);

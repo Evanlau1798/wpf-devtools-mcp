@@ -13,8 +13,19 @@ public static class BootstrapResultInterpreter
     /// </summary>
     public sealed class InterpretationResult
     {
+        /// <summary>
+        /// Mapped injection error.
+        /// </summary>
         public required InjectionError Error { get; init; }
+
+        /// <summary>
+        /// Bootstrap stage associated with the interpreted exit code.
+        /// </summary>
         public BootstrapStage? Stage { get; init; }
+
+        /// <summary>
+        /// Human-readable diagnostic message.
+        /// </summary>
         public string? Message { get; init; }
     }
 

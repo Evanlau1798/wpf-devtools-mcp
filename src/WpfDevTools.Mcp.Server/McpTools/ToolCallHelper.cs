@@ -13,6 +13,8 @@ public static class ToolCallHelper
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
     private static MetricsCollector? _metrics;
 
+    private static readonly Annotations ErrorAnnotations = new() { Priority = 1.0f };
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -89,7 +91,12 @@ public static class ToolCallHelper
 
             return new CallToolResult()
             {
-                Content = [new TextContentBlock() { Text = jsonElement.GetRawText() }],
+                Content = [new TextContentBlock()
+                {
+                    Text = jsonElement.GetRawText(),
+                    Annotations = isError ? ErrorAnnotations : null
+                }],
+                StructuredContent = jsonElement,
                 IsError = isError
             };
         }
@@ -99,16 +106,20 @@ public static class ToolCallHelper
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
 
             // Timeout occurred (our CTS was cancelled, but caller's token was not)
+            var timeoutPayload = JsonSerializer.SerializeToElement(new
+            {
+                success = false,
+                error = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive."
+            }, SerializerOptions);
+
             return new CallToolResult()
             {
                 Content = [new TextContentBlock()
                 {
-                    Text = JsonSerializer.Serialize(new
-                    {
-                        success = false,
-                        error = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive."
-                    }, SerializerOptions)
+                    Text = timeoutPayload.GetRawText(),
+                    Annotations = ErrorAnnotations
                 }],
+                StructuredContent = timeoutPayload,
                 IsError = true
             };
         }
@@ -119,16 +130,20 @@ public static class ToolCallHelper
 
             // Catch-all: wrap unexpected exceptions as error results instead of
             // letting them propagate to the MCP SDK layer unhandled
+            var exceptionPayload = JsonSerializer.SerializeToElement(new
+            {
+                success = false,
+                error = $"Tool execution failed: {ex.Message}"
+            }, SerializerOptions);
+
             return new CallToolResult()
             {
                 Content = [new TextContentBlock()
                 {
-                    Text = JsonSerializer.Serialize(new
-                    {
-                        success = false,
-                        error = $"Tool execution failed: {ex.Message}"
-                    }, SerializerOptions)
+                    Text = exceptionPayload.GetRawText(),
+                    Annotations = ErrorAnnotations
                 }],
+                StructuredContent = exceptionPayload,
                 IsError = true
             };
         }

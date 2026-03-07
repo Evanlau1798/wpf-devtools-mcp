@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Mcp.Server;
@@ -13,6 +14,7 @@ public sealed class SessionManager : IDisposable
     private readonly IRateLimiterManager _rateLimiter;
     private readonly AuthenticationManager? _authManager;
     private readonly CertificateManager? _certManager;
+    private readonly ILogger? _logger;
     private readonly object _lock = new();
     private readonly System.Threading.Timer _cleanupTimer;
 
@@ -22,14 +24,17 @@ public sealed class SessionManager : IDisposable
     /// <param name="rateLimiter">Rate limiter manager for controlling request rates</param>
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     /// <param name="certManager">Certificate manager for encryption (null to disable encryption)</param>
+    /// <param name="logger">Logger for cleanup diagnostics (null to fall back to Debug.WriteLine)</param>
     public SessionManager(
         IRateLimiterManager rateLimiter,
         AuthenticationManager? authManager = null,
-        CertificateManager? certManager = null)
+        CertificateManager? certManager = null,
+        ILogger<SessionManager>? logger = null)
     {
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
         _authManager = authManager;
         _certManager = certManager;
+        _logger = logger;
 
         // CRITICAL FIX: Periodic cleanup of dead and idle sessions
         // Uses one-shot timer (Infinite period) to prevent overlapping callbacks.
@@ -262,28 +267,15 @@ public sealed class SessionManager : IDisposable
         }
         catch (Exception ex)
         {
-            // CRITICAL FIX: Log cleanup failures to file (STDIO-safe)
-            // Cannot use ILogger here as it may not be available in timer callback
             // Prevent Timer callback exceptions from stopping future cleanup cycles.
-            // STDIO MCP servers should not write to Console (stderr is technically safe
-            // but we avoid it for consistency). Errors are swallowed since this is a
-            // background cleanup operation - individual session cleanup failures are
-            // non-critical.
-            try
+            // Background cleanup failures are non-critical.
+            if (_logger != null)
             {
-                var logPath = Path.Combine(Path.GetTempPath(), "WpfDevTools_SessionManager_Cleanup.log");
-                // Rotate if over 1 MB to prevent unbounded growth
-                if (File.Exists(logPath) && new FileInfo(logPath).Length > 1_048_576)
-                {
-                    try { File.Delete(logPath + ".old"); } catch { /* best effort */ }
-                    try { File.Move(logPath, logPath + ".old"); } catch { /* best effort */ }
-                }
-                File.AppendAllText(logPath, $"[{DateTime.UtcNow:O}] Cleanup error: {ex}\n");
+                _logger.LogError(ex, "Session cleanup failed");
             }
-            catch (Exception logEx)
+            else
             {
-                // Last resort: write to debug output to prevent timer crash
-                System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to log cleanup error: {logEx.Message}");
+                System.Diagnostics.Debug.WriteLine($"SessionManager: Cleanup error: {ex.Message}");
             }
         }
         finally

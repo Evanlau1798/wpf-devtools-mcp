@@ -2,6 +2,7 @@
   <PropertyGroup>
     <BuildInParallel>false</BuildInParallel>
     <RestoreBuildInParallel>false</RestoreBuildInParallel>
+    <UseSharedCompilation>false</UseSharedCompilation>
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
   </PropertyGroup>
 </Project>

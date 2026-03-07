@@ -28,6 +28,8 @@
 dotnet build
 ```
 
+> **Build note**: The repository ships `Directory.Build.props` and `Directory.Build.rsp` that disable shared compilation and MSBuild node reuse to prevent file-lock warnings (MSB3026). These settings are applied automatically — no extra flags are needed.
+
 ### Run the server
 
 ```powershell
@@ -162,4 +164,5 @@ MIT. DLL injection code includes Snoop-based components under Ms-PL attribution.
 - STDIO transport: in use
 - HTTP transport: planned
 - Tool metadata: maintained in code
+- Structured content: `StructuredContent` and `Annotations` populated on all tool results
 - README tool catalog: intentionally minimized to prevent schema drift

@@ -68,7 +68,8 @@ try
     builder.Services.AddSingleton(sp => new SessionManager(
         sp.GetRequiredService<IRateLimiterManager>(),
         authManager,
-        certManager));
+        certManager,
+        sp.GetRequiredService<ILoggerFactory>().CreateLogger<SessionManager>()));
 
     // MCP Server configuration
     builder.Services.AddMcpServer(options =>

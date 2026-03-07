@@ -99,6 +99,7 @@ public sealed class ConnectTool
                 success = false,
                 error = "Rate limit exceeded for connect operations. Please slow down your requests.",
                 availableTokens,
+                retryAfterSeconds = 60,
                 retryAfter = "Wait 1 minute for rate limit to reset"
             };
         }

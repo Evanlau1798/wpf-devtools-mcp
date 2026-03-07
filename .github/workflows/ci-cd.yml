@@ -28,7 +28,7 @@ jobs:
       run: dotnet restore
 
     - name: Build
-      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -p:Platform=${{ matrix.platform }}
+      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -p:Platform=${{ matrix.platform }} -nodeReuse:false -p:UseSharedCompilation=false
 
     - name: Run tests
       run: dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}
@@ -42,6 +42,24 @@ jobs:
           src/WpfDevTools.Mcp.Server/bin/Release/net8.0/
           src/WpfDevTools.Inspector/bin/Release/net8.0-windows/
           src/WpfDevTools.Inspector.Sdk/bin/Release/net8.0-windows/
+
+  build-arm64:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build ARM64 (cross-compile, no test - no ARM64 runner available)
+      run: dotnet build --configuration Release -p:Platform=ARM64 -nodeReuse:false -p:UseSharedCompilation=false
 
   code-coverage:
     runs-on: windows-latest
@@ -59,12 +77,12 @@ jobs:
       run: dotnet restore
 
     - name: Run tests with coverage
-      run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=./coverage/
+      run: dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage" --results-directory ./TestResults -nodeReuse:false -p:UseSharedCompilation=false
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
-        files: ./tests/WpfDevTools.Tests.Unit/coverage/coverage.opencover.xml
+        directory: ./TestResults
         flags: unittests
         name: codecov-wpf-devtools
 

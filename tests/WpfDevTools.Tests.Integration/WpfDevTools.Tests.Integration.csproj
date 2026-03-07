@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj" />
+    <ProjectReference Include="..\..\src\WpfDevTools.Injector\WpfDevTools.Injector.csproj" />
+    <ProjectReference Include="..\..\src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj" />
     <ProjectReference Include="..\WpfDevTools.Tests.TestApp\WpfDevTools.Tests.TestApp.csproj" />
   </ItemGroup>
 

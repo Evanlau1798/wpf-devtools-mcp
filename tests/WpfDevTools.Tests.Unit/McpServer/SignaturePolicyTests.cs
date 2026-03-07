@@ -55,39 +55,35 @@ public class SignaturePolicyTests
     // === Integration: ConnectTool path validation ===
 
     [Fact]
-    public void ConnectTool_DebugBuild_TrustedRoot_ShouldNotThrow()
+    public void ValidateDllPath_DebugBuild_TrustedRoot_ShouldNotThrow()
     {
-        // Trusted root DLL (in app directory) should not trigger signature check in DEBUG
         var trustedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
 
 #if DEBUG
-        var act = () => new ConnectTool(new SessionManager(), trustedDllPath);
+        var act = () => ConnectTool.ValidateDllPath(trustedDllPath);
         act.Should().NotThrow(
             "DEBUG builds auto-skip signature verification for trusted root DLLs");
 #else
-        // In RELEASE, unsigned DLLs always fail
-        var act = () => new ConnectTool(new SessionManager(), trustedDllPath);
+        var act = () => ConnectTool.ValidateDllPath(trustedDllPath);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*signature*");
 #endif
     }
 
     [Fact]
-    public void ConnectTool_UntrustedPath_ShouldAlwaysBeRejected()
+    public void ValidateDllPath_UntrustedPath_ShouldAlwaysBeRejected()
     {
-        // Untrusted path must be rejected regardless of build configuration
         var untrustedPath = Path.Combine(Path.GetTempPath(), "WpfDevTools.Inspector.dll");
 
-        var act = () => new ConnectTool(new SessionManager(), untrustedPath);
+        var act = () => ConnectTool.ValidateDllPath(untrustedPath);
         act.Should().Throw<ArgumentException>()
             .WithMessage("*application directory*",
                 "untrusted DLL paths must always be rejected before reaching signature check");
     }
 
     [Fact]
-    public void ConnectTool_UntrustedPath_WithEnvVar_ShouldStillBeRejected()
+    public void ValidateDllPath_UntrustedPath_WithEnvVar_ShouldStillBeRejected()
     {
-        // WPFDEVTOOLS_SKIP_SIGNATURE_CHECK must NOT bypass path validation
         var untrustedPath = Path.Combine(Path.GetTempPath(), "WpfDevTools.Inspector.dll");
         var previousValue = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
 
@@ -95,7 +91,7 @@ public class SignaturePolicyTests
         {
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", "1");
 
-            var act = () => new ConnectTool(new SessionManager(), untrustedPath);
+            var act = () => ConnectTool.ValidateDllPath(untrustedPath);
             act.Should().Throw<ArgumentException>()
                 .WithMessage("*application directory*",
                     "env var must NOT bypass trusted-root path validation");

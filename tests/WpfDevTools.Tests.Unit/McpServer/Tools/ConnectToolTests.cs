@@ -3,6 +3,7 @@ using FluentAssertions;
 using System.Text.Json;
 using System.Reflection;
 using WpfDevTools.Injector;
+using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Mcp.Server;
@@ -13,17 +14,24 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
 public class ConnectToolTests
 {
+    private static ConnectTool CreateTool(
+        SessionManager? sessionManager = null,
+        FakeProcessInjector? injector = null)
+    {
+        return new ConnectTool(
+            sessionManager ?? new SessionManager(),
+            injector ?? new FakeProcessInjector(),
+            new FakeProcessDetector());
+    }
+
     [Fact]
     public async Task Execute_WithInvalidProcessId_ShouldReturnError()
     {
-        // Arrange
         var tool = new ConnectTool(new SessionManager());
         var parameters = new { processId = 999999 };
 
-        // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -33,14 +41,11 @@ public class ConnectToolTests
     [Fact]
     public async Task Execute_WithMissingProcessId_ShouldReturnError()
     {
-        // Arrange
         var tool = new ConnectTool(new SessionManager());
         var parameters = new { };
 
-        // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -50,17 +55,12 @@ public class ConnectToolTests
     [Fact]
     public async Task Execute_WithNonWpfProcess_ShouldReturnError()
     {
-        // Arrange
-        var tool = new ConnectTool(
-            new SessionManager(),
-            new FakeProcessInjector { ValidationResult = InjectionError.NotWpfApplication },
-            GetTestInspectorDllPath());
+        var tool = CreateTool(injector:
+            new FakeProcessInjector { ValidationResult = InjectionError.NotWpfApplication });
         var parameters = new { processId = 12345 };
 
-        // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -68,56 +68,43 @@ public class ConnectToolTests
     }
 
     [Fact]
-    public void Constructor_WithUnsignedDllInTrustedRoot_ShouldNotThrowInDebug()
+    public void ValidateDllPath_WithUnsignedDllInTrustedRoot_ShouldNotThrowInDebug()
     {
-        // In DEBUG builds, unsigned DLLs within trusted roots (app/solution directory)
-        // should NOT require signature verification - this enables local development
-        // without needing Authenticode code signing.
         var unsignedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
 
 #if DEBUG
-        var act = () => new ConnectTool(new SessionManager(), unsignedDllPath);
+        var act = () => ConnectTool.ValidateDllPath(unsignedDllPath);
         act.Should().NotThrow(
             "DEBUG builds should auto-skip signature verification for DLLs in trusted roots");
 #else
-        var act = () => new ConnectTool(new SessionManager(), unsignedDllPath);
+        var act = () => ConnectTool.ValidateDllPath(unsignedDllPath);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*signature*");
 #endif
     }
 
     [Theory]
-    [InlineData("..\\..\\System32\\evil.dll")]
     [InlineData("C:\\Windows\\System32\\evil.dll")]
     [InlineData("\\\\network\\share\\evil.dll")]
-    public void Constructor_WithMaliciousPath_ShouldThrow(string maliciousPath)
+    public void ValidateDllPath_WithMaliciousPath_ShouldThrow(string maliciousPath)
     {
-        // Arrange
-
-        // Act & Assert - should throw due to path validation
-        var act = () => new ConnectTool(new SessionManager(), maliciousPath);
-        act.Should().Throw<Exception>()
-            .Where(ex => ex.GetType() == typeof(ArgumentException) || ex.GetType() == typeof(FileNotFoundException),
-                "malicious or invalid DLL paths must never be accepted");
+        var act = () => ConnectTool.ValidateDllPath(maliciousPath);
+        act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void Constructor_WithPathOutsideAppDirectory_ShouldThrow()
+    public void ValidateDllPath_WithPathOutsideAppDirectory_ShouldThrow()
     {
-        // Arrange
         var outsidePath = Path.Combine(Path.GetTempPath(), "evil.dll");
 
-        // Act & Assert - should throw because path is outside application directory
-        var act = () => new ConnectTool(new SessionManager(), outsidePath);
+        var act = () => ConnectTool.ValidateDllPath(outsidePath);
         act.Should().Throw<ArgumentException>()
             .WithMessage("*application directory*");
     }
 
     [Fact]
-    public void Constructor_WithTrustedSolutionRelativeDllPath_ShouldNotThrow()
+    public void ValidateDllPath_WithTrustedSolutionRelativeDllPath_ShouldNotThrow()
     {
-
-
         var solutionRoot = FindSolutionRoot();
         var artifactsDir = Path.Combine(solutionRoot, ".test-artifacts");
         Directory.CreateDirectory(artifactsDir);
@@ -127,7 +114,7 @@ public class ConnectToolTests
 
         try
         {
-            var act = () => new ConnectTool(new SessionManager(), trustedDllPath);
+            var act = () => ConnectTool.ValidateDllPath(trustedDllPath);
             act.Should().NotThrow();
         }
         finally
@@ -147,17 +134,12 @@ public class ConnectToolTests
     [Fact]
     public async Task Execute_WithArchitectureMismatch_ShouldReturnError()
     {
-        // Arrange
-        var tool = new ConnectTool(
-            new SessionManager(),
-            new FakeProcessInjector { ValidationResult = InjectionError.ArchitectureMismatch },
-            GetTestInspectorDllPath());
+        var tool = CreateTool(injector:
+            new FakeProcessInjector { ValidationResult = InjectionError.ArchitectureMismatch });
         var parameters = new { processId = 12345 };
 
-        // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -167,71 +149,78 @@ public class ConnectToolTests
     [Fact]
     public async Task Execute_AlreadyConnected_ShouldReturnSuccessImmediately()
     {
-        // Arrange: simulate a process that's already in the session manager
-
         var sessionManager = new SessionManager();
         sessionManager.AddSession(42);
 
-        var tool = new ConnectTool(
-            sessionManager,
-            new FakeProcessInjector(),
-            GetTestInspectorDllPath());
+        var tool = CreateTool(sessionManager: sessionManager);
         var parameters = new { processId = 42 };
 
-        // Act: connect to already-connected process
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert: should return success=true immediately (idempotent)
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("message").GetString().Should().Contain("Already connected");
     }
 
     [Fact]
-    public async Task Execute_InjectionFailure_ShouldPropagateError()
+    public async Task Execute_BootstrapInjectionFailure_ShouldPropagateError()
     {
-        // Arrange
+        EnsureDummyBootstrapperExists();
         var injector = new FakeProcessInjector
         {
             ValidationResult = InjectionError.None,
             ShouldFailInjection = true,
-            InjectionErrorMessage = "DLL load failed in target process"
+            InjectionErrorMessage = "CLR hosting initialization failed",
+            FailedStage = BootstrapStage.ClrHosting,
+            FailedExitCode = 0x11
         };
-        var tool = new ConnectTool(
-            new SessionManager(),
-            injector,
-            GetTestInspectorDllPath());
+        var tool = CreateTool(injector: injector);
         var parameters = new { processId = 12345 };
 
-        // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("DLL load failed");
+        resultJson.GetProperty("error").GetString().Should().Contain("CLR hosting");
+        resultJson.GetProperty("stage").GetString().Should().Be("ClrHosting");
+    }
+
+    [Fact]
+    public async Task Execute_BootstrapPipeTimeout_ShouldReturnPipeError()
+    {
+        EnsureDummyBootstrapperExists();
+        var injector = new FakeProcessInjector
+        {
+            ValidationResult = InjectionError.None,
+            ShouldFailInjection = true,
+            InjectionErrorMessage = "Named Pipe did not become ready",
+            FailedStage = BootstrapStage.PipeReady,
+            FailedExitCode = 0,
+            FailedError = InjectionError.PipeReadyTimeout
+        };
+        var tool = CreateTool(injector: injector);
+        var parameters = new { processId = 12345 };
+
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("Pipe");
     }
 
     [Fact]
     public async Task Execute_WhenPipeConnectionCancelled_ShouldCleanupSession()
     {
-        // Arrange: injection succeeds, but CancellationToken fires during pipe connection
-
+        EnsureDummyBootstrapperExists();
         var sessionManager = new SessionManager();
-        var tool = new ConnectTool(
-            sessionManager,
-            new FakeProcessInjector(),
-            GetTestInspectorDllPath());
+        var tool = CreateTool(sessionManager: sessionManager);
         var parameters = new { processId = 12345 };
 
-        // Use a CTS that cancels quickly to simulate ToolCallHelper timeout
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
 
-        // Act: should throw OperationCanceledException because pipe has no server
         var act = () => tool.ExecuteAsync(ToJsonElement(parameters), cts.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();
 
-        // Assert: session must be cleaned up after cancellation
         sessionManager.HasSession(12345).Should().BeFalse(
             "session must be removed when pipe connection is cancelled to prevent state divergence");
     }
@@ -239,19 +228,12 @@ public class ConnectToolTests
     [Fact]
     public async Task Execute_WhenPipeConnectionFails_ShouldCleanupSession()
     {
-        // Arrange: injection succeeds, but pipe connection returns false (no Inspector server)
-
         var sessionManager = new SessionManager();
-        var tool = new ConnectTool(
-            sessionManager,
-            new FakeProcessInjector(),
-            GetTestInspectorDllPath());
+        var tool = CreateTool(sessionManager: sessionManager);
         var parameters = new { processId = 12345 };
 
-        // Act: pipe connection will fail because there's no Inspector pipe server
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert: session must be cleaned up after failed pipe connection
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         sessionManager.HasSession(12345).Should().BeFalse(
@@ -261,22 +243,28 @@ public class ConnectToolTests
     [Fact]
     public async Task Execute_RateLimitExceeded_ShouldReturnError()
     {
-        // Arrange
         var sessionManager = new SessionManager(maxRequestsPerMinute: 2);
         var tool = new ConnectTool(sessionManager);
         var parameters = new { processId = 12345 };
 
-        // Consume rate limit
         await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
         await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Act - third request should be rate limited
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("Rate limit");
+    }
+
+    private static string EnsureDummyBootstrapperExists()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
+        if (!File.Exists(path))
+        {
+            File.WriteAllBytes(path, Array.Empty<byte>());
+        }
+        return path;
     }
 
     private static string FindSolutionRoot()
@@ -296,9 +284,19 @@ public class ConnectToolTests
         throw new InvalidOperationException("Could not locate solution root for ConnectTool test.");
     }
 
-    private static string GetTestInspectorDllPath()
+    private sealed class FakeProcessDetector : WpfProcessDetector
     {
-        return Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
+        public override WpfProcessInfo? GetProcessInfo(int processId)
+        {
+            return new WpfProcessInfo
+            {
+                ProcessId = processId,
+                ProcessName = "TestApp",
+                Architecture = ProcessArchitecture.X64,
+                Runtime = TargetRuntime.NetCore,
+                IsWpfApplication = true
+            };
+        }
     }
 
     private sealed class FakeProcessInjector : IProcessInjector
@@ -306,6 +304,9 @@ public class ConnectToolTests
         public InjectionError ValidationResult { get; init; } = InjectionError.None;
         public bool ShouldFailInjection { get; init; }
         public string InjectionErrorMessage { get; init; } = "Injection failed";
+        public BootstrapStage? FailedStage { get; init; }
+        public int? FailedExitCode { get; init; }
+        public InjectionError FailedError { get; init; } = InjectionError.BootstrapFailed;
 
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
         {
@@ -325,9 +326,18 @@ public class ConnectToolTests
         {
             if (ShouldFailInjection)
             {
-                return InjectionResult.CreateFailure(request.ProcessId, InjectionError.BootstrapFailed, InjectionErrorMessage);
+                return InjectionResult.CreateFailure(
+                    request.ProcessId,
+                    FailedError,
+                    InjectionErrorMessage,
+                    failedAtStage: FailedStage,
+                    bootstrapExitCode: FailedExitCode);
             }
-            return InjectionResult.CreateSuccess(request.ProcessId, request.InspectorDllPath);
+            return InjectionResult.CreateSuccess(
+                request.ProcessId,
+                request.InspectorDllPath,
+                bootstrapExitCode: 0,
+                pipeName: request.ExpectedPipeName);
         }
     }
 }

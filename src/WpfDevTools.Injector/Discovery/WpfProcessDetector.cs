@@ -54,7 +54,7 @@ public class WpfProcessDetector
     /// <summary>
     /// Get information about a specific process
     /// </summary>
-    public WpfProcessInfo? GetProcessInfo(int processId)
+    public virtual WpfProcessInfo? GetProcessInfo(int processId)
     {
         try
         {

@@ -1,5 +1,7 @@
 using System.Text.Json;
 using WpfDevTools.Injector;
+using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Configuration;
 
@@ -18,7 +20,7 @@ public sealed class ConnectTool
 {
     private readonly IProcessInjector _injector;
     private readonly SessionManager _sessionManager;
-    private readonly string _inspectorDllPath;
+    private readonly WpfProcessDetector _processDetector;
 
 #if DEBUG
     private static readonly bool IsDebugBuild = true;
@@ -29,47 +31,27 @@ public sealed class ConnectTool
     /// <summary>
     /// Create ConnectTool with dependency injection
     /// </summary>
-    /// <param name="sessionManager">Session manager for tracking active connections</param>
-    /// <param name="injector">Process injector for DLL injection</param>
-    /// <param name="inspectorDllPath">Optional path to Inspector DLL. If null, uses default location.</param>
-    /// <exception cref="ArgumentNullException">Thrown when sessionManager or injector is null</exception>
-    /// <exception cref="FileNotFoundException">Thrown when specified Inspector DLL does not exist</exception>
-    /// <exception cref="ArgumentException">Thrown when DLL path validation fails</exception>
-    public ConnectTool(SessionManager sessionManager, IProcessInjector injector, string? inspectorDllPath = null)
+    public ConnectTool(
+        SessionManager sessionManager,
+        IProcessInjector injector,
+        WpfProcessDetector? processDetector = null)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _injector = injector ?? throw new ArgumentNullException(nameof(injector));
-
-        if (inspectorDllPath != null)
-        {
-            ValidateDllPath(inspectorDllPath);
-            if (!File.Exists(inspectorDllPath))
-                throw new FileNotFoundException("Inspector DLL not found", inspectorDllPath);
-        }
-
-        _inspectorDllPath = inspectorDllPath ?? GetInspectorDllPath();
-        ValidateDllPath(_inspectorDllPath);
+        _processDetector = processDetector ?? new WpfProcessDetector();
     }
 
     /// <summary>
     /// Create ConnectTool (backward compatibility constructor)
     /// </summary>
-    /// <param name="sessionManager">Session manager for tracking active connections</param>
-    /// <param name="inspectorDllPath">Optional path to Inspector DLL. If null, uses default location.</param>
-    /// <exception cref="ArgumentNullException">Thrown when sessionManager is null</exception>
-    /// <exception cref="FileNotFoundException">Thrown when specified Inspector DLL does not exist</exception>
-    /// <exception cref="ArgumentException">Thrown when DLL path validation fails</exception>
-    public ConnectTool(SessionManager sessionManager, string? inspectorDllPath = null)
-        : this(sessionManager, new ProcessInjector(), inspectorDllPath)
+    public ConnectTool(SessionManager sessionManager)
+        : this(sessionManager, new ProcessInjector())
     {
     }
 
     /// <summary>
     /// Execute the tool to connect to a WPF process
     /// </summary>
-    /// <param name="arguments">JSON arguments containing processId</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Result object with success status and connection details</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         int? processId = null;
@@ -96,7 +78,6 @@ public sealed class ConnectTool
         }
 
         // SECURITY: Rate limit connect attempts to prevent DoS
-        // Use processId as the rate limit key (even if session doesn't exist yet)
         if (!_sessionManager.CheckRateLimit(processId.Value))
         {
             var availableTokens = _sessionManager.GetAvailableTokens(processId.Value);
@@ -132,14 +113,49 @@ public sealed class ConnectTool
             };
         }
 
-        // Perform injection
-        var injectionResult = _injector.Inject(processId.Value, _inspectorDllPath);
+        // Build injection plan dynamically based on target process info
+        var processInfo = _processDetector.GetProcessInfo(processId.Value);
+        if (processInfo == null)
+        {
+            return new
+            {
+                success = false,
+                error = $"Could not detect process info for {processId.Value}"
+            };
+        }
+
+        var inspectorCandidates = EnumerateInspectorDllCandidates(
+            AppContext.BaseDirectory).Where(File.Exists).ToArray();
+        var bootstrapperCandidates = EnumerateBootstrapperCandidates(
+            AppContext.BaseDirectory).Where(File.Exists).ToArray();
+
+        var injectionRequest = InjectionPlanFactory.CreateRequest(
+            processInfo, inspectorCandidates, bootstrapperCandidates);
+
+        if (injectionRequest == null)
+        {
+            return new
+            {
+                success = false,
+                error = "No matching Inspector or Bootstrapper DLL found for target process. " +
+                    $"Runtime: {processInfo.Runtime}, Architecture: {processInfo.Architecture}"
+            };
+        }
+
+        // SECURITY: Validate resolved DLL paths
+        ValidateDllPath(injectionRequest.InspectorDllPath);
+        ValidateDllPath(injectionRequest.BootstrapperDllPath);
+
+        // Perform bootstrap injection
+        var injectionResult = _injector.InjectWithBootstrap(injectionRequest);
         if (!injectionResult.Success)
         {
             return new
             {
                 success = false,
-                error = injectionResult.ErrorMessage ?? "Injection failed"
+                error = injectionResult.ErrorMessage ?? "Injection failed",
+                stage = injectionResult.FailedAtStage?.ToString(),
+                exitCode = injectionResult.BootstrapExitCode
             };
         }
 
@@ -147,7 +163,6 @@ public sealed class ConnectTool
         _sessionManager.AddSession(processId.Value);
         try
         {
-            // Connect to the Named Pipe
             var pipeClient = _sessionManager.GetPipeClient(processId.Value);
             if (pipeClient == null)
             {
@@ -181,27 +196,9 @@ public sealed class ConnectTool
         }
         catch
         {
-            // Ensure session is cleaned up on any exception (e.g., ToolCallHelper timeout)
-            // to prevent state divergence where session exists but pipe is disconnected
             _sessionManager.RemoveSession(processId.Value);
             throw;
         }
-    }
-
-    private static string GetInspectorDllPath()
-    {
-        var serverDir = AppContext.BaseDirectory;
-        foreach (var candidate in EnumerateInspectorDllCandidates(serverDir))
-        {
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        // Don't expose full path in exception message for security
-        // Log the actual path internally if needed
-        throw new FileNotFoundException("Inspector DLL not found. Please ensure the application is built correctly.");
     }
 
     private static IEnumerable<string> EnumerateInspectorDllCandidates(string serverDir)
@@ -227,6 +224,30 @@ public sealed class ConnectTool
                     configuration,
                     framework,
                     "WpfDevTools.Inspector.dll"));
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateBootstrapperCandidates(string serverDir)
+    {
+        yield return Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Bootstrapper.x64.dll"));
+        yield return Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Bootstrapper.x86.dll"));
+        yield return Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Bootstrapper.arm64.dll"));
+
+        var solutionRoot = GetSolutionRoot(serverDir);
+        if (solutionRoot == null) yield break;
+
+        var artifactsRoot = Path.Combine(solutionRoot, "artifacts", "bootstrapper");
+        var configurations = new[] { "Debug", "Release" };
+        var platforms = new[] { ("x64", "x64"), ("Win32", "x86"), ("ARM64", "arm64") };
+
+        foreach (var configuration in configurations)
+        {
+            foreach (var (platform, suffix) in platforms)
+            {
+                yield return Path.GetFullPath(Path.Combine(
+                    artifactsRoot, configuration, platform,
+                    $"WpfDevTools.Bootstrapper.{suffix}.dll"));
             }
         }
     }
@@ -260,30 +281,23 @@ public sealed class ConnectTool
     }
 
     /// <summary>
-    /// Validate DLL path to prevent security issues
+    /// Validate DLL path to prevent security issues.
+    /// Internal for testability.
     /// </summary>
-    /// <param name="dllPath">Path to DLL file to validate</param>
-    /// <exception cref="ArgumentException">Thrown when path is empty, not a .dll file, is a network path, not in application directory, or in system directories</exception>
-    private static void ValidateDllPath(string dllPath)
+    internal static void ValidateDllPath(string dllPath)
     {
         if (string.IsNullOrWhiteSpace(dllPath))
             throw new ArgumentException("DLL path cannot be empty", nameof(dllPath));
 
-        // Check if path has .dll extension
         if (!dllPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("DLL path must have .dll extension", nameof(dllPath));
 
-        // Prevent network paths (UNC: \\server\share or //server/share)
         if (dllPath.StartsWith(@"\\", StringComparison.Ordinal) ||
             dllPath.StartsWith("//", StringComparison.Ordinal))
             throw new ArgumentException("Network paths are not allowed", nameof(dllPath));
 
-        // SECURITY: Normalize path first to prevent traversal attacks
-        // Path.GetFullPath resolves "..", ".", and other relative components
         var fullPath = Path.GetFullPath(dllPath);
 
-        // SECURITY: Whitelist approach - only allow DLLs from application directory
-        // This prevents path traversal attacks like "C:\\App\\..\\..\\System32\\evil.dll"
         if (!IsUnderTrustedRoot(fullPath))
         {
             throw new ArgumentException(
@@ -291,7 +305,6 @@ public sealed class ConnectTool
                 nameof(dllPath));
         }
 
-        // Additional check: Prevent system directories (defense in depth)
         var systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
         var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
 
@@ -301,9 +314,6 @@ public sealed class ConnectTool
             throw new ArgumentException("Cannot load DLL from system directories", nameof(dllPath));
         }
 
-        // SECURITY: Verify Authenticode signature using extracted policy
-        // Path is already validated as trusted root above; policy only decides
-        // whether to verify the signature based on build configuration.
         var signatureAction = SignaturePolicy.Evaluate(isDebugBuild: IsDebugBuild);
 
         if (signatureAction == SignaturePolicy.Action.Skip)
@@ -350,16 +360,10 @@ public sealed class ConnectTool
                normalizedFullPath.StartsWith(normalizedRootPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Verify Authenticode signature of the DLL with full certificate chain validation
-    /// </summary>
-    /// <param name="filePath">Path to file to verify signature</param>
-    /// <exception cref="InvalidOperationException">Thrown when DLL is not signed, certificate chain validation fails, certificate is expired, or thumbprint mismatch</exception>
     private static void VerifyAuthenticodeSignature(string filePath)
     {
         try
         {
-            // Load certificate from signed file
             using var cert = System.Security.Cryptography.X509Certificates.X509Certificate.CreateFromSignedFile(filePath);
 
             if (cert == null)
@@ -367,13 +371,10 @@ public sealed class ConnectTool
                 throw new InvalidOperationException("DLL is not digitally signed");
             }
 
-            // Convert to X509Certificate2 for chain validation
             using var cert2 = new System.Security.Cryptography.X509Certificates.X509Certificate2(cert);
 
-            // SECURITY: Verify certificate chain and trust
             using var chain = new System.Security.Cryptography.X509Certificates.X509Chain();
 
-            // Revocation mode selected by testable policy: Offline in Debug, Online in Release
             chain.ChainPolicy.RevocationMode = SignaturePolicy.GetRevocationMode(IsDebugBuild);
             chain.ChainPolicy.RevocationFlag = System.Security.Cryptography.X509Certificates.X509RevocationFlag.EntireChain;
             chain.ChainPolicy.VerificationFlags = System.Security.Cryptography.X509Certificates.X509VerificationFlags.NoFlag;
@@ -386,7 +387,6 @@ public sealed class ConnectTool
                     $"Certificate chain validation failed: {errors}");
             }
 
-            // SECURITY: Verify certificate is not expired
             var now = DateTime.UtcNow;
             if (now < cert2.NotBefore.ToUniversalTime() || now > cert2.NotAfter.ToUniversalTime())
             {
@@ -394,7 +394,6 @@ public sealed class ConnectTool
                     $"Certificate has expired or is not yet valid. Valid from {cert2.NotBefore} to {cert2.NotAfter}");
             }
 
-            // SECURITY: Optional thumbprint verification for additional security
             var expectedThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_THUMBPRINT");
             if (!string.IsNullOrEmpty(expectedThumbprint))
             {
@@ -407,8 +406,6 @@ public sealed class ConnectTool
         }
         catch (System.Security.Cryptography.CryptographicException ex)
         {
-            // Produce non-localized, actionable error message instead of raw OS text
-            // (e.g., the raw message may be localized like "找不到要求的物件。")
             throw new InvalidOperationException(
                 "Inspector DLL is not digitally signed or has an invalid signature. " +
                 "In development, use a DEBUG build which auto-skips signature verification for local DLLs. " +

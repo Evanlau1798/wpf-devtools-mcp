@@ -52,6 +52,28 @@ public class SessionManagerLoggingTests : IDisposable
         sm.Should().NotBeNull();
     }
 
+    [Fact]
+    public void PerformCleanup_WhenCleanupFails_ShouldLogErrorViaLogger()
+    {
+        // Arrange: Create SessionManager with a rate limiter that throws on RemoveSession
+        var throwingRateLimiter = new ThrowingRateLimiterManager();
+        using var sm = new SessionManager(
+            throwingRateLimiter,
+            authManager: null,
+            certManager: null,
+            logger: _logger);
+
+        // Add a session for a PID that doesn't exist (will be detected as dead)
+        sm.AddSession(99999999);
+
+        // Act: Trigger cleanup directly (will find the dead session and try to remove it)
+        sm.PerformCleanup();
+
+        // Assert: Logger should have captured the cleanup error
+        _logger.Messages.Should().Contain(m =>
+            m.Contains("Error") && m.Contains("Session cleanup failed"));
+    }
+
     /// <summary>
     /// Fake logger that captures log messages for test assertions.
     /// </summary>
@@ -76,5 +98,18 @@ public class SessionManagerLoggingTests : IDisposable
         }
 
         public void Dispose() { }
+    }
+
+    /// <summary>
+    /// Fake rate limiter that throws on RemoveSession to simulate cleanup failure.
+    /// </summary>
+    private sealed class ThrowingRateLimiterManager : IRateLimiterManager
+    {
+        public bool TryAcquire(int processId) => true;
+
+        public void RemoveSession(int processId)
+            => throw new InvalidOperationException("Simulated rate limiter failure");
+
+        public int GetAvailableTokens(int processId) => 100;
     }
 }

@@ -244,7 +244,7 @@ public sealed class SessionManager : IDisposable
     /// <summary>
     /// Perform cleanup of both dead and idle sessions
     /// </summary>
-    private void PerformCleanup()
+    internal void PerformCleanup()
     {
         if (_isDisposed) return;
 

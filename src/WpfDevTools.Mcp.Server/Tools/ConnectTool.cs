@@ -20,6 +20,12 @@ public sealed class ConnectTool
     private readonly SessionManager _sessionManager;
     private readonly string _inspectorDllPath;
 
+#if DEBUG
+    private static readonly bool IsDebugBuild = true;
+#else
+    private static readonly bool IsDebugBuild = false;
+#endif
+
     /// <summary>
     /// Create ConnectTool with dependency injection
     /// </summary>
@@ -139,38 +145,47 @@ public sealed class ConnectTool
 
         // Add to session manager (also creates NamedPipeClient)
         _sessionManager.AddSession(processId.Value);
-
-        // Connect to the Named Pipe
-        var pipeClient = _sessionManager.GetPipeClient(processId.Value);
-        if (pipeClient == null)
+        try
         {
-            _sessionManager.RemoveSession(processId.Value);
+            // Connect to the Named Pipe
+            var pipeClient = _sessionManager.GetPipeClient(processId.Value);
+            if (pipeClient == null)
+            {
+                _sessionManager.RemoveSession(processId.Value);
+                return new
+                {
+                    success = false,
+                    error = "Failed to create Named Pipe client"
+                };
+            }
+
+            var connected = await pipeClient.ConnectAsync(
+                TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds),
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (!connected)
+            {
+                _sessionManager.RemoveSession(processId.Value);
+                return new
+                {
+                    success = false,
+                    error = "Timeout connecting to Inspector Named Pipe"
+                };
+            }
+
             return new
             {
-                success = false,
-                error = "Failed to create Named Pipe client"
+                success = true,
+                message = "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.",
+                processId = processId.Value
             };
         }
-
-        var connected = await pipeClient.ConnectAsync(
-            TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds),
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!connected)
+        catch
         {
+            // Ensure session is cleaned up on any exception (e.g., ToolCallHelper timeout)
+            // to prevent state divergence where session exists but pipe is disconnected
             _sessionManager.RemoveSession(processId.Value);
-            return new
-            {
-                success = false,
-                error = "Timeout connecting to Inspector Named Pipe"
-            };
+            throw;
         }
-
-        return new
-        {
-            success = true,
-            message = "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.",
-            processId = processId.Value
-        };
     }
 
     private static string GetInspectorDllPath()
@@ -286,38 +301,23 @@ public sealed class ConnectTool
             throw new ArgumentException("Cannot load DLL from system directories", nameof(dllPath));
         }
 
-        // SECURITY: Verify Authenticode signature
-        // RELEASE builds ALWAYS verify signatures - no exceptions
-#if DEBUG
-        // DEBUG builds: auto-skip signature verification for DLLs within trusted roots
-        // (application directory or solution root). This enables frictionless local development
-        // without needing Authenticode code signing.
-        if (IsUnderTrustedRoot(fullPath))
+        // SECURITY: Verify Authenticode signature using extracted policy
+        var signatureAction = SignaturePolicy.Evaluate(
+            isDebugBuild: IsDebugBuild,
+            isTrustedRoot: IsUnderTrustedRoot(fullPath),
+            hasSkipEnvVar: Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1",
+            isCi: Environment.GetEnvironmentVariable("CI") != null
+                || Environment.GetEnvironmentVariable("TF_BUILD") != null);
+
+        if (signatureAction == SignaturePolicy.Action.Skip)
         {
             System.Diagnostics.Trace.TraceInformation(
-                "[SECURITY] DLL signature verification skipped for trusted-root DLL in DEBUG build.");
+                "[SECURITY] DLL signature verification skipped per policy (DEBUG build, trusted context).");
         }
         else
         {
-            // For DLLs outside trusted roots, allow env var bypass (non-CI only)
-            var skipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK") == "1"
-                && Environment.GetEnvironmentVariable("CI") == null
-                && Environment.GetEnvironmentVariable("TF_BUILD") == null;
-            if (skipSignatureCheck)
-            {
-                System.Diagnostics.Trace.TraceWarning(
-                    "[SECURITY] DLL signature verification bypassed via WPFDEVTOOLS_SKIP_SIGNATURE_CHECK. " +
-                    "This is only allowed in DEBUG builds outside CI.");
-            }
-            else
-            {
-                VerifyAuthenticodeSignature(fullPath);
-            }
+            VerifyAuthenticodeSignature(fullPath);
         }
-#else
-        // RELEASE builds ALWAYS verify signatures - no environment variable check
-        VerifyAuthenticodeSignature(fullPath);
-#endif
     }
 
     private static bool IsUnderTrustedRoot(string fullPath)

@@ -97,7 +97,7 @@ public static class ServerInstructions
         - "not connected" -> call connect(processId) first, then retry
         - "Access denied" (errorCode: AccessDenied) -> restart MCP server as administrator
         - "Not a WPF application" -> use get_processes to find correct processId
-        - "Architecture mismatch" -> Inspector DLL and target process architectures differ; error includes actual architectures. AnyCPU DLLs are auto-detected and compatible with any platform
+        - "Architecture mismatch" -> MCP server and target process must have matching architectures (both x64 or both x86). AnyCPU Inspector DLLs are auto-detected and compatible with any platform, but the injection mechanism still requires matching bitness between server and target
         - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
         - "timeout" -> process may be frozen; try ping() to verify connection
         - "element not found" -> verify elementId from get_visual_tree/get_logical_tree

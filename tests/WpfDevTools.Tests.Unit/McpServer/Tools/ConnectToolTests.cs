@@ -232,6 +232,52 @@ public class ConnectToolTests
     }
 
     [Fact]
+    public async Task Execute_WhenPipeConnectionCancelled_ShouldCleanupSession()
+    {
+        // Arrange: injection succeeds, but CancellationToken fires during pipe connection
+        using var _ = new SkipSignatureCheckScope();
+        var sessionManager = new SessionManager();
+        var tool = new ConnectTool(
+            sessionManager,
+            new FakeProcessInjector(),
+            GetTestInspectorDllPath());
+        var parameters = new { processId = 12345 };
+
+        // Use a CTS that cancels quickly to simulate ToolCallHelper timeout
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        // Act: should throw OperationCanceledException because pipe has no server
+        var act = () => tool.ExecuteAsync(ToJsonElement(parameters), cts.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
+
+        // Assert: session must be cleaned up after cancellation
+        sessionManager.HasSession(12345).Should().BeFalse(
+            "session must be removed when pipe connection is cancelled to prevent state divergence");
+    }
+
+    [Fact]
+    public async Task Execute_WhenPipeConnectionFails_ShouldCleanupSession()
+    {
+        // Arrange: injection succeeds, but pipe connection returns false (no Inspector server)
+        using var _ = new SkipSignatureCheckScope();
+        var sessionManager = new SessionManager();
+        var tool = new ConnectTool(
+            sessionManager,
+            new FakeProcessInjector(),
+            GetTestInspectorDllPath());
+        var parameters = new { processId = 12345 };
+
+        // Act: pipe connection will fail because there's no Inspector pipe server
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        // Assert: session must be cleaned up after failed pipe connection
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        sessionManager.HasSession(12345).Should().BeFalse(
+            "session must be removed when pipe connection fails");
+    }
+
+    [Fact]
     public async Task Execute_RateLimitExceeded_ShouldReturnError()
     {
         // Arrange

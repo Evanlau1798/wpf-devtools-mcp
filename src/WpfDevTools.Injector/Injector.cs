@@ -121,6 +121,36 @@ public class ProcessInjector : IProcessInjector
         return InjectionError.None;
     }
 
+    /// <summary>
+    /// Check architecture compatibility between injector, target process, and DLL.
+    /// Extracted as a pure static function for testability.
+    /// </summary>
+    /// <param name="processArch">Target process architecture</param>
+    /// <param name="dllArch">DLL architecture (Unknown = AnyCPU or undetectable)</param>
+    /// <param name="isInjector64Bit">Whether the injector process is 64-bit</param>
+    /// <returns>InjectionError.None if compatible, ArchitectureMismatch otherwise</returns>
+    public static InjectionError CheckArchitectureCompatibility(
+        ProcessArchitecture processArch, ProcessArchitecture dllArch, bool isInjector64Bit)
+    {
+        // Native DLL: check DLL vs target
+        if (dllArch != ProcessArchitecture.Unknown &&
+            processArch != ProcessArchitecture.Unknown &&
+            processArch != dllArch)
+        {
+            return InjectionError.ArchitectureMismatch;
+        }
+
+        // Always check injector vs target (CreateRemoteThread requires same bitness)
+        // This guardrail must NOT be skipped even when DLL is AnyCPU
+        var injectorArch = isInjector64Bit ? ProcessArchitecture.X64 : ProcessArchitecture.X86;
+        if (processArch != ProcessArchitecture.Unknown && processArch != injectorArch)
+        {
+            return InjectionError.ArchitectureMismatch;
+        }
+
+        return InjectionError.None;
+    }
+
     private InjectionError ValidateArchitecture(int processId, string dllPath, out ProcessArchitecture dllArch)
     {
         dllArch = ProcessArchitecture.Unknown;
@@ -133,20 +163,9 @@ public class ProcessInjector : IProcessInjector
 
         // Get DLL architecture using PE header reader with AnyCPU detection
         dllArch = PeArchitectureReader.Detect(dllPath);
-        if (dllArch == ProcessArchitecture.Unknown)
-        {
-            // Cannot determine DLL architecture (or AnyCPU), proceed anyway
-            return InjectionError.None;
-        }
 
-        // Check if architectures match
-        if (processInfo.Architecture != dllArch &&
-            processInfo.Architecture != ProcessArchitecture.Unknown)
-        {
-            return InjectionError.ArchitectureMismatch;
-        }
-
-        return InjectionError.None;
+        return CheckArchitectureCompatibility(
+            processInfo.Architecture, dllArch, Environment.Is64BitProcess);
     }
 
     private string GetValidationErrorMessage(InjectionError error, int processId)

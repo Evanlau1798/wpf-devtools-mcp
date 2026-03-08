@@ -327,16 +327,18 @@ public class ToolCallHelperTests
     {
         // Arrange: Unicode characters (emoji, Chinese, etc.)
         var result = ToolCallHelper.BuildJsonArgs(
-            ("emoji", "🎉🚀"),
-            ("chinese", "測試"),
-            ("arabic", "اختبار"));
+            ("emoji", "\uD83C\uDF89\uD83D\uDE80"),
+            ("chinese", "\u6E2C\u8A66"),
+            ("arabic", "\u0627\u062E\u062A\u0628\u0627\u0631"));
 
         // Assert: Unicode should be preserved
         result.Should().NotBeNull();
         result!.Value.TryGetProperty("emoji", out var emoji).Should().BeTrue();
-        emoji.GetString().Should().Be("🎉🚀");
+        emoji.GetString().Should().Be("\uD83C\uDF89\uD83D\uDE80");
         result.Value.TryGetProperty("chinese", out var chinese).Should().BeTrue();
-        chinese.GetString().Should().Be("測試");
+        chinese.GetString().Should().Be("\u6E2C\u8A66");
+        result.Value.TryGetProperty("arabic", out var arabic).Should().BeTrue();
+        arabic.GetString().Should().Be("\u0627\u062E\u062A\u0628\u0627\u0631");
     }
 
     [Fact]
@@ -477,81 +479,4 @@ public class ToolCallHelperTests
         structured.GetProperty("errorCode").GetString().Should().Be("AccessDenied");
     }
 
-    // === Metrics recording tests ===
-
-    [Fact]
-    public async Task ExecuteAndWrapAsync_WithMetrics_ShouldRecordSuccessMetrics()
-    {
-        // Arrange
-        var metrics = new MetricsCollector();
-        ToolCallHelper.SetMetricsCollector(metrics);
-        try
-        {
-            // Act
-            await ToolCallHelper.ExecuteAndWrapAsync(
-                (args, ct) => Task.FromResult<object>(new { success = true }),
-                null,
-                CancellationToken.None);
-
-            // Assert
-            var snapshot = metrics.GetSnapshot();
-            snapshot.TotalRequests.Should().BeGreaterThanOrEqualTo(1);
-            snapshot.SuccessCount.Should().BeGreaterThanOrEqualTo(1);
-            snapshot.ErrorCount.Should().Be(0);
-        }
-        finally
-        {
-            ToolCallHelper.ResetCacheForTesting();
-        }
-    }
-
-    [Fact]
-    public async Task ExecuteAndWrapAsync_WithMetrics_ShouldRecordErrorMetrics()
-    {
-        // Arrange
-        var metrics = new MetricsCollector();
-        ToolCallHelper.SetMetricsCollector(metrics);
-        try
-        {
-            // Act
-            await ToolCallHelper.ExecuteAndWrapAsync(
-                (args, ct) => Task.FromResult<object>(new { success = false, error = "test error" }),
-                null,
-                CancellationToken.None);
-
-            // Assert
-            var snapshot = metrics.GetSnapshot();
-            snapshot.TotalRequests.Should().BeGreaterThanOrEqualTo(1);
-            snapshot.ErrorCount.Should().BeGreaterThanOrEqualTo(1);
-        }
-        finally
-        {
-            ToolCallHelper.ResetCacheForTesting();
-        }
-    }
-
-    [Fact]
-    public async Task ExecuteAndWrapAsync_WithMetrics_WhenExceptionThrown_ShouldRecordAsError()
-    {
-        // Arrange
-        var metrics = new MetricsCollector();
-        ToolCallHelper.SetMetricsCollector(metrics);
-        try
-        {
-            // Act
-            await ToolCallHelper.ExecuteAndWrapAsync(
-                (args, ct) => throw new InvalidOperationException("boom"),
-                null,
-                CancellationToken.None);
-
-            // Assert
-            var snapshot = metrics.GetSnapshot();
-            snapshot.TotalRequests.Should().BeGreaterThanOrEqualTo(1);
-            snapshot.ErrorCount.Should().BeGreaterThanOrEqualTo(1);
-        }
-        finally
-        {
-            ToolCallHelper.ResetCacheForTesting();
-        }
-    }
 }

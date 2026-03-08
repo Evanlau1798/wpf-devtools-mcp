@@ -296,4 +296,20 @@ public class McpToolAttributeTests
         }
     }
 
+    [Theory]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.GetProcesses), "List WPF Processes")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Connect), "Connect To WPF Process")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Ping), "Ping Inspector Session")]
+    public void ProcessTools_ShouldAdvertiseFriendlyTitlesAndStructuredContent(Type toolType, string methodName, string expectedTitle)
+    {
+        var method = toolType.GetMethod(methodName);
+        method.Should().NotBeNull();
+
+        var attr = method!.GetCustomAttribute<McpServerToolAttribute>();
+        attr.Should().NotBeNull();
+        attr!.Title.Should().Be(expectedTitle,
+            "AI-facing clients should receive a stable human-friendly tool title");
+        attr.UseStructuredContent.Should().BeTrue(
+            "process tools should opt into structured-output metadata for MCP client discovery");
+    }
 }

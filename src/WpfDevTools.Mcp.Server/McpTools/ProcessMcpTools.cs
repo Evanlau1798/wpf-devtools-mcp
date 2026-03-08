@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class ProcessMcpTools
 {
     private const string ProcessMetadata = "CATEGORY: Process | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_processes", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_processes", Title = "List WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         ProcessMetadata + "[Process] List all running WPF processes available for inspection. " +
         "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion.\n\n" +
@@ -48,7 +48,7 @@ public static class ProcessMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "connect", OpenWorld = false, Destructive = true, Idempotent = true)]
+    [McpServerTool(Name = "connect", Title = "Connect To WPF Process", OpenWorld = false, Destructive = true, Idempotent = true, UseStructuredContent = true)]
     [Description(
         ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +
@@ -84,7 +84,7 @@ public static class ProcessMcpTools
             timeoutSeconds: McpServerConfiguration.ConnectTimeoutSeconds);
     }
 
-    [McpServerTool(Name = "ping", OpenWorld = false, ReadOnly = true, Idempotent = true)]
+    [McpServerTool(Name = "ping", Title = "Ping Inspector Session", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = true)]
     [Description(
         ProcessMetadata + "[Process] Check connection health and measure round-trip latency to the Inspector DLL " +
         "in the target process. Returns latency in milliseconds.\n\n" +

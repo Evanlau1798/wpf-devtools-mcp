@@ -73,4 +73,14 @@ public class ReadmeDocumentationTests
 
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
+    [Fact]
+    public void Readme_ShouldDocumentPublishedArtifactSetupAndServerBitness()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("published release",
+            "the public onboarding path should mention published artifacts instead of only source-tree startup");
+        content.Should().Contain("server process architecture must match the target process",
+            "README quick start must state that the MCP server/injector bitness must match the target app");
+    }
 }

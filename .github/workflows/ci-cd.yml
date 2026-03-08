@@ -106,6 +106,45 @@ jobs:
     - name: Build ARM64 (cross-compile, no test - no ARM64 runner available)
       run: dotnet build --configuration Release -p:Platform=ARM64 -nodeReuse:false -p:UseSharedCompilation=false
 
+  release-packaging-smoke:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        architecture: [x64, x86]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Run release packaging smoke test
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/release/Publish-Release.ps1 -Architectures '${{ matrix.architecture }}'
+
+    - name: Install published package smoke test
+      shell: pwsh
+      run: |
+        $packageDir = switch ('${{ matrix.architecture }}') {
+          'x64' { 'artifacts/release/WpfDevTools-win-x64' }
+          'x86' { 'artifacts/release/WpfDevTools-win-x86' }
+          default { throw "Unsupported release packaging architecture: ${{ matrix.architecture }}" }
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/release/Install-WpfDevTools.ps1 -PackagePath $packageDir -InstallRoot './tmp-release-install-smoke' -Force
+
+    - name: Uninstall published package smoke test
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/release/Uninstall-WpfDevTools.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}'
   code-coverage:
     runs-on: windows-latest
 

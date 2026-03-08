@@ -1,4 +1,4 @@
-﻿# WPF DevTools MCP Server
+# WPF DevTools MCP Server
 
 `wpf-devtools-mcp` is a Model Context Protocol server for inspecting and interacting with running WPF applications. It bridges MCP clients to an in-process inspector so agents can query visual trees, inspect bindings, analyze dependency properties, and trigger UI interactions that out-of-process tooling cannot access.
 
@@ -24,11 +24,14 @@
 
 ### Build
 
+For most users, prefer a published release instead of running directly from the source tree. Use the source-based steps below when you are debugging locally or contributing to the repository.
+
 ```powershell
 dotnet build WpfDevTools.sln -c Debug -p:Platform=x64
 msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /p:Configuration=Debug /p:Platform=x64
 ```
 > **Build note**: The repository ships `Directory.Build.props` and `Directory.Build.rsp` that disable shared compilation and MSBuild node reuse to prevent file-lock warnings (MSB3026). These settings are applied automatically - no extra flags are needed.
+> **Public setup note**: Prefer a published release for first-time setup so the server, Inspector DLLs, and native bootstrapper stay in the documented release layout.
 
 ### Run the server
 
@@ -41,7 +44,8 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 > See [SECURITY.md](SECURITY.md) for details.
 > **Local development note**: Use a `Debug` build for local development and build the native bootstrapper for the same architecture as the target process.
 > Debug builds automatically skip DLL signature verification for trusted local DLL paths, allowing unsigned local development.
-> `connect` still requires architecture-compatible bootstrapper and injector binaries (for example x64 target -> x64 build, x86 target -> Win32/x86 build).
+> `connect` still requires architecture-compatible bootstrapper and injector binaries (for example x64 target -> x64 build, x86 target -> Win32/x86 build).`
+> The server process architecture must match the target process (for example x86 target -> x86 server process, x64 target -> x64 server process).
 
 ### Typical MCP workflow
 

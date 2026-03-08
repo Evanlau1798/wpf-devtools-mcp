@@ -27,7 +27,9 @@ public interface IProcessInjector
     /// Two-step injection: LoadLibraryW(bootstrapper) + CreateRemoteThread(BootstrapInspector).
     /// Verifies pipe readiness before returning success.
     /// </summary>
-    InjectionResult InjectWithBootstrap(InjectionRequest request);
+    InjectionResult InjectWithBootstrap(
+        InjectionRequest request,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -98,10 +100,14 @@ public class ProcessInjector : IProcessInjector
     /// Two-step injection: LoadLibraryW(bootstrapper) + CreateRemoteThread(BootstrapInspector).
     /// Polls for Named Pipe readiness after bootstrap.
     /// </summary>
-    public InjectionResult InjectWithBootstrap(InjectionRequest request)
+    public InjectionResult InjectWithBootstrap(
+        InjectionRequest request,
+        CancellationToken cancellationToken = default)
     {
         if (request == null)
             throw new ArgumentNullException(nameof(request));
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var validationError = ValidateTarget(request.ProcessId);
         if (validationError != InjectionError.None)
@@ -155,11 +161,15 @@ public class ProcessInjector : IProcessInjector
                     bootstrapExitCode: exitCode);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             var probe = new PipeReadyProbe();
             var pipeReady = probe.WaitForPipeReady(
                 request.ExpectedPipeName,
                 request.PipeReadyTimeout,
-                CancellationToken.None);
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (!pipeReady)
             {

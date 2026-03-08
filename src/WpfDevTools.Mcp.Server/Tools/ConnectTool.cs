@@ -157,7 +157,7 @@ public sealed class ConnectTool
         DllPathValidator.ValidateDllPath(injectionRequest.BootstrapperDllPath);
 
         // Perform bootstrap injection
-        var injectionResult = _injector.InjectWithBootstrap(injectionRequest);
+        var injectionResult = _injector.InjectWithBootstrap(injectionRequest, cancellationToken);
         if (!injectionResult.Success)
         {
             return new

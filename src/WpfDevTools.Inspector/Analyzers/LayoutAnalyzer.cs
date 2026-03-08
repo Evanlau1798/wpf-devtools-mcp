@@ -112,11 +112,17 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
 
             var clip = uiElement.Clip;
             var clipToBounds = uiElement.ClipToBounds;
+            var overflow = GetOverflowAmounts(uiElement, clip);
+            var isClipped = clip != null ||
+                overflow.left > 0d ||
+                overflow.top > 0d ||
+                overflow.right > 0d ||
+                overflow.bottom > 0d;
 
             return new
             {
                 success = true,
-                isClipped = clip != null || clipToBounds,
+                isClipped = isClipped,
                 clipToBounds = clipToBounds,
                 hasClip = clip != null,
                 clipBounds = clip != null ? new
@@ -126,7 +132,13 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
                     width = clip.Bounds.Width,
                     height = clip.Bounds.Height
                 } : null,
-                overflowAmount = GetOverflowAmount(uiElement, clip)
+                overflowAmount = new
+                {
+                    left = overflow.left,
+                    top = overflow.top,
+                    right = overflow.right,
+                    bottom = overflow.bottom
+                }
             };
         });
     }
@@ -170,21 +182,20 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
         }
     }
 
-    private static object GetOverflowAmount(UIElement element, Geometry? clip)
+    private static (double left, double top, double right, double bottom)
+        GetOverflowAmounts(UIElement element, Geometry? clip)
     {
         if (element is not FrameworkElement frameworkElement || clip == null)
         {
-            return new { left = 0d, top = 0d, right = 0d, bottom = 0d };
+            return (0d, 0d, 0d, 0d);
         }
 
         var bounds = clip.Bounds;
-        return new
-        {
-            left = Math.Max(0d, -bounds.Left),
-            top = Math.Max(0d, -bounds.Top),
-            right = Math.Max(0d, frameworkElement.RenderSize.Width - bounds.Right),
-            bottom = Math.Max(0d, frameworkElement.RenderSize.Height - bounds.Bottom)
-        };
+        return (
+            Math.Max(0d, -bounds.Left),
+            Math.Max(0d, -bounds.Top),
+            Math.Max(0d, frameworkElement.RenderSize.Width - bounds.Right),
+            Math.Max(0d, frameworkElement.RenderSize.Height - bounds.Bottom));
     }
 
     /// <summary>

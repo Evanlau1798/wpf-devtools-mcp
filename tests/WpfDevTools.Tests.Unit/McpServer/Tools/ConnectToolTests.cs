@@ -336,6 +336,30 @@ public class ConnectToolTests : IDisposable
         resultJson.GetProperty("error").GetString().Should().Contain("Rate limit");
     }
 
+    [Fact]
+    public async Task Execute_ShouldForwardCancellationTokenToBootstrapInjector()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var injector = new FakeProcessInjector
+        {
+            ShouldFailInjection = true,
+            InjectionErrorMessage = "Stop after injector call"
+        };
+        var tool = CreateTool(injector: injector);
+        using var cts = new CancellationTokenSource();
+
+        var result = await tool.ExecuteAsync(
+            ToJsonElement(new { processId = 12345 }),
+            cts.Token);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        injector.InjectWithBootstrapCallCount.Should().Be(1);
+        injector.LastInjectWithBootstrapCancellationToken.Should().Be(cts.Token,
+            "connect must forward the caller token so bootstrap pipe-ready polling can observe cancellation");
+    }
+
     private static string FindSolutionRoot()
     {
         var current = new DirectoryInfo(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
@@ -377,6 +401,7 @@ public class ConnectToolTests : IDisposable
         public int? FailedExitCode { get; init; }
         public InjectionError FailedError { get; init; } = InjectionError.BootstrapFailed;
         public int InjectWithBootstrapCallCount { get; private set; }
+        public CancellationToken LastInjectWithBootstrapCancellationToken { get; private set; }
 
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
         {
@@ -392,9 +417,12 @@ public class ConnectToolTests : IDisposable
             return ValidationResult;
         }
 
-        public InjectionResult InjectWithBootstrap(InjectionRequest request)
+        public InjectionResult InjectWithBootstrap(
+            InjectionRequest request,
+            CancellationToken cancellationToken = default)
         {
             InjectWithBootstrapCallCount++;
+            LastInjectWithBootstrapCancellationToken = cancellationToken;
 
             if (ShouldFailInjection)
             {

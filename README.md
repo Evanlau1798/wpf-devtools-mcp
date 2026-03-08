@@ -150,7 +150,9 @@ DLL injection uses the `CreateRemoteThread` technique (Snoop-based). Once inject
 src/
   WpfDevTools.Mcp.Server/   # MCP Server (STDIO transport, tool routing, session management)
   WpfDevTools.Inspector/     # Injected DLL (Visual Tree, Binding, DP analyzers)
+  WpfDevTools.Inspector.Sdk/ # Opt-in SDK for non-injection integration scenarios
   WpfDevTools.Injector/      # Process injection (CreateRemoteThread)
+  WpfDevTools.Bootstrapper/  # Native bootstrapper DLL loaded before managed inspector startup
   WpfDevTools.Shared/        # Shared types, security, IPC protocol
 tests/
   WpfDevTools.Tests.Unit/

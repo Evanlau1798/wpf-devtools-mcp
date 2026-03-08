@@ -335,10 +335,23 @@ public class DllInjector
         }
 
         var waitResult = WaitForSingleObject(hThread, (uint)timeout.TotalMilliseconds);
+        var exitCodeAvailable = false;
+        var remoteModuleHandle = IntPtr.Zero;
+
+        if (waitResult == LoadLibraryRemoteResult.WaitObject0 &&
+            GetExitCodeThread(hThread, out uint exitCode))
+        {
+            exitCodeAvailable = true;
+            remoteModuleHandle = new IntPtr(unchecked((int)exitCode));
+        }
+
         CloseHandle(hThread);
         VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
 
-        return waitResult == 0x00000000; // WAIT_OBJECT_0
+        return LoadLibraryRemoteResult.IsSuccessful(
+            waitResult,
+            exitCodeAvailable,
+            remoteModuleHandle);
     }
 
     private string GetErrorMessage(InjectionError error)

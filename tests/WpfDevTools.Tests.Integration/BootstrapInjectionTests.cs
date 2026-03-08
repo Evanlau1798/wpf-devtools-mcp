@@ -199,7 +199,9 @@ public class BootstrapInjectionTests : IDisposable
 
         public InjectionError ValidateTarget(int processId) => InjectionError.None;
 
-        public InjectionResult InjectWithBootstrap(InjectionRequest request) => _result;
+        public InjectionResult InjectWithBootstrap(
+            InjectionRequest request,
+            CancellationToken cancellationToken = default) => _result;
     }
 
     public void Dispose()

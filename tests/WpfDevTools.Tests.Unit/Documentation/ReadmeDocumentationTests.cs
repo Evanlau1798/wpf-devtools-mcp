@@ -55,6 +55,15 @@ public class ReadmeDocumentationTests
     }
 
     [Fact]
+    public void Readme_ShouldListBootstrapperAndInspectorSdkProjectsInRepositoryLayout()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("WpfDevTools.Bootstrapper/");
+        content.Should().Contain("WpfDevTools.Inspector.Sdk/");
+    }
+
+    [Fact]
     public void Program_ShouldUseEmptyApplicationBuilder_ForStdioServer()
     {
         var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/Program.cs"));

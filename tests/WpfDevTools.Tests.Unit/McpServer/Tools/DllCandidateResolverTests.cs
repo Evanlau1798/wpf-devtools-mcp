@@ -1,0 +1,51 @@
+using FluentAssertions;
+using WpfDevTools.Mcp.Server.Tools;
+using Xunit;
+
+namespace WpfDevTools.Tests.Unit.McpServer.Tools;
+
+public class DllCandidateResolverTests
+{
+    [Fact]
+    public void EnumerateInspectorCandidates_ShouldIncludeReleaseLayoutSubfolders()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var serverDir = Path.Combine(root, "server");
+        Directory.CreateDirectory(serverDir);
+
+        try
+        {
+            var candidates = DllCandidateResolver.EnumerateInspectorCandidates(serverDir).ToArray();
+
+            candidates.Should().Contain(Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Inspector.dll")));
+            candidates.Should().Contain(Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll")));
+            candidates.Should().Contain(Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net48", "WpfDevTools.Inspector.dll")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EnumerateBootstrapperCandidates_ShouldIncludeReleaseLayoutSubfolders()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var serverDir = Path.Combine(root, "server");
+        Directory.CreateDirectory(serverDir);
+
+        try
+        {
+            var candidates = DllCandidateResolver.EnumerateBootstrapperCandidates(serverDir).ToArray();
+
+            candidates.Should().Contain(Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Bootstrapper.x64.dll")));
+            candidates.Should().Contain(Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "x64", "WpfDevTools.Bootstrapper.x64.dll")));
+            candidates.Should().Contain(Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "x86", "WpfDevTools.Bootstrapper.x86.dll")));
+            candidates.Should().Contain(Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "arm64", "WpfDevTools.Bootstrapper.arm64.dll")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}

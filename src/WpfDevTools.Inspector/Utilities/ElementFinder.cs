@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Utilities;
 
@@ -45,13 +47,7 @@ public sealed class ElementFinder : IDisposable
             return null;
         }
 
-        var dispatcher = application.Dispatcher;
-        if (dispatcher == null || dispatcher.CheckAccess())
-        {
-            return application.MainWindow;
-        }
-
-        return dispatcher.Invoke(() => application.MainWindow);
+        return InvokeOnDispatcher(application.Dispatcher, () => application.MainWindow);
     }
 
     /// <summary>
@@ -137,12 +133,22 @@ public sealed class ElementFinder : IDisposable
             return null;
         }
 
-        if (searchRoot.Dispatcher != null && !searchRoot.Dispatcher.CheckAccess())
+        return InvokeOnDispatcher(searchRoot.Dispatcher, () => SearchVisualTree(searchRoot, elementId!));
+    }
+
+    internal static T InvokeOnDispatcher<T>(Dispatcher? dispatcher, Func<T> action, TimeSpan? timeout = null)
+    {
+        if (dispatcher == null || dispatcher.CheckAccess())
         {
-            return searchRoot.Dispatcher.Invoke(() => SearchVisualTree(searchRoot, elementId!));
+            return action();
         }
 
-        return SearchVisualTree(searchRoot, elementId!);
+        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
+        return dispatcher.Invoke(
+            action,
+            DispatcherPriority.Normal,
+            CancellationToken.None,
+            actualTimeout);
     }
 
     private DependencyObject? SearchVisualTree(DependencyObject element, string targetId)

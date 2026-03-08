@@ -37,10 +37,10 @@ internal sealed class TreeRequestOptions
         var maxNodes = ParameterParser.ParseIntParam(arguments, "maxNodes");
         var maxChildrenPerNode = ParameterParser.ParseIntParam(arguments, "maxChildrenPerNode");
 
-        if (depth.HasValue && depth.Value > MaxDepthLimit)
+        if (depth.HasValue && (depth.Value < 0 || depth.Value > MaxDepthLimit))
         {
             options = null!;
-            error = new { success = false, error = $"depth must be <= {MaxDepthLimit} to prevent excessive recursion" };
+            error = new { success = false, error = $"depth must be between 0 and {MaxDepthLimit} to prevent invalid traversal" };
             return false;
         }
 

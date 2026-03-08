@@ -7,7 +7,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF Bindings
 /// </summary>
-public sealed class BindingAnalyzer : DispatcherAnalyzerBase
+public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -63,10 +63,16 @@ public sealed class BindingAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
+            var liveErrors = GetLiveBindingErrors();
+
             // Ensure trace listener is installed
             BindingErrorTraceListener.Install();
 
-            var errors = BindingErrorTraceListener.Instance.GetErrors();
+            IReadOnlyList<BindingErrorInfo> errors = BindingErrorTraceListener.Instance.GetErrors();
+            if (errors.Count == 0)
+            {
+                errors = liveErrors;
+            }
 
             var result = new
             {
@@ -404,3 +410,4 @@ public sealed class BindingAnalyzer : DispatcherAnalyzerBase
     }
 
 }
+

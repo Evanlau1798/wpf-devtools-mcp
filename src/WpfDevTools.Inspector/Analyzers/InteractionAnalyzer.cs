@@ -359,13 +359,11 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
 
             try
             {
-                // Parse key
                 if (!Enum.TryParse<Key>(key, out var parsedKey))
                 {
                     return new { success = false, error = $"Invalid key: {key}" };
                 }
 
-                // Create keyboard event
                 RoutedEvent routedEvent;
                 if (string.Equals(eventType, "keydown", StringComparison.OrdinalIgnoreCase))
                 {
@@ -380,7 +378,6 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                     return new { success = false, error = "Invalid event type. Use 'KeyDown' or 'KeyUp'" };
                 }
 
-                // Check if element is connected to a presentation source
                 var presentationSource = PresentationSource.FromVisual(uiElement);
                 if (presentationSource == null)
                 {
@@ -391,6 +388,21 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                         hint = "Element may not be in the visual tree or may not be rendered yet"
                     };
                 }
+
+                if (routedEvent == Keyboard.KeyDownEvent && element is TextBox textBox && TryApplyTextBoxEdit(textBox, parsedKey))
+                {
+                    return new
+                    {
+                        success = true,
+                        message = $"Keyboard event '{eventType}' simulated for key '{key}'",
+                        key,
+                        eventType,
+                        elementType = element.GetType().Name,
+                        appliedDirectEdit = true
+                    };
+                }
+
+                if (!uiElement.IsKeyboardFocused) { uiElement.Focus(); Keyboard.Focus(uiElement); }
 
                 var keyEventArgs = new KeyEventArgs(
                     Keyboard.PrimaryDevice,
@@ -417,6 +429,67 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = $"Failed to simulate keyboard: {ex.Message}" };
             }
         });
+    }
+
+    private static bool TryApplyTextBoxEdit(TextBox textBox, Key key)
+    {
+        if (textBox.IsReadOnly || (key != Key.Back && key != Key.Delete))
+        {
+            return false;
+        }
+
+        var hadKeyboardFocus = textBox.IsKeyboardFocusWithin;
+        if (!hadKeyboardFocus)
+        {
+            textBox.Focus();
+            Keyboard.Focus(textBox);
+        }
+
+        var text = textBox.Text ?? string.Empty;
+        if (!hadKeyboardFocus && textBox.SelectionLength == 0)
+        {
+            textBox.CaretIndex = text.Length;
+        }
+        else
+        {
+            textBox.CaretIndex = ClampInt(textBox.CaretIndex, 0, text.Length);
+        }
+
+        if (textBox.SelectionLength > 0)
+        {
+            var selectionStart = ClampInt(textBox.SelectionStart, 0, text.Length);
+            var selectionLength = Math.Min(textBox.SelectionLength, text.Length - selectionStart);
+            textBox.Text = text.Remove(selectionStart, selectionLength);
+            textBox.CaretIndex = selectionStart;
+            return true;
+        }
+
+        return key == Key.Back ? TryApplyBackspace(textBox, text) : TryApplyDelete(textBox, text);
+    }
+
+    private static bool TryApplyBackspace(TextBox textBox, string text)
+    {
+        var caretIndex = ClampInt(textBox.CaretIndex, 0, text.Length);
+        if (caretIndex == 0) return false;
+
+        textBox.Text = text.Remove(caretIndex - 1, 1);
+        textBox.CaretIndex = caretIndex - 1;
+        return true;
+    }
+
+    private static bool TryApplyDelete(TextBox textBox, string text)
+    {
+        var caretIndex = ClampInt(textBox.CaretIndex, 0, text.Length);
+        if (caretIndex >= text.Length) return false;
+
+        textBox.Text = text.Remove(caretIndex, 1);
+        textBox.CaretIndex = caretIndex;
+        return true;
+    }
+
+    private static int ClampInt(int value, int min, int max)
+    {
+        return Math.Min(Math.Max(value, min), max);
     }
 
 }

@@ -47,7 +47,11 @@ public class InteractionAnalyzerIntegrationTests
             var panel = new StackPanel();
             panel.Children.Add(source);
             panel.Children.Add(target);
-            Application.Current.MainWindow.Content = panel;
+
+            var window = Application.Current.MainWindow;
+            window.Content = panel;
+            window.Show();
+            window.Activate();
             panel.Measure(new Size(400, 200));
             panel.Arrange(new Rect(0, 0, 400, 200));
             panel.UpdateLayout();
@@ -64,7 +68,80 @@ public class InteractionAnalyzerIntegrationTests
         });
 
         var doc = JsonSerializer.SerializeToElement(result.AnalyzerResult);
-        doc.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.GetProperty("success").GetBoolean().Should().BeTrue(doc.GetRawText());
         result.TargetText.Should().Be("Drag me!");
+    }
+
+    [Fact]
+    public void SimulateKeyboard_WithBackspaceOnFocusedTextBox_ShouldDeletePreviousCharacter()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var finder = new ElementFinder();
+            var analyzer = new InteractionAnalyzer(finder);
+            var textBox = new TextBox { Text = "25" };
+
+            var panel = new StackPanel();
+            panel.Children.Add(textBox);
+
+            var window = Application.Current.MainWindow;
+            window.Content = panel;
+            window.Show();
+            window.Activate();
+            panel.Measure(new Size(400, 200));
+            panel.Arrange(new Rect(0, 0, 400, 200));
+            panel.UpdateLayout();
+
+            textBox.Focus();
+            textBox.CaretIndex = textBox.Text.Length;
+
+            var elementId = finder.GenerateElementId(textBox);
+            var analyzerResult = analyzer.SimulateKeyboard(elementId, "Back", "KeyDown");
+
+            return new
+            {
+                AnalyzerResult = analyzerResult,
+                Text = textBox.Text
+            };
+        });
+
+        var doc = JsonSerializer.SerializeToElement(result.AnalyzerResult);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue(doc.GetRawText());
+        result.Text.Should().Be("2");
+    }
+
+    [Fact]
+    public void SimulateKeyboard_WithBackspaceOnUnfocusedTextBox_ShouldFocusAndDeletePreviousCharacter()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var finder = new ElementFinder();
+            var analyzer = new InteractionAnalyzer(finder);
+            var textBox = new TextBox { Text = "25" };
+
+            var panel = new StackPanel();
+            panel.Children.Add(textBox);
+
+            var window = Application.Current.MainWindow;
+            window.Content = panel;
+            window.Show();
+            window.Activate();
+            panel.Measure(new Size(400, 200));
+            panel.Arrange(new Rect(0, 0, 400, 200));
+            panel.UpdateLayout();
+
+            var elementId = finder.GenerateElementId(textBox);
+            var analyzerResult = analyzer.SimulateKeyboard(elementId, "Back", "KeyDown");
+
+            return new
+            {
+                AnalyzerResult = analyzerResult,
+                Text = textBox.Text
+            };
+        });
+
+        var doc = JsonSerializer.SerializeToElement(result.AnalyzerResult);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue(doc.GetRawText());
+        result.Text.Should().Be("2");
     }
 }

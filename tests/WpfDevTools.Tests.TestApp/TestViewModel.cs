@@ -12,6 +12,7 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
     private string _name = "";
     private int _age;
     private bool _isEnabled = true;
+    private readonly RelayCommand _saveCommand;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -23,6 +24,7 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
             _name = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanSave));
+            _saveCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -34,6 +36,7 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
             _age = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanSave));
+            _saveCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -54,9 +57,10 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
 
     public TestViewModel()
     {
-        SaveCommand = new RelayCommand(
+        _saveCommand = new RelayCommand(
             execute: _ => System.Windows.MessageBox.Show($"Saved: {Name}, {Age}"),
             canExecute: _ => CanSave);
+        SaveCommand = _saveCommand;
 
         ClearCommand = new RelayCommand(
             execute: _ =>
@@ -98,11 +102,7 @@ public class RelayCommand : ICommand
     private readonly Action<object?> _execute;
     private readonly Func<object?, bool> _canExecute;
 
-    public event EventHandler? CanExecuteChanged
-    {
-        add => CommandManager.RequerySuggested += value;
-        remove => CommandManager.RequerySuggested -= value;
-    }
+    public event EventHandler? CanExecuteChanged;
 
     public RelayCommand(Action<object?> execute, Func<object?, bool> canExecute)
     {
@@ -113,4 +113,10 @@ public class RelayCommand : ICommand
     public bool CanExecute(object? parameter) => _canExecute(parameter);
 
     public void Execute(object? parameter) => _execute(parameter);
+
+    public void RaiseCanExecuteChanged()
+    {
+        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        CommandManager.InvalidateRequerySuggested();
+    }
 }

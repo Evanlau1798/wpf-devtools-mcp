@@ -1,19 +1,18 @@
-using Xunit;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
-using System.Windows;
-using System.Windows.Controls;
+using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class StyleAnalyzerTests
 {
-
     [StaFact]
     public void GetAppliedStyles_WithStyledElement_ShouldReturnStyle()
     {
-        // Arrange
         var finder = new ElementFinder();
         var analyzer = new StyleAnalyzer(finder);
         var button = new Button();
@@ -22,10 +21,8 @@ public class StyleAnalyzerTests
         button.Style = style;
         var elementId = finder.GenerateElementId(button);
 
-        // Act
         var result = analyzer.GetAppliedStyles(elementId);
 
-        // Assert
         result.Should().NotBeNull();
         var resultDict = result as System.Collections.IDictionary;
         if (resultDict != null)
@@ -39,7 +36,6 @@ public class StyleAnalyzerTests
     [StaFact]
     public void GetTriggers_WithStyledElement_ShouldReturnTriggers()
     {
-        // Arrange
         var finder = new ElementFinder();
         var analyzer = new StyleAnalyzer(finder);
         var button = new Button();
@@ -47,10 +43,8 @@ public class StyleAnalyzerTests
         button.Style = style;
         var elementId = finder.GenerateElementId(button);
 
-        // Act
         var result = analyzer.GetTriggers(elementId);
 
-        // Assert
         result.Should().NotBeNull();
         var resultDict = result as System.Collections.IDictionary;
         if (resultDict != null)
@@ -64,16 +58,13 @@ public class StyleAnalyzerTests
     [StaFact]
     public void GetTemplateTree_WithControl_ShouldReturnTemplateInfo()
     {
-        // Arrange
         var finder = new ElementFinder();
         var analyzer = new StyleAnalyzer(finder);
         var button = new Button();
         var elementId = finder.GenerateElementId(button);
 
-        // Act
         var result = analyzer.GetTemplateTree(elementId);
 
-        // Assert
         result.Should().NotBeNull();
         var resultDict = result as System.Collections.IDictionary;
         if (resultDict != null)
@@ -86,18 +77,14 @@ public class StyleAnalyzerTests
     [StaFact]
     public void GetResourceChain_WithResources_ShouldReturnChain()
     {
-        // Arrange
         var finder = new ElementFinder();
         var analyzer = new StyleAnalyzer(finder);
-
         var button = new Button();
         button.Resources.Add("TestKey", "TestValue");
         var elementId = finder.GenerateElementId(button);
 
-        // Act
         var result = analyzer.GetResourceChain(elementId, "TestKey");
 
-        // Assert
         result.Should().NotBeNull();
         var resultDict = result as System.Collections.IDictionary;
         if (resultDict != null)
@@ -109,9 +96,31 @@ public class StyleAnalyzerTests
     }
 
     [StaFact]
+    public void OverrideStyleSetter_WithBrushValue_ShouldReturnJsonFriendlyStringValue()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new StyleAnalyzer(finder);
+
+        var button = new Button();
+        var style = new Style(typeof(Button));
+        style.Setters.Add(new Setter(Button.BackgroundProperty, System.Windows.Media.Brushes.Gray));
+        button.Style = style;
+
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.OverrideStyleSetter(
+            elementId,
+            "Background",
+            JsonSerializer.SerializeToElement("LimeGreen"));
+        var json = JsonSerializer.SerializeToElement(result);
+
+        button.Background.Should().NotBeNull();
+        json.GetProperty("newValue").ValueKind.Should().Be(JsonValueKind.String);
+    }
+
+    [StaFact]
     public void OverrideStyleSetter_WithValidSetter_ShouldOverrideValue()
     {
-        // Arrange
         var finder = new ElementFinder();
         var analyzer = new StyleAnalyzer(finder);
 
@@ -122,10 +131,8 @@ public class StyleAnalyzerTests
 
         var elementId = finder.GenerateElementId(button);
 
-        // Act
         var result = analyzer.OverrideStyleSetter(elementId, "Width", 200.0);
 
-        // Assert
         result.Should().NotBeNull();
         button.Width.Should().Be(200.0);
     }

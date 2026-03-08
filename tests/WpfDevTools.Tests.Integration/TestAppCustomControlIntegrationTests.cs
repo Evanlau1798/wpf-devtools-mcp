@@ -92,8 +92,10 @@ public class TestAppCustomControlIntegrationTests
         result.Should().NotBeNull();
     }
 
-    [Fact]
-    public void GetValueSource_WithAttachedProperty_ShouldReturnSource()
+    [Theory]
+    [InlineData("HighlightColor")]
+    [InlineData("CustomTextBox.HighlightColor")]
+    public void GetValueSource_WithAttachedProperty_ShouldReturnSource(string propertyName)
     {
         // Arrange - TextBox with HighlightColor attached property (matches TestApp Tab 5)
         var result = _fixture.RunOnUIThread(() =>
@@ -105,11 +107,38 @@ public class TestAppCustomControlIntegrationTests
             CustomTextBox.SetHighlightColor(textBox, "LightYellow");
 
             Application.Current.MainWindow.Content = textBox;
+            var elementId = elementFinder.GenerateElementId(textBox);
 
-            return analyzer.GetValueSource("HighlightColor", elementId: null);
+            return analyzer.GetValueSource(propertyName, elementId);
         });
 
-        result.Should().NotBeNull();
+        var doc = JsonSerializer.SerializeToElement(result);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue(doc.GetRawText());
+        doc.GetProperty("effectiveValue").GetString().Should().Be("LightYellow");
+    }
+
+    [Theory]
+    [InlineData("HighlightColor")]
+    [InlineData("CustomTextBox.HighlightColor")]
+    public void GetMetadata_WithAttachedProperty_ShouldReturnMetadata(string propertyName)
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var elementFinder = new ElementFinder();
+            var analyzer = new DependencyPropertyAnalyzer(elementFinder);
+
+            var textBox = new TextBox { Text = "I have an attached property" };
+            CustomTextBox.SetHighlightColor(textBox, "LightYellow");
+
+            Application.Current.MainWindow.Content = textBox;
+            var elementId = elementFinder.GenerateElementId(textBox);
+
+            return analyzer.GetMetadata(propertyName, elementId);
+        });
+
+        var doc = JsonSerializer.SerializeToElement(result);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue(doc.GetRawText());
+        doc.GetProperty("propertyType").GetString().Should().Be("String");
     }
 
     [Fact]

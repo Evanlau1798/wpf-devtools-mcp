@@ -31,6 +31,12 @@ public class TestAppLayoutIntegrationTests
         {
             var elementFinder = new ElementFinder();
             var analyzer = new LayoutAnalyzer(elementFinder);
+            var clippedText = new TextBlock
+            {
+                Text = "This text is very long and will be clipped by the border because ClipToBounds is True",
+                TextWrapping = TextWrapping.NoWrap,
+                Width = 320
+            };
 
             var border = new Border
             {
@@ -39,22 +45,22 @@ public class TestAppLayoutIntegrationTests
                 BorderBrush = Brushes.Black,
                 BorderThickness = new Thickness(1),
                 ClipToBounds = true,
-                Child = new TextBlock
-                {
-                    Text = "This text is very long and will be clipped by the border because ClipToBounds is True",
-                    TextWrapping = TextWrapping.Wrap
-                }
+                Child = clippedText
             };
 
             Application.Current.MainWindow.Content = border;
 
-            border.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            border.Arrange(new Rect(border.DesiredSize));
+            border.Measure(new Size(150, 100));
+            border.Arrange(new Rect(0, 0, 150, 100));
+            border.UpdateLayout();
+            var elementId = elementFinder.GenerateElementId(clippedText);
 
-            return analyzer.GetClippingInfo(elementId: null);
+            return analyzer.GetClippingInfo(elementId);
         });
 
-        result.Should().NotBeNull();
+        var doc = System.Text.Json.JsonSerializer.SerializeToElement(result);
+        doc.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.GetProperty("isClipped").GetBoolean().Should().BeTrue(doc.GetRawText());
     }
 
     [Fact]

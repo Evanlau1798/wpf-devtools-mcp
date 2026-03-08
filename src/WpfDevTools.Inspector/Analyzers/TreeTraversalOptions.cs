@@ -32,7 +32,7 @@ internal sealed class TreeTraversalOptions
         int? maxChildrenPerNode)
     {
         return new TreeTraversalOptions(
-            Math.Min(depth ?? 10, MaxDepthLimit),
+            Math.Max(0, Math.Min(depth ?? 10, MaxDepthLimit)),
             compact ?? false,
             summaryOnly ?? false,
             maxNodes,

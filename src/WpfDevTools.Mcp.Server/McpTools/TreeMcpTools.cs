@@ -22,10 +22,12 @@ public static class TreeMcpTools
         "PERFORMANCE: Large trees (depth >5) can return 10,000+ elements. Always set depth=2-4 for initial exploration.\n" +
         "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table, maxNodes caps total returned nodes, maxChildrenPerNode caps fan-out per level.\n\n" +
         "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  tree: { elementId, type, name, childCount, children: [...] }\n" +
-        "}\n\n" +
+        "Nested mode:\n" +
+        "{ success, tree, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "- tree: { elementId, type, name?, childCount, children?, omittedChildCount? }\n" +
+        "Summary mode (summaryOnly=true):\n" +
+        "{ success, format: \"flat-summary-v1\", columns, nodes, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "- columns: [elementId, type, name, childCount, depth, parentId]\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId from previous get_visual_tree call\n\n" +
@@ -67,10 +69,12 @@ public static class TreeMcpTools
         "DO NOT USE: When you need to inspect template internals (use get_visual_tree or get_template_tree instead).\n\n" +
         "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table, maxNodes caps total returned nodes, maxChildrenPerNode caps fan-out per level.\n\n" +
         "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  tree: { elementId, type, name, childCount, children: [...] }\n" +
-        "}\n\n" +
+        "Nested mode:\n" +
+        "{ success, tree, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "- tree: { elementId, type, name?, childCount, children?, omittedChildCount? }\n" +
+        "Summary mode (summaryOnly=true):\n" +
+        "{ success, format: \"flat-summary-v1\", columns, nodes, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "- columns: [elementId, type, name, childCount, depth, parentId]\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId is valid\n\n" +

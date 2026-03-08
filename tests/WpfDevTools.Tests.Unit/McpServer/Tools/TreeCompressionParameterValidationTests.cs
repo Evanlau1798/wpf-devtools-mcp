@@ -49,6 +49,19 @@ public class TreeCompressionParameterValidationTests
     }
 
     [Fact]
+    public async Task GetLogicalTree_WithNegativeDepth_ShouldReturnValidationError()
+    {
+        var tool = new GetLogicalTreeTool(new SessionManager());
+        var parameters = new { processId = 12345, depth = -1 };
+
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("error").GetString().Should().Contain("depth");
+    }
+
+    [Fact]
     public async Task GetVisualTree_WithValidCompressionParameters_ShouldReachConnectionCheck()
     {
         var tool = new GetVisualTreeTool(new SessionManager());

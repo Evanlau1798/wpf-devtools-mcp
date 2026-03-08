@@ -173,4 +173,44 @@ public class TestAppMvvmIntegrationTests
 
         result.Should().NotBeNull();
     }
+
+    [Fact]
+    public void ModifyViewModel_WhenCanSaveBecomesTrue_ShouldEnableSaveButton()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var elementFinder = new ElementFinder();
+            var analyzer = new MvvmAnalyzer(elementFinder);
+            var viewModel = new TestViewModel();
+            var saveButton = new Button { Content = "Save", Width = 100, Margin = new Thickness(5) };
+            saveButton.SetBinding(Button.CommandProperty, new Binding("SaveCommand"));
+
+            var stackPanel = new StackPanel();
+            stackPanel.Children.Add(saveButton);
+
+            var window = Application.Current.MainWindow;
+            window.DataContext = viewModel;
+            window.Content = stackPanel;
+            window.Show();
+            window.Activate();
+            stackPanel.Measure(new Size(300, 120));
+            stackPanel.Arrange(new Rect(0, 0, 300, 120));
+            stackPanel.UpdateLayout();
+
+            saveButton.IsEnabled.Should().BeFalse();
+
+            analyzer.ModifyViewModel(elementId: null, propertyName: "Name", value: "Alice");
+            analyzer.ModifyViewModel(elementId: null, propertyName: "Age", value: 25);
+            stackPanel.UpdateLayout();
+
+            return new
+            {
+                viewModel.CanSave,
+                saveButton.IsEnabled
+            };
+        });
+
+        result.CanSave.Should().BeTrue();
+        result.IsEnabled.Should().BeTrue();
+    }
 }

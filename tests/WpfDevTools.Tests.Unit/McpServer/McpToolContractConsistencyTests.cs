@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using System.ComponentModel;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.McpTools;
 using Xunit;
@@ -63,6 +64,24 @@ public class McpToolContractConsistencyTests
         AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetLogicalTree), "summaryOnly", typeof(bool), false);
         AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetLogicalTree), "maxNodes", typeof(int?), null);
         AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetLogicalTree), "maxChildrenPerNode", typeof(int?), null);
+    }
+
+    [Theory]
+    [InlineData(nameof(TreeMcpTools.GetVisualTree))]
+    [InlineData(nameof(TreeMcpTools.GetLogicalTree))]
+    public void TreeTools_ShouldDocumentCompressedResponseShapes(string methodName)
+    {
+        var method = typeof(TreeMcpTools).GetMethod(methodName);
+
+        method.Should().NotBeNull();
+        var description = method!.GetCustomAttribute<DescriptionAttribute>();
+
+        description.Should().NotBeNull();
+        description!.Description.Should().Contain("flat-summary-v1");
+        description.Description.Should().Contain("returnedNodeCount");
+        description.Description.Should().Contain("omittedNodeCount");
+        description.Description.Should().Contain("truncated");
+        description.Description.Should().Contain("appliedOptions");
     }
 
     [Fact]

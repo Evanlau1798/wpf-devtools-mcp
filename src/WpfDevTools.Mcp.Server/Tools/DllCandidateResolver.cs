@@ -9,6 +9,8 @@ internal static class DllCandidateResolver
     public static IEnumerable<string> EnumerateInspectorCandidates(string serverDir)
     {
         yield return Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Inspector.dll"));
+        yield return Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll"));
+        yield return Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net48", "WpfDevTools.Inspector.dll"));
 
         var solutionRoot = GetSolutionRoot(serverDir);
         if (solutionRoot == null)
@@ -38,6 +40,9 @@ internal static class DllCandidateResolver
         yield return Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Bootstrapper.x64.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Bootstrapper.x86.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Bootstrapper.arm64.dll"));
+        yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "x64", "WpfDevTools.Bootstrapper.x64.dll"));
+        yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "x86", "WpfDevTools.Bootstrapper.x86.dll"));
+        yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "arm64", "WpfDevTools.Bootstrapper.arm64.dll"));
 
         var solutionRoot = GetSolutionRoot(serverDir);
         if (solutionRoot == null) yield break;

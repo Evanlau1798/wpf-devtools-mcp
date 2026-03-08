@@ -112,12 +112,10 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
 
             var clip = uiElement.Clip;
             var clipToBounds = uiElement.ClipToBounds;
-            var overflow = GetOverflowAmounts(uiElement, clip);
-            var isClipped = clip != null ||
-                overflow.left > 0d ||
-                overflow.top > 0d ||
-                overflow.right > 0d ||
-                overflow.bottom > 0d;
+            var overflow = MaxOverflow(
+                GetOverflowAmounts(uiElement, clip),
+                GetAncestorOverflowAmounts(uiElement));
+            var isClipped = clip != null || HasOverflow(overflow);
 
             return new
             {
@@ -196,6 +194,70 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
             Math.Max(0d, -bounds.Top),
             Math.Max(0d, frameworkElement.RenderSize.Width - bounds.Right),
             Math.Max(0d, frameworkElement.RenderSize.Height - bounds.Bottom));
+    }
+
+    private static (double left, double top, double right, double bottom)
+        GetAncestorOverflowAmounts(UIElement element)
+    {
+        if (element is not FrameworkElement frameworkElement)
+        {
+            return (0d, 0d, 0d, 0d);
+        }
+
+        var elementBounds = new Rect(new Point(0, 0), frameworkElement.RenderSize);
+        var overflow = (left: 0d, top: 0d, right: 0d, bottom: 0d);
+        DependencyObject? current = VisualTreeHelper.GetParent(element);
+
+        while (current is Visual ancestorVisual)
+        {
+            Rect? clippingBounds = current switch
+            {
+                UIElement { Clip: not null } ancestorWithClip => ancestorWithClip.Clip!.Bounds,
+                FrameworkElement { ClipToBounds: true } ancestorFramework => new Rect(new Point(0, 0), ancestorFramework.RenderSize),
+                _ => null
+            };
+
+            if (clippingBounds != null)
+            {
+                try
+                {
+                    var transformedBounds = frameworkElement.TransformToAncestor(ancestorVisual).TransformBounds(elementBounds);
+                    overflow = MaxOverflow(overflow, ComputeOverflow(transformedBounds, clippingBounds.Value));
+                }
+                catch (InvalidOperationException)
+                {
+                }
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return overflow;
+    }
+
+    private static (double left, double top, double right, double bottom) ComputeOverflow(Rect elementBounds, Rect clippingBounds)
+    {
+        return (
+            Math.Max(0d, clippingBounds.Left - elementBounds.Left),
+            Math.Max(0d, clippingBounds.Top - elementBounds.Top),
+            Math.Max(0d, elementBounds.Right - clippingBounds.Right),
+            Math.Max(0d, elementBounds.Bottom - clippingBounds.Bottom));
+    }
+
+    private static bool HasOverflow((double left, double top, double right, double bottom) overflow)
+    {
+        return overflow.left > 0d || overflow.top > 0d || overflow.right > 0d || overflow.bottom > 0d;
+    }
+
+    private static (double left, double top, double right, double bottom) MaxOverflow(
+        (double left, double top, double right, double bottom) first,
+        (double left, double top, double right, double bottom) second)
+    {
+        return (
+            Math.Max(first.left, second.left),
+            Math.Max(first.top, second.top),
+            Math.Max(first.right, second.right),
+            Math.Max(first.bottom, second.bottom));
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using System.ComponentModel;
+using System.Reflection;
 using System.Text.Json;
 using WpfDevTools.Shared.Configuration;
 
@@ -131,7 +132,24 @@ public abstract class DispatcherAnalyzerBase
     /// </summary>
     protected static DependencyProperty? FindDependencyProperty(DependencyObject element, string propertyName)
     {
-        var type = element.GetType();
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return null;
+        }
+
+        var qualifiedProperty = TryFindQualifiedDependencyProperty(propertyName);
+        if (qualifiedProperty != null)
+        {
+            return qualifiedProperty;
+        }
+
+        var simplePropertyName = GetSimplePropertyName(propertyName);
+        var hierarchyProperty = FindDependencyPropertyOnHierarchy(element.GetType(), simplePropertyName);
+        return hierarchyProperty ?? FindAttachedDependencyProperty(simplePropertyName);
+    }
+
+    private static DependencyProperty? FindDependencyPropertyOnHierarchy(Type? type, string propertyName)
+    {
         var fieldName = propertyName + "Property";
 
         while (type != null && type != typeof(object))
@@ -149,5 +167,109 @@ public abstract class DispatcherAnalyzerBase
         }
 
         return null;
+    }
+
+    private static DependencyProperty? TryFindQualifiedDependencyProperty(string propertyName)
+    {
+        var separatorIndex = propertyName.LastIndexOf('.');
+        if (separatorIndex <= 0 || separatorIndex == propertyName.Length - 1)
+        {
+            return null;
+        }
+
+        var ownerTypeName = propertyName.Substring(0, separatorIndex);
+        var simplePropertyName = propertyName.Substring(separatorIndex + 1);
+        var fieldName = simplePropertyName + "Property";
+
+        foreach (var type in EnumerateLoadedTypes())
+        {
+            if (!IsMatchingOwnerType(type, ownerTypeName))
+            {
+                continue;
+            }
+
+            var field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+            if (field?.FieldType == typeof(DependencyProperty))
+            {
+                return field.GetValue(null) as DependencyProperty;
+            }
+        }
+
+        return null;
+    }
+
+    private static DependencyProperty? FindAttachedDependencyProperty(string propertyName)
+    {
+        var fieldName = propertyName + "Property";
+        DependencyProperty? match = null;
+
+        foreach (var type in EnumerateLoadedTypes())
+        {
+            var field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+            if (field?.FieldType != typeof(DependencyProperty) || !LooksLikeAttachedPropertyOwner(type, propertyName))
+            {
+                continue;
+            }
+
+            var candidate = field.GetValue(null) as DependencyProperty;
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (match != null && !ReferenceEquals(match, candidate))
+            {
+                return null;
+            }
+
+            match = candidate;
+        }
+
+        return match;
+    }
+
+    private static string GetSimplePropertyName(string propertyName)
+    {
+        var separatorIndex = propertyName.LastIndexOf('.');
+        return separatorIndex >= 0 ? propertyName.Substring(separatorIndex + 1) : propertyName;
+    }
+
+    private static bool IsMatchingOwnerType(Type type, string ownerTypeName)
+    {
+        return string.Equals(type.Name, ownerTypeName, StringComparison.Ordinal)
+            || string.Equals(type.FullName, ownerTypeName, StringComparison.Ordinal)
+            || string.Equals(type.FullName, $"{type.Namespace}.{ownerTypeName}", StringComparison.Ordinal);
+    }
+
+    private static bool LooksLikeAttachedPropertyOwner(Type type, string propertyName)
+    {
+        var getter = type.GetMethod($"Get{propertyName}", BindingFlags.Public | BindingFlags.Static);
+        var setter = type.GetMethod($"Set{propertyName}", BindingFlags.Public | BindingFlags.Static);
+        return getter != null || setter != null;
+    }
+
+    private static IEnumerable<Type> EnumerateLoadedTypes()
+    {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            Type[] types;
+            try
+            {
+                types = assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                types = ex.Types.Where(static t => t != null).Cast<Type>().ToArray();
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var type in types)
+            {
+                yield return type;
+            }
+        }
     }
 }

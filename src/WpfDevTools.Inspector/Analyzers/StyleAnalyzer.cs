@@ -373,7 +373,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                     success = true,
                     message = $"Style setter for '{propertyName}' overridden with local value",
                     propertyName,
-                    newValue = convertedValue
+                    newValue = convertedValue?.ToString()
                 };
             }
             catch (Exception ex)
@@ -384,3 +384,4 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
     }
 
 }
+

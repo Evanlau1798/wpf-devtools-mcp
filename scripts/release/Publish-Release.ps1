@@ -82,6 +82,7 @@ $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
 $bootstrapperProject = Join-Path $repoRoot 'src\WpfDevTools.Bootstrapper\WpfDevTools.Bootstrapper.vcxproj'
 $installScript = Join-Path $repoRoot 'scripts\release\Install-WpfDevTools.ps1'
+$setupScript = Join-Path $repoRoot 'scripts\release\Setup-WpfDevTools.ps1'
 $uninstallScript = Join-Path $repoRoot 'scripts\release\Uninstall-WpfDevTools.ps1'
 $outputRootFullPath = (Resolve-Path (New-Item -ItemType Directory -Force -Path $OutputRoot)).Path
 $msbuildPath = Resolve-MSBuildPath
@@ -141,6 +142,7 @@ foreach ($architecture in $Architectures) {
     Copy-DirectoryContents -Source $inspectorNet48BuildDir -Destination $inspectorNet48Dir
     Copy-Item -Path $bootstrapperSource -Destination (Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)) -Force
     Copy-Item -Path $installScript -Destination (Join-Path $packageDir 'install.ps1') -Force
+    Copy-Item -Path $setupScript -Destination (Join-Path $packageDir 'setup.ps1') -Force
     Copy-Item -Path $uninstallScript -Destination (Join-Path $packageDir 'uninstall.ps1') -Force
 
     $manifest = [ordered]@{
@@ -151,6 +153,7 @@ foreach ($architecture in $Architectures) {
         createdUtc = [DateTime]::UtcNow.ToString('o')
         entryExecutable = 'WpfDevTools.Mcp.Server.exe'
         installScript = 'install.ps1'
+        setupScript = 'setup.ps1'
         uninstallScript = 'uninstall.ps1'
         inspector = [ordered]@{
             net8 = 'inspectors/net8.0-windows/WpfDevTools.Inspector.dll'

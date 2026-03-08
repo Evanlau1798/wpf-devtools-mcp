@@ -5,7 +5,8 @@ param(
 
     [switch]$RegisterClaudeCode,
     [switch]$RegisterCodex,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$Quiet
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,6 +27,14 @@ function Invoke-OptionalCommand {
     & $Command @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "$Command registration failed with exit code $LASTEXITCODE"
+    }
+}
+
+function Write-InstallMessage {
+    param([Parameter(Mandatory)] [string]$Message)
+
+    if (-not $Quiet) {
+        Write-Host $Message
     }
 }
 
@@ -165,9 +174,9 @@ if ($RegisterCodex) {
     Invoke-OptionalCommand -Command 'codex' -Arguments @('mcp', 'add', 'wpf-devtools', '--', $installedExecutable)
 }
 
-Write-Host "Installed to: $currentDir"
-Write-Host "Executable: $installedExecutable"
-Write-Host "Client registration templates: $registrationDir"
-Write-Host 'Next steps:'
-Write-Host "  Claude Code: claude mcp add --transport stdio wpf-devtools -- '$installedExecutable'"
-Write-Host "  Codex CLI : codex mcp add wpf-devtools -- '$installedExecutable'"
+Write-InstallMessage "Installed to: $currentDir"
+Write-InstallMessage "Executable: $installedExecutable"
+Write-InstallMessage "Client registration templates: $registrationDir"
+Write-InstallMessage 'Next steps:'
+Write-InstallMessage "  Claude Code: claude mcp add --transport stdio wpf-devtools -- '$installedExecutable'"
+Write-InstallMessage "  Codex CLI : codex mcp add wpf-devtools -- '$installedExecutable'"

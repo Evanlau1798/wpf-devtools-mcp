@@ -29,6 +29,15 @@ public class ReleasePackagingWorkflowTests
             "ARM64 release packaging should validate the expected output folder contract");
     }
 
+    [Fact]
+    public void PublishReleaseScript_ShouldBundleInteractiveSetupWizard()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("scripts/release/Publish-Release.ps1"));
+
+        content.Should().Contain("Setup-WpfDevTools.ps1",
+            "the published package should include the interactive setup wizard alongside install/uninstall scripts");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
 }

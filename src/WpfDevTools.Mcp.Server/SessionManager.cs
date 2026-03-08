@@ -105,7 +105,7 @@ public sealed class SessionManager : IDisposable
             _sessions[processId] = new SessionInfo
             {
                 ProcessId = processId,
-                LastActivity = DateTime.UtcNow
+                LastActivity = DateTimeOffset.UtcNow
             };
 
             _pipeClients[processId] = new NamedPipeClient(processId, _authManager, _certManager);
@@ -201,7 +201,7 @@ public sealed class SessionManager : IDisposable
                 _sessions[processId] = new SessionInfo
                 {
                     ProcessId = session.ProcessId,
-                    LastActivity = DateTime.UtcNow
+                    LastActivity = DateTimeOffset.UtcNow
                 };
             }
         }
@@ -211,15 +211,15 @@ public sealed class SessionManager : IDisposable
     /// Get last activity time for session
     /// </summary>
     /// <param name="processId">Process ID to get last activity time for</param>
-    /// <returns>Last activity time in UTC, or DateTime.MinValue if session does not exist</returns>
-    public DateTime GetLastActivityTime(int processId)
+    /// <returns>Last activity time in UTC, or DateTimeOffset.MinValue if session does not exist</returns>
+    public DateTimeOffset GetLastActivityTime(int processId)
     {
         ThrowIfDisposed();
         lock (_lock)
         {
             return _sessions.TryGetValue(processId, out var session)
                 ? session.LastActivity
-                : DateTime.MinValue;
+                : DateTimeOffset.MinValue;
         }
     }
 
@@ -233,7 +233,7 @@ public sealed class SessionManager : IDisposable
         ThrowIfDisposed();
         lock (_lock)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTimeOffset.UtcNow;
             return _sessions
                 .Where(kvp => now - kvp.Value.LastActivity > idleTimeout)
                 .Select(kvp => kvp.Key)
@@ -339,10 +339,10 @@ public sealed class SessionManager : IDisposable
         }
     }
 
-    private class SessionInfo
+    private sealed record SessionInfo
     {
         public required int ProcessId { get; init; }
-        public required DateTime LastActivity { get; init; }
+        public required DateTimeOffset LastActivity { get; init; }
     }
 
     private void ThrowIfDisposed()

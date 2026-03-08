@@ -53,7 +53,7 @@ public class SessionManagerGapTests
         var result = manager.GetLastActivityTime(99999);
 
         // Assert
-        result.Should().Be(DateTime.MinValue);
+        Assert.Equal(DateTimeOffset.MinValue, result);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class SessionManagerGapTests
         using var manager = new SessionManager();
         manager.AddSession(12345);
         var activityTime = manager.GetLastActivityTime(12345);
-        activityTime.Should().NotBe(DateTime.MinValue); // sanity check: was valid
+        activityTime.Should().NotBe(DateTimeOffset.MinValue); // sanity check: was valid
 
         manager.RemoveSession(12345);
 
@@ -71,7 +71,7 @@ public class SessionManagerGapTests
         var result = manager.GetLastActivityTime(12345);
 
         // Assert
-        result.Should().Be(DateTime.MinValue);
+        Assert.Equal(DateTimeOffset.MinValue, result);
     }
 
     #endregion

@@ -127,15 +127,15 @@ public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
     // LastAccessed is mutated in-place to avoid allocating a new entry on every TryAcquire() call.
     // TryAcquire() is called on every tool invocation (~100/min/session), so minimizing
     // GC pressure here is a justified performance trade-off. Access is serialized by _lock.
-    private class RateLimiterEntry
+    private sealed class RateLimiterEntry
     {
         public RateLimiter Limiter { get; }
-        public DateTime LastAccessed { get; set; }
+        public DateTimeOffset LastAccessed { get; set; }
 
         public RateLimiterEntry(RateLimiter limiter)
         {
             Limiter = limiter;
-            LastAccessed = DateTime.UtcNow;
+            LastAccessed = DateTimeOffset.UtcNow;
         }
     }
 
@@ -156,7 +156,11 @@ public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
         _maxRequestsPerMinute = maxRequestsPerMinute;
         _interval = TimeSpan.FromMinutes(1);
         _cleanupTimer = new System.Threading.Timer(
-            _ => { if (!_isDisposed) RemoveStaleEntries(TimeSpan.FromMinutes(30)); },
+            _ => RateLimiterCleanupGuard.Execute(
+                _isDisposed,
+                cleanupAction: () => RemoveStaleEntries(TimeSpan.FromMinutes(30)),
+                onError: ex => System.Diagnostics.Debug.WriteLine(
+                    $"RateLimiterManager cleanup failed: {ex.Message}")),
             null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
     }
 
@@ -184,7 +188,7 @@ public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
             }
 
             // CRITICAL FIX: Update LastAccessed without creating new tuple
-            entry.LastAccessed = DateTime.UtcNow;
+            entry.LastAccessed = DateTimeOffset.UtcNow;
             return entry.Limiter.TryAcquire();
         }
     }
@@ -224,7 +228,7 @@ public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
     {
         lock (_lock)
         {
-            var cutoff = DateTime.UtcNow - staleDuration;
+            var cutoff = DateTimeOffset.UtcNow - staleDuration;
             var staleKeys = _limiters
                 .Where(kvp => kvp.Value.LastAccessed < cutoff)
                 .Select(kvp => kvp.Key)

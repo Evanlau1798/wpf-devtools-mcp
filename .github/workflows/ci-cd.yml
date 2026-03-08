@@ -142,10 +142,27 @@ jobs:
 
         & powershell -ExecutionPolicy Bypass -File scripts/release/Install-WpfDevTools.ps1 -PackagePath $packageDir -InstallRoot './tmp-release-install-smoke' -Force
 
+    - name: GitHub Pages bootstrap installer smoke test
+      shell: pwsh
+      run: |
+        $packageArchive = switch ('${{ matrix.architecture }}') {
+          'x64' { 'artifacts/release/WpfDevTools-win-x64.zip' }
+          'x86' { 'artifacts/release/WpfDevTools-win-x86.zip' }
+          'arm64' { 'artifacts/release/WpfDevTools-win-arm64.zip' }
+          default { throw "Unsupported bootstrap smoke architecture: ${{ matrix.architecture }}" }
+        }
+
+        & powershell -ExecutionPolicy Bypass -File docfx/install.ps1 -PackageArchivePath $packageArchive -InstallRoot './tmp-release-bootstrap-smoke' -Clients none -NonInteractive -Force -OutputJson
+
     - name: Uninstall published package smoke test
       shell: pwsh
       run: |
         & powershell -ExecutionPolicy Bypass -File scripts/release/Uninstall-WpfDevTools.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}'
+
+    - name: Uninstall bootstrap installer smoke test
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/release/Uninstall-WpfDevTools.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}'
   code-coverage:
     runs-on: windows-latest
 

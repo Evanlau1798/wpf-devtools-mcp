@@ -59,6 +59,14 @@ function Copy-DirectoryContents {
     Copy-Item -Path (Join-Path $Source '*') -Destination $Destination -Recurse -Force
 }
 
+function Remove-PathIfExists {
+    param([string]$Path)
+
+    if (-not [string]::IsNullOrWhiteSpace($Path) -and (Test-Path $Path)) {
+        Remove-Item -Path $Path -Recurse -Force
+    }
+}
+
 function Resolve-MSBuildPath {
     $command = Get-Command 'msbuild.exe' -ErrorAction SilentlyContinue
     if ($null -ne $command) {
@@ -97,10 +105,10 @@ foreach ($architecture in $Architectures) {
     $runtimeId = Get-RuntimeId -Architecture $architecture
     $bootstrapperPlatform = Get-BootstrapperPlatform -Architecture $architecture
     $packageDir = Join-Path $outputRootFullPath "WpfDevTools-$runtimeId"
+    $packageArchivePath = Join-Path $outputRootFullPath "WpfDevTools-win-$architecture.zip"
 
-    if (Test-Path $packageDir) {
-        Remove-Item -Path $packageDir -Recurse -Force
-    }
+    Remove-PathIfExists -Path $packageDir
+    Remove-PathIfExists -Path $packageArchivePath
 
     New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
     $inspectorNet8Dir = Join-Path $packageDir 'inspectors\net8.0-windows'
@@ -163,5 +171,7 @@ foreach ($architecture in $Architectures) {
     }
 
     $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $packageDir 'manifest.json') -Encoding UTF8
+    Compress-Archive -Path (Join-Path $packageDir '*') -DestinationPath $packageArchivePath -Force
     Write-Host "Created package: $packageDir"
+    Write-Host "Created archive: $packageArchivePath"
 }

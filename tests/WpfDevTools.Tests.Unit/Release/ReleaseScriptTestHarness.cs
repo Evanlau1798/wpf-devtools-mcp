@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Text.Json;
 using System.Threading;
 
@@ -54,6 +55,23 @@ internal static class ReleaseScriptTestHarness
             }));
 
         return packageDir;
+    }
+
+    public static string CreatePackageArchive(string tempRoot, string architecture = "x64")
+    {
+        var packageDir = CreatePackageDirectory(tempRoot, architecture);
+        File.Copy(GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
+        File.Copy(GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
+        File.Copy(GetRepoFilePath("scripts/release/Uninstall-WpfDevTools.ps1"), Path.Combine(packageDir, "uninstall.ps1"), overwrite: true);
+
+        var archivePath = Path.Combine(tempRoot, $"WpfDevTools-win-{architecture}.zip");
+        if (File.Exists(archivePath))
+        {
+            File.Delete(archivePath);
+        }
+
+        ZipFile.CreateFromDirectory(packageDir, archivePath);
+        return archivePath;
     }
 
     public static string CreateFakeCommand(string directory, string commandName, string logPath)

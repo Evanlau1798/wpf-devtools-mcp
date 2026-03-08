@@ -38,6 +38,28 @@ public class ReleasePackagingWorkflowTests
             "the published package should include the interactive setup wizard alongside install/uninstall scripts");
     }
 
+    [Fact]
+    public void PublishReleaseScript_ShouldCreateZipArchivesForStaticBootstrapInstaller()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("scripts/release/Publish-Release.ps1"));
+
+        content.Should().Contain("Compress-Archive",
+            "the GitHub Pages bootstrap installer needs versioned zip assets to download per architecture");
+        content.Should().Contain("WpfDevTools-win-$architecture.zip",
+            "zip asset naming should stay stable for the one-command installer");
+    }
+
+    [Fact]
+    public void CiWorkflow_ShouldSmokeTestGitHubPagesBootstrapInstaller()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("docfx/install.ps1",
+            "CI should execute the static GitHub Pages bootstrap installer against a packaged archive");
+        content.Should().Contain("WpfDevTools-win-arm64.zip",
+            "bootstrap smoke coverage should validate the zip asset contract across architectures");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
 }

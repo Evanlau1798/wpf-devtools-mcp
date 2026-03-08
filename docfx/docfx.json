@@ -32,7 +32,8 @@
     "resource": [
       {
         "files": [
-          "styles/**"
+          "styles/**",
+          "install.ps1"
         ]
       }
     ],

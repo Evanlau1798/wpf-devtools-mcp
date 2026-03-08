@@ -62,7 +62,8 @@
                         <TextBlock Text="This window validates custom chrome, rounded corners, and fallback backdrop behavior."
                                    TextWrapping="Wrap"
                                    Foreground="{DynamicResource ModernForegroundBrush}"/>
-                        <Button Margin="0,16,0,0"
+                        <Button x:Name="ModernPrimaryActionButton"
+                                Margin="0,16,0,0"
                                 Padding="14,8"
                                 Width="180"
                                 HorizontalAlignment="Left"

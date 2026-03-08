@@ -134,6 +134,19 @@ if ([string]::IsNullOrWhiteSpace($architecture)) {
     throw 'manifest.json does not define architecture'
 }
 
+$channel = [string]$manifest.channel
+$buildConfiguration = [string]$manifest.buildConfiguration
+$signaturePolicy = [string]$manifest.signaturePolicy
+if ([string]::IsNullOrWhiteSpace($channel)) {
+    $channel = if ($buildConfiguration -eq 'Debug') { 'dev' } else { 'release' }
+}
+if ([string]::IsNullOrWhiteSpace($buildConfiguration)) {
+    $buildConfiguration = if ($channel -eq 'dev') { 'Debug' } else { 'Release' }
+}
+if ([string]::IsNullOrWhiteSpace($signaturePolicy)) {
+    $signaturePolicy = if ($buildConfiguration -eq 'Debug') { 'DebugTrustedRootSkip' } else { 'RequireAuthenticodeSignature' }
+}
+
 $packageExecutable = Join-Path $packageDir 'WpfDevTools.Mcp.Server.exe'
 if (-not (Test-Path $packageExecutable)) {
     throw "Package does not contain WpfDevTools.Mcp.Server.exe: $packageDir"
@@ -158,6 +171,9 @@ $installManifest = [ordered]@{
     name = 'wpf-devtools'
     architecture = $architecture
     version = [string]$manifest.version
+    channel = $channel
+    buildConfiguration = $buildConfiguration
+    signaturePolicy = $signaturePolicy
     installDir = $currentDir
     installedUtc = [DateTime]::UtcNow.ToString('o')
     executable = $installedExecutable
@@ -176,6 +192,8 @@ if ($RegisterCodex) {
 
 Write-InstallMessage "Installed to: $currentDir"
 Write-InstallMessage "Executable: $installedExecutable"
+Write-InstallMessage "Package channel: $channel"
+Write-InstallMessage "Build configuration: $buildConfiguration"
 Write-InstallMessage "Client registration templates: $registrationDir"
 Write-InstallMessage 'Next steps:'
 Write-InstallMessage "  Claude Code: claude mcp add --transport stdio wpf-devtools -- '$installedExecutable'"

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using System.Threading;
 using FluentAssertions;
@@ -180,6 +180,46 @@ public sealed class InstallerScriptTests
         }
     }
 
+    [Fact]
+    public void InstallScript_ShouldPersistPackageMetadataForDevelopmentPackages()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packageDir = Path.Combine(tempRoot, "package");
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            Directory.CreateDirectory(packageDir);
+            File.WriteAllText(Path.Combine(packageDir, "WpfDevTools.Mcp.Server.exe"), "stub");
+            File.WriteAllText(
+                Path.Combine(packageDir, "manifest.json"),
+                JsonSerializer.Serialize(new
+                {
+                    name = "wpf-devtools",
+                    version = "1.2.3",
+                    architecture = "x64",
+                    runtimeId = "win-x64",
+                    channel = "dev",
+                    buildConfiguration = "Debug",
+                    signaturePolicy = "DebugTrustedRootSkip"
+                }));
+
+            var result = RunPowerShellScript(
+                GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"),
+                new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+
+            using var installManifest = JsonDocument.Parse(
+                File.ReadAllText(Path.Combine(installRoot, "x64", "install-manifest.json")));
+            installManifest.RootElement.GetProperty("channel").GetString().Should().Be("dev");
+            installManifest.RootElement.GetProperty("buildConfiguration").GetString().Should().Be("Debug");
+            installManifest.RootElement.GetProperty("signaturePolicy").GetString().Should().Be("DebugTrustedRootSkip");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
     private static string CreateTempDirectory()
     {
         var path = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-tests", Guid.NewGuid().ToString("N"));
@@ -246,3 +286,4 @@ public sealed class InstallerScriptTests
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
 }
+

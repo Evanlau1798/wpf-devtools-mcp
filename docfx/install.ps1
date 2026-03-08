@@ -2,6 +2,9 @@ param(
     [ValidateSet('x64', 'x86', 'arm64')]
     [string]$Architecture,
 
+    [ValidateSet('release', 'dev')]
+    [string]$Channel = 'release',
+
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'WpfDevToolsMcp'),
 
     [string[]]$Clients,
@@ -58,6 +61,7 @@ function Resolve-AbsoluteDirectory {
 function Resolve-ArchivePath {
     param(
         [Parameter(Mandatory)] [string]$TargetArchitecture,
+        [Parameter(Mandatory)] [string]$ReleaseChannel,
         [string]$ConfiguredArchivePath,
         [Parameter(Mandatory)] [string]$ResolvedWorkingRoot,
         [Parameter(Mandatory)] [string]$ResolvedDownloadBaseUrl
@@ -71,7 +75,7 @@ function Resolve-ArchivePath {
         }
     }
 
-    $assetName = "WpfDevTools-win-$TargetArchitecture.zip"
+    $assetName = if ($ReleaseChannel -eq 'dev') { "WpfDevTools-dev-win-$TargetArchitecture.zip" } else { "WpfDevTools-win-$TargetArchitecture.zip" }
     $archivePath = Join-Path $ResolvedWorkingRoot $assetName
     $downloadUri = ($ResolvedDownloadBaseUrl.TrimEnd('/') + '/' + $assetName)
     Write-BootstrapMessage "Downloading $downloadUri"
@@ -134,12 +138,16 @@ function Invoke-PackageSetup {
         $setupArguments.CursorConfigPath = $ResolvedCursorConfigPath
     }
 
+    if ($JsonOutput) {
+        return (& $setupScript @setupArguments | Out-String).Trim()
+    }
+
     & $setupScript @setupArguments
 }
 
 $targetArchitecture = Resolve-TargetArchitecture -ConfiguredArchitecture $Architecture
 $resolvedWorkingRoot = Resolve-AbsoluteDirectory -Path $WorkingRoot
-$archiveInfo = Resolve-ArchivePath -TargetArchitecture $targetArchitecture -ConfiguredArchivePath $PackageArchivePath -ResolvedWorkingRoot $resolvedWorkingRoot -ResolvedDownloadBaseUrl $DownloadBaseUrl
+$archiveInfo = Resolve-ArchivePath -TargetArchitecture $targetArchitecture -ReleaseChannel $Channel -ConfiguredArchivePath $PackageArchivePath -ResolvedWorkingRoot $resolvedWorkingRoot -ResolvedDownloadBaseUrl $DownloadBaseUrl
 $sessionRoot = Join-Path $resolvedWorkingRoot ([Guid]::NewGuid().ToString('N'))
 $extractRoot = Join-Path $sessionRoot 'package'
 $resolvedInstallRoot = Resolve-AbsoluteDirectory -Path $InstallRoot
@@ -153,7 +161,18 @@ try {
         $selectedClients = @($Clients)
     }
 
-    Invoke-PackageSetup -ExtractedPackageRoot $extractRoot -ResolvedInstallRoot $resolvedInstallRoot -SelectedClients $selectedClients -ResolvedClaudeDesktopConfigPath $ClaudeDesktopConfigPath -ResolvedCursorConfigPath $CursorConfigPath -RunNonInteractive:$NonInteractive -Overwrite:$Force -JsonOutput:$OutputJson
+    $setupOutput = Invoke-PackageSetup -ExtractedPackageRoot $extractRoot -ResolvedInstallRoot $resolvedInstallRoot -SelectedClients $selectedClients -ResolvedClaudeDesktopConfigPath $ClaudeDesktopConfigPath -ResolvedCursorConfigPath $CursorConfigPath -RunNonInteractive:$NonInteractive -Overwrite:$Force -JsonOutput:$OutputJson
+    if ($OutputJson) {
+        $setupJson = $setupOutput | ConvertFrom-Json
+        $result = [ordered]@{}
+        foreach ($property in $setupJson.PSObject.Properties) {
+            $result[$property.Name] = $property.Value
+        }
+
+        $result['channel'] = $Channel
+        $result['packageAssetName'] = $archiveInfo.assetName
+        $result | ConvertTo-Json -Depth 10
+    }
 }
 finally {
     Remove-PathIfExists -Path $sessionRoot

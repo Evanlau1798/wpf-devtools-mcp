@@ -45,6 +45,26 @@ function Get-BootstrapperPlatform {
     }
 }
 
+function Get-PackageChannel {
+    param([Parameter(Mandatory)] [string]$BuildConfiguration)
+
+    if ($BuildConfiguration -eq 'Debug') {
+        return 'dev'
+    }
+
+    return 'release'
+}
+
+function Get-SignaturePolicy {
+    param([Parameter(Mandatory)] [string]$BuildConfiguration)
+
+    if ($BuildConfiguration -eq 'Debug') {
+        return 'DebugTrustedRootSkip'
+    }
+
+    return 'RequireAuthenticodeSignature'
+}
+
 function Copy-DirectoryContents {
     param(
         [Parameter(Mandatory)] [string]$Source,
@@ -104,8 +124,11 @@ if ([string]::IsNullOrWhiteSpace($version)) {
 foreach ($architecture in $Architectures) {
     $runtimeId = Get-RuntimeId -Architecture $architecture
     $bootstrapperPlatform = Get-BootstrapperPlatform -Architecture $architecture
+    $channel = Get-PackageChannel -BuildConfiguration $Configuration
+    $signaturePolicy = Get-SignaturePolicy -BuildConfiguration $Configuration
     $packageDir = Join-Path $outputRootFullPath "WpfDevTools-$runtimeId"
-    $packageArchivePath = Join-Path $outputRootFullPath "WpfDevTools-win-$architecture.zip"
+    $packageArchiveName = if ($channel -eq 'dev') { "WpfDevTools-dev-win-$architecture.zip" } else { "WpfDevTools-win-$architecture.zip" }
+    $packageArchivePath = Join-Path $outputRootFullPath $packageArchiveName
 
     Remove-PathIfExists -Path $packageDir
     Remove-PathIfExists -Path $packageArchivePath
@@ -158,6 +181,9 @@ foreach ($architecture in $Architectures) {
         version = $version
         architecture = $architecture
         runtimeId = $runtimeId
+        channel = $channel
+        buildConfiguration = $Configuration
+        signaturePolicy = $signaturePolicy
         createdUtc = [DateTime]::UtcNow.ToString('o')
         entryExecutable = 'WpfDevTools.Mcp.Server.exe'
         installScript = 'install.ps1'

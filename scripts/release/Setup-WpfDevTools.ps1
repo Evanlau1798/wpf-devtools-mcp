@@ -361,6 +361,19 @@ if ([string]::IsNullOrWhiteSpace($architecture)) {
     throw 'manifest.json does not define architecture'
 }
 
+$channel = [string]$packageManifest.channel
+$buildConfiguration = [string]$packageManifest.buildConfiguration
+$signaturePolicy = [string]$packageManifest.signaturePolicy
+if ([string]::IsNullOrWhiteSpace($channel)) {
+    $channel = if ($buildConfiguration -eq 'Debug') { 'dev' } else { 'release' }
+}
+if ([string]::IsNullOrWhiteSpace($buildConfiguration)) {
+    $buildConfiguration = if ($channel -eq 'dev') { 'Debug' } else { 'Release' }
+}
+if ([string]::IsNullOrWhiteSpace($signaturePolicy)) {
+    $signaturePolicy = if ($buildConfiguration -eq 'Debug') { 'DebugTrustedRootSkip' } else { 'RequireAuthenticodeSignature' }
+}
+
 $installScript = Resolve-InstallScriptPath
 $installArguments = @{
     InstallRoot = $resolvedInstallRoot
@@ -402,6 +415,9 @@ $result = [ordered]@{
     selectedClients = @($selectedClients | ForEach-Object { $_ })
     installRoot = $resolvedInstallRootFullPath
     installedExecutable = $installedExecutable
+    channel = $channel
+    buildConfiguration = $buildConfiguration
+    signaturePolicy = $signaturePolicy
     registrations = @($registrations | ForEach-Object { $_ })
 }
 

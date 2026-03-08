@@ -411,12 +411,12 @@
                                                    TextWrapping="Wrap"
                                                    Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
                                         <WrapPanel>
-                                            <Button Style="{StaticResource ModernPrimaryButtonStyle}" Content="Primary Button"/>
-                                            <Button Padding="14,8" Margin="0,0,8,0" Content="Subtle Button" Background="{DynamicResource ModernCardBrush}" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                            <Button x:Name="ModernPrimaryButton" Style="{StaticResource ModernPrimaryButtonStyle}" Content="Primary Button"/>
+                                            <Button x:Name="ModernSubtleButton" Padding="14,8" Margin="0,0,8,0" Content="Subtle Button" Background="{DynamicResource ModernCardBrush}" Foreground="{DynamicResource ModernForegroundBrush}"/>
                                             <Button x:Name="OpenModernWindowButton" Padding="14,8" Content="Open Modern Window" Click="OpenModernWindowButton_Click"/>
                                         </WrapPanel>
-                                        <TextBox Margin="0,16,0,8" Width="260" Text="Modern input surface" Foreground="{DynamicResource ModernForegroundBrush}" Background="{DynamicResource ModernSurfaceBrush}"/>
-                                        <CheckBox Margin="0,4,0,0" Content="Rounded toggle sample" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                        <TextBox x:Name="ModernInputTextBox" Margin="0,16,0,8" Width="260" Text="Modern input surface" Foreground="{DynamicResource ModernForegroundBrush}" Background="{DynamicResource ModernSurfaceBrush}"/>
+                                        <CheckBox x:Name="ModernRoundedToggle" Margin="0,4,0,0" Content="Rounded toggle sample" Foreground="{DynamicResource ModernForegroundBrush}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

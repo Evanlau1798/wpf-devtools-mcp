@@ -1,0 +1,109 @@
+name: Publish Release Assets
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag to package and upload
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release-assets:
+    runs-on: windows-latest
+    env:
+      RELEASE_OUTPUT_ROOT: artifacts/release/github-release
+      RELEASE_STAGING_ROOT: artifacts/release/github-assets
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Resolve release tag
+        id: release-metadata
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event_name }}' -eq 'release') {
+            '${{ github.event.release.tag_name }}'
+          }
+          else {
+            '${{ inputs.tag }}'
+          }
+
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw 'Release tag is required.'
+          }
+
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Checkout tagged revision
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.release-metadata.outputs.tag }}'
+          git fetch --tags --force
+          git checkout "refs/tags/$tag"
+
+      - name: Build release packages
+        shell: pwsh
+        run: |
+          ./scripts/release/Publish-Release.ps1 `
+            -Configuration Release `
+            -Architectures @('x64', 'x86', 'arm64') `
+            -OutputRoot '${{ env.RELEASE_OUTPUT_ROOT }}'
+
+      - name: Stage GitHub Release assets
+        shell: pwsh
+        run: |
+          ./scripts/release/Export-GitHubReleaseAssets.ps1 `
+            -InputRoot '${{ env.RELEASE_OUTPUT_ROOT }}' `
+            -OutputRoot '${{ env.RELEASE_STAGING_ROOT }}' `
+            -Tag '${{ steps.release-metadata.outputs.tag }}' `
+            -OutputJson
+
+      - name: Upload staged release bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-release-assets-${{ steps.release-metadata.outputs.tag }}
+          path: |
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/WpfDevTools-win-x64.zip
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/WpfDevTools-win-x86.zip
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/WpfDevTools-win-arm64.zip
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/SHA256SUMS.txt
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-assets.json
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/upload-gh-release.ps1
+
+      - name: Ensure GitHub Release exists for manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ steps.release-metadata.outputs.tag }}'
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title $tag --notes "Automated release asset upload for $tag."
+          }
+
+      - name: Upload staged assets to GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ steps.release-metadata.outputs.tag }}'
+          Set-Location (Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag)
+          ./upload-gh-release.ps1 -ReleaseTag $tag

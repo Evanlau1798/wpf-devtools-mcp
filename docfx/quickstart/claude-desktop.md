@@ -1,5 +1,11 @@
 # Claude Desktop Setup
 
+## Path rule used in this guide
+
+Claude Desktop stores a static JSON configuration file, so the server entry should use an absolute project path.
+
+Replace `<ABSOLUTE_PATH_TO_REPO>` with your local clone path on any drive, for example `D:\dev\wpf-devtools-mcp` or `E:\repos\wpf-devtools-mcp`.
+
 ## Configuration file
 
 Add the server to `claude_desktop_config.json`.
@@ -12,7 +18,7 @@ Add the server to `claude_desktop_config.json`.
       "args": [
         "run",
         "--project",
-        "G:\\wpf-devtools-mcp\\src\\WpfDevTools.Mcp.Server",
+        "<ABSOLUTE_PATH_TO_REPO>\\src\\WpfDevTools.Mcp.Server",
         "--no-build"
       ]
     }
@@ -20,7 +26,13 @@ Add the server to `claude_desktop_config.json`.
 }
 ```
 
-Update the path to match your local clone.
+If you are currently in the repository root and want to resolve the path first, run:
+
+```powershell
+Resolve-Path .\src\WpfDevTools.Mcp.Server
+```
+
+Copy the resolved absolute path into the JSON value above.
 
 ## Recommended first prompt
 

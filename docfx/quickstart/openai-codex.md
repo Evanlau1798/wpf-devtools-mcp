@@ -1,4 +1,4 @@
-﻿# OpenAI Codex and Codex CLI Setup
+# OpenAI Codex and Codex CLI Setup
 
 Use this guide if you want to drive WPF DevTools from OpenAI Codex. The quickest path is to install Codex CLI, add the MCP server once, and then reuse the same registration from Codex workflows.
 
@@ -18,10 +18,19 @@ codex
 
 ## One-command MCP registration
 
-After you update the local project path, run:
+Recommended: open PowerShell in the repository root and run:
 
 ```powershell
-codex mcp add wpf-devtools -- dotnet run --project C:\src\wpf-devtools-mcp\src\WpfDevTools.Mcp.Server --no-build
+$RepoRoot = (Get-Location).Path
+codex mcp add wpf-devtools -- dotnet run --project "$RepoRoot\src\WpfDevTools.Mcp.Server" --no-build
+```
+
+This avoids hard-coding a drive letter and works whether the repository lives on `C:`, `D:`, `E:`, or another volume.
+
+If you are running the command from another folder, use an explicit absolute path instead:
+
+```powershell
+codex mcp add wpf-devtools -- dotnet run --project "<ABSOLUTE_PATH_TO_REPO>\src\WpfDevTools.Mcp.Server" --no-build
 ```
 
 This writes the MCP server entry into Codex's shared configuration.
@@ -51,7 +60,7 @@ That gives you a single registration path instead of maintaining separate MCP co
 
 ## Important Windows note
 
-At the time of writing, the OpenAI Codex CLI documentation marks Windows support as experimental.
+OpenAI updates Codex client support frequently, so check the latest official Codex documentation for current Windows support details.
 
 For this project specifically:
 

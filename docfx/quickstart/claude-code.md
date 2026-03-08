@@ -1,4 +1,4 @@
-﻿# Claude Code Setup
+# Claude Code Setup
 
 This is the fastest path if you want a terminal-first AI agent workflow with one-command installation and one-command MCP registration.
 
@@ -20,20 +20,30 @@ winget install Anthropic.ClaudeCode
 
 ## One-command MCP registration
 
-Run this in PowerShell after changing the project path:
+Recommended: open PowerShell in the repository root and run:
 
 ```powershell
-claude mcp add --transport stdio wpf-devtools -- dotnet run --project C:\src\wpf-devtools-mcp\src\WpfDevTools.Mcp.Server --no-build
+$RepoRoot = (Get-Location).Path
+claude mcp add --transport stdio wpf-devtools -- dotnet run --project "$RepoRoot\src\WpfDevTools.Mcp.Server" --no-build
+```
+
+This avoids hard-coding a drive letter and works whether the repository lives on `C:`, `D:`, `E:`, or another volume.
+
+If you are running the command from another folder, use an explicit absolute path instead:
+
+```powershell
+claude mcp add --transport stdio wpf-devtools -- dotnet run --project "<ABSOLUTE_PATH_TO_REPO>\src\WpfDevTools.Mcp.Server" --no-build
 ```
 
 This registers the server under the name `wpf-devtools` and tells Claude Code to launch it over STDIO.
 
 ## Optional: project-scoped registration
 
-If you want the MCP registration to live with the repository instead of your global machine config, run:
+If you want the MCP registration to live with the repository instead of your global machine config, open PowerShell in the repository root and run:
 
 ```powershell
-claude mcp add --scope project --transport stdio wpf-devtools -- dotnet run --project C:\src\wpf-devtools-mcp\src\WpfDevTools.Mcp.Server --no-build
+$RepoRoot = (Get-Location).Path
+claude mcp add --scope project --transport stdio wpf-devtools -- dotnet run --project "$RepoRoot\src\WpfDevTools.Mcp.Server" --no-build
 ```
 
 Use this when you want teammates to see the intended MCP server setup from the repository itself.

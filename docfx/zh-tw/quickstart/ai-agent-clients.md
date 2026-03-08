@@ -1,4 +1,4 @@
-﻿# AI Agent Client 快速開始
+# AI Agent Client 快速開始
 
 這一頁幫助您用最短路徑選擇適合 WPF DevTools 的 MCP client。
 
@@ -13,15 +13,24 @@
 | Claude Desktop | 偏好桌面聊天介面 | 安裝 App | JSON 設定檔 | [Claude Desktop](claude-desktop.md) |
 | Cursor / VS Code | 偏好編輯器內工作流 | 安裝 App 或 extension | MCP 設定 / JSON 檔 | [Cursor 與 VS Code](cursor-vscode.md) |
 
-## 這些 client 最後都會執行的伺服器命令
+## 共用的 server 命令與路徑策略
 
-所有快速開始流程最終都會指向同一個 STDIO MCP server 命令：
+所有快速開始頁面最後都會啟動同一個 STDIO MCP server 命令。
+
+如果您的 shell 已經位於 repository root，建議使用這個模式：
 
 ```powershell
-dotnet run --project C:\src\wpf-devtools-mcp\src\WpfDevTools.Mcp.Server --no-build
+$RepoRoot = (Get-Location).Path
+dotnet run --project "$RepoRoot\src\WpfDevTools.Mcp.Server" --no-build
 ```
 
-請把 `C:\src\wpf-devtools-mcp` 替換成您實際 clone 的路徑。
+如果您的 client 使用靜態 JSON 設定，請把同一個專案路徑改成明確的絕對路徑：
+
+```powershell
+dotnet run --project "<ABSOLUTE_PATH_TO_REPO>\src\WpfDevTools.Mcp.Server" --no-build
+```
+
+`<ABSOLUTE_PATH_TO_REPO>` 可以位於任何 Windows 磁碟機，例如 `D:\dev\wpf-devtools-mcp` 或 `E:\repos\wpf-devtools-mcp`。
 
 ## 第一次驗證流程
 

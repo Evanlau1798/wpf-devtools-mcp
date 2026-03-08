@@ -20,6 +20,27 @@ The current transport is STDIO. That means deployment usually looks like this:
 - Verify the server can reach the target app under the same user or required privilege boundary.
 - Smoke-test `get_processes`, `connect`, `ping`, and one representative inspection workflow.
 
+## Development command vs release command
+
+The quickstart guides use a development-time command from the repository root:
+
+```powershell
+dotnet run --project src/WpfDevTools.Mcp.Server --no-build
+```
+
+For production or a reusable internal bundle, publish first and launch the built output instead:
+
+```powershell
+dotnet publish src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj -c Release -o <PUBLISH_DIR>
+dotnet "<PUBLISH_DIR>\WpfDevTools.Mcp.Server.dll"
+```
+
+When registering the production server in an MCP client, point the client at the published output rather than the source project command. Example:
+
+```powershell
+claude mcp add --transport stdio wpf-devtools -- dotnet "<PUBLISH_DIR>\WpfDevTools.Mcp.Server.dll"
+```
+
 ## Minimal release artifact set
 
 A practical release bundle should include:

@@ -1,49 +1,58 @@
-﻿# AI Agent Clients
+# AI Agent Client Quickstart
 
-This page helps you choose the fastest MCP client path for WPF DevTools.
+This page helps you choose the shortest path to a usable MCP client for WPF DevTools.
 
-Before you configure any client, finish the server-side setup in [5-Minute Setup](index.md): build the managed server, build the native bootstrapper for your target architecture, and run a WPF target app.
+Before configuring any client, finish the server-side steps in [5-Minute Setup](index.md): build the managed server, build the native bootstrapper for the target architecture, and start a WPF target process.
 
 ## Recommended paths
 
-| Client | Best for | Install style | MCP registration style | Guide |
+| Client | Best fit | Install style | MCP registration style | Guide |
 | --- | --- | --- | --- | --- |
-| Claude Code | Terminal-first AI workflow with one-command setup | One command | One command | [Claude Code](claude-code.md) |
+| Claude Code | Terminal-first workflow, one-command install and registration | One command | One command | [Claude Code](claude-code.md) |
 | OpenAI Codex / Codex CLI | OpenAI agent workflow, CLI or IDE extension | One command | One command | [OpenAI Codex and Codex CLI](openai-codex.md) |
 | Claude Desktop | Desktop chat app workflow | App install | JSON config file | [Claude Desktop](claude-desktop.md) |
 | Cursor / VS Code | Editor-first workflow | App or extension install | MCP settings / JSON config | [Cursor and VS Code](cursor-vscode.md) |
 
-## The command all clients ultimately run
+## Shared server command and path strategy
 
-All quick setup flows in this documentation resolve to the same STDIO server command:
+Every quickstart page eventually launches the same STDIO MCP server command.
+
+If your shell is already in the repository root, use this pattern:
 
 ```powershell
-dotnet run --project C:\src\wpf-devtools-mcp\src\WpfDevTools.Mcp.Server --no-build
+$RepoRoot = (Get-Location).Path
+dotnet run --project "$RepoRoot\src\WpfDevTools.Mcp.Server" --no-build
 ```
 
-Replace `C:\src\wpf-devtools-mcp` with your actual clone path.
+If your client stores static JSON configuration, use the same project path as a literal absolute path instead:
 
-## First-session verification workflow
+```powershell
+dotnet run --project "<ABSOLUTE_PATH_TO_REPO>\src\WpfDevTools.Mcp.Server" --no-build
+```
 
-No matter which client you choose, verify the first session in this order:
+`<ABSOLUTE_PATH_TO_REPO>` can be on any Windows drive, for example `D:\dev\wpf-devtools-mcp` or `E:\repos\wpf-devtools-mcp`.
+
+## First verification flow
+
+No matter which client you choose, verify the first connection in this order:
 
 1. `get_processes`
 2. `connect`
 3. `ping`
 4. `get_visual_tree`
 
-A healthy first run means:
+Your first healthy run should show:
 
-- the target WPF process appears in `get_processes`
-- `connect` succeeds without architecture mismatch
-- `ping` returns quickly
+- `get_processes` lists the target WPF process
+- `connect` succeeds without an architecture mismatch
+- `ping` responds quickly
 - `get_visual_tree` returns the root window and child elements
 
-## WPF-specific notes for AI clients
+## WPF-specific reminders for AI clients
 
-- This server is Windows-only and targets running WPF processes.
-- The MCP transport is STDIO, so wrappers must keep `stdout` clean.
-- `connect` only succeeds when the bootstrapper architecture matches the target process architecture.
-- Build the server before registering it in your AI client, especially when using `--no-build`.
+- This server only runs on Windows against a live WPF process.
+- MCP transport is STDIO, so wrappers must not pollute `stdout`.
+- `connect` succeeds only when the bootstrapper architecture matches the target process architecture.
+- If you use `--no-build`, finish the build before registering the server with your AI client.
 
 Next: [Claude Code](claude-code.md) or [OpenAI Codex and Codex CLI](openai-codex.md)

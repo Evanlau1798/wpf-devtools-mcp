@@ -20,6 +20,27 @@
 - 確認 server 能在相同使用者或必要權限邊界下觸及目標應用。
 - 至少 smoke-test `get_processes`、`connect`、`ping` 與一個代表性的 inspection workflow。
 
+## 開發命令與 release 命令的差異
+
+快速開始頁面使用的是從 repository root 執行的開發期命令：
+
+```powershell
+dotnet run --project src/WpfDevTools.Mcp.Server --no-build
+```
+
+若要做正式部署，或是提供可重複使用的內部 bundle，請先 publish，再啟動輸出成品：
+
+```powershell
+dotnet publish src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj -c Release -o <PUBLISH_DIR>
+dotnet "<PUBLISH_DIR>\WpfDevTools.Mcp.Server.dll"
+```
+
+當您要在 MCP client 中註冊正式環境 server 時，請指向 publish 後的輸出，而不是原始碼專案命令。例如：
+
+```powershell
+claude mcp add --transport stdio wpf-devtools -- dotnet "<PUBLISH_DIR>\WpfDevTools.Mcp.Server.dll"
+```
+
 ## 最小可交付產物集合
 
 一份實用的 release bundle 至少應包含：

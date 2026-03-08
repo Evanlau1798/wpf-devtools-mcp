@@ -1,4 +1,4 @@
-﻿# OpenAI Codex 與 Codex CLI 快速開始
+# OpenAI Codex 與 Codex CLI 快速開始
 
 如果您想要用 OpenAI Codex 來驅動 WPF DevTools，最簡單的方式是先安裝 Codex CLI，用一條命令註冊 MCP server，之後再重用同一份設定。
 
@@ -18,13 +18,22 @@ codex
 
 ## 一行註冊 MCP server
 
-請先把下面命令中的專案路徑改成您的本機路徑：
+建議做法：先在 repository root 開啟 PowerShell，再執行：
 
 ```powershell
-codex mcp add wpf-devtools -- dotnet run --project C:\src\wpf-devtools-mcp\src\WpfDevTools.Mcp.Server --no-build
+$RepoRoot = (Get-Location).Path
+codex mcp add wpf-devtools -- dotnet run --project "$RepoRoot\src\WpfDevTools.Mcp.Server" --no-build
 ```
 
-這會把 MCP server 寫入 Codex 共用的設定檔。
+這樣可以避免把磁碟機代號寫死，不論 repository 在 `C:`、`D:`、`E:` 或其他磁碟都可直接套用。
+
+如果您是在其他資料夾執行命令，請改用明確的絕對路徑：
+
+```powershell
+codex mcp add wpf-devtools -- dotnet run --project "<ABSOLUTE_PATH_TO_REPO>\src\WpfDevTools.Mcp.Server" --no-build
+```
+
+這會把 MCP server 寫入 Codex 共用設定檔。
 
 ## 驗證註冊結果
 
@@ -40,7 +49,7 @@ List WPF processes, connect to the test app, ping it, and summarize the root vis
 
 ## 如果您使用 Codex IDE extension
 
-Codex 文件使用同一份 MCP 設定檔來讓不同 Codex client 共用 server 設定。最簡單的做法是：
+Codex 會共用同一份 MCP 設定給不同 client surface。實務上最簡單的做法是：
 
 1. 先安裝 Codex CLI
 2. 先執行一次 `codex mcp add ...`
@@ -51,12 +60,12 @@ Codex 文件使用同一份 MCP 設定檔來讓不同 Codex client 共用 server
 
 ## Windows 重要說明
 
-依 OpenAI 目前文件，Codex CLI 在 Windows 上仍屬 experimental。
+OpenAI 會持續更新 Codex client 的支援狀態，因此請以最新官方 Codex 文件為準確認 Windows 支援細節。
 
 對這個專案來說，建議做法是：
 
 - 如果您的環境可穩定使用，優先在 Windows shell 直接執行 Codex
-- 如果 CLI 在您的 Windows 環境不穩定，優先改用 Codex IDE extension
+- 如果 CLI 在您的 Windows 環境不穩定，優先改用 Codex IDE extension，但 MCP server 仍維持在 Windows 上
 - 不要把 WPF DevTools server 本體搬到 Linux 或 WSL 內執行，因為它需要操作原生 Windows WPF process
 
 ## 這個專案的額外注意事項

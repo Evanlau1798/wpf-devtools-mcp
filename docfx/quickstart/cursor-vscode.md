@@ -1,5 +1,11 @@
 # Cursor and VS Code Setup
 
+## Path rule used in this guide
+
+VS Code and Cursor MCP settings are usually stored as JSON, so use an absolute project path instead of a machine-specific sample path.
+
+Replace `<ABSOLUTE_PATH_TO_REPO>` with your local clone path on any drive, for example `D:\dev\wpf-devtools-mcp` or `E:\repos\wpf-devtools-mcp`.
+
 ## VS Code MCP configuration
 
 Create or update `.vscode/mcp.json`:
@@ -12,13 +18,21 @@ Create or update `.vscode/mcp.json`:
       "args": [
         "run",
         "--project",
-        "G:\\wpf-devtools-mcp\\src\\WpfDevTools.Mcp.Server",
+        "<ABSOLUTE_PATH_TO_REPO>\\src\\WpfDevTools.Mcp.Server",
         "--no-build"
       ]
     }
   }
 }
 ```
+
+If you want to resolve the absolute path from the repository root first, run:
+
+```powershell
+Resolve-Path .\src\WpfDevTools.Mcp.Server
+```
+
+Then paste the resolved path into the JSON value above.
 
 ## Cursor configuration
 

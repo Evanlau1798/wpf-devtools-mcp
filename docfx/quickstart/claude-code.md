@@ -10,7 +10,19 @@ irm https://claude.ai/install.ps1 | iex
 
 ## 2. Install WPF DevTools
 
-Run the WPF DevTools installer first. After that, use the installed executable path:
+Fastest path:
+
+```powershell
+irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+```
+
+One-command Claude Code focused setup:
+
+```powershell
+& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code -NonInteractive -Force
+```
+
+After installation, the default executable path is:
 
 ```text
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
@@ -46,4 +58,4 @@ List WPF processes, connect to the target app, ping it, and show the first two l
 
 - Keep the server on Windows.
 - Do not wrap `WpfDevTools.Mcp.Server.exe` with extra stdout logging.
-- If `connect` fails, check the target bitness first.
+- If `connect` fails, check server bitness, bootstrapper bitness, and target bitness together.

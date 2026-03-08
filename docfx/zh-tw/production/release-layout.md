@@ -1,8 +1,22 @@
 # Release Layout
 
-本頁定義公開發行版與安裝後資料夾的穩定契約。
+本頁說明公開 release asset、解壓後 package，以及安裝後目錄的穩定契約。
 
-## 發行包版面
+## 公開 bootstrap asset
+
+GitHub Pages 會提供 bootstrap installer：
+
+```text
+https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1
+```
+
+這個 bootstrap script 會下載下列其中一個 release asset：
+
+- `WpfDevTools-win-x64.zip`
+- `WpfDevTools-win-x86.zip`
+- `WpfDevTools-win-arm64.zip`
+
+## 解壓後 package 結構
 
 ```text
 WpfDevTools-win-x64/
@@ -18,12 +32,13 @@ WpfDevTools-win-x64/
   bootstrapper/
     x64/
       WpfDevTools.Bootstrapper.x64.dll
+  setup.ps1
   install.ps1
   uninstall.ps1
   manifest.json
 ```
 
-## 安裝後版面
+## 安裝後結構
 
 ```text
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\
@@ -41,3 +56,11 @@ WpfDevTools-win-x64/
     cursor-vscode.json
   install-manifest.json
 ```
+
+## 契約說明
+
+- MCP client 應註冊 `WpfDevTools.Mcp.Server.exe`。
+- `inspectors` 與 `bootstrapper` 是 sidecar 目錄，必須與安裝後的 server 內容相鄰。
+- `setup.ps1` 是一般終端使用者的主要 package installer。
+- `install.ps1` 保留給較低階的 copy/install 自動化。
+- `client-registration` 會在安裝時產生，並作為 AI client setup 的 copy-paste 來源。

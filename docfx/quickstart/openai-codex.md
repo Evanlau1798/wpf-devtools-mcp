@@ -10,7 +10,19 @@ npm install -g @openai/codex
 
 ## 2. Install WPF DevTools
 
-After running the WPF DevTools installer, the default executable path is:
+Fastest path:
+
+```powershell
+irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+```
+
+One-command Codex-focused setup:
+
+```powershell
+& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients codex-cli -NonInteractive -Force
+```
+
+After installation, the default executable path is:
 
 ```text
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe

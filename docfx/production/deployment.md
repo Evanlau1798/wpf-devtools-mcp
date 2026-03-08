@@ -6,15 +6,25 @@ This server is usually deployed as a local Windows companion process next to the
 
 ## Recommended install modes
 
-### Safe default
+### GitHub Pages bootstrap installer
 
-Download the release package or installer script, inspect it, and run it locally.
+The public fast path is the static GitHub Pages bootstrap script:
 
-### Convenience mode
+```powershell
+irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+```
 
-The `irm | iex` path exists for fast setup, but it is optional and should not be your only trust model.
+That script downloads the architecture-matched `WpfDevTools-win-<arch>.zip` asset from GitHub Releases and then runs the packaged `setup.ps1` installer.
 
-## release layout matters
+### Offline or reviewed install
+
+If you do not want `irm | iex`, download the release zip manually, inspect it, extract it, and run `setup.ps1 -Force` locally.
+
+## `irm | iex` is optional, not a trust boundary
+
+The `irm | iex` path exists for fast setup, but it is optional and should not be your only trust model. It is also not a SmartScreen bypass. SmartScreen reputation and code signing remain separate concerns.
+
+## Release layout matters
 
 The bootstrapper and inspector sidecars are discovered relative to the server, so the documented release layout must stay stable across installs and upgrades.
 

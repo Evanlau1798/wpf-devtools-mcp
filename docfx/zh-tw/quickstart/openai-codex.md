@@ -1,6 +1,6 @@
 # OpenAI Codex 與 Codex CLI 快速開始
 
-如果您要在 Codex workflow 中使用已安裝的 WPF DevTools server，請走這個流程。
+如果你要從 Codex workflow 使用已安裝的 WPF DevTools server，請使用這份指南。
 
 ## 1. 安裝 Codex CLI
 
@@ -10,7 +10,19 @@ npm install -g @openai/codex
 
 ## 2. 安裝 WPF DevTools
 
-安裝完成後，預設可執行檔路徑是：
+最快方式：
+
+```powershell
+irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+```
+
+若要直接產生 Codex CLI 註冊內容，可使用：
+
+```powershell
+& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients codex-cli -NonInteractive -Force
+```
+
+安裝後的預設 executable 路徑是：
 
 ```text
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
@@ -18,14 +30,26 @@ npm install -g @openai/codex
 
 ## 3. 註冊 MCP server
 
-可直接使用 `client-registration\codex-cli.txt`，或手動執行：
+可直接使用 `client-registration\codex-cli.txt` 中的命令，或手動執行：
 
 ```powershell
 codex mcp add wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
 ```
 
-## 4. 驗證註冊
+## 4. 驗證註冊結果
 
 ```powershell
 codex mcp list
 ```
+
+## 5. 第一個實用提示詞
+
+```text
+List WPF processes, connect to the target app, ping it, and summarize the root visual tree.
+```
+
+## 注意事項
+
+- 即使你的編輯器或 agent workflow 跨環境，MCP server 本體仍需在 Windows 執行。
+- 若 `connect` 失敗，請一起檢查 server、bootstrapper 與 target process 的 bitness。
+- Codex 使用 STDIO transport，因此請保持 `stdout` 乾淨。

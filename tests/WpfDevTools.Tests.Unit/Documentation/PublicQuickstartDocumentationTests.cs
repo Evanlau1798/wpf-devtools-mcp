@@ -81,6 +81,62 @@ public sealed class PublicQuickstartDocumentationTests
         content.Should().NotContain("releases/latest/download/install.ps1");
     }
 
+    [Fact]
+    public void PublicDocs_ShouldDocumentGitHubPagesOneCommandInstaller()
+    {
+        var files = new[]
+        {
+            "README.md",
+            "docfx/index.md",
+            "docfx/quickstart/index.md",
+            "docfx/quickstart/ai-agent-clients.md",
+            "docfx/quickstart/claude-code.md",
+            "docfx/quickstart/openai-codex.md",
+            "docfx/production/deployment.md",
+            "docfx/zh-tw/index.md",
+            "docfx/zh-tw/quickstart/index.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md",
+            "docfx/zh-tw/quickstart/claude-code.md",
+            "docfx/zh-tw/quickstart/openai-codex.md",
+            "docfx/zh-tw/production/deployment.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1",
+                $"{file} should reference the GitHub Pages hosted one-command installer");
+            content.Should().Contain("irm",
+                $"{file} should explain the one-command bootstrap path");
+        }
+    }
+
+    [Fact]
+    public void ReleaseLayoutDocs_ShouldDescribeZipAssetsAndSetupWizard()
+    {
+        var files = new[]
+        {
+            "docfx/production/release-layout.md",
+            "docfx/zh-tw/production/release-layout.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("WpfDevTools-win-x64.zip");
+            content.Should().Contain("setup.ps1");
+            content.Should().Contain("install.ps1");
+        }
+    }
+
+    [Fact]
+    public void DocfxConfig_ShouldPublishBootstrapInstallerAtSiteRoot()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("docfx/docfx.json"));
+
+        content.Should().Contain("install.ps1");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
 }

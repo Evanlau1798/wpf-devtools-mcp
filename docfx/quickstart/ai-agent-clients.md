@@ -1,5 +1,19 @@
 # AI Agent Client Quickstart
 
+Install WPF DevTools first, then register the installed executable with your preferred client.
+
+## One-command install
+
+```powershell
+irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+```
+
+Advanced non-interactive example:
+
+```powershell
+& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code,codex-cli -NonInteractive -Force
+```
+
 Every public setup path should eventually launch the installed executable, not a source-tree command.
 
 Default installed path example:

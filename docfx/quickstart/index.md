@@ -1,6 +1,6 @@
 # 5-Minute Setup
 
-This quickstart is optimized for the public install path: download the published release package, run the included `install.ps1`, register the installed executable with your MCP client, and verify against a live WPF process.
+This quickstart is optimized for the public install path: run the GitHub Pages bootstrap installer, let it download the published release package, register the installed executable with your MCP client, and verify against a live WPF process.
 
 ## Prerequisites
 
@@ -16,31 +16,36 @@ This quickstart is optimized for the public install path: download the published
 - `x86` target -> install and run the `x86` package.
 - `arm64` target -> install and run the `arm64` package.
 
-## Step 1: Download the published release package
+## Step 1: Run the one-command installer
 
-Open the Releases page and download the package that matches your target app architecture:
+Fastest path:
+
+```powershell
+irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+```
+
+That command fetches the static bootstrap script from GitHub Pages. The script then downloads the matching `WpfDevTools-win-<arch>.zip` release asset and runs the packaged `setup.ps1` wizard.
+
+If you want a deterministic non-interactive install for a specific client, use:
+
+```powershell
+& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code -NonInteractive -Force
+```
+
+Repository and Releases:
 
 - Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
 
-Expected package names:
+## Step 2: Manual fallback if you do not want `irm | iex`
 
-- `WpfDevTools-win-x64`
-- `WpfDevTools-win-x86`
-- `WpfDevTools-win-arm64`
+1. Download `WpfDevTools-win-x64.zip`, `WpfDevTools-win-x86.zip`, or `WpfDevTools-win-arm64.zip` from Releases.
+2. Extract the archive.
+3. Run the packaged `setup.ps1 -Force` from the extracted folder.
 
-Extract the archive to a local folder before running the installer.
+The extracted package also includes an included `install.ps1` for the lower-level copy/install flow when you want to automate around the package contents directly instead of using the setup wizard.
 
-## Step 2: Run the package-local installer
-
-From the extracted package folder, run the included `install.ps1`.
-
-```powershell
-Set-Location C:\path\to\WpfDevTools-win-x64
-.\install.ps1 -Force
-```
-
-The package-local flow uses the folder that already contains `manifest.json`, `WpfDevTools.Mcp.Server.exe`, and the release payload, so you do not need to pass `-PackagePath` for the normal public install path.
+## Step 3: Confirm the installed executable path
 
 After installation, the default executable path is typically:
 
@@ -48,7 +53,7 @@ After installation, the default executable path is typically:
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
 ```
 
-## Step 3: Register the installed executable
+## Step 4: Register the installed executable
 
 The installer writes ready-to-copy commands under:
 
@@ -58,11 +63,11 @@ The installer writes ready-to-copy commands under:
 
 If you want to register manually, point your client at `WpfDevTools.Mcp.Server.exe`.
 
-## Step 4: Start or keep your WPF target running
+## Step 5: Start or keep your WPF target running
 
-The server only inspects live WPF processes. Start your app first, then register or launch the MCP client.
+The server only inspects live WPF processes. Start your app first, then launch the MCP client.
 
-## Step 5: Verify the first session
+## Step 6: Verify the first session
 
 Use this sequence in your MCP client:
 

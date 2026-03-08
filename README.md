@@ -26,16 +26,28 @@
 
 For first-time setup, prefer the published release flow instead of launching from the source tree.
 
-1. Download a release package for the architecture that matches the target WPF process.
-2. Run `install.ps1` from that package, or run `scripts/release/Install-WpfDevTools.ps1` against the extracted release folder.
-3. Register the installed executable in your MCP client:
+Fastest path on Windows:
 
 ```powershell
-claude mcp add --transport stdio wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
-codex mcp add wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
+irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
-The installer also writes ready-to-copy registration snippets under `%LOCALAPPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.
+That GitHub Pages hosted bootstrap script downloads the matching `WpfDevTools-win-<arch>.zip` package from GitHub Releases and runs the packaged `setup.ps1` wizard.
+
+If you want a single-command, non-interactive setup for a specific client and architecture, use:
+
+```powershell
+& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code -NonInteractive -Force
+```
+
+Manual fallback:
+
+1. Download `WpfDevTools-win-x64.zip`, `WpfDevTools-win-x86.zip`, or `WpfDevTools-win-arm64.zip` from Releases.
+2. Extract the archive.
+3. Run `setup.ps1 -Force` from the extracted package. Use `install.ps1` only when you want the lower-level copy/install flow without the interactive setup wizard.
+4. Register or verify the installed executable in your MCP client.
+
+The installer writes ready-to-copy registration snippets under `%LOCALAPPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.
 
 ### Build
 
@@ -58,8 +70,8 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 > For production use, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR`.
 > See [SECURITY.md](SECURITY.md) for details.
 > **Local development note**: Use a `Debug` build for local development and build the native bootstrapper for the same architecture as the target process.
-> Debug builds automatically skip DLL signature verification for trusted local DLL paths, allowing unsigned local development.
-> `connect` still requires architecture-compatible bootstrapper and injector binaries (for example x64 target -> x64 build, x86 target -> Win32/x86 build).`
+> Debug builds skip DLL signature verification only for trusted local DLL paths under the configured trusted-root policy, allowing unsigned local development without weakening public release guidance.
+> `connect` still requires architecture-compatible bootstrapper and injector binaries (for example x64 target -> x64 build, x86 target -> Win32/x86 build).
 > The server process architecture must match the target process (for example x86 target -> x86 server process, x64 target -> x64 server process).
 
 ### Typical MCP workflow
@@ -79,8 +91,8 @@ Add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "wpf-devtools": {
-      "command": "dotnet",
-      "args": ["run", "--project", "C:\\path\\to\\src\\WpfDevTools.Mcp.Server", "--no-build"]
+      "command": "%LOCALAPPDATA%\\WpfDevToolsMcp\\x64\\current\\WpfDevTools.Mcp.Server.exe",
+      "args": []
     }
   }
 }
@@ -94,8 +106,8 @@ Add to `.vscode/mcp.json`:
 {
   "servers": {
     "wpf-devtools": {
-      "command": "dotnet",
-      "args": ["run", "--project", "C:\\path\\to\\src\\WpfDevTools.Mcp.Server", "--no-build"]
+      "command": "%LOCALAPPDATA%\\WpfDevToolsMcp\\x64\\current\\WpfDevTools.Mcp.Server.exe",
+      "args": []
     }
   }
 }

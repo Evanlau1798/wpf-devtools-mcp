@@ -1,8 +1,29 @@
-﻿# WPF DevTools MCP Server
+# WPF DevTools MCP Server
 
 Looking for Traditional Chinese docs? Start at [繁體中文文件](zh-tw/index.md).
 
 WPF DevTools MCP Server is a Windows-only Model Context Protocol server for inspecting and interacting with running WPF applications through an injected in-process inspector. It exists for scenarios where UI Automation is not enough: binding diagnostics, dependency property precedence, visual tree introspection, MVVM analysis, routed events, layout debugging, and targeted UI interactions.
+
+## Install in one command
+
+For most users, the fastest supported setup path is the GitHub Pages bootstrap installer:
+
+```powershell
+irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+```
+
+That script downloads the matching `WpfDevTools-win-<arch>.zip` asset from GitHub Releases and runs the packaged `setup.ps1` wizard.
+
+If you want a deterministic non-interactive install, use:
+
+```powershell
+& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code -NonInteractive -Force
+```
+
+Repository and Releases:
+
+- Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
+- Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
 
 ## Choose your path
 

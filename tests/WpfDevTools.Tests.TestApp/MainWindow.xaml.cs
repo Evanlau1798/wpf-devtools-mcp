@@ -31,6 +31,9 @@ public partial class MainWindow : Window
 
         // Setup custom event handlers
         SetupCustomEvents();
+
+        // Setup modern theme diagnostics
+        InitializeModernTheme();
     }
 
     private void InitializePerformanceTab()

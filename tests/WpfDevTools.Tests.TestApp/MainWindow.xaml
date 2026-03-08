@@ -6,6 +6,14 @@
         xmlns:local="clr-namespace:WpfDevTools.Tests.TestApp"
         mc:Ignorable="d"
         Title="WPF DevTools Test App" Height="600" Width="900">
+    <Window.Resources>
+        <SolidColorBrush x:Key="ModernSurfaceBrush" Color="#FFF3F4F6"/>
+        <SolidColorBrush x:Key="ModernCardBrush" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="ModernAccentBrush" Color="#FF2563EB"/>
+        <SolidColorBrush x:Key="ModernForegroundBrush" Color="#FF0F172A"/>
+        <SolidColorBrush x:Key="ModernMutedForegroundBrush" Color="#FF475569"/>
+        <CornerRadius x:Key="ModernCornerRadius">18</CornerRadius>
+    </Window.Resources>
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -339,6 +347,80 @@
                     <StackPanel x:Name="PerformanceStackPanel" Margin="10">
                         <TextBlock Text="Large Visual Tree (100 elements)" FontWeight="Bold" Margin="0,0,0,10"/>
                         <!-- Elements will be added programmatically -->
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 9: Modern Theme -->
+            <TabItem x:Name="ModernThemeTab" Header="Modern Theme">
+                <TabItem.Resources>
+                    <Style x:Key="ModernPrimaryButtonStyle" TargetType="Button">
+                        <Setter Property="Padding" Value="14,8"/>
+                        <Setter Property="Margin" Value="0,0,8,0"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Background" Value="{DynamicResource ModernAccentBrush}"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Resources>
+                <ScrollViewer>
+                    <StackPanel Margin="12">
+                        <TextBlock Text="Modern Theme Diagnostics" FontSize="16" FontWeight="Bold" Margin="0,0,0,12"/>
+                        <WrapPanel Margin="0,0,0,12">
+                            <StackPanel Margin="0,0,24,0">
+                                <TextBlock Text="Theme Mode" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                <ComboBox x:Name="ThemeModeSelector" Width="140" SelectionChanged="ThemeModeSelector_SelectionChanged">
+                                    <ComboBoxItem Content="Light"/>
+                                    <ComboBoxItem Content="Dark"/>
+                                    <ComboBoxItem Content="System"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Accent" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                <ComboBox x:Name="AccentSelector" Width="140" SelectionChanged="AccentSelector_SelectionChanged">
+                                    <ComboBoxItem Content="Blue"/>
+                                    <ComboBoxItem Content="Purple"/>
+                                    <ComboBoxItem Content="Emerald"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </WrapPanel>
+
+                        <Border Padding="16" Background="{DynamicResource ModernSurfaceBrush}" CornerRadius="{DynamicResource ModernCornerRadius}">
+                            <StackPanel>
+                                <UniformGrid Columns="2" Margin="0,0,0,16">
+                                    <TextBlock Text="Current Theme Mode" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="CurrentThemeModeText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    <TextBlock Text="Current Accent" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="CurrentAccentValueText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    <TextBlock Text="Accent Hex" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="CurrentAccentHexText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    <TextBlock Text="Corner Radius" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="CurrentCornerRadiusText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    <TextBlock Text="Backdrop Supported" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="BackdropSupportText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                </UniformGrid>
+
+                                <Border Padding="16" Background="{DynamicResource ModernCardBrush}" CornerRadius="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Modern card sample" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                        <TextBlock Text="This area validates dynamic resources, rounded corners, and style-trigger-friendly controls."
+                                                   Margin="0,8,0,16"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ModernPrimaryButtonStyle}" Content="Primary Button"/>
+                                            <Button Padding="14,8" Margin="0,0,8,0" Content="Subtle Button" Background="{DynamicResource ModernCardBrush}" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                            <Button x:Name="OpenModernWindowButton" Padding="14,8" Content="Open Modern Window" Click="OpenModernWindowButton_Click"/>
+                                        </WrapPanel>
+                                        <TextBox Margin="0,16,0,8" Width="260" Text="Modern input surface" Foreground="{DynamicResource ModernForegroundBrush}" Background="{DynamicResource ModernSurfaceBrush}"/>
+                                        <CheckBox Margin="0,4,0,0" Content="Rounded toggle sample" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

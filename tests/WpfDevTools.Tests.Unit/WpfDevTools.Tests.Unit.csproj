@@ -38,6 +38,7 @@
       <SetTargetFramework>TargetFramework=net8.0-windows;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
     </ProjectReference>
     <ProjectReference Include="..\..\src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj" />
+    <ProjectReference Include="..\WpfDevTools.Tests.TestApp\WpfDevTools.Tests.TestApp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -55,6 +55,32 @@ public sealed class PublicQuickstartDocumentationTests
         content.Should().Contain("inspectors");
     }
 
+    [Fact]
+    public void PublicQuickstartPages_ShouldUseCanonicalGitHubRepositoryUrl()
+    {
+        var files = new[]
+        {
+            "docfx/quickstart/index.md",
+            "docfx/zh-tw/quickstart/index.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("https://github.com/Evanlau1798/wpf-devtools-mcp");
+            content.Should().NotContain("<OWNER>/<REPO>");
+        }
+    }
+
+    [Fact]
+    public void PublicQuickstartPages_ShouldDocumentPackageLocalInstallerFlow()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("docfx/quickstart/index.md"));
+
+        content.Should().Contain("included `install.ps1`");
+        content.Should().NotContain("releases/latest/download/install.ps1");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
 }

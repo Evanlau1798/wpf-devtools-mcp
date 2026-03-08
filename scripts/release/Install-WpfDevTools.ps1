@@ -1,5 +1,4 @@
 param(
-    [Parameter(Mandatory)]
     [string]$PackagePath,
 
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'WpfDevToolsMcp'),
@@ -42,6 +41,28 @@ function Write-RegistrationArtifact {
     }
 
     Set-Content -Path $Path -Value $Content -Encoding UTF8
+}
+
+function Resolve-PackageDirectory {
+    param([string]$ConfiguredPackagePath)
+
+    if (-not [string]::IsNullOrWhiteSpace($ConfiguredPackagePath)) {
+        return (Resolve-Path $ConfiguredPackagePath).Path
+    }
+
+    $packageRoot = (Resolve-Path $PSScriptRoot).Path
+    if (Test-Path (Join-Path $packageRoot 'manifest.json')) {
+        return $packageRoot
+    }
+
+    throw 'PackagePath was not provided and manifest.json was not found next to install.ps1.'
+}
+
+function Resolve-AbsoluteDirectory {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    New-Item -ItemType Directory -Force -Path $Path | Out-Null
+    return (Resolve-Path $Path).Path
 }
 
 function New-ClientRegistrationArtifacts {
@@ -92,7 +113,7 @@ $codexCommand
     return $registrationDir
 }
 
-$packageDir = (Resolve-Path $PackagePath).Path
+$packageDir = Resolve-PackageDirectory -ConfiguredPackagePath $PackagePath
 $manifestPath = Join-Path $packageDir 'manifest.json'
 if (-not (Test-Path $manifestPath)) {
     throw "manifest.json was not found under package path: $packageDir"
@@ -109,7 +130,8 @@ if (-not (Test-Path $packageExecutable)) {
     throw "Package does not contain WpfDevTools.Mcp.Server.exe: $packageDir"
 }
 
-$installBase = Join-Path $InstallRoot $architecture
+$installRootFullPath = Resolve-AbsoluteDirectory -Path $InstallRoot
+$installBase = Join-Path $installRootFullPath $architecture
 $currentDir = Join-Path $installBase 'current'
 if (Test-Path $currentDir) {
     if (-not $Force) {

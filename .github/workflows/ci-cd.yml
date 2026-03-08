@@ -111,7 +111,7 @@ jobs:
 
     strategy:
       matrix:
-        architecture: [x64, x86]
+        architecture: [x64, x86, arm64]
 
     steps:
     - name: Checkout code
@@ -136,6 +136,7 @@ jobs:
         $packageDir = switch ('${{ matrix.architecture }}') {
           'x64' { 'artifacts/release/WpfDevTools-win-x64' }
           'x86' { 'artifacts/release/WpfDevTools-win-x86' }
+          'arm64' { 'artifacts/release/WpfDevTools-win-arm64' }
           default { throw "Unsupported release packaging architecture: ${{ matrix.architecture }}" }
         }
 

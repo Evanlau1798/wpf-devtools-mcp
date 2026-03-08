@@ -18,6 +18,17 @@ public class ReleasePackagingWorkflowTests
             "CI should verify uninstall/cleanup as part of packaging validation");
     }
 
+    [Fact]
+    public void CiWorkflow_ShouldCoverArm64ReleasePackagingLayout()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("architecture: [x64, x86, arm64]",
+            "release packaging coverage should include ARM64 artifacts as a first-class target");
+        content.Should().Contain("WpfDevTools-win-arm64",
+            "ARM64 release packaging should validate the expected output folder contract");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
 }

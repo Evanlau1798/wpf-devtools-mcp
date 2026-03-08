@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Threading;
 using FluentAssertions;
 using Xunit;
 
@@ -102,6 +103,83 @@ public sealed class InstallerScriptTests
         }
     }
 
+    [Fact]
+    public void InstallScript_ShouldUsePackageDirectoryWhenPackagePathIsOmitted()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packageDir = Path.Combine(tempRoot, "package");
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            Directory.CreateDirectory(packageDir);
+            File.WriteAllText(Path.Combine(packageDir, "WpfDevTools.Mcp.Server.exe"), "stub");
+            File.WriteAllText(
+                Path.Combine(packageDir, "manifest.json"),
+                JsonSerializer.Serialize(new
+                {
+                    name = "wpf-devtools",
+                    version = "1.2.3",
+                    architecture = "x64",
+                    runtimeId = "win-x64"
+                }));
+
+            var packageLocalScript = Path.Combine(packageDir, "install.ps1");
+            File.Copy(GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"), packageLocalScript, overwrite: true);
+
+            var result = RunPowerShellScript(
+                packageLocalScript,
+                new[] { "-InstallRoot", installRoot, "-Force" });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            File.Exists(Path.Combine(installRoot, "x64", "current", "WpfDevTools.Mcp.Server.exe")).Should().BeTrue();
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void InstallScript_ShouldWriteAbsolutePathsWhenInstallRootIsRelative()
+    {
+        var tempRoot = CreateTempDirectory();
+        var relativeInstallRoot = Path.Combine("tmp", "relative-install", Guid.NewGuid().ToString("N"));
+        var absoluteInstallRoot = GetRepoFilePath(relativeInstallRoot);
+
+        try
+        {
+            var packageDir = Path.Combine(tempRoot, "package");
+            Directory.CreateDirectory(packageDir);
+            File.WriteAllText(Path.Combine(packageDir, "WpfDevTools.Mcp.Server.exe"), "stub");
+            File.WriteAllText(
+                Path.Combine(packageDir, "manifest.json"),
+                JsonSerializer.Serialize(new
+                {
+                    name = "wpf-devtools",
+                    version = "1.2.3",
+                    architecture = "x64",
+                    runtimeId = "win-x64"
+                }));
+
+            var result = RunPowerShellScript(
+                GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"),
+                new[] { "-PackagePath", packageDir, "-InstallRoot", relativeInstallRoot, "-Force" });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+
+            var registrationDir = Path.Combine(absoluteInstallRoot, "x64", "client-registration");
+            File.ReadAllText(Path.Combine(registrationDir, "claude-code.txt"))
+                .Should().Contain(Path.Combine(absoluteInstallRoot, "x64", "current", "WpfDevTools.Mcp.Server.exe"));
+            File.ReadAllText(Path.Combine(registrationDir, "claude-desktop.json"))
+                .Should().Contain(Path.Combine(absoluteInstallRoot, "x64", "current", "WpfDevTools.Mcp.Server.exe").Replace("\\", "\\\\"));
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+            DeleteDirectory(absoluteInstallRoot);
+        }
+    }
+
     private static string CreateTempDirectory()
     {
         var path = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-tests", Guid.NewGuid().ToString("N"));
@@ -111,9 +189,26 @@ public sealed class InstallerScriptTests
 
     private static void DeleteDirectory(string path)
     {
-        if (Directory.Exists(path))
+        if (!Directory.Exists(path))
         {
-            Directory.Delete(path, recursive: true);
+            return;
+        }
+
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            try
+            {
+                Directory.Delete(path, recursive: true);
+                return;
+            }
+            catch (IOException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
+            catch (UnauthorizedAccessException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
         }
     }
 

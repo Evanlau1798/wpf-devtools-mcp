@@ -22,6 +22,21 @@
 - Windows with .NET SDK 8.0+
 - A target WPF application running under the same user account
 
+### Install from a published release
+
+For first-time setup, prefer the published release flow instead of launching from the source tree.
+
+1. Download a release package for the architecture that matches the target WPF process.
+2. Run `install.ps1` from that package, or run `scripts/release/Install-WpfDevTools.ps1` against the extracted release folder.
+3. Register the installed executable in your MCP client:
+
+```powershell
+claude mcp add --transport stdio wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
+codex mcp add wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
+```
+
+The installer also writes ready-to-copy registration snippets under `%LOCALAPPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.
+
 ### Build
 
 For most users, prefer a published release instead of running directly from the source tree. Use the source-based steps below when you are debugging locally or contributing to the repository.

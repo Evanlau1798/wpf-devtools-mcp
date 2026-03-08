@@ -28,6 +28,8 @@
       href: production/security.md
     - name: 部署指南
       href: production/deployment.md
+    - name: Release Layout
+      href: production/release-layout.md
     - name: 相容性矩陣
       href: production/compatibility-matrix.md
     - name: Bootstrap 與 Injection

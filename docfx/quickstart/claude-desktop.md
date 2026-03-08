@@ -1,53 +1,37 @@
 # Claude Desktop Setup
 
-## Path rule used in this guide
+Claude Desktop uses a static JSON file, so the cleanest setup is to copy the generated JSON from the installer output.
 
-Claude Desktop stores a static JSON configuration file, so the server entry should use an absolute project path.
+## Installed executable path
 
-Replace `<ABSOLUTE_PATH_TO_REPO>` with your local clone path on any drive, for example `D:\dev\wpf-devtools-mcp` or `E:\repos\wpf-devtools-mcp`.
+```text
+%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+```
 
-## Configuration file
+## Generated JSON template
 
-Add the server to `claude_desktop_config.json`.
+The installer writes `client-registration\claude-desktop.json`. Its structure is:
 
 ```json
 {
   "mcpServers": {
     "wpf-devtools": {
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "<ABSOLUTE_PATH_TO_REPO>\\src\\WpfDevTools.Mcp.Server",
-        "--no-build"
-      ]
+      "command": "%LOCALAPPDATA%\\WpfDevToolsMcp\\x64\\current\\WpfDevTools.Mcp.Server.exe",
+      "args": []
     }
   }
 }
 ```
 
-If you are currently in the repository root and want to resolve the path first, run:
+Copy the installed path into your local `claude_desktop_config.json` if you need to adapt the architecture.
 
-```powershell
-Resolve-Path .\src\WpfDevTools.Mcp.Server
-```
-
-Copy the resolved absolute path into the JSON value above.
-
-## Recommended first prompt
+## First prompt
 
 ```text
-Use the WPF DevTools MCP server to list processes, connect to the test WPF app, and summarize the visual tree root.
+Use the WPF DevTools MCP server to list processes, connect to the target app, and summarize the visual tree root.
 ```
 
-## Claude-specific tips
+## Notes
 
-- Start with `get_processes` and `connect` before asking for any per-process tool.
-- Ask Claude to discover the tool schema dynamically rather than hard-coding JSON payloads.
-- Prefer iterative prompts such as "inspect first, then modify" when using interaction tools.
-
-## Safe early workflow
-
-1. Inspect the tree.
-2. Inspect bindings or dependency properties.
-3. Only then call mutation tools such as `set_dp_value`, `modify_viewmodel`, or `override_style_setter`.
+- Start with `get_processes` and `connect`.
+- Keep mutation tools for later in the workflow.

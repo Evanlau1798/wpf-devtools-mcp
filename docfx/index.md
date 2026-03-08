@@ -1,11 +1,14 @@
 # WPF DevTools MCP Server
 
+Looking for Traditional Chinese docs? Start at [繁體中文文件](zh-tw/index.md).
+
 WPF DevTools MCP Server is a Windows-only Model Context Protocol server for inspecting and interacting with running WPF applications through an injected in-process inspector. It exists for scenarios where UI Automation is not enough: binding diagnostics, dependency property precedence, visual tree introspection, MVVM analysis, routed events, layout debugging, and targeted UI interactions.
 
 ## Choose your path
 
 | I want to... | Start here |
 | --- | --- |
+| Read the full guide in Traditional Chinese | [繁體中文文件](zh-tw/index.md) |
 | Be up and running in under five minutes | [5-Minute Setup](quickstart/index.md) |
 | Use the server from Claude Desktop | [Claude Desktop setup](quickstart/claude-desktop.md) |
 | Use the server from Cursor or VS Code | [Cursor and VS Code setup](quickstart/cursor-vscode.md) |

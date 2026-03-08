@@ -114,6 +114,7 @@ Security deployment guidance lives in `SECURITY.md`.
 ## Documentation Map
 
 - `docfx/` -> public DocFX site source for GitHub Pages
+- `docfx/zh-tw/` -> Traditional Chinese public documentation mirror
 - `SECURITY.md` -> supported security settings and deployment guidance
 - `EXAMPLES.md` -> usage examples for common tools and workflows
 - Detailed MCP tool metadata is maintained in code through the official SDK attributes to reduce README drift.

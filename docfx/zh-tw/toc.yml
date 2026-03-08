@@ -1,60 +1,58 @@
-- name: Home
+- name: 繁體中文首頁
   href: index.md
-- name: 繁體中文
-  href: zh-tw/toc.yml
-- name: Quickstart
+- name: 快速上手
   items:
-    - name: 5-Minute Setup
+    - name: 五分鐘完成安裝
       href: quickstart/index.md
-    - name: Claude Desktop
+    - name: Claude Desktop 設定
       href: quickstart/claude-desktop.md
-    - name: Cursor and VS Code
+    - name: Cursor 與 VS Code 設定
       href: quickstart/cursor-vscode.md
-- name: Guides
+- name: 使用指南
   items:
-    - name: AI Agent Guide
+    - name: AI Agent 使用指南
       href: guides/ai-agent-guide.md
-    - name: Common Workflows
+    - name: 常見工作流程
       href: guides/common-workflows.md
-    - name: Troubleshooting
+    - name: 疑難排解
       href: guides/troubleshooting.md
-- name: Production
+- name: 生產環境
   items:
-    - name: Security Model
+    - name: 安全模型
       href: production/security.md
-    - name: Deployment Guide
+    - name: 部署指南
       href: production/deployment.md
-    - name: Compatibility Matrix
+    - name: 相容性矩陣
       href: production/compatibility-matrix.md
-    - name: Bootstrap and Injection
+    - name: Bootstrap 與 Injection
       href: production/bootstrap-and-injection.md
-- name: Reference
+- name: 參考資料
   items:
-    - name: Tool Reference Overview
+    - name: 工具總覽
       href: reference/tools/index.md
-    - name: Process and Connection Tools
+    - name: 處理程序與連線工具
       href: reference/tools/process-and-connection.md
-    - name: Tree and XAML Tools
+    - name: Tree 與 XAML 工具
       href: reference/tools/tree-and-xaml.md
-    - name: Binding and Dependency Property Tools
+    - name: Binding 與 Dependency Property 工具
       href: reference/tools/binding-and-dp.md
-    - name: Interaction, Event, Layout, and Performance Tools
+    - name: 互動、事件、版面配置與效能工具
       href: reference/tools/interaction-events-layout.md
-    - name: Configuration Reference
+    - name: 設定參考
       href: reference/configuration.md
-    - name: Error Model
+    - name: 錯誤模型
       href: reference/error-model.md
-    - name: API Reference
-      href: api/toc.yml
-- name: Architecture
+    - name: API 參考（英文）
+      href: ../api/toc.yml
+- name: 架構
   items:
-    - name: Overview
+    - name: 總覽
       href: architecture/overview.md
-    - name: IPC and Protocol
+    - name: IPC 與通訊協定
       href: architecture/ipc.md
-    - name: Injection and Runtime Selection
+    - name: Injection 與 Runtime 選擇
       href: architecture/injection.md
-    - name: ADR Index
+    - name: ADR 索引
       href: architecture/adrs/index.md
     - name: ADR-001 Named Pipes for IPC
       href: architecture/adrs/adr-001-named-pipes.md
@@ -64,13 +62,13 @@
       href: architecture/adrs/adr-003-length-prefix-framing.md
     - name: ADR-005 Multi-Targeting Strategy
       href: architecture/adrs/adr-005-multi-targeting.md
-- name: Contributors
+- name: 貢獻者
   items:
-    - name: Contributor Guide
+    - name: 貢獻指南
       href: contributors/index.md
-    - name: Development Setup
+    - name: 開發環境設定
       href: contributors/development-setup.md
-    - name: Testing and TDD
+    - name: 測試與 TDD
       href: contributors/testing-and-tdd.md
-    - name: Documentation Style
+    - name: 文件撰寫風格
       href: contributors/documentation-style.md

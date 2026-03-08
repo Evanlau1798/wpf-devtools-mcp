@@ -29,14 +29,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Configure Pages
+      - name: Configure GitHub Pages
+        id: pages
         uses: actions/configure-pages@v5
 
       - name: Restore local tools
@@ -55,7 +56,7 @@ jobs:
         run: dotnet tool run docfx docfx/docfx.json
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: docfx/_site
 

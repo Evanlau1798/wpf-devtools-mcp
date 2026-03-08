@@ -1,0 +1,74 @@
+- name: Home
+  href: index.md
+- name: Quickstart
+  items:
+    - name: 5-Minute Setup
+      href: quickstart/index.md
+    - name: Claude Desktop
+      href: quickstart/claude-desktop.md
+    - name: Cursor and VS Code
+      href: quickstart/cursor-vscode.md
+- name: Guides
+  items:
+    - name: AI Agent Guide
+      href: guides/ai-agent-guide.md
+    - name: Common Workflows
+      href: guides/common-workflows.md
+    - name: Troubleshooting
+      href: guides/troubleshooting.md
+- name: Production
+  items:
+    - name: Security Model
+      href: production/security.md
+    - name: Deployment Guide
+      href: production/deployment.md
+    - name: Compatibility Matrix
+      href: production/compatibility-matrix.md
+    - name: Bootstrap and Injection
+      href: production/bootstrap-and-injection.md
+- name: Reference
+  items:
+    - name: Tool Reference Overview
+      href: reference/tools/index.md
+    - name: Process and Connection Tools
+      href: reference/tools/process-and-connection.md
+    - name: Tree and XAML Tools
+      href: reference/tools/tree-and-xaml.md
+    - name: Binding and Dependency Property Tools
+      href: reference/tools/binding-and-dp.md
+    - name: Interaction, Event, Layout, and Performance Tools
+      href: reference/tools/interaction-events-layout.md
+    - name: Configuration Reference
+      href: reference/configuration.md
+    - name: Error Model
+      href: reference/error-model.md
+    - name: API Reference
+      href: api/toc.yml
+- name: Architecture
+  items:
+    - name: Overview
+      href: architecture/overview.md
+    - name: IPC and Protocol
+      href: architecture/ipc.md
+    - name: Injection and Runtime Selection
+      href: architecture/injection.md
+    - name: ADR Index
+      href: architecture/adrs/index.md
+    - name: ADR-001 Named Pipes for IPC
+      href: architecture/adrs/adr-001-named-pipes.md
+    - name: ADR-002 In-Process Injection
+      href: architecture/adrs/adr-002-in-process-injection.md
+    - name: ADR-003 Length-Prefix Framing
+      href: architecture/adrs/adr-003-length-prefix-framing.md
+    - name: ADR-005 Multi-Targeting Strategy
+      href: architecture/adrs/adr-005-multi-targeting.md
+- name: Contributors
+  items:
+    - name: Contributor Guide
+      href: contributors/index.md
+    - name: Development Setup
+      href: contributors/development-setup.md
+    - name: Testing and TDD
+      href: contributors/testing-and-tdd.md
+    - name: Documentation Style
+      href: contributors/documentation-style.md

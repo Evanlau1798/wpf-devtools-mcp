@@ -1,0 +1,10 @@
+.hero-note {
+  border-left: 4px solid #3b82f6;
+  padding: 0.75rem 1rem;
+  background: #f8fbff;
+  margin: 1rem 0;
+}
+
+table code {
+  white-space: nowrap;
+}

@@ -53,3 +53,8 @@ cert/
 CLAUDE.md
 AGENTS.md
 CHANGELOG.md
+
+# DocFX outputs
+docfx/_site/
+docfx/api/
+docfx/obj/

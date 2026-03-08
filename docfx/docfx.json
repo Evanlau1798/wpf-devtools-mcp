@@ -1,0 +1,49 @@
+﻿{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "../src/WpfDevTools.Shared/bin/Debug/net8.0",
+          "files": ["WpfDevTools.Shared.dll"]
+        },
+        {
+          "src": "../src/WpfDevTools.Inspector.Sdk/bin/Debug/net8.0-windows",
+          "files": ["WpfDevTools.Inspector.Sdk.dll"]
+        }
+      ],
+      "dest": "api"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "**/*.md",
+          "**/toc.yml",
+          "api/**.yml",
+          "api/**.md"
+        ],
+        "exclude": [
+          "_site/**",
+          "obj/**"
+        ]
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "styles/**"
+        ]
+      }
+    ],
+    "dest": "_site",
+    "template": ["default"],
+    "globalMetadata": {
+      "_appTitle": "WPF DevTools MCP Server",
+      "_appName": "WPF DevTools MCP Server",
+      "_appFooter": "WPF DevTools MCP Server documentation for users, operators, and contributors.",
+      "_enableSearch": true
+    },
+    "markdownEngineName": "markdig"
+  }
+}

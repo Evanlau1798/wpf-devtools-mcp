@@ -1,0 +1,72 @@
+﻿name: Publish Docs
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - '.github/workflows/docs-pages.yml'
+      - '.config/dotnet-tools.json'
+      - 'docfx/**'
+      - 'README.md'
+      - 'SECURITY.md'
+      - 'EXAMPLES.md'
+      - 'src/WpfDevTools.Shared/**'
+      - 'src/WpfDevTools.Inspector.Sdk/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Restore project dependencies
+        run: dotnet restore WpfDevTools.sln
+
+      - name: Build shared assembly for API docs
+        run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0
+
+      - name: Build SDK assembly for API docs
+        run: dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows
+
+      - name: Build DocFX site
+        run: dotnet tool run docfx docfx/docfx.json
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docfx/_site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

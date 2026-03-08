@@ -1,4 +1,4 @@
-# WPF DevTools MCP Server
+﻿# WPF DevTools MCP Server
 
 `wpf-devtools-mcp` is a Model Context Protocol server for inspecting and interacting with running WPF applications. It bridges MCP clients to an in-process inspector so agents can query visual trees, inspect bindings, analyze dependency properties, and trigger UI interactions that out-of-process tooling cannot access.
 
@@ -25,10 +25,10 @@
 ### Build
 
 ```powershell
-dotnet build
+dotnet build WpfDevTools.sln -c Debug -p:Platform=x64
+msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /p:Configuration=Debug /p:Platform=x64
 ```
-
-> **Build note**: The repository ships `Directory.Build.props` and `Directory.Build.rsp` that disable shared compilation and MSBuild node reuse to prevent file-lock warnings (MSB3026). These settings are applied automatically — no extra flags are needed.
+> **Build note**: The repository ships `Directory.Build.props` and `Directory.Build.rsp` that disable shared compilation and MSBuild node reuse to prevent file-lock warnings (MSB3026). These settings are applied automatically - no extra flags are needed.
 
 ### Run the server
 
@@ -39,11 +39,9 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 > **Security note**: By default the server runs without authentication or encryption.
 > For production use, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR`.
 > See [SECURITY.md](SECURITY.md) for details.
-
-> **Local development note**: Use a `Debug` build (`dotnet build` defaults to Debug).
-> Debug builds automatically skip DLL signature verification for local DLLs,
-> allowing `connect` to work without Authenticode code signing.
-> The Inspector DLL is built as AnyCPU and is compatible with both x86 and x64 target processes.
+> **Local development note**: Use a `Debug` build for local development and build the native bootstrapper for the same architecture as the target process.
+> Debug builds automatically skip DLL signature verification for trusted local DLL paths, allowing unsigned local development.
+> `connect` still requires architecture-compatible bootstrapper and injector binaries (for example x64 target -> x64 build, x86 target -> Win32/x86 build).
 
 ### Typical MCP workflow
 
@@ -115,8 +113,9 @@ Security deployment guidance lives in `SECURITY.md`.
 
 ## Documentation Map
 
-- `SECURITY.md` — supported security settings and deployment guidance
-- `EXAMPLES.md` — usage examples for common tools and workflows
+- `docfx/` -> public DocFX site source for GitHub Pages
+- `SECURITY.md` -> supported security settings and deployment guidance
+- `EXAMPLES.md` -> usage examples for common tools and workflows
 - Detailed MCP tool metadata is maintained in code through the official SDK attributes to reduce README drift.
 
 ## Official References

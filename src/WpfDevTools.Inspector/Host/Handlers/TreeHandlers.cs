@@ -1,5 +1,6 @@
 using System.Text.Json;
 using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Host;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Host.Handlers;
@@ -15,12 +16,8 @@ public class TreeHandlers : IRequestHandler
     private readonly ElementFinder _elementFinder;
 
     /// <summary>
-    /// Create a new TreeHandlers instance
+    /// Initializes a tree request handler with the required analyzers and utilities.
     /// </summary>
-    /// <param name="visualTreeAnalyzer">Visual tree analyzer</param>
-    /// <param name="logicalTreeAnalyzer">Logical tree analyzer</param>
-    /// <param name="xamlSerializer">XAML serializer</param>
-    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public TreeHandlers(
         VisualTreeAnalyzer visualTreeAnalyzer,
         LogicalTreeAnalyzer logicalTreeAnalyzer,
@@ -34,9 +31,8 @@ public class TreeHandlers : IRequestHandler
     }
 
     /// <summary>
-    /// Get list of supported method names
+    /// Gets the inspector method names supported by this handler.
     /// </summary>
-    /// <returns>Enumerable of method names this handler supports</returns>
     public IEnumerable<string> GetSupportedMethods()
     {
         return new[]
@@ -51,13 +47,8 @@ public class TreeHandlers : IRequestHandler
     }
 
     /// <summary>
-    /// Handle an Inspector request
+    /// Handles a tree-related inspector request.
     /// </summary>
-    /// <param name="method">Method name to execute</param>
-    /// <param name="params">JSON parameters for the method</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Result object from method execution</returns>
-    /// <exception cref="InvalidOperationException">Thrown when method is not supported</exception>
     public async Task<object> HandleAsync(string method, JsonElement? @params, CancellationToken cancellationToken)
     {
         return method switch
@@ -72,22 +63,20 @@ public class TreeHandlers : IRequestHandler
         };
     }
 
-    private async Task<object> HandleGetVisualTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
+    private Task<object> HandleGetVisualTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = ParseTreeOptions(@params);
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
-        var depth = ParameterHelpers.GetIntParam(@params, "depth");
-
-        return await Task.Run(() =>
-            _visualTreeAnalyzer.GetVisualTree(depth, elementId), cancellationToken).ConfigureAwait(false);
+        return Task.FromResult(_visualTreeAnalyzer.GetVisualTreeWithOptions(options, elementId));
     }
 
-    private async Task<object> HandleGetLogicalTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
+    private Task<object> HandleGetLogicalTreeAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = ParseTreeOptions(@params);
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
-        var depth = ParameterHelpers.GetIntParam(@params, "depth");
-
-        return await Task.Run(() =>
-            _logicalTreeAnalyzer.GetLogicalTree(depth, elementId), cancellationToken).ConfigureAwait(false);
+        return Task.FromResult(_logicalTreeAnalyzer.GetLogicalTreeWithOptions(options, elementId));
     }
 
     private async Task<object> HandleCompareTreesAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -104,8 +93,6 @@ public class TreeHandlers : IRequestHandler
 
         return await Task.Run(() =>
         {
-            // XamlSerializer is a utility, not an analyzer with dispatch support.
-            // Element lookup and XAML serialization must run on the UI thread.
             return System.Windows.Application.Current.Dispatcher.Invoke<object>(() =>
             {
                 var element = elementId == null
@@ -138,5 +125,16 @@ public class TreeHandlers : IRequestHandler
 
         return await Task.Run(() =>
             _visualTreeAnalyzer.GetTemplateTree(elementId, depth), cancellationToken).ConfigureAwait(false);
+    }
+
+    private static TreeTraversalOptions ParseTreeOptions(JsonElement? @params)
+    {
+        var depth = ParameterHelpers.GetIntParam(@params, "depth");
+        var compact = ParameterHelpers.GetBoolParam(@params, "compact");
+        var summaryOnly = ParameterHelpers.GetBoolParam(@params, "summaryOnly");
+        var maxNodes = ParameterHelpers.GetIntParam(@params, "maxNodes");
+        var maxChildrenPerNode = ParameterHelpers.GetIntParam(@params, "maxChildrenPerNode");
+
+        return TreeTraversalOptions.Create(depth, compact, summaryOnly, maxNodes, maxChildrenPerNode);
     }
 }

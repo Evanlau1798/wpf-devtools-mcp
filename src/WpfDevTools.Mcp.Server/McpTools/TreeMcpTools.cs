@@ -19,7 +19,8 @@ public static class TreeMcpTools
         "Returns a hierarchical tree with elementId, type, name, and children for each node.\n\n" +
         "USE WHEN: You need to inspect template-generated elements, adorners, or the actual rendering structure.\n" +
         "DO NOT USE: Without depth parameter on large apps (use depth=2-4); use get_logical_tree for XAML structure only.\n\n" +
-        "PERFORMANCE: Large trees (depth >5) can return 10,000+ elements. Always set depth=2-4 for initial exploration.\n\n" +
+        "PERFORMANCE: Large trees (depth >5) can return 10,000+ elements. Always set depth=2-4 for initial exploration.\n" +
+        "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table, maxNodes caps total returned nodes, maxChildrenPerNode caps fan-out per level.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -37,12 +38,20 @@ public static class TreeMcpTools
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Optional starting element ID from get_visual_tree or get_logical_tree. Omit for the root window.")] string? elementId = null,
         [Description("Optional maximum traversal depth. Use 2-4 for initial exploration.")] int? depth = null,
+        [Description("Set true to omit null names and empty children arrays for smaller responses.")] bool compact = false,
+        [Description("Set true to return a flat summary table instead of a nested tree for token-efficient browsing.")] bool summaryOnly = false,
+        [Description("Optional hard cap for the number of returned nodes. Use this to prevent oversized responses.")] int? maxNodes = null,
+        [Description("Optional per-node child cap. Extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("depth", depth));
+            ("depth", depth),
+            ("compact", compact),
+            ("summaryOnly", summaryOnly),
+            ("maxNodes", maxNodes),
+            ("maxChildrenPerNode", maxChildrenPerNode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetVisualTreeTool>("GetVisualTreeTool", () => new GetVisualTreeTool(sessionManager)).ExecuteAsync(a, ct),
@@ -56,6 +65,7 @@ public static class TreeMcpTools
         "Simpler than Visual Tree - shows only elements defined in XAML.\n\n" +
         "USE WHEN: You need to understand XAML structure, find named elements, or trace DataContext inheritance.\n" +
         "DO NOT USE: When you need to inspect template internals (use get_visual_tree or get_template_tree instead).\n\n" +
+        "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table, maxNodes caps total returned nodes, maxChildrenPerNode caps fan-out per level.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -72,12 +82,20 @@ public static class TreeMcpTools
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Optional starting element ID from get_logical_tree or get_visual_tree. Omit for the root window.")] string? elementId = null,
         [Description("Optional maximum traversal depth for the logical tree walk.")] int? depth = null,
+        [Description("Set true to omit null names and empty children arrays for smaller responses.")] bool compact = false,
+        [Description("Set true to return a flat summary table instead of a nested tree for token-efficient browsing.")] bool summaryOnly = false,
+        [Description("Optional hard cap for the number of returned nodes. Use this to prevent oversized responses.")] int? maxNodes = null,
+        [Description("Optional per-node child cap. Extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("depth", depth));
+            ("depth", depth),
+            ("compact", compact),
+            ("summaryOnly", summaryOnly),
+            ("maxNodes", maxNodes),
+            ("maxChildrenPerNode", maxChildrenPerNode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetLogicalTreeTool>("GetLogicalTreeTool", () => new GetLogicalTreeTool(sessionManager)).ExecuteAsync(a, ct),

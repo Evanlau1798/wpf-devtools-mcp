@@ -5,6 +5,7 @@ using WpfDevTools.Inspector.Utilities;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -122,5 +123,25 @@ public class VisualTreeAnalyzerIntegrationTests
 
         // Assert
         result.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void GetVisualTree_FromNonUiThread_WithRootElement_ShouldStillSucceed()
+    {
+        var analyzer = new VisualTreeAnalyzer(new ElementFinder());
+
+        _fixture.RunOnUIThread(() =>
+        {
+            var stackPanel = new StackPanel();
+            stackPanel.Children.Add(new Button { Content = "Button 1" });
+            stackPanel.Children.Add(new TextBox { Text = "TextBox 1" });
+            Application.Current.MainWindow.Content = stackPanel;
+        });
+
+        var result = analyzer.GetVisualTree(maxDepth: 3, elementId: null);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("tree").ValueKind.Should().Be(JsonValueKind.Object);
     }
 }

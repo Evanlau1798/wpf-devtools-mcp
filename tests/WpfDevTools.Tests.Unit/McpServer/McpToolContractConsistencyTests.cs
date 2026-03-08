@@ -48,6 +48,24 @@ public class McpToolContractConsistencyTests
     }
 
     [Fact]
+    public void GetVisualTree_ShouldExposeOptionalCompressionParameters()
+    {
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetVisualTree), "compact", typeof(bool), false);
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetVisualTree), "summaryOnly", typeof(bool), false);
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetVisualTree), "maxNodes", typeof(int?), null);
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetVisualTree), "maxChildrenPerNode", typeof(int?), null);
+    }
+
+    [Fact]
+    public void GetLogicalTree_ShouldExposeOptionalCompressionParameters()
+    {
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetLogicalTree), "compact", typeof(bool), false);
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetLogicalTree), "summaryOnly", typeof(bool), false);
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetLogicalTree), "maxNodes", typeof(int?), null);
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetLogicalTree), "maxChildrenPerNode", typeof(int?), null);
+    }
+
+    [Fact]
     public void ForceBindingUpdate_ShouldExposeOptionalDirection()
     {
         var parameter = GetParameter(typeof(BindingMcpTools), nameof(BindingMcpTools.ForceBindingUpdate), "direction");
@@ -87,5 +105,18 @@ public class McpToolContractConsistencyTests
         var parameter = method!.GetParameters().SingleOrDefault(item => item.Name == parameterName);
         parameter.Should().NotBeNull($"{declaringType.Name}.{methodName} should expose '{parameterName}'");
         return parameter!;
+    }
+
+    private static void AssertOptionalParameter(
+        Type declaringType,
+        string methodName,
+        string parameterName,
+        Type parameterType,
+        object? defaultValue)
+    {
+        var parameter = GetParameter(declaringType, methodName, parameterName);
+        parameter.ParameterType.Should().Be(parameterType);
+        parameter.HasDefaultValue.Should().BeTrue();
+        parameter.DefaultValue.Should().Be(defaultValue);
     }
 }

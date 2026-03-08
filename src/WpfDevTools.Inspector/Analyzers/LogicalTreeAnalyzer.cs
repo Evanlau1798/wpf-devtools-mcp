@@ -10,69 +10,240 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
 {
+    private static readonly string[] SummaryColumns = ["elementId", "type", "name", "childCount", "depth", "parentId"];
     private readonly ElementFinder _elementFinder;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="LogicalTreeAnalyzer"/> with the specified element finder.
+    /// Initializes a logical tree analyzer backed by the provided element finder.
     /// </summary>
-    /// <param name="elementFinder">The element finder used to resolve elements by ID or as the root element.</param>
     public LogicalTreeAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;
     }
 
     /// <summary>
-    /// Retrieves the Logical Tree structure starting from the specified element or the application root.
+    /// Gets the logical tree for the specified element or application root.
     /// </summary>
-    /// <param name="depth">Maximum tree depth to traverse. Defaults to 10 when null.</param>
-    /// <param name="elementId">Optional element ID to use as the tree root. Uses the application root when null.</param>
-    /// <returns>
-    /// An object with <c>success: true</c> and a <c>tree</c> property on success,
-    /// or <c>success: false</c> and an <c>error</c> message if the element is not found.
-    /// </returns>
     public object GetLogicalTree(int? depth, string? elementId)
-    {
-        return InvokeOnUIThread<object>(() =>
-        {
-            var root = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+        => GetLogicalTreeWithOptions(TreeTraversalOptions.Create(depth, compact: null, summaryOnly: null, maxNodes: null, maxChildrenPerNode: null), elementId);
 
-            if (root == null)
+    internal object GetLogicalTreeWithOptions(TreeTraversalOptions options, string? elementId)
+    {
+        var root = elementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
+
+        return InvokeOnDispatcher<object>(root?.Dispatcher ?? Application.Current?.Dispatcher, () =>
+        {
+            var resolvedRoot = root ?? (elementId == null
+                ? _elementFinder.GetRootElement()
+                : _elementFinder.FindById(elementId));
+
+            if (resolvedRoot == null)
             {
                 return new { success = false, error = "Element not found" };
             }
 
-            var tree = WalkLogicalTree(root, depth ?? 10, 0);
-            return new { success = true, tree };
+            var budget = new TreeTraversalBudget(options.MaxNodes);
+            budget.TryTakeNode();
+
+            if (options.SummaryOnly)
+            {
+                var nodes = new List<object?[]>();
+                CollectSummary(resolvedRoot, parentId: null, options, currentDepth: 0, budget, nodes);
+                return CreateSummaryResult(options, budget, nodes);
+            }
+
+            var tree = BuildTreeNode(resolvedRoot, options, currentDepth: 0, budget);
+            return new
+            {
+                success = true,
+                tree,
+                returnedNodeCount = budget.ReturnedNodeCount,
+                omittedNodeCount = budget.OmittedNodeCount,
+                truncated = budget.Truncated,
+                appliedOptions = options.ToAppliedOptions()
+            };
         });
     }
 
-    private object WalkLogicalTree(DependencyObject element, int maxDepth, int currentDepth)
+    private object CreateSummaryResult(
+        TreeTraversalOptions options,
+        TreeTraversalBudget budget,
+        List<object?[]> nodes)
     {
-        var elementId = _elementFinder.GenerateElementId(element);
-
-        if (currentDepth >= maxDepth)
+        return new
         {
-            return new { elementId, type = element.GetType().Name };
+            success = true,
+            format = "flat-summary-v1",
+            columns = SummaryColumns,
+            nodes,
+            returnedNodeCount = budget.ReturnedNodeCount,
+            omittedNodeCount = budget.OmittedNodeCount,
+            truncated = budget.Truncated,
+            appliedOptions = options.ToAppliedOptions()
+        };
+    }
+
+    private Dictionary<string, object?> BuildTreeNode(
+        DependencyObject element,
+        TreeTraversalOptions options,
+        int currentDepth,
+        TreeTraversalBudget budget)
+    {
+        var children = GetLogicalChildren(element);
+        var node = CreateNodeMap(element, children.Count, options.Compact);
+
+        if (currentDepth >= options.MaxDepth || children.Count == 0)
+        {
+            return node;
         }
 
-        var children = new List<object>();
-        foreach (var child in LogicalTreeHelper.GetChildren(element))
+        var childrenToExpand = children.Count;
+        var omittedImmediateChildren = 0;
+        if (options.MaxChildrenPerNode.HasValue && childrenToExpand > options.MaxChildrenPerNode.Value)
         {
-            if (child is DependencyObject depObj)
+            childrenToExpand = options.MaxChildrenPerNode.Value;
+            omittedImmediateChildren = children.Count - childrenToExpand;
+            foreach (var omittedChild in children.Skip(childrenToExpand))
             {
-                children.Add(WalkLogicalTree(depObj, maxDepth, currentDepth + 1));
+                budget.OmitSubtree(CountLogicalSubtree(omittedChild));
             }
         }
 
-        return new
+        var expandedChildren = new List<object>(childrenToExpand);
+        for (var index = 0; index < childrenToExpand; index++)
         {
+            var child = children[index];
+            if (!budget.TryTakeNode())
+            {
+                omittedImmediateChildren += childrenToExpand - index;
+                for (var remainingIndex = index; remainingIndex < childrenToExpand; remainingIndex++)
+                {
+                    budget.OmitSubtree(CountLogicalSubtree(children[remainingIndex]));
+                }
+                break;
+            }
+
+            expandedChildren.Add(BuildTreeNode(child, options, currentDepth + 1, budget));
+        }
+
+        if (expandedChildren.Count > 0)
+        {
+            node["children"] = expandedChildren;
+        }
+        else if (!options.Compact)
+        {
+            node["children"] = null;
+        }
+
+        if (omittedImmediateChildren > 0)
+        {
+            node["omittedChildCount"] = omittedImmediateChildren;
+        }
+
+        return node;
+    }
+
+    private void CollectSummary(
+        DependencyObject element,
+        string? parentId,
+        TreeTraversalOptions options,
+        int currentDepth,
+        TreeTraversalBudget budget,
+        List<object?[]> nodes)
+    {
+        var elementId = _elementFinder.GenerateElementId(element);
+        var children = GetLogicalChildren(element);
+        var name = (element as FrameworkElement)?.Name;
+
+        nodes.Add(new object?[] {
             elementId,
-            type = element.GetType().Name,
-            name = (element as FrameworkElement)?.Name,
-            childCount = children.Count,
-            children = children.Count > 0 ? children : null
+            element.GetType().Name,
+            string.IsNullOrEmpty(name) ? null : name,
+            children.Count,
+            currentDepth,
+            parentId
+        });
+
+        if (currentDepth >= options.MaxDepth || children.Count == 0)
+        {
+            return;
+        }
+
+        var childrenToExpand = children.Count;
+        if (options.MaxChildrenPerNode.HasValue && childrenToExpand > options.MaxChildrenPerNode.Value)
+        {
+            childrenToExpand = options.MaxChildrenPerNode.Value;
+            foreach (var omittedChild in children.Skip(childrenToExpand))
+            {
+                budget.OmitSubtree(CountLogicalSubtree(omittedChild));
+            }
+        }
+
+        for (var index = 0; index < childrenToExpand; index++)
+        {
+            var child = children[index];
+            if (!budget.TryTakeNode())
+            {
+                for (var remainingIndex = index; remainingIndex < childrenToExpand; remainingIndex++)
+                {
+                    budget.OmitSubtree(CountLogicalSubtree(children[remainingIndex]));
+                }
+                break;
+            }
+
+            CollectSummary(child, elementId, options, currentDepth + 1, budget, nodes);
+        }
+    }
+
+    private Dictionary<string, object?> CreateNodeMap(
+        DependencyObject element,
+        int childCount,
+        bool compact)
+    {
+        var elementId = _elementFinder.GenerateElementId(element);
+        var node = new Dictionary<string, object?>
+        {
+            ["elementId"] = elementId,
+            ["type"] = element.GetType().Name,
+            ["childCount"] = childCount
         };
+
+        var name = (element as FrameworkElement)?.Name;
+        if (!compact || !string.IsNullOrEmpty(name))
+        {
+            node["name"] = name;
+        }
+
+        return node;
+    }
+
+    private List<DependencyObject> GetLogicalChildren(DependencyObject element)
+    {
+        var children = new List<DependencyObject>();
+        foreach (var child in LogicalTreeHelper.GetChildren(element))
+        {
+            if (child is DependencyObject dependencyObject)
+            {
+                children.Add(dependencyObject);
+            }
+        }
+
+        return children;
+    }
+
+    private int CountLogicalSubtree(DependencyObject element)
+    {
+        var count = 1;
+        foreach (var child in LogicalTreeHelper.GetChildren(element))
+        {
+            if (child is DependencyObject dependencyObject)
+            {
+                count += CountLogicalSubtree(dependencyObject);
+            }
+        }
+
+        return count;
     }
 }

@@ -16,25 +16,7 @@ public abstract class DispatcherAnalyzerBase
     /// </summary>
     protected T InvokeOnUIThread<T>(Func<T> action, TimeSpan? timeout = null)
     {
-        // If no WPF application context, execute directly
-        if (Application.Current == null)
-        {
-            return action();
-        }
-
-        // If already on UI thread, execute directly
-        if (Application.Current.Dispatcher.CheckAccess())
-        {
-            return action();
-        }
-
-        // Otherwise, invoke on UI thread with timeout
-        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
-        return Application.Current.Dispatcher.Invoke(
-            action,
-            DispatcherPriority.Normal,
-            CancellationToken.None,
-            actualTimeout);
+        return InvokeOnDispatcher(Application.Current?.Dispatcher, action, timeout);
     }
 
     /// <summary>
@@ -42,27 +24,7 @@ public abstract class DispatcherAnalyzerBase
     /// </summary>
     protected void InvokeOnUIThread(Action action, TimeSpan? timeout = null)
     {
-        // If no WPF application context, execute directly
-        if (Application.Current == null)
-        {
-            action();
-            return;
-        }
-
-        // If already on UI thread, execute directly
-        if (Application.Current.Dispatcher.CheckAccess())
-        {
-            action();
-        }
-        else
-        {
-            var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
-            Application.Current.Dispatcher.Invoke(
-                action,
-                DispatcherPriority.Normal,
-                CancellationToken.None,
-                actualTimeout);
-        }
+        InvokeOnDispatcher(Application.Current?.Dispatcher, action, timeout);
     }
 
     /// <summary>
@@ -71,6 +33,45 @@ public abstract class DispatcherAnalyzerBase
     protected bool IsOnUIThread()
     {
         return Application.Current?.Dispatcher.CheckAccess() ?? false;
+    }
+
+    /// <summary>
+    /// Execute an action on the specified dispatcher with optional timeout.
+    /// Falls back to direct execution when dispatcher is unavailable.
+    /// </summary>
+    protected T InvokeOnDispatcher<T>(Dispatcher? dispatcher, Func<T> action, TimeSpan? timeout = null)
+    {
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            return action();
+        }
+
+        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
+        return dispatcher.Invoke(
+            action,
+            DispatcherPriority.Normal,
+            CancellationToken.None,
+            actualTimeout);
+    }
+
+    /// <summary>
+    /// Execute a void action on the specified dispatcher with optional timeout.
+    /// Falls back to direct execution when dispatcher is unavailable.
+    /// </summary>
+    protected void InvokeOnDispatcher(Dispatcher? dispatcher, Action action, TimeSpan? timeout = null)
+    {
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
+        dispatcher.Invoke(
+            action,
+            DispatcherPriority.Normal,
+            CancellationToken.None,
+            actualTimeout);
     }
 
     /// <summary>

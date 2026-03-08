@@ -39,7 +39,19 @@ public sealed class ElementFinder : IDisposable
     /// <returns>Root DependencyObject (typically MainWindow), or null if not available</returns>
     public DependencyObject? GetRootElement()
     {
-        return Application.Current?.MainWindow;
+        var application = Application.Current;
+        if (application == null)
+        {
+            return null;
+        }
+
+        var dispatcher = application.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            return application.MainWindow;
+        }
+
+        return dispatcher.Invoke(() => application.MainWindow);
     }
 
     /// <summary>
@@ -123,6 +135,11 @@ public sealed class ElementFinder : IDisposable
         if (searchRoot == null)
         {
             return null;
+        }
+
+        if (searchRoot.Dispatcher != null && !searchRoot.Dispatcher.CheckAccess())
+        {
+            return searchRoot.Dispatcher.Invoke(() => SearchVisualTree(searchRoot, elementId!));
         }
 
         return SearchVisualTree(searchRoot, elementId!);

@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Markup;
+using System.Windows.Media;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -11,6 +11,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 {
+    private static readonly string[] SummaryColumns = ["elementId", "type", "name", "childCount", "depth", "parentId"];
     private readonly ElementFinder _elementFinder;
 
     internal VisualTreeAnalyzer()
@@ -19,36 +20,66 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     }
 
     /// <summary>
-    /// Create a new VisualTreeAnalyzer instance
+    /// Initializes a visual tree analyzer backed by the provided element finder.
     /// </summary>
-    /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public VisualTreeAnalyzer(ElementFinder elementFinder)
     {
         _elementFinder = elementFinder;
     }
 
     /// <summary>
-    /// Get Visual Tree starting from root or specific element
+    /// Gets the visual tree for the specified element or application root.
     /// </summary>
     public object GetVisualTree(int? maxDepth = null, string? elementId = null)
-    {
-        return InvokeOnUIThread<object>(() =>
-        {
-            // Get root element
-            var root = elementId == null
-                ? GetRootElement()
-                : _elementFinder.FindById(elementId);
+        => GetVisualTreeWithOptions(TreeTraversalOptions.Create(maxDepth, compact: null, summaryOnly: null, maxNodes: null, maxChildrenPerNode: null), elementId);
 
-            if (root == null)
+    internal object GetVisualTreeWithOptions(TreeTraversalOptions options, string? elementId = null)
+    {
+        var root = elementId == null
+            ? GetRootElement()
+            : _elementFinder.FindById(elementId);
+
+        return InvokeOnDispatcher<object>(root?.Dispatcher ?? Application.Current?.Dispatcher, () =>
+        {
+            var resolvedRoot = root ?? (elementId == null
+                ? GetRootElement()
+                : _elementFinder.FindById(elementId));
+
+            if (resolvedRoot == null)
             {
                 return new { success = false, error = "Root element not found" };
             }
 
-            // Walk tree with hard upper limit of 100
-            var effectiveDepth = Math.Min(maxDepth ?? 10, 100);
-            var tree = WalkVisualTree(root, effectiveDepth, 0);
+            var budget = new TreeTraversalBudget(options.MaxNodes);
+            budget.TryTakeNode();
 
-            return new { success = true, tree };
+            if (options.SummaryOnly)
+            {
+                var nodes = new List<object?[]>();
+                CollectSummary(resolvedRoot, parentId: null, options, currentDepth: 0, budget, nodes);
+                return new
+                {
+                    success = true,
+                    format = "flat-summary-v1",
+                    columns = SummaryColumns,
+                    nodes,
+                    returnedNodeCount = budget.ReturnedNodeCount,
+                    omittedNodeCount = budget.OmittedNodeCount,
+                    truncated = budget.Truncated,
+                    appliedOptions = options.ToAppliedOptions()
+                };
+            }
+
+            var tree = BuildTreeNode(resolvedRoot, options, currentDepth: 0, budget);
+            return new
+            {
+                success = true,
+                tree,
+                returnedNodeCount = budget.ReturnedNodeCount,
+                omittedNodeCount = budget.OmittedNodeCount,
+                truncated = budget.Truncated,
+                appliedOptions = options.ToAppliedOptions()
+            };
         });
     }
 
@@ -58,8 +89,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     }
 
     /// <summary>
-    /// Compare Visual Tree and Logical Tree to identify discrepancies
-    /// Optimized with HashSet for O(n+m) instead of O(n*m)
+    /// Compares the immediate visual and logical children of the specified element.
     /// </summary>
     public object CompareTree(string? elementId = null)
     {
@@ -76,14 +106,10 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
             var visualChildren = GetVisualChildren(element);
             var logicalChildren = GetLogicalChildren(element);
-
-            // Use HashSet for O(1) lookups instead of O(n) Any() calls
             var visualSet = new HashSet<DependencyObject>(visualChildren, ReferenceEqualityComparer.Instance);
             var logicalSet = new HashSet<DependencyObject>(logicalChildren, ReferenceEqualityComparer.Instance);
-
             var differences = new List<object>();
 
-            // Find elements in visual tree but not in logical tree - O(n)
             foreach (var visualChild in visualChildren)
             {
                 if (!logicalSet.Contains(visualChild))
@@ -97,7 +123,6 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
                 }
             }
 
-            // Find elements in logical tree but not in visual tree - O(m)
             foreach (var logicalChild in logicalChildren)
             {
                 if (!visualSet.Contains(logicalChild))
@@ -123,7 +148,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     }
 
     /// <summary>
-    /// Get NameScope information for an element
+    /// Gets the current XAML namescope entries for the specified element.
     /// </summary>
     public object GetNameScope(string? elementId = null)
     {
@@ -143,7 +168,6 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
             if (nameScope != null)
             {
-                // Get all named elements in this scope
                 var names = new List<string>();
                 GetNamesInScope(element, names);
 
@@ -173,19 +197,13 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    /// <summary>
-    /// Optimized: Pass list as parameter instead of returning and merging
-    /// Avoids creating intermediate List objects at each recursion level
-    /// </summary>
     private void GetNamesInScope(DependencyObject element, List<string> names)
     {
-        // Add current element's name if it has one
         if (element is FrameworkElement fe && !string.IsNullOrEmpty(fe.Name))
         {
             names.Add(fe.Name);
         }
 
-        // Recursively collect names from children
         var childCount = VisualTreeHelper.GetChildrenCount(element);
         for (int i = 0; i < childCount; i++)
         {
@@ -195,7 +213,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     }
 
     /// <summary>
-    /// Get template Visual Tree of a templated control
+    /// Gets the template visual tree for the specified templated control.
     /// </summary>
     public object GetTemplateTree(string? elementId, int? maxDepth = null)
     {
@@ -226,10 +244,142 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = "No template visual tree found" };
             }
 
-            var effectiveDepth = Math.Min(maxDepth ?? 10, 100);
-            var tree = WalkVisualTree(templateRoot, effectiveDepth, 0);
+            var budget = new TreeTraversalBudget(maxNodes: null);
+            budget.TryTakeNode();
+            var options = TreeTraversalOptions.Create(maxDepth, compact: null, summaryOnly: null, maxNodes: null, maxChildrenPerNode: null);
+            var tree = BuildTreeNode(templateRoot, options, currentDepth: 0, budget);
             return new { success = true, tree };
         });
+    }
+
+    private Dictionary<string, object?> BuildTreeNode(
+        DependencyObject element,
+        TreeTraversalOptions options,
+        int currentDepth,
+        TreeTraversalBudget budget)
+    {
+        var childCount = VisualTreeHelper.GetChildrenCount(element);
+        var node = CreateNodeMap(element, childCount, options.Compact);
+
+        if (currentDepth >= options.MaxDepth || childCount == 0)
+        {
+            return node;
+        }
+
+        var childrenToExpand = childCount;
+        var omittedImmediateChildren = 0;
+        if (options.MaxChildrenPerNode.HasValue && childrenToExpand > options.MaxChildrenPerNode.Value)
+        {
+            childrenToExpand = options.MaxChildrenPerNode.Value;
+            omittedImmediateChildren = childCount - childrenToExpand;
+            for (var omittedIndex = childrenToExpand; omittedIndex < childCount; omittedIndex++)
+            {
+                budget.OmitSubtree(CountVisualSubtree(VisualTreeHelper.GetChild(element, omittedIndex)));
+            }
+        }
+
+        var children = new List<object>(childrenToExpand);
+        for (var index = 0; index < childrenToExpand; index++)
+        {
+            var child = VisualTreeHelper.GetChild(element, index);
+            if (!budget.TryTakeNode())
+            {
+                omittedImmediateChildren += childrenToExpand - index;
+                for (var remainingIndex = index; remainingIndex < childrenToExpand; remainingIndex++)
+                {
+                    budget.OmitSubtree(CountVisualSubtree(VisualTreeHelper.GetChild(element, remainingIndex)));
+                }
+                break;
+            }
+
+            children.Add(BuildTreeNode(child, options, currentDepth + 1, budget));
+        }
+
+        if (children.Count > 0)
+        {
+            node["children"] = children;
+        }
+        else if (!options.Compact)
+        {
+            node["children"] = null;
+        }
+
+        if (omittedImmediateChildren > 0)
+        {
+            node["omittedChildCount"] = omittedImmediateChildren;
+        }
+
+        return node;
+    }
+
+    private void CollectSummary(
+        DependencyObject element,
+        string? parentId,
+        TreeTraversalOptions options,
+        int currentDepth,
+        TreeTraversalBudget budget,
+        List<object?[]> nodes)
+    {
+        var elementId = _elementFinder.GenerateElementId(element);
+        var childCount = VisualTreeHelper.GetChildrenCount(element);
+        var name = (element as FrameworkElement)?.Name;
+
+        nodes.Add(new object?[] {
+            elementId,
+            element.GetType().Name,
+            string.IsNullOrEmpty(name) ? null : name,
+            childCount,
+            currentDepth,
+            parentId
+        });
+
+        if (currentDepth >= options.MaxDepth || childCount == 0)
+        {
+            return;
+        }
+
+        var childrenToExpand = childCount;
+        if (options.MaxChildrenPerNode.HasValue && childrenToExpand > options.MaxChildrenPerNode.Value)
+        {
+            childrenToExpand = options.MaxChildrenPerNode.Value;
+            for (var omittedIndex = childrenToExpand; omittedIndex < childCount; omittedIndex++)
+            {
+                budget.OmitSubtree(CountVisualSubtree(VisualTreeHelper.GetChild(element, omittedIndex)));
+            }
+        }
+
+        for (var index = 0; index < childrenToExpand; index++)
+        {
+            var child = VisualTreeHelper.GetChild(element, index);
+            if (!budget.TryTakeNode())
+            {
+                for (var remainingIndex = index; remainingIndex < childrenToExpand; remainingIndex++)
+                {
+                    budget.OmitSubtree(CountVisualSubtree(VisualTreeHelper.GetChild(element, remainingIndex)));
+                }
+                break;
+            }
+
+            CollectSummary(child, elementId, options, currentDepth + 1, budget, nodes);
+        }
+    }
+
+    private Dictionary<string, object?> CreateNodeMap(DependencyObject element, int childCount, bool compact)
+    {
+        var node = new Dictionary<string, object?>
+        {
+            ["elementId"] = _elementFinder.GenerateElementId(element),
+            ["type"] = element.GetType().Name,
+            ["childCount"] = childCount
+        };
+
+        var name = (element as FrameworkElement)?.Name;
+        if (!compact || !string.IsNullOrEmpty(name))
+        {
+            node["name"] = name;
+        }
+
+        return node;
     }
 
     private List<DependencyObject> GetVisualChildren(DependencyObject element)
@@ -263,37 +413,16 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         return children;
     }
 
-    private object WalkVisualTree(DependencyObject element, int maxDepth, int currentDepth)
+    private int CountVisualSubtree(DependencyObject element)
     {
-        var elementId = _elementFinder.GenerateElementId(element);
-
-        if (currentDepth >= maxDepth)
-        {
-            return new
-            {
-                elementId,
-                type = element.GetType().Name,
-                childCount = VisualTreeHelper.GetChildrenCount(element)
-            };
-        }
-
-        var children = new List<object>();
+        var count = 1;
         var childCount = VisualTreeHelper.GetChildrenCount(element);
-
-        for (int i = 0; i < childCount; i++)
+        for (var index = 0; index < childCount; index++)
         {
-            var child = VisualTreeHelper.GetChild(element, i);
-            children.Add(WalkVisualTree(child, maxDepth, currentDepth + 1));
+            count += CountVisualSubtree(VisualTreeHelper.GetChild(element, index));
         }
 
-        return new
-        {
-            elementId,
-            type = element.GetType().Name,
-            name = (element as FrameworkElement)?.Name,
-            childCount = childCount,
-            children = children.Count > 0 ? children : null
-        };
+        return count;
     }
 }
 

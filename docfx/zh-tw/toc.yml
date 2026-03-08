@@ -1,12 +1,18 @@
-- name: 繁體中文首頁
+﻿- name: 繁體中文首頁
   href: index.md
-- name: 快速上手
+- name: 快速開始
   items:
-    - name: 五分鐘完成安裝
+    - name: 5 分鐘快速開始
       href: quickstart/index.md
-    - name: Claude Desktop 設定
+    - name: AI Agent Client 總覽
+      href: quickstart/ai-agent-clients.md
+    - name: Claude Code 快速開始
+      href: quickstart/claude-code.md
+    - name: OpenAI Codex 與 Codex CLI 快速開始
+      href: quickstart/openai-codex.md
+    - name: Claude Desktop 快速開始
       href: quickstart/claude-desktop.md
-    - name: Cursor 與 VS Code 設定
+    - name: Cursor 與 VS Code 快速開始
       href: quickstart/cursor-vscode.md
 - name: 使用指南
   items:
@@ -30,23 +36,23 @@
   items:
     - name: 工具總覽
       href: reference/tools/index.md
-    - name: 處理程序與連線工具
+    - name: Process 與 Connection 工具
       href: reference/tools/process-and-connection.md
     - name: Tree 與 XAML 工具
       href: reference/tools/tree-and-xaml.md
     - name: Binding 與 Dependency Property 工具
       href: reference/tools/binding-and-dp.md
-    - name: 互動、事件、版面配置與效能工具
+    - name: Interaction、Event、Layout 與 Performance 工具
       href: reference/tools/interaction-events-layout.md
     - name: 設定參考
       href: reference/configuration.md
     - name: 錯誤模型
       href: reference/error-model.md
-    - name: API 參考（英文）
+    - name: API 參考
       href: ../api/toc.yml
 - name: 架構
   items:
-    - name: 總覽
+    - name: 架構總覽
       href: architecture/overview.md
     - name: IPC 與通訊協定
       href: architecture/ipc.md
@@ -70,5 +76,5 @@
       href: contributors/development-setup.md
     - name: 測試與 TDD
       href: contributors/testing-and-tdd.md
-    - name: 文件撰寫風格
+    - name: 文件風格
       href: contributors/documentation-style.md

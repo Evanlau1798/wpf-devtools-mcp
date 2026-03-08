@@ -1,68 +1,68 @@
-# WPF DevTools MCP Server 文件（繁體中文）
+﻿# WPF DevTools MCP Server 繁體中文文件
 
 [English version](../index.md)
 
-WPF DevTools MCP Server 是一個僅支援 Windows 的 Model Context Protocol 伺服器。它透過注入到目標行程內的 inspector，讓 AI agent 可以直接檢視並操作執行中的 WPF 應用程式，適用於 UI Automation 不夠用的場景，例如 Binding 診斷、Dependency Property 優先順序分析、Visual Tree 檢視、MVVM 狀態檢查、Routed Event 追蹤、Layout 偵錯與受控 UI 互動。
+WPF DevTools MCP Server 是一個只支援 Windows 的 Model Context Protocol 伺服器，透過將 in-process inspector 注入執行中的 WPF 應用程式，讓 AI agent 能做到 UI Automation 做不到的 WPF 深度診斷與互動，例如 Binding 診斷、Dependency Property 優先順序分析、Visual Tree 檢視、MVVM 狀態分析、Routed Event 追蹤與 Layout 除錯。
 
-## 選擇你的閱讀路徑
+## 依需求選擇入口
 
 | 我想要... | 從這裡開始 |
 | --- | --- |
-| 五分鐘內完成安裝與第一次連線 | [五分鐘完成安裝](quickstart/index.md) |
-| 在 Claude Desktop 使用這個 MCP Server | [Claude Desktop 設定](quickstart/claude-desktop.md) |
-| 在 Cursor 或 VS Code 使用這個 MCP Server | [Cursor 與 VS Code 設定](quickstart/cursor-vscode.md) |
-| 了解 AI agent 應如何安全地使用這些工具 | [AI Agent 使用指南](guides/ai-agent-guide.md) |
-| 以生產環境等級部署並加固安全性 | [安全模型](production/security.md) |
-| 搞懂 runtime、bootstrapper 與架構限制 | [Bootstrap 與 Injection](production/bootstrap-and-injection.md) |
-| 參與開發、測試或文件貢獻 | [貢獻指南](contributors/index.md) |
+| 用繁體中文閱讀完整文件 | [繁體中文文件](index.md) |
+| 五分鐘內完成第一次 setup | [5 分鐘快速開始](quickstart/index.md) |
+| 從 Claude Code 使用這個 server | [Claude Code 快速開始](quickstart/claude-code.md) |
+| 從 OpenAI Codex 或 Codex CLI 使用這個 server | [OpenAI Codex 與 Codex CLI 快速開始](quickstart/openai-codex.md) |
+| 先比較各種 AI client 的差異 | [AI Agent Client 總覽](quickstart/ai-agent-clients.md) |
+| 從 Claude Desktop 使用這個 server | [Claude Desktop 快速開始](quickstart/claude-desktop.md) |
+| 從 Cursor 或 VS Code 使用這個 server | [Cursor 與 VS Code 快速開始](quickstart/cursor-vscode.md) |
+| 了解 AI agent 應如何安全使用工具 | [AI Agent 使用指南](guides/ai-agent-guide.md) |
+| 了解生產環境安全與部署方式 | [安全模型](production/security.md) |
+| 了解 runtime、bootstrapper 與 injection 限制 | [Bootstrap 與 Injection](production/bootstrap-and-injection.md) |
+| 參與程式碼、測試或文件貢獻 | [貢獻指南](contributors/index.md) |
 
-## 這個專案的差異化能力
+## 這個專案的特色
 
-- **WPF 原生可見性**：可直接檢查 `BindingOperations`、Dependency Property value source、namescope、template、routed events 與 layout 細節，這些通常不是 out-of-process 工具能穩定取得的資訊。
-- **AI-Friendly 契約**：工具描述、參數與回應形狀以 MCP 與實作行為為準，並明確記錄建議工作流程與常見反模式。
-- **生產環境加固**：目前程式碼已包含 DLL 驗證、選用式 HMAC 驗證、選用式 named pipe TLS、pipe ACL 限制與有界請求處理。
-- **可驗證的真實流程**：倉庫中包含單元測試、整合測試，以及對測試應用程式執行所有已交付工具的 live MCP smoke harness。
+- **WPF 原生可見性**：可以直接檢視 `BindingOperations`、Dependency Property value source、namescope、template、routed event 與 layout 細節，這些都是 out-of-process 工具拿不到的資訊。
+- **對 AI agent 友善**：tool metadata 由程式碼維護、structured content 一致、常見工作流與錯誤恢復都有文件化。
+- **生產環境硬化**：目前程式碼已包含 DLL 驗證、可選 HMAC 驗證、可選 named pipe TLS、pipe ACL 與有界限的 request handling。
+- **已驗證的工作流**：repository 內含 unit tests、integration tests，以及會實際執行全部工具的 live MCP smoke harness。
 
-## 目前可以做到的事情
+## 您現在可以做到的事
 
-- 探索執行中的 WPF 行程並建立 session。
+- 掃描執行中的 WPF process 並建立連線。
 - 瀏覽 visual tree、logical tree、namescope 與 template tree。
-- 診斷 binding 錯誤、檢查 binding chain、重新觸發 binding 更新。
-- 分析 dependency property 的有效值來源、metadata、style setter 與資源解析鏈。
-- 進行受控互動，例如點擊、滾動、鍵盤模擬、螢幕擷取與受控 drag/drop。
-- 檢查 layout、clipping、routed events、MVVM 指令與效能診斷資訊。
+- 診斷 binding error、檢查 binding chain，並強制更新 binding。
+- 分析 dependency property 值來源、metadata、style setter 與 resource lookup。
+- 執行受控互動，例如 click、scroll、keyboard、screenshot 與 drag/drop。
+- 檢查 layout、clipping、routed event、MVVM command 與 performance 資訊。
 
-## 目前範圍與邊界
+## 目前的邊界
 
-- **Transport**：目前發佈版本使用 STDIO 作為 MCP transport。
+- **Transport**：目前正式支援的是 STDIO MCP transport。
 - **平台**：僅支援 Windows。
 - **目標 UI 技術**：僅支援 WPF。
-- **注入模型**：native bootstrapper 加上 managed inspector。
-- **安全邊界**：驗證與 TLS 為選用功能；Debug 與 Release 的 DLL 驗證規則不同。
+- **Injection 模型**：native bootstrapper 搭配 managed inspector。
+- **安全模型**：authentication 與 TLS 為可選；Debug 與 Release 在 DLL 驗證上有不同策略。
 
-## 架構速覽
+## 架構一覽
 
 ```text
-AI Client（Claude Desktop / Cursor / VS Code）
+AI Client (Claude Code / Codex / Claude Desktop / Cursor / VS Code)
   -> MCP over STDIO
-MCP Server（net8.0）
+MCP Server (net8.0)
   -> named pipes with JSON messages and length-prefix framing
 Native bootstrapper + managed inspector
   -> WPF Dispatcher and in-process APIs
 Target WPF application
 ```
 
-請參考[架構總覽](architecture/overview.md)了解完整資料流，並閱讀[ADR 索引](architecture/adrs/index.md)掌握目前設計決策。
+完整資料流請參考 [架構總覽](architecture/overview.md)，設計決策請參考 [ADR 索引](architecture/adrs/index.md)。
 
 ## 建議閱讀順序
 
-1. [五分鐘完成安裝](quickstart/index.md)
-2. [AI Agent 使用指南](guides/ai-agent-guide.md)
-3. [工具總覽](reference/tools/index.md)
-4. [安全模型](production/security.md)
-5. [Bootstrap 與 Injection](production/bootstrap-and-injection.md)
-
-## 語言說明
-
-- 本區為人工整理的繁體中文版，內容以目前已交付程式碼為準。
-- 自動產生的 API 參考頁目前仍以英文為主，以避免型別名稱與 XML 文件產生額外歧義。
+1. [5 分鐘快速開始](quickstart/index.md)
+2. [AI Agent Client 總覽](quickstart/ai-agent-clients.md)
+3. [AI Agent 使用指南](guides/ai-agent-guide.md)
+4. [工具總覽](reference/tools/index.md)
+5. [安全模型](production/security.md)
+6. [Bootstrap 與 Injection](production/bootstrap-and-injection.md)

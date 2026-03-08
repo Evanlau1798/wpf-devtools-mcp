@@ -1,4 +1,4 @@
-# WPF DevTools MCP Server
+﻿# WPF DevTools MCP Server
 
 Looking for Traditional Chinese docs? Start at [繁體中文文件](zh-tw/index.md).
 
@@ -10,6 +10,9 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 | --- | --- |
 | Read the full guide in Traditional Chinese | [繁體中文文件](zh-tw/index.md) |
 | Be up and running in under five minutes | [5-Minute Setup](quickstart/index.md) |
+| Use the server from Claude Code | [Claude Code setup](quickstart/claude-code.md) |
+| Use the server from OpenAI Codex or Codex CLI | [OpenAI Codex and Codex CLI setup](quickstart/openai-codex.md) |
+| Compare all AI client options first | [AI Agent Clients](quickstart/ai-agent-clients.md) |
 | Use the server from Claude Desktop | [Claude Desktop setup](quickstart/claude-desktop.md) |
 | Use the server from Cursor or VS Code | [Cursor and VS Code setup](quickstart/cursor-vscode.md) |
 | Understand how AI agents should use the tools safely | [AI Agent Guide](guides/ai-agent-guide.md) |
@@ -44,7 +47,7 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 ## Architecture at a glance
 
 ```text
-AI Client (Claude Desktop / Cursor / VS Code)
+AI Client (Claude Code / Codex / Claude Desktop / Cursor / VS Code)
   -> MCP over STDIO
 MCP Server (net8.0)
   -> named pipes with JSON messages and length-prefix framing
@@ -58,7 +61,8 @@ See [Architecture Overview](architecture/overview.md) for the full data flow and
 ## Recommended reading order
 
 1. [5-Minute Setup](quickstart/index.md)
-2. [AI Agent Guide](guides/ai-agent-guide.md)
-3. [Tool Reference Overview](reference/tools/index.md)
-4. [Security Model](production/security.md)
-5. [Bootstrap and Injection](production/bootstrap-and-injection.md)
+2. [AI Agent Clients](quickstart/ai-agent-clients.md)
+3. [AI Agent Guide](guides/ai-agent-guide.md)
+4. [Tool Reference Overview](reference/tools/index.md)
+5. [Security Model](production/security.md)
+6. [Bootstrap and Injection](production/bootstrap-and-injection.md)

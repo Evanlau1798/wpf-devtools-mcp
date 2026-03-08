@@ -1,11 +1,17 @@
-- name: Home
+﻿- name: Home
   href: index.md
-- name: 繁體中文
+- name: Traditional Chinese
   href: zh-tw/toc.yml
 - name: Quickstart
   items:
     - name: 5-Minute Setup
       href: quickstart/index.md
+    - name: AI Agent Clients
+      href: quickstart/ai-agent-clients.md
+    - name: Claude Code
+      href: quickstart/claude-code.md
+    - name: OpenAI Codex and Codex CLI
+      href: quickstart/openai-codex.md
     - name: Claude Desktop
       href: quickstart/claude-desktop.md
     - name: Cursor and VS Code

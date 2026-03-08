@@ -1,4 +1,4 @@
-# 5-Minute Setup
+﻿# 5-Minute Setup
 
 This guide is optimized for the shortest successful path: build the managed server, build the native bootstrapper for your target architecture, run the included test WPF app, register the MCP server, and verify `get_processes`, `connect`, and `ping`.
 
@@ -83,6 +83,9 @@ The server uses STDIO transport, so do not send log output to `stdout` from wrap
 
 Pick one of these guides:
 
+- [AI Agent Clients overview](ai-agent-clients.md)
+- [Claude Code setup](claude-code.md)
+- [OpenAI Codex and Codex CLI setup](openai-codex.md)
 - [Claude Desktop setup](claude-desktop.md)
 - [Cursor and VS Code setup](cursor-vscode.md)
 

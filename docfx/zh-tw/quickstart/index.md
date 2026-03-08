@@ -1,27 +1,27 @@
-# 五分鐘完成安裝
+﻿# 5 分鐘快速開始
 
-這份指南以「最短成功路徑」為目標：建置 managed server、建置與目標架構相符的 native bootstrapper、啟動內建測試 WPF 應用、註冊 MCP server，最後驗證 `get_processes`、`connect` 與 `ping`。
+這份指南走最短成功路徑：建置 managed server、建置符合目標架構的 native bootstrapper、啟動內建測試 WPF App、把 MCP server 註冊到您的 client，最後驗證 `get_processes`、`connect` 與 `ping`。
 
 ## 先決條件
 
 - Windows 10 以上。
 - .NET SDK 8.0 以上。
-- Visual Studio 2022 或 Build Tools，並安裝：
+- Visual Studio 2022 或 Build Tools，且已安裝：
   - .NET desktop development
   - Desktop development with C++
-- 目標 WPF 行程必須與 MCP server 由同一個使用者帳號啟動。
+- 一個與 MCP server 使用同一個使用者帳號執行中的 WPF 目標程式。
 
-## 先記住最重要的架構規則
+## 先記住 architecture 規則
 
-只有當 bootstrapper 的架構與目標行程架構一致時，`connect` 才會成功。
+只有當 bootstrapper architecture 與 target process architecture 一致時，`connect` 才會成功。
 
-- 大多數現代桌面 WPF 應用請使用 **x64**。
-- 如果目標行程是 32-bit，請使用 **Win32/x86**。
-- **ARM64** 僅適用於原生 ARM64 的 WPF 應用。
+- 多數現代桌面 WPF App 請使用 **x64**。
+- 如果目標程式是 32-bit，請使用 **Win32/x86**。
+- 只有在目標是原生 ARM64 WPF App 時才使用 **ARM64**。
 
-如果你不確定，先啟動 server，呼叫 `get_processes`，以它回傳的 architecture 當成唯一真相來源。
+如果您不確定，請先啟動 server，呼叫 `get_processes`，以回傳的 architecture 為準。
 
-## 步驟 1：Clone 並還原工具
+## 步驟 1：Clone 與還原工具
 
 ```powershell
 git clone <your-fork-or-repo-url>
@@ -31,91 +31,94 @@ dotnet tool restore
 
 ## 步驟 2：建置 managed 專案
 
-典型的 x64 開發環境可直接使用：
+典型 x64 開發環境：
 
 ```powershell
 dotnet build WpfDevTools.sln -c Debug -p:Platform=x64
 ```
 
-> 本機開發建議使用 `Debug`。Debug build 會對受信任的本機路徑放寬 DLL 簽章驗證，讓第一次啟動不需要先完成程式碼簽署。
+> 本機開發建議使用 `Debug` build。`Debug` 版本會對 trusted local path 放寬 DLL signature 檢查，讓首次 setup 不需要先完成 code signing。
 
 ## 步驟 3：建置 native bootstrapper
 
-若目標是 x64：
+x64：
 
 ```powershell
 msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /p:Configuration=Debug /p:Platform=x64
 ```
 
-若目標是 x86：
+x86：
 
 ```powershell
 msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /p:Configuration=Debug /p:Platform=Win32
 ```
 
-若目標是 ARM64：
+ARM64：
 
 ```powershell
 msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /p:Configuration=Debug /p:Platform=ARM64
 ```
 
-bootstrapper 產物會被複製到 `artifacts/bootstrapper/<Configuration>/<Platform>/`，server 也會從候選搜尋路徑自動解析這些輸出。
+bootstrapper 輸出會放到 `artifacts/bootstrapper/<Configuration>/<Platform>/`，server 也會從候選路徑中自動解析它。
 
-## 步驟 4：啟動範例 WPF 應用
+## 步驟 4：啟動範例 WPF App
 
 ```powershell
 dotnet run --project tests/WpfDevTools.Tests.TestApp --no-build
 ```
 
-讓這個行程保持執行。
+請保持這個程式持續執行。
 
 ## 步驟 5：啟動 MCP server
 
-在第二個終端機視窗中執行：
+開第二個終端機：
 
 ```powershell
 dotnet run --project src/WpfDevTools.Mcp.Server --no-build
 ```
 
-server 使用 STDIO transport，因此包裹這個行程的任何腳本都不應把額外日誌輸出到 `stdout`。
+這個 server 使用 STDIO transport，所以不要讓外層 wrapper 對 `stdout` 輸出其他文字。
 
-## 步驟 6：在 MCP client 中註冊 server
+## 步驟 6：在您的 MCP client 中註冊 server
 
-依照你的客戶端選擇其中一份指南：
+請依您使用的 client 選擇下列指南：
 
-- [Claude Desktop 設定](claude-desktop.md)
-- [Cursor 與 VS Code 設定](cursor-vscode.md)
+- [AI Agent Client 總覽](ai-agent-clients.md)
+- [Claude Code 快速開始](claude-code.md)
+- [OpenAI Codex 與 Codex CLI 快速開始](openai-codex.md)
+- [Claude Desktop 快速開始](claude-desktop.md)
+- [Cursor 與 VS Code 快速開始](cursor-vscode.md)
 
 ## 步驟 7：驗證第一個 session
 
-在你的 MCP client 中依序呼叫：
+在 MCP client 內依序執行：
 
 1. `get_processes`
 2. `connect`
 3. `ping`
 4. `get_visual_tree`
 
-健康的第一次互動通常會長這樣：
+第一次健康驗證通常會看到：
 
-- `get_processes` 能列出 `WpfDevTools.Tests.TestApp`
-- `connect` 回傳成功並表示 session 已建立
-- `ping` 可以快速回應
-- `get_visual_tree` 回傳 root window 與其子元素
+- `get_processes` 列出 `WpfDevTools.Tests.TestApp`
+- `connect` 成功並建立 session
+- `ping` 很快回應
+- `get_visual_tree` 回傳 root window 與子元素
 
-## 給 AI client 的最快可用提示詞
+## 最快可用的 AI prompt
 
 ```text
-列出 WPF processes，連線到測試應用程式，執行 ping，然後顯示 visual tree 的前兩層。
+List WPF processes, connect to the test app, ping it, and show me the top two levels of the visual tree.
 ```
 
 ## 如果 `connect` 失敗
 
 請依序檢查：
 
-1. 目標應用程式仍在執行，而且確實是 WPF。
-2. MCP server 與目標行程的架構一致。
-3. 對應架構的 native bootstrapper 已經建置。
-4. 本機未簽署開發使用 `Debug`，生產環境使用已簽署的 `Release`。
-5. 目標行程沒有被政策、防毒軟體或權限不足所阻擋。
+1. 目標程式仍在執行，而且確實是 WPF。
+2. MCP server 與 target process 的 architecture 是否一致。
+3. 對應 architecture 的 native bootstrapper 是否已建置。
+4. 本機未簽章開發是否使用 `Debug` build；正式環境是否使用已簽章的 `Release` build。
+5. 目標程式是否被權限、政策或防毒軟體阻擋。
 
-下一步請閱讀：[AI Agent 使用指南](../guides/ai-agent-guide.md)
+下一步：閱讀 [AI Agent 使用指南](../guides/ai-agent-guide.md)

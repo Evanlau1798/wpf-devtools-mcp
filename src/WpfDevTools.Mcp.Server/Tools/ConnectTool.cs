@@ -22,6 +22,7 @@ public sealed class ConnectTool
     private readonly IProcessInjector _injector;
     private readonly SessionManager _sessionManager;
     private readonly WpfProcessDetector _processDetector;
+    private readonly Action<string> _dllPathValidator;
 
     /// <summary>
     /// Create ConnectTool with dependency injection
@@ -29,11 +30,13 @@ public sealed class ConnectTool
     public ConnectTool(
         SessionManager sessionManager,
         IProcessInjector injector,
-        WpfProcessDetector? processDetector = null)
+        WpfProcessDetector? processDetector = null,
+        Action<string>? dllPathValidator = null)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _injector = injector ?? throw new ArgumentNullException(nameof(injector));
         _processDetector = processDetector ?? new WpfProcessDetector();
+        _dllPathValidator = dllPathValidator ?? DllPathValidator.ValidateDllPath;
     }
 
     /// <summary>
@@ -83,7 +86,6 @@ public sealed class ConnectTool
 
         var connectStopwatch = Stopwatch.StartNew();
 
-        // SECURITY: Rate limit connect attempts to prevent DoS
         if (!_sessionManager.CheckRateLimit(processId.Value))
         {
             var availableTokens = _sessionManager.GetAvailableTokens(processId.Value);
@@ -123,7 +125,6 @@ public sealed class ConnectTool
             };
         }
 
-        // Build injection plan dynamically based on target process info
         var processInfo = _processDetector.GetProcessInfo(processId.Value);
         if (processInfo == null)
         {
@@ -152,11 +153,9 @@ public sealed class ConnectTool
             };
         }
 
-        // SECURITY: Validate resolved DLL paths before injection
-        DllPathValidator.ValidateDllPath(injectionRequest.InspectorDllPath);
-        DllPathValidator.ValidateDllPath(injectionRequest.BootstrapperDllPath);
+        _dllPathValidator(injectionRequest.InspectorDllPath);
+        _dllPathValidator(injectionRequest.BootstrapperDllPath);
 
-        // Perform bootstrap injection
         var injectionResult = _injector.InjectWithBootstrap(injectionRequest, cancellationToken);
         if (!injectionResult.Success)
         {
@@ -169,7 +168,6 @@ public sealed class ConnectTool
             };
         }
 
-        // Add to session manager (also creates NamedPipeClient)
         _sessionManager.AddSession(processId.Value);
         try
         {
@@ -249,10 +247,6 @@ public sealed class ConnectTool
         return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
 
-    /// <summary>
-    /// Validate DLL path. Delegates to DllPathValidator.
-    /// Kept as a forwarding method for backward compatibility with existing tests.
-    /// </summary>
     internal static void ValidateDllPath(string dllPath)
         => DllPathValidator.ValidateDllPath(dllPath);
 }

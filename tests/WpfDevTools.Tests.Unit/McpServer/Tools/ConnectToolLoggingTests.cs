@@ -21,7 +21,11 @@ public class ConnectToolLoggingTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
         using var sessionManager = new SessionManager();
-        var tool = new ConnectTool(sessionManager, new SuccessfulProcessInjector(), new FakeProcessDetector());
+        var tool = new ConnectTool(
+            sessionManager,
+            new SuccessfulProcessInjector(),
+            new FakeProcessDetector(),
+            _ => { });
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
         using var listener = new CapturingTraceListener();
 

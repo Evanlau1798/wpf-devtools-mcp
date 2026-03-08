@@ -159,7 +159,7 @@ public class McpServerGapTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("Depth parameter must be <= 100");
+        resultJson.GetProperty("error").GetString().Should().Contain("depth must be between 0 and 100");
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class McpServerGapTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         var errorText = resultJson.TryGetProperty("error", out var errorProp) ? errorProp.GetString() : "";
-        errorText.Should().NotContain("Depth parameter must be <= 100");
+        errorText.Should().NotContain("depth must be between 0 and 100");
     }
 
     [Fact]
@@ -198,7 +198,7 @@ public class McpServerGapTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("Depth parameter must be <= 100");
+        resultJson.GetProperty("error").GetString().Should().Contain("depth must be between 0 and 100");
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public class McpServerGapTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("Depth parameter must be <= 100");
+        resultJson.GetProperty("error").GetString().Should().Contain("depth must be between 0 and 100");
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public class McpServerGapTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         var errorText = resultJson.TryGetProperty("error", out var errorProp) ? errorProp.GetString() : "";
-        errorText.Should().NotContain("Depth parameter must be <= 100");
+        errorText.Should().NotContain("depth must be between 0 and 100");
     }
 
     [Fact]
@@ -275,7 +275,7 @@ public class McpServerGapTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("Depth parameter must be <= 100");
+        resultJson.GetProperty("error").GetString().Should().Contain("depth must be between 0 and 100");
     }
 
     [Fact]
@@ -413,7 +413,7 @@ public class McpServerGapTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         var errorText = resultJson.TryGetProperty("error", out var errorProp) ? errorProp.GetString() : "";
-        errorText.Should().NotContain("Depth parameter must be <= 100");
+        errorText.Should().NotContain("depth must be between 0 and 100");
     }
 
     [Fact]
@@ -432,7 +432,7 @@ public class McpServerGapTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         var errorText = resultJson.TryGetProperty("error", out var errorProp) ? errorProp.GetString() : "";
-        errorText.Should().NotContain("Depth parameter must be <= 100");
+        errorText.Should().NotContain("depth must be between 0 and 100");
     }
 
     #endregion
@@ -455,8 +455,9 @@ public class McpServerGapTests
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         var errorText = resultJson.TryGetProperty("error", out var errorProp) ? errorProp.GetString() : "";
-        errorText.Should().NotContain("Depth parameter must be <= 100");
+        errorText.Should().NotContain("depth must be between 0 and 100");
     }
 
     #endregion
 }
+

@@ -81,6 +81,23 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 3. Use tree tools first (`get_visual_tree`, `get_logical_tree`) to obtain `elementId` values.
 4. Move to diagnostics (`get_bindings`, `get_binding_errors`, `get_dp_value_source`) or interaction tools (`click_element`, `simulate_keyboard`, `element_screenshot`).
 
+## Maintainer Release Flow
+
+Before creating or publishing a GitHub Release, run the local no-upload preflight command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/release/Preflight-Release.ps1 -VersionTag v0.1.0 -OutputJson
+```
+
+This validates the Release build, unit tests, package layout, and staged GitHub Release assets without uploading to GitHub.
+For the full maintainer checklist and workflow details, see [RELEASING.md](RELEASING.md).
+
+Maintainer prerequisites for packaged releases:
+
+- Install Visual Studio 2022 or Build Tools 2022 with `Desktop development with C++`.
+- Ensure the native toolchain includes MSVC `v143` build tools for `x64`, `x86`, and `ARM64`, because the bootstrapper package is built per target architecture.
+- If local preflight fails only on `ARM64`, the repository is usually fine; the maintainer machine is missing the ARM64 native build components needed by `WpfDevTools.Bootstrapper.vcxproj`.
+
 ## MCP Client Configuration
 
 ### Claude Desktop
@@ -146,6 +163,7 @@ Security deployment guidance lives in `SECURITY.md`.
 
 - `docfx/` -> public DocFX site source for GitHub Pages
 - `docfx/zh-tw/` -> Traditional Chinese public documentation mirror
+- `RELEASING.md` -> maintainer-facing release checklist, workflow, and local preflight guide
 - `SECURITY.md` -> supported security settings and deployment guidance
 - `EXAMPLES.md` -> usage examples for common tools and workflows
 - Detailed MCP tool metadata is maintained in code through the official SDK attributes to reduce README drift.

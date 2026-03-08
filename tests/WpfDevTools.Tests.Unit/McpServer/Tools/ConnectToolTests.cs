@@ -19,12 +19,14 @@ public class ConnectToolTests : IDisposable
 
     private static ConnectTool CreateTool(
         SessionManager? sessionManager = null,
-        FakeProcessInjector? injector = null)
+        FakeProcessInjector? injector = null,
+        Action<string>? dllPathValidator = null)
     {
         return new ConnectTool(
             sessionManager ?? new SessionManager(),
             injector ?? new FakeProcessInjector(),
-            new FakeProcessDetector());
+            new FakeProcessDetector(),
+            dllPathValidator ?? (_ => { }));
     }
 
     private void EnsureDummyBootstrapperExists()
@@ -42,7 +44,7 @@ public class ConnectToolTests : IDisposable
         if (_dummyBootstrapperPath != null && File.Exists(_dummyBootstrapperPath))
         {
             try { File.Delete(_dummyBootstrapperPath); }
-            catch { /* best effort cleanup */ }
+            catch { }
         }
     }
 
@@ -140,7 +142,7 @@ public class ConnectToolTests : IDisposable
     }
 
     [Fact]
-    public void ValidateDllPath_WithTrustedSolutionRelativeDllPath_ShouldNotThrow()
+    public void ValidateDllPath_WithTrustedSolutionRelativeDllPath_ShouldRespectBuildSignaturePolicy()
     {
         var solutionRoot = FindSolutionRoot();
         var artifactsDir = Path.Combine(solutionRoot, ".test-artifacts");
@@ -152,7 +154,12 @@ public class ConnectToolTests : IDisposable
         try
         {
             var act = () => DllPathValidator.ValidateDllPath(trustedDllPath);
+#if DEBUG
             act.Should().NotThrow();
+#else
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*signature*");
+#endif
         }
         finally
         {
@@ -182,6 +189,7 @@ public class ConnectToolTests : IDisposable
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("Architecture mismatch");
     }
+
     [Fact]
     public async Task Execute_AlreadyConnected_ShouldReturnSuccessImmediately()
     {
@@ -202,7 +210,7 @@ public class ConnectToolTests : IDisposable
             TimeSpan.FromSeconds(1),
             maxRetries: 1,
             cancellationToken: CancellationToken.None);
-        connected.Should().BeTrue("the session must represent a real connected pipe before connect can short-circuit");
+        connected.Should().BeTrue();
         await acceptTask;
 
         var tool = CreateTool(sessionManager: sessionManager);
@@ -274,8 +282,7 @@ public class ConnectToolTests : IDisposable
         var act = () => tool.ExecuteAsync(ToJsonElement(parameters), cts.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();
 
-        sessionManager.HasSession(12345).Should().BeFalse(
-            "session must be removed when pipe connection is cancelled to prevent state divergence");
+        sessionManager.HasSession(12345).Should().BeFalse();
     }
 
     [Fact]
@@ -289,8 +296,7 @@ public class ConnectToolTests : IDisposable
 
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        sessionManager.HasSession(12345).Should().BeFalse(
-            "session must be removed when pipe connection fails");
+        sessionManager.HasSession(12345).Should().BeFalse();
     }
 
     [Fact]
@@ -313,10 +319,8 @@ public class ConnectToolTests : IDisposable
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("Fresh injection attempted");
-        sessionManager.HasSession(12345).Should().BeFalse(
-            "a stale disconnected session must be removed before reconnecting");
-        injector.InjectWithBootstrapCallCount.Should().Be(1,
-            "connect should attempt a fresh injection instead of short-circuiting as already connected");
+        sessionManager.HasSession(12345).Should().BeFalse();
+        injector.InjectWithBootstrapCallCount.Should().Be(1);
     }
 
     [Fact]
@@ -356,8 +360,7 @@ public class ConnectToolTests : IDisposable
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         injector.InjectWithBootstrapCallCount.Should().Be(1);
-        injector.LastInjectWithBootstrapCancellationToken.Should().Be(cts.Token,
-            "connect must forward the caller token so bootstrap pipe-ready polling can observe cancellation");
+        injector.LastInjectWithBootstrapCancellationToken.Should().Be(cts.Token);
     }
 
     private static string FindSolutionRoot()

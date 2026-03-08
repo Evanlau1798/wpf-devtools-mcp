@@ -34,7 +34,7 @@ internal static class DllPathValidator
         // SECURITY: Normalize path to prevent traversal attacks (..)
         var fullPath = Path.GetFullPath(dllPath);
 
-        // SECURITY: Whitelist approach — only allow DLLs under trusted roots
+        // SECURITY: Whitelist approach ??only allow DLLs under trusted roots
         if (!IsUnderTrustedRoot(fullPath))
         {
             throw new ArgumentException(
@@ -98,6 +98,8 @@ internal static class DllPathValidator
                normalizedFullPath.StartsWith(normalizedRootPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
+    internal static X509RevocationMode GetCurrentBuildRevocationMode()
+        => SignaturePolicy.GetRevocationMode(IsDebugBuild);
     private static void VerifyAuthenticodeSignature(string filePath)
     {
         try
@@ -112,7 +114,7 @@ internal static class DllPathValidator
             using var cert2 = new X509Certificate2(cert);
             using var chain = new X509Chain();
 
-            chain.ChainPolicy.RevocationMode = SignaturePolicy.GetRevocationMode(IsDebugBuild);
+            chain.ChainPolicy.RevocationMode = GetCurrentBuildRevocationMode();
             chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
             chain.ChainPolicy.VerificationFlags = X509VerificationFlags.NoFlag;
 
@@ -150,3 +152,4 @@ internal static class DllPathValidator
         }
     }
 }
+

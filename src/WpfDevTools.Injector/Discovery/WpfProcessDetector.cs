@@ -101,6 +101,55 @@ public class WpfProcessDetector
         }
     }
 
+    private WpfProcessInfo? CreateProcessInfo(Process process, int processId)
+    {
+        var architecture = DetectArchitecture(process);
+        var moduleNames = TryGetModuleNames(process);
+        var isWpf = moduleNames != null
+            ? ContainsWpfAssembly(moduleNames)
+            : HasWpfWindowClass(process);
+        var runtime = moduleNames != null
+            ? DetectRuntimeFromModuleNames(moduleNames)
+            : TargetRuntime.Unknown;
+        var dotNetVersion = moduleNames != null
+            ? DetectDotNetVersionFromModuleNames(moduleNames)
+            : null;
+
+        return new WpfProcessInfo
+        {
+            ProcessId = processId,
+            ProcessName = process.ProcessName,
+            WindowTitle = GetMainWindowTitle(process),
+            Architecture = architecture,
+            DotNetVersion = dotNetVersion,
+            Runtime = runtime,
+            IsWpfApplication = isWpf,
+            ExecutablePath = GetExecutablePath(process)
+        };
+    }
+
+    private string[]? TryGetModuleNames(Process process)
+    {
+        try
+        {
+            return process.Modules
+                .Cast<ProcessModule>()
+                .Select(module => module.ModuleName)
+                .ToArray();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"WpfProcessDetector: Module enumeration failed, falling back to window class check: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static bool ContainsWpfAssembly(IEnumerable<string?> moduleNames)
+    {
+        return moduleNames.Any(moduleName =>
+            moduleName?.IndexOf(WpfAssemblyName, StringComparison.OrdinalIgnoreCase) >= 0);
+    }
     private ProcessArchitecture DetectArchitecture(Process process)
     {
         try
@@ -194,27 +243,12 @@ public class WpfProcessDetector
 
     private bool IsWpfApplication(Process process)
     {
-        try
-        {
-            // Check if PresentationFramework.dll is loaded
-            foreach (ProcessModule module in process.Modules)
-            {
-                if (module.ModuleName?.IndexOf(WpfAssemblyName,
-                    StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    return true;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            // Access denied or 64-bit process from 32-bit app - fallback to window class check
-            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Module enumeration failed, falling back to window class check: {ex.Message}");
-            return HasWpfWindowClass(process);
-        }
-
-        return false;
+        var moduleNames = TryGetModuleNames(process);
+        return moduleNames != null
+            ? ContainsWpfAssembly(moduleNames)
+            : HasWpfWindowClass(process);
     }
+
 
     private bool HasWpfWindowClass(Process process)
     {
@@ -237,22 +271,10 @@ public class WpfProcessDetector
 
     private TargetRuntime DetectRuntime(Process process)
     {
-        try
-        {
-            var moduleNames = process.Modules
-                .Cast<ProcessModule>()
-                .Select(module => module.ModuleName)
-                .ToArray();
-
-            return DetectRuntimeFromModuleNames(moduleNames);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine(
-                $"WpfProcessDetector: Failed to detect runtime: {ex.Message}");
-        }
-
-        return TargetRuntime.Unknown;
+        var moduleNames = TryGetModuleNames(process);
+        return moduleNames != null
+            ? DetectRuntimeFromModuleNames(moduleNames)
+            : TargetRuntime.Unknown;
     }
 
     /// <summary>
@@ -279,26 +301,27 @@ public class WpfProcessDetector
 
     private string? DetectDotNetVersion(Process process)
     {
-        try
-        {
-            // Check for .NET Framework or .NET Core/5+ runtime DLLs
-            foreach (ProcessModule module in process.Modules)
-            {
-                var moduleName = Path.GetFileName(module.ModuleName)?.ToLowerInvariant();
+        var moduleNames = TryGetModuleNames(process);
+        return moduleNames != null
+            ? DetectDotNetVersionFromModuleNames(moduleNames)
+            : null;
+    }
 
-                if (string.Equals(moduleName, "coreclr.dll", StringComparison.Ordinal))
-                {
-                    return ".NET Core/5+";
-                }
-                else if (string.Equals(moduleName, "clr.dll", StringComparison.Ordinal))
-                {
-                    return ".NET Framework";
-                }
-            }
-        }
-        catch (Exception ex)
+    private static string? DetectDotNetVersionFromModuleNames(IEnumerable<string?> moduleNames)
+    {
+        foreach (var moduleName in moduleNames)
         {
-            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to detect .NET version: {ex.Message}");
+            var fileName = Path.GetFileName(moduleName)?.ToLowerInvariant();
+
+            if (string.Equals(fileName, "coreclr.dll", StringComparison.Ordinal))
+            {
+                return ".NET Core/5+";
+            }
+
+            if (string.Equals(fileName, "clr.dll", StringComparison.Ordinal))
+            {
+                return ".NET Framework";
+            }
         }
 
         return null;
@@ -360,3 +383,4 @@ public class WpfProcessDetector
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
 }
+

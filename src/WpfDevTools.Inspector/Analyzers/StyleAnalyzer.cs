@@ -46,10 +46,21 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             // Get explicit style
             if (fe.Style != null)
             {
+                var setters = fe.Style.Setters
+                    .OfType<Setter>()
+                    .Select(setter => new
+                    {
+                        property = setter.Property?.Name,
+                        value = setter.Value?.ToString()
+                    })
+                    .ToArray();
+
                 styles.Add(new
                 {
+                    styleType = "Explicit",
                     type = "Explicit",
                     targetType = fe.Style.TargetType?.Name,
+                    setters,
                     setterCount = fe.Style.Setters.Count,
                     triggerCount = fe.Style.Triggers.Count,
                     hasBasedOn = fe.Style.BasedOn != null
@@ -88,15 +99,114 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             {
                 foreach (var trigger in fe.Style.Triggers)
                 {
-                    triggers.Add(new
-                    {
-                        type = trigger.GetType().Name,
-                    });
+                    triggers.Add(CreateTriggerInfo(trigger));
                 }
             }
 
-            return new { success = true, triggers, count = triggers.Count };
+            return new
+            {
+                success = true,
+                triggers,
+                count = triggers.Count,
+                triggerCount = triggers.Count
+            };
         });
+    }
+
+    private static object CreateTriggerInfo(TriggerBase trigger)
+    {
+        return trigger switch
+        {
+            Trigger propertyTrigger => new
+            {
+                type = nameof(Trigger),
+                triggerType = "Property",
+                conditions = new[]
+                {
+                    new
+                    {
+                        property = propertyTrigger.Property?.Name,
+                        value = propertyTrigger.Value?.ToString()
+                    }
+                },
+                setters = CreateSetterInfos(propertyTrigger.Setters)
+            },
+            DataTrigger dataTrigger => new
+            {
+                type = nameof(DataTrigger),
+                triggerType = "Data",
+                conditions = new[]
+                {
+                    new
+                    {
+                        property = dataTrigger.Binding?.ToString(),
+                        value = dataTrigger.Value?.ToString()
+                    }
+                },
+                setters = CreateSetterInfos(dataTrigger.Setters)
+            },
+            MultiTrigger multiTrigger => new
+            {
+                type = nameof(MultiTrigger),
+                triggerType = "MultiTrigger",
+                conditions = multiTrigger.Conditions
+                    .Cast<Condition>()
+                    .Select(condition => new
+                    {
+                        property = condition.Property?.Name,
+                        value = condition.Value?.ToString()
+                    })
+                    .ToArray(),
+                setters = CreateSetterInfos(multiTrigger.Setters)
+            },
+            MultiDataTrigger multiDataTrigger => new
+            {
+                type = nameof(MultiDataTrigger),
+                triggerType = "MultiTrigger",
+                conditions = multiDataTrigger.Conditions
+                    .Cast<Condition>()
+                    .Select(condition => new
+                    {
+                        property = condition.Binding?.ToString(),
+                        value = condition.Value?.ToString()
+                    })
+                    .ToArray(),
+                setters = CreateSetterInfos(multiDataTrigger.Setters)
+            },
+            EventTrigger eventTrigger => new
+            {
+                type = nameof(EventTrigger),
+                triggerType = "Event",
+                conditions = new[]
+                {
+                    new
+                    {
+                        property = eventTrigger.RoutedEvent?.Name,
+                        value = "Raised"
+                    }
+                },
+                setters = Array.Empty<object>()
+            },
+            _ => new
+            {
+                type = trigger.GetType().Name,
+                triggerType = trigger.GetType().Name,
+                conditions = Array.Empty<object>(),
+                setters = Array.Empty<object>()
+            }
+        };
+    }
+
+    private static object[] CreateSetterInfos(SetterBaseCollection setters)
+    {
+        return setters
+            .OfType<Setter>()
+            .Select(setter => (object)new
+            {
+                property = setter.Property?.Name,
+                value = setter.Value?.ToString()
+            })
+            .ToArray();
     }
 
     /// <summary>

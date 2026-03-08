@@ -3,6 +3,8 @@ using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 using System.Windows.Controls;
+using System.Globalization;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
@@ -99,6 +101,35 @@ public class DependencyPropertyAnalyzerTests
             resultDict.Keys.Cast<string>().Should().Contain("success");
             resultDict.Keys.Cast<string>().Should().Contain("metadata");
             resultDict["success"].Should().Be(true);
+        }
+    }
+
+    [StaFact]
+    public void GetMetadata_WithZhTwCulture_ShouldSerializeWidthDefaultValueInvariantly()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        var originalUiCulture = CultureInfo.CurrentUICulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("zh-TW");
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("zh-TW");
+
+            var finder = new ElementFinder();
+            var analyzer = new DependencyPropertyAnalyzer(finder);
+            var button = new Button();
+            var elementId = finder.GenerateElementId(button);
+
+            var result = analyzer.GetMetadata("Width", elementId);
+            var doc = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+
+            doc.GetProperty("success").GetBoolean().Should().BeTrue();
+            doc.GetProperty("defaultValue").GetString().Should().Be("NaN");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+            CultureInfo.CurrentUICulture = originalUiCulture;
         }
     }
 

@@ -64,15 +64,27 @@ public class RuntimeSelectorTests
     }
 
     [Fact]
-    public void SelectInspectorDll_NetFramework_OnlyNet8Available_ShouldFallback()
+    public void SelectInspectorDll_NetFramework_OnlyNet8Available_ShouldReturnNull()
     {
         var candidates = new[] { @"C:\app\bin\net8.0-windows\Inspector.dll" };
 
         var result = RuntimeSelector.SelectInspectorDll(
             TargetRuntime.NetFramework, candidates);
 
-        result.Should().Contain("net8.0-windows",
-            "should fallback to available TFM when preferred is missing");
+        result.Should().BeNull(
+            "a .NET Framework target should fail fast when only a modern .NET inspector is available");
+    }
+
+    [Fact]
+    public void SelectInspectorDll_NetCore_OnlyNet48Available_ShouldReturnNull()
+    {
+        var candidates = new[] { @"C:\app\bin\net48\Inspector.dll" };
+
+        var result = RuntimeSelector.SelectInspectorDll(
+            TargetRuntime.NetCore, candidates);
+
+        result.Should().BeNull(
+            "a modern .NET target should not silently fall back to the net48 inspector payload");
     }
 
     // === Bootstrapper DLL selection (arch) ===

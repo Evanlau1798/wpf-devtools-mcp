@@ -251,17 +251,17 @@ public class DllInjector
     {
         // Step 1: Load bootstrapper via LoadLibraryW
         if (!LoadLibraryRemote(hProcess, bootstrapperPath, timeout))
-            return -1;
+            return InjectionMechanismFailure.LoadBootstrapperFailed;
 
         // Find remote module base
         var remoteBase = RemoteModuleResolver.FindModuleBase(hProcess, bootstrapperPath);
         if (remoteBase == IntPtr.Zero)
-            return -2;
+            return InjectionMechanismFailure.ResolveRemoteModuleFailed;
 
         // Read local PE to get export RVA
         var exportRva = PeExportReader.GetExportRva(bootstrapperPath, exportName);
         if (exportRva == null)
-            return -3;
+            return InjectionMechanismFailure.ResolveBootstrapExportFailed;
 
         // Compute remote function address
         var remoteFuncAddr = IntPtr.Add(remoteBase, (int)exportRva.Value);
@@ -271,13 +271,13 @@ public class DllInjector
         var remoteParamAddr = VirtualAllocEx(hProcess, IntPtr.Zero,
             (uint)paramBytes.Length, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         if (remoteParamAddr == IntPtr.Zero)
-            return -4;
+            return InjectionMechanismFailure.AllocateBootstrapParametersFailed;
 
         if (!WriteProcessMemory(hProcess, remoteParamAddr, paramBytes,
             (uint)paramBytes.Length, out _))
         {
             VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
-            return -5;
+            return InjectionMechanismFailure.WriteBootstrapParametersFailed;
         }
 
         // Step 2: CreateRemoteThread calling exported function
@@ -286,7 +286,7 @@ public class DllInjector
         if (hThread == IntPtr.Zero)
         {
             VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
-            return -6;
+            return InjectionMechanismFailure.StartBootstrapExportFailed;
         }
 
         var waitResult = WaitForSingleObject(hThread, (uint)timeout.TotalMilliseconds);
@@ -295,7 +295,7 @@ public class DllInjector
         {
             CloseHandle(hThread);
             VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
-            return -7;
+            return InjectionMechanismFailure.InvokeBootstrapExportTimedOut;
         }
 
         GetExitCodeThread(hThread, out uint exitCode);
@@ -414,3 +414,4 @@ public class DllInjector
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GetExitCodeThread(IntPtr hThread, out uint lpExitCode);
 }
+

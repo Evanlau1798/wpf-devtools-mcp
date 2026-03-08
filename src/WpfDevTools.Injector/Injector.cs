@@ -134,13 +134,14 @@ public class ProcessInjector : IProcessInjector
                 parameters,
                 request.InjectionTimeout);
 
-            if (exitCode < 0)
+            if (InjectionMechanismFailure.TryInterpret(exitCode, out var mechanismFailure))
             {
                 return InjectionResult.CreateFailure(
                     request.ProcessId,
                     InjectionError.BootstrapFailed,
-                    $"Injection mechanism failed at step {-exitCode}",
-                    failedAtStage: BootstrapStage.LoadLibrary);
+                    mechanismFailure!.Message,
+                    failedAtStage: mechanismFailure.Stage,
+                    bootstrapExitCode: exitCode);
             }
 
             var interpretation = BootstrapResultInterpreter.Interpret(exitCode);

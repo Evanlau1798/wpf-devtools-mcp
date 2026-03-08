@@ -1,6 +1,7 @@
 using Xunit;
 using FluentAssertions;
 using System.Text.Json;
+using System.IO.Pipes;
 using System.Reflection;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
@@ -71,6 +72,21 @@ public class ConnectToolTests : IDisposable
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("processId");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task Execute_WithNonPositiveProcessId_ShouldReturnValidationError(int invalidProcessId)
+    {
+        var tool = new ConnectTool(new SessionManager());
+        var parameters = new { processId = invalidProcessId };
+
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("positive integer");
     }
 
     [Fact]
@@ -166,12 +182,28 @@ public class ConnectToolTests : IDisposable
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("Architecture mismatch");
     }
-
     [Fact]
     public async Task Execute_AlreadyConnected_ShouldReturnSuccessImmediately()
     {
-        var sessionManager = new SessionManager();
+        using var server = new NamedPipeServerStream(
+            "WpfDevTools_42",
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        var acceptTask = server.WaitForConnectionAsync();
+
+        using var sessionManager = new SessionManager();
         sessionManager.AddSession(42);
+        var pipeClient = sessionManager.GetPipeClient(42);
+        pipeClient.Should().NotBeNull();
+
+        var connected = await pipeClient!.ConnectAsync(
+            TimeSpan.FromSeconds(1),
+            maxRetries: 1,
+            cancellationToken: CancellationToken.None);
+        connected.Should().BeTrue("the session must represent a real connected pipe before connect can short-circuit");
+        await acceptTask;
 
         var tool = CreateTool(sessionManager: sessionManager);
         var parameters = new { processId = 42 };
@@ -262,6 +294,32 @@ public class ConnectToolTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WithDisconnectedStaleSession_ShouldRemoveItAndAttemptFreshInjection()
+    {
+        EnsureDummyBootstrapperExists();
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(12345);
+
+        var injector = new FakeProcessInjector
+        {
+            ShouldFailInjection = true,
+            InjectionErrorMessage = "Fresh injection attempted"
+        };
+
+        var tool = CreateTool(sessionManager: sessionManager, injector: injector);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("Fresh injection attempted");
+        sessionManager.HasSession(12345).Should().BeFalse(
+            "a stale disconnected session must be removed before reconnecting");
+        injector.InjectWithBootstrapCallCount.Should().Be(1,
+            "connect should attempt a fresh injection instead of short-circuiting as already connected");
+    }
+
+    [Fact]
     public async Task Execute_RateLimitExceeded_ShouldReturnError()
     {
         var sessionManager = new SessionManager(maxRequestsPerMinute: 2);
@@ -318,6 +376,7 @@ public class ConnectToolTests : IDisposable
         public BootstrapStage? FailedStage { get; init; }
         public int? FailedExitCode { get; init; }
         public InjectionError FailedError { get; init; } = InjectionError.BootstrapFailed;
+        public int InjectWithBootstrapCallCount { get; private set; }
 
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
         {
@@ -335,6 +394,8 @@ public class ConnectToolTests : IDisposable
 
         public InjectionResult InjectWithBootstrap(InjectionRequest request)
         {
+            InjectWithBootstrapCallCount++;
+
             if (ShouldFailInjection)
             {
                 return InjectionResult.CreateFailure(

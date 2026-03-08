@@ -97,4 +97,18 @@ public class InjectionPlanFactoryTests
 
         result.Should().BeNull("no Inspector DLL available");
     }
+
+    [Fact]
+    public void CreateRequest_WhenRuntimeSpecificInspectorIsMissing_ShouldReturnNull()
+    {
+        var inspectorCandidates = new[] { @"C:\app\net48\Inspector.dll" };
+        var bootstrapperCandidates = new[] { @"C:\app\Bootstrapper.x64.dll" };
+        var info = CreateProcessInfo(runtime: TargetRuntime.NetCore, arch: ProcessArchitecture.X64);
+
+        var result = InjectionPlanFactory.CreateRequest(
+            info, inspectorCandidates, bootstrapperCandidates);
+
+        result.Should().BeNull(
+            "the injection plan must fail early when the inspector payload does not match the detected target runtime");
+    }
 }

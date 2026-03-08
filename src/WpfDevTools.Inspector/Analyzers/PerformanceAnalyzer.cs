@@ -76,7 +76,9 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                         success = true,
                         message = "Monitoring started, waiting for frame data...",
                         frameRate = 0.0,
+                        avgRenderTime = 0.0,
                         averageFrameTime = 0.0,
+                        dirtyRegionCount = 0,
                         minFrameTime = 0.0,
                         maxFrameTime = 0.0,
                         totalFrames = _frameCount,
@@ -94,7 +96,9 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                 {
                     success = true,
                     frameRate = Math.Round(frameRate, 2),
+                    avgRenderTime = Math.Round(avgFrameTime, 2),
                     averageFrameTime = Math.Round(avgFrameTime, 2),
+                    dirtyRegionCount = 0,
                     minFrameTime = Math.Round(frameTimesArray.Min(), 2),
                     maxFrameTime = Math.Round(frameTimesArray.Max(), 2),
                     totalFrames = _frameCount,
@@ -126,6 +130,7 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
             return new
             {
                 success = true,
+                count = count,
                 totalCount = count,
                 elementType = element.GetType().Name
             };
@@ -162,6 +167,7 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
             return new
             {
                 success = true,
+                renderTimeMs = Math.Round(sw.Elapsed.TotalMilliseconds, 2),
                 renderTime = Math.Round(sw.Elapsed.TotalMilliseconds, 2),
                 message = "Approximate render time (includes layout update)",
                 elementType = element.GetType().Name

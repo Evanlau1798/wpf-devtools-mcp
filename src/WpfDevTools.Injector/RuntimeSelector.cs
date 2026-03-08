@@ -21,12 +21,14 @@ public static class RuntimeSelector
     {
         if (candidates.Count == 0) return null;
 
-        var preferred = runtime == TargetRuntime.NetFramework ? "net48" : "net8.0-windows";
-        var fallback = runtime == TargetRuntime.NetFramework ? "net8.0-windows" : "net48";
+        if (runtime == TargetRuntime.Unknown)
+        {
+            return candidates.FirstOrDefault();
+        }
 
-        return candidates.FirstOrDefault(c => c.IndexOf(preferred, StringComparison.OrdinalIgnoreCase) >= 0)
-            ?? candidates.FirstOrDefault(c => c.IndexOf(fallback, StringComparison.OrdinalIgnoreCase) >= 0)
-            ?? candidates.FirstOrDefault();
+        var preferred = runtime == TargetRuntime.NetFramework ? "net48" : "net8.0-windows";
+
+        return candidates.FirstOrDefault(c => c.IndexOf(preferred, StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
@@ -71,6 +72,17 @@ public sealed class ConnectTool
             };
         }
 
+        if (processId.Value <= 0)
+        {
+            return new
+            {
+                success = false,
+                error = "processId must be a positive integer"
+            };
+        }
+
+        var connectStopwatch = Stopwatch.StartNew();
+
         // SECURITY: Rate limit connect attempts to prevent DoS
         if (!_sessionManager.CheckRateLimit(processId.Value))
         {
@@ -87,12 +99,18 @@ public sealed class ConnectTool
 
         if (_sessionManager.HasSession(processId.Value))
         {
-            return new
+            var existingPipeClient = _sessionManager.GetPipeClient(processId.Value);
+            if (existingPipeClient?.IsConnected == true)
             {
-                success = true,
-                message = "Already connected to process",
-                processId = processId.Value
-            };
+                return new
+                {
+                    success = true,
+                    message = "Already connected to process",
+                    processId = processId.Value
+                };
+            }
+
+            _sessionManager.RemoveSession(processId.Value);
         }
 
         var validationError = _injector.ValidateTarget(processId.Value);
@@ -166,8 +184,21 @@ public sealed class ConnectTool
                 };
             }
 
+            var remainingPipeConnectTimeout = GetRemainingPipeConnectTimeout(
+                connectStopwatch.Elapsed,
+                TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds));
+            if (remainingPipeConnectTimeout <= TimeSpan.Zero)
+            {
+                _sessionManager.RemoveSession(processId.Value);
+                return new
+                {
+                    success = false,
+                    error = "Connect timed out before the final Inspector Named Pipe handshake could start"
+                };
+            }
+
             var connected = await pipeClient.ConnectAsync(
-                TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds),
+                remainingPipeConnectTimeout,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!connected)
             {
@@ -203,6 +234,14 @@ public sealed class ConnectTool
             InjectionError.ArchitectureMismatch => $"Architecture mismatch for process {processId}. Ensure the MCP server architecture matches the target process (both x64 or both x86).",
             _ => $"Validation failed: {error}"
         };
+    }
+
+    internal static TimeSpan GetRemainingPipeConnectTimeout(
+        TimeSpan elapsed,
+        TimeSpan totalTimeout)
+    {
+        var remaining = totalTimeout - elapsed;
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
 
     /// <summary>

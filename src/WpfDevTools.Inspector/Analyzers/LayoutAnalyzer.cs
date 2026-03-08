@@ -61,6 +61,8 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
                     width = NormalizeDouble(fe.DesiredSize.Width),
                     height = NormalizeDouble(fe.DesiredSize.Height)
                 },
+                desiredWidth = NormalizeDouble(fe.DesiredSize.Width),
+                desiredHeight = NormalizeDouble(fe.DesiredSize.Height),
                 renderSize = new
                 {
                     width = NormalizeDouble(fe.RenderSize.Width),
@@ -72,7 +74,12 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
                     top = NormalizeDouble(fe.Margin.Top),
                     right = NormalizeDouble(fe.Margin.Right),
                     bottom = NormalizeDouble(fe.Margin.Bottom)
-                }
+                },
+                padding = GetPaddingInfo(fe),
+                horizontalAlignment = fe.HorizontalAlignment.ToString(),
+                verticalAlignment = fe.VerticalAlignment.ToString(),
+                positionInParent = GetPositionInfo(fe, VisualTreeHelper.GetParent(fe) as Visual),
+                positionInWindow = GetPositionInfo(fe, Window.GetWindow(fe))
             };
         });
     }
@@ -109,6 +116,7 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
             return new
             {
                 success = true,
+                isClipped = clip != null || clipToBounds,
                 clipToBounds = clipToBounds,
                 hasClip = clip != null,
                 clipBounds = clip != null ? new
@@ -117,9 +125,66 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
                     y = clip.Bounds.Y,
                     width = clip.Bounds.Width,
                     height = clip.Bounds.Height
-                } : null
+                } : null,
+                overflowAmount = GetOverflowAmount(uiElement, clip)
             };
         });
+    }
+
+    private static object GetPaddingInfo(FrameworkElement element)
+    {
+        return element switch
+        {
+            Control control => CreateThicknessInfo(control.Padding),
+            Border border => CreateThicknessInfo(border.Padding),
+            _ => CreateThicknessInfo(null)
+        };
+    }
+
+    private static object CreateThicknessInfo(Thickness? thickness)
+    {
+        return new
+        {
+            left = NormalizeDouble(thickness?.Left ?? double.NaN),
+            top = NormalizeDouble(thickness?.Top ?? double.NaN),
+            right = NormalizeDouble(thickness?.Right ?? double.NaN),
+            bottom = NormalizeDouble(thickness?.Bottom ?? double.NaN)
+        };
+    }
+
+    private static object GetPositionInfo(Visual target, Visual? relativeTo)
+    {
+        if (relativeTo == null)
+        {
+            return new { x = (double?)null, y = (double?)null };
+        }
+
+        try
+        {
+            var point = target.TransformToAncestor(relativeTo).Transform(new Point(0, 0));
+            return new { x = NormalizeDouble(point.X), y = NormalizeDouble(point.Y) };
+        }
+        catch (InvalidOperationException)
+        {
+            return new { x = (double?)null, y = (double?)null };
+        }
+    }
+
+    private static object GetOverflowAmount(UIElement element, Geometry? clip)
+    {
+        if (element is not FrameworkElement frameworkElement || clip == null)
+        {
+            return new { left = 0d, top = 0d, right = 0d, bottom = 0d };
+        }
+
+        var bounds = clip.Bounds;
+        return new
+        {
+            left = Math.Max(0d, -bounds.Left),
+            top = Math.Max(0d, -bounds.Top),
+            right = Math.Max(0d, frameworkElement.RenderSize.Width - bounds.Right),
+            bottom = Math.Max(0d, frameworkElement.RenderSize.Height - bounds.Bottom)
+        };
     }
 
     /// <summary>

@@ -89,7 +89,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
             return new
             {
                 success = true,
+                typeName = dcType.Name,
                 viewModelType = dcType.Name,
+                implementsINotifyPropertyChanged = dataContext is System.ComponentModel.INotifyPropertyChanged,
                 properties
             };
         });

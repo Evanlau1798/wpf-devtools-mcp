@@ -51,6 +51,20 @@ public class SignaturePolicyTests
             "RELEASE builds must use Online revocation for maximum security");
     }
 
+
+    [Fact]
+    public void GetCurrentBuildRevocationMode_ShouldMatchBuildConfiguration()
+    {
+        var mode = DllPathValidator.GetCurrentBuildRevocationMode();
+
+#if DEBUG
+        mode.Should().Be(X509RevocationMode.Offline,
+            "the DEBUG build must wire Offline revocation into Authenticode chain validation to avoid network-blocking verification");
+#else
+        mode.Should().Be(X509RevocationMode.Online,
+            "the RELEASE build must wire Online revocation into Authenticode chain validation for maximum security");
+#endif
+    }
     // === Integration: ConnectTool path validation ===
 
     [Fact]
@@ -101,3 +115,4 @@ public class SignaturePolicyTests
         }
     }
 }
+

@@ -109,7 +109,11 @@ public static class ToolCallHelper
             var timeoutPayload = JsonSerializer.SerializeToElement(new
             {
                 success = false,
-                error = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive."
+                error = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive.",
+                errorCode = "Timeout",
+                toolName,
+                timeoutSeconds = effectiveTimeoutSeconds,
+                suggestedAction = "Check target responsiveness, then retry the tool or reconnect if the session may be stale."
             }, SerializerOptions);
 
             return new CallToolResult()

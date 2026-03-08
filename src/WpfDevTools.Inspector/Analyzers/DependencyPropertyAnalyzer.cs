@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Windows;
 using System.ComponentModel;
 using WpfDevTools.Inspector.Utilities;
@@ -133,7 +134,7 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             {
                 success = true,
                 propertyName,
-                defaultValue = metadata.DefaultValue?.ToString(),
+                defaultValue = FormatMetadataValue(metadata.DefaultValue),
                 hasCoerceValueCallback = metadata.CoerceValueCallback != null,
                 hasPropertyChangedCallback = metadata.PropertyChangedCallback != null,
                 isReadOnly = dp.ReadOnly,
@@ -147,6 +148,22 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 isDataBindingAllowed = (metadata as FrameworkPropertyMetadata)?.IsDataBindingAllowed ?? true
             };
         });
+    }
+
+    private static string? FormatMetadataValue(object? value)
+    {
+        return value switch
+        {
+            null => null,
+            double number when double.IsNaN(number) => "NaN",
+            double number when double.IsPositiveInfinity(number) => "Infinity",
+            double number when double.IsNegativeInfinity(number) => "-Infinity",
+            float number when float.IsNaN(number) => "NaN",
+            float number when float.IsPositiveInfinity(number) => "Infinity",
+            float number when float.IsNegativeInfinity(number) => "-Infinity",
+            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+            _ => value.ToString()
+        };
     }
 
     /// <summary>

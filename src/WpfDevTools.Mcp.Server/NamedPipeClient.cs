@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Pipes;
 using System.Net.Security;
 using System.Security.Authentication;
@@ -97,13 +98,19 @@ public sealed class NamedPipeClient : IDisposable
     /// <summary>
     /// Connect to Inspector with timeout and retry
     /// </summary>
-    /// <param name="timeout">Connection timeout per attempt</param>
+    /// <param name="timeout">Total timeout budget shared across all retry attempts</param>
     /// <param name="maxRetries">Maximum number of retry attempts</param>
     /// <param name="cancellationToken">External cancellation token to abort the entire connect operation</param>
     public async Task<bool> ConnectAsync(TimeSpan timeout, int maxRetries = 3, CancellationToken cancellationToken = default)
     {
+        var timeoutBudget = Stopwatch.StartNew();
+
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
+            var remainingTimeout = timeout - timeoutBudget.Elapsed;
+            if (remainingTimeout <= TimeSpan.Zero)
+                return false;
+
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -124,10 +131,9 @@ public sealed class NamedPipeClient : IDisposable
                 }
 
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(timeout);
+                cts.CancelAfter(remainingTimeout);
                 await localClient.ConnectAsync(cts.Token).ConfigureAwait(false);
 
-                // Perform authentication if enabled
                 if (_authManager != null && _authManager.IsAuthenticationEnabled)
                 {
                     if (!await AuthenticateToInspectorAsync(localClient, cts.Token).ConfigureAwait(false))
@@ -137,7 +143,6 @@ public sealed class NamedPipeClient : IDisposable
                     }
                 }
 
-                // Establish encrypted stream if certificate manager is provided
                 if (_certManager != null)
                 {
                     var sslStream = await CreateClientSslStreamAsync(localClient, cts.Token).ConfigureAwait(false);
@@ -164,51 +169,58 @@ public sealed class NamedPipeClient : IDisposable
             }
             catch (UnauthorizedAccessException)
             {
-                ResetConnectionState();
-
-                if (attempt == maxRetries)
+                if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
                     return false;
-
-                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             }
             catch (IOException)
             {
-                ResetConnectionState();
-
-                if (attempt == maxRetries)
+                if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
                     return false;
-
-                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             }
             catch (TimeoutException)
             {
-                ResetConnectionState();
-
-                if (attempt == maxRetries)
+                if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
                     return false;
-
-                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 ResetConnectionState();
-
-                // External cancellation requested - propagate immediately
                 throw;
             }
             catch (OperationCanceledException)
             {
-                ResetConnectionState();
-
-                // Internal timeout - treat as retry-able
-                if (attempt == maxRetries)
+                if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
                     return false;
-
-                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             }
         }
 
         return false;
+    }
+
+    private async Task<bool> HandleConnectRetryAsync(
+        int attempt,
+        int maxRetries,
+        TimeSpan totalTimeout,
+        Stopwatch timeoutBudget,
+        CancellationToken cancellationToken)
+    {
+        ResetConnectionState();
+
+        if (attempt == maxRetries)
+            return false;
+
+        var remainingTimeout = totalTimeout - timeoutBudget.Elapsed;
+        if (remainingTimeout <= TimeSpan.Zero)
+            return false;
+
+        var retryDelay = remainingTimeout < TimeSpan.FromMilliseconds(500)
+            ? remainingTimeout
+            : TimeSpan.FromMilliseconds(500);
+        if (retryDelay <= TimeSpan.Zero)
+            return false;
+
+        await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     private void ResetConnectionState()

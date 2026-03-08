@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 using FluentAssertions;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server;
@@ -61,7 +61,19 @@ public class TraceRoutedEventsToolTests
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("eventName");
     }
+    [Fact]
+    public async Task Execute_WithGetMode_ShouldNotRequireEventName()
+    {
+        var tool = new TraceRoutedEventsTool(new SessionManager());
+        var parameters = new { processId = 12345, mode = "get" };
 
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("not connected");
+        resultJson.GetProperty("error").GetString().Should().NotContain("eventName");
+    }
     [Fact]
     public async Task Execute_WithValidParameters_ShouldIncludeEventNameAndElementId()
     {
@@ -78,3 +90,4 @@ public class TraceRoutedEventsToolTests
         result.Should().NotBeNull();
     }
 }
+

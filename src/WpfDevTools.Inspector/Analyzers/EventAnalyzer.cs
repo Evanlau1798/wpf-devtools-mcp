@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -14,6 +14,30 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
     private const int MaxEventTraceEntries = 10000;
     private static bool _isTracing = false;
     private static CancellationTokenSource? _tracingCts = null;
+    private static ActiveTraceSession? _activeTraceSession = null;
+
+    private sealed class ActiveTraceSession
+    {
+        public ActiveTraceSession(
+            UIElement element,
+            RoutedEvent routedEvent,
+            RoutedEventHandler handler,
+            CancellationTokenSource tokenSource)
+        {
+            Element = element;
+            RoutedEvent = routedEvent;
+            Handler = handler;
+            TokenSource = tokenSource;
+        }
+
+        public UIElement Element { get; }
+
+        public RoutedEvent RoutedEvent { get; }
+
+        public RoutedEventHandler Handler { get; }
+
+        public CancellationTokenSource TokenSource { get; }
+    }
 
     // Reflection support for GetEventHandlers
     private const string EVENT_HANDLERS_STORE_MEMBER = "EventHandlersStore";
@@ -58,18 +82,24 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = $"Event '{eventName}' not found" };
             }
 
-            // CRITICAL FIX: Capture local CTS before starting delay to prevent ObjectDisposedException
+            ActiveTraceSession? previousSession;
             CancellationTokenSource localCts;
             lock (_lock)
             {
+                previousSession = _activeTraceSession;
                 _eventTrace.Clear();
                 _isTracing = true;
 
-                // Cancel and dispose any existing tracing token source
-                _tracingCts?.Cancel();
-                _tracingCts?.Dispose();
+                previousSession?.TokenSource.Cancel();
+                previousSession?.TokenSource.Dispose();
                 _tracingCts = new CancellationTokenSource();
                 localCts = _tracingCts;
+                _activeTraceSession = null;
+            }
+
+            if (previousSession != null)
+            {
+                previousSession.Element.RemoveHandler(previousSession.RoutedEvent, previousSession.Handler);
             }
 
             // Register event handler
@@ -96,21 +126,23 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
                 }
             });
 
-            uiElement.AddHandler(routedEvent, handler);
+            uiElement.AddHandler(routedEvent, handler, handledEventsToo: true);
 
-            // Stop tracing after capped duration
-            // Use local CTS captured before Task.Delay to prevent ObjectDisposedException
-            // Check that localCts is still the current _tracingCts before stopping,
-            // to prevent a stale continuation from cancelling a newer trace session.
+            lock (_lock)
+            {
+                _activeTraceSession = new ActiveTraceSession(uiElement, routedEvent, handler, localCts);
+            }
+
             Task.Delay(cappedDuration, localCts.Token).ContinueWith(_ =>
             {
                 InvokeOnUIThread(() =>
                 {
-                    uiElement.RemoveHandler(routedEvent, handler);
                     lock (_lock)
                     {
-                        if (ReferenceEquals(_tracingCts, localCts))
+                        if (_activeTraceSession != null && ReferenceEquals(_activeTraceSession.TokenSource, localCts))
                         {
+                            _activeTraceSession.Element.RemoveHandler(_activeTraceSession.RoutedEvent, _activeTraceSession.Handler);
+                            _activeTraceSession = null;
                             _isTracing = false;
                         }
                     }

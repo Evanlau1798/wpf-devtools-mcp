@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.Json;
 using System.ComponentModel;
 using FluentAssertions;
@@ -93,7 +93,15 @@ public class McpToolContractConsistencyTests
         parameter.HasDefaultValue.Should().BeTrue();
         parameter.DefaultValue.Should().BeNull();
     }
+    [Fact]
+    public void TraceRoutedEvents_ShouldExposeOptionalMode()
+    {
+        var parameter = GetParameter(typeof(EventMcpTools), nameof(EventMcpTools.TraceRoutedEvents), "mode");
 
+        parameter.ParameterType.Should().Be(typeof(string));
+        parameter.HasDefaultValue.Should().BeTrue();
+        parameter.DefaultValue.Should().BeNull();
+    }
     [Fact]
     public void FireRoutedEvent_ShouldExposeOptionalEventArgs()
     {
@@ -139,3 +147,4 @@ public class McpToolContractConsistencyTests
         parameter.DefaultValue.Should().Be(defaultValue);
     }
 }
+

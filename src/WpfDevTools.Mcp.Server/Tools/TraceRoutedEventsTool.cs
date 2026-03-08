@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -7,29 +7,50 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
 {
-    /// <summary>
-    /// Initializes a new instance of the TraceRoutedEventsTool class
-    /// </summary>
-    /// <param name="sessionManager">Session manager for tracking connected processes</param>
     public TraceRoutedEventsTool(SessionManager sessionManager) : base(sessionManager) { }
 
-    /// <summary>
-    /// Execute the trace_routed_events tool to enable event tracing
-    /// </summary>
-    /// <param name="arguments">JSON arguments containing processId, elementId, and eventName</param>
-    /// <param name="cancellationToken">Cancellation token for async operation</param>
-    /// <returns>Tool result indicating success or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments);
-        if (error != null) return error;
+        if (error != null)
+        {
+            return error;
+        }
+
+        var mode = NormalizeMode(ParseStringParam(arguments, "mode"));
+        if (mode == null)
+        {
+            return CreateInvalidParamError("mode must be one of: capture, start, get");
+        }
+
         var eventName = ParseStringParam(arguments, "eventName");
         var duration = ParseIntParam(arguments, "duration");
 
-        if (string.IsNullOrEmpty(eventName))
+        if (mode != "get" && string.IsNullOrEmpty(eventName))
+        {
             return CreateMissingParamError("eventName");
+        }
 
-        return await SendInspectorRequestAsync(processId, "trace_routed_events",
-            new { elementId, eventName, duration }, cancellationToken);
+        return await SendInspectorRequestAsync(
+            processId,
+            "trace_routed_events",
+            new { elementId, eventName, duration, mode },
+            cancellationToken);
+    }
+
+    private static string? NormalizeMode(string? mode)
+    {
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            return "capture";
+        }
+
+        return mode.Trim().ToLowerInvariant() switch
+        {
+            "capture" => "capture",
+            "start" => "start",
+            "get" => "get",
+            _ => null
+        };
     }
 }

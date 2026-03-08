@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -179,10 +180,26 @@ public sealed partial class BindingAnalyzer
             yield return child;
         }
 
-        var visualChildCount = VisualTreeHelper.GetChildrenCount(element);
+        if (element is not Visual && element is not Visual3D)
+        {
+            yield break;
+        }
+
+        int visualChildCount;
+        try
+        {
+            visualChildCount = VisualTreeHelper.GetChildrenCount(element);
+        }
+        catch (InvalidOperationException)
+        {
+            yield break;
+        }
+
         for (var index = 0; index < visualChildCount; index++)
         {
             yield return VisualTreeHelper.GetChild(element, index);
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
@@ -14,43 +14,49 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class EventMcpTools
 {
     private const string EventMetadata = "CATEGORY: Event | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+
     [McpServerTool(Name = "trace_routed_events", OpenWorld = false, ReadOnly = true)]
     [Description(
-        EventMetadata + "[Event] Trace a routed event over a short capture window and return the collected event records. " +
-        "Use this to see whether a routed event fired, how many records were captured, and the handled state of each record.\n\n" +
-        "USE WHEN: Debugging event handling issues; confirming whether Click/MouseDown style events are firing.\n" +
-        "DO NOT USE: As a long-running subscription. This tool blocks until the capture window completes and then returns the collected records.\n\n" +
+        EventMetadata + "[Event] Trace a routed event over a short capture window and return collected records, or run in a two-step non-blocking workflow for AI agents. " +
+        "Use `mode=\"start\"` to start tracing immediately, then trigger UI activity with another tool, then call `mode=\"get\"` to fetch the buffered records.\n\n" +
+        "USE WHEN: Debugging event handling issues; confirming whether Click/MouseDown style events are firing; correlating routed events with follow-up tool calls from the same MCP session.\n" +
+        "DO NOT USE: As a long-running subscription. This tool captures only a bounded in-memory trace.\n\n" +
+        "MODES:\n" +
+        "- `capture` (default): start tracing, wait for the capture window to end, then return the collected records\n" +
+        "- `start`: start tracing immediately and return without blocking the session\n" +
+        "- `get`: return the current buffered trace and tracing status; `eventName` is not required in this mode\n\n" +
         "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  eventName: string,\n" +
-        "  duration: integer,\n" +
-        "  eventCount: integer,\n" +
-        "  events: [{\n" +
-        "    timestamp, sender, routingStrategy, handled\n" +
-        "  }]\n" +
-        "}\n\n" +
-        "TIP: Keep durationMs small (250-2000) so the trace completes quickly in STDIO clients.\n\n" +
+        "- capture mode:\n" +
+        "  { success, mode: \"capture\", eventName, duration, isTracing, eventCount, events }\n" +
+        "- start mode:\n" +
+        "  { success, mode: \"start\", eventName, duration, isTracing, message }\n" +
+        "- get mode:\n" +
+        "  { success, mode: \"get\", isTracing, eventCount, events }\n\n" +
+        "TIP: For AI-driven automation, prefer `mode=\"start\"` + `click_element`/`fire_routed_event` + `mode=\"get\"` so the capture window is not blocked by the current request.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"invalid event name\" -> verify eventName is a valid WPF RoutedEvent\n" +
-        "- \"eventName required\" -> must specify which event to trace\n\n" +
+        "- \"eventName required\" -> required for `capture` and `start` modes\n" +
+        "- \"invalid mode\" -> use `capture`, `start`, or `get`\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, eventName: \"MouseDown\", durationMs: 500 }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", durationMs: 1000 }")]
+        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", mode: \"start\", durationMs: 1000 }\n" +
+        "- { processId: 12345, mode: \"get\" }")]
     public static Task<CallToolResult> TraceRoutedEvents(
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,
-        [Description("WPF routed event name to trace, such as Click or MouseDown.")] string eventName,
+        [Description("Optional WPF routed event name to trace, such as Click or MouseDown. Required for `capture` and `start`, optional for `get`.")] string? eventName = null,
         [Description("Optional element ID to scope the event trace. Omit for the root window.")] string? elementId = null,
         [Description("Optional capture window in milliseconds (default: 5000). Use smaller values (250-2000) for interactive STDIO sessions.")] int? durationMs = null,
+        [Description("Optional tracing mode: `capture` (default), `start`, or `get`. Use `start` + `get` for AI-friendly non-blocking workflows.")] string? mode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
             ("eventName", eventName),
-            ("duration", durationMs));
+            ("duration", durationMs),
+            ("mode", mode));
 
         var timeoutSeconds = Math.Max(
             McpServerConfiguration.DefaultToolTimeoutSeconds,

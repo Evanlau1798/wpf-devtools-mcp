@@ -151,6 +151,3 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 }
-
-
-

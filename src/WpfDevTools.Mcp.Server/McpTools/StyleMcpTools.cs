@@ -169,6 +169,3 @@ public static class StyleMcpTools
             cancellationToken);
     }
 }
-
-
-

@@ -217,8 +217,13 @@ public sealed class ConnectTool
                 processId = processId.Value
             };
         }
-        catch
+        catch (Exception ex)
         {
+            Trace.TraceWarning(
+                "ConnectTool cleanup triggered for process {0} after pipe handshake failure: {1}: {2}",
+                processId.Value,
+                ex.GetType().Name,
+                ex.Message);
             _sessionManager.RemoveSession(processId.Value);
             throw;
         }

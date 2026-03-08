@@ -202,6 +202,3 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 }
-
-
-

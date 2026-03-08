@@ -126,8 +126,11 @@ internal static class DllPathValidator
                     $"Certificate chain validation failed: {errors}");
             }
 
-            var now = DateTime.UtcNow;
-            if (now < cert2.NotBefore.ToUniversalTime() || now > cert2.NotAfter.ToUniversalTime())
+            var validityWindow = new CertificateValidityWindow(
+                new DateTimeOffset(cert2.NotBefore),
+                new DateTimeOffset(cert2.NotAfter));
+            var now = DateTimeOffset.UtcNow;
+            if (!validityWindow.Contains(now))
             {
                 throw new InvalidOperationException(
                     $"Certificate has expired or is not yet valid. Valid from {cert2.NotBefore} to {cert2.NotAfter}");
@@ -152,4 +155,3 @@ internal static class DllPathValidator
         }
     }
 }
-

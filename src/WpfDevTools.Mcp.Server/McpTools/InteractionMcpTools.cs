@@ -203,6 +203,3 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 }
-
-
-

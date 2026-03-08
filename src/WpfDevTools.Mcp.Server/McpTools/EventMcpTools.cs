@@ -141,6 +141,3 @@ public static class EventMcpTools
             cancellationToken);
     }
 }
-
-
-

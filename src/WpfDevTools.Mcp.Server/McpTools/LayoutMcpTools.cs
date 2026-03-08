@@ -161,6 +161,3 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 }
-
-
-

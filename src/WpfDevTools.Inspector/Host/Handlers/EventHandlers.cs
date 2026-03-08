@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using WpfDevTools.Inspector.Analyzers;
 
 namespace WpfDevTools.Inspector.Host.Handlers;
@@ -136,7 +136,8 @@ public class EventHandlers : IRequestHandler
             return "capture";
         }
 
-        return mode.Trim().ToLowerInvariant() switch
+        var normalizedMode = (mode ?? string.Empty).Trim().ToLowerInvariant();
+        return normalizedMode switch
         {
             "capture" => "capture",
             "start" => "start",

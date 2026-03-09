@@ -76,6 +76,23 @@ public class InteractionAnalyzerTests
     }
 
     [StaFact]
+    public void ClickElement_WithButtonCommand_ShouldExecuteCommandExactlyOnce()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var executeCount = 0;
+        var button = new Button
+        {
+            Command = new TestCommand(() => executeCount++)
+        };
+        var elementId = finder.GenerateElementId(button);
+
+        analyzer.ClickElement(elementId);
+
+        executeCount.Should().Be(1, "command should execute exactly once, not twice");
+    }
+
+    [StaFact]
     public void ScrollToElement_WithValidElement_ShouldBringIntoView()
     {
         // Arrange
@@ -215,23 +232,139 @@ public class InteractionAnalyzerTests
     }
 
     [StaFact]
+    public void SimulateKeyboard_OnTextBox_WithLetterKey_ShouldInsertCharacter()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var textBox = new TextBox { Text = "" };
+        window.Content = textBox;
+        window.Show();
+
+        try
+        {
+            var elementId = finder.GenerateElementId(textBox);
+            var result = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(analyzer.SimulateKeyboard(elementId, "A", "KeyDown")));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("appliedDirectEdit").GetBoolean().Should().BeTrue();
+            textBox.Text.Should().Be("a");
+        }
+        finally { window.Close(); }
+    }
+
+    [StaFact]
+    public void SimulateKeyboard_OnTextBox_WithDigitKey_ShouldInsertDigit()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var textBox = new TextBox { Text = "test" };
+        window.Content = textBox;
+        window.Show();
+
+        try
+        {
+            var elementId = finder.GenerateElementId(textBox);
+            textBox.Focus();
+            textBox.CaretIndex = textBox.Text.Length;
+
+            var result = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(analyzer.SimulateKeyboard(elementId, "D5", "KeyDown")));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("appliedDirectEdit").GetBoolean().Should().BeTrue();
+            textBox.Text.Should().Be("test5");
+        }
+        finally { window.Close(); }
+    }
+
+    [StaFact]
+    public void SimulateKeyboard_OnTextBox_WithMultipleKeys_ShouldBuildString()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var textBox = new TextBox { Text = "" };
+        window.Content = textBox;
+        window.Show();
+
+        try
+        {
+            var elementId = finder.GenerateElementId(textBox);
+            analyzer.SimulateKeyboard(elementId, "H", "KeyDown");
+            analyzer.SimulateKeyboard(elementId, "I", "KeyDown");
+
+            textBox.Text.Should().Be("hi");
+        }
+        finally { window.Close(); }
+    }
+
+    [StaFact]
+    public void SimulateKeyboard_OnReadOnlyTextBox_WithLetterKey_ShouldNotInsert()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var textBox = new TextBox { Text = "original", IsReadOnly = true };
+        window.Content = textBox;
+        window.Show();
+
+        try
+        {
+            var elementId = finder.GenerateElementId(textBox);
+            analyzer.SimulateKeyboard(elementId, "A", "KeyDown");
+
+            textBox.Text.Should().Be("original", "ReadOnly TextBox should not accept character input");
+        }
+        finally { window.Close(); }
+    }
+
+    [StaFact]
+    public void SimulateKeyboard_OnTextBox_WithSpaceKey_ShouldInsertSpace()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var textBox = new TextBox { Text = "ab" };
+        window.Content = textBox;
+        window.Show();
+
+        try
+        {
+            var elementId = finder.GenerateElementId(textBox);
+            textBox.Focus();
+            textBox.CaretIndex = 1;
+
+            var result = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(analyzer.SimulateKeyboard(elementId, "Space", "KeyDown")));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("appliedDirectEdit").GetBoolean().Should().BeTrue();
+            textBox.Text.Should().Be("a b");
+        }
+        finally { window.Close(); }
+    }
+
+    [StaFact]
     public void SimulateKeyboard_ShouldRaiseBothPreviewAndBubbleEvents()
     {
         var finder = new ElementFinder();
         var analyzer = new InteractionAnalyzer(finder);
         var window = new Window { Width = 200, Height = 200 };
-        var textBox = new TextBox();
-        window.Content = textBox;
+        var button = new Button();
+        window.Content = button;
         window.Show();
 
         bool previewFired = false;
         bool keyDownFired = false;
-        textBox.PreviewKeyDown += (s, e) => previewFired = true;
-        textBox.KeyDown += (s, e) => keyDownFired = true;
+        button.PreviewKeyDown += (s, e) => previewFired = true;
+        button.KeyDown += (s, e) => keyDownFired = true;
 
         try
         {
-            var elementId = finder.GenerateElementId(textBox);
+            var elementId = finder.GenerateElementId(button);
             analyzer.SimulateKeyboard(elementId, "A", "KeyDown");
 
             previewFired.Should().BeTrue("PreviewKeyDown tunnel event should fire");

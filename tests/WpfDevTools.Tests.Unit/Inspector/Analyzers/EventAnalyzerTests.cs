@@ -188,6 +188,112 @@ public class EventAnalyzerTests
         events.GetArrayLength().Should().BeGreaterThan(0);
     }
 
+    [StaFact]
+    public void TraceRoutedEvents_WithClickOnNonButtonElement_ShouldFindEventViaGlobalSearch()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var grid = new System.Windows.Controls.Grid();
+        var elementId = finder.GenerateElementId(grid);
+
+        var result = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(analyzer.TraceRoutedEvents(elementId, "Click", 1000)));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue(
+            "Click event should be findable on any UIElement via global RoutedEvent search");
+    }
+
+    [StaFact]
+    public void TraceRoutedEvents_WithMouseDown_ShouldFindEventAndStartTracing()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(analyzer.TraceRoutedEvents(elementId, "MouseDown", 1000)));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue(
+            "MouseDown event should be traceable");
+    }
+
+    [StaFact]
+    public void GetEventTrace_ShouldIncludeDiagnosticFields()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+
+        var trace = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(analyzer.GetEventTrace()));
+
+        trace.GetProperty("success").GetBoolean().Should().BeTrue();
+        trace.TryGetProperty("handlerInvocationCount", out _).Should().BeTrue(
+            "GetEventTrace should include diagnostic handlerInvocationCount");
+    }
+
+    [StaFact]
+    public void TraceRoutedEvents_OnWindow_WithClick_ShouldFindEventViaGlobalSearch()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var elementId = finder.GenerateElementId(window);
+
+        try
+        {
+            var result = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(analyzer.TraceRoutedEvents(elementId, "Click", 1000)));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue(
+                "Click event should be findable on Window via global search (not just type hierarchy)");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void TraceRoutedEvents_WithMouseDownOnWindow_ThenFireEvent_ShouldCaptureEvent()
+    {
+        var finder = new ElementFinder();
+        var eventAnalyzer = new EventAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var button = new Button { Content = "Test" };
+        window.Content = button;
+        window.Show();
+
+        try
+        {
+            var btnId = finder.GenerateElementId(button);
+
+            var startResult = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(eventAnalyzer.TraceRoutedEvents(btnId, "MouseDown", 5000)));
+            startResult.GetProperty("success").GetBoolean().Should().BeTrue();
+
+            // Fire MouseDown directly
+            button.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(
+                System.Windows.Input.Mouse.PrimaryDevice, 0,
+                System.Windows.Input.MouseButton.Left)
+            {
+                RoutedEvent = System.Windows.UIElement.MouseDownEvent
+            });
+
+            Thread.Sleep(50);
+
+            var trace = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(eventAnalyzer.GetEventTrace()));
+            trace.GetProperty("success").GetBoolean().Should().BeTrue();
+            trace.GetProperty("eventCount").GetInt32().Should().BeGreaterThan(0,
+                "MouseDown event should be captured by trace handler");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     private static void OnButtonClick(object sender, RoutedEventArgs e)
     {
     }

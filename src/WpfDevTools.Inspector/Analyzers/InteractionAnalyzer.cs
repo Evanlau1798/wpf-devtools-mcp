@@ -46,11 +46,8 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
             {
                 if (element is ButtonBase button)
                 {
-                    if (button.Command != null && button.Command.CanExecute(button.CommandParameter))
-                    {
-                        button.Command.Execute(button.CommandParameter);
-                    }
-
+                    // OnClick() handles both RaiseEvent(ClickEvent) and Command execution.
+                    // Do NOT call Command.Execute separately — it would double-execute.
                     var onClick = button.GetType().GetMethod(
                         "OnClick",
                         System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
@@ -62,6 +59,10 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                     else
                     {
                         button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
+                        if (button.Command != null && button.Command.CanExecute(button.CommandParameter))
+                        {
+                            button.Command.Execute(button.CommandParameter);
+                        }
                     }
 
                     return new
@@ -429,6 +430,7 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
 
                 if (routedEvent == Keyboard.KeyDownEvent && element is TextBox textBox && InteractionKeyboardHelper.TryApplyTextBoxEdit(textBox, parsedKey))
                 {
+
                     return new
                     {
                         success = true,

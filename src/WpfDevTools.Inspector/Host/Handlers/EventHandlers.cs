@@ -158,6 +158,8 @@ public class EventHandlers : IRequestHandler
             var isTracing = tracePayload.GetProperty("isTracing").GetBoolean();
             var eventCount = tracePayload.GetProperty("eventCount").GetInt32();
             var events = tracePayload.GetProperty("events");
+            var handlerInvocationCount = tracePayload.TryGetProperty("handlerInvocationCount", out var hic)
+                ? hic.GetInt32() : 0;
 
             if (mode == "capture")
             {
@@ -169,7 +171,8 @@ public class EventHandlers : IRequestHandler
                     duration,
                     isTracing,
                     eventCount,
-                    events
+                    events,
+                    handlerInvocationCount
                 };
             }
 
@@ -179,7 +182,8 @@ public class EventHandlers : IRequestHandler
                 mode,
                 isTracing,
                 eventCount,
-                events
+                events,
+                handlerInvocationCount
             };
         }
 

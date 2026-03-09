@@ -70,43 +70,62 @@ internal static class InteractionKeyboardHelper
     }
 
     /// <summary>
-    /// Attempts to apply direct text editing for TextBox (Backspace, Delete).
-    /// Returns true if the edit was applied.
+    /// Attempts to apply direct text editing for TextBox.
+    /// Handles character insertion (A-Z, 0-9, Space, punctuation) and
+    /// deletion (Backspace, Delete). Returns true if the edit was applied.
     /// </summary>
     internal static bool TryApplyTextBoxEdit(TextBox textBox, Key key)
     {
-        if (textBox.IsReadOnly || (key != Key.Back && key != Key.Delete))
+        if (textBox.IsReadOnly)
         {
             return false;
         }
 
-        var hadKeyboardFocus = textBox.IsKeyboardFocusWithin;
-        if (!hadKeyboardFocus)
+        var ch = TryGetCharForKey(key);
+        var isDeleteKey = key == Key.Back || key == Key.Delete;
+
+        if (ch == null && !isDeleteKey)
         {
-            textBox.Focus();
-            Keyboard.Focus(textBox);
+            return false;
         }
 
-        var text = textBox.Text ?? string.Empty;
-        if (!hadKeyboardFocus && textBox.SelectionLength == 0)
-        {
-            textBox.CaretIndex = text.Length;
-        }
-        else
-        {
-            textBox.CaretIndex = ClampInt(textBox.CaretIndex, 0, text.Length);
-        }
+        EnsureFocusAndCaret(textBox);
+        var currentText = textBox.Text ?? string.Empty;
 
+        // Handle selected text replacement/deletion
         if (textBox.SelectionLength > 0)
         {
-            var selectionStart = ClampInt(textBox.SelectionStart, 0, text.Length);
-            var selectionLength = Math.Min(textBox.SelectionLength, text.Length - selectionStart);
-            textBox.Text = text.Remove(selectionStart, selectionLength);
-            textBox.CaretIndex = selectionStart;
+            var selStart = ClampInt(textBox.SelectionStart, 0, currentText.Length);
+            var selLen = Math.Min(textBox.SelectionLength, currentText.Length - selStart);
+            var afterRemoval = currentText.Remove(selStart, selLen);
+
+            if (ch != null)
+            {
+                textBox.Text = afterRemoval.Insert(selStart, ch.Value.ToString());
+                textBox.CaretIndex = selStart + 1;
+            }
+            else
+            {
+                textBox.Text = afterRemoval;
+                textBox.CaretIndex = selStart;
+            }
+
             return true;
         }
 
-        return key == Key.Back ? TryApplyBackspace(textBox, text) : TryApplyDelete(textBox, text);
+        // Character insertion at caret
+        if (ch != null)
+        {
+            var caretIndex = ClampInt(textBox.CaretIndex, 0, currentText.Length);
+            textBox.Text = currentText.Insert(caretIndex, ch.Value.ToString());
+            textBox.CaretIndex = caretIndex + 1;
+            return true;
+        }
+
+        // Backspace / Delete
+        return key == Key.Back
+            ? TryApplyBackspace(textBox, currentText)
+            : TryApplyDelete(textBox, currentText);
     }
 
     private static bool TryApplyBackspace(TextBox textBox, string text)
@@ -127,6 +146,75 @@ internal static class InteractionKeyboardHelper
         textBox.Text = text.Remove(caretIndex, 1);
         textBox.CaretIndex = caretIndex;
         return true;
+    }
+
+    private static void EnsureFocusAndCaret(TextBox textBox)
+    {
+        var hadKeyboardFocus = textBox.IsKeyboardFocusWithin;
+        if (!hadKeyboardFocus)
+        {
+            textBox.Focus();
+            Keyboard.Focus(textBox);
+        }
+
+        var text = textBox.Text ?? string.Empty;
+        if (!hadKeyboardFocus && textBox.SelectionLength == 0)
+        {
+            textBox.CaretIndex = text.Length;
+        }
+        else
+        {
+            textBox.CaretIndex = ClampInt(textBox.CaretIndex, 0, text.Length);
+        }
+    }
+
+    /// <summary>
+    /// Converts a WPF Key to its printable character representation.
+    /// Returns null for non-printable keys (Ctrl, Shift, F1, etc.).
+    /// </summary>
+    internal static char? TryGetCharForKey(Key key)
+    {
+        // Letters: A-Z → 'a'-'z'
+        if (key >= Key.A && key <= Key.Z)
+        {
+            return (char)('a' + (key - Key.A));
+        }
+
+        // Digits: D0-D9 → '0'-'9'
+        if (key >= Key.D0 && key <= Key.D9)
+        {
+            return (char)('0' + (key - Key.D0));
+        }
+
+        // NumPad digits: NumPad0-NumPad9 → '0'-'9'
+        if (key >= Key.NumPad0 && key <= Key.NumPad9)
+        {
+            return (char)('0' + (key - Key.NumPad0));
+        }
+
+        // Common punctuation and symbols
+        return key switch
+        {
+            Key.Space => ' ',
+            Key.OemPeriod => '.',
+            Key.OemComma => ',',
+            Key.OemMinus => '-',
+            Key.OemPlus => '=',
+            Key.Oem1 => ';',        // Semicolon
+            Key.Oem2 => '/',        // Forward slash
+            Key.Oem3 => '`',        // Backtick
+            Key.Oem4 => '[',        // Open bracket
+            Key.Oem5 => '\\',       // Backslash
+            Key.Oem6 => ']',        // Close bracket
+            Key.Oem7 => '\'',       // Single quote
+            Key.Multiply => '*',
+            Key.Add => '+',
+            Key.Subtract => '-',
+            Key.Decimal => '.',
+            Key.Divide => '/',
+            Key.Tab => '\t',
+            _ => null
+        };
     }
 
     private static int ClampInt(int value, int min, int max)

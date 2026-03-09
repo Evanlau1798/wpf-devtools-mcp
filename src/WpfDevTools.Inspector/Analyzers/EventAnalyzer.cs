@@ -15,6 +15,7 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
     private static bool _isTracing = false;
     private static CancellationTokenSource? _tracingCts = null;
     private static ActiveTraceSession? _activeTraceSession = null;
+    private static int _handlerInvocationCount = 0;
 
     // Reflection support for GetEventHandlers
     private const string EVENT_HANDLERS_STORE_MEMBER = "EventHandlersStore";
@@ -66,6 +67,7 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
             {
                 _eventTrace.Clear();
                 _isTracing = true;
+                _handlerInvocationCount = 0;
                 _tracingCts = new CancellationTokenSource();
                 localCts = _tracingCts;
                 _activeTraceSession = null;
@@ -105,7 +107,8 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
                 success = true,
                 isTracing = _isTracing,
                 eventCount = _eventTrace.Count,
-                events = _eventTrace.ToList()
+                events = _eventTrace.ToList(),
+                handlerInvocationCount = _handlerInvocationCount
             };
         }
     }
@@ -239,6 +242,7 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
         {
             lock (_lock)
             {
+                _handlerInvocationCount++;
                 if (_isTracing)
                 {
                     _eventTrace.Add(new
@@ -302,30 +306,12 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
 
     private static RoutedEvent? FindPreviewRoutedEvent(UIElement element, string eventName)
     {
-        // If it already starts with "Preview", skip
         if (eventName.StartsWith("Preview", StringComparison.Ordinal))
         {
             return null;
         }
 
-        var previewFieldName = "Preview" + eventName + "Event";
-        var type = element.GetType();
-
-        while (type != null && type != typeof(object))
-        {
-            var field = type.GetField(previewFieldName,
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.Static);
-
-            if (field != null && field.FieldType == typeof(RoutedEvent))
-            {
-                return field.GetValue(null) as RoutedEvent;
-            }
-
-            type = type.BaseType;
-        }
-
-        return null;
+        return RoutedEventDiscovery.FindRoutedEvent(element.GetType(), "Preview" + eventName);
     }
 
     private void CleanupPreviousSession()
@@ -385,25 +371,7 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
 
     private RoutedEvent? FindRoutedEvent(UIElement element, string eventName)
     {
-        var type = element.GetType();
-        var fieldName = eventName + "Event";
-
-        // Search in current type and base types
-        while (type != null && type != typeof(object))
-        {
-            var field = type.GetField(fieldName,
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.Static);
-
-            if (field != null && field.FieldType == typeof(RoutedEvent))
-            {
-                return field.GetValue(null) as RoutedEvent;
-            }
-
-            type = type.BaseType;
-        }
-
-        return null;
+        return RoutedEventDiscovery.FindRoutedEvent(element.GetType(), eventName);
     }
 
     private static List<object> GetHandlerInfoList(UIElement uiElement, RoutedEvent routedEvent)

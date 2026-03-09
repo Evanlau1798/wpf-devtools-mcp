@@ -201,6 +201,47 @@ public class DispatcherAnalyzerBaseTests
         result.Should().BeOfType<SolidColorBrush>();
         ((SolidColorBrush)result!).Color.Should().Be(Colors.Orange);
     }
+    [Fact]
+    public void ConvertValue_WithQuotedJsonString_ShouldStripSurroundingQuotes()
+    {
+        // Simulate: AI agent sends value: "\"Alice\"" -> JSON string content has literal quotes
+        var jsonWithQuotes = JsonSerializer.Deserialize<JsonElement>("\"\\\"Alice\\\"\"");
+
+        var result = TestAnalyzer.TestConvertValue(jsonWithQuotes, typeof(string));
+
+        result.Should().Be("Alice", "Surrounding double-quotes should be stripped from string values");
+    }
+
+    [StaFact]
+    public void ConvertValue_WithQuotedJsonStringToBrush_ShouldStripQuotesAndConvert()
+    {
+        // Simulate: AI agent sends value: "\"Blue\"" for a Brush property
+        var jsonWithQuotes = JsonSerializer.Deserialize<JsonElement>("\"\\\"Blue\\\"\"");
+
+        var result = TestAnalyzer.TestConvertValue(jsonWithQuotes, typeof(Brush));
+
+        result.Should().BeOfType<SolidColorBrush>();
+        ((SolidColorBrush)result!).Color.Should().Be(Colors.Blue);
+    }
+
+    [Fact]
+    public void ConvertValue_WithUnquotedJsonString_ShouldNotChange()
+    {
+        var jsonNormal = JsonSerializer.Deserialize<JsonElement>("\"Alice\"");
+
+        var result = TestAnalyzer.TestConvertValue(jsonNormal, typeof(string));
+
+        result.Should().Be("Alice", "Normal string values should pass through unchanged");
+    }
+
+    [Fact]
+    public void ConvertValue_WithSingleQuoteString_ShouldNotStrip()
+    {
+        var result = TestAnalyzer.TestConvertValue("\"Hello", typeof(string));
+
+        result.Should().Be("\"Hello", "Strings with only one quote should not be modified");
+    }
+
     [StaFact]
     public void FindDependencyProperty_WithValidProperty_ShouldReturnProperty()
     {

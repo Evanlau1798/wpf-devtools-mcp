@@ -64,13 +64,18 @@ public class EventHandlers : IRequestHandler
         var eventName = ParameterHelpers.GetStringParam(@params, "eventName");
         var duration = ParameterHelpers.GetIntParam(@params, "duration") ?? InspectorConstants.Defaults.EventTraceDuration;
 
+        // For "start" mode, enforce minimum duration to ensure AI agent has time for IPC round-trips
+        var effectiveDuration = mode == "start"
+            ? Math.Max(duration, InspectorConstants.Defaults.StartModeMinDuration)
+            : duration;
+
         if (string.IsNullOrEmpty(eventName))
         {
             throw new ArgumentException("Missing required parameter: eventName");
         }
 
         var startResult = await Task.Run(
-            () => _eventAnalyzer.TraceRoutedEvents(elementId, eventName!, duration),
+            () => _eventAnalyzer.TraceRoutedEvents(elementId, eventName!, effectiveDuration),
             cancellationToken).ConfigureAwait(false);
 
         var startPayload = JsonSerializer.SerializeToElement(startResult);
@@ -86,16 +91,19 @@ public class EventHandlers : IRequestHandler
                 success = true,
                 mode = "start",
                 eventName,
-                duration,
+                requestedDuration = duration,
+                effectiveDuration,
                 isTracing = true,
-                message = startPayload.TryGetProperty("message", out var messageProperty)
-                    ? messageProperty.GetString()
-                    : $"Started tracing '{eventName}' for {duration}ms"
+                message = duration != effectiveDuration
+                    ? $"Started tracing '{eventName}' for {effectiveDuration}ms (requested {duration}ms, enforced minimum {InspectorConstants.Defaults.StartModeMinDuration}ms for AI agent round-trips)"
+                    : startPayload.TryGetProperty("message", out var messageProperty)
+                        ? messageProperty.GetString()
+                        : $"Started tracing '{eventName}' for {effectiveDuration}ms"
             };
         }
 
-        await Task.Delay(duration, cancellationToken).ConfigureAwait(false);
-        return CreateTraceSnapshotResult("capture", _eventAnalyzer.GetEventTrace(), eventName, duration);
+        await Task.Delay(effectiveDuration, cancellationToken).ConfigureAwait(false);
+        return CreateTraceSnapshotResult("capture", _eventAnalyzer.GetEventTrace(), eventName, effectiveDuration);
     }
 
     private async Task<object> HandleGetEventHandlersAsync(JsonElement? @params, CancellationToken cancellationToken)

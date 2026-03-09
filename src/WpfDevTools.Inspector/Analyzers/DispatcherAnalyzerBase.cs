@@ -88,6 +88,13 @@ public abstract class DispatcherAnalyzerBase
             : value;
 
         if (value == null) return null;
+
+        // Strip surrounding double-quotes from string values (handles JSON double-quoting by AI agents)
+        if (value is string strVal)
+        {
+            value = NormalizeStringValue(strVal);
+        }
+
         if (targetType.IsAssignableFrom(value.GetType())) return value;
 
         // Try TypeConverter first (handles WPF types like Brush, Thickness, etc.)
@@ -99,6 +106,15 @@ public abstract class DispatcherAnalyzerBase
 
         // Fallback to Convert.ChangeType for simple types
         return Convert.ChangeType(value, targetType);
+    }
+
+    private static string NormalizeStringValue(string value)
+    {
+        if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"')
+        {
+            return value.Substring(1, value.Length - 2);
+        }
+        return value;
     }
 
     private static object? ConvertJsonElement(JsonElement value, Type targetType)

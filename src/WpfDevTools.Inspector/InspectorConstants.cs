@@ -64,6 +64,8 @@ public static class InspectorConstants
         public const int HighlightDuration = 2000; // milliseconds
         /// <summary>Default event trace duration in milliseconds</summary>
         public const int EventTraceDuration = 5000; // milliseconds
+        /// <summary>Minimum event trace duration for start mode in milliseconds (AI agent round-trip)</summary>
+        public const int StartModeMinDuration = 30000; // 30 seconds
         /// <summary>Threshold for detecting binding leaks</summary>
         public const int BindingLeakThreshold = 100;
     }

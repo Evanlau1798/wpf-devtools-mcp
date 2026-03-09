@@ -261,6 +261,47 @@ public class MvvmAnalyzerTests
     }
 
     [StaFact]
+    public void GetValidationErrors_OnParent_ShouldAggregateDescendantErrors()
+    {
+        // Arrange - parent StackPanel with child TextBoxes that have validation errors
+        var finder = new ElementFinder();
+        var analyzer = new MvvmAnalyzer(finder);
+        var stackPanel = new StackPanel();
+        var textBox1 = new TextBox();
+        var textBox2 = new TextBox();
+        stackPanel.Children.Add(textBox1);
+        stackPanel.Children.Add(textBox2);
+
+        // Set up bindings so we can inject validation errors
+        var binding1 = new System.Windows.Data.Binding("Text")
+        { Source = new { Text = "" }, Mode = System.Windows.Data.BindingMode.OneWay };
+        textBox1.SetBinding(TextBox.TextProperty, binding1);
+        var binding2 = new System.Windows.Data.Binding("Text")
+        { Source = new { Text = "" }, Mode = System.Windows.Data.BindingMode.OneWay };
+        textBox2.SetBinding(TextBox.TextProperty, binding2);
+
+        // Inject validation errors on child elements
+        var expr1 = System.Windows.Data.BindingOperations.GetBindingExpression(textBox1, TextBox.TextProperty);
+        var expr2 = System.Windows.Data.BindingOperations.GetBindingExpression(textBox2, TextBox.TextProperty);
+        var rule = new System.Windows.Controls.ExceptionValidationRule();
+        System.Windows.Controls.Validation.MarkInvalid(expr1!,
+            new System.Windows.Controls.ValidationError(rule, expr1!) { ErrorContent = "Error on child 1" });
+        System.Windows.Controls.Validation.MarkInvalid(expr2!,
+            new System.Windows.Controls.ValidationError(rule, expr2!) { ErrorContent = "Error on child 2" });
+
+        var parentId = finder.GenerateElementId(stackPanel);
+
+        // Act - query parent element
+        var result = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+            System.Text.Json.JsonSerializer.Serialize(analyzer.GetValidationErrors(parentId)));
+
+        // Assert - should aggregate errors from descendants
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().BeGreaterOrEqualTo(2,
+            "Parent element should aggregate validation errors from descendant elements");
+    }
+
+    [StaFact]
     public void GetValidationErrors_WithInvalidElement_ShouldReturnError()
     {
         // Arrange

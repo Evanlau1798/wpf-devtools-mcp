@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -214,20 +215,43 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
             var errors = new List<object>();
             if (element is DependencyObject depObj)
             {
-                var validationErrors = Validation.GetErrors(depObj);
-                foreach (var error in validationErrors)
-                {
-                    errors.Add(new Dictionary<string, object?>
-                    {
-                        ["errorContent"] = error.ErrorContent?.ToString(),
-                        ["isRuleError"] = error.RuleInError != null,
-                        ["ruleType"] = error.RuleInError?.GetType().Name
-                    });
-                }
+                CollectValidationErrorsRecursive(depObj, errors, maxDepth: 50);
             }
 
             return new { success = true, errorCount = errors.Count, errors };
         });
+    }
+
+    private const int MaxValidationErrors = 200;
+
+    private static void CollectValidationErrorsRecursive(
+        DependencyObject element, List<object> errors, int maxDepth)
+    {
+        if (maxDepth <= 0 || errors.Count >= MaxValidationErrors) return;
+
+        var validationErrors = Validation.GetErrors(element);
+        foreach (var error in validationErrors)
+        {
+            if (errors.Count >= MaxValidationErrors) return;
+            var elementName = (element as FrameworkElement)?.Name;
+            var elementType = element.GetType().Name;
+            errors.Add(new Dictionary<string, object?>
+            {
+                ["errorContent"] = error.ErrorContent?.ToString(),
+                ["isRuleError"] = error.RuleInError != null,
+                ["ruleType"] = error.RuleInError?.GetType().Name,
+                ["elementType"] = elementType,
+                ["elementName"] = string.IsNullOrEmpty(elementName) ? null : elementName
+            });
+        }
+
+        var childCount = VisualTreeHelper.GetChildrenCount(element);
+        for (var i = 0; i < childCount; i++)
+        {
+            if (errors.Count >= MaxValidationErrors) return;
+            var child = VisualTreeHelper.GetChild(element, i);
+            CollectValidationErrorsRecursive(child, errors, maxDepth - 1);
+        }
     }
 
     private DependencyObject? GetRootElement()

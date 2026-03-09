@@ -110,15 +110,19 @@ public static class EventMcpTools
 
     [McpServerTool(Name = "fire_routed_event", OpenWorld = false, Destructive = true)]
     [Description(
-        EventMetadata + "[Event] Fire a routed event on a WPF element. " +
-        "Triggers the full WPF routed event pipeline (Tunneling -> Direct -> Bubbling).\n\n" +
-        "USE WHEN: Testing event handlers programmatically; simulating user interactions.\n" +
-        "DO NOT USE: For mouse clicks (use click_element instead); for keyboard input (use simulate_keyboard).\n\n" +
-        "WARNING: This triggers real application logic.\n\n" +
+        EventMetadata + "[Event] Raise a routed event on a WPF element using UIElement.RaiseEvent(). " +
+        "Only triggers event handlers attached to the routed event pipeline (Tunneling -> Direct -> Bubbling). " +
+        "Does NOT execute ICommand bindings or call control-specific methods like ButtonBase.OnClick().\n\n" +
+        "USE WHEN: Testing event handlers programmatically; verifying that routed event handlers are wired correctly.\n" +
+        "DO NOT USE: For simulating button clicks (use click_element instead - it calls OnClick() which includes both RaiseEvent AND Command execution); " +
+        "for keyboard input (use simulate_keyboard).\n\n" +
+        "IMPORTANT: fire_routed_event('Click') is NOT equivalent to click_element. " +
+        "For buttons with ICommand bindings, use click_element to trigger the full click workflow.\n\n" +
+        "WARNING: This triggers real event handler logic but NOT Command execution.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  fired: boolean\n" +
+        "  message: string\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

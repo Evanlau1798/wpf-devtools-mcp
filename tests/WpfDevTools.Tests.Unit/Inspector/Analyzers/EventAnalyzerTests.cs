@@ -294,7 +294,62 @@ public class EventAnalyzerTests
         }
     }
 
+    [StaFact]
+    public void FireRoutedEvent_Click_OnButtonBase_ShouldExecuteCommand()
+    {
+        // Arrange - button with ICommand binding
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var commandExecuted = false;
+        var button = new Button
+        {
+            Command = new TestRelayCommand(() => commandExecuted = true)
+        };
+        var elementId = finder.GenerateElementId(button);
+
+        // Act
+        analyzer.FireRoutedEvent(elementId, "Click", null);
+
+        // Assert - OnClick() should execute the Command
+        commandExecuted.Should().BeTrue(
+            "fire_routed_event('Click') on ButtonBase should call OnClick() which executes ICommand");
+    }
+
+    [StaFact]
+    public void FireRoutedEvent_NonClick_OnButton_ShouldNotUseOnClick()
+    {
+        // Arrange - non-Click events should use RaiseEvent, not OnClick
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var commandExecuted = false;
+        var button = new Button
+        {
+            Command = new TestRelayCommand(() => commandExecuted = true)
+        };
+        var elementId = finder.GenerateElementId(button);
+
+        // Act - fire a non-Click event (LostFocus accepts RoutedEventArgs)
+        var result = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(analyzer.FireRoutedEvent(elementId, "LostFocus", null)));
+
+        // Assert - Command should NOT be executed (OnClick not called)
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        commandExecuted.Should().BeFalse(
+            "Non-Click events should use RaiseEvent, not OnClick");
+        result.TryGetProperty("usedOnClick", out _).Should().BeFalse(
+            "usedOnClick flag should not be present for non-Click events");
+    }
+
     private static void OnButtonClick(object sender, RoutedEventArgs e)
     {
+    }
+
+    private sealed class TestRelayCommand : System.Windows.Input.ICommand
+    {
+        private readonly Action _execute;
+        public TestRelayCommand(Action execute) => _execute = execute;
+        public event EventHandler? CanExecuteChanged;
+        public bool CanExecute(object? parameter) => true;
+        public void Execute(object? parameter) => _execute();
     }
 }

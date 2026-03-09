@@ -5,6 +5,7 @@ using WpfDevTools.Inspector.Utilities;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
@@ -163,6 +164,80 @@ public class InteractionAnalyzerTests
 
         // Assert
         result.Should().NotBeNull();
+    }
+
+    [StaFact]
+    public void SimulateKeyboard_OnCheckBox_WithSpace_ShouldToggleIsChecked()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var checkBox = new CheckBox { IsChecked = false };
+        window.Content = checkBox;
+        window.Show();
+
+        try
+        {
+            var elementId = finder.GenerateElementId(checkBox);
+            var result = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(analyzer.SimulateKeyboard(elementId, "Space", "KeyDown")));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            checkBox.IsChecked.Should().BeTrue("Space key on CheckBox should toggle IsChecked");
+        }
+        finally { window.Close(); }
+    }
+
+    [StaFact]
+    public void SimulateKeyboard_OnComboBox_WithDown_ShouldChangeSelection()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Item 0");
+        comboBox.Items.Add("Item 1");
+        comboBox.Items.Add("Item 2");
+        comboBox.SelectedIndex = 0;
+        window.Content = comboBox;
+        window.Show();
+
+        try
+        {
+            var elementId = finder.GenerateElementId(comboBox);
+            var result = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(analyzer.SimulateKeyboard(elementId, "Down", "KeyDown")));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            comboBox.SelectedIndex.Should().Be(1, "Down key on ComboBox should move selection down");
+        }
+        finally { window.Close(); }
+    }
+
+    [StaFact]
+    public void SimulateKeyboard_ShouldRaiseBothPreviewAndBubbleEvents()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 200, Height = 200 };
+        var textBox = new TextBox();
+        window.Content = textBox;
+        window.Show();
+
+        bool previewFired = false;
+        bool keyDownFired = false;
+        textBox.PreviewKeyDown += (s, e) => previewFired = true;
+        textBox.KeyDown += (s, e) => keyDownFired = true;
+
+        try
+        {
+            var elementId = finder.GenerateElementId(textBox);
+            analyzer.SimulateKeyboard(elementId, "A", "KeyDown");
+
+            previewFired.Should().BeTrue("PreviewKeyDown tunnel event should fire");
+            keyDownFired.Should().BeTrue("KeyDown bubble event should fire");
+        }
+        finally { window.Close(); }
     }
 
     private sealed class TestCommand : ICommand

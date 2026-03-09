@@ -24,8 +24,8 @@ public static class DependencyPropertyMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  propertyName, currentValue, valueSource: 'Default'|'Inherited'|'Style'|'LocalValue'|'Trigger'|'Animation',\n" +
-        "  isAnimated, isCoerced\n" +
+        "  propertyName, currentValue, baseValueSource: 'Default'|'Inherited'|'Style'|'LocalValue'|'Trigger'|'Animation',\n" +
+        "  isExpression, isAnimated, isCoerced, isCurrent\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

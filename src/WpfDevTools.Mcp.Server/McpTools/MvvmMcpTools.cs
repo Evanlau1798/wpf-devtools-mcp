@@ -59,7 +59,7 @@ public static class MvvmMcpTools
         "{\n" +
         "  success: boolean,\n" +
         "  commands: [{\n" +
-        "    commandName, canExecute: boolean, commandType\n" +
+        "    name, type, canExecute: boolean\n" +
         "  }]\n" +
         "}\n\n" +
         "Empty commands array means no ICommand properties found.\n\n" +

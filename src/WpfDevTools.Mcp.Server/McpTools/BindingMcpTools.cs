@@ -70,7 +70,8 @@ public static class BindingMcpTools
         "    sourceId: string\n" +
         "  }]\n" +
         "}\n\n" +
-        "Empty errors array means no binding errors detected.\n\n" +
+        "Empty errors array means no binding errors detected.\n" +
+        "NOTE: sourceId is a numeric trace ID, NOT an elementId. It cannot be used directly as the elementId parameter in other tools.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +

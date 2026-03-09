@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.IO;
@@ -209,6 +210,30 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
 
                 renderTarget.Render(drawingVisual);
 
+                // Render adorner layer on top (for highlight overlays, etc.)
+                try
+                {
+                    var adornerLayer = AdornerLayer.GetAdornerLayer(uiElement);
+                    if (adornerLayer != null)
+                    {
+                        var adorners = adornerLayer.GetAdorners(uiElement);
+                        if (adorners != null && adorners.Length > 0)
+                        {
+                            var adornerVisual = new DrawingVisual();
+                            using (var adornerContext = adornerVisual.RenderOpen())
+                            {
+                                var adornerBrush = new VisualBrush(adornerLayer);
+                                adornerContext.DrawRectangle(adornerBrush, null, bounds);
+                            }
+                            renderTarget.Render(adornerVisual);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Adorner capture is best-effort; skip if unavailable
+                }
+
                 // Encode to PNG
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(renderTarget));
@@ -402,7 +427,22 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                     };
                 }
 
-                if (routedEvent == Keyboard.KeyDownEvent && element is TextBox textBox && TryApplyTextBoxEdit(textBox, parsedKey))
+                if (routedEvent == Keyboard.KeyDownEvent && element is TextBox textBox && InteractionKeyboardHelper.TryApplyTextBoxEdit(textBox, parsedKey))
+                {
+                    return new
+                    {
+                        success = true,
+                        message = $"Keyboard event '{eventType}' simulated for key '{key}'",
+                        key,
+                        eventType,
+                        elementType = element.GetType().Name,
+                        appliedDirectEdit = true
+                    };
+                }
+
+                // Apply special control actions (CheckBox toggle, ComboBox navigation)
+                if (routedEvent == Keyboard.KeyDownEvent
+                    && InteractionKeyboardHelper.TryApplySpecialControlAction(uiElement, parsedKey))
                 {
                     return new
                     {
@@ -416,6 +456,9 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                 }
 
                 if (!uiElement.IsKeyboardFocused) { uiElement.Focus(); Keyboard.Focus(uiElement); }
+
+                // Raise preview (tunnel) event before bubble event
+                InteractionKeyboardHelper.RaisePreviewEvent(uiElement, presentationSource, parsedKey, routedEvent);
 
                 var keyEventArgs = new KeyEventArgs(
                     Keyboard.PrimaryDevice,
@@ -442,67 +485,6 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = $"Failed to simulate keyboard: {ex.Message}" };
             }
         });
-    }
-
-    private static bool TryApplyTextBoxEdit(TextBox textBox, Key key)
-    {
-        if (textBox.IsReadOnly || (key != Key.Back && key != Key.Delete))
-        {
-            return false;
-        }
-
-        var hadKeyboardFocus = textBox.IsKeyboardFocusWithin;
-        if (!hadKeyboardFocus)
-        {
-            textBox.Focus();
-            Keyboard.Focus(textBox);
-        }
-
-        var text = textBox.Text ?? string.Empty;
-        if (!hadKeyboardFocus && textBox.SelectionLength == 0)
-        {
-            textBox.CaretIndex = text.Length;
-        }
-        else
-        {
-            textBox.CaretIndex = ClampInt(textBox.CaretIndex, 0, text.Length);
-        }
-
-        if (textBox.SelectionLength > 0)
-        {
-            var selectionStart = ClampInt(textBox.SelectionStart, 0, text.Length);
-            var selectionLength = Math.Min(textBox.SelectionLength, text.Length - selectionStart);
-            textBox.Text = text.Remove(selectionStart, selectionLength);
-            textBox.CaretIndex = selectionStart;
-            return true;
-        }
-
-        return key == Key.Back ? TryApplyBackspace(textBox, text) : TryApplyDelete(textBox, text);
-    }
-
-    private static bool TryApplyBackspace(TextBox textBox, string text)
-    {
-        var caretIndex = ClampInt(textBox.CaretIndex, 0, text.Length);
-        if (caretIndex == 0) return false;
-
-        textBox.Text = text.Remove(caretIndex - 1, 1);
-        textBox.CaretIndex = caretIndex - 1;
-        return true;
-    }
-
-    private static bool TryApplyDelete(TextBox textBox, string text)
-    {
-        var caretIndex = ClampInt(textBox.CaretIndex, 0, text.Length);
-        if (caretIndex >= text.Length) return false;
-
-        textBox.Text = text.Remove(caretIndex, 1);
-        textBox.CaretIndex = caretIndex;
-        return true;
-    }
-
-    private static int ClampInt(int value, int min, int max)
-    {
-        return Math.Min(Math.Max(value, min), max);
     }
 
 }

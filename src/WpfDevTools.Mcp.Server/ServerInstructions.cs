@@ -43,6 +43,14 @@ public static class ServerInstructions
         - First call get_visual_tree or get_logical_tree to discover elementId values
         - Each tree node returns an elementId field - use these in subsequent tool calls
         - elementId format: 'TypeName_N' (e.g., 'Button_1', 'TextBox_5') - stable per session
+        - For multi-window apps: call get_windows first to discover all windows and their elementId values
+
+        === MULTI-WINDOW SUPPORT ===
+        - Call get_windows to discover all open windows in the connected process
+        - Each window returns an elementId that can be used in any tool
+        - Default root (when elementId is omitted) is always Application.MainWindow
+        - To inspect a secondary window: get_windows -> use returned elementId as elementId parameter
+        - Cross-window element search: tools automatically search all windows if element not found in main window
 
         === TOOL SELECTION GUIDE ===
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
@@ -51,6 +59,7 @@ public static class ServerInstructions
         - Layout broken? -> get_layout_info (size), get_clipping_info (overflow)
         - Style not applied? -> get_applied_styles, get_resource_chain
         - Performance slow? -> get_visual_count, get_render_stats, find_binding_leaks
+        - Multiple windows / dialogs? -> get_windows to discover all windows, use elementId to target specific window
 
         === TOKEN EFFICIENCY ===
         - Use depth=1 for immediate children only (fastest)
@@ -92,6 +101,9 @@ public static class ServerInstructions
 
         Workflow 4 - Performance Profiling:
         get_processes -> connect -> get_visual_count -> get_render_stats -> find_binding_leaks(threshold=50) -> measure_element_render_time(elementId)
+
+        Workflow 5 - Multi-Window Inspection:
+        get_processes -> connect -> get_windows -> get_visual_tree(elementId=<windowElementId>, depth=3) -> inspect subtree
 
         === ERROR RECOVERY ===
         - "not connected" -> call connect(processId) first, then retry

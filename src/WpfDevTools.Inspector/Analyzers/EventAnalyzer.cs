@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -15,29 +15,6 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
     private static bool _isTracing = false;
     private static CancellationTokenSource? _tracingCts = null;
     private static ActiveTraceSession? _activeTraceSession = null;
-
-    private sealed class ActiveTraceSession
-    {
-        public ActiveTraceSession(
-            UIElement element,
-            RoutedEvent routedEvent,
-            RoutedEventHandler handler,
-            CancellationTokenSource tokenSource)
-        {
-            Element = element;
-            RoutedEvent = routedEvent;
-            Handler = handler;
-            TokenSource = tokenSource;
-        }
-
-        public UIElement Element { get; }
-
-        public RoutedEvent RoutedEvent { get; }
-
-        public RoutedEventHandler Handler { get; }
-
-        public CancellationTokenSource TokenSource { get; }
-    }
 
     // Reflection support for GetEventHandlers
     private const string EVENT_HANDLERS_STORE_MEMBER = "EventHandlersStore";
@@ -82,79 +59,36 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = $"Event '{eventName}' not found" };
             }
 
-            ActiveTraceSession? previousSession;
+            CleanupPreviousSession();
+
             CancellationTokenSource localCts;
             lock (_lock)
             {
-                previousSession = _activeTraceSession;
                 _eventTrace.Clear();
                 _isTracing = true;
-
-                previousSession?.TokenSource.Cancel();
-                previousSession?.TokenSource.Dispose();
                 _tracingCts = new CancellationTokenSource();
                 localCts = _tracingCts;
                 _activeTraceSession = null;
             }
 
-            if (previousSession != null)
-            {
-                previousSession.Element.RemoveHandler(previousSession.RoutedEvent, previousSession.Handler);
-            }
-
-            // Register event handler
-            var handler = new RoutedEventHandler((sender, e) =>
-            {
-                lock (_lock)
-                {
-                    if (_isTracing)
-                    {
-                        _eventTrace.Add(new
-                        {
-                            timestamp = DateTime.UtcNow,
-                            sender = sender?.GetType().Name,
-                            routingStrategy = e.RoutedEvent.RoutingStrategy.ToString(),
-                            handled = e.Handled
-                        });
-
-                        // Trim oldest entries if over limit
-                        if (_eventTrace.Count > MaxEventTraceEntries)
-                        {
-                            _eventTrace.RemoveRange(0, _eventTrace.Count - MaxEventTraceEntries);
-                        }
-                    }
-                }
-            });
-
-            uiElement.AddHandler(routedEvent, handler, handledEventsToo: true);
+            // Build handler and register on multiple points for robustness
+            var handler = CreateTraceHandler(eventName);
+            var registrations = RegisterTraceHandlers(uiElement, routedEvent, handler, eventName);
 
             lock (_lock)
             {
-                _activeTraceSession = new ActiveTraceSession(uiElement, routedEvent, handler, localCts);
+                _activeTraceSession = new ActiveTraceSession(registrations, localCts);
             }
 
-            Task.Delay(cappedDuration, localCts.Token).ContinueWith(_ =>
-            {
-                InvokeOnUIThread(() =>
-                {
-                    lock (_lock)
-                    {
-                        if (_activeTraceSession != null && ReferenceEquals(_activeTraceSession.TokenSource, localCts))
-                        {
-                            _activeTraceSession.Element.RemoveHandler(_activeTraceSession.RoutedEvent, _activeTraceSession.Handler);
-                            _activeTraceSession = null;
-                            _isTracing = false;
-                        }
-                    }
-                });
-            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+            ScheduleAutoStop(localCts, cappedDuration);
 
             return new
             {
                 success = true,
                 message = $"Started tracing '{eventName}' for {cappedDuration}ms",
                 eventName,
-                duration = cappedDuration
+                duration = cappedDuration,
+                registrationCount = registrations.Count
             };
         });
     }
@@ -222,29 +156,6 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    private RoutedEvent? FindRoutedEvent(UIElement element, string eventName)
-    {
-        var type = element.GetType();
-        var fieldName = eventName + "Event";
-
-        // Search in current type and base types
-        while (type != null && type != typeof(object))
-        {
-            var field = type.GetField(fieldName,
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.Static);
-
-            if (field != null && field.FieldType == typeof(RoutedEvent))
-            {
-                return field.GetValue(null) as RoutedEvent;
-            }
-
-            type = type.BaseType;
-        }
-
-        return null;
-    }
-
     /// <summary>
     /// Get event handlers attached to an element
     /// </summary>
@@ -285,57 +196,19 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
             var routedEvent = FindRoutedEvent(uiElement, eventName);
             if (routedEvent == null)
             {
-                return new { success = false, error = $"Event '{eventName}' not found" };
+                var availableEvents = RoutedEventDiscovery.EnumerateAvailableRoutedEvents(uiElement.GetType());
+                return new
+                {
+                    success = false,
+                    error = $"Event '{eventName}' not found",
+                    availableEvents,
+                    hint = "Use one of the availableEvents names as the eventName parameter"
+                };
             }
 
             try
             {
-                var handlers = new List<object>();
-
-                // Use reflection to get event handlers
-                // Note: This accesses internal WPF structures and may not work in all .NET versions
-                var eventHandlersStore = GetEventHandlersStore(uiElement);
-
-                if (eventHandlersStore == null)
-                {
-                    return new
-                    {
-                        success = true,
-                        eventName,
-                        handlerCount = 0,
-                        handlers = Array.Empty<object>(),
-                        message = "No handlers found"
-                    };
-                }
-
-                if (eventHandlersStore != null)
-                {
-                    var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
-                        "GetRoutedEventHandlers",
-                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-
-                    if (getRoutedEventHandlersMethod != null)
-                    {
-                        var routedEventHandlers = getRoutedEventHandlersMethod.Invoke(
-                            eventHandlersStore,
-                            new object[] { routedEvent }) as RoutedEventHandlerInfo[];
-
-                        if (routedEventHandlers != null)
-                        {
-                            foreach (var handlerInfo in routedEventHandlers)
-                            {
-                                var handler = handlerInfo.Handler;
-                                handlers.Add(new
-                                {
-                                    handlerType = handler.GetType().Name,
-                                    targetType = handler.Target?.GetType().Name,
-                                    methodName = handler.Method.Name,
-                                    isClassHandler = handlerInfo.InvokeHandledEventsToo
-                                });
-                            }
-                        }
-                    }
-                }
+                var handlers = GetHandlerInfoList(uiElement, routedEvent);
 
                 return new
                 {
@@ -358,6 +231,222 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
                 };
             }
         });
+    }
+
+    private static RoutedEventHandler CreateTraceHandler(string eventName)
+    {
+        return (sender, e) =>
+        {
+            lock (_lock)
+            {
+                if (_isTracing)
+                {
+                    _eventTrace.Add(new
+                    {
+                        timestamp = DateTime.UtcNow,
+                        sender = sender?.GetType().Name,
+                        senderName = (sender as FrameworkElement)?.Name,
+                        eventName = e.RoutedEvent.Name,
+                        routingStrategy = e.RoutedEvent.RoutingStrategy.ToString(),
+                        handled = e.Handled,
+                        originalSource = (e.OriginalSource as FrameworkElement)?.GetType().Name
+                    });
+
+                    // Trim oldest entries if over limit
+                    if (_eventTrace.Count > MaxEventTraceEntries)
+                    {
+                        _eventTrace.RemoveRange(0, _eventTrace.Count - MaxEventTraceEntries);
+                    }
+                }
+            }
+        };
+    }
+
+    private static List<HandlerRegistration> RegisterTraceHandlers(
+        UIElement targetElement,
+        RoutedEvent routedEvent,
+        RoutedEventHandler handler,
+        string eventName)
+    {
+        var registrations = new List<HandlerRegistration>();
+
+        // 1. Register on the target element
+        targetElement.AddHandler(routedEvent, handler, handledEventsToo: true);
+        registrations.Add(new HandlerRegistration(targetElement, routedEvent, handler));
+
+        // 2. Register on root window for bubble/tunnel capture
+        try
+        {
+            var rootWindow = Window.GetWindow(targetElement);
+            if (rootWindow != null && !ReferenceEquals(rootWindow, targetElement))
+            {
+                rootWindow.AddHandler(routedEvent, handler, handledEventsToo: true);
+                registrations.Add(new HandlerRegistration(rootWindow, routedEvent, handler));
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Window.GetWindow may fail with cross-thread access; safe to skip
+        }
+
+        // 3. Try to find and register the Preview (tunneling) variant
+        var previewEvent = FindPreviewRoutedEvent(targetElement, eventName);
+        if (previewEvent != null)
+        {
+            targetElement.AddHandler(previewEvent, handler, handledEventsToo: true);
+            registrations.Add(new HandlerRegistration(targetElement, previewEvent, handler));
+        }
+
+        return registrations;
+    }
+
+    private static RoutedEvent? FindPreviewRoutedEvent(UIElement element, string eventName)
+    {
+        // If it already starts with "Preview", skip
+        if (eventName.StartsWith("Preview", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var previewFieldName = "Preview" + eventName + "Event";
+        var type = element.GetType();
+
+        while (type != null && type != typeof(object))
+        {
+            var field = type.GetField(previewFieldName,
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Static);
+
+            if (field != null && field.FieldType == typeof(RoutedEvent))
+            {
+                return field.GetValue(null) as RoutedEvent;
+            }
+
+            type = type.BaseType;
+        }
+
+        return null;
+    }
+
+    private void CleanupPreviousSession()
+    {
+        ActiveTraceSession? previousSession;
+        lock (_lock)
+        {
+            previousSession = _activeTraceSession;
+            if (previousSession != null)
+            {
+                previousSession.TokenSource.Cancel();
+                previousSession.TokenSource.Dispose();
+                _activeTraceSession = null;
+            }
+        }
+
+        if (previousSession != null)
+        {
+            RemoveAllHandlers(previousSession.Registrations);
+        }
+    }
+
+    private static void RemoveAllHandlers(List<HandlerRegistration> registrations)
+    {
+        foreach (var reg in registrations)
+        {
+            try
+            {
+                reg.Element.RemoveHandler(reg.RoutedEvent, reg.Handler);
+            }
+            catch
+            {
+                // Element may have been disposed; safe to ignore
+            }
+        }
+    }
+
+    private void ScheduleAutoStop(CancellationTokenSource localCts, int cappedDuration)
+    {
+        Task.Delay(cappedDuration, localCts.Token).ContinueWith(_ =>
+        {
+            InvokeOnUIThread(() =>
+            {
+                lock (_lock)
+                {
+                    if (_activeTraceSession != null &&
+                        ReferenceEquals(_activeTraceSession.TokenSource, localCts))
+                    {
+                        RemoveAllHandlers(_activeTraceSession.Registrations);
+                        _activeTraceSession = null;
+                        _isTracing = false;
+                    }
+                }
+            });
+        }, TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    private RoutedEvent? FindRoutedEvent(UIElement element, string eventName)
+    {
+        var type = element.GetType();
+        var fieldName = eventName + "Event";
+
+        // Search in current type and base types
+        while (type != null && type != typeof(object))
+        {
+            var field = type.GetField(fieldName,
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Static);
+
+            if (field != null && field.FieldType == typeof(RoutedEvent))
+            {
+                return field.GetValue(null) as RoutedEvent;
+            }
+
+            type = type.BaseType;
+        }
+
+        return null;
+    }
+
+    private static List<object> GetHandlerInfoList(UIElement uiElement, RoutedEvent routedEvent)
+    {
+        var handlers = new List<object>();
+        var eventHandlersStore = GetEventHandlersStore(uiElement);
+
+        if (eventHandlersStore == null)
+        {
+            return handlers;
+        }
+
+        var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
+            "GetRoutedEventHandlers",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+
+        if (getRoutedEventHandlersMethod == null)
+        {
+            return handlers;
+        }
+
+        var routedEventHandlers = getRoutedEventHandlersMethod.Invoke(
+            eventHandlersStore,
+            new object[] { routedEvent }) as RoutedEventHandlerInfo[];
+
+        if (routedEventHandlers == null)
+        {
+            return handlers;
+        }
+
+        foreach (var handlerInfo in routedEventHandlers)
+        {
+            var handler = handlerInfo.Handler;
+            handlers.Add(new
+            {
+                handlerType = handler.GetType().Name,
+                targetType = handler.Target?.GetType().Name,
+                methodName = handler.Method.Name,
+                isClassHandler = handlerInfo.InvokeHandledEventsToo
+            });
+        }
+
+        return handlers;
     }
 
     /// <summary>

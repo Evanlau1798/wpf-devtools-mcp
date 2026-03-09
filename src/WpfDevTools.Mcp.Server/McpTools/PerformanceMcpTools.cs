@@ -28,6 +28,8 @@ public static class PerformanceMcpTools
         "  dirtyRegionCount: number,\n" +
         "  visualCount: number\n" +
         "}\n\n" +
+        "NOTE: The first call may return zeros with a 'Monitoring started' message because the render stats " +
+        "listener needs time to collect data. Call again after 1-2 seconds to get meaningful metrics.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +

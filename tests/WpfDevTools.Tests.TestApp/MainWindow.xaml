@@ -13,6 +13,41 @@
         <SolidColorBrush x:Key="ModernForegroundBrush" Color="#FF0F172A"/>
         <SolidColorBrush x:Key="ModernMutedForegroundBrush" Color="#FF475569"/>
         <CornerRadius x:Key="ModernCornerRadius">18</CornerRadius>
+
+        <!-- CustomTextBox watermark visual template -->
+        <Style TargetType="local:CustomTextBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="local:CustomTextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" />
+                                <TextBlock x:Name="WatermarkText"
+                                           Text="{TemplateBinding Watermark}"
+                                           Foreground="Gray"
+                                           Opacity="0.6"
+                                           IsHitTestVisible="False"
+                                           Margin="4,2,0,0"
+                                           VerticalAlignment="Center"
+                                           Visibility="Collapsed"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Text" Value=""/>
+                                    <Condition Property="IsFocused" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="WatermarkText" Property="Visibility" Value="Visible"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     <Grid Margin="10">
         <Grid.RowDefinitions>

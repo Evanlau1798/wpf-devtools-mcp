@@ -62,11 +62,21 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object GetRenderStats()
     {
+        // Start monitoring on UI thread
+        InvokeOnUIThread(() => EnsureMonitoringStarted());
+
+        // Brief warm-up: allow rendering events to populate frame data.
+        // This runs on a non-UI thread so the dispatcher can process
+        // CompositionTarget.Rendering callbacks that write frame data.
+        var warmupStart = DateTime.UtcNow;
+        while (_frameTimes.Count == 0 && (DateTime.UtcNow - warmupStart).TotalMilliseconds < 250)
+        {
+            Thread.Sleep(20);
+        }
+
+        // Read stats on UI thread
         return InvokeOnUIThread<object>(() =>
         {
-            // Start monitoring if not already started
-            EnsureMonitoringStarted();
-
             lock (_lock)
             {
                 if (_frameTimes.Count == 0)

@@ -61,13 +61,14 @@ public class HandlerRoutingTests
             new ElementFinder());
         var methods = handler.GetSupportedMethods().ToList();
 
-        methods.Should().HaveCount(6);
+        methods.Should().HaveCount(7);
         methods.Should().Contain("get_visual_tree");
         methods.Should().Contain("get_logical_tree");
         methods.Should().Contain("compare_trees");
         methods.Should().Contain("serialize_to_xaml");
         methods.Should().Contain("get_namescope");
         methods.Should().Contain("get_template_tree");
+        methods.Should().Contain("get_windows");
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
@@ -113,7 +114,7 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
             var clip = uiElement.Clip;
             var clipToBounds = uiElement.ClipToBounds;
             var overflow = MaxOverflow(
-                GetOverflowAmounts(uiElement, clip),
+                GetSelfOverflowAmounts(uiElement, clip, clipToBounds),
                 GetAncestorOverflowAmounts(uiElement));
             var isClipped = clip != null || HasOverflow(overflow);
 
@@ -181,19 +182,27 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
     }
 
     private static (double left, double top, double right, double bottom)
-        GetOverflowAmounts(UIElement element, Geometry? clip)
+        GetSelfOverflowAmounts(UIElement element, Geometry? clip, bool clipToBounds)
     {
-        if (element is not FrameworkElement frameworkElement || clip == null)
+        var contentBounds = GetContentBounds(element);
+        if (contentBounds.IsEmpty)
         {
             return (0d, 0d, 0d, 0d);
         }
 
-        var bounds = clip.Bounds;
-        return (
-            Math.Max(0d, -bounds.Left),
-            Math.Max(0d, -bounds.Top),
-            Math.Max(0d, frameworkElement.RenderSize.Width - bounds.Right),
-            Math.Max(0d, frameworkElement.RenderSize.Height - bounds.Bottom));
+        var overflow = (0d, 0d, 0d, 0d);
+        if (clip != null)
+        {
+            overflow = MaxOverflow(overflow, ComputeOverflow(contentBounds, clip.Bounds));
+        }
+
+        if (clipToBounds)
+        {
+            var clipToBoundsRect = new Rect(new Point(0, 0), element.RenderSize);
+            overflow = MaxOverflow(overflow, ComputeOverflow(contentBounds, clipToBoundsRect));
+        }
+
+        return overflow;
     }
 
     private static (double left, double top, double right, double bottom)
@@ -204,7 +213,7 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
             return (0d, 0d, 0d, 0d);
         }
 
-        var elementBounds = new Rect(new Point(0, 0), frameworkElement.RenderSize);
+        var elementBounds = GetContentBounds(frameworkElement);
         var overflow = (left: 0d, top: 0d, right: 0d, bottom: 0d);
         DependencyObject? current = VisualTreeHelper.GetParent(element);
 
@@ -233,6 +242,92 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
         }
 
         return overflow;
+    }
+
+    private static Rect GetContentBounds(UIElement element)
+    {
+        var bounds = GetElementContentBounds(element);
+
+        if (element is not Visual visual)
+        {
+            return bounds;
+        }
+
+        var childCount = VisualTreeHelper.GetChildrenCount(visual);
+        for (var index = 0; index < childCount; index++)
+        {
+            if (VisualTreeHelper.GetChild(visual, index) is not UIElement child)
+            {
+                continue;
+            }
+
+            try
+            {
+                var childBounds = child.TransformToAncestor(visual).TransformBounds(GetContentBounds(child));
+                bounds = bounds.IsEmpty ? childBounds : Rect.Union(bounds, childBounds);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
+        return bounds;
+    }
+
+    private static Rect GetElementContentBounds(UIElement element)
+    {
+        if (element is TextBlock textBlock)
+        {
+            return new Rect(new Point(0, 0), MeasureTextContent(textBlock));
+        }
+
+        var width = Math.Max(element.RenderSize.Width, element.DesiredSize.Width);
+        var height = Math.Max(element.RenderSize.Height, element.DesiredSize.Height);
+        return new Rect(new Point(0, 0), new Size(width, height));
+    }
+
+    private static Size MeasureTextContent(TextBlock textBlock)
+    {
+        var typeface = new Typeface(
+            textBlock.FontFamily,
+            textBlock.FontStyle,
+            textBlock.FontWeight,
+            textBlock.FontStretch);
+
+        var dpi = VisualTreeHelper.GetDpi(textBlock).PixelsPerDip;
+        var formattedText = new FormattedText(
+            textBlock.Text ?? string.Empty,
+            CultureInfo.CurrentUICulture,
+            textBlock.FlowDirection,
+            typeface,
+            textBlock.FontSize,
+            textBlock.Foreground ?? Brushes.Black,
+            dpi)
+        {
+            Trimming = textBlock.TextTrimming,
+            TextAlignment = textBlock.TextAlignment
+        };
+
+        if (textBlock.LineHeight > 0)
+        {
+            formattedText.LineHeight = textBlock.LineHeight;
+        }
+
+        if (textBlock.TextWrapping != TextWrapping.NoWrap)
+        {
+            var wrapWidth = textBlock.ActualWidth > 0
+                ? textBlock.ActualWidth
+                : Math.Max(textBlock.RenderSize.Width, 0d);
+
+            if (wrapWidth > 0)
+            {
+                formattedText.MaxTextWidth = wrapWidth;
+            }
+        }
+
+        return new Size(
+            Math.Max(textBlock.RenderSize.Width, formattedText.WidthIncludingTrailingWhitespace),
+            Math.Max(textBlock.RenderSize.Height, formattedText.Height));
     }
 
     private static (double left, double top, double right, double bottom) ComputeOverflow(Rect elementBounds, Rect clippingBounds)

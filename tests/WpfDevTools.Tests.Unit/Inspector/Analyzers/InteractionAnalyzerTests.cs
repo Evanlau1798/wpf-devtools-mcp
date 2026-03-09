@@ -51,6 +51,29 @@ public class InteractionAnalyzerTests
         executed.Should().BeTrue();
         result.Should().NotBeNull();
     }
+
+    [StaFact]
+    public void ClickElement_WithTabItem_ShouldSelectTab()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var firstTab = new TabItem { Header = "First", Content = new TextBlock { Text = "First" } };
+        var secondTab = new TabItem { Header = "Second", Content = new TextBlock { Text = "Second" } };
+        var tabControl = new TabControl();
+        tabControl.Items.Add(firstTab);
+        tabControl.Items.Add(secondTab);
+        tabControl.SelectedItem = firstTab;
+
+        var elementId = finder.GenerateElementId(secondTab);
+
+        var result = analyzer.ClickElement(elementId);
+        var payload = System.Text.Json.JsonSerializer.SerializeToElement(result);
+
+        payload.GetProperty("success").GetBoolean().Should().BeTrue(payload.GetRawText());
+        tabControl.SelectedItem.Should().BeSameAs(secondTab);
+        secondTab.IsSelected.Should().BeTrue();
+    }
+
     [StaFact]
     public void ScrollToElement_WithValidElement_ShouldBringIntoView()
     {

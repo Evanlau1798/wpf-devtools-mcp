@@ -63,9 +63,10 @@ public class BindingHandlers : IRequestHandler
     private async Task<object> HandleGetBindingsAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var recursive = ParameterHelpers.GetBoolParam(@params, "recursive") ?? false;
 
         return await Task.Run(() =>
-            _bindingAnalyzer.GetBindings(elementId), cancellationToken).ConfigureAwait(false);
+            _bindingAnalyzer.GetBindings(elementId, recursive), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetBindingErrorsAsync(JsonElement? @params, CancellationToken cancellationToken)

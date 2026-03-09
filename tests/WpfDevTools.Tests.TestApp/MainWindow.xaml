@@ -21,11 +21,14 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <TextBlock Grid.Row="0"
-                   Text="WPF DevTools MCP Server - Test Application"
-                   FontSize="20"
-                   FontWeight="Bold"
-                   Margin="0,0,0,10"/>
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="WPF DevTools MCP Server - Test Application"
+                       FontSize="20"
+                       FontWeight="Bold"/>
+            <TextBlock x:Name="AutomationStatusTextBlock"
+                       Margin="0,6,0,0"
+                       Foreground="DarkSlateGray"/>
+        </StackPanel>
 
         <!-- Tab Control with Test Scenarios -->
         <TabControl Grid.Row="1">
@@ -276,7 +279,7 @@
                 <ScrollViewer>
                     <StackPanel Margin="10">
                         <TextBlock Text="Clipping" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Border Width="150" Height="100" BorderBrush="Black" BorderThickness="1" ClipToBounds="True" Margin="5">
+                        <Border Width="150" Height="50" BorderBrush="Black" BorderThickness="1" ClipToBounds="True" Margin="5">
                             <TextBlock Text="This text is very long and will be clipped by the border because ClipToBounds is True"
                                       TextWrapping="Wrap"/>
                         </Border>

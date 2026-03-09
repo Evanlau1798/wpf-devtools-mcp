@@ -42,7 +42,8 @@ public class TreeHandlers : IRequestHandler
             "compare_trees",
             "serialize_to_xaml",
             "get_namescope",
-            "get_template_tree"
+            "get_template_tree",
+            "get_windows"
         };
     }
 
@@ -59,6 +60,7 @@ public class TreeHandlers : IRequestHandler
             "serialize_to_xaml" => await HandleSerializeToXamlAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_namescope" => await HandleGetNameScopeAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_template_tree" => await HandleGetTemplateTreeAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_windows" => await HandleGetWindowsAsync(cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -125,6 +127,25 @@ public class TreeHandlers : IRequestHandler
 
         return await Task.Run(() =>
             _visualTreeAnalyzer.GetTemplateTree(elementId, depth), cancellationToken).ConfigureAwait(false);
+    }
+
+    private Task<object> HandleGetWindowsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var windows = _elementFinder.GetWindows();
+        return Task.FromResult<object>(new
+        {
+            success = true,
+            windowCount = windows.Count,
+            windows = windows.Select(w => new
+            {
+                w.Index,
+                w.Title,
+                w.Type,
+                w.IsActive,
+                w.ElementId
+            }).ToList()
+        });
     }
 
     private static TreeTraversalOptions ParseTreeOptions(JsonElement? @params)

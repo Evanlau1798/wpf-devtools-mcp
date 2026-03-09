@@ -20,8 +20,16 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // Set DataContext to TestViewModel
-        DataContext = new TestViewModel();
+        var viewModel = new TestViewModel();
+        DataContext = viewModel;
+        viewModel.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(TestViewModel.LastActionMessage))
+            {
+                AutomationStatusTextBlock.Text = viewModel.LastActionMessage;
+            }
+        };
+        AutomationStatusTextBlock.Text = viewModel.LastActionMessage;
 
         // Initialize performance test elements
         InitializePerformanceTab();
@@ -123,7 +131,10 @@ public partial class MainWindow : Window
         // Handle custom routed event
         CustomButton1.CustomClick += (s, e) =>
         {
-            MessageBox.Show("Custom routed event fired!", "Custom Event", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (DataContext is TestViewModel viewModel)
+            {
+                viewModel.RecordActionMessage("Custom routed event fired!");
+            }
         };
     }
 }

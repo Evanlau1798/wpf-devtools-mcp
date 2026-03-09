@@ -28,8 +28,9 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     /// Get all bindings for an element
     /// </summary>
     /// <param name="elementId">Element ID to get bindings for. If null, uses root element.</param>
+    /// <param name="recursive">When true, also collect bindings from all descendant elements.</param>
     /// <returns>Result object containing success status and list of bindings</returns>
-    public object GetBindings(string? elementId = null)
+    public object GetBindings(string? elementId = null, bool recursive = false)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -40,14 +41,9 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
                 return new { success = false, error = "Element not found" };
             }
 
-            var bindings = new List<object>();
-
-            // Get all dependency properties with bindings
-            if (element is DependencyObject depObj)
-            {
-                var properties = GetDependencyPropertiesWithBindings(depObj);
-                bindings.AddRange(properties);
-            }
+            var bindings = recursive
+                ? CollectBindingsRecursive(element)
+                : GetDependencyPropertiesWithBindings(element);
 
             return new { success = true, bindings };
         });
@@ -373,6 +369,48 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
         return elementId == null
             ? _elementFinder.GetRootElement()
             : _elementFinder.FindById(elementId);
+    }
+
+    private List<object> CollectBindingsRecursive(DependencyObject element)
+    {
+        var bindings = new List<object>();
+        var visited = new HashSet<DependencyObject>();
+        CollectBindingsRecursiveCore(element, visited, bindings);
+        return bindings;
+    }
+
+    private void CollectBindingsRecursiveCore(
+        DependencyObject element,
+        HashSet<DependencyObject> visited,
+        List<object> bindings)
+    {
+        if (!visited.Add(element))
+        {
+            return;
+        }
+
+        var elementBindings = GetDependencyPropertiesWithBindings(element);
+        if (elementBindings.Count > 0)
+        {
+            var elementId = _elementFinder.GenerateElementId(element);
+            var elementType = element.GetType().Name;
+
+            foreach (var binding in elementBindings)
+            {
+                if (binding is Dictionary<string, object?> dict)
+                {
+                    dict["elementId"] = elementId;
+                    dict["elementType"] = elementType;
+                }
+            }
+
+            bindings.AddRange(elementBindings);
+        }
+
+        foreach (var child in EnumerateChildElements(element))
+        {
+            CollectBindingsRecursiveCore(child, visited, bindings);
+        }
     }
 
     private List<object> GetDependencyPropertiesWithBindings(DependencyObject element)

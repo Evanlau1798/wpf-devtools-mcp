@@ -36,10 +36,21 @@ public sealed class ElementFinder : IDisposable
     }
 
     /// <summary>
-    /// Get the root element of the WPF application
+    /// Get the root element of the WPF application (defaults to MainWindow)
     /// </summary>
     /// <returns>Root DependencyObject (typically MainWindow), or null if not available</returns>
     public DependencyObject? GetRootElement()
+    {
+        return GetRootElement(windowIndex: null);
+    }
+
+    /// <summary>
+    /// Get the root element for a specific window by index.
+    /// Index 0 or null returns MainWindow.
+    /// </summary>
+    /// <param name="windowIndex">Zero-based window index, or null for MainWindow</param>
+    /// <returns>Root DependencyObject (Window), or null if not available or out of range</returns>
+    public DependencyObject? GetRootElement(int? windowIndex)
     {
         var application = Application.Current;
         if (application == null)
@@ -47,7 +58,60 @@ public sealed class ElementFinder : IDisposable
             return null;
         }
 
-        return InvokeOnDispatcher(application.Dispatcher, () => application.MainWindow);
+        if (windowIndex is < 0)
+        {
+            return null;
+        }
+
+        return InvokeOnDispatcher(application.Dispatcher, () =>
+        {
+            if (windowIndex == null)
+            {
+                return application.MainWindow;
+            }
+
+            var windows = application.Windows;
+            if (windowIndex.Value >= windows.Count)
+            {
+                return null;
+            }
+
+            return windows[windowIndex.Value];
+        });
+    }
+
+    /// <summary>
+    /// Enumerate all open windows in the WPF application
+    /// </summary>
+    /// <returns>List of WindowInfo for each open window</returns>
+    public IReadOnlyList<WindowInfo> GetWindows()
+    {
+        var application = Application.Current;
+        if (application == null)
+        {
+            return Array.Empty<WindowInfo>();
+        }
+
+        return InvokeOnDispatcher(application.Dispatcher, () =>
+        {
+            var windows = application.Windows;
+            var result = new List<WindowInfo>(windows.Count);
+
+            for (var i = 0; i < windows.Count; i++)
+            {
+                var window = windows[i];
+                result.Add(new WindowInfo
+                {
+                    Index = i,
+                    Title = window.Title ?? string.Empty,
+                    Type = window.GetType().Name,
+                    IsActive = window.IsActive,
+                    ElementId = GenerateElementId(window)
+                });
+            }
+
+            return result;
+        });
     }
 
     /// <summary>
@@ -126,14 +190,52 @@ public sealed class ElementFinder : IDisposable
             }
         }
 
-        // Fall back to visual tree search
+        // Fall back to visual tree search across all windows
         var searchRoot = root ?? GetRootElement();
         if (searchRoot == null)
         {
             return null;
         }
 
-        return InvokeOnDispatcher(searchRoot.Dispatcher, () => SearchVisualTree(searchRoot, elementId!));
+        return InvokeOnDispatcher(searchRoot.Dispatcher, () =>
+        {
+            // Search the provided root first
+            var found = SearchVisualTree(searchRoot, elementId!);
+            if (found != null)
+            {
+                return found;
+            }
+
+            // If not found, search other windows (only when no explicit root was provided)
+            if (root != null)
+            {
+                return null;
+            }
+
+            var application = Application.Current;
+            if (application == null)
+            {
+                return null;
+            }
+
+            var windows = application.Windows;
+            for (var i = 0; i < windows.Count; i++)
+            {
+                var window = windows[i];
+                if (ReferenceEquals(window, searchRoot))
+                {
+                    continue;
+                }
+
+                found = SearchVisualTree(window, elementId!);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        });
     }
 
     internal static T InvokeOnDispatcher<T>(Dispatcher? dispatcher, Func<T> action, TimeSpan? timeout = null)

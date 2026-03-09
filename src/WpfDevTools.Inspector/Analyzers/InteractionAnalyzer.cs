@@ -71,6 +71,19 @@ public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
                     };
                 }
 
+                if (element is TabItem tabItem)
+                {
+                    tabItem.IsSelected = true;
+                    tabItem.Focus();
+
+                    return new
+                    {
+                        success = true,
+                        message = "Tab selected successfully",
+                        elementType = element.GetType().Name
+                    };
+                }
+
                 return new
                 {
                     success = false,

@@ -12,6 +12,7 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
     private string _name = "";
     private int _age;
     private bool _isEnabled = true;
+    private string _lastActionMessage = "Ready";
     private readonly RelayCommand _saveCommand;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -52,13 +53,23 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
 
     public bool CanSave => !string.IsNullOrWhiteSpace(Name) && Age > 0;
 
+    public string LastActionMessage
+    {
+        get => _lastActionMessage;
+        private set
+        {
+            _lastActionMessage = value;
+            OnPropertyChanged();
+        }
+    }
+
     public ICommand SaveCommand { get; }
     public ICommand ClearCommand { get; }
 
     public TestViewModel()
     {
         _saveCommand = new RelayCommand(
-            execute: _ => System.Windows.MessageBox.Show($"Saved: {Name}, {Age}"),
+            execute: _ => RecordActionMessage($"Saved: {Name}, {Age}"),
             canExecute: _ => CanSave);
         SaveCommand = _saveCommand;
 
@@ -67,8 +78,14 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
             {
                 Name = "";
                 Age = 0;
+                RecordActionMessage("Form cleared");
             },
             canExecute: _ => true);
+    }
+
+    public void RecordActionMessage(string message)
+    {
+        LastActionMessage = message;
     }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)

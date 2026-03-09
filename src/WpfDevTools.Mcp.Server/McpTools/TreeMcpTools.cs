@@ -208,6 +208,39 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
+    [McpServerTool(Name = "get_windows", OpenWorld = false, ReadOnly = true)]
+    [Description(
+        TreeMetadata + "[Tree] Enumerate all open windows in the connected WPF application. " +
+        "Returns each window's index, title, type, active state, and elementId.\n\n" +
+        "USE WHEN: The target app has multiple windows and you need to inspect a secondary window " +
+        "(e.g., dialogs, tool windows, child windows). Use the returned elementId as the elementId " +
+        "parameter in get_visual_tree, get_logical_tree, and other tools to target that window.\n\n" +
+        "DO NOT USE: For single-window apps where the default root is sufficient.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  windowCount: integer,\n" +
+        "  windows: [{ index, title, type, isActive, elementId }]\n" +
+        "}\n\n" +
+        "WORKFLOW:\n" +
+        "1. Call get_windows to discover all open windows\n" +
+        "2. Use the elementId from the desired window as elementId in get_visual_tree, get_logical_tree, etc.\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345 }")]
+    public static Task<CallToolResult> GetWindows(
+        SessionManager sessionManager,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("get_windows", () => new GenericPipeTool(sessionManager, "get_windows")).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
+
     [McpServerTool(Name = "compare_trees", OpenWorld = false, ReadOnly = true)]
     [Description(
         TreeMetadata + "[Tree] Compare Visual and Logical trees to identify structural differences. " +

@@ -27,11 +27,12 @@ public static class EventMcpTools
         "- `get`: return the current buffered trace and tracing status; `eventName` is not required in this mode\n\n" +
         "RESPONSE FORMAT:\n" +
         "- capture mode:\n" +
-        "  { success, mode: \"capture\", eventName, duration, isTracing, eventCount, events }\n" +
+        "  { success, mode: \"capture\", eventName, duration, isTracing, eventCount, events, handlerInvocationCount }\n" +
         "- start mode:\n" +
-        "  { success, mode: \"start\", eventName, duration, isTracing, message }\n" +
+        "  { success, mode: \"start\", eventName, requestedDuration, effectiveDuration, isTracing, message }\n" +
+        "  NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced for AI agent IPC round-trips)\n" +
         "- get mode:\n" +
-        "  { success, mode: \"get\", isTracing, eventCount, events }\n\n" +
+        "  { success, mode: \"get\", isTracing, eventCount, events, handlerInvocationCount }\n\n" +
         "TIP: For AI-driven automation, prefer `mode=\"start\"` + `click_element`/`fire_routed_event` + `mode=\"get\"` so the capture window is not blocked by the current request.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -110,19 +111,23 @@ public static class EventMcpTools
 
     [McpServerTool(Name = "fire_routed_event", OpenWorld = false, Destructive = true)]
     [Description(
-        EventMetadata + "[Event] Raise a routed event on a WPF element using UIElement.RaiseEvent(). " +
-        "Only triggers event handlers attached to the routed event pipeline (Tunneling -> Direct -> Bubbling). " +
-        "Does NOT execute ICommand bindings or call control-specific methods like ButtonBase.OnClick().\n\n" +
-        "USE WHEN: Testing event handlers programmatically; verifying that routed event handlers are wired correctly.\n" +
-        "DO NOT USE: For simulating button clicks (use click_element instead - it calls OnClick() which includes both RaiseEvent AND Command execution); " +
-        "for keyboard input (use simulate_keyboard).\n\n" +
-        "IMPORTANT: fire_routed_event('Click') is NOT equivalent to click_element. " +
-        "For buttons with ICommand bindings, use click_element to trigger the full click workflow.\n\n" +
-        "WARNING: This triggers real event handler logic but NOT Command execution.\n\n" +
+        EventMetadata + "[Event] Raise a routed event on a WPF element. " +
+        "Behavior depends on element type and event:\n" +
+        "- ButtonBase + Click: calls OnClick() via reflection, which triggers BOTH RoutedEvent handlers AND ICommand execution (same as a real user click)\n" +
+        "- All other combinations: calls UIElement.RaiseEvent(), which only triggers routed event handlers (Tunneling -> Direct -> Bubbling)\n\n" +
+        "USE WHEN: Testing event handlers programmatically; triggering Click on buttons including ICommand execution; verifying routed event wiring.\n" +
+        "DO NOT USE: For keyboard input (use simulate_keyboard); for complex click simulation with mouse coordinates (use click_element).\n\n" +
+        "SEMANTIC DIFFERENCE FROM click_element:\n" +
+        "- fire_routed_event('Click') on ButtonBase: calls OnClick() (includes ICommand) - functionally equivalent to click_element for command execution\n" +
+        "- fire_routed_event('Click') on non-ButtonBase: only fires routed event handlers, no ICommand\n" +
+        "- click_element: uses automation peers / SendInput for broader element support and visual feedback\n\n" +
+        "WARNING: This triggers real application logic. For ButtonBase+Click, ICommand WILL execute.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  message: string\n" +
+        "  message: string,\n" +
+        "  eventName: string,\n" +
+        "  usedOnClick: boolean  // ONLY present when ButtonBase+Click path was used; absent for other events\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -130,7 +135,8 @@ public static class EventMcpTools
         "- \"invalid event name\" -> verify eventName is valid\n" +
         "- \"eventName required\" -> must specify which event\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }")]
+        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }\n" +
+        "- { processId: 12345, elementId: \"Panel1\", eventName: \"MouseDown\" }")]
     public static Task<CallToolResult> FireRoutedEvent(
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,

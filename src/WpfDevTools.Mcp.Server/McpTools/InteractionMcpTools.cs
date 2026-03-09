@@ -16,9 +16,15 @@ public static class InteractionMcpTools
     [McpServerTool(Name = "click_element", OpenWorld = false, Destructive = true)]
     [Description(
         InteractionMetadata + "[Interaction] Simulate a mouse click on a WPF element. " +
-        "Raises the full WPF click event pipeline.\n\n" +
-        "USE WHEN: Testing button handlers, navigation, or click-triggered logic.\n" +
-        "DO NOT USE: On disabled elements (check IsEnabled first with get_dp_value_source).\n\n" +
+        "Uses ButtonBase.OnClick() for all ButtonBase descendants (Button, ToggleButton, CheckBox, RadioButton) " +
+        "which triggers ICommand execution + Click event. For TabItem, selects the tab. " +
+        "Returns error for non-clickable element types.\n\n" +
+        "USE WHEN: Testing button handlers, navigation, or click-triggered logic; executing ICommand via button click.\n" +
+        "DO NOT USE: On disabled elements (check IsEnabled first with get_dp_value_source); on non-ButtonBase/non-TabItem elements.\n\n" +
+        "SEMANTIC DIFFERENCE FROM fire_routed_event:\n" +
+        "- click_element: calls OnClick() for ButtonBase descendants (includes ICommand execution + Click event); selects TabItem\n" +
+        "- fire_routed_event('Click'): on ButtonBase calls OnClick() (same ICommand execution); on non-ButtonBase only fires routed event handlers\n" +
+        "- For button ICommand testing, both tools work; click_element is preferred for general use\n\n" +
         "WARNING: This triggers real application logic (e.g., button handlers, navigation, data modifications).\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +

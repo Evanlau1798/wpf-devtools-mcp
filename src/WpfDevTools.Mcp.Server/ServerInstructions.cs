@@ -56,6 +56,8 @@ public static class ServerInstructions
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
         - UI not responding to changes? -> get_dp_value_source, get_viewmodel
         - Button disabled/not working? -> get_commands (CanExecute), get_event_handlers
+        - Button click not working? -> click_element (full pipeline with ICommand) or fire_routed_event (event-handler-only for non-ButtonBase; OnClick path for ButtonBase+Click)
+        - Form validation errors? -> get_validation_errors (aggregates ALL descendant errors recursively)
         - Layout broken? -> get_layout_info (size), get_clipping_info (overflow)
         - Style not applied? -> get_applied_styles, get_resource_chain
         - Performance slow? -> get_visual_count, get_render_stats, find_binding_leaks
@@ -104,6 +106,19 @@ public static class ServerInstructions
 
         Workflow 5 - Multi-Window Inspection:
         get_processes -> connect -> get_windows -> get_visual_tree(elementId=<windowElementId>, depth=3) -> inspect subtree
+
+        Workflow 6 - Debug Event Handling:
+        get_processes -> connect -> get_event_handlers(elementId, eventName) -> trace_routed_events(mode="start", eventName) -> click_element(elementId) -> trace_routed_events(mode="get")
+
+        Workflow 7 - Debug Validation Errors:
+        get_processes -> connect -> get_validation_errors() [root-scope aggregates all descendants] -> get_validation_errors(elementId) [narrow to specific element] -> get_bindings(elementId)
+
+        === NORMALIZATION & CONTRACT NOTES ===
+        Some tools apply automatic normalization. Responses include metadata so you can see what was normalized:
+        - trace_routed_events (start mode): enforces minimum 30s duration for AI agent IPC round-trips. Response includes both requestedDuration and effectiveDuration.
+        - fire_routed_event: for ButtonBase + Click event, uses OnClick() path instead of RaiseEvent(). Response includes usedOnClick: true.
+        - get_validation_errors: recursively aggregates errors from ALL visual descendants (max depth: 50, max errors: 200). Each error includes elementType/elementName to identify the source.
+        - set_dp_value / modify_viewmodel: JSON string values with surrounding double-quotes are auto-stripped (e.g., "\"hello\"" becomes "hello").
 
         === ERROR RECOVERY ===
         - "not connected" -> call connect(processId) first, then retry

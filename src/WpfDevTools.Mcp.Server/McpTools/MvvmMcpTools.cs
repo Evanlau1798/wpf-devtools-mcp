@@ -128,25 +128,33 @@ public static class MvvmMcpTools
 
     [McpServerTool(Name = "get_validation_errors", OpenWorld = false, ReadOnly = true)]
     [Description(
-        MvvmMetadata + "[MVVM] Get validation errors from a WPF element. Returns IDataErrorInfo " +
-        "and INotifyDataErrorInfo validation errors, plus Binding.ValidationRules failures.\n\n" +
-        "USE WHEN: Form shows validation errors; need to understand validation state.\n" +
+        MvvmMetadata + "[MVVM] Get validation errors from a WPF element and all its visual descendants (recursive). " +
+        "Returns all WPF validation errors (via Validation.GetErrors) aggregated from the target element and its entire subtree.\n\n" +
+        "USE WHEN: Form shows validation errors; need to understand validation state; querying a parent to find all child validation errors at once.\n" +
         "DO NOT USE: For binding path errors (use get_binding_errors instead).\n\n" +
+        "AGGREGATION: When called on a parent element (e.g., StackPanel, Grid, Window), " +
+        "errors from ALL descendant elements are collected recursively (max depth: 50, max errors: 200). " +
+        "Each error includes elementType and elementName to identify the source element.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  errorCount: number,\n" +
         "  errors: [{\n" +
-        "    propertyName, errorMessage,\n" +
-        "    errorType: 'IDataErrorInfo'|'INotifyDataErrorInfo'|'ValidationRule'\n" +
+        "    errorContent: string,\n" +
+        "    isRuleError: boolean,\n" +
+        "    ruleType: string,\n" +
+        "    elementType: string,  // e.g., 'TextBox' - identifies which descendant has the error\n" +
+        "    elementName: string|null  // x:Name of the element, if set\n" +
         "  }]\n" +
         "}\n\n" +
-        "Empty errors array means no validation errors.\n\n" +
+        "Empty errors array means no validation errors in the element or its subtree.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"AgeTextBox\" }")]
+        "- { processId: 12345 }  // get ALL validation errors in the app\n" +
+        "- { processId: 12345, elementId: \"FormPanel\" }  // get errors in a specific form section\n" +
+        "- { processId: 12345, elementId: \"AgeTextBox\" }  // get errors on a single element")]
     public static Task<CallToolResult> GetValidationErrors(
         SessionManager sessionManager,
         [Description("Connected WPF process ID returned by get_processes.")] int processId,

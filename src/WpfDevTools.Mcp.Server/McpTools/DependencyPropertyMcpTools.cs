@@ -98,7 +98,8 @@ public static class DependencyPropertyMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  propertyName, oldValue, newValue\n" +
+        "  propertyName, oldValue, newValue, requestedValue,\n" +
+        "  baseValueSource, valueType\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -139,7 +140,8 @@ public static class DependencyPropertyMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  propertyName, clearedValue, newValue\n" +
+        "  propertyName, hadLocalValue, clearedValue, newValue,\n" +
+        "  baseValueSource, valueType\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

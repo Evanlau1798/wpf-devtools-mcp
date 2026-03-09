@@ -143,6 +143,8 @@ public class TreeHandlers : IRequestHandler
                 w.Title,
                 w.Type,
                 w.IsActive,
+                w.IsVisible,
+                w.IsMainWindow,
                 w.ElementId
             }).ToList()
         });

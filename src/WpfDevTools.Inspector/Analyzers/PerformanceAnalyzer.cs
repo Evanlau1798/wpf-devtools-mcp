@@ -85,6 +85,9 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                     {
                         success = true,
                         message = "Monitoring started, waiting for frame data...",
+                        isWarmedUp = false,
+                        sampleCount = 0,
+                        sampleWindowSize = MaxFrameSamples,
                         frameRate = 0.0,
                         avgRenderTime = 0.0,
                         averageFrameTime = 0.0,
@@ -105,6 +108,9 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                 return new
                 {
                     success = true,
+                    isWarmedUp = true,
+                    sampleCount = _frameTimes.Count,
+                    sampleWindowSize = MaxFrameSamples,
                     frameRate = Math.Round(frameRate, 2),
                     avgRenderTime = Math.Round(avgFrameTime, 2),
                     averageFrameTime = Math.Round(avgFrameTime, 2),
@@ -231,6 +237,18 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                 var potentialLeaks = hasLeaks
                     ? aliveBindings.Take(10).ToList()
                     : new List<object>();
+                var suspects = potentialLeaks
+                    .Select(item =>
+                    {
+                        var typeProperty = item.GetType().GetProperty("type");
+                        return new
+                        {
+                            elementId = (string?)null,
+                            elementType = typeProperty?.GetValue(item)?.ToString(),
+                            bindingCount = 1
+                        };
+                    })
+                    .ToList();
 
                 return new
                 {
@@ -241,6 +259,7 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                     threshold,
                     hasLeaks,
                     potentialLeaks,
+                    suspects,
                     message = hasLeaks
                         ? $"Potential memory leak detected: {aliveBindings.Count} bindings alive (threshold: {threshold})"
                         : $"No binding leaks detected ({aliveBindings.Count} bindings alive, threshold: {threshold})",

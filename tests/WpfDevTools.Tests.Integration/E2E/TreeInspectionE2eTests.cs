@@ -119,6 +119,10 @@ public sealed class TreeInspectionE2eTests
         windowElementId.GetString().Should().NotBeNullOrEmpty();
         mainWindow.TryGetProperty("Title", out _).Should().BeTrue(
             "each window should have a Title");
+        mainWindow.TryGetProperty("IsMainWindow", out _).Should().BeTrue(
+            "window snapshots should identify the app main window explicitly");
+        mainWindow.TryGetProperty("IsVisible", out _).Should().BeTrue(
+            "window snapshots should include visibility to explain focus timing");
     }
 
     [Fact]

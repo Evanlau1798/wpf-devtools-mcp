@@ -247,22 +247,39 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             });
         }
 
-        // Get data context chain
-        var current = element as FrameworkElement;
-        while (current != null)
+        if (element is FrameworkElement frameworkElement)
         {
-            if (current.DataContext != null)
+            var localDataContextValue = frameworkElement.ReadLocalValue(FrameworkElement.DataContextProperty);
+            var hasLocalDataContext = localDataContextValue != DependencyProperty.UnsetValue;
+            var localDataContext = hasLocalDataContext ? localDataContextValue : frameworkElement.DataContext;
+
+            chain.Add(new Dictionary<string, object?>
             {
-                chain.Add(new Dictionary<string, object?>
+                ["step"] = "LocalDataContext",
+                ["elementType"] = frameworkElement.GetType().Name,
+                ["hasLocalValue"] = hasLocalDataContext,
+                ["hasDataContext"] = localDataContext != null,
+                ["dataContextType"] = localDataContext?.GetType().Name,
+                ["dataContextValue"] = localDataContext?.ToString()
+            });
+
+            var current = frameworkElement.Parent as FrameworkElement;
+            while (current != null)
+            {
+                if (current.DataContext != null)
                 {
-                    ["step"] = "DataContext",
-                    ["elementType"] = current.GetType().Name,
-                    ["dataContextType"] = current.DataContext.GetType().Name,
-                    ["dataContextValue"] = current.DataContext.ToString()
-                });
-                break;
+                    chain.Add(new Dictionary<string, object?>
+                    {
+                        ["step"] = "InheritedDataContext",
+                        ["elementType"] = current.GetType().Name,
+                        ["dataContextType"] = current.DataContext.GetType().Name,
+                        ["dataContextValue"] = current.DataContext.ToString()
+                    });
+                    break;
+                }
+
+                current = current.Parent as FrameworkElement;
             }
-            current = current.Parent as FrameworkElement;
         }
 
         // Get resolved value
@@ -274,6 +291,15 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
                 ["step"] = "ResolvedSource",
                 ["sourceType"] = resolvedValue.GetType().Name,
                 ["sourceValue"] = resolvedValue.ToString()
+            });
+        }
+        else
+        {
+            chain.Add(new Dictionary<string, object?>
+            {
+                ["step"] = "ResolvedSource",
+                ["sourceType"] = null,
+                ["sourceValue"] = null
             });
         }
 
@@ -448,4 +474,3 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     }
 
 }
-

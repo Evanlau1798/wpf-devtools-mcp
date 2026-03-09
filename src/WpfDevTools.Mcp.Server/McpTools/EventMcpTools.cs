@@ -79,11 +79,15 @@ public static class EventMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  eventName,\n" +
+        "  handlerCount: number,\n" +
+        "  reflectionSupported: boolean,\n" +
+        "  mayBeIncomplete: boolean,\n" +
         "  handlers: [{\n" +
         "    methodName, declaringType, handledEventsToo: boolean\n" +
         "  }]\n" +
         "}\n\n" +
-        "Empty handlers array means no handlers attached.\n\n" +
+        "Empty handlers array means no handlers were visible via reflection. Class handlers, commands, template triggers, and inaccessible internals may not appear.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
@@ -117,10 +121,11 @@ public static class EventMcpTools
         "- All other combinations: calls UIElement.RaiseEvent(), which only triggers routed event handlers (Tunneling -> Direct -> Bubbling)\n\n" +
         "USE WHEN: Testing event handlers programmatically; triggering Click on buttons including ICommand execution; verifying routed event wiring.\n" +
         "DO NOT USE: For keyboard input (use simulate_keyboard); for complex click simulation with mouse coordinates (use click_element).\n\n" +
+        "STANDARD EVENT ARGS: For common mouse events (for example MouseDown/MouseUp), the tool creates compatible WPF event args automatically; custom eventArgs remain optional.\n\n" +
         "SEMANTIC DIFFERENCE FROM click_element:\n" +
         "- fire_routed_event('Click') on ButtonBase: calls OnClick() (includes ICommand) - functionally equivalent to click_element for command execution\n" +
         "- fire_routed_event('Click') on non-ButtonBase: only fires routed event handlers, no ICommand\n" +
-        "- click_element: uses automation peers / SendInput for broader element support and visual feedback\n\n" +
+        "- click_element: calls OnClick() for ButtonBase descendants, selects TabItem; returns error for other element types\n\n" +
         "WARNING: This triggers real application logic. For ButtonBase+Click, ICommand WILL execute.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +

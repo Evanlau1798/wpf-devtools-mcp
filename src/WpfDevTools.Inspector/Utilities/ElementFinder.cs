@@ -106,6 +106,8 @@ public sealed class ElementFinder : IDisposable
                     Title = window.Title ?? string.Empty,
                     Type = window.GetType().Name,
                     IsActive = window.IsActive,
+                    IsVisible = window.IsVisible,
+                    IsMainWindow = ReferenceEquals(window, application.MainWindow),
                     ElementId = GenerateElementId(window)
                 });
             }

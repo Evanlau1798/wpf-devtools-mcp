@@ -175,12 +175,20 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
             if (cmd == null)
                 return new { success = false, error = $"'{commandName}' is not an ICommand" };
 
-            if (!cmd.CanExecute(parameter))
+            var canExecute = cmd.CanExecute(parameter);
+            if (!canExecute)
             {
                 AuditLogger.LogSecurityEvent("CommandExecution",
                     $"Blocked by CanExecute: {commandName}",
                     AuditSeverity.Warning);
-                return new { success = false, error = $"Command '{commandName}' cannot execute" };
+                return new
+                {
+                    success = false,
+                    error = $"Command '{commandName}' cannot execute",
+                    commandName,
+                    canExecute = false,
+                    executed = false
+                };
             }
 
             // Execute command
@@ -191,7 +199,13 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                 $"Success: {commandName}",
                 AuditSeverity.Information);
 
-            return new { success = true, commandName, executed = true };
+            return new
+            {
+                success = true,
+                commandName,
+                executed = true,
+                canExecute = true
+            };
         });
     }
 

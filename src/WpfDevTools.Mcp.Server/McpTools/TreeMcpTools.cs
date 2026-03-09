@@ -211,7 +211,7 @@ public static class TreeMcpTools
     [McpServerTool(Name = "get_windows", OpenWorld = false, ReadOnly = true)]
     [Description(
         TreeMetadata + "[Tree] Enumerate all open windows in the connected WPF application. " +
-        "Returns each window's index, title, type, active state, and elementId.\n\n" +
+        "Returns each window's index, title, type, focus snapshot, and elementId.\n\n" +
         "USE WHEN: The target app has multiple windows and you need to inspect a secondary window " +
         "(e.g., dialogs, tool windows, child windows). Use the returned elementId as the elementId " +
         "parameter in get_visual_tree, get_logical_tree, and other tools to target that window.\n\n" +
@@ -220,8 +220,9 @@ public static class TreeMcpTools
         "{\n" +
         "  success: boolean,\n" +
         "  windowCount: integer,\n" +
-        "  windows: [{ index, title, type, isActive, elementId }]\n" +
+        "  windows: [{ index, title, type, isActive, isVisible, isMainWindow, elementId }]\n" +
         "}\n\n" +
+        "NOTE: isActive is a point-in-time focus snapshot and may change between calls; use isVisible/isMainWindow to interpret transient focus timing.\n\n" +
         "WORKFLOW:\n" +
         "1. Call get_windows to discover all open windows\n" +
         "2. Use the elementId from the desired window as elementId in get_visual_tree, get_logical_tree, etc.\n\n" +
@@ -275,6 +276,5 @@ public static class TreeMcpTools
             cancellationToken);
     }
 }
-
 
 

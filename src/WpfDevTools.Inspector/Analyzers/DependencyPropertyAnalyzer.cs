@@ -150,21 +150,7 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    private static string? FormatMetadataValue(object? value)
-    {
-        return value switch
-        {
-            null => null,
-            double number when double.IsNaN(number) => "NaN",
-            double number when double.IsPositiveInfinity(number) => "Infinity",
-            double number when double.IsNegativeInfinity(number) => "-Infinity",
-            float number when float.IsNaN(number) => "NaN",
-            float number when float.IsPositiveInfinity(number) => "Infinity",
-            float number when float.IsNegativeInfinity(number) => "-Infinity",
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString()
-        };
-    }
+    private static string? FormatMetadataValue(object? value) => FormatResponseValue(value);
 
     /// <summary>
     /// Set local value for a DependencyProperty
@@ -196,13 +182,27 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             try
             {
+                var oldValue = depObj.GetValue(dp);
                 // Convert value to correct type
                 var targetType = dp.PropertyType;
                 var convertedValue = ConvertValue(value, targetType);
 
                 AuditLogger.LogSecurityEvent("DependencyProperty", $"Property '{propertyName}' set on element '{elementId ?? "root"}'");
                 depObj.SetValue(dp, convertedValue);
-                return new { success = true, message = $"Property '{propertyName}' set successfully" };
+                var newValue = depObj.GetValue(dp);
+                var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
+
+                return new
+                {
+                    success = true,
+                    message = $"Property '{propertyName}' set successfully",
+                    propertyName,
+                    oldValue = FormatResponseValue(oldValue),
+                    newValue = FormatResponseValue(newValue),
+                    requestedValue = FormatResponseValue(value),
+                    baseValueSource = valueSource.BaseValueSource.ToString(),
+                    valueType = newValue?.GetType().Name
+                };
             }
             catch (Exception ex)
             {
@@ -241,8 +241,23 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             try
             {
+                var hadLocalValue = depObj.ReadLocalValue(dp) != DependencyProperty.UnsetValue;
+                var clearedValue = depObj.GetValue(dp);
                 depObj.ClearValue(dp);
-                return new { success = true, message = $"Property '{propertyName}' cleared successfully" };
+                var newValue = depObj.GetValue(dp);
+                var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
+
+                return new
+                {
+                    success = true,
+                    message = $"Property '{propertyName}' cleared successfully",
+                    propertyName,
+                    hadLocalValue,
+                    clearedValue = FormatResponseValue(clearedValue),
+                    newValue = FormatResponseValue(newValue),
+                    baseValueSource = valueSource.BaseValueSource.ToString(),
+                    valueType = newValue?.GetType().Name
+                };
             }
             catch (Exception ex)
             {

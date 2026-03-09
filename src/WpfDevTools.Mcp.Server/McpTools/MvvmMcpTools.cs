@@ -95,6 +95,7 @@ public static class MvvmMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  commandName,\n" +
         "  executed: boolean,\n" +
         "  canExecute: boolean\n" +
         "}\n\n" +

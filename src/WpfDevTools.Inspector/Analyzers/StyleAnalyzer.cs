@@ -364,16 +364,20 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
                 // Set local value (overrides style)
                 var targetType = dp.PropertyType;
+                var oldValue = fe.GetValue(dp);
                 var convertedValue = ConvertValue(value, targetType);
                 AuditLogger.LogSecurityEvent("StyleOverride", $"Property '{propertyName}' overridden on element '{elementId ?? "root"}'");
                 fe.SetValue(dp, convertedValue);
+                var newValue = fe.GetValue(dp);
 
                 return new
                 {
                     success = true,
                     message = $"Style setter for '{propertyName}' overridden with local value",
                     propertyName,
-                    newValue = convertedValue?.ToString()
+                    oldValue = FormatResponseValue(oldValue),
+                    newValue = FormatResponseValue(newValue),
+                    valueType = newValue?.GetType().Name
                 };
             }
             catch (Exception ex)

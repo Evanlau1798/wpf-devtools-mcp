@@ -138,7 +138,7 @@ public static class StyleMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  propertyName, oldValue, newValue\n" +
+        "  propertyName, oldValue, newValue, valueType\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

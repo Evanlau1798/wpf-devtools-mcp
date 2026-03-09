@@ -23,9 +23,14 @@ public static class PerformanceMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  isWarmedUp: boolean,\n" +
+        "  sampleCount: number,\n" +
+        "  sampleWindowSize: number,\n" +
         "  frameRate: number,\n" +
         "  avgRenderTime: number (ms),\n" +
         "  dirtyRegionCount: number,\n" +
+        "  totalFrames: number,\n" +
+        "  monitoringDuration: number,\n" +
         "  visualCount: number\n" +
         "}\n\n" +
         "NOTE: The first call may return zeros with a 'Monitoring started' message because the render stats " +
@@ -57,11 +62,17 @@ public static class PerformanceMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  totalTracked: number,\n" +
+        "  aliveBindings: number,\n" +
+        "  deadBindings: number,\n" +
+        "  threshold: number,\n" +
+        "  hasLeaks: boolean,\n" +
         "  suspects: [{\n" +
         "    elementId, elementType, bindingCount: number\n" +
-        "  }]\n" +
+        "  }],\n" +
+        "  potentialLeaks: [{ type, hashCode, toString }]\n" +
         "}\n\n" +
-        "Empty suspects array means no leak candidates found.\n\n" +
+        "Empty suspects array means no leak candidates crossed the threshold. potentialLeaks retains raw diagnostic samples for backward compatibility.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +

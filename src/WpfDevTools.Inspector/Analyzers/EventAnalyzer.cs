@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -156,7 +157,7 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
                     };
                 }
 
-                var args = new RoutedEventArgs(routedEvent, uiElement);
+                var args = CreateRoutedEventArgs(routedEvent, uiElement);
                 uiElement.RaiseEvent(args);
 
                 return new
@@ -233,8 +234,10 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
                     eventName,
                     handlerCount = handlers.Count,
                     handlers,
+                    reflectionSupported = true,
+                    mayBeIncomplete = true,
                     message = handlers.Count == 0
-                        ? "No handlers found (or handlers are not accessible via reflection)"
+                        ? "No handlers found. Reflection does not see class handlers, commands, template triggers, or inaccessible internals."
                         : $"Found {handlers.Count} handler(s)"
                 };
             }
@@ -503,5 +506,30 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
                 button.Command.Execute(button.CommandParameter);
             }
         }
+    }
+
+    private static RoutedEventArgs CreateRoutedEventArgs(RoutedEvent routedEvent, UIElement sourceElement)
+    {
+        var eventArgsType = routedEvent.HandlerType?.GetMethod("Invoke")?.GetParameters().LastOrDefault()?.ParameterType;
+
+        if (eventArgsType == typeof(MouseButtonEventArgs))
+        {
+            return new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+            {
+                RoutedEvent = routedEvent,
+                Source = sourceElement
+            };
+        }
+
+        if (eventArgsType == typeof(MouseEventArgs))
+        {
+            return new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount)
+            {
+                RoutedEvent = routedEvent,
+                Source = sourceElement
+            };
+        }
+
+        return new RoutedEventArgs(routedEvent, sourceElement);
     }
 }

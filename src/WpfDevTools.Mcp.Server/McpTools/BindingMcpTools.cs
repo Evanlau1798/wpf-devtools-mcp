@@ -99,11 +99,15 @@ public static class BindingMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  hasBinding: boolean,\n" +
+        "  propertyName,\n" +
+        "  chainLength: integer,\n" +
         "  chain: [{\n" +
-        "    step: 'Source'|'Converter'|'StringFormat'|'Fallback'|'Target',\n" +
+        "    step: 'Binding'|'LocalDataContext'|'InheritedDataContext'|'ResolvedSource'|'FinalValue',\n" +
         "    value, type\n" +
         "  }]\n" +
         "}\n\n" +
+        "NOTE: Null-DataContext cases include explicit LocalDataContext and ancestor InheritedDataContext diagnostics when available.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"no binding\" -> property has no binding (check with get_bindings first)\n" +

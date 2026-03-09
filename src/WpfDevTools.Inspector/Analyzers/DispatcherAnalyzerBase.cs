@@ -3,6 +3,7 @@ using System.Windows.Threading;
 using System.ComponentModel;
 using System.Reflection;
 using System.Text.Json;
+using System.Globalization;
 using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -140,6 +141,25 @@ public abstract class DispatcherAnalyzerBase
         {
             return value.GetDouble();
         }
+    }
+
+    /// <summary>
+    /// Format runtime values into stable, JSON-friendly strings for tool responses.
+    /// </summary>
+    protected static string? FormatResponseValue(object? value)
+    {
+        return value switch
+        {
+            null => null,
+            double number when double.IsNaN(number) => "NaN",
+            double number when double.IsPositiveInfinity(number) => "Infinity",
+            double number when double.IsNegativeInfinity(number) => "-Infinity",
+            float number when float.IsNaN(number) => "NaN",
+            float number when float.IsPositiveInfinity(number) => "Infinity",
+            float number when float.IsNegativeInfinity(number) => "-Infinity",
+            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+            _ => value.ToString()
+        };
     }
 
     /// <summary>

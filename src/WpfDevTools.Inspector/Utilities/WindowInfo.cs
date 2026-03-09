@@ -26,6 +26,16 @@ public sealed class WindowInfo
     public bool IsActive { get; init; }
 
     /// <summary>
+    /// Whether this window is currently visible.
+    /// </summary>
+    public bool IsVisible { get; init; }
+
+    /// <summary>
+    /// Whether this window is the application's MainWindow.
+    /// </summary>
+    public bool IsMainWindow { get; init; }
+
+    /// <summary>
     /// Element ID for this window (can be used as elementId in other tools)
     /// </summary>
     public string ElementId { get; init; } = string.Empty;

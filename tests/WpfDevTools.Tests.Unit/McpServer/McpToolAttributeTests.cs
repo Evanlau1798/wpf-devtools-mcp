@@ -330,9 +330,9 @@ public class McpToolAttributeTests
     }
 
     [Theory]
-    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.GetProcesses), "List WPF Processes")]
-    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Connect), "Connect To WPF Process")]
-    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Ping), "Ping Inspector Session")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.GetProcesses), "List Inspectable WPF Processes")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Connect), "Connect To Running WPF Process")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Ping), "Ping WPF Inspector Session")]
     public void ProcessTools_ShouldAdvertiseFriendlyTitlesAndStructuredContent(Type toolType, string methodName, string expectedTitle)
     {
         var method = toolType.GetMethod(methodName);

@@ -13,8 +13,9 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class BindingMcpTools
 {
     private const string BindingMetadata = "CATEGORY: Binding | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_bindings", Title = "Get Bindings", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_bindings", Title = "Inspect WPF Bindings", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect WPF bindings on a runtime element or subtree before changing UI or ViewModel state.\n\n" +
         BindingMetadata + "[Binding] Get all DataBindings on an element. Shows binding path, mode " +
         "(OneWay/TwoWay/OneTime), source type, converter, and current status.\n\n" +
         "USE WHEN: You need to inspect binding configuration on a specific element or subtree.\n" +
@@ -53,8 +54,9 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_binding_errors", Title = "Get Binding Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_binding_errors", Title = "Diagnose WPF Binding Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to diagnose WPF binding failures behind blank, stale, or incorrect UI data.\n\n" +
         BindingMetadata + "[Binding] Get ALL binding errors captured since Inspector connected. " +
         "FIRST tool to use when debugging data display issues.\n\n" +
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
@@ -96,8 +98,9 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_binding_value_chain", Title = "Get Binding Value Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_binding_value_chain", Title = "Trace WPF Binding Value Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to trace how a WPF binding resolves from source data to the final runtime value.\n\n" +
         BindingMetadata + "[Binding] Get the complete value resolution chain for a binding on a specific property. " +
         "Shows each step from source to target including converters, fallback values, and StringFormat.\n\n" +
         "USE WHEN: Binding doesn't error but shows unexpected value; need to trace value transformation.\n" +
@@ -141,8 +144,9 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_datacontext_chain", Title = "Get DataContext Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_datacontext_chain", Title = "Trace WPF DataContext Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to trace WPF DataContext inheritance through a runtime element hierarchy.\n\n" +
         BindingMetadata + "[Binding] Get the DataContext inheritance chain from an element up to the root. " +
         "Shows each ancestor's DataContext type and value.\n\n" +
         "USE WHEN: Binding path is correct but can't find source; need to understand DataContext inheritance.\n" +
@@ -176,8 +180,9 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "force_binding_update", Title = "Force Binding Update", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "force_binding_update", Title = "Force WPF Binding Update", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to force a WPF binding to refresh when runtime UI state appears stale.\n\n" +
         BindingMetadata + "[Binding] Force a binding to re-evaluate and transfer the current value. " +
         "Use for UpdateSourceTrigger=Explicit bindings or when the source value changed but the UI didn't update.\n\n" +
         "USE WHEN: UI is stale despite source changes; testing UpdateSourceTrigger=Explicit bindings.\n" +

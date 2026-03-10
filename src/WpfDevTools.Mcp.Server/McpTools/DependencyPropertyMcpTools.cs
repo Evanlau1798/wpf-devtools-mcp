@@ -14,8 +14,9 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class DependencyPropertyMcpTools
 {
     private const string DependencyPropertyMetadata = "CATEGORY: DependencyProperty | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_dp_value_source", Title = "Get DependencyProperty Value Source", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_dp_value_source", Title = "Inspect DependencyProperty Value Source", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect the runtime source and precedence of a WPF DependencyProperty value.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Get the value source of a DependencyProperty. " +
         "Returns where the current value comes from: Default, Inherited, Style, Trigger, " +
         "TemplateBinding, LocalValue, or Animation.\n\n" +
@@ -59,8 +60,9 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_dp_metadata", Title = "Get DependencyProperty Metadata", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_dp_metadata", Title = "Inspect DependencyProperty Metadata", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect WPF DependencyProperty metadata before changing runtime values.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Get DependencyProperty metadata including default value, " +
         "inherits flag, affects measure/arrange, and coerce/validation callbacks.\n\n" +
         "USE WHEN: You need to understand property behavior at framework level (inheritance, layout impact).\n" +
@@ -95,8 +97,9 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "set_dp_value", Title = "Set DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "set_dp_value", Title = "Set WPF DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to set a WPF DependencyProperty value during runtime debugging and UI verification.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Set a DependencyProperty value at runtime. " +
         "Value is forwarded as raw JSON so numbers, booleans, objects, and strings keep their shape.\n\n" +
         "USE WHEN: Testing UI behavior with different property values; debugging layout/styling issues.\n" +
@@ -137,8 +140,9 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "clear_dp_value", Title = "Clear DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "clear_dp_value", Title = "Clear WPF DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to clear a local WPF DependencyProperty override and return to runtime defaults or styles.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Clear a DependencyProperty local value, " +
         "reverting it to its inherited, styled, or default value.\n\n" +
         "USE WHEN: Removing overrides applied by set_dp_value; testing default/inherited behavior.\n" +
@@ -173,8 +177,9 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "watch_dp_changes", Title = "Watch DependencyProperty Changes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "watch_dp_changes", Title = "Watch WPF DependencyProperty Changes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to register WPF DependencyProperty watch state before polling for runtime changes.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Register a listener for property value changes. " +
         "CURRENT STDIO BEHAVIOR: registration-only. Change events are NOT pushed to the client; use get_dp_value_source to poll for changes.\n\n" +
         "USE WHEN: You are preparing for future push-capable transports, or you explicitly want watch registration state.\n" +

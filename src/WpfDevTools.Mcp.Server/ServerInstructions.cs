@@ -10,7 +10,9 @@ public static class ServerInstructions
     /// The complete server instructions text
     /// </summary>
     public const string Value = """
-        WPF DevTools MCP Server: Deep inspection and interaction with running WPF applications via in-process DLL injection. Provides process discovery, visual/logical tree inspection, binding diagnostics, MVVM debugging, DependencyProperty analysis, style/template inspection, routed event diagnostics, element interaction, layout analysis, and performance profiling.
+        WPF DevTools MCP Server inspects and debugs a running WPF application through in-process runtime diagnostics and interaction tools.
+        Search this server when you need to inspect a running WPF application, its visual tree, logical tree, binding failures, ViewModel state, dependency properties, commands, focus, performance, or secondary windows.
+        Use this server for runtime desktop UI diagnostics, WPF element lookup, XAML structure inspection, multi-window investigation, and safe temporary automation against a connected WPF process.
 
         === MANDATORY WORKFLOW ===
         1. get_processes -> discover running WPF apps and their processIds

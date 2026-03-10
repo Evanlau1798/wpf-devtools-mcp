@@ -13,8 +13,9 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class InteractionMcpTools
 {
     private const string InteractionMetadata = "CATEGORY: Interaction | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "click_element", Title = "Click Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "click_element", Title = "Interact With WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to interact with a WPF element through a runtime click path that matches user behavior.\n\n" +
         InteractionMetadata + "[Interaction] Simulate a mouse click on a WPF element. " +
         "Uses ButtonBase.OnClick() for all ButtonBase descendants (Button, ToggleButton, CheckBox, RadioButton) " +
         "which triggers ICommand execution + Click event. For TabItem, selects the tab. " +
@@ -55,8 +56,9 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_focus_state", Title = "Get Focus State", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_focus_state", Title = "Inspect WPF Focus State", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect the current WPF focus state across a window or scoped subtree.\n\n" +
         InteractionMetadata + "[Interaction] Get the current logical or keyboard focus snapshot for a window or element scope.\n\n" +
         "USE WHEN: Multi-window workflows, focus-sensitive interactions, or before capturing a restorable state snapshot.\n" +
         "DO NOT USE: As a persistent subscription; this is a point-in-time snapshot only.\n\n" +
@@ -93,8 +95,9 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "focus_element", Title = "Focus Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "focus_element", Title = "Focus WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to move focus to a specific WPF element before keyboard-driven runtime inspection.\n\n" +
         InteractionMetadata + "[Interaction] Move logical focus to a specific WPF element.\n\n" +
         "USE WHEN: Restoring focus after a mutation sequence, or preparing a keyboard-driven workflow.\n" +
         "DO NOT USE: On elements that cannot receive focus.\n\n" +
@@ -129,8 +132,9 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "drag_and_drop", Title = "Drag And Drop", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "drag_and_drop", Title = "Simulate WPF Drag And Drop", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to simulate WPF drag and drop behavior between two runtime elements.\n\n" +
         InteractionMetadata + "[Interaction] Simulate drag and drop between two WPF elements. " +
         "Raises DragEnter, DragOver, and Drop events on the target.\n\n" +
         "USE WHEN: Testing drag-drop functionality, reordering items, or file drop handlers.\n" +
@@ -172,8 +176,9 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "scroll_to_element", Title = "Scroll To Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "scroll_to_element", Title = "Scroll WPF Element Into View", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to scroll a WPF element into view before runtime screenshots or interactions.\n\n" +
         InteractionMetadata + "[Interaction] Scroll a WPF element into view within its parent ScrollViewer. " +
         "Calls BringIntoView() on the element.\n\n" +
         "USE WHEN: Element is off-screen before taking screenshot or clicking; testing scroll behavior.\n" +
@@ -205,8 +210,9 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "simulate_keyboard", Title = "Simulate Keyboard", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "simulate_keyboard", Title = "Simulate WPF Keyboard Input", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to simulate WPF keyboard input when runtime focus, shortcuts, or key handlers matter.\n\n" +
         InteractionMetadata + "[Interaction] Simulate a keyboard key press on an element. " +
         "Key parameter uses WPF Key enum names.\n\n" +
         "USE WHEN: Testing keyboard shortcuts, Enter key submission, Tab navigation, or key event handlers.\n" +
@@ -255,8 +261,9 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "element_screenshot", Title = "Capture Element Screenshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "element_screenshot", Title = "Capture WPF Element Screenshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to capture a WPF element screenshot for runtime visual verification.\n\n" +
         InteractionMetadata + "[Interaction] Capture a PNG screenshot of a specific element. " +
         "Returns base64-encoded image data. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
         "USE WHEN: Visual verification needed; documenting UI state; debugging rendering issues.\n" +

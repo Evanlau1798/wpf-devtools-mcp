@@ -10,8 +10,9 @@ public static class StateMcpTools
 {
     private const string StateMetadata = "CATEGORY: State | SAFETY: Snapshot tools inspect or restore live runtime state within an already connected WPF process.\n\n";
 
-    [McpServerTool(Name = "capture_state_snapshot", Title = "Capture State Snapshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "capture_state_snapshot", Title = "Capture WPF Runtime State Snapshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to capture a WPF runtime state snapshot before mutations or multi-step debugging.\n\n" +
         StateMetadata + "[State] Capture a restorable runtime snapshot for a connected WPF process.\n\n" +
         "USE WHEN: Before mutation-heavy debugging, demos, or regression flows where rollback matters.\n" +
         "DO NOT USE: As durable persistence; snapshots are in-memory and session-scoped only.\n\n" +
@@ -53,8 +54,9 @@ public static class StateMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "restore_state_snapshot", Title = "Restore State Snapshot", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "restore_state_snapshot", Title = "Restore WPF Runtime State Snapshot", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to restore a WPF runtime state snapshot after temporary debugging changes.\n\n" +
         StateMetadata + "[State] Restore a previously captured in-memory runtime snapshot.\n\n" +
         "USE WHEN: Rolling back temporary DependencyProperty, ViewModel, or focus changes in the same session.\n" +
         "DO NOT USE: Across disconnected sessions or application restarts.\n\n" +

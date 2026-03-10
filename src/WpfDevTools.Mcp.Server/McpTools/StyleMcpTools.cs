@@ -14,8 +14,9 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class StyleMcpTools
 {
     private const string StyleMetadata = "CATEGORY: Style | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_applied_styles", Title = "Get Applied Styles", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_applied_styles", Title = "Inspect WPF Applied Styles", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect applied WPF styles and understand runtime appearance sources.\n\n" +
         StyleMetadata + "[Style] Get all applied styles on a WPF element. Returns style type, target type, " +
         "setters (property+value), whether it's an implicit or explicit style, and localResourceReferences when appearance comes from a local resource expression instead of a Style.\n\n" +
         "USE WHEN: Element has unexpected appearance; need to understand which styles are applied.\n" +
@@ -54,8 +55,9 @@ public static class StyleMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_triggers", Title = "Get Triggers", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_triggers", Title = "Inspect WPF Triggers", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect WPF style and template triggers that affect runtime UI state.\n\n" +
         StyleMetadata + "[Style] Get all triggers from a WPF element's styles and templates. " +
         "Returns trigger type (Property/Data/Event/MultiTrigger), conditions, and setter actions.\n\n" +
         "USE WHEN: Conditional styling not working; need to understand trigger logic.\n" +
@@ -91,8 +93,9 @@ public static class StyleMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_resource_chain", Title = "Get Resource Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_resource_chain", Title = "Trace WPF Resource Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to trace WPF resource lookup order for a runtime XAML resource key.\n\n" +
         StyleMetadata + "[Style] Get the resource lookup chain for a XAML resource key. " +
         "Shows which ResourceDictionary at which level (element, window, app, theme) provides the resource.\n\n" +
         "USE WHEN: Resource not found errors; need to understand resource lookup order.\n" +
@@ -131,8 +134,9 @@ public static class StyleMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "override_style_setter", Title = "Override Style Setter", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "override_style_setter", Title = "Override WPF Style Setter", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to override a WPF style setter during runtime debugging without changing XAML.\n\n" +
         StyleMetadata + "[Style] Override a style setter value on a WPF element at runtime. " +
         "Applies a local value that takes precedence over the style.\n\n" +
         "USE WHEN: Testing different style values; debugging style precedence issues.\n" +

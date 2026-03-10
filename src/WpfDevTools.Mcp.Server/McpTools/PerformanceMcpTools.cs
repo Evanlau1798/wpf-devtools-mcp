@@ -13,8 +13,9 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class PerformanceMcpTools
 {
     private const string PerformanceMetadata = "CATEGORY: Performance | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_render_stats", Title = "Get Render Stats", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_render_stats", Title = "Inspect WPF Render Stats", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect WPF render statistics when runtime UI performance feels slow.\n\n" +
         PerformanceMetadata + "[Performance] Get render statistics from a WPF application. Returns frame rate, " +
         "render time, dirty region count, and other WPF rendering pipeline metrics.\n\n" +
         "USE WHEN: UI feels slow or laggy; investigating rendering performance issues.\n" +
@@ -53,8 +54,9 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "find_binding_leaks", Title = "Find Binding Leaks", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "find_binding_leaks", Title = "Find WPF Binding Leaks", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect suspected WPF binding leaks in long-lived runtime sessions.\n\n" +
         PerformanceMetadata + "[Performance] Detect potential binding memory leaks by tracking live binding references. " +
         "Threshold is the minimum number of live bindings on a single element to flag as suspicious.\n\n" +
         "USE WHEN: Memory usage grows over time; suspecting binding-related memory leaks.\n" +
@@ -94,8 +96,9 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "measure_element_render_time", Title = "Measure Element Render Time", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "measure_element_render_time", Title = "Measure WPF Element Render Time", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to measure WPF element render time for targeted runtime performance diagnosis.\n\n" +
         PerformanceMetadata + "[Performance] Measure the render time of a WPF element in milliseconds. " +
         "Forces a re-render and measures the time taken.\n\n" +
         "USE WHEN: Identifying slow-rendering elements; profiling UI performance.\n" +
@@ -129,8 +132,9 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_visual_count", Title = "Get Visual Count", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_visual_count", Title = "Count WPF Visual Elements", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to count WPF visual elements in a runtime subtree and detect UI complexity hot spots.\n\n" +
         PerformanceMetadata + "[Performance] Get the count of visual elements in a WPF element subtree. " +
         "High counts (>5000) may indicate performance issues.\n\n" +
         "USE WHEN: UI feels slow; need to identify overly complex subtrees.\n" +

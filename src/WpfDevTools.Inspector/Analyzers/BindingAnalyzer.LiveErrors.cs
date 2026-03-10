@@ -1,8 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Data;
-using System.Windows.Media;
-using System.Windows.Media.Media3D;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -17,27 +16,12 @@ public sealed partial class BindingAnalyzer
         }
 
         var errors = new List<BindingErrorInfo>();
-        var visited = new HashSet<DependencyObject>();
-        CollectLiveBindingErrorsRecursive(rootElement, visited, errors);
+        foreach (var element in DependencyObjectTraversal.EnumerateDescendantsAndSelf(rootElement))
+        {
+            CollectLocalBindingErrors(element, errors);
+        }
+
         return errors;
-    }
-
-    private void CollectLiveBindingErrorsRecursive(
-        DependencyObject element,
-        HashSet<DependencyObject> visited,
-        List<BindingErrorInfo> errors)
-    {
-        if (!visited.Add(element))
-        {
-            return;
-        }
-
-        CollectLocalBindingErrors(element, errors);
-
-        foreach (var child in EnumerateChildElements(element))
-        {
-            CollectLiveBindingErrorsRecursive(child, visited, errors);
-        }
     }
 
     private static void CollectLocalBindingErrors(
@@ -64,7 +48,8 @@ public sealed partial class BindingAnalyzer
                 Timestamp = DateTime.UtcNow,
                 Message = BuildLiveBindingErrorMessage(element, property, bindingExpression),
                 EventType = bindingExpression.Status.ToString(),
-                SourceId = 0
+                SourceId = 0,
+                Origin = BindingErrorInfo.OriginBindingExpression
             });
         }
     }
@@ -184,33 +169,4 @@ public sealed partial class BindingAnalyzer
         return $"Binding error on {elementType}.{property.Name} path '{bindingPath}' ({bindingExpression.Status}).";
     }
 
-    private static IEnumerable<DependencyObject> EnumerateChildElements(DependencyObject element)
-    {
-        foreach (var child in LogicalTreeHelper.GetChildren(element).OfType<DependencyObject>())
-        {
-            yield return child;
-        }
-
-        if (element is not Visual && element is not Visual3D)
-        {
-            yield break;
-        }
-
-        int visualChildCount;
-        try
-        {
-            visualChildCount = VisualTreeHelper.GetChildrenCount(element);
-        }
-        catch (InvalidOperationException)
-        {
-            yield break;
-        }
-
-        for (var index = 0; index < visualChildCount; index++)
-        {
-            yield return VisualTreeHelper.GetChild(element, index);
-        }
-    }
 }
-
-

@@ -64,12 +64,17 @@ public static class BindingMcpTools
         "  success: boolean,\n" +
         "  errorCount: integer,\n" +
         "  errors: [{\n" +
+        "    diagnosticKind: 'BindingError',\n" +
+        "    sourceKind: 'BindingTrace' | 'BindingExpression',\n" +
+        "    severity: 'Error',\n" +
         "    timestamp: string (ISO 8601),\n" +
         "    message: string,\n" +
         "    eventType: string,\n" +
-        "    sourceId: string\n" +
+        "    sourceId: integer\n" +
         "  }]\n" +
         "}\n\n" +
+        "sourceKind='BindingTrace': error captured from WPF PresentationTraceSources.\n" +
+        "sourceKind='BindingExpression': error detected from live BindingExpression status inspection.\n" +
         "Empty errors array means no binding errors detected.\n" +
         "Validation rule errors belong in get_validation_errors, not get_binding_errors.\n" +
         "NOTE: sourceId is a numeric trace ID, NOT an elementId. It cannot be used directly as the elementId parameter in other tools.\n\n" +

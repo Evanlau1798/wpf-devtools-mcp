@@ -6,6 +6,11 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class BindingErrorInfo
 {
+    /// <summary>Error captured from WPF PresentationTraceSources.</summary>
+    public const string OriginBindingTrace = "BindingTrace";
+
+    /// <summary>Error detected from live BindingExpression status inspection.</summary>
+    public const string OriginBindingExpression = "BindingExpression";
     /// <summary>
     /// UTC timestamp when the error was captured
     /// </summary>
@@ -25,4 +30,11 @@ public sealed class BindingErrorInfo
     /// The trace source event ID
     /// </summary>
     public int SourceId { get; init; }
+
+    /// <summary>
+    /// Origin of the error for diagnostic classification.
+    /// "BindingTrace" for errors from PresentationTraceSources,
+    /// "BindingExpression" for errors from live BindingExpression inspection.
+    /// </summary>
+    public string Origin { get; init; } = OriginBindingTrace;
 }

@@ -32,6 +32,69 @@ public sealed class DiagnosticNormalizationTests
         firstError.GetProperty("severity").GetString().Should().Be("Error");
     }
 
+    [Fact]
+    public void GetBindingErrors_FromTraceListener_ShouldHaveBindingTraceSourceKind()
+    {
+        BindingErrorTraceListener.ResetInstance();
+        var analyzer = new BindingAnalyzer();
+        BindingErrorTraceListener.Instance.TraceEvent(
+            null,
+            "System.Windows.Data",
+            TraceEventType.Error,
+            40,
+            "BindingExpression path error: 'Missing' not found");
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingErrors());
+        var firstError = result.GetProperty("errors")[0];
+
+        firstError.GetProperty("sourceKind").GetString().Should().Be("BindingTrace",
+            "errors from WPF trace listener should be classified as BindingTrace");
+    }
+
+    [Fact]
+    public void BindingErrorInfo_Origin_DefaultsToBindingTrace()
+    {
+        var info = new BindingErrorInfo
+        {
+            Timestamp = DateTime.UtcNow,
+            Message = "test error"
+        };
+
+        info.Origin.Should().Be("BindingTrace",
+            "default Origin ensures trace listener errors keep existing classification");
+    }
+
+    [Fact]
+    public void BindingErrorInfo_Origin_CanBeSetToBindingExpression()
+    {
+        var info = new BindingErrorInfo
+        {
+            Timestamp = DateTime.UtcNow,
+            Message = "live binding error",
+            Origin = "BindingExpression"
+        };
+
+        info.Origin.Should().Be("BindingExpression",
+            "live BindingExpression errors should have their own sourceKind classification");
+    }
+
+    [Fact]
+    public void GetBindingErrors_ShouldUseOriginAsSourceKind()
+    {
+        BindingErrorTraceListener.ResetInstance();
+        var analyzer = new BindingAnalyzer();
+
+        BindingErrorTraceListener.Instance.TraceEvent(
+            null, "System.Windows.Data", TraceEventType.Error, 40,
+            "BindingExpression path error: 'TestProp' not found on source object");
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingErrors());
+        var firstError = result.GetProperty("errors")[0];
+
+        firstError.GetProperty("sourceKind").GetString().Should().Be("BindingTrace",
+            "trace listener errors should use their Origin ('BindingTrace') as sourceKind");
+    }
+
     [StaFact]
     public void GetDataContextChain_ShouldExposeNormalizedSourceKindAndElementId()
     {

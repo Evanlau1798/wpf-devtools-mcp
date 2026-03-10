@@ -61,7 +61,8 @@ public sealed partial class InteractionAnalyzer
                 if (routedEvent == Keyboard.KeyDownEvent &&
                     InteractionKeyboardHelper.TryApplySpecialControlAction(uiElement, parsedKey))
                 {
-                    return CreateKeyboardResult(element, key, eventType, appliedDirectEdit: true);
+                    return CreateKeyboardResult(element, key, eventType,
+                        appliedDirectEdit: true, semanticEffectObserved: true);
                 }
 
                 EnsureElementFocused(uiElement);

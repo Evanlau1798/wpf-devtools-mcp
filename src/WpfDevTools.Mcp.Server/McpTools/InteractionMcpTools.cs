@@ -212,6 +212,10 @@ public static class InteractionMcpTools
         "USE WHEN: Testing keyboard shortcuts, Enter key submission, Tab navigation, or key event handlers.\n" +
         "DO NOT USE: For text input (use set_dp_value on Text property instead).\n\n" +
         "WARNING: This triggers real application logic.\n\n" +
+        "SEMANTIC EFFECTS: semanticEffectObserved=true when: Tab moves focus, " +
+        "Enter/Space activates a Button (triggers OnClick and ICommand), " +
+        "Enter/Space toggles a CheckBox, or Up/Down changes ComboBox selection. " +
+        "appliedDirectEdit=true when character keys modify TextBox text.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

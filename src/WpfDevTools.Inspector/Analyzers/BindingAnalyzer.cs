@@ -79,7 +79,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
                 errors = filteredErrors.Select(e => new
                 {
                     diagnosticKind = "BindingError",
-                    sourceKind = "BindingTrace",
+                    sourceKind = e.Origin,
                     severity = "Error",
                     timestamp = e.Timestamp.ToString("O"),
                     message = e.Message,
@@ -460,7 +460,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             bindings.AddRange(elementBindings);
         }
 
-        foreach (var child in EnumerateChildElements(element))
+        foreach (var child in DependencyObjectTraversal.EnumerateChildren(element))
         {
             CollectBindingsRecursiveCore(child, visited, bindings);
         }

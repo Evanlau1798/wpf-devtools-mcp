@@ -21,7 +21,12 @@ public static class DependencyPropertyMcpTools
         "TemplateBinding, LocalValue, or Animation.\n\n" +
         "USE WHEN: Property has unexpected value; need to understand precedence (Style vs LocalValue vs Animation).\n" +
         "DO NOT USE: Without propertyName - it's required.\n\n" +
-        "NORMALIZATION: baseValueSource is normalized into stable categories for agents, while rawBaseValueSource preserves the original WPF BaseValueSource enum name.\n\n" +
+        "NORMALIZATION: baseValueSource is normalized into stable categories for agents, " +
+        "while rawBaseValueSource preserves the original WPF BaseValueSource enum name. " +
+        "These two fields MAY legitimately differ: baseValueSource includes additional logic " +
+        "(e.g., if ReadLocalValue() returns a value, baseValueSource becomes 'LocalValue' " +
+        "even when GetValueSource().BaseValueSource reports 'Default'). " +
+        "Use baseValueSource for agent decision-making; use rawBaseValueSource only for advanced debugging.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

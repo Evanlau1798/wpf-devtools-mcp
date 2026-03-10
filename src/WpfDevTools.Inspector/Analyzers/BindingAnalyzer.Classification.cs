@@ -62,12 +62,12 @@ public sealed partial class BindingAnalyzer
         }
 
         if (activeValidationMessages.Any(message =>
-                error.Message.Contains(message, StringComparison.OrdinalIgnoreCase)))
+                error.Message.IndexOf(message, StringComparison.OrdinalIgnoreCase) >= 0))
         {
             return true;
         }
 
         return ValidationTraceMarkers.Any(marker =>
-            error.Message.Contains(marker, StringComparison.OrdinalIgnoreCase));
+            error.Message.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0);
     }
 }

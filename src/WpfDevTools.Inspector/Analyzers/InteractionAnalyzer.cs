@@ -1,11 +1,11 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.IO;
-using System.Windows.Input;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -48,22 +48,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                 {
                     // OnClick() handles both RaiseEvent(ClickEvent) and Command execution.
                     // Do NOT call Command.Execute separately — it would double-execute.
-                    var onClick = button.GetType().GetMethod(
-                        "OnClick",
-                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-
-                    if (onClick != null)
-                    {
-                        onClick.Invoke(button, null);
-                    }
-                    else
-                    {
-                        button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
-                        if (button.Command != null && button.Command.CanExecute(button.CommandParameter))
-                        {
-                            button.Command.Execute(button.CommandParameter);
-                        }
-                    }
+                    ButtonBaseClickHelper.InvokeOnClick(button);
 
                     return new
                     {

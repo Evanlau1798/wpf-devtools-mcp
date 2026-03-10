@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -23,6 +24,15 @@ internal static class InteractionKeyboardHelper
         {
             checkBox.IsChecked = checkBox.IsChecked != true;
             checkBox.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, checkBox));
+            return true;
+        }
+
+        // ButtonBase (Button, ToggleButton, RepeatButton) with Enter or Space:
+        // Invoke OnClick() via reflection to trigger the full command pipeline,
+        // matching the behavior of WPF's built-in keyboard activation.
+        if (uiElement is ButtonBase button && button is not CheckBox && (key == Key.Enter || key == Key.Space))
+        {
+            ButtonBaseClickHelper.InvokeOnClick(button);
             return true;
         }
 

@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class LayoutMcpTools
 {
     private const string LayoutMetadata = "CATEGORY: Layout | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_layout_info", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_layout_info", Title = "Get Layout Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         LayoutMetadata + "[Layout] Get layout information of a WPF element. Returns: actualWidth, actualHeight, " +
         "desiredSize, renderSize, margin, padding, horizontalAlignment, verticalAlignment, " +
@@ -51,7 +51,7 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_clipping_info", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_clipping_info", Title = "Get Clipping Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         LayoutMetadata + "[Layout] Get clipping information of a WPF element. Returns whether the element " +
         "is clipped by any ancestor, the clip bounds, and how much content overflows.\n\n" +
@@ -86,7 +86,7 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "highlight_element", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "highlight_element", Title = "Highlight Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         LayoutMetadata + "[Layout] Visually highlight an element with a colored border overlay. " +
         "Useful for confirming you have the right element. Color accepts WPF color names " +
@@ -128,7 +128,7 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "invalidate_layout", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "invalidate_layout", Title = "Invalidate Layout", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         LayoutMetadata + "[Layout] Force layout invalidation on a WPF element, causing it to re-measure " +
         "and re-arrange. Use after modifying properties that affect layout to force an immediate update.\n\n" +

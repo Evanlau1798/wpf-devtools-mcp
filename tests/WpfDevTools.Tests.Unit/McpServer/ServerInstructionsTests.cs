@@ -87,6 +87,21 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldGuideToolSearchDrivenClients()
+    {
+        ServerInstructions.Value.Should().Contain("TOOL SEARCH");
+        ServerInstructions.Value.Should().Contain("Title");
+        ServerInstructions.Value.Should().Contain("structured");
+    }
+
+    [Fact]
+    public void Value_ShouldExplainElevatedTargetLimitations()
+    {
+        ServerInstructions.Value.Should().Contain("elevated");
+        ServerInstructions.Value.Should().Contain("administrator");
+    }
+
+    [Fact]
     public void Value_ShouldContainAllToolCategories()
     {
         // Check for key tool category concepts (case-insensitive, flexible matching)

@@ -16,7 +16,7 @@ public static class ProcessMcpTools
     [McpServerTool(Name = "get_processes", Title = "List WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         ProcessMetadata + "[Process] List all running WPF processes available for inspection. " +
-        "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion.\n\n" +
+        "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion, runtime, isElevated, requiresElevationToConnect.\n\n" +
         "USE WHEN: Starting a new inspection session; discovering available WPF applications.\n" +
         "DO NOT USE: Repeatedly in a loop (process list changes infrequently).\n\n" +
         "RESPONSE FORMAT:\n" +
@@ -27,7 +27,10 @@ public static class ProcessMcpTools
         "    processName: string,\n" +
         "    windowTitle: string,\n" +
         "    architecture: 'X86'|'X64'|'ARM64',\n" +
-        "    dotNetVersion: string\n" +
+        "    dotNetVersion: string,\n" +
+        "    runtime: 'Unknown'|'NetFramework'|'NetCore',\n" +
+        "    isElevated: boolean,\n" +
+        "    requiresElevationToConnect: boolean\n" +
         "  }]\n" +
         "}\n\n" +
         "ERRORS:\n" +

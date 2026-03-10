@@ -1,6 +1,8 @@
 using Xunit;
 using FluentAssertions;
 using System.Text.Json;
+using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Shared.Enums;
 using WpfDevTools.Mcp.Server.Tools;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
@@ -69,6 +71,45 @@ public class GetProcessesToolTests
             firstProcess.TryGetProperty("processName", out _).Should().BeTrue();
             firstProcess.TryGetProperty("windowTitle", out _).Should().BeTrue();
             firstProcess.TryGetProperty("architecture", out _).Should().BeTrue();
+        }
+    }
+
+    [Fact]
+    public async Task Execute_ShouldReturnRuntimeAndElevationMetadata()
+    {
+        // Arrange
+        var tool = new GetProcessesTool(new FakeProcessDetector());
+
+        // Act
+        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        // Assert
+        var processes = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        var firstProcess = processes.GetProperty("processes").EnumerateArray().Single();
+
+        firstProcess.GetProperty("runtime").GetString().Should().Be("NetCore");
+        firstProcess.GetProperty("isElevated").GetBoolean().Should().BeTrue();
+        firstProcess.GetProperty("requiresElevationToConnect").GetBoolean().Should().BeTrue();
+    }
+
+    private sealed class FakeProcessDetector : WpfProcessDetector
+    {
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses()
+        {
+            return
+            [
+                new WpfProcessInfo
+                {
+                    ProcessId = 42,
+                    ProcessName = "ElevatedTestApp",
+                    WindowTitle = "Elevated Test",
+                    Architecture = ProcessArchitecture.X64,
+                    DotNetVersion = ".NET Core/5+",
+                    Runtime = TargetRuntime.NetCore,
+                    IsWpfApplication = true,
+                    IsElevated = true
+                }
+            ];
         }
     }
 }

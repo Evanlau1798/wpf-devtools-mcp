@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class TreeMcpTools
 {
     private const string TreeMetadata = "CATEGORY: Tree | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_visual_tree", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_visual_tree", Title = "Get Visual Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         TreeMetadata + "[Tree] Get the Visual Tree (rendering structure) of a WPF element. " +
         "Returns a hierarchical tree with elementId, type, name, and children for each node.\n\n" +
@@ -61,7 +61,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_logical_tree", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_logical_tree", Title = "Get Logical Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         TreeMetadata + "[Tree] Get the Logical Tree (semantic/XAML structure) of a WPF element. " +
         "Simpler than Visual Tree - shows only elements defined in XAML.\n\n" +
@@ -107,7 +107,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "serialize_to_xaml", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "serialize_to_xaml", Title = "Serialize To Xaml", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         TreeMetadata + "[Tree] Serialize a WPF element to its XAML representation. " +
         "Returns the XAML markup string for the element and its children.\n\n" +
@@ -140,7 +140,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_namescope", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_namescope", Title = "Get NameScope", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         TreeMetadata + "[Tree] Get the XAML NameScope of a WPF element. " +
         "Returns all named elements (x:Name) registered in the element's scope.\n\n" +
@@ -173,7 +173,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_template_tree", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_template_tree", Title = "Get Template Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         TreeMetadata + "[Tree] Get the template Visual Tree of a templated WPF control (Button, ListBox, etc.). " +
         "Shows the internal rendering structure defined by the control's ControlTemplate.\n\n" +
@@ -208,7 +208,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_windows", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_windows", Title = "Get Windows", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         TreeMetadata + "[Tree] Enumerate all open windows in the connected WPF application. " +
         "Returns each window's index, title, type, focus snapshot, and elementId.\n\n" +
@@ -242,7 +242,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "compare_trees", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "compare_trees", Title = "Compare Trees", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         TreeMetadata + "[Tree] Compare Visual and Logical trees to identify structural differences. " +
         "Returns elements present in one tree but not the other.\n\n" +
@@ -276,5 +276,4 @@ public static class TreeMcpTools
             cancellationToken);
     }
 }
-
 

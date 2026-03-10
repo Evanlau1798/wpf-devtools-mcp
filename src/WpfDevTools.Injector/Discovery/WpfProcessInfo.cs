@@ -44,6 +44,16 @@ public sealed class WpfProcessInfo
     public required bool IsWpfApplication { get; init; }
 
     /// <summary>
+    /// Whether the target process is running elevated.
+    /// </summary>
+    public bool IsElevated { get; init; }
+
+    /// <summary>
+    /// Whether a non-elevated MCP server would need elevation to connect.
+    /// </summary>
+    public bool RequiresElevationToConnect => IsElevated;
+
+    /// <summary>
     /// Full path to the executable
     /// </summary>
     public string? ExecutablePath { get; init; }

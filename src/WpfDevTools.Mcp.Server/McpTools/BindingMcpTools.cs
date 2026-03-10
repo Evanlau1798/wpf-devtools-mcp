@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class BindingMcpTools
 {
     private const string BindingMetadata = "CATEGORY: Binding | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_bindings", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_bindings", Title = "Get Bindings", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         BindingMetadata + "[Binding] Get all DataBindings on an element. Shows binding path, mode " +
         "(OneWay/TwoWay/OneTime), source type, converter, and current status.\n\n" +
@@ -53,7 +53,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_binding_errors", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_binding_errors", Title = "Get Binding Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         BindingMetadata + "[Binding] Get ALL binding errors captured since Inspector connected. " +
         "FIRST tool to use when debugging data display issues.\n\n" +
@@ -90,7 +90,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_binding_value_chain", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_binding_value_chain", Title = "Get Binding Value Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         BindingMetadata + "[Binding] Get the complete value resolution chain for a binding on a specific property. " +
         "Shows each step from source to target including converters, fallback values, and StringFormat.\n\n" +
@@ -135,7 +135,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_datacontext_chain", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_datacontext_chain", Title = "Get DataContext Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         BindingMetadata + "[Binding] Get the DataContext inheritance chain from an element up to the root. " +
         "Shows each ancestor's DataContext type and value.\n\n" +
@@ -170,7 +170,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "force_binding_update", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "force_binding_update", Title = "Force Binding Update", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         BindingMetadata + "[Binding] Force a binding to re-evaluate and transfer the current value. " +
         "Use for UpdateSourceTrigger=Explicit bindings or when the source value changed but the UI didn't update.\n\n" +

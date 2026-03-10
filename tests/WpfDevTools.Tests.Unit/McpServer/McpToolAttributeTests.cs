@@ -127,6 +127,26 @@ public class McpToolAttributeTests
         }
     }
 
+    [Fact]
+    public void AllTools_ShouldHaveFriendlyTitles_ForToolSearchDrivenClients()
+    {
+        foreach (var (_, _, attr) in AllTools)
+        {
+            attr.Title.Should().NotBeNullOrWhiteSpace(
+                $"tool '{attr.Name}' should expose a human-friendly title for MCP tool search");
+        }
+    }
+
+    [Fact]
+    public void AllTools_ShouldUseStructuredContent_ForConsistentClientConsumption()
+    {
+        foreach (var (_, _, attr) in AllTools)
+        {
+            attr.UseStructuredContent.Should().BeTrue(
+                $"tool '{attr.Name}' should opt into structured content so clients can consume JSON deterministically");
+        }
+    }
+
     [Theory]
     [InlineData("get_processes")]
     [InlineData("connect")]

@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class StyleMcpTools
 {
     private const string StyleMetadata = "CATEGORY: Style | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_applied_styles", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_applied_styles", Title = "Get Applied Styles", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         StyleMetadata + "[Style] Get all applied styles on a WPF element. Returns style type, target type, " +
         "setters (property+value), and whether it's an implicit or explicit style.\n\n" +
@@ -51,7 +51,7 @@ public static class StyleMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_triggers", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_triggers", Title = "Get Triggers", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         StyleMetadata + "[Style] Get all triggers from a WPF element's styles and templates. " +
         "Returns trigger type (Property/Data/Event/MultiTrigger), conditions, and setter actions.\n\n" +
@@ -88,7 +88,7 @@ public static class StyleMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_resource_chain", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_resource_chain", Title = "Get Resource Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         StyleMetadata + "[Style] Get the resource lookup chain for a XAML resource key. " +
         "Shows which ResourceDictionary at which level (element, window, app, theme) provides the resource.\n\n" +
@@ -128,7 +128,7 @@ public static class StyleMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "override_style_setter", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "override_style_setter", Title = "Override Style Setter", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         StyleMetadata + "[Style] Override a style setter value on a WPF element at runtime. " +
         "Applies a local value that takes precedence over the style.\n\n" +

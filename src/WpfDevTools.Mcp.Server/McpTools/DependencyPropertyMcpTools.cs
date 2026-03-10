@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class DependencyPropertyMcpTools
 {
     private const string DependencyPropertyMetadata = "CATEGORY: DependencyProperty | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_dp_value_source", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_dp_value_source", Title = "Get DependencyProperty Value Source", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         DependencyPropertyMetadata + "[DependencyProperty] Get the value source of a DependencyProperty. " +
         "Returns where the current value comes from: Default, Inherited, Style, Trigger, " +
@@ -52,7 +52,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_dp_metadata", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_dp_metadata", Title = "Get DependencyProperty Metadata", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         DependencyPropertyMetadata + "[DependencyProperty] Get DependencyProperty metadata including default value, " +
         "inherits flag, affects measure/arrange, and coerce/validation callbacks.\n\n" +
@@ -88,7 +88,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "set_dp_value", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "set_dp_value", Title = "Set DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         DependencyPropertyMetadata + "[DependencyProperty] Set a DependencyProperty value at runtime. " +
         "Value is forwarded as raw JSON so numbers, booleans, objects, and strings keep their shape.\n\n" +
@@ -130,7 +130,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "clear_dp_value", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "clear_dp_value", Title = "Clear DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         DependencyPropertyMetadata + "[DependencyProperty] Clear a DependencyProperty local value, " +
         "reverting it to its inherited, styled, or default value.\n\n" +
@@ -166,7 +166,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "watch_dp_changes", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "watch_dp_changes", Title = "Watch DependencyProperty Changes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         DependencyPropertyMetadata + "[DependencyProperty] Register a listener for property value changes. " +
         "CURRENT STDIO BEHAVIOR: registration-only. Change events are NOT pushed to the client; use get_dp_value_source to poll for changes.\n\n" +

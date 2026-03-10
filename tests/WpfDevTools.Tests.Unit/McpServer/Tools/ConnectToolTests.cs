@@ -20,12 +20,13 @@ public class ConnectToolTests : IDisposable
     private static ConnectTool CreateTool(
         SessionManager? sessionManager = null,
         FakeProcessInjector? injector = null,
+        WpfProcessDetector? processDetector = null,
         Action<string>? dllPathValidator = null)
     {
         return new ConnectTool(
             sessionManager ?? new SessionManager(),
             injector ?? new FakeProcessInjector(),
-            new FakeProcessDetector(),
+            processDetector ?? new FakeProcessDetector(),
             dllPathValidator ?? (_ => { }));
     }
 
@@ -191,30 +192,49 @@ public class ConnectToolTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WithElevatedTargetAccessDenied_ShouldExplainAdministratorRequirement()
+    {
+        var tool = CreateTool(
+            injector: new FakeProcessInjector { ValidationResult = InjectionError.AccessDenied },
+            processDetector: new FakeProcessDetector(isElevated: true));
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("elevated");
+        resultJson.GetProperty("error").GetString().Should().Contain("administrator");
+        resultJson.GetProperty("requiresElevationToConnect").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Execute_AlreadyConnected_ShouldReturnSuccessImmediately()
     {
+        var processId = Random.Shared.Next(100_000, 999_999);
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
         using var server = new NamedPipeServerStream(
-            "WpfDevTools_42",
+            pipeName,
             PipeDirection.InOut,
             1,
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous);
-        var acceptTask = server.WaitForConnectionAsync();
+        var acceptTask = Task.Run(async () => await server.WaitForConnectionAsync());
 
         using var sessionManager = new SessionManager();
-        sessionManager.AddSession(42);
-        var pipeClient = sessionManager.GetPipeClient(42);
-        pipeClient.Should().NotBeNull();
+        sessionManager.AddSession(processId);
+        using var pipeClient = new NamedPipeClient(processId, pipeName);
 
-        var connected = await pipeClient!.ConnectAsync(
-            TimeSpan.FromSeconds(1),
-            maxRetries: 1,
+        var connected = await pipeClient.ConnectAsync(
+            TimeSpan.FromSeconds(5),
+            maxRetries: 3,
             cancellationToken: CancellationToken.None);
         connected.Should().BeTrue();
         await acceptTask;
 
+        ReplacePipeClient(sessionManager, processId, pipeClient);
+
         var tool = CreateTool(sessionManager: sessionManager);
-        var parameters = new { processId = 42 };
+        var parameters = new { processId };
 
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
@@ -380,7 +400,23 @@ public class ConnectToolTests : IDisposable
         throw new InvalidOperationException("Could not locate solution root for ConnectTool test.");
     }
 
-    private sealed class FakeProcessDetector : WpfProcessDetector
+    private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
+    {
+        var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
+        field.Should().NotBeNull();
+
+        var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
+        pipeClients.Should().NotBeNull();
+
+        if (pipeClients!.TryGetValue(processId, out var existingClient))
+        {
+            existingClient.Dispose();
+        }
+
+        pipeClients[processId] = replacement;
+    }
+
+    private sealed class FakeProcessDetector(bool isElevated = false) : WpfProcessDetector
     {
         public override WpfProcessInfo? GetProcessInfo(int processId)
         {
@@ -390,7 +426,8 @@ public class ConnectToolTests : IDisposable
                 ProcessName = "TestApp",
                 Architecture = ProcessArchitecture.X64,
                 Runtime = TargetRuntime.NetCore,
-                IsWpfApplication = true
+                IsWpfApplication = true,
+                IsElevated = isElevated
             };
         }
     }

@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class InteractionMcpTools
 {
     private const string InteractionMetadata = "CATEGORY: Interaction | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "click_element", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "click_element", Title = "Click Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         InteractionMetadata + "[Interaction] Simulate a mouse click on a WPF element. " +
         "Uses ButtonBase.OnClick() for all ButtonBase descendants (Button, ToggleButton, CheckBox, RadioButton) " +
@@ -55,7 +55,7 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "drag_and_drop", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "drag_and_drop", Title = "Drag And Drop", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         InteractionMetadata + "[Interaction] Simulate drag and drop between two WPF elements. " +
         "Raises DragEnter, DragOver, and Drop events on the target.\n\n" +
@@ -98,7 +98,7 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "scroll_to_element", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "scroll_to_element", Title = "Scroll To Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         InteractionMetadata + "[Interaction] Scroll a WPF element into view within its parent ScrollViewer. " +
         "Calls BringIntoView() on the element.\n\n" +
@@ -131,7 +131,7 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "simulate_keyboard", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "simulate_keyboard", Title = "Simulate Keyboard", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         InteractionMetadata + "[Interaction] Simulate a keyboard key press on an element. " +
         "Key parameter uses WPF Key enum names.\n\n" +
@@ -171,7 +171,7 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "element_screenshot", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "element_screenshot", Title = "Capture Element Screenshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         InteractionMetadata + "[Interaction] Capture a PNG screenshot of a specific element. " +
         "Returns base64-encoded image data. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +

@@ -19,24 +19,24 @@ public class WpfProcessDetector
     /// Get all WPF processes currently running
     /// Optimized: Filter by MainWindowHandle first to avoid expensive checks on non-GUI processes
     /// </summary>
-    public IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses()
+    public virtual IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses()
     {
         var wpfProcesses = new List<WpfProcessInfo>();
+        var windows = TopLevelWindowEnumerator.Enumerate();
         var allProcesses = Process.GetProcesses();
 
         foreach (var process in allProcesses)
         {
             try
             {
-                // OPTIMIZATION: Filter early by MainWindowHandle
-                // Most processes don't have a window, so this eliminates ~90% immediately
-                if (process.MainWindowHandle == IntPtr.Zero)
+                var window = TopLevelWindowEnumerator.SelectBestWindow(windows, process.Id);
+                if (window == null)
                 {
                     process.Dispose();
                     continue;
                 }
 
-                var info = GetProcessInfo(process.Id);
+                var info = CreateProcessInfo(process, process.Id, window);
                 if (info != null && info.IsWpfApplication)
                 {
                     wpfProcesses.Add(info);
@@ -63,26 +63,10 @@ public class WpfProcessDetector
         try
         {
             using var process = Process.GetProcessById(processId);
-
-            var architecture = DetectArchitecture(process);
-            var isWpf = IsWpfApplication(process);
-            var dotNetVersion = DetectDotNetVersion(process);
-            var windowTitle = GetMainWindowTitle(process);
-            var executablePath = GetExecutablePath(process);
-
-            var runtime = DetectRuntime(process);
-
-            return new WpfProcessInfo
-            {
-                ProcessId = processId,
-                ProcessName = process.ProcessName,
-                WindowTitle = windowTitle,
-                Architecture = architecture,
-                DotNetVersion = dotNetVersion,
-                Runtime = runtime,
-                IsWpfApplication = isWpf,
-                ExecutablePath = executablePath
-            };
+            var window = TopLevelWindowEnumerator.SelectBestWindow(
+                TopLevelWindowEnumerator.Enumerate(),
+                processId);
+            return CreateProcessInfo(process, processId, window);
         }
         catch (ArgumentException)
         {
@@ -101,30 +85,35 @@ public class WpfProcessDetector
         }
     }
 
-    private WpfProcessInfo? CreateProcessInfo(Process process, int processId)
+    private WpfProcessInfo? CreateProcessInfo(
+        Process process,
+        int processId,
+        TopLevelWindowSnapshot? window)
     {
         var architecture = DetectArchitecture(process);
         var moduleNames = TryGetModuleNames(process);
         var isWpf = moduleNames != null
             ? ContainsWpfAssembly(moduleNames)
-            : HasWpfWindowClass(process);
+            : HasWpfWindowClass(process, window);
         var runtime = moduleNames != null
             ? DetectRuntimeFromModuleNames(moduleNames)
             : TargetRuntime.Unknown;
         var dotNetVersion = moduleNames != null
             ? DetectDotNetVersionFromModuleNames(moduleNames)
             : null;
+        var isElevated = ProcessElevationDetector.TryIsProcessElevated(processId, out var elevated) && elevated;
 
         return new WpfProcessInfo
         {
             ProcessId = processId,
             ProcessName = process.ProcessName,
-            WindowTitle = GetMainWindowTitle(process),
+            WindowTitle = GetMainWindowTitle(process, window),
             Architecture = architecture,
             DotNetVersion = dotNetVersion,
             Runtime = runtime,
             IsWpfApplication = isWpf,
-            ExecutablePath = GetExecutablePath(process)
+            ExecutablePath = GetExecutablePath(process),
+            IsElevated = isElevated
         };
     }
 
@@ -246,14 +235,19 @@ public class WpfProcessDetector
         var moduleNames = TryGetModuleNames(process);
         return moduleNames != null
             ? ContainsWpfAssembly(moduleNames)
-            : HasWpfWindowClass(process);
+            : HasWpfWindowClass(process, window: null);
     }
 
 
-    private bool HasWpfWindowClass(Process process)
+    private bool HasWpfWindowClass(Process process, TopLevelWindowSnapshot? window)
     {
         try
         {
+            if (window?.ClassName?.IndexOf("HwndWrapper", StringComparison.Ordinal) >= 0)
+            {
+                return true;
+            }
+
             if (process.MainWindowHandle != IntPtr.Zero)
             {
                 var className = GetWindowClassName(process.MainWindowHandle);
@@ -327,10 +321,16 @@ public class WpfProcessDetector
         return null;
     }
 
-    private string? GetMainWindowTitle(Process process)
+    private string? GetMainWindowTitle(Process process, TopLevelWindowSnapshot? window)
     {
         try
         {
+            var windowTitle = window?.Title;
+            if (!string.IsNullOrWhiteSpace(windowTitle))
+            {
+                return windowTitle;
+            }
+
             return string.IsNullOrWhiteSpace(process.MainWindowTitle)
                 ? null
                 : process.MainWindowTitle;

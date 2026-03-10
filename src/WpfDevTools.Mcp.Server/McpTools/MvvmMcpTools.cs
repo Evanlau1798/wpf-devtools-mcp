@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class MvvmMcpTools
 {
     private const string MvvmMetadata = "CATEGORY: MVVM | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_viewmodel", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_viewmodel", Title = "Get ViewModel", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         MvvmMetadata + "[MVVM] Get the ViewModel (DataContext) of an element. Returns: typeName, " +
         "all properties with their current values, and whether INotifyPropertyChanged is implemented.\n\n" +
@@ -49,7 +49,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_commands", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_commands", Title = "Get Commands", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         MvvmMetadata + "[MVVM] Get all ICommand properties from the ViewModel. Returns: commandName, " +
         "canExecute status, commandType. Use to check why a button is disabled.\n\n" +
@@ -85,7 +85,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "execute_command", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "execute_command", Title = "Execute Command", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         MvvmMetadata + "[MVVM] Execute an ICommand on the ViewModel. Checks CanExecute first. " +
         "Returns execution result.\n\n" +
@@ -127,7 +127,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_validation_errors", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_validation_errors", Title = "Get Validation Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         MvvmMetadata + "[MVVM] Get validation errors from a WPF element and all its visual descendants (recursive). " +
         "Returns all WPF validation errors (via Validation.GetErrors) aggregated from the target element and its entire subtree.\n\n" +
@@ -172,7 +172,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "modify_viewmodel", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "modify_viewmodel", Title = "Modify ViewModel", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         MvvmMetadata + "[MVVM] Modify a ViewModel property value via reflection. UI updates automatically " +
         "ONLY if the ViewModel implements INotifyPropertyChanged. Check get_viewmodel first to confirm property name.\n\n" +

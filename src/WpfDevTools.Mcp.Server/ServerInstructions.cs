@@ -52,6 +52,15 @@ public static class ServerInstructions
         - To inspect a secondary window: get_windows -> use returned elementId as elementId parameter
         - Cross-window element search: tools automatically search all windows if element not found in main window
 
+        === TOOL SEARCH ===
+        - Clients with many MCP tools may rely on tool search instead of loading every tool eagerly
+        - Prefer tool Title + Description matching over raw tool-name guessing
+        - Process discovery keywords: process, connect, session, WPF app
+        - Tree keywords: visual tree, logical tree, namescope, template, windows
+        - Binding keywords: binding, DataContext, validation, value chain
+        - Interaction keywords: click, keyboard, screenshot, drag, scroll
+        - Runtime metadata is returned as structured JSON; use structured fields over text scraping when possible
+
         === TOOL SELECTION GUIDE ===
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
         - UI not responding to changes? -> get_dp_value_source, get_viewmodel
@@ -123,6 +132,7 @@ public static class ServerInstructions
         === ERROR RECOVERY ===
         - "not connected" -> call connect(processId) first, then retry
         - "Access denied" (errorCode: AccessDenied) -> restart MCP server as administrator
+        - elevated target processes may be discoverable but still require the MCP server itself to run as administrator before connect/click/mutation tools can succeed
         - "Not a WPF application" -> use get_processes to find correct processId
         - "Architecture mismatch" -> MCP server and target process must have matching architectures (both x64 or both x86). AnyCPU Inspector DLLs are auto-detected and compatible with any platform, but the injection mechanism still requires matching bitness between server and target
         - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
@@ -143,6 +153,7 @@ public static class ServerInstructions
         === LIMITATIONS ===
         - STDIO transport: Cannot push live watcher/event streams; use request-response diagnostics and polling workflows
         - Self-contained single-file apps and Native AOT apps: Cannot inject (use SDK mode)
+        - elevated targets: a non-administrator MCP server cannot inject into or control an administrator-launched WPF process
         - Changes are NOT persisted to XAML files
         """;
 }

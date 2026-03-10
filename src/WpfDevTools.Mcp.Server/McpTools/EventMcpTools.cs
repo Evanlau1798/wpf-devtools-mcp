@@ -15,7 +15,7 @@ public static class EventMcpTools
 {
     private const string EventMetadata = "CATEGORY: Event | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
 
-    [McpServerTool(Name = "trace_routed_events", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "trace_routed_events", Title = "Trace Routed Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         EventMetadata + "[Event] Trace a routed event over a short capture window and return collected records, or run in a two-step non-blocking workflow for AI agents. " +
         "Use `mode=\"start\"` to start tracing immediately, then trigger UI activity with another tool, then call `mode=\"get\"` to fetch the buffered records.\n\n" +
@@ -70,7 +70,7 @@ public static class EventMcpTools
             timeoutSeconds: timeoutSeconds);
     }
 
-    [McpServerTool(Name = "get_event_handlers", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_event_handlers", Title = "Get Event Handlers", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         EventMetadata + "[Event] Get all event handlers attached to a WPF element for a specific routed event. " +
         "Returns handler method names, declaring types, and whether they handle tunneling/bubbling.\n\n" +
@@ -113,7 +113,7 @@ public static class EventMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "fire_routed_event", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "fire_routed_event", Title = "Fire Routed Event", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         EventMetadata + "[Event] Raise a routed event on a WPF element. " +
         "Behavior depends on element type and event:\n" +

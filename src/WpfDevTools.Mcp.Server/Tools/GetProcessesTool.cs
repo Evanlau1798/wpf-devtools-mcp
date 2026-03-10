@@ -14,8 +14,13 @@ public sealed class GetProcessesTool
     /// Initializes a new instance of the GetProcessesTool class
     /// </summary>
     public GetProcessesTool()
+        : this(new WpfProcessDetector())
     {
-        _detector = new WpfProcessDetector();
+    }
+
+    internal GetProcessesTool(WpfProcessDetector detector)
+    {
+        _detector = detector;
     }
 
     /// <summary>
@@ -44,7 +49,10 @@ public sealed class GetProcessesTool
                 processName = p.ProcessName,
                 windowTitle = p.WindowTitle,
                 architecture = p.Architecture.ToString(),
-                dotNetVersion = p.DotNetVersion
+                dotNetVersion = p.DotNetVersion,
+                runtime = p.Runtime.ToString(),
+                isElevated = p.IsElevated,
+                requiresElevationToConnect = p.RequiresElevationToConnect
             }).ToList();
 
             if (processes.Count == 0)

@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class PerformanceMcpTools
 {
     private const string PerformanceMetadata = "CATEGORY: Performance | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_render_stats", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_render_stats", Title = "Get Render Stats", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         PerformanceMetadata + "[Performance] Get render statistics from a WPF application. Returns frame rate, " +
         "render time, dirty region count, and other WPF rendering pipeline metrics.\n\n" +
@@ -53,7 +53,7 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "find_binding_leaks", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "find_binding_leaks", Title = "Find Binding Leaks", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         PerformanceMetadata + "[Performance] Detect potential binding memory leaks by tracking live binding references. " +
         "Threshold is the minimum number of live bindings on a single element to flag as suspicious.\n\n" +
@@ -94,7 +94,7 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "measure_element_render_time", OpenWorld = false, Destructive = true)]
+    [McpServerTool(Name = "measure_element_render_time", Title = "Measure Element Render Time", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         PerformanceMetadata + "[Performance] Measure the render time of a WPF element in milliseconds. " +
         "Forces a re-render and measures the time taken.\n\n" +
@@ -129,7 +129,7 @@ public static class PerformanceMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_visual_count", OpenWorld = false, ReadOnly = true)]
+    [McpServerTool(Name = "get_visual_count", Title = "Get Visual Count", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         PerformanceMetadata + "[Performance] Get the count of visual elements in a WPF element subtree. " +
         "High counts (>5000) may indicate performance issues.\n\n" +

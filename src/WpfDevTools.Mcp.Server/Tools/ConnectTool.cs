@@ -115,16 +115,6 @@ public sealed class ConnectTool
             _sessionManager.RemoveSession(processId.Value);
         }
 
-        var validationError = _injector.ValidateTarget(processId.Value);
-        if (validationError != InjectionError.None)
-        {
-            return new
-            {
-                success = false,
-                error = GetErrorMessage(validationError, processId.Value)
-            };
-        }
-
         var processInfo = _processDetector.GetProcessInfo(processId.Value);
         if (processInfo == null)
         {
@@ -132,6 +122,19 @@ public sealed class ConnectTool
             {
                 success = false,
                 error = $"Could not detect process info for {processId.Value}"
+            };
+        }
+
+        var validationError = _injector.ValidateTarget(processId.Value);
+        if (validationError != InjectionError.None)
+        {
+            return new
+            {
+                success = false,
+                error = GetErrorMessage(validationError, processId.Value, processInfo),
+                errorCode = validationError.ToString(),
+                targetIsElevated = processInfo.IsElevated,
+                requiresElevationToConnect = processInfo.RequiresElevationToConnect
             };
         }
 
@@ -227,12 +230,14 @@ public sealed class ConnectTool
         }
     }
 
-    private static string GetErrorMessage(InjectionError error, int processId)
+    private static string GetErrorMessage(InjectionError error, int processId, WpfProcessInfo? processInfo)
     {
         return error switch
         {
             InjectionError.ProcessNotFound => $"Process {processId} not found or has exited",
             InjectionError.NotWpfApplication => $"Process {processId} is not a WPF application",
+            InjectionError.AccessDenied when processInfo?.IsElevated == true =>
+                $"Access denied to process {processId} because the target is elevated. Restart the MCP server as administrator to connect or control this WPF process.",
             InjectionError.AccessDenied => $"Access denied to process {processId}. Try running as administrator.",
             InjectionError.ArchitectureMismatch => $"Architecture mismatch for process {processId}. Ensure the MCP server architecture matches the target process (both x64 or both x86).",
             _ => $"Validation failed: {error}"

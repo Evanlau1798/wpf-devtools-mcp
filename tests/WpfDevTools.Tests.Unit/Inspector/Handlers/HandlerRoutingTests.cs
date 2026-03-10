@@ -287,8 +287,10 @@ public class HandlerRoutingTests
         var handler = new InteractionHandlers(new InteractionAnalyzer(new ElementFinder()));
         var methods = handler.GetSupportedMethods().ToList();
 
-        methods.Should().HaveCount(5);
+        methods.Should().HaveCount(7);
         methods.Should().Contain("click_element");
+        methods.Should().Contain("get_focus_state");
+        methods.Should().Contain("focus_element");
         methods.Should().Contain("scroll_to_element");
         methods.Should().Contain("element_screenshot");
         methods.Should().Contain("drag_and_drop");
@@ -300,6 +302,14 @@ public class HandlerRoutingTests
     {
         var handler = new InteractionHandlers(new InteractionAnalyzer(new ElementFinder()));
         var result = await handler.HandleAsync("click_element", null, CancellationToken.None);
+        result.Should().NotBeNull();
+    }
+
+    [StaFact]
+    public async Task InteractionHandlers_HandleAsync_GetFocusState_ShouldReturnResult()
+    {
+        var handler = new InteractionHandlers(new InteractionAnalyzer(new ElementFinder()));
+        var result = await handler.HandleAsync("get_focus_state", null, CancellationToken.None);
         result.Should().NotBeNull();
     }
 

@@ -211,7 +211,11 @@ public static class MvvmMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
                 "modify_viewmodel",
-                () => new GenericPipeTool(sessionManager, "modify_viewmodel", GenericPipeTool.ExtractElementPropertyAndValueParams)
+                () => new GenericPipeTool(
+                    sessionManager,
+                    "modify_viewmodel",
+                    GenericPipeTool.ExtractElementPropertyAndValueParams,
+                    GenericPipeTool.AugmentModifyViewModelResult)
             ).ExecuteAsync(a, ct),
             args,
             cancellationToken);

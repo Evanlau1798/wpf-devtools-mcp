@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpPrompts;
+using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Utilities;
@@ -78,7 +80,9 @@ try
         options.ServerInstructions = ServerInstructions.Value;
     })
     .WithStdioServerTransport()
-    .WithToolsFromAssembly();
+    .WithToolsFromAssembly()
+    .WithPromptsFromAssembly(typeof(WorkflowPrompts).Assembly)
+    .WithResourcesFromAssembly(typeof(CapabilityResources).Assembly);
 
     fileLogger.LogInfo("WPF DevTools MCP Server starting (SDK mode)...");
     fileLogger.LogInfo($"Log file: {fileLogger.LogFilePath}");

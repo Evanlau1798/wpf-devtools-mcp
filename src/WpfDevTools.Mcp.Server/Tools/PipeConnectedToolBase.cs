@@ -81,6 +81,12 @@ public abstract class PipeConnectedToolBase
         => ParameterParser.ParseIntParam(arguments, paramName);
 
     /// <summary>
+    /// Parse a boolean parameter from JSON arguments
+    /// </summary>
+    protected static bool? ParseBoolParam(JsonElement? arguments, string paramName)
+        => ParameterParser.ParseBoolParam(arguments, paramName);
+
+    /// <summary>
     /// Create error response for missing required parameter
     /// </summary>
     protected static object CreateMissingParamError(string paramName) =>
@@ -150,6 +156,38 @@ public abstract class PipeConnectedToolBase
         return response.Result.HasValue
             ? (object)response.Result.Value
             : new { success = true };
+    }
+
+    protected static object AddSuccessMetadata(
+        object result,
+        object requestedInput,
+        string notes,
+        bool usedFallback = false)
+    {
+        var element = result is JsonElement jsonElement
+            ? jsonElement
+            : JsonSerializer.SerializeToElement(result);
+
+        if (element.ValueKind != JsonValueKind.Object ||
+            !element.TryGetProperty("success", out var successProp) ||
+            !successProp.GetBoolean())
+        {
+            return result;
+        }
+
+        var payload = new Dictionary<string, object?>();
+        foreach (var property in element.EnumerateObject())
+        {
+            payload[property.Name] = property.Value.Clone();
+        }
+
+        payload["requestedInput"] = JsonSerializer.SerializeToElement(requestedInput);
+        payload["effectiveInput"] = JsonSerializer.SerializeToElement(requestedInput);
+        payload["observedEffect"] = element.Clone();
+        payload["usedFallback"] = usedFallback;
+        payload["notes"] = notes;
+
+        return JsonSerializer.SerializeToElement(payload);
     }
 
     private static object CreateInspectorError(InspectorError error)

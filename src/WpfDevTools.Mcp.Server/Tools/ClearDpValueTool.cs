@@ -28,7 +28,16 @@ public sealed class ClearDpValueTool : PipeConnectedToolBase
         if (string.IsNullOrEmpty(propertyName))
             return CreateMissingParamError("propertyName");
 
-        return await SendInspectorRequestAsync(processId, "clear_dp_value",
-            new { elementId, propertyName }, cancellationToken);
+        var requestedInput = new { elementId, propertyName };
+        var result = await SendInspectorRequestAsync(
+            processId,
+            "clear_dp_value",
+            requestedInput,
+            cancellationToken);
+
+        return AddSuccessMetadata(
+            result,
+            requestedInput,
+            "Runtime-only mutation. Use the observed old/new values for manual restore if later steps depend on the previous local value.");
     }
 }

@@ -212,10 +212,20 @@ public class McpToolAttributeTests
     [Theory]
     [InlineData("click_element")]
     [InlineData("drag_and_drop")]
+    [InlineData("get_focus_state")]
+    [InlineData("focus_element")]
     [InlineData("scroll_to_element")]
     [InlineData("simulate_keyboard")]
     [InlineData("element_screenshot")]
     public void InteractionTools_ShouldExist(string toolName)
+    {
+        AllTools.Should().Contain(t => t.Attr.Name == toolName);
+    }
+
+    [Theory]
+    [InlineData("capture_state_snapshot")]
+    [InlineData("restore_state_snapshot")]
+    public void StateTools_ShouldExist(string toolName)
     {
         AllTools.Should().Contain(t => t.Attr.Name == toolName);
     }
@@ -261,6 +271,7 @@ public class McpToolAttributeTests
     [InlineData("get_applied_styles")]
     [InlineData("get_event_handlers")]
     [InlineData("element_screenshot")]
+    [InlineData("get_focus_state")]
     [InlineData("get_layout_info")]
     [InlineData("get_viewmodel")]
     [InlineData("get_render_stats")]
@@ -282,10 +293,12 @@ public class McpToolAttributeTests
     [InlineData("override_style_setter")]
     [InlineData("invalidate_layout")]
     [InlineData("drag_and_drop")]
+    [InlineData("focus_element")]
     [InlineData("simulate_keyboard")]
     [InlineData("force_binding_update")]
     [InlineData("scroll_to_element")]
     [InlineData("highlight_element")]
+    [InlineData("restore_state_snapshot")]
     public void DestructiveTools_ShouldBeMarkedDestructive(string toolName)
     {
         var tool = AllTools.First(t => t.Attr.Name == toolName);

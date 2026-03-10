@@ -55,6 +55,80 @@ public static class InteractionMcpTools
             cancellationToken);
     }
 
+    [McpServerTool(Name = "get_focus_state", Title = "Get Focus State", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [Description(
+        InteractionMetadata + "[Interaction] Get the current logical or keyboard focus snapshot for a window or element scope.\n\n" +
+        "USE WHEN: Multi-window workflows, focus-sensitive interactions, or before capturing a restorable state snapshot.\n" +
+        "DO NOT USE: As a persistent subscription; this is a point-in-time snapshot only.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  focusKind: 'Logical'|'Keyboard'|'None',\n" +
+        "  focusedElementId: string|null,\n" +
+        "  focusedElementType: string|null,\n" +
+        "  windowElementId: string|null,\n" +
+        "  windowTitle: string\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345 }\n" +
+        "- { processId: 12345, elementId: \"SettingsDialog_1\" }")]
+    public static Task<CallToolResult> GetFocusState(
+        SessionManager sessionManager,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional element ID used to scope focus resolution to a specific window or subtree.")] string? elementId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+                "get_focus_state",
+                () => new GenericPipeTool(sessionManager, "get_focus_state")
+            ).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
+
+    [McpServerTool(Name = "focus_element", Title = "Focus Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [Description(
+        InteractionMetadata + "[Interaction] Move logical focus to a specific WPF element.\n\n" +
+        "USE WHEN: Restoring focus after a mutation sequence, or preparing a keyboard-driven workflow.\n" +
+        "DO NOT USE: On elements that cannot receive focus.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  focused: boolean,\n" +
+        "  focusKind: 'Logical'|'Keyboard',\n" +
+        "  focusedElementId: string|null\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"elementId required\" -> must specify which element should receive focus\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345, elementId: \"SearchTextBox\" }")]
+    public static Task<CallToolResult> FocusElement(
+        SessionManager sessionManager,
+        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Element ID that should receive focus.")] string elementId,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+                "focus_element",
+                () => new GenericPipeTool(sessionManager, "focus_element")
+            ).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
+
     [McpServerTool(Name = "drag_and_drop", Title = "Drag And Drop", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         InteractionMetadata + "[Interaction] Simulate drag and drop between two WPF elements. " +

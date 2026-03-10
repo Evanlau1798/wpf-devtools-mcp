@@ -365,6 +365,9 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                 // Set local value (overrides style)
                 var targetType = dp.PropertyType;
                 var oldValue = fe.GetValue(dp);
+                var localValueBefore = fe.ReadLocalValue(dp);
+                var hadLocalValueBefore = localValueBefore != DependencyProperty.UnsetValue;
+                var previousValueSource = DependencyPropertyHelper.GetValueSource(fe, dp);
                 var convertedValue = ConvertValue(value, targetType);
                 AuditLogger.LogSecurityEvent("StyleOverride", $"Property '{propertyName}' overridden on element '{elementId ?? "root"}'");
                 fe.SetValue(dp, convertedValue);
@@ -377,6 +380,9 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                     propertyName,
                     oldValue = FormatResponseValue(oldValue),
                     newValue = FormatResponseValue(newValue),
+                    hadLocalValueBefore,
+                    previousLocalValue = hadLocalValueBefore ? FormatResponseValue(localValueBefore) : null,
+                    previousBaseValueSource = previousValueSource.BaseValueSource.ToString(),
                     valueType = newValue?.GetType().Name
                 };
             }

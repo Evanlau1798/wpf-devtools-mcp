@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WpfDevTools.Shared.Security;
+using WpfDevTools.Mcp.Server.State;
 
 namespace WpfDevTools.Mcp.Server;
 
@@ -11,6 +12,7 @@ public sealed class SessionManager : IDisposable
     private volatile bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
+    private readonly Dictionary<int, Dictionary<string, StoredStateSnapshot>> _stateSnapshots = new();
     private readonly IRateLimiterManager _rateLimiter;
     private readonly AuthenticationManager? _authManager;
     private readonly CertificateManager? _certManager;
@@ -109,6 +111,7 @@ public sealed class SessionManager : IDisposable
             };
 
             _pipeClients[processId] = new NamedPipeClient(processId, _authManager, _certManager);
+            _stateSnapshots[processId] = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
         }
     }
 
@@ -127,6 +130,8 @@ public sealed class SessionManager : IDisposable
                 client.Dispose();
                 _pipeClients.Remove(processId);
             }
+
+            _stateSnapshots.Remove(processId);
 
             // Clean up rate limiter state
             _rateLimiter.RemoveSession(processId);
@@ -158,6 +163,50 @@ public sealed class SessionManager : IDisposable
         lock (_lock)
         {
             return _sessions.ContainsKey(processId);
+        }
+    }
+
+    internal void SaveStateSnapshot(int processId, StoredStateSnapshot snapshot)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        lock (_lock)
+        {
+            if (!_stateSnapshots.TryGetValue(processId, out var snapshots))
+            {
+                snapshots = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
+                _stateSnapshots[processId] = snapshots;
+            }
+
+            snapshots[snapshot.SnapshotId] = snapshot;
+        }
+    }
+
+    internal bool TryGetStateSnapshot(int processId, string snapshotId, out StoredStateSnapshot? snapshot)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (_stateSnapshots.TryGetValue(processId, out var snapshots) &&
+                snapshots.TryGetValue(snapshotId, out var storedSnapshot))
+            {
+                snapshot = storedSnapshot;
+                return true;
+            }
+        }
+
+        snapshot = null;
+        return false;
+    }
+
+    internal bool RemoveStateSnapshot(int processId, string snapshotId)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            return _stateSnapshots.TryGetValue(processId, out var snapshots) &&
+                   snapshots.Remove(snapshotId);
         }
     }
 

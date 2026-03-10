@@ -24,7 +24,16 @@ public sealed class ClickElementTool : PipeConnectedToolBase
         var (processId, elementId, error) = ParseCommonParams(arguments);
         if (error != null) return error;
 
-        return await SendInspectorRequestAsync(processId, "click_element",
-            new { elementId }, cancellationToken);
+        var requestedInput = new { elementId };
+        var result = await SendInspectorRequestAsync(
+            processId,
+            "click_element",
+            requestedInput,
+            cancellationToken);
+
+        return AddSuccessMetadata(
+            result,
+            requestedInput,
+            "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.");
     }
 }

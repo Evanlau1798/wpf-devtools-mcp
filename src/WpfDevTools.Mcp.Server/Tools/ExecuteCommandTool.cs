@@ -29,7 +29,16 @@ public sealed class ExecuteCommandTool : PipeConnectedToolBase
         if (string.IsNullOrEmpty(commandName))
             return CreateMissingParamError("commandName");
 
-        return await SendInspectorRequestAsync(processId, "execute_command",
-            new { elementId, commandName, parameter }, cancellationToken);
+        var requestedInput = new { elementId, commandName, parameter };
+        var result = await SendInspectorRequestAsync(
+            processId,
+            "execute_command",
+            requestedInput,
+            cancellationToken);
+
+        return AddSuccessMetadata(
+            result,
+            requestedInput,
+            "Triggers real application logic. Confirm the observedEffect before assuming navigation, save, or side effects completed.");
     }
 }

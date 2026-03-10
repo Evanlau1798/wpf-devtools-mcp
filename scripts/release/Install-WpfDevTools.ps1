@@ -107,6 +107,15 @@ $codexCommand
         }
     }
 
+    $claudeCodeProject = [ordered]@{
+        mcpServers = [ordered]@{
+            'wpf-devtools' = [ordered]@{
+                command = $InstalledExecutable
+                args = @()
+            }
+        }
+    }
+
     $cursorVsCode = [ordered]@{
         servers = [ordered]@{
             'wpf-devtools' = [ordered]@{
@@ -117,6 +126,7 @@ $codexCommand
     }
 
     Write-RegistrationArtifact -Path (Join-Path $registrationDir 'claude-desktop.json') -Content ($claudeDesktop | ConvertTo-Json -Depth 5)
+    Write-RegistrationArtifact -Path (Join-Path $registrationDir 'claude-code.project.mcp.json') -Content ($claudeCodeProject | ConvertTo-Json -Depth 5)
     Write-RegistrationArtifact -Path (Join-Path $registrationDir 'cursor-vscode.json') -Content ($cursorVsCode | ConvertTo-Json -Depth 5)
 
     return $registrationDir

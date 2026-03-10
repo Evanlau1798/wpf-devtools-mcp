@@ -10,6 +10,7 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
 {
     private readonly string _method;
     private readonly Func<JsonElement?, (int processId, object? parameters, object? error)> _paramExtractor;
+    private readonly Func<object, object?, object>? _successMetadataAugmenter;
 
     /// <summary>
     /// Initializes a new instance of the GenericPipeTool class
@@ -17,14 +18,17 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
     /// <param name="sessionManager">Session manager for tracking connected processes</param>
     /// <param name="method">Inspector method name to invoke</param>
     /// <param name="paramExtractor">Optional custom parameter extractor function</param>
+    /// <param name="successMetadataAugmenter">Optional success-response augmenter for adding stable metadata to mutation-style results.</param>
     public GenericPipeTool(
         SessionManager sessionManager,
         string method,
-        Func<JsonElement?, (int processId, object? parameters, object? error)>? paramExtractor = null)
+        Func<JsonElement?, (int processId, object? parameters, object? error)>? paramExtractor = null,
+        Func<object, object?, object>? successMetadataAugmenter = null)
         : base(sessionManager)
     {
         _method = method;
         _paramExtractor = paramExtractor ?? DefaultParamExtractor;
+        _successMetadataAugmenter = successMetadataAugmenter;
     }
 
     /// <summary>
@@ -38,7 +42,17 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
         var (processId, parameters, error) = _paramExtractor(arguments);
         if (error != null) return error;
 
-        return await SendInspectorRequestAsync(processId, _method, parameters, cancellationToken).ConfigureAwait(false);
+        var result = await SendInspectorRequestAsync(processId, _method, parameters, cancellationToken).ConfigureAwait(false);
+        return _successMetadataAugmenter?.Invoke(result, parameters) ?? result;
+    }
+
+    public static object AugmentModifyViewModelResult(object result, object? requestedInput)
+    {
+        return AddSuccessMetadata(
+            result,
+            requestedInput ?? new { },
+            "Runtime-only ViewModel mutation. UI refresh still depends on INotifyPropertyChanged and any binding-side validation.",
+            usedFallback: false);
     }
 
     private static (int processId, object? parameters, object? error) DefaultParamExtractor(JsonElement? arguments)

@@ -26,6 +26,7 @@ public static class ServerInstructions
         - commandName: string, ICommand property name (e.g., 'SaveCommand')
         - eventName: string, WPF RoutedEvent name (e.g., 'Click', 'MouseDown')
         - resourceKey: string, XAML resource key (e.g., 'PrimaryBrush')
+        - snapshotId: string, returned by capture_state_snapshot for later restore
 
         === TIMEOUTS ===
         - connect(): 30 seconds (DLL injection + IPC handshake)
@@ -55,10 +56,13 @@ public static class ServerInstructions
         === TOOL SEARCH ===
         - Clients with many MCP tools may rely on tool search instead of loading every tool eagerly
         - Prefer tool Title + Description matching over raw tool-name guessing
+        - MCP prompts may surface as slash commands in compatible clients; use them as workflow entry points
+        - MCP resources may surface through @resource references in compatible clients; use them for capability and limitation summaries
         - Process discovery keywords: process, connect, session, WPF app
         - Tree keywords: visual tree, logical tree, namescope, template, windows
         - Binding keywords: binding, DataContext, validation, value chain
         - Interaction keywords: click, keyboard, screenshot, drag, scroll
+        - State keywords: snapshot, restore, rollback, focus
         - Runtime metadata is returned as structured JSON; use structured fields over text scraping when possible
 
         === TOOL SELECTION GUIDE ===
@@ -71,6 +75,7 @@ public static class ServerInstructions
         - Style not applied? -> get_applied_styles, get_resource_chain
         - Performance slow? -> get_visual_count, get_render_stats, find_binding_leaks
         - Multiple windows / dialogs? -> get_windows to discover all windows, use elementId to target specific window
+        - Need safe rollback before debugging? -> capture_state_snapshot before mutation, restore_state_snapshot afterwards
 
         === TOKEN EFFICIENCY ===
         - Use depth=1 for immediate children only (fastest)
@@ -84,6 +89,8 @@ public static class ServerInstructions
         - Store processId in conversation context after successful connect()
         - Use depth=2-3 for initial tree exploration; increase only if needed
         - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
+        - Prefer slash commands from MCP prompts when you want a predefined workflow entry point
+        - Prefer @resource lookups when you need capability summaries, workflow references, or known limitations before acting
         - Check IsEnabled with get_dp_value_source before click_element to avoid errors
         - Use get_binding_errors as first diagnostic step for data display issues
         - In STDIO transport, prefer polling workflows over push-style watcher/event streaming expectations
@@ -98,6 +105,7 @@ public static class ServerInstructions
         - execute_command, fire_routed_event, click_element, simulate_keyboard: trigger actions
         - drag_and_drop: simulate drag-drop operations
         - invalidate_layout: force layout recalculation
+        - focus_element, restore_state_snapshot: change focus or replay captured runtime state
 
         === COMMON WORKFLOWS ===
 
@@ -122,12 +130,16 @@ public static class ServerInstructions
         Workflow 7 - Debug Validation Errors:
         get_processes -> connect -> get_validation_errors() [root-scope aggregates all descendants] -> get_validation_errors(elementId) [narrow to specific element] -> get_bindings(elementId)
 
+        Workflow 8 - Safe Mutation Session:
+        get_processes -> connect -> capture_state_snapshot(processId, elementId, propertyNames/viewModelPropertyNames, includeFocus=true) -> perform runtime mutations -> restore_state_snapshot(processId, snapshotId)
+
         === NORMALIZATION & CONTRACT NOTES ===
         Some tools apply automatic normalization. Responses include metadata so you can see what was normalized:
         - trace_routed_events (start mode): enforces minimum 30s duration for AI agent IPC round-trips. Response includes both requestedDuration and effectiveDuration.
         - fire_routed_event: for ButtonBase + Click event, uses OnClick() path instead of RaiseEvent(). Response includes usedOnClick: true.
         - get_validation_errors: recursively aggregates errors from ALL visual descendants (max depth: 50, max errors: 200). Each error includes elementType/elementName to identify the source.
         - set_dp_value / modify_viewmodel: JSON string values with surrounding double-quotes are auto-stripped (e.g., "\"hello\"" becomes "hello").
+        - binding/data-context/validation diagnostics expose normalized diagnosticKind/sourceKind fields for cross-tool correlation.
 
         === ERROR RECOVERY ===
         - "not connected" -> call connect(processId) first, then retry

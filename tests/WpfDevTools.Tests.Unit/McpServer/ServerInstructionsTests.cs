@@ -102,6 +102,13 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldExplainPromptAndResourceDiscovery()
+    {
+        ServerInstructions.Value.Should().Contain("slash commands");
+        ServerInstructions.Value.Should().Contain("@resource");
+    }
+
+    [Fact]
     public void Value_ShouldContainAllToolCategories()
     {
         // Check for key tool category concepts (case-insensitive, flexible matching)

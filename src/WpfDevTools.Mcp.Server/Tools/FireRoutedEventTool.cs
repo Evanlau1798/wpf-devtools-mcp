@@ -29,7 +29,22 @@ public sealed class FireRoutedEventTool : PipeConnectedToolBase
         if (string.IsNullOrEmpty(eventName))
             return CreateMissingParamError("eventName");
 
-        return await SendInspectorRequestAsync(processId, "fire_routed_event",
-            new { elementId, eventName, eventArgs }, cancellationToken);
+        var requestedInput = new { elementId, eventName, eventArgs };
+        var result = await SendInspectorRequestAsync(
+            processId,
+            "fire_routed_event",
+            requestedInput,
+            cancellationToken);
+
+        var resultJson = JsonSerializer.SerializeToElement(result);
+        var usedFallback = resultJson.ValueKind == JsonValueKind.Object &&
+            resultJson.TryGetProperty("usedOnClick", out var usedOnClickProp) &&
+            usedOnClickProp.ValueKind == JsonValueKind.True;
+
+        return AddSuccessMetadata(
+            result,
+            requestedInput,
+            "Routed-event execution may use the ButtonBase OnClick path when applicable. Inspect usedFallback and observedEffect before assuming the event path used.",
+            usedFallback);
     }
 }

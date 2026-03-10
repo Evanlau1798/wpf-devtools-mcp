@@ -32,7 +32,16 @@ public sealed class OverrideStyleSetterTool : PipeConnectedToolBase
         if (value == null)
             return CreateMissingParamError("value");
 
-        return await SendInspectorRequestAsync(processId, "override_style_setter",
-            new { elementId, propertyName, value = value.Value }, cancellationToken);
+        var requestedInput = new { elementId, propertyName, value = value.Value };
+        var result = await SendInspectorRequestAsync(
+            processId,
+            "override_style_setter",
+            requestedInput,
+            cancellationToken);
+
+        return AddSuccessMetadata(
+            result,
+            requestedInput,
+            "Runtime-only style override. Record the observed style values before using this in demos, troubleshooting, or regression flows.");
     }
 }

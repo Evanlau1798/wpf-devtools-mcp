@@ -84,6 +84,8 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             // Get value source
             var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
             var effectiveValue = depObj.GetValue(dp);
+            var localValue = depObj.ReadLocalValue(dp);
+            var hadLocalValue = localValue != DependencyProperty.UnsetValue;
 
             return new
             {
@@ -94,7 +96,11 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 isAnimated = valueSource.IsAnimated,
                 isCoerced = valueSource.IsCoerced,
                 isCurrent = valueSource.IsCurrent,
-                effectiveValue = effectiveValue?.ToString()
+                currentValue = FormatResponseValue(effectiveValue),
+                effectiveValue = FormatResponseValue(effectiveValue),
+                hadLocalValue,
+                localValue = hadLocalValue ? FormatResponseValue(localValue) : null,
+                localValueType = hadLocalValue ? localValue?.GetType().Name : null
             };
         });
     }
@@ -183,6 +189,9 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             try
             {
                 var oldValue = depObj.GetValue(dp);
+                var localValueBefore = depObj.ReadLocalValue(dp);
+                var hadLocalValueBefore = localValueBefore != DependencyProperty.UnsetValue;
+                var previousValueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
                 // Convert value to correct type
                 var targetType = dp.PropertyType;
                 var convertedValue = ConvertValue(value, targetType);
@@ -200,6 +209,9 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                     oldValue = FormatResponseValue(oldValue),
                     newValue = FormatResponseValue(newValue),
                     requestedValue = FormatResponseValue(value),
+                    hadLocalValueBefore,
+                    previousLocalValue = hadLocalValueBefore ? FormatResponseValue(localValueBefore) : null,
+                    previousBaseValueSource = previousValueSource.BaseValueSource.ToString(),
                     baseValueSource = valueSource.BaseValueSource.ToString(),
                     valueType = newValue?.GetType().Name
                 };

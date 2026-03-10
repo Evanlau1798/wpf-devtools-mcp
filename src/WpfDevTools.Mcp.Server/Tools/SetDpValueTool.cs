@@ -32,7 +32,16 @@ public sealed class SetDpValueTool : PipeConnectedToolBase
         if (value == null)
             return CreateMissingParamError("value");
 
-        return await SendInspectorRequestAsync(processId, "set_dp_value",
-            new { elementId, propertyName, value = value.Value }, cancellationToken);
+        var requestedInput = new { elementId, propertyName, value = value.Value };
+        var result = await SendInspectorRequestAsync(
+            processId,
+            "set_dp_value",
+            requestedInput,
+            cancellationToken);
+
+        return AddSuccessMetadata(
+            result,
+            requestedInput,
+            "Runtime-only mutation. Capture oldValue/newValue if you need manual restore after verification.");
     }
 }

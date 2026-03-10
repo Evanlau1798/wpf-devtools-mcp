@@ -13,7 +13,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes and simulates user interactions with WPF elements
 /// </summary>
-public sealed class InteractionAnalyzer : DispatcherAnalyzerBase
+public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 

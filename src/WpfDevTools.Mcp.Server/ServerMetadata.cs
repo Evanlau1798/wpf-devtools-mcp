@@ -5,6 +5,7 @@ namespace WpfDevTools.Mcp.Server;
 internal static class ServerMetadata
 {
     private static readonly Assembly Assembly = typeof(ServerMetadata).Assembly;
+    private const string SchemaVersion = "2026-03-10";
 
     internal static string GetDisplayVersion()
     {
@@ -24,4 +25,6 @@ internal static class ServerMetadata
             ? version[..buildMetadataIndex]
             : version;
     }
+
+    internal static string GetSchemaVersion() => SchemaVersion;
 }

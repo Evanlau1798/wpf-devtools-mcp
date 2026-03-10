@@ -238,7 +238,7 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
     private const int MaxValidationErrors = 200;
 
-    private static void CollectValidationErrorsRecursive(
+    private void CollectValidationErrorsRecursive(
         DependencyObject element, List<object> errors, int maxDepth)
     {
         if (maxDepth <= 0 || errors.Count >= MaxValidationErrors) return;
@@ -251,11 +251,14 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
             var elementType = element.GetType().Name;
             errors.Add(new Dictionary<string, object?>
             {
+                ["diagnosticKind"] = "ValidationError",
+                ["sourceKind"] = error.RuleInError != null ? "ValidationRule" : "BindingValidation",
                 ["errorContent"] = error.ErrorContent?.ToString(),
                 ["isRuleError"] = error.RuleInError != null,
                 ["ruleType"] = error.RuleInError?.GetType().Name,
                 ["elementType"] = elementType,
-                ["elementName"] = string.IsNullOrEmpty(elementName) ? null : elementName
+                ["elementName"] = string.IsNullOrEmpty(elementName) ? null : elementName,
+                ["elementId"] = element is DependencyObject depObj ? _elementFinder.GenerateElementId(depObj) : null
             });
         }
 

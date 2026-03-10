@@ -76,6 +76,9 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
                 errorCount = errors.Count,
                 errors = errors.Select(e => new
                 {
+                    diagnosticKind = "BindingError",
+                    sourceKind = "BindingTrace",
+                    severity = "Error",
                     timestamp = e.Timestamp.ToString("O"),
                     message = e.Message,
                     eventType = e.EventType,
@@ -117,12 +120,19 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
                 while (current != null)
                 {
                     var dataContext = current.DataContext;
+                    var hasLocalValue = current.ReadLocalValue(FrameworkElement.DataContextProperty) != DependencyProperty.UnsetValue;
                     chain.Add(new
                     {
+                        diagnosticKind = "DataContextScope",
+                        elementId = _elementFinder.GenerateElementId(current),
                         elementType = current.GetType().Name,
                         elementName = current.Name,
                         dataContextType = dataContext?.GetType().Name,
-                        hasDataContext = dataContext != null
+                        hasDataContext = dataContext != null,
+                        sourceKind = dataContext == null
+                            ? "None"
+                            : hasLocalValue ? "LocalDataContext" : "InheritedDataContext",
+                        isInherited = dataContext != null && !hasLocalValue
                     });
 
                     current = current.Parent as FrameworkElement;
@@ -239,11 +249,14 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
         {
             chain.Add(new Dictionary<string, object?>
             {
+                ["diagnosticKind"] = "BindingValueResolutionStep",
+                ["sourceKind"] = "BindingDefinition",
                 ["step"] = "Binding",
                 ["path"] = binding.Path?.Path,
                 ["mode"] = binding.Mode.ToString(),
                 ["updateSourceTrigger"] = binding.UpdateSourceTrigger.ToString(),
-                ["converter"] = binding.Converter?.GetType().Name
+                ["converter"] = binding.Converter?.GetType().Name,
+                ["fallbackValue"] = binding.FallbackValue?.ToString()
             });
         }
 
@@ -255,6 +268,8 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             chain.Add(new Dictionary<string, object?>
             {
+                ["diagnosticKind"] = "BindingValueResolutionStep",
+                ["sourceKind"] = "LocalDataContext",
                 ["step"] = "LocalDataContext",
                 ["elementType"] = frameworkElement.GetType().Name,
                 ["hasLocalValue"] = hasLocalDataContext,
@@ -270,6 +285,8 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
                 {
                     chain.Add(new Dictionary<string, object?>
                     {
+                        ["diagnosticKind"] = "BindingValueResolutionStep",
+                        ["sourceKind"] = "InheritedDataContext",
                         ["step"] = "InheritedDataContext",
                         ["elementType"] = current.GetType().Name,
                         ["dataContextType"] = current.DataContext.GetType().Name,
@@ -288,18 +305,24 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
         {
             chain.Add(new Dictionary<string, object?>
             {
+                ["diagnosticKind"] = "BindingValueResolutionStep",
+                ["sourceKind"] = "ResolvedSource",
                 ["step"] = "ResolvedSource",
                 ["sourceType"] = resolvedValue.GetType().Name,
-                ["sourceValue"] = resolvedValue.ToString()
+                ["sourceValue"] = resolvedValue.ToString(),
+                ["resolutionState"] = "Resolved"
             });
         }
         else
         {
             chain.Add(new Dictionary<string, object?>
             {
+                ["diagnosticKind"] = "BindingValueResolutionStep",
+                ["sourceKind"] = "ResolvedSource",
                 ["step"] = "ResolvedSource",
                 ["sourceType"] = null,
-                ["sourceValue"] = null
+                ["sourceValue"] = null,
+                ["resolutionState"] = "Unresolved"
             });
         }
 
@@ -307,6 +330,8 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
         var finalValue = element.GetValue(dp);
         chain.Add(new Dictionary<string, object?>
         {
+            ["diagnosticKind"] = "BindingValueResolutionStep",
+            ["sourceKind"] = "FinalValue",
             ["step"] = "FinalValue",
             ["valueType"] = finalValue?.GetType().Name,
             ["value"] = finalValue?.ToString()

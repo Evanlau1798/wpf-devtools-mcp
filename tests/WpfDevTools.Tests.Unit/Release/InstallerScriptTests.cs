@@ -41,6 +41,8 @@ public sealed class InstallerScriptTests
             File.ReadAllText(Path.Combine(registrationDir, "codex-cli.txt")).Should().Contain("codex mcp add");
             File.ReadAllText(Path.Combine(registrationDir, "claude-desktop.json")).Should().Contain("WpfDevTools.Mcp.Server.exe");
             File.ReadAllText(Path.Combine(registrationDir, "cursor-vscode.json")).Should().Contain("WpfDevTools.Mcp.Server.exe");
+            File.ReadAllText(Path.Combine(registrationDir, "claude-code.project.mcp.json")).Should().Contain("\"mcpServers\"");
+            File.ReadAllText(Path.Combine(registrationDir, "claude-code.project.mcp.json")).Should().Contain("WpfDevTools.Mcp.Server.exe");
         }
         finally
         {

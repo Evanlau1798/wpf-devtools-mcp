@@ -28,6 +28,8 @@ public class InteractionHandlers : IRequestHandler
         return new[]
         {
             "click_element",
+            "get_focus_state",
+            "focus_element",
             "scroll_to_element",
             "element_screenshot",
             "drag_and_drop",
@@ -48,6 +50,8 @@ public class InteractionHandlers : IRequestHandler
         return method switch
         {
             "click_element" => await HandleClickElementAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_focus_state" => await HandleGetFocusStateAsync(@params, cancellationToken).ConfigureAwait(false),
+            "focus_element" => await HandleFocusElementAsync(@params, cancellationToken).ConfigureAwait(false),
             "scroll_to_element" => await HandleScrollToElementAsync(@params, cancellationToken).ConfigureAwait(false),
             "element_screenshot" => await HandleElementScreenshotAsync(@params, cancellationToken).ConfigureAwait(false),
             "drag_and_drop" => await HandleDragAndDropAsync(@params, cancellationToken).ConfigureAwait(false),
@@ -62,6 +66,23 @@ public class InteractionHandlers : IRequestHandler
 
         return await Task.Run(() =>
             _interactionAnalyzer.ClickElement(elementId), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<object> HandleGetFocusStateAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        await Task.CompletedTask;
+        return _interactionAnalyzer.GetFocusState(elementId);
+    }
+
+    private async Task<object> HandleFocusElementAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        if (string.IsNullOrEmpty(elementId))
+            throw new ArgumentException("Missing required parameter: elementId");
+
+        await Task.CompletedTask;
+        return _interactionAnalyzer.FocusElement(elementId);
     }
 
     private async Task<object> HandleScrollToElementAsync(JsonElement? @params, CancellationToken cancellationToken)

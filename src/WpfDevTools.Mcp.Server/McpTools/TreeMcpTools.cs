@@ -144,7 +144,7 @@ public static class TreeMcpTools
     [Description(
         TreeMetadata + "[Tree] Get the XAML NameScope of a WPF element. " +
         "Returns all named elements (x:Name) registered in the element's scope.\n\n" +
-        "USE WHEN: You need to discover all named elements in a window or UserControl.\n" +
+        "USE WHEN: You need to discover all named elements in a window or UserControl, including names registered for inactive tabs or other logical-only content.\n" +
         "DO NOT USE: For finding elements by type (use get_visual_tree to browse the tree instead).\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -211,7 +211,7 @@ public static class TreeMcpTools
     [McpServerTool(Name = "get_windows", Title = "Get Windows", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         TreeMetadata + "[Tree] Enumerate all open windows in the connected WPF application. " +
-        "Returns each window's index, title, type, focus snapshot, and elementId.\n\n" +
+        "Returns each window's index, title, type, focus snapshot, and elementId using camelCase field names.\n\n" +
         "USE WHEN: The target app has multiple windows and you need to inspect a secondary window " +
         "(e.g., dialogs, tool windows, child windows). Use the returned elementId as the elementId " +
         "parameter in get_visual_tree, get_logical_tree, and other tools to target that window.\n\n" +
@@ -276,4 +276,3 @@ public static class TreeMcpTools
             cancellationToken);
     }
 }
-

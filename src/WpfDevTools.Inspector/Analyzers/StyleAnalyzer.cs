@@ -67,8 +67,47 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                 });
             }
 
-            return new { success = true, styles, count = styles.Count };
+            var localResourceReferences = GetLocalResourceReferences(fe);
+
+            return new
+            {
+                success = true,
+                hasStyle = fe.Style != null,
+                styles,
+                count = styles.Count,
+                localResourceReferenceCount = localResourceReferences.Count,
+                localResourceReferences,
+                notes = fe.Style == null && localResourceReferences.Count > 0
+                    ? "Element appearance is driven by local resource references rather than an applied Style."
+                    : null
+            };
         });
+    }
+
+    private static List<object> GetLocalResourceReferences(FrameworkElement element)
+    {
+        var references = new List<object>();
+        var enumerator = element.GetLocalValueEnumerator();
+
+        while (enumerator.MoveNext())
+        {
+            var entry = enumerator.Current;
+            var valueTypeName = entry.Value?.GetType().Name;
+            if (valueTypeName == null ||
+                valueTypeName.IndexOf("ResourceReferenceExpression", StringComparison.Ordinal) < 0)
+            {
+                continue;
+            }
+
+            references.Add(new
+            {
+                property = entry.Property?.Name,
+                expressionType = valueTypeName,
+                valueSource = "LocalValue"
+            });
+        }
+
+        return references;
     }
 
     /// <summary>

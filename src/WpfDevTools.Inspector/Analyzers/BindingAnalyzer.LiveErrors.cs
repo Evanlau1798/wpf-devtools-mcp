@@ -71,13 +71,24 @@ public sealed partial class BindingAnalyzer
 
     private static bool IsBindingError(BindingExpression bindingExpression)
     {
+        if (IsValidationOnlyError(bindingExpression))
+        {
+            return false;
+        }
+
         return bindingExpression.HasError
-            || bindingExpression.HasValidationError
             || bindingExpression.Status == BindingStatus.PathError
             || bindingExpression.Status == BindingStatus.UpdateTargetError
             || bindingExpression.Status == BindingStatus.UpdateSourceError
             || bindingExpression.Status == BindingStatus.Unattached
             || HasUnresolvableBindingPath(bindingExpression);
+    }
+
+    private static bool IsValidationOnlyError(BindingExpression bindingExpression)
+    {
+        return bindingExpression.HasValidationError
+            && bindingExpression.DataItem != null
+            && !HasUnresolvableBindingPath(bindingExpression);
     }
 
     private static bool HasUnresolvableBindingPath(BindingExpression bindingExpression)

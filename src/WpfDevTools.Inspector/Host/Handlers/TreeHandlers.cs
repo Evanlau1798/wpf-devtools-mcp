@@ -137,15 +137,15 @@ public class TreeHandlers : IRequestHandler
         {
             success = true,
             windowCount = windows.Count,
-            windows = windows.Select(w => new
+            windows = windows.Select(w => new Dictionary<string, object?>
             {
-                w.Index,
-                w.Title,
-                w.Type,
-                w.IsActive,
-                w.IsVisible,
-                w.IsMainWindow,
-                w.ElementId
+                ["index"] = w.Index,
+                ["title"] = w.Title,
+                ["type"] = w.Type,
+                ["isActive"] = w.IsActive,
+                ["isVisible"] = w.IsVisible,
+                ["isMainWindow"] = w.IsMainWindow,
+                ["elementId"] = w.ElementId
             }).ToList()
         });
     }

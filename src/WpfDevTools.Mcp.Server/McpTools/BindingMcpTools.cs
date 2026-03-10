@@ -58,7 +58,7 @@ public static class BindingMcpTools
         BindingMetadata + "[Binding] Get ALL binding errors captured since Inspector connected. " +
         "FIRST tool to use when debugging data display issues.\n\n" +
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
-        "DO NOT USE: Before calling connect() - errors are only captured after injection.\n\n" +
+        "DO NOT USE: Before calling connect() - errors are only captured after injection; for validation rule errors use get_validation_errors.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -71,6 +71,7 @@ public static class BindingMcpTools
         "  }]\n" +
         "}\n\n" +
         "Empty errors array means no binding errors detected.\n" +
+        "Validation rule errors belong in get_validation_errors, not get_binding_errors.\n" +
         "NOTE: sourceId is a numeric trace ID, NOT an elementId. It cannot be used directly as the elementId parameter in other tools.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +

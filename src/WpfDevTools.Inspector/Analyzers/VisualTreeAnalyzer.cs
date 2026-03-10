@@ -168,8 +168,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
             if (nameScope != null)
             {
-                var names = new List<string>();
-                GetNamesInScope(element, names);
+                var names = GetNamesInScope(element);
 
                 foreach (var name in names)
                 {
@@ -197,19 +196,18 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    private void GetNamesInScope(DependencyObject element, List<string> names)
+    private IReadOnlyList<string> GetNamesInScope(DependencyObject element)
     {
-        if (element is FrameworkElement fe && !string.IsNullOrEmpty(fe.Name))
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var current in DependencyObjectTraversal.EnumerateDescendantsAndSelf(element))
         {
-            names.Add(fe.Name);
+            if (current is FrameworkElement fe && !string.IsNullOrEmpty(fe.Name))
+            {
+                names.Add(fe.Name);
+            }
         }
 
-        var childCount = VisualTreeHelper.GetChildrenCount(element);
-        for (int i = 0; i < childCount; i++)
-        {
-            var child = VisualTreeHelper.GetChild(element, i);
-            GetNamesInScope(child, names);
-        }
+        return names.ToArray();
     }
 
     /// <summary>

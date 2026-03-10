@@ -70,11 +70,13 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
                 errors = liveErrors;
             }
 
+            var filteredErrors = FilterOutValidationErrors(errors);
+
             var result = new
             {
                 success = true,
-                errorCount = errors.Count,
-                errors = errors.Select(e => new
+                errorCount = filteredErrors.Count,
+                errors = filteredErrors.Select(e => new
                 {
                     diagnosticKind = "BindingError",
                     sourceKind = "BindingTrace",

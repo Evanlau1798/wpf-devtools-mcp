@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using Xunit;
@@ -85,6 +86,23 @@ public class WpfApplicationFixture : IDisposable
             EnsureMainWindow();
             action();
         });
+    }
+
+    /// <summary>
+    /// Run async action on UI thread and return result.
+    /// </summary>
+    public Task<T> RunOnUIThreadAsync<T>(Func<Task<T>> action)
+    {
+        if (_dispatcher == null)
+        {
+            throw new InvalidOperationException("Dispatcher not initialized");
+        }
+
+        return _dispatcher.InvokeAsync(() =>
+        {
+            EnsureMainWindow();
+            return action();
+        }).Task.Unwrap();
     }
 
     private void EnsureMainWindow()

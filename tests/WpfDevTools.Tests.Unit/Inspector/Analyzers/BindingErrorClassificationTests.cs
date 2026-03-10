@@ -1,0 +1,98 @@
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Diagnostics;
+using FluentAssertions;
+using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Tests.TestApp;
+using Xunit;
+
+namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
+
+public sealed class BindingErrorClassificationTests
+{
+    [StaFact]
+    public void GetBindingErrors_WhenOnlyValidationErrorsExist_ShouldReturnNoBindingErrors()
+    {
+        BindingErrorTraceListener.ResetInstance();
+
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var hostWindow = EnsureHostWindow();
+        var root = new StackPanel();
+        var nameTextBox = new TextBox();
+
+        nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name")
+        {
+            Source = new TestViewModel { Name = "Alice", Age = 20 },
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+        });
+
+        root.Children.Add(nameTextBox);
+        hostWindow.Content = root;
+        hostWindow.Show();
+        hostWindow.UpdateLayout();
+        var expression = nameTextBox.GetBindingExpression(TextBox.TextProperty)!;
+        Validation.MarkInvalid(
+            expression,
+            new ValidationError(new ExceptionValidationRule(), expression)
+            {
+                ErrorContent = "Validation-only failure"
+            });
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingErrors(clearAfterRead: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(0);
+    }
+
+    [StaFact]
+    public void GetBindingErrors_WhenTraceMessageMatchesActiveValidationError_ShouldFilterItOut()
+    {
+        BindingErrorTraceListener.ResetInstance();
+
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var hostWindow = EnsureHostWindow();
+        var root = new StackPanel();
+        var nameTextBox = new TextBox();
+
+        nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name")
+        {
+            Source = new TestViewModel { Name = string.Empty, Age = 20 },
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+            ValidatesOnDataErrors = true
+        });
+
+        root.Children.Add(nameTextBox);
+        hostWindow.Content = root;
+        hostWindow.Show();
+        hostWindow.UpdateLayout();
+        nameTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+
+        BindingErrorTraceListener.Instance.TraceEvent(
+            null,
+            "System.Windows.Data",
+            TraceEventType.Error,
+            7,
+            "System.Windows.Data Error: validation failed: Name is required");
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingErrors(clearAfterRead: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(0);
+    }
+
+    private static Window EnsureHostWindow()
+    {
+        var window = Application.Current?.MainWindow ?? new Window();
+        if (Application.Current?.MainWindow == null && Application.Current != null)
+        {
+            Application.Current.MainWindow = window;
+        }
+
+        return window;
+    }
+}

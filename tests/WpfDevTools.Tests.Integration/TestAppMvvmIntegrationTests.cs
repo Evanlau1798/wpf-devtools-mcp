@@ -6,6 +6,7 @@ using WpfDevTools.Tests.TestApp;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -172,6 +173,50 @@ public class TestAppMvvmIntegrationTests
         });
 
         result.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void GetValidationErrors_OnInactiveTabItem_ShouldAggregateRealTestViewModelErrors()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var elementFinder = new ElementFinder();
+            var analyzer = new MvvmAnalyzer(elementFinder);
+            var viewModel = new TestViewModel { Name = "", Age = 0 };
+            var tabControl = new TabControl { SelectedIndex = 1 };
+            var validatedTab = new TabItem { Header = "Basic" };
+            var otherTab = new TabItem { Header = "Other", Content = new TextBlock { Text = "Other" } };
+            var stackPanel = new StackPanel { DataContext = viewModel };
+            var nameTextBox = new TextBox();
+            var ageTextBox = new TextBox();
+
+            nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name")
+            {
+                ValidatesOnDataErrors = true,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+            });
+            ageTextBox.SetBinding(TextBox.TextProperty, new Binding("Age")
+            {
+                ValidatesOnDataErrors = true,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+            });
+
+            stackPanel.Children.Add(nameTextBox);
+            stackPanel.Children.Add(ageTextBox);
+            validatedTab.Content = stackPanel;
+            tabControl.Items.Add(validatedTab);
+            tabControl.Items.Add(otherTab);
+
+            Application.Current.MainWindow.Content = tabControl;
+            Application.Current.MainWindow.Show();
+            Application.Current.MainWindow.UpdateLayout();
+
+            var tabId = elementFinder.GenerateElementId(validatedTab);
+            return JsonSerializer.SerializeToElement(analyzer.GetValidationErrors(tabId));
+        });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(2);
     }
 
     [Fact]

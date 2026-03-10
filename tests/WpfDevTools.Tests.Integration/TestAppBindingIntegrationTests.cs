@@ -6,6 +6,7 @@ using WpfDevTools.Tests.TestApp;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -22,6 +23,7 @@ public class TestAppBindingIntegrationTests
     public TestAppBindingIntegrationTests(WpfApplicationFixture fixture)
     {
         _fixture = fixture;
+        BindingErrorTraceListener.ResetInstance();
     }
 
     [Fact]
@@ -164,5 +166,88 @@ public class TestAppBindingIntegrationTests
         });
 
         result.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void GetBindingErrors_WithGoldenSampleValidationAndBindingFailures_ShouldExcludeValidationMessages()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            BindingErrorTraceListener.ResetInstance();
+            var elementFinder = new ElementFinder();
+            var analyzer = new BindingAnalyzer(elementFinder);
+            var window = Application.Current.MainWindow;
+
+            try
+            {
+                var viewModel = new TestViewModel { Name = "", Age = 0 };
+                var stackPanel = new StackPanel { DataContext = viewModel };
+
+                var nameTextBox = new TextBox();
+                nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name")
+                {
+                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+                    ValidatesOnDataErrors = true
+                });
+                stackPanel.Children.Add(nameTextBox);
+
+                var ageTextBox = new TextBox();
+                ageTextBox.SetBinding(TextBox.TextProperty, new Binding("Age")
+                {
+                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+                    ValidatesOnDataErrors = true
+                });
+                stackPanel.Children.Add(ageTextBox);
+
+                var invalidPropertyTextBox = new TextBox();
+                invalidPropertyTextBox.SetBinding(TextBox.TextProperty, new Binding("InvalidPropertyName"));
+                stackPanel.Children.Add(invalidPropertyTextBox);
+
+                var invalidPathTextBox = new TextBox();
+                invalidPathTextBox.SetBinding(TextBox.TextProperty, new Binding("NonExistent.Property"));
+                stackPanel.Children.Add(invalidPathTextBox);
+
+                var nullContextPanel = new StackPanel { DataContext = null };
+                var nullContextTextBox = new TextBox();
+                nullContextTextBox.SetBinding(TextBox.TextProperty, new Binding("Name"));
+                nullContextPanel.Children.Add(nullContextTextBox);
+                stackPanel.Children.Add(nullContextPanel);
+
+                window.Content = stackPanel;
+                window.Show();
+                window.Activate();
+                window.UpdateLayout();
+
+                nameTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                ageTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                invalidPropertyTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+                invalidPathTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+                nullContextTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+
+                return JsonSerializer.SerializeToElement(analyzer.GetBindingErrors(clearAfterRead: false));
+            }
+            finally
+            {
+                window.Content = null;
+            }
+        });
+
+        var messages = result.GetProperty("errors")
+            .EnumerateArray()
+            .Select(error => error.GetProperty("message").GetString())
+            .Where(message => message != null)
+            .ToArray();
+
+        var messageSummary = string.Join(" || ", messages);
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(3, because: messageSummary);
+
+        messages.Should().Contain(message => message!.Contains("InvalidPropertyName", StringComparison.Ordinal));
+        messages.Should().Contain(message => message!.Contains("NonExistent.Property", StringComparison.Ordinal));
+        messages.Should().Contain(message => message!.Contains("no DataContext", StringComparison.OrdinalIgnoreCase)
+            || message!.Contains("no DataContext or resolved source", StringComparison.OrdinalIgnoreCase));
+        messages.Should().NotContain(message => message!.Contains("Name is required", StringComparison.Ordinal));
+        messages.Should().NotContain(message => message!.Contains("Age must be greater than 0", StringComparison.Ordinal));
     }
 }

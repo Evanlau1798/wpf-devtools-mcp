@@ -129,12 +129,13 @@ public static class MvvmMcpTools
 
     [McpServerTool(Name = "get_validation_errors", Title = "Get Validation Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
-        MvvmMetadata + "[MVVM] Get validation errors from a WPF element and all its visual descendants (recursive). " +
+        MvvmMetadata + "[MVVM] Get validation errors from a WPF element and all its logical and visual descendants (recursive). " +
         "Returns all WPF validation errors (via Validation.GetErrors) aggregated from the target element and its entire subtree.\n\n" +
         "USE WHEN: Form shows validation errors; need to understand validation state; querying a parent to find all child validation errors at once.\n" +
         "DO NOT USE: For binding path errors (use get_binding_errors instead).\n\n" +
         "AGGREGATION: When called on a parent element (e.g., StackPanel, Grid, Window), " +
-        "errors from ALL descendant elements are collected recursively (max depth: 50, max errors: 200). " +
+        "errors from ALL logical and visual descendant elements are collected recursively (max depth: 50, max errors: 200). " +
+        "This includes inactive TabItem content and other subtree content that may not currently be visible in the visual tree. " +
         "Each error includes elementType and elementName to identify the source element.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +

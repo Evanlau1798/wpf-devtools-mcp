@@ -17,12 +17,15 @@ public static class StyleMcpTools
     [McpServerTool(Name = "get_applied_styles", Title = "Get Applied Styles", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         StyleMetadata + "[Style] Get all applied styles on a WPF element. Returns style type, target type, " +
-        "setters (property+value), and whether it's an implicit or explicit style.\n\n" +
+        "setters (property+value), whether it's an implicit or explicit style, and localResourceReferences when appearance comes from a local resource expression instead of a Style.\n\n" +
         "USE WHEN: Element has unexpected appearance; need to understand which styles are applied.\n" +
         "DO NOT USE: For runtime property values (use get_dp_value_source instead).\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  hasStyle: boolean,\n" +
+        "  localResourceReferenceCount: integer,\n" +
+        "  localResourceReferences: [{ property, expressionType, valueSource }],\n" +
         "  styles: [{\n" +
         "    styleType: 'Implicit'|'Explicit',\n" +
         "    targetType,\n" +

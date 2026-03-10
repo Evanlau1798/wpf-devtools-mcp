@@ -11,7 +11,7 @@ namespace WpfDevTools.Tests.Integration.E2E;
 ///
 /// Response schema notes:
 /// - Tree tools return { success, tree: { elementId, type, name, childCount, children } }
-/// - get_windows returns { success, windowCount, windows: [{ Index, Title, Type, IsActive, ElementId }] }
+/// - get_windows returns { success, windowCount, windows: [{ index, title, type, isActive, isVisible, isMainWindow, elementId }] }
 /// </summary>
 [Collection("McpE2E")]
 [Trait("Category", "E2E")]
@@ -112,16 +112,15 @@ public sealed class TreeInspectionE2eTests
             "get_windows should return a windows array");
         windows.GetArrayLength().Should().BeGreaterOrEqualTo(1);
 
-        // Window properties use PascalCase (C# anonymous object serialization)
         var mainWindow = windows[0];
-        mainWindow.TryGetProperty("ElementId", out var windowElementId).Should().BeTrue(
-            "each window should have an ElementId for subsequent tool calls");
+        mainWindow.TryGetProperty("elementId", out var windowElementId).Should().BeTrue(
+            "each window should have an elementId for subsequent tool calls");
         windowElementId.GetString().Should().NotBeNullOrEmpty();
-        mainWindow.TryGetProperty("Title", out _).Should().BeTrue(
-            "each window should have a Title");
-        mainWindow.TryGetProperty("IsMainWindow", out _).Should().BeTrue(
+        mainWindow.TryGetProperty("title", out _).Should().BeTrue(
+            "each window should have a title");
+        mainWindow.TryGetProperty("isMainWindow", out _).Should().BeTrue(
             "window snapshots should identify the app main window explicitly");
-        mainWindow.TryGetProperty("IsVisible", out _).Should().BeTrue(
+        mainWindow.TryGetProperty("isVisible", out _).Should().BeTrue(
             "window snapshots should include visibility to explain focus timing");
     }
 

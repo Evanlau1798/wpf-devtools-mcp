@@ -42,6 +42,8 @@ Project-scoped alternative:
 claude mcp add --scope project --transport stdio wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
 ```
 
+The installer also writes `client-registration\claude-code.project.mcp.json`. Use that artifact when you want reproducible project-scoped setup across contributors or CI worktrees.
+
 ## 4. Verify the registration
 
 ```powershell
@@ -54,8 +56,15 @@ claude mcp list
 List WPF processes, connect to the target app, ping it, and show the first two levels of the visual tree.
 ```
 
+## 6. Discovery entry points inside Claude Code
+
+- Prompts appear as slash commands such as `/mcp__wpf-devtools__connect_and_list_windows`.
+- Resources appear as `@wpf-devtools:capabilities` and `@wpf-devtools:limitations/elevated-targets`.
+- Use these discovery entry points when Claude Code knows the server exists but needs help selecting the right workflow.
+
 ## Notes
 
 - Keep the server on Windows.
 - Do not wrap `WpfDevTools.Mcp.Server.exe` with extra stdout logging.
 - If `connect` fails, check server bitness, bootstrapper bitness, and target bitness together.
+- If the target app is elevated, start Claude Code as administrator so the STDIO-launched MCP server can attach at the same integrity level.

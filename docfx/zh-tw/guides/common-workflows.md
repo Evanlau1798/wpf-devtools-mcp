@@ -38,6 +38,27 @@
 3. 使用 `click_element`、`simulate_keyboard` 或 `drag_and_drop`
 4. 立刻用 `get_dp_value_source`、`get_viewmodel` 或其他 inspection 工具驗證結果
 
+## 搭配 snapshot 的可回復 mutation 流程
+
+1. `capture_state_snapshot`
+2. 用 `get_visual_tree` 或其他診斷工具確認目標
+3. 套用單一 mutation，例如 `set_dp_value`、`modify_viewmodel` 或 `override_style_setter`
+4. 立刻驗證效果
+5. 如果需要回到原狀，呼叫 `restore_state_snapshot`
+
+當你在正式環境除錯、示範或驗證時，希望實驗結束後讓 app 回到原始狀態，這是最穩健的流程。
+
+## 焦點敏感的多視窗工作流
+
+1. `get_windows`
+2. `get_focus_state`
+3. 對目前視窗或目標視窗呼叫 `get_visual_tree`
+4. 若目標控制項尚未取得焦點，先呼叫 `focus_element`
+5. 再做 `simulate_keyboard` 或其他依賴焦點的互動
+6. 用 `get_focus_state` 與其他診斷工具一起驗證結果
+
+當快捷鍵、Enter/Tab 行為、預設按鈕或對話框焦點歸屬會影響結果時，請使用這個流程。
+
 ## Layout 與效能 triage
 
 1. `get_layout_info`

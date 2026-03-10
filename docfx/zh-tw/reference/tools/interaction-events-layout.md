@@ -7,6 +7,14 @@
 - `scroll_to_element`
 - `simulate_keyboard`
 - `element_screenshot`
+- `get_focus_state`
+- `focus_element`
+- `capture_state_snapshot`
+- `restore_state_snapshot`
+
+當流程和鍵盤輸入、預設按鈕、tab 導覽或多視窗切換有關時，`get_focus_state` 與 `focus_element` 會很重要。
+
+當你要做可能需要回復的 UI mutation 時，建議先用 `capture_state_snapshot`，結束後再視需要呼叫 `restore_state_snapshot`。
 
 ## Routed Events
 
@@ -41,6 +49,9 @@
 ## 安全使用模式
 
 1. 先檢查。
-2. 做一次互動。
-3. 立刻驗證。
-4. 避免在單一步驟中疊很多 mutation。
+2. 在改變 UI 狀態前先呼叫 `capture_state_snapshot`。
+3. 若流程受焦點影響，先用 `get_focus_state` 與 `focus_element` 確認目標。
+4. 做一次互動。
+5. 立刻驗證。
+6. 若需要回復或保持 app 不變，呼叫 `restore_state_snapshot`。
+7. 避免在單一步驟中疊很多 mutation。

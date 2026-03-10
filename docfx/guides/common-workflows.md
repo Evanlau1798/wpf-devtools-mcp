@@ -38,6 +38,27 @@ Use this when a property value is not coming from the source you expected.
 3. Use `click_element`, `simulate_keyboard`, or `drag_and_drop`
 4. Verify the result with `get_dp_value_source`, `get_viewmodel`, or another inspection tool
 
+## Mutation with snapshot rollback
+
+1. `capture_state_snapshot`
+2. Inspect the target with `get_visual_tree` or another diagnostic tool
+3. Apply one mutation such as `set_dp_value`, `modify_viewmodel`, or `override_style_setter`
+4. Verify the effect immediately
+5. `restore_state_snapshot` if the app should return to its original state
+
+Use this workflow for production-safe debugging, demos, or test sessions where the app must be left unchanged after the experiment.
+
+## Focus-sensitive multi-window workflow
+
+1. `get_windows`
+2. `get_focus_state`
+3. `get_visual_tree` on the active window or target window
+4. `focus_element` when the intended control does not currently own focus
+5. `simulate_keyboard` or another focus-dependent interaction
+6. Verify focus and side effects with `get_focus_state` plus a diagnostic tool
+
+Use this when keyboard shortcuts, Enter/Tab handling, default buttons, or dialog focus ownership may change the outcome.
+
 ## Layout and performance triage
 
 1. `get_layout_info`

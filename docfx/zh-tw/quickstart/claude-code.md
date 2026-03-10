@@ -42,6 +42,8 @@ claude mcp add --transport stdio wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsM
 claude mcp add --scope project --transport stdio wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
 ```
 
+installer 也會輸出 `client-registration\claude-code.project.mcp.json`。若你要讓團隊成員或 CI worktree 使用一致的 project scope 設定，建議優先使用這個檔案。
+
 ## 4. 驗證註冊結果
 
 ```powershell
@@ -54,8 +56,15 @@ claude mcp list
 List WPF processes, connect to the target app, ping it, and show the first two levels of the visual tree.
 ```
 
+## 6. 在 Claude Code 內做 discovery
+
+- prompts 會以 `/mcp__wpf-devtools__connect_and_list_windows` 這類 slash commands 形式出現。
+- resources 會以 `@wpf-devtools:capabilities` 與 `@wpf-devtools:limitations/elevated-targets` 這類引用形式出現。
+- 當 Claude Code 知道 server 已存在，但不容易挑到正確工具時，這些入口會比自由敘述更穩定。
+
 ## 注意事項
 
 - server 必須執行在 Windows。
 - 不要在 `WpfDevTools.Mcp.Server.exe` 外層再包會污染 `stdout` 的啟動器。
 - 若 `connect` 失敗，先一起檢查 server、bootstrapper 與 target 的 bitness。
+- 如果目標 app 是 elevated，請以系統管理員權限啟動 Claude Code，讓它透過 STDIO 拉起的 MCP server 能在相同完整性等級下 attach。

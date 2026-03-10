@@ -26,6 +26,13 @@
 
 inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接改變執行中的 UI，必須在明確目標下使用。
 
+若要做有狀態的驗證，建議優先使用這個順序：
+
+1. `capture_state_snapshot`
+2. 檢查後只做一次 mutation
+3. 立刻驗證結果
+4. 如果需要保持 app 不變，再呼叫 `restore_state_snapshot`
+
 常見的 mutation 工具包含：
 
 - `set_dp_value`
@@ -35,6 +42,7 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 - `click_element`
 - `simulate_keyboard`
 - `drag_and_drop`
+- `focus_element`
 
 ### 4. 尊重工具語意
 
@@ -42,7 +50,7 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 - `click_element` 會模擬邏輯上的按鈕點擊，適合用來觸發按鈕行為。
 - `fire_routed_event` 會手動引發 routed event route；它不是輸入手勢的通用替代品。
-- `simulate_keyboard` 適合焦點與鍵盤狀態很重要的場景。
+- `simulate_keyboard` 適合焦點與鍵盤狀態很重要的場景，而 `get_focus_state` 通常應該先確認一次。
 - `drag_and_drop` 目前最適合明確文字 payload 的受控拖放流程。
 
 ### 5. 仔細解析結構化回應
@@ -60,6 +68,13 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 - `error`
 - `errorCode`
 - `errorData`
+- `diagnosticKind`
+- `sourceKind`
+
+另外，請優先使用 MCP 的 discovery 入口，而不是靠記憶硬猜：
+
+- prompts，例如 `/mcp__wpf-devtools__debug_binding_issue`
+- resources，例如 `@wpf-devtools:capabilities`
 
 ## 容易成功的提示模式
 
@@ -81,10 +96,17 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 在目前 visual tree 中找到 Save 按鈕，先確認其 binding 與 command metadata，再點擊它並回報發生了什麼變化。
 ```
 
+### 可回復 mutation 提示詞
+
+```text
+先建立 state snapshot，找到目標控制項後只做一次 UI mutation，驗證結果，最後在結束前還原 snapshot。
+```
+
 ## 常見反模式
 
 - 重複使用舊 session 的 `elementId`。
 - 還沒確認目標元素就先呼叫 mutation 工具。
+- 對可能需要回復的 mutation 流程略過 `capture_state_snapshot`。
 - 把 `fire_routed_event` 當成等價於真實使用者輸入。
 - 未經 `get_processes` 驗證就假設目標一定是 x64。
 - `connect` 失敗時忽略架構與 bootstrapper 需求。

@@ -7,6 +7,14 @@
 - `scroll_to_element`
 - `simulate_keyboard`
 - `element_screenshot`
+- `get_focus_state`
+- `focus_element`
+- `capture_state_snapshot`
+- `restore_state_snapshot`
+
+`get_focus_state` and `focus_element` matter whenever keyboard input, default buttons, tab navigation, or multiple windows are involved.
+
+`capture_state_snapshot` and `restore_state_snapshot` are the preferred guard rails before trying UI mutations that may need rollback.
 
 ## Routed events
 
@@ -41,6 +49,9 @@
 ## Safe usage pattern
 
 1. Inspect first.
-2. Interact once.
-3. Verify immediately.
-4. Avoid stacking many mutations into one agent step.
+2. Call `capture_state_snapshot` before changing UI state.
+3. Use `get_focus_state` and `focus_element` before keyboard-sensitive actions.
+4. Interact once.
+5. Verify immediately.
+6. Use `restore_state_snapshot` if the workflow requires rollback or if you need to leave the app unchanged.
+7. Avoid stacking many mutations into one agent step.

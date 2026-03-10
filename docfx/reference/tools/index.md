@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 44 tools across ten categories.
+The server currently exposes 49 tools across ten categories.
 
 ## Categories
 
@@ -41,5 +41,10 @@ Most real sessions should follow this progression:
 | Layout | `get_layout_info` | Inspect bounds, desired size, and layout state |
 | MVVM | `get_viewmodel` | Inspect data and commands behind a view |
 | Performance | `get_render_stats` | Start performance triage |
+
+Recent additions worth learning early:
+
+- `get_focus_state` and `focus_element` for focus-sensitive keyboard and multi-window workflows
+- `capture_state_snapshot` and `restore_state_snapshot` for mutation-safe validation and rollback
 
 Use the category pages for the most important tools, semantics, and gotchas.

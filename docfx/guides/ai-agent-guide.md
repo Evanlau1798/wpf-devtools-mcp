@@ -26,6 +26,13 @@ Do not hard-code argument shapes from stale prompts or screenshots. Use the tool
 
 Inspection tools are typically safe to call repeatedly. Mutation tools change the running UI and should be used with clear intent.
 
+For stateful validation, prefer this sequence:
+
+1. `capture_state_snapshot`
+2. Inspect and mutate once
+3. Verify immediately
+4. `restore_state_snapshot` if the app should be left unchanged
+
 Examples of mutation tools:
 
 - `set_dp_value`
@@ -35,6 +42,7 @@ Examples of mutation tools:
 - `click_element`
 - `simulate_keyboard`
 - `drag_and_drop`
+- `focus_element`
 
 ### 4. Respect tool semantics
 
@@ -42,7 +50,7 @@ Some tools sound similar but have different intent:
 
 - `click_element` simulates a logical button click and is the right choice for invoking button behavior.
 - `fire_routed_event` raises an event route; it is not a replacement for an input gesture.
-- `simulate_keyboard` is best when keyboard focus matters.
+- `simulate_keyboard` is best when keyboard focus matters, and `get_focus_state` should usually be checked first.
 - `drag_and_drop` is intended for controlled payload transfer and currently works best with explicit text payload scenarios.
 
 ### 5. Parse structured results carefully
@@ -60,6 +68,13 @@ Check these fields when present:
 - `error`
 - `errorCode`
 - `errorData`
+- `diagnosticKind`
+- `sourceKind`
+
+Also use MCP discovery surfaces instead of relying on memory:
+
+- prompts such as `/mcp__wpf-devtools__debug_binding_issue`
+- resources such as `@wpf-devtools:capabilities`
 
 ## Prompt patterns that work well
 
@@ -81,10 +96,17 @@ Connect to the target WPF app, inspect binding errors, and explain which element
 Find the Save button in the current visual tree, confirm its binding and command metadata, then click it and report what changed.
 ```
 
+### Snapshot-safe mutation prompt
+
+```text
+Capture a state snapshot, locate the target control, apply one UI mutation, verify the result, and restore the snapshot before finishing.
+```
+
 ## Anti-patterns
 
 - Reusing old `elementId` values from a previous run.
 - Calling mutation tools before confirming the target element.
+- Skipping `capture_state_snapshot` before a mutation that may need rollback.
 - Treating `fire_routed_event` as a guaranteed substitute for user input.
 - Assuming the target process is x64 without checking `get_processes`.
 - Ignoring architecture or bootstrapper requirements when `connect` fails.

@@ -1,6 +1,6 @@
 # 工具總覽
 
-目前 server 共提供 44 個工具，分成十個類別。
+目前 server 共提供 49 個工具，分成十個類別。
 
 ## 類別
 
@@ -41,5 +41,10 @@
 | Layout | `get_layout_info` | 檢查 bounds、desired size 與 layout 狀態 |
 | MVVM | `get_viewmodel` | 檢查 view 背後的資料與指令 |
 | Performance | `get_render_stats` | 作為效能 triage 起點 |
+
+最近新增、建議優先熟悉的工具：
+
+- `get_focus_state` 與 `focus_element`，適合焦點敏感與多視窗工作流
+- `capture_state_snapshot` 與 `restore_state_snapshot`，適合 mutation 前後的安全回復
 
 若要了解各類別中最重要的工具、語意與常見陷阱，請繼續閱讀各分類頁面。

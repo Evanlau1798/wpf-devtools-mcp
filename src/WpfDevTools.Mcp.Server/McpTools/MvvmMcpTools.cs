@@ -14,8 +14,9 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class MvvmMcpTools
 {
     private const string MvvmMetadata = "CATEGORY: MVVM | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_viewmodel", Title = "Get ViewModel", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_viewmodel", Title = "Inspect WPF ViewModel", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect the current WPF ViewModel and runtime DataContext state for an element.\n\n" +
         MvvmMetadata + "[MVVM] Get the ViewModel (DataContext) of an element. Returns: typeName, " +
         "all properties with their current values, and whether INotifyPropertyChanged is implemented.\n\n" +
         "USE WHEN: Need to inspect ViewModel state; verify DataContext is set correctly.\n" +
@@ -49,8 +50,9 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_commands", Title = "Get Commands", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_commands", Title = "Inspect WPF ViewModel Commands", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect WPF ViewModel commands and understand runtime CanExecute state.\n\n" +
         MvvmMetadata + "[MVVM] Get all ICommand properties from the ViewModel. Returns: commandName, " +
         "canExecute status, commandType. Use to check why a button is disabled.\n\n" +
         "USE WHEN: Button is disabled; need to check ICommand.CanExecute status.\n" +
@@ -85,8 +87,9 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "execute_command", Title = "Execute Command", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "execute_command", Title = "Execute WPF ViewModel Command", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to execute a WPF ViewModel command without going through a button click path.\n\n" +
         MvvmMetadata + "[MVVM] Execute an ICommand on the ViewModel. Checks CanExecute first. " +
         "Returns execution result.\n\n" +
         "USE WHEN: Testing command logic; simulating button clicks via command.\n" +
@@ -127,8 +130,9 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_validation_errors", Title = "Get Validation Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_validation_errors", Title = "Inspect WPF Validation Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect WPF validation errors across a runtime element subtree, including inactive tabs.\n\n" +
         MvvmMetadata + "[MVVM] Get validation errors from a WPF element and all its logical and visual descendants (recursive). " +
         "Returns all WPF validation errors (via Validation.GetErrors) aggregated from the target element and its entire subtree.\n\n" +
         "USE WHEN: Form shows validation errors; need to understand validation state; querying a parent to find all child validation errors at once.\n" +
@@ -173,8 +177,9 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "modify_viewmodel", Title = "Modify ViewModel", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "modify_viewmodel", Title = "Modify WPF ViewModel", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to modify a WPF ViewModel property during runtime debugging and UI verification.\n\n" +
         MvvmMetadata + "[MVVM] Modify a ViewModel property value via reflection. UI updates automatically " +
         "ONLY if the ViewModel implements INotifyPropertyChanged. Check get_viewmodel first to confirm property name.\n\n" +
         "USE WHEN: Testing UI updates with different ViewModel values; debugging binding issues.\n" +

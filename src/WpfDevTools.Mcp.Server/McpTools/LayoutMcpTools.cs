@@ -13,8 +13,9 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class LayoutMcpTools
 {
     private const string LayoutMetadata = "CATEGORY: Layout | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_layout_info", Title = "Get Layout Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_layout_info", Title = "Inspect WPF Layout Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect WPF layout measurements and runtime positioning for an element.\n\n" +
         LayoutMetadata + "[Layout] Get layout information of a WPF element. Returns: actualWidth, actualHeight, " +
         "desiredSize, renderSize, margin, padding, horizontalAlignment, verticalAlignment, " +
         "position relative to parent and window.\n\n" +
@@ -51,8 +52,9 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_clipping_info", Title = "Get Clipping Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_clipping_info", Title = "Inspect WPF Clipping Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to inspect WPF clipping and overflow when rendered content appears cut off.\n\n" +
         LayoutMetadata + "[Layout] Get clipping information of a WPF element. Returns whether the element " +
         "is clipped by any ancestor, the clip bounds, and how much content overflows.\n\n" +
         "USE WHEN: Element appears cut off or partially hidden; debugging ScrollViewer issues.\n" +
@@ -86,8 +88,9 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "highlight_element", Title = "Highlight Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "highlight_element", Title = "Highlight WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to highlight a WPF element so runtime inspection targets stay unambiguous.\n\n" +
         LayoutMetadata + "[Layout] Visually highlight an element with a colored border overlay. " +
         "Useful for confirming you have the right element. Color accepts WPF color names " +
         "('Red', 'Blue', 'Yellow') or hex. Auto-removes after duration.\n\n" +
@@ -128,8 +131,9 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "invalidate_layout", Title = "Invalidate Layout", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "invalidate_layout", Title = "Invalidate WPF Layout", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
+        "Use this tool to invalidate WPF layout when runtime measurements need to be recomputed immediately.\n\n" +
         LayoutMetadata + "[Layout] Force layout invalidation on a WPF element, causing it to re-measure " +
         "and re-arrange. Use after modifying properties that affect layout to force an immediate update.\n\n" +
         "USE WHEN: Layout doesn't update after property changes; testing layout behavior.\n" +

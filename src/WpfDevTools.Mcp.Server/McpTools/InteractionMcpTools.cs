@@ -215,7 +215,13 @@ public static class InteractionMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  keyPressed: boolean\n" +
+        "  key,\n" +
+        "  eventType,\n" +
+        "  appliedDirectEdit: boolean,\n" +
+        "  focusChanged: boolean,\n" +
+        "  semanticEffectObserved: boolean,\n" +
+        "  focusedElementIdBefore: string|null,\n" +
+        "  focusedElementIdAfter: string|null\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

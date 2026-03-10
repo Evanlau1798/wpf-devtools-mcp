@@ -182,7 +182,7 @@ public static class MvvmMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  propertyName, oldValue, newValue, propertyType, canWrite, convertedValueType\n" +
+        "  propertyName, oldValue, newValue, propertyType, canWrite, requestedValueType, convertedValueType\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

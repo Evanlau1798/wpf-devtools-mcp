@@ -15,6 +15,7 @@ public class WpfApplicationFixture : IDisposable
     private readonly ManualResetEventSlim _appStarted = new ManualResetEventSlim(false);
     private Application? _application;
     private Dispatcher? _dispatcher;
+    private Window? _rootWindow;
 
     public WpfApplicationFixture()
     {
@@ -29,17 +30,8 @@ public class WpfApplicationFixture : IDisposable
 
             _dispatcher = Dispatcher.CurrentDispatcher;
 
-            // Create a simple window to ensure Application.Current.MainWindow exists
-            var window = new Window
-            {
-                Width = 800,
-                Height = 600,
-                WindowStyle = WindowStyle.None,
-                ShowInTaskbar = false,
-                Visibility = Visibility.Hidden
-            };
-
-            _application.MainWindow = window;
+            _rootWindow = CreateHiddenRootWindow();
+            _application.MainWindow = _rootWindow;
 
             // Signal that app is ready
             _appStarted.Set();
@@ -71,7 +63,11 @@ public class WpfApplicationFixture : IDisposable
             throw new InvalidOperationException("Dispatcher not initialized");
         }
 
-        return _dispatcher.Invoke(action);
+        return _dispatcher.Invoke(() =>
+        {
+            EnsureMainWindow();
+            return action();
+        });
     }
 
     /// <summary>
@@ -84,8 +80,38 @@ public class WpfApplicationFixture : IDisposable
             throw new InvalidOperationException("Dispatcher not initialized");
         }
 
-        _dispatcher.Invoke(action);
+        _dispatcher.Invoke(() =>
+        {
+            EnsureMainWindow();
+            action();
+        });
     }
+
+    private void EnsureMainWindow()
+    {
+        if (_application == null)
+        {
+            throw new InvalidOperationException("Application not initialized");
+        }
+
+        if (Application.Current?.MainWindow != null)
+        {
+            return;
+        }
+
+        _rootWindow = CreateHiddenRootWindow();
+        _application.MainWindow = _rootWindow;
+    }
+
+    private static Window CreateHiddenRootWindow() =>
+        new Window
+        {
+            Width = 800,
+            Height = 600,
+            WindowStyle = WindowStyle.None,
+            ShowInTaskbar = false,
+            Visibility = Visibility.Hidden
+        };
 
     public void Dispose()
     {

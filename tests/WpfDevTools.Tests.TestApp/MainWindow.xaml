@@ -65,10 +65,8 @@
                        Foreground="DarkSlateGray"/>
         </StackPanel>
 
-        <!-- Tab Control with Test Scenarios -->
-        <TabControl Grid.Row="1">
-            <!-- Tab 1: Basic Controls & Binding Errors -->
-            <TabItem Header="Basic Controls">
+        <TabControl x:Name="MainTabControl" Grid.Row="1">
+            <TabItem x:Name="BasicControlsTab" Header="Basic Controls">
                 <ScrollViewer>
                     <StackPanel Margin="10">
                         <TextBlock Text="Valid Bindings" FontWeight="Bold" Margin="0,0,0,10"/>
@@ -143,6 +141,24 @@
                                     Width="100"
                                     Margin="5"/>
                         </StackPanel>
+                        <Separator Margin="0,20,0,20"/>
+                        <TextBlock Text="Focus Workflow" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBox x:Name="FocusStartTextBox"
+                                 Margin="5"
+                                 Text="Focus start"
+                                 GotFocus="FocusWorkflowElement_GotFocus"/>
+                        <TextBox x:Name="FocusNextTextBox"
+                                 Margin="5"
+                                 Text="Focus next"
+                                 GotFocus="FocusWorkflowElement_GotFocus"/>
+                        <Button x:Name="FocusActionButton"
+                                Margin="5"
+                                Width="120"
+                                Content="Focus Action"
+                                IsDefault="True"
+                                GotFocus="FocusWorkflowElement_GotFocus"
+                                Click="FocusActionButton_Click"/>
+                        <TextBlock x:Name="FocusStatusTextBlock" Margin="5" Foreground="SlateBlue" Text="Focus workflow ready"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -202,8 +218,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- Tab 4: Styles &amp; Templates -->
-            <TabItem Header="Styles &amp; Templates">
+            <TabItem x:Name="StylesTemplatesTab" Header="Styles &amp; Templates">
                 <TabItem.Resources>
                     <!-- Base Style -->
                     <Style x:Key="BaseButtonStyle" TargetType="Button">
@@ -241,14 +256,15 @@
                 <ScrollViewer>
                     <StackPanel Margin="10">
                         <TextBlock Text="Style Inheritance" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Button Content="Base Style" Style="{StaticResource BaseButtonStyle}"/>
-                        <Button Content="Primary Style" Style="{StaticResource PrimaryButtonStyle}"/>
-                        <Button Content="Primary Disabled" Style="{StaticResource PrimaryButtonStyle}" IsEnabled="False"/>
+                        <Button x:Name="BaseStyleButton" Content="Base Style" Style="{StaticResource BaseButtonStyle}"/>
+                        <Button x:Name="PrimaryStyleButton" Content="Primary Style" Style="{StaticResource PrimaryButtonStyle}"/>
+                        <Button x:Name="PrimaryDisabledButton" Content="Primary Disabled" Style="{StaticResource PrimaryButtonStyle}" IsEnabled="False"/>
 
                         <Separator Margin="0,20,0,20"/>
 
                         <TextBlock Text="Control Template" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Button Content="Round Button"
+                        <Button x:Name="RoundTemplateButton"
+                                Content="Round Button"
                                 Template="{StaticResource RoundButtonTemplate}"
                                 Background="LightGreen"
                                 Padding="20,10"
@@ -314,21 +330,21 @@
                 <ScrollViewer>
                     <StackPanel Margin="10">
                         <TextBlock Text="Clipping" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Border Width="150" Height="50" BorderBrush="Black" BorderThickness="1" ClipToBounds="True" Margin="5">
-                            <TextBlock Text="This text is very long and will be clipped by the border because ClipToBounds is True"
+                        <Border x:Name="ClippingBorderSample" Width="150" Height="50" BorderBrush="Black" BorderThickness="1" ClipToBounds="True" Margin="5">
+                            <TextBlock x:Name="ClippingTextSample" Text="This text is very long and will be clipped by the border because ClipToBounds is True"
                                       TextWrapping="Wrap"/>
                         </Border>
 
                         <Separator Margin="0,20,0,20"/>
 
                         <TextBlock Text="Render Transform" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Button Content="Rotated Button" Margin="5">
+                        <Button x:Name="RotatedButtonSample" Content="Rotated Button" Margin="5">
                             <Button.RenderTransform>
                                 <RotateTransform Angle="15"/>
                             </Button.RenderTransform>
                         </Button>
 
-                        <Button Content="Scaled Button" Margin="5">
+                        <Button x:Name="ScaledButtonSample" Content="Scaled Button" Margin="5">
                             <Button.RenderTransform>
                                 <ScaleTransform ScaleX="1.2" ScaleY="1.2"/>
                             </Button.RenderTransform>
@@ -337,7 +353,7 @@
                         <Separator Margin="0,20,0,20"/>
 
                         <TextBlock Text="Layout Transform" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Button Content="Layout Rotated" Margin="5">
+                        <Button x:Name="LayoutRotatedButtonSample" Content="Layout Rotated" Margin="5">
                             <Button.LayoutTransform>
                                 <RotateTransform Angle="45"/>
                             </Button.LayoutTransform>
@@ -379,12 +395,13 @@
                 </Grid>
             </TabItem>
 
-            <!-- Tab 8: Performance Test -->
-            <TabItem Header="Performance">
+            <TabItem x:Name="PerformanceTab" Header="Performance">
                 <ScrollViewer x:Name="PerformanceScrollViewer">
                     <StackPanel x:Name="PerformanceStackPanel" Margin="10">
                         <TextBlock Text="Large Visual Tree (100 elements)" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <!-- Elements will be added programmatically -->
+                        <Border x:Name="PerformanceBottomSentinel" BorderBrush="DarkSlateBlue" BorderThickness="1" Margin="0,12,0,0" Padding="8">
+                            <TextBlock Text="Performance sentinel"/>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

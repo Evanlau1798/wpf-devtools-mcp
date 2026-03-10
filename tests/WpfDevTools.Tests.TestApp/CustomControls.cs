@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace WpfDevTools.Tests.TestApp;
 
@@ -47,13 +48,29 @@ public class CustomTextBox : TextBox
             "HighlightColor",
             typeof(string),
             typeof(CustomTextBox),
-            new PropertyMetadata("Yellow"));
+            new PropertyMetadata("Yellow", OnHighlightColorChanged));
 
     public static string GetHighlightColor(DependencyObject obj)
         => (string)obj.GetValue(HighlightColorProperty);
 
     public static void SetHighlightColor(DependencyObject obj, string value)
         => obj.SetValue(HighlightColorProperty, value);
+
+    private static void OnHighlightColorChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is not Control control)
+        {
+            return;
+        }
+
+        var value = e.NewValue?.ToString() ?? "Yellow";
+        control.ToolTip = $"HighlightColor: {value}";
+
+        if (new BrushConverter().ConvertFromString(value) is Brush brush)
+        {
+            control.Background = brush;
+        }
+    }
 }
 
 /// <summary>

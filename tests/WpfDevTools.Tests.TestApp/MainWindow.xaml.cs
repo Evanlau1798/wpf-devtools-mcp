@@ -31,22 +31,17 @@ public partial class MainWindow : Window
         };
         AutomationStatusTextBlock.Text = viewModel.LastActionMessage;
 
-        // Initialize performance test elements
         InitializePerformanceTab();
 
-        // Setup drag & drop handlers
         SetupDragAndDrop();
 
-        // Setup custom event handlers
         SetupCustomEvents();
 
-        // Setup modern theme diagnostics
         InitializeModernTheme();
     }
 
     private void InitializePerformanceTab()
     {
-        // Add 100 elements to test performance tools
         for (int i = 0; i < 100; i++)
         {
             var border = new Border
@@ -83,13 +78,12 @@ public partial class MainWindow : Window
             });
 
             border.Child = stackPanel;
-            PerformanceStackPanel.Children.Add(border);
+            PerformanceStackPanel.Children.Insert(PerformanceStackPanel.Children.Count - 1, border);
         }
     }
 
     private void SetupDragAndDrop()
     {
-        // Drag source
         DragSourceTextBox.PreviewMouseLeftButtonDown += (s, e) =>
         {
             if (s is TextBox textBox && !string.IsNullOrEmpty(textBox.Text))
@@ -98,7 +92,6 @@ public partial class MainWindow : Window
             }
         };
 
-        // Drop target
         DropTargetTextBox.DragEnter += (s, e) =>
         {
             if (e.Data.GetDataPresent(DataFormats.Text))
@@ -128,7 +121,6 @@ public partial class MainWindow : Window
 
     private void SetupCustomEvents()
     {
-        // Handle custom routed event
         CustomButton1.CustomClick += (s, e) =>
         {
             if (DataContext is TestViewModel viewModel)
@@ -136,5 +128,22 @@ public partial class MainWindow : Window
                 viewModel.RecordActionMessage("Custom routed event fired!");
             }
         };
+    }
+
+    private void FocusWorkflowElement_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement element)
+        {
+            FocusStatusTextBlock.Text = $"{element.Name} focused";
+        }
+    }
+
+    private void FocusActionButton_Click(object sender, RoutedEventArgs e)
+    {
+        FocusStatusTextBlock.Text = "FocusActionButton clicked";
+        if (DataContext is TestViewModel viewModel)
+        {
+            viewModel.RecordActionMessage("Focus action invoked");
+        }
     }
 }

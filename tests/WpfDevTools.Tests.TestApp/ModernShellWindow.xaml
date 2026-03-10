@@ -62,6 +62,11 @@
                         <TextBlock Text="This window validates custom chrome, rounded corners, and fallback backdrop behavior."
                                    TextWrapping="Wrap"
                                    Foreground="{DynamicResource ModernForegroundBrush}"/>
+                        <TextBox x:Name="ModernShellInputTextBox"
+                                 Margin="0,16,0,0"
+                                 Width="220"
+                                 Text="Secondary window input"
+                                 Foreground="{DynamicResource ModernForegroundBrush}"/>
                         <Button x:Name="ModernPrimaryActionButton"
                                 Margin="0,16,0,0"
                                 Padding="14,8"

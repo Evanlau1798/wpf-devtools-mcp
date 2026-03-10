@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -81,7 +82,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                     {
                         ["name"] = prop.Name,
                         ["type"] = prop.PropertyType.Name,
-                        ["value"] = value?.ToString()
+                        ["value"] = value?.ToString(),
+                        ["canWrite"] = prop.CanWrite,
+                        ["canRead"] = prop.CanRead
                     });
                 }
                 catch (Exception) { /* Skip properties with throwing getters */ }
@@ -421,6 +424,10 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                     propertyName,
                     oldValue = oldValue?.ToString(),
                     newValue = convertedValue?.ToString(),
+                    propertyType = propertyInfo.PropertyType.Name,
+                    canWrite = propertyInfo.CanWrite,
+                    requestedValueType = value is JsonElement jsonValue ? jsonValue.ValueKind.ToString() : value?.GetType().Name ?? "Null",
+                    convertedValueType = convertedValue?.GetType().Name ?? "Null",
                     viewModelType = viewModel.GetType().Name,
                     implementsINotifyPropertyChanged = viewModel is System.ComponentModel.INotifyPropertyChanged
                 };

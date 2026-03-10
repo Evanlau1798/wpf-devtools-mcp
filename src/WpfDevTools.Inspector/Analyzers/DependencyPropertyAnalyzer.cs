@@ -86,12 +86,14 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             var effectiveValue = depObj.GetValue(dp);
             var localValue = depObj.ReadLocalValue(dp);
             var hadLocalValue = localValue != DependencyProperty.UnsetValue;
+            var rawBaseValueSource = valueSource.BaseValueSource.ToString();
 
             return new
             {
                 success = true,
                 propertyName = propertyName,
-                baseValueSource = valueSource.BaseValueSource.ToString(),
+                baseValueSource = DependencyPropertyValueSourceNormalizer.Normalize(valueSource.BaseValueSource, hadLocalValue, valueSource.IsAnimated),
+                rawBaseValueSource,
                 isExpression = valueSource.IsExpression,
                 isAnimated = valueSource.IsAnimated,
                 isCoerced = valueSource.IsCoerced,

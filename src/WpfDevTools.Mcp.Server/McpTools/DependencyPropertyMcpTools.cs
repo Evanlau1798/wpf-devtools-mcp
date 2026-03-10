@@ -21,10 +21,12 @@ public static class DependencyPropertyMcpTools
         "TemplateBinding, LocalValue, or Animation.\n\n" +
         "USE WHEN: Property has unexpected value; need to understand precedence (Style vs LocalValue vs Animation).\n" +
         "DO NOT USE: Without propertyName - it's required.\n\n" +
+        "NORMALIZATION: baseValueSource is normalized into stable categories for agents, while rawBaseValueSource preserves the original WPF BaseValueSource enum name.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  propertyName, currentValue, baseValueSource: 'Default'|'Inherited'|'Style'|'LocalValue'|'Trigger'|'Animation',\n" +
+        "  rawBaseValueSource, hadLocalValue, localValue,\n" +
         "  isExpression, isAnimated, isCoerced, isCurrent\n" +
         "}\n\n" +
         "ERRORS:\n" +

@@ -74,11 +74,15 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
                     return new { success = false, error = $"ViewModel property '{propertyName}' was not found in the current DataContext." };
                 }
 
+                var canRestore = !property.TryGetProperty("canWrite", out var canWriteProperty) ||
+                    (canWriteProperty.ValueKind == JsonValueKind.True);
                 viewModelProperties.Add(new StoredViewModelPropertySnapshot(
                     elementId,
                     propertyName,
                     GetOptionalString(property, "type"),
-                    GetOptionalString(property, "value")));
+                    GetOptionalString(property, "value"),
+                    canRestore,
+                    canRestore ? null : $"Property '{propertyName}' is read-only or derived and cannot be restored via modify_viewmodel."));
             }
         }
 

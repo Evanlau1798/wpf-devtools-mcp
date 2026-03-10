@@ -21,7 +21,9 @@ internal sealed record StoredViewModelPropertySnapshot(
     string? ElementId,
     string PropertyName,
     string? PropertyType,
-    string? Value);
+    string? Value,
+    bool CanRestore,
+    string? SkipReason);
 
 internal sealed record StoredFocusSnapshot(
     string? FocusKind,

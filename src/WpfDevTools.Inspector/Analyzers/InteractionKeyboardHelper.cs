@@ -44,6 +44,19 @@ internal static class InteractionKeyboardHelper
         return false;
     }
 
+    internal static bool TryMoveFocus(UIElement uiElement, Key key)
+    {
+        if (key != Key.Tab)
+        {
+            return false;
+        }
+
+        EnsureKeyboardFocus(uiElement);
+        var request = new TraversalRequest(FocusNavigationDirection.Next);
+        var moved = uiElement.MoveFocus(request);
+        return moved && !ReferenceEquals(Keyboard.FocusedElement, uiElement);
+    }
+
     /// <summary>
     /// Raises the preview (tunnel) event before the bubble event for proper
     /// WPF event sequence: PreviewKeyDown -> KeyDown, PreviewKeyUp -> KeyUp.
@@ -153,8 +166,7 @@ internal static class InteractionKeyboardHelper
         var hadKeyboardFocus = textBox.IsKeyboardFocusWithin;
         if (!hadKeyboardFocus)
         {
-            textBox.Focus();
-            Keyboard.Focus(textBox);
+            EnsureKeyboardFocus(textBox);
         }
 
         var text = textBox.Text ?? string.Empty;
@@ -212,9 +224,14 @@ internal static class InteractionKeyboardHelper
             Key.Subtract => '-',
             Key.Decimal => '.',
             Key.Divide => '/',
-            Key.Tab => '\t',
             _ => null
         };
+    }
+
+    private static void EnsureKeyboardFocus(UIElement uiElement)
+    {
+        uiElement.Focus();
+        Keyboard.Focus(uiElement);
     }
 
     private static int ClampInt(int value, int min, int max)

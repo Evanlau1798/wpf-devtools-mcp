@@ -24,7 +24,7 @@ public static class MvvmMcpTools
         "{\n" +
         "  success: boolean,\n" +
         "  typeName, implementsINotifyPropertyChanged: boolean,\n" +
-        "  properties: [{ name, value, type }]\n" +
+        "  properties: [{ name, value, type, canWrite }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -182,7 +182,7 @@ public static class MvvmMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  propertyName, oldValue, newValue\n" +
+        "  propertyName, oldValue, newValue, propertyType, canWrite, convertedValueType\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

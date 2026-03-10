@@ -63,6 +63,7 @@ public static class StateMcpTools
         "  success: boolean,\n" +
         "  restoredDependencyPropertyCount: number,\n" +
         "  restoredViewModelPropertyCount: number,\n" +
+        "  skippedViewModelPropertyCount: number,\n" +
         "  restoredFocus: boolean,\n" +
         "  warnings: string[]\n" +
         "}\n\n" +

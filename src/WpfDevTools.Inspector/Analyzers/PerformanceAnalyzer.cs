@@ -138,7 +138,7 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             var count = CountVisualElements(element);
@@ -166,7 +166,7 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             // Approximate render time by forcing invalidation and measuring next frame

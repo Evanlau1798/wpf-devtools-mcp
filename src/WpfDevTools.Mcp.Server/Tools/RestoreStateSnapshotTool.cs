@@ -1,5 +1,6 @@
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.State;
+using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -23,7 +24,12 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
         if (!_sessionManager.TryGetStateSnapshot(processId, snapshotId, out var snapshot) || snapshot == null)
         {
-            return new { success = false, error = $"No stored snapshot found for snapshotId '{snapshotId}'." };
+            return new ToolErrorPayload
+            {
+                Error = $"No stored snapshot found for snapshotId '{snapshotId}'.",
+                ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
+                Hint = "Call capture_state_snapshot first or verify the snapshotId before retrying restore_state_snapshot."
+            };
         }
 
         var warnings = new List<string>();

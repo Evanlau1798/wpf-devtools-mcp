@@ -57,18 +57,22 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Target a FrameworkElement with a DataContext before calling get_viewmodel.");
             }
 
             var dataContext = fe.DataContext;
             if (dataContext == null)
             {
-                return new { success = false, error = "Element has no DataContext" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element has no DataContext",
+                    "Choose an element with a ViewModel/DataContext or call get_datacontext_chain first.");
             }
 
             var dcType = dataContext.GetType();
@@ -116,7 +120,7 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
         {
             var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
             if (element == null)
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
 
             var fe = element as FrameworkElement;
             if (fe?.DataContext == null)
@@ -164,19 +168,23 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
             var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
             if (element == null)
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
 
             var fe = element as FrameworkElement;
             if (fe?.DataContext == null)
-                return new { success = false, error = "No DataContext found" };
+                return ToolErrorFactory.InvalidArgument(
+                    "No DataContext found",
+                    "Choose an element with a ViewModel/DataContext or call get_viewmodel/get_commands first.");
 
             var prop = fe.DataContext.GetType().GetProperty(commandName);
             if (prop == null)
-                return new { success = false, error = $"Command '{commandName}' not found" };
+                return ToolErrorFactory.CommandNotFound(commandName);
 
             var cmd = prop.GetValue(fe.DataContext) as System.Windows.Input.ICommand;
             if (cmd == null)
-                return new { success = false, error = $"'{commandName}' is not an ICommand" };
+                return ToolErrorFactory.InvalidArgument(
+                    $"'{commandName}' is not an ICommand",
+                    "Call get_commands first and choose a property whose type implements ICommand.");
 
             var canExecute = cmd.CanExecute(parameter);
             if (!canExecute)
@@ -184,14 +192,16 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                 AuditLogger.LogSecurityEvent("CommandExecution",
                     $"Blocked by CanExecute: {commandName}",
                     AuditSeverity.Warning);
-                return new
-                {
-                    success = false,
-                    error = $"Command '{commandName}' cannot execute",
-                    commandName,
-                    canExecute = false,
-                    executed = false
-                };
+                return ToolErrorFactory.Create(
+                    Shared.ErrorHandling.ToolErrorCode.InvalidArgument,
+                    $"Command '{commandName}' cannot execute",
+                    "Call get_commands first and verify CanExecute is true before invoking execute_command.",
+                    new
+                    {
+                        commandName,
+                        canExecute = false,
+                        executed = false
+                    });
             }
 
             // Execute command
@@ -227,7 +237,7 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
         {
             var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
             if (element == null)
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
 
             var errors = new List<object>();
             if (element is DependencyObject depObj)
@@ -289,7 +299,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
         {
             if (string.IsNullOrEmpty(propertyName))
             {
-                return new { success = false, error = "propertyName is required" };
+                return ToolErrorFactory.InvalidArgument(
+                    "propertyName is required",
+                    "Provide propertyName and value when calling modify_viewmodel.");
             }
 
             var element = elementId == null
@@ -298,18 +310,22 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Target a FrameworkElement with a DataContext before calling modify_viewmodel.");
             }
 
             var viewModel = fe.DataContext;
             if (viewModel == null)
             {
-                return new { success = false, error = "Element has no DataContext" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element has no DataContext",
+                    "Choose an element with a ViewModel/DataContext or call get_viewmodel first.");
             }
 
             try
@@ -318,12 +334,14 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                 var propertyInfo = viewModel.GetType().GetProperty(propertyName);
                 if (propertyInfo == null)
                 {
-                    return new { success = false, error = $"Property '{propertyName}' not found on ViewModel" };
+                    return ToolErrorFactory.PropertyNotFound(propertyName, "ViewModel");
                 }
 
                 if (!propertyInfo.CanWrite)
                 {
-                    return new { success = false, error = $"Property '{propertyName}' is read-only" };
+                    return ToolErrorFactory.InvalidArgument(
+                        $"Property '{propertyName}' is read-only",
+                        "Choose a writable ViewModel property. Inspect canWrite via get_viewmodel before retrying.");
                 }
 
                 // SECURITY: Check property name against sensitive property pattern
@@ -334,11 +352,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                         $"Blocked sensitive property: {propertyName}",
                         AuditSeverity.Warning);
 
-                    return new
-                    {
-                        success = false,
-                        error = $"Property '{propertyName}' cannot be modified for security reasons"
-                    };
+                    return ToolErrorFactory.InvalidArgument(
+                        $"Property '{propertyName}' cannot be modified for security reasons",
+                        "Avoid modifying sensitive properties such as passwords, tokens, keys, or credentials.");
                 }
 
                 // Convert value to target type
@@ -350,11 +366,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                     // Check if target type accepts null
                     if (targetType.IsValueType && Nullable.GetUnderlyingType(targetType) == null)
                     {
-                        return new
-                        {
-                            success = false,
-                            error = $"Cannot assign null to non-nullable type '{targetType.Name}'"
-                        };
+                        return ToolErrorFactory.InvalidArgument(
+                            $"Cannot assign null to non-nullable type '{targetType.Name}'",
+                            "Provide a non-null value compatible with the target ViewModel property type.");
                     }
                     convertedValue = null;
                 }
@@ -389,14 +403,15 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                     }
                     catch (Exception conversionEx)
                     {
-                        return new
-                        {
-                            success = false,
-                            error = $"Type conversion failed: {conversionEx.Message}",
-                            sourceType = value.GetType().Name,
-                            targetType = targetType.Name,
-                            hint = "Ensure the value is compatible with the property type"
-                        };
+                        return ToolErrorFactory.Create(
+                            Shared.ErrorHandling.ToolErrorCode.InvalidArgument,
+                            $"Type conversion failed: {conversionEx.Message}",
+                            "Ensure the value is compatible with the property type",
+                            new
+                            {
+                                sourceType = value.GetType().Name,
+                                targetType = targetType.Name
+                            });
                     }
                 }
 
@@ -435,7 +450,10 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to modify ViewModel property: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "modify ViewModel property",
+                    ex,
+                    "Re-query the ViewModel with get_viewmodel and verify the property is writable before retrying modify_viewmodel.");
             }
         });
     }

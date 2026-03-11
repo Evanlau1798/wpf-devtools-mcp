@@ -38,7 +38,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             var bindings = recursive
@@ -110,7 +110,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             var chain = new List<object>();
@@ -182,7 +182,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             return GetBindingValueChainCore(element, propertyName);
@@ -204,7 +204,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             return ForceBindingUpdateCore(element, propertyName, direction);
@@ -221,19 +221,21 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     {
         if (element == null)
         {
-            return new { success = false, error = "Element is null" };
+            return ToolErrorFactory.ElementNotFound();
         }
 
         if (string.IsNullOrEmpty(propertyName))
         {
-            return new { success = false, error = "propertyName is required" };
+            return ToolErrorFactory.InvalidArgument(
+                "propertyName is required",
+                "Provide propertyName to inspect a specific bound DependencyProperty.");
         }
 
         // Find DependencyProperty
         var dp = FindDependencyProperty(element, propertyName);
         if (dp == null)
         {
-            return new { success = false, error = $"Property '{propertyName}' not found" };
+            return ToolErrorFactory.PropertyNotFound(propertyName, element.GetType().Name);
         }
 
         // Get binding expression
@@ -360,26 +362,30 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     {
         if (element == null)
         {
-            return new { success = false, error = "Element is null" };
+            return ToolErrorFactory.ElementNotFound();
         }
 
         if (string.IsNullOrEmpty(propertyName))
         {
-            return new { success = false, error = "propertyName is required" };
+            return ToolErrorFactory.InvalidArgument(
+                "propertyName is required",
+                "Provide propertyName to update a specific binding.");
         }
 
         // Find DependencyProperty
         var dp = FindDependencyProperty(element, propertyName);
         if (dp == null)
         {
-            return new { success = false, error = $"Property '{propertyName}' not found" };
+            return ToolErrorFactory.PropertyNotFound(propertyName, element.GetType().Name);
         }
 
         // Get binding expression
         var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
         if (bindingExpr == null)
         {
-            return new { success = false, error = "No binding on this property" };
+            return ToolErrorFactory.InvalidArgument(
+                "No binding on this property",
+                "Call get_bindings first to confirm the target property has an active binding.");
         }
 
         try
@@ -408,96 +414,17 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             }
             else
             {
-                return new { success = false, error = "Invalid direction. Use 'Source' or 'Target'" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Invalid direction. Use 'Source' or 'Target'",
+                    "Set direction to 'Source' or 'Target' when calling force_binding_update.");
             }
         }
         catch (Exception ex)
         {
-            return new { success = false, error = $"Failed to update binding: {ex.Message}" };
+            return ToolErrorFactory.InvalidArgument(
+                $"Failed to update binding: {ex.Message}",
+                "Inspect the binding with get_bindings or get_binding_value_chain before retrying.");
         }
-    }
-
-    private DependencyObject? ResolveElement(string? elementId)
-    {
-        return elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-    }
-
-    private List<object> CollectBindingsRecursive(DependencyObject element)
-    {
-        var bindings = new List<object>();
-        var visited = new HashSet<DependencyObject>();
-        CollectBindingsRecursiveCore(element, visited, bindings);
-        return bindings;
-    }
-
-    private void CollectBindingsRecursiveCore(
-        DependencyObject element,
-        HashSet<DependencyObject> visited,
-        List<object> bindings)
-    {
-        if (!visited.Add(element))
-        {
-            return;
-        }
-
-        var elementBindings = GetDependencyPropertiesWithBindings(element);
-        if (elementBindings.Count > 0)
-        {
-            var elementId = _elementFinder.GenerateElementId(element);
-            var elementType = element.GetType().Name;
-
-            foreach (var binding in elementBindings)
-            {
-                if (binding is Dictionary<string, object?> dict)
-                {
-                    dict["elementId"] = elementId;
-                    dict["elementType"] = elementType;
-                }
-            }
-
-            bindings.AddRange(elementBindings);
-        }
-
-        foreach (var child in DependencyObjectTraversal.EnumerateChildren(element))
-        {
-            CollectBindingsRecursiveCore(child, visited, bindings);
-        }
-    }
-
-    private List<object> GetDependencyPropertiesWithBindings(DependencyObject element)
-    {
-        var bindings = new List<object>();
-        var seenProperties = new HashSet<string>();
-
-        // Use LocalValueEnumerator to find all locally set properties (including attached properties)
-        var enumerator = element.GetLocalValueEnumerator();
-        while (enumerator.MoveNext())
-        {
-            var entry = enumerator.Current;
-            var dp = entry.Property;
-
-            if (dp != null && seenProperties.Add(dp.Name))
-            {
-                // Try to get binding expression for this property
-                var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
-                if (bindingExpr != null)
-                {
-                    var binding = bindingExpr.ParentBinding;
-
-                    bindings.Add(new Dictionary<string, object?>
-                    {
-                        ["propertyName"] = dp.Name,
-                        ["path"] = binding?.Path?.Path,
-                        ["mode"] = binding?.Mode.ToString(),
-                        ["updateSourceTrigger"] = binding?.UpdateSourceTrigger.ToString()
-                    });
-                }
-            }
-        }
-
-        return bindings;
     }
 
 }

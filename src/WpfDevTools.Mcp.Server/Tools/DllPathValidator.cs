@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using WpfDevTools.Shared.IO;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -19,6 +20,9 @@ internal static class DllPathValidator
     /// Validate DLL path to prevent path traversal and untrusted loading.
     /// </summary>
     public static void ValidateDllPath(string dllPath)
+        => ValidateDllPath(dllPath, AppContext.BaseDirectory);
+
+    internal static void ValidateDllPath(string dllPath, string baseDirectory)
     {
         if (string.IsNullOrWhiteSpace(dllPath))
             throw new ArgumentException("DLL path cannot be empty", nameof(dllPath));
@@ -35,7 +39,7 @@ internal static class DllPathValidator
         var fullPath = Path.GetFullPath(dllPath);
 
         // SECURITY: Whitelist approach ??only allow DLLs under trusted roots
-        if (!IsUnderTrustedRoot(fullPath))
+        if (!IsUnderTrustedRoot(fullPath, baseDirectory))
         {
             throw new ArgumentException(
                 "DLL must be located within the application directory or trusted WpfDevTools workspace",
@@ -65,9 +69,9 @@ internal static class DllPathValidator
         }
     }
 
-    private static bool IsUnderTrustedRoot(string fullPath)
+    private static bool IsUnderTrustedRoot(string fullPath, string baseDirectory)
     {
-        foreach (var trustedRoot in GetTrustedRoots())
+        foreach (var trustedRoot in EnumerateTrustedRoots(baseDirectory))
         {
             if (IsPathWithinRoot(fullPath, trustedRoot))
             {
@@ -78,15 +82,19 @@ internal static class DllPathValidator
         return false;
     }
 
-    private static IEnumerable<string> GetTrustedRoots()
+    internal static IReadOnlyList<string> EnumerateTrustedRoots(string baseDirectory)
     {
-        yield return Path.GetFullPath(AppContext.BaseDirectory);
+        var trustedRoots = new List<string> { Path.GetFullPath(baseDirectory) };
 
-        var solutionRoot = DllCandidateResolver.GetSolutionRoot(AppContext.BaseDirectory);
-        if (solutionRoot != null)
+        foreach (var solutionRoot in RepositoryLayoutLocator.EnumerateSolutionRoots(baseDirectory))
         {
-            yield return solutionRoot;
+            if (!trustedRoots.Contains(solutionRoot, StringComparer.OrdinalIgnoreCase))
+            {
+                trustedRoots.Add(solutionRoot);
+            }
         }
+
+        return trustedRoots;
     }
 
     private static bool IsPathWithinRoot(string fullPath, string rootPath)

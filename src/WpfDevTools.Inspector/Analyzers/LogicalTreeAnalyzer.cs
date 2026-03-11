@@ -41,7 +41,7 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
 
             if (resolvedRoot == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             var budget = new TreeTraversalBudget(options.MaxNodes);

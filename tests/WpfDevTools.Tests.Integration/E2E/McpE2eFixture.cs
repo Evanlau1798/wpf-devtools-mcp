@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using WpfDevTools.Tests.Integration.TestSupport;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
@@ -47,7 +48,7 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             return;
         }
 
-        if (!HasNativeBootstrapper())
+        if (!BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory))
         {
             SkipReason = "Native bootstrapper DLLs not found. Build src/WpfDevTools.Bootstrapper first.";
             return;
@@ -168,25 +169,6 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 
         return null;
     }
-
-    private static bool HasNativeBootstrapper()
-    {
-        var solutionDir = FindSolutionRoot();
-        var artifactsDir = Path.Combine(solutionDir, "artifacts", "bootstrapper");
-
-        if (Directory.Exists(artifactsDir))
-        {
-            var dlls = Directory.GetFiles(
-                artifactsDir, "WpfDevTools.Bootstrapper.*.dll", SearchOption.AllDirectories);
-            if (Array.Exists(dlls, d => new FileInfo(d).Length > 0))
-                return true;
-        }
-
-        var localPath = Path.Combine(
-            AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
-        return File.Exists(localPath) && new FileInfo(localPath).Length > 0;
-    }
-
     private static string FindSolutionRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

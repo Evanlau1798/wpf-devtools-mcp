@@ -89,27 +89,39 @@ public class TreeHandlers : IRequestHandler
             _visualTreeAnalyzer.CompareTree(elementId), cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<object> HandleSerializeToXamlAsync(JsonElement? @params, CancellationToken cancellationToken)
+    private Task<object> HandleSerializeToXamlAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var element = elementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
 
-        return await Task.Run(() =>
+        if (element == null)
         {
-            return System.Windows.Application.Current.Dispatcher.Invoke<object>(() =>
-            {
-                var element = elementId == null
-                    ? _elementFinder.GetRootElement()
-                    : _elementFinder.FindById(elementId);
+            return Task.FromResult<object>(ToolErrorFactory.ElementNotFound(elementId));
+        }
 
-                if (element == null)
-                {
-                    return new { success = false, error = "Element not found" };
-                }
+        var dispatcher = element.Dispatcher ?? System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null)
+        {
+            return Task.FromResult<object>(ToolErrorFactory.ElementNotFound(elementId));
+        }
 
-                var xaml = _xamlSerializer.SerializeToXaml(element);
-                return new { success = true, xaml };
-            }, System.Windows.Threading.DispatcherPriority.Normal);
-        }, cancellationToken).ConfigureAwait(false);
+        object SerializeElement() => new
+        {
+            success = true,
+            xaml = _xamlSerializer.SerializeToXaml(element)
+        };
+
+        if (dispatcher.CheckAccess())
+        {
+            return Task.FromResult(SerializeElement());
+        }
+
+        return Task.FromResult(dispatcher.Invoke(
+            SerializeElement,
+            System.Windows.Threading.DispatcherPriority.Normal));
     }
 
     private async Task<object> HandleGetNameScopeAsync(JsonElement? @params, CancellationToken cancellationToken)

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.State;
+using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -71,7 +72,12 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             {
                 if (!availableProperties.TryGetValue(propertyName, out var property))
                 {
-                    return new { success = false, error = $"ViewModel property '{propertyName}' was not found in the current DataContext." };
+                    return new ToolErrorPayload
+                    {
+                        Error = $"ViewModel property '{propertyName}' was not found in the current DataContext.",
+                        ErrorCode = ToolErrorCode.PropertyNotFound.ToString(),
+                        Hint = "Call get_viewmodel first to inspect the available propertyName values on the current DataContext."
+                    };
                 }
 
                 var canRestore = !property.TryGetProperty("canWrite", out var canWriteProperty) ||
@@ -154,13 +160,32 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             ? property.ToString()
             : null;
 
-    private static object CreateStepFailure(string method, string? propertyName, JsonElement response) =>
-        new
+    private static ToolErrorPayload CreateStepFailure(string method, string? propertyName, JsonElement response)
+    {
+        var contextMessage = propertyName == null
+            ? $"Failed during {method}."
+            : $"Failed during {method} for '{propertyName}'.";
+
+        var originalError = response.TryGetProperty("error", out var errorProperty)
+            ? errorProperty.GetString()
+            : null;
+        var errorCode = response.TryGetProperty("errorCode", out var errorCodeProperty)
+            ? errorCodeProperty.GetString()
+            : null;
+        var hint = response.TryGetProperty("hint", out var hintProperty)
+            ? hintProperty.GetString()
+            : null;
+
+        return new ToolErrorPayload
         {
-            success = false,
-            error = propertyName == null
-                ? $"Failed during {method}."
-                : $"Failed during {method} for '{propertyName}'.",
-            details = response
+            Error = originalError is { Length: > 0 }
+                ? $"{contextMessage} {originalError}"
+                : contextMessage,
+            ErrorCode = string.IsNullOrWhiteSpace(errorCode)
+                ? ToolErrorCode.OperationFailed.ToString()
+                : errorCode!,
+            Hint = hint ?? $"Inspect the failing {method} step and re-query the current runtime state before retrying capture_state_snapshot.",
+            ErrorData = response.Clone()
         };
+    }
 }

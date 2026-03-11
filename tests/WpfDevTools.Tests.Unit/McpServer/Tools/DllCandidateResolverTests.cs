@@ -48,4 +48,28 @@ public class DllCandidateResolverTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void EnumerateBootstrapperCandidates_ShouldIncludePrimaryRepositoryArtifacts_WhenRunningFromWorktree()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var mainRoot = Path.Combine(root, "repo");
+        var worktreeRoot = Path.Combine(mainRoot, ".worktrees", "feature-branch");
+        var serverDir = Path.Combine(worktreeRoot, "src", "WpfDevTools.Mcp.Server", "bin", "Debug");
+        Directory.CreateDirectory(serverDir);
+        File.WriteAllText(Path.Combine(mainRoot, "WpfDevTools.sln"), string.Empty);
+        File.WriteAllText(Path.Combine(worktreeRoot, "WpfDevTools.sln"), string.Empty);
+
+        try
+        {
+            var candidates = DllCandidateResolver.EnumerateBootstrapperCandidates(serverDir).ToArray();
+
+            candidates.Should().Contain(Path.GetFullPath(Path.Combine(
+                mainRoot, "artifacts", "bootstrapper", "Debug", "x64", "WpfDevTools.Bootstrapper.x64.dll")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

@@ -23,14 +23,14 @@ public class WpfProcessDetector
     {
         var wpfProcesses = new List<WpfProcessInfo>();
         var windows = TopLevelWindowEnumerator.Enumerate();
+        var bestWindows = BuildBestWindowIndex(windows);
         var allProcesses = Process.GetProcesses();
 
         foreach (var process in allProcesses)
         {
             try
             {
-                var window = TopLevelWindowEnumerator.SelectBestWindow(windows, process.Id);
-                if (window == null)
+                if (!bestWindows.TryGetValue(process.Id, out var window))
                 {
                     process.Dispose();
                     continue;
@@ -91,7 +91,8 @@ public class WpfProcessDetector
         TopLevelWindowSnapshot? window)
     {
         var architecture = DetectArchitecture(process);
-        var moduleNames = TryGetModuleNames(process);
+        var shouldInspectModules = ShouldInspectModules(window);
+        var moduleNames = shouldInspectModules ? TryGetModuleNames(process) : null;
         var isWpf = moduleNames != null
             ? ContainsWpfAssembly(moduleNames)
             : HasWpfWindowClass(process, window);
@@ -117,6 +118,38 @@ public class WpfProcessDetector
         };
     }
 
+    internal static Dictionary<int, TopLevelWindowSnapshot> BuildBestWindowIndex(
+        IEnumerable<TopLevelWindowSnapshot> windows)
+    {
+        var index = new Dictionary<int, TopLevelWindowSnapshot>();
+
+        foreach (var window in windows)
+        {
+            if (!index.TryGetValue(window.ProcessId, out var existing) ||
+                CompareWindowPriority(window, existing) < 0)
+            {
+                index[window.ProcessId] = window;
+            }
+        }
+
+        return index;
+    }
+
+    internal static bool ShouldInspectModules(TopLevelWindowSnapshot? window)
+    {
+        if (window == null)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(window.ClassName))
+        {
+            return true;
+        }
+
+        return window.ClassName.IndexOf("HwndWrapper", StringComparison.Ordinal) >= 0;
+    }
+
     private string[]? TryGetModuleNames(Process process)
     {
         try
@@ -138,6 +171,31 @@ public class WpfProcessDetector
     {
         return moduleNames.Any(moduleName =>
             moduleName?.IndexOf(WpfAssemblyName, StringComparison.OrdinalIgnoreCase) >= 0);
+    }
+
+    private static int CompareWindowPriority(
+        TopLevelWindowSnapshot candidate,
+        TopLevelWindowSnapshot current)
+    {
+        var candidateRank = GetWindowPriorityRank(candidate);
+        var currentRank = GetWindowPriorityRank(current);
+        return candidateRank.CompareTo(currentRank);
+    }
+
+    private static int GetWindowPriorityRank(TopLevelWindowSnapshot window)
+    {
+        var isHwndWrapper = window.ClassName?.IndexOf("HwndWrapper", StringComparison.Ordinal) >= 0;
+        return window switch
+        {
+            { IsVisible: true, Title: not null } when !string.IsNullOrWhiteSpace(window.Title) && isHwndWrapper => 0,
+            { IsVisible: true } when isHwndWrapper => 1,
+            { IsVisible: true, Title: not null } when !string.IsNullOrWhiteSpace(window.Title) => 2,
+            { IsVisible: true } => 3,
+            { Title: not null } when !string.IsNullOrWhiteSpace(window.Title) && isHwndWrapper => 4,
+            _ when isHwndWrapper => 5,
+            { Title: not null } when !string.IsNullOrWhiteSpace(window.Title) => 6,
+            _ => 7
+        };
     }
     private ProcessArchitecture DetectArchitecture(Process process)
     {

@@ -105,7 +105,7 @@ public class BindingAnalyzerAdvancedTests : IDisposable
 
         // Assert
         ((bool)result.success).Should().BeFalse();
-        ((string)result.error).Should().Contain("Element is null");
+        ((string)result.error).Should().Contain("Element not found");
     }
 
     [StaFact]
@@ -204,7 +204,7 @@ public class BindingAnalyzerAdvancedTests : IDisposable
 
         // Assert
         ((bool)result.success).Should().BeFalse();
-        ((string)result.error).Should().Contain("Element is null");
+        ((string)result.error).Should().Contain("Element not found");
     }
 
     [StaFact]

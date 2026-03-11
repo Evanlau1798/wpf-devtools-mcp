@@ -127,7 +127,77 @@ public sealed class StateSnapshotToolTests
 
         var json = JsonSerializer.SerializeToElement(result);
         json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("hint").GetString().Should().Contain("capture_state_snapshot");
         json.GetProperty("error").GetString().Should().Contain("snapshotId");
+    }
+
+    [Fact]
+    public async Task CaptureStateSnapshot_WithMissingViewModelProperty_ShouldReturnStructuredPropertyNotFound()
+    {
+        const int processId = 51004;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            new[]
+            {
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    typeName = "SampleViewModel",
+                    properties = new[]
+                    {
+                        new { name = "Name", type = "String", value = "Alice", canWrite = true }
+                    }
+                })
+            });
+
+        var tool = new CaptureStateSnapshotTool(connected.SessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "Button_1",
+            viewModelPropertyNames = new[] { "MissingProperty" }
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("PropertyNotFound");
+        json.GetProperty("hint").GetString().Should().Contain("propertyName");
+        json.GetProperty("error").GetString().Should().Contain("MissingProperty");
+    }
+
+    [Fact]
+    public async Task CaptureStateSnapshot_WhenInspectorStepFails_ShouldReturnStructuredError()
+    {
+        const int processId = 51005;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            new[]
+            {
+                JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = "Element not found: 'Button_1'",
+                    errorCode = "ElementNotFound",
+                    hint = "Call get_visual_tree or get_logical_tree first to confirm the target elementId."
+                })
+            });
+
+        var tool = new CaptureStateSnapshotTool(connected.SessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "Button_1",
+            propertyNames = new[] { "Width" }
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+        json.GetProperty("hint").GetString().Should().Contain("elementId");
+        json.GetProperty("error").GetString().Should().Contain("get_dp_value_source");
     }
 
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(int processId, IReadOnlyList<string> resultJsonSequence)

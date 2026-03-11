@@ -33,12 +33,14 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Choose a FrameworkElement target from get_visual_tree or find_elements before inspecting styles.");
             }
 
             var styles = new List<object>();
@@ -123,12 +125,14 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Choose a FrameworkElement target before inspecting triggers.");
             }
 
             var triggers = new List<object>();
@@ -261,12 +265,14 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not Control control)
             {
-                return new { success = false, error = "Element is not a Control" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a Control",
+                    "Choose a Control element before calling get_template_tree.");
             }
 
             if (control.Template == null)
@@ -288,7 +294,10 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to load template: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "load template",
+                    ex,
+                    "Ensure the target control template is available and the control is fully initialized before retrying.");
             }
         });
     }
@@ -302,7 +311,9 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
         {
             if (string.IsNullOrEmpty(resourceKey))
             {
-                return new { success = false, error = "resourceKey is required" };
+                return ToolErrorFactory.InvalidArgument(
+                    "resourceKey is required",
+                    "Provide the resource key string you want to resolve.");
             }
 
             var element = elementId == null
@@ -311,12 +322,14 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Choose a FrameworkElement target before resolving a resource chain.");
             }
 
             var chain = new List<object>();
@@ -375,7 +388,9 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
         {
             if (string.IsNullOrEmpty(propertyName))
             {
-                return new { success = false, error = "propertyName is required" };
+                return ToolErrorFactory.InvalidArgument(
+                    "propertyName is required",
+                    "Provide the DependencyProperty name to override.");
             }
 
             var element = elementId == null
@@ -384,12 +399,14 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Choose a FrameworkElement target before overriding a style setter.");
             }
 
             try
@@ -398,7 +415,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                 var dp = FindDependencyProperty(fe, propertyName);
                 if (dp == null)
                 {
-                    return new { success = false, error = $"Property '{propertyName}' not found" };
+                    return ToolErrorFactory.PropertyNotFound(propertyName, fe.GetType().Name);
                 }
 
                 // Set local value (overrides style)
@@ -427,7 +444,10 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to override setter: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "override setter",
+                    ex,
+                    "Verify the propertyName is style-backed and the provided value is compatible with the target property type.");
             }
         });
     }

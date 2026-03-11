@@ -1,3 +1,5 @@
+using WpfDevTools.Shared.IO;
+
 namespace WpfDevTools.Mcp.Server.Tools;
 
 /// <summary>
@@ -12,25 +14,22 @@ internal static class DllCandidateResolver
         yield return Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net48", "WpfDevTools.Inspector.dll"));
 
-        var solutionRoot = GetSolutionRoot(serverDir);
-        if (solutionRoot == null)
+        foreach (var solutionRoot in RepositoryLayoutLocator.EnumerateSolutionRoots(serverDir))
         {
-            yield break;
-        }
+            var inspectorBinRoot = Path.Combine(solutionRoot, "src", "WpfDevTools.Inspector", "bin");
+            var configurations = new[] { "Debug", "Release" };
+            var frameworks = new[] { "net8.0-windows", "net48" };
 
-        var inspectorBinRoot = Path.Combine(solutionRoot, "src", "WpfDevTools.Inspector", "bin");
-        var configurations = new[] { "Debug", "Release" };
-        var frameworks = new[] { "net8.0-windows", "net48" };
-
-        foreach (var configuration in configurations)
-        {
-            foreach (var framework in frameworks)
+            foreach (var configuration in configurations)
             {
-                yield return Path.GetFullPath(Path.Combine(
-                    inspectorBinRoot,
-                    configuration,
-                    framework,
-                    "WpfDevTools.Inspector.dll"));
+                foreach (var framework in frameworks)
+                {
+                    yield return Path.GetFullPath(Path.Combine(
+                        inspectorBinRoot,
+                        configuration,
+                        framework,
+                        "WpfDevTools.Inspector.dll"));
+                }
             }
         }
     }
@@ -44,37 +43,26 @@ internal static class DllCandidateResolver
         yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "x86", "WpfDevTools.Bootstrapper.x86.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "arm64", "WpfDevTools.Bootstrapper.arm64.dll"));
 
-        var solutionRoot = GetSolutionRoot(serverDir);
-        if (solutionRoot == null) yield break;
-
-        var artifactsRoot = Path.Combine(solutionRoot, "artifacts", "bootstrapper");
-        var configurations = new[] { "Debug", "Release" };
-        var platforms = new[] { ("x64", "x64"), ("Win32", "x86"), ("ARM64", "arm64") };
-
-        foreach (var configuration in configurations)
+        foreach (var solutionRoot in RepositoryLayoutLocator.EnumerateSolutionRoots(serverDir))
         {
-            foreach (var (platform, suffix) in platforms)
+            var artifactsRoot = Path.Combine(solutionRoot, "artifacts", "bootstrapper");
+            var configurations = new[] { "Debug", "Release" };
+            var platforms = new[] { ("x64", "x64"), ("Win32", "x86"), ("ARM64", "arm64") };
+
+            foreach (var configuration in configurations)
             {
-                yield return Path.GetFullPath(Path.Combine(
-                    artifactsRoot, configuration, platform,
-                    $"WpfDevTools.Bootstrapper.{suffix}.dll"));
+                foreach (var (platform, suffix) in platforms)
+                {
+                    yield return Path.GetFullPath(Path.Combine(
+                        artifactsRoot, configuration, platform,
+                        $"WpfDevTools.Bootstrapper.{suffix}.dll"));
+                }
             }
         }
     }
 
     public static string? GetSolutionRoot(string startDirectory)
     {
-        var current = new DirectoryInfo(Path.GetFullPath(startDirectory));
-        while (current != null)
-        {
-            if (File.Exists(Path.Combine(current.FullName, "WpfDevTools.sln")))
-            {
-                return current.FullName;
-            }
-
-            current = current.Parent;
-        }
-
-        return null;
+        return RepositoryLayoutLocator.EnumerateSolutionRoots(startDirectory).FirstOrDefault();
     }
 }

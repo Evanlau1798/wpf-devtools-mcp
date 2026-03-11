@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -44,12 +45,14 @@ public sealed partial class InteractionAnalyzer
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not IInputElement inputElement)
             {
-                return new { success = false, error = "Element cannot receive focus" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element cannot receive focus",
+                    "Choose a focusable control such as TextBox, Button, or ComboBox.");
             }
 
             var window = ResolveFocusWindow(element);

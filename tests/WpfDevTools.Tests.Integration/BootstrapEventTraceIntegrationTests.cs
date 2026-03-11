@@ -6,6 +6,7 @@ using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -25,7 +26,7 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
     [Trait("Category", "Integration")]
     public async Task TraceRoutedEvents_AfterBootstrapInjection_ShouldCaptureGoldenSampleCheckBoxClick()
     {
-        HasNativeBootstrapper().Should().BeTrue(
+        BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
             "the live bootstrap smoke test requires native bootstrapper artifacts; build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
 
         _testApp = StartTestApp();
@@ -137,23 +138,6 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
         }
 
         return null;
-    }
-
-    private static bool HasNativeBootstrapper()
-    {
-        var solutionDir = FindSolutionRoot();
-        var artifactsDir = Path.Combine(solutionDir, "artifacts", "bootstrapper");
-        if (Directory.Exists(artifactsDir))
-        {
-            var dlls = Directory.GetFiles(artifactsDir, "WpfDevTools.Bootstrapper.*.dll", SearchOption.AllDirectories);
-            if (dlls.Any(dll => new FileInfo(dll).Length > 0))
-            {
-                return true;
-            }
-        }
-
-        var localPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
-        return File.Exists(localPath) && new FileInfo(localPath).Length > 0;
     }
 
     private static string FindTestAppExe()

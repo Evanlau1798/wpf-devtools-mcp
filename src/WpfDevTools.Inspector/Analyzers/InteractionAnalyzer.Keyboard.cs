@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -19,36 +20,39 @@ public sealed partial class InteractionAnalyzer
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not UIElement uiElement)
             {
-                return new { success = false, error = "Element is not a UIElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a UIElement",
+                    "Choose a UIElement target from get_visual_tree before simulating keyboard input.");
             }
 
             try
             {
                 if (!Enum.TryParse<Key>(key, out var parsedKey))
                 {
-                    return new { success = false, error = $"Invalid key: {key}" };
+                    return ToolErrorFactory.InvalidArgument(
+                        $"Invalid key: {key}",
+                        "Use a valid WPF Key enum name such as Enter, Tab, Space, or Escape.");
                 }
 
                 var routedEvent = ParseKeyboardEvent(eventType);
                 if (routedEvent == null)
                 {
-                    return new { success = false, error = "Invalid event type. Use 'KeyDown' or 'KeyUp'" };
+                    return ToolErrorFactory.InvalidArgument(
+                        "Invalid event type. Use 'KeyDown' or 'KeyUp'",
+                        "Set eventType to 'KeyDown' or 'KeyUp' when calling simulate_keyboard.");
                 }
 
                 var presentationSource = PresentationSource.FromVisual(uiElement);
                 if (presentationSource == null)
                 {
-                    return new
-                    {
-                        success = false,
-                        error = "Element is not connected to a presentation source",
-                        hint = "Element may not be in the visual tree or may not be rendered yet"
-                    };
+                    return ToolErrorFactory.ElementNotLoaded(
+                        "Element is not connected to a presentation source",
+                        "Ensure the element is attached to a rendered visual tree before calling simulate_keyboard.");
                 }
 
                 if (routedEvent == Keyboard.KeyDownEvent &&
@@ -91,7 +95,10 @@ public sealed partial class InteractionAnalyzer
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to simulate keyboard: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "simulate keyboard input",
+                    ex,
+                    "Ensure the target can receive focus and is still attached to the current visual tree before retrying.");
             }
         });
     }

@@ -47,7 +47,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
             if (resolvedRoot == null)
             {
-                return new { success = false, error = "Root element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             var budget = new TreeTraversalBudget(options.MaxNodes);
@@ -101,7 +101,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             var visualChildren = GetVisualChildren(element);
@@ -160,7 +160,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             var nameScope = NameScope.GetNameScope(element);
@@ -219,18 +219,22 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         {
             if (string.IsNullOrEmpty(elementId))
             {
-                return new { success = false, error = "elementId is required for get_template_tree" };
+                return ToolErrorFactory.InvalidArgument(
+                    "elementId is required for get_template_tree",
+                    "Provide a templated control elementId from get_visual_tree or find_elements before calling get_template_tree.");
             }
 
             var element = _elementFinder.FindById(elementId);
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not Control control || control.Template == null)
             {
-                return new { success = false, error = "Element is not a templated control or has no template" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a templated control or has no template",
+                    "Target a templated control and ensure its Template is available before calling get_template_tree.");
             }
 
             var templateRoot = VisualTreeHelper.GetChildrenCount(control) > 0
@@ -239,7 +243,9 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
             if (templateRoot == null)
             {
-                return new { success = false, error = "No template visual tree found" };
+                return ToolErrorFactory.ElementNotLoaded(
+                    "No template visual tree found",
+                    "The control template may not be applied yet. Ensure the control is loaded before calling get_template_tree.");
             }
 
             var budget = new TreeTraversalBudget(maxNodes: null);

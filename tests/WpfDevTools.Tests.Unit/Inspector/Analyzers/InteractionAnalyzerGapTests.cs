@@ -24,7 +24,7 @@ public class InteractionAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
-        doc.GetProperty("error").GetString().Should().Contain("Element not found");
+        doc.GetProperty("error").GetString().Should().Contain("not found");
     }
 
     [StaFact]
@@ -41,7 +41,7 @@ public class InteractionAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
-        doc.GetProperty("error").GetString().Should().Contain("Element not found");
+        doc.GetProperty("error").GetString().Should().Contain("not found");
     }
 
     [StaFact]
@@ -77,7 +77,7 @@ public class InteractionAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
-        doc.GetProperty("error").GetString().Should().Contain("Element not found");
+        doc.GetProperty("error").GetString().Should().Contain("not found");
     }
 
     [StaFact]
@@ -94,7 +94,7 @@ public class InteractionAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
-        doc.GetProperty("error").GetString().Should().Contain("Element not found");
+        doc.GetProperty("error").GetString().Should().Contain("not found");
     }
 
     [StaFact]
@@ -111,7 +111,7 @@ public class InteractionAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
-        doc.GetProperty("error").GetString().Should().Contain("Element not found");
+        doc.GetProperty("error").GetString().Should().Contain("not found");
     }
 
     [StaFact]
@@ -128,7 +128,7 @@ public class InteractionAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
-        doc.GetProperty("error").GetString().Should().Contain("Element not found");
+        doc.GetProperty("error").GetString().Should().Contain("not found");
     }
 
     [StaFact]
@@ -145,7 +145,7 @@ public class InteractionAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
-        doc.GetProperty("error").GetString().Should().Contain("Element not found");
+        doc.GetProperty("error").GetString().Should().Contain("not found");
     }
 
     [StaFact]
@@ -162,7 +162,7 @@ public class InteractionAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
-        doc.GetProperty("error").GetString().Should().Contain("Element not found");
+        doc.GetProperty("error").GetString().Should().Contain("not found");
     }
 
     [StaFact]

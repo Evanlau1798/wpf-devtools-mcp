@@ -41,7 +41,22 @@ public enum ToolErrorCode
     EventNotFound,
 
     /// <summary>
+    /// The target element exists but does not support the requested click interaction.
+    /// </summary>
+    ElementNotClickable,
+
+    /// <summary>
+    /// The requested ViewModel command does not exist on the target DataContext.
+    /// </summary>
+    CommandNotFound,
+
+    /// <summary>
     /// The target element exists but is not loaded into a usable presentation source.
     /// </summary>
-    ElementNotLoaded
+    ElementNotLoaded,
+
+    /// <summary>
+    /// The operation failed at runtime even though the input shape was valid.
+    /// </summary>
+    OperationFailed
 }

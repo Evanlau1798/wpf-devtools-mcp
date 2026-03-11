@@ -7,6 +7,7 @@ using WpfDevTools.Injector.Injection;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -46,7 +47,7 @@ public class BootstrapInjectionTests : IDisposable
     [Trait("Category", "Integration")]
     public async Task ConnectTool_ThenPingTool_ShouldSucceed()
     {
-        HasNativeBootstrapper().Should().BeTrue(
+        BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
             "the live bootstrap smoke test must fail fast when native bootstrapper artifacts are missing; " +
             "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
 
@@ -117,23 +118,6 @@ public class BootstrapInjectionTests : IDisposable
         resultJson.GetProperty("error").GetString().Should().Contain("ManagedEntrypoint");
         resultJson.GetProperty("stage").GetString().Should().Be("ManagedEntrypoint");
     }
-
-    private static bool HasNativeBootstrapper()
-    {
-        var solutionDir = FindSolutionRoot();
-        var artifactsDir = Path.Combine(solutionDir, "artifacts", "bootstrapper");
-        if (Directory.Exists(artifactsDir))
-        {
-            var dlls = Directory.GetFiles(artifactsDir,
-                "WpfDevTools.Bootstrapper.*.dll", SearchOption.AllDirectories);
-            if (dlls.Any(d => new FileInfo(d).Length > 0)) return true;
-        }
-
-        var localPath = Path.Combine(
-            AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
-        return File.Exists(localPath) && new FileInfo(localPath).Length > 0;
-    }
-
     private void EnsureDummyBootstrapperExists()
     {
         _dummyBootstrapperPath = Path.Combine(

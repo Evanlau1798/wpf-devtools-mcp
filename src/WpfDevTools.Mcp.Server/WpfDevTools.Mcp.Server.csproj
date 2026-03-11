@@ -35,6 +35,11 @@
     <ProjectReference Include="..\WpfDevTools.Injector\WpfDevTools.Injector.csproj">
       <SetTargetFramework>TargetFramework=net8.0;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
     </ProjectReference>
+    <ProjectReference Include="..\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+      <SetTargetFramework>TargetFramework=net8.0-windows;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>

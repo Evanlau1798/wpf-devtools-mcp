@@ -131,6 +131,24 @@ public class HandlerRoutingTests
         result.Should().NotBeNull();
     }
 
+    [StaFact]
+    public async Task TreeHandlers_HandleAsync_SerializeToXaml_MissingElement_ShouldReturnStructuredError()
+    {
+        var handler = new TreeHandlers(
+            new VisualTreeAnalyzer(new ElementFinder()),
+            new LogicalTreeAnalyzer(new ElementFinder()),
+            new XamlSerializer(),
+            new ElementFinder());
+        var parameters = JsonDocument.Parse("{\"elementId\":\"missing-element\"}").RootElement;
+
+        var result = await handler.HandleAsync("serialize_to_xaml", parameters, CancellationToken.None);
+        var json = JsonSerializer.SerializeToElement(result, result!.GetType());
+
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+        json.GetProperty("hint").GetString().Should().Contain("elementId");
+    }
+
     [Fact]
     public void ElementSearchHandlers_GetSupportedMethods_ShouldReturnFindElements()
     {

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Windows;
 using System.Windows.Controls;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
@@ -190,12 +191,102 @@ public class InspectorErrorContractCoverageTests
             expectedHintFragment: "elementId");
     }
 
+    [StaFact]
+    public void GetVisualTree_MissingRoot_ShouldReturnStructuredError()
+    {
+        var analyzer = new VisualTreeAnalyzer(new ElementFinder());
+
+        var result = analyzer.GetVisualTree();
+
+        AssertStructuredError(
+            result,
+            "ElementNotFound",
+            expectedHintFragment: "elementId");
+    }
+
+    [StaFact]
+    public void CompareTree_MissingElement_ShouldReturnStructuredError()
+    {
+        var analyzer = new VisualTreeAnalyzer(new ElementFinder());
+
+        var result = analyzer.CompareTree("missing-element");
+
+        AssertStructuredError(
+            result,
+            "ElementNotFound",
+            expectedHintFragment: "elementId");
+    }
+
+    [StaFact]
+    public void GetNameScope_MissingElement_ShouldReturnStructuredError()
+    {
+        var analyzer = new VisualTreeAnalyzer(new ElementFinder());
+
+        var result = analyzer.GetNameScope("missing-element");
+
+        AssertStructuredError(
+            result,
+            "ElementNotFound",
+            expectedHintFragment: "elementId");
+    }
+
+    [StaFact]
+    public void GetTemplateTree_MissingElementId_ShouldReturnStructuredInvalidArgument()
+    {
+        var analyzer = new VisualTreeAnalyzer(new ElementFinder());
+
+        var result = analyzer.GetTemplateTree(null);
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "elementId");
+    }
+
+    [StaFact]
+    public void GetTemplateTree_NonTemplatedElement_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new VisualTreeAnalyzer(finder);
+        var stackPanel = new StackPanel();
+        var elementId = finder.GenerateElementId(stackPanel);
+
+        var result = analyzer.GetTemplateTree(elementId);
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "templated control");
+    }
+
+    [StaFact]
+    public void GetTemplateTree_TemplateWithoutVisualTree_ShouldReturnStructuredElementNotLoaded()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new VisualTreeAnalyzer(finder);
+        var button = new Button
+        {
+            Template = new ControlTemplate(typeof(Button))
+            {
+                VisualTree = new FrameworkElementFactory(typeof(Border))
+            }
+        };
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.GetTemplateTree(elementId);
+
+        AssertStructuredError(
+            result,
+            "ElementNotLoaded",
+            expectedHintFragment: "loaded");
+    }
+
     private static void AssertStructuredError(
         object result,
         string expectedErrorCode,
         string expectedHintFragment)
     {
-        var json = JsonSerializer.SerializeToElement(result);
+        var json = JsonSerializer.SerializeToElement(result, result.GetType());
         json.GetProperty("success").GetBoolean().Should().BeFalse();
         json.GetProperty("errorCode").GetString().Should().Be(expectedErrorCode);
         json.GetProperty("hint").GetString().Should().Contain(expectedHintFragment);

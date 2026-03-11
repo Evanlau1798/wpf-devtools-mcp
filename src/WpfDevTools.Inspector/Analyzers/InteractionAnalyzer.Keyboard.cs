@@ -34,13 +34,17 @@ public sealed partial class InteractionAnalyzer
             {
                 if (!Enum.TryParse<Key>(key, out var parsedKey))
                 {
-                    return new { success = false, error = $"Invalid key: {key}" };
+                    return ToolErrorFactory.InvalidArgument(
+                        $"Invalid key: {key}",
+                        "Use a valid WPF Key enum name such as Enter, Tab, Space, or Escape.");
                 }
 
                 var routedEvent = ParseKeyboardEvent(eventType);
                 if (routedEvent == null)
                 {
-                    return new { success = false, error = "Invalid event type. Use 'KeyDown' or 'KeyUp'" };
+                    return ToolErrorFactory.InvalidArgument(
+                        "Invalid event type. Use 'KeyDown' or 'KeyUp'",
+                        "Set eventType to 'KeyDown' or 'KeyUp' when calling simulate_keyboard.");
                 }
 
                 var presentationSource = PresentationSource.FromVisual(uiElement);

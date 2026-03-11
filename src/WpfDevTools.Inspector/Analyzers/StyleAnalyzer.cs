@@ -130,7 +130,9 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Choose a FrameworkElement target before inspecting triggers.");
             }
 
             var triggers = new List<object>();
@@ -263,12 +265,14 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not Control control)
             {
-                return new { success = false, error = "Element is not a Control" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a Control",
+                    "Choose a Control element before calling get_template_tree.");
             }
 
             if (control.Template == null)

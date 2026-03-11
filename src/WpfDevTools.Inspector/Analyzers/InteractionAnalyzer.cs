@@ -93,12 +93,14 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Choose a FrameworkElement target before calling scroll_to_element.");
             }
 
             try
@@ -132,12 +134,14 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not UIElement uiElement)
             {
-                return new { success = false, error = "Element is not a UIElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a UIElement",
+                    "Choose a UIElement target from get_visual_tree before taking a screenshot.");
             }
 
             try
@@ -263,7 +267,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 
             if (sourceElement == null)
             {
-                return new { success = false, error = "Source element not found" };
+                return ToolErrorFactory.ElementNotFound(sourceElementId);
             }
 
             var targetElement = targetElementId == null
@@ -272,12 +276,14 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 
             if (targetElement == null)
             {
-                return new { success = false, error = "Target element not found" };
+                return ToolErrorFactory.ElementNotFound(targetElementId);
             }
 
             if (sourceElement is not UIElement sourceUI || targetElement is not UIElement targetUI)
             {
-                return new { success = false, error = "Elements must be UIElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Elements must be UIElement",
+                    "Choose sourceElementId and targetElementId that resolve to UIElement instances before drag_and_drop.");
             }
 
             try

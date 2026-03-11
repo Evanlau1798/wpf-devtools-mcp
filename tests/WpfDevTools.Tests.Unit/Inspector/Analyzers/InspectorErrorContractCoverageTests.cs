@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
@@ -281,6 +282,112 @@ public class InspectorErrorContractCoverageTests
             result,
             "InvalidArgument",
             expectedHintFragment: "writable");
+    }
+
+    [StaFact]
+    public void SimulateKeyboard_InvalidEventType_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.SimulateKeyboard(elementId, "Enter", "Pressed");
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "KeyDown");
+    }
+
+    [StaFact]
+    public void ScrollToElement_InvalidFrameworkTarget_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var visual = new DrawingVisual();
+        var elementId = finder.GenerateElementId(visual);
+
+        var result = analyzer.ScrollToElement(elementId);
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "FrameworkElement");
+    }
+
+    [StaFact]
+    public void GetClippingInfo_InvalidUiTarget_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var visual = new DrawingVisual();
+        var elementId = finder.GenerateElementId(visual);
+
+        var result = analyzer.GetClippingInfo(elementId);
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "UIElement");
+    }
+
+    [StaFact]
+    public void InvalidateLayout_MissingElement_ShouldReturnStructuredError()
+    {
+        var analyzer = new LayoutAnalyzer(new ElementFinder());
+
+        var result = analyzer.InvalidateLayout("missing-element");
+
+        AssertStructuredError(
+            result,
+            "ElementNotFound",
+            expectedHintFragment: "elementId");
+    }
+
+    [StaFact]
+    public void GetTriggers_InvalidFrameworkTarget_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new StyleAnalyzer(finder);
+        var visual = new DrawingVisual();
+        var elementId = finder.GenerateElementId(visual);
+
+        var result = analyzer.GetTriggers(elementId);
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "FrameworkElement");
+    }
+
+    [StaFact]
+    public void DragAndDrop_MissingSource_ShouldReturnStructuredError()
+    {
+        var analyzer = new InteractionAnalyzer(new ElementFinder());
+
+        var result = analyzer.DragAndDrop("missing-source", "missing-target", "Text");
+
+        AssertStructuredError(
+            result,
+            "ElementNotFound",
+            expectedHintFragment: "elementId");
+    }
+
+    [StaFact]
+    public void GetStyleTemplateTree_InvalidControlTarget_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new StyleAnalyzer(finder);
+        var visual = new DrawingVisual();
+        var elementId = finder.GenerateElementId(visual);
+
+        var result = analyzer.GetTemplateTree(elementId);
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "Control");
     }
 
     [StaFact]

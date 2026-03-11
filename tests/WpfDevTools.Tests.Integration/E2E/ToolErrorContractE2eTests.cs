@@ -57,3 +57,30 @@ public class ToolErrorContractE2eTests : IDisposable
         throw new InvalidOperationException("Solution root not found");
     }
 }
+
+[Collection("McpE2E")]
+[Trait("Category", "E2E")]
+public sealed class InspectorToolErrorContractE2eTests
+{
+    private readonly McpE2eFixture _fixture;
+
+    public InspectorToolErrorContractE2eTests(McpE2eFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    [Fact]
+    public async Task ClickElement_WithMissingElement_ShouldPreserveInspectorStructuredError()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "click_element",
+            new { processId = _fixture.TestAppProcessId, elementId = "NonExistent_999" });
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+        result.GetProperty("hint").GetString().Should().Contain("elementId");
+        result.GetProperty("error").GetString().Should().Contain("not found");
+    }
+}

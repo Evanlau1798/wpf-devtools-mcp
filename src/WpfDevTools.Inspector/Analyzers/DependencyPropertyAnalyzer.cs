@@ -66,19 +66,21 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not DependencyObject depObj)
             {
-                return new { success = false, error = "Element is not a DependencyObject" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a DependencyObject",
+                    "Choose a WPF DependencyObject target from get_visual_tree or find_elements before inspecting dependency properties.");
             }
 
             // Find DependencyProperty by name
             var dp = FindDependencyProperty(depObj, propertyName);
             if (dp == null)
             {
-                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+                return ToolErrorFactory.PropertyNotFound(propertyName, depObj.GetType().Name);
             }
 
             // Get value source

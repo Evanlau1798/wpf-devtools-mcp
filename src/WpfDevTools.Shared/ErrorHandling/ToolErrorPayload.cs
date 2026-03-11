@@ -20,10 +20,28 @@ public sealed class ToolErrorPayload
     public required string Error { get; init; }
 
     /// <summary>
+    /// Compatibility alias for dynamic callers expecting lowercase property names.
+    /// </summary>
+    [JsonIgnore]
+    public bool success => Success;
+
+    /// <summary>
+    /// Compatibility alias for dynamic callers expecting lowercase property names.
+    /// </summary>
+    [JsonIgnore]
+    public string error => Error;
+
+    /// <summary>
     /// Stable machine-readable error code.
     /// </summary>
     [JsonPropertyName("errorCode")]
     public required string ErrorCode { get; init; }
+
+    /// <summary>
+    /// Compatibility alias for dynamic callers expecting lowercase property names.
+    /// </summary>
+    [JsonIgnore]
+    public string errorCode => ErrorCode;
 
     /// <summary>
     /// Recovery guidance for human and AI clients.
@@ -33,9 +51,28 @@ public sealed class ToolErrorPayload
     public string? Hint { get; init; }
 
     /// <summary>
+    /// Compatibility alias for dynamic callers expecting lowercase property names.
+    /// </summary>
+    [JsonIgnore]
+    public string? hint => Hint;
+
+    /// <summary>
     /// Optional structured context for advanced recovery logic.
     /// </summary>
     [JsonPropertyName("errorData")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? ErrorData { get; init; }
+
+    /// <summary>
+    /// Backward-compatible top-level projection used by event analyzer callers.
+    /// </summary>
+    [JsonPropertyName("availableEvents")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string[]? AvailableEvents { get; init; }
+
+    /// <summary>
+    /// Compatibility alias for dynamic callers expecting lowercase property names.
+    /// </summary>
+    [JsonIgnore]
+    public object? errorData => ErrorData;
 }

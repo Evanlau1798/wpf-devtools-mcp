@@ -132,18 +132,21 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not UIElement uiElement)
             {
-                return new { success = false, error = "Element is not a UIElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a UIElement",
+                    "Choose a UIElement target from get_visual_tree before firing routed events.");
             }
 
             var routedEvent = FindRoutedEvent(uiElement, eventName);
             if (routedEvent == null)
             {
-                return new { success = false, error = $"Event '{eventName}' not found" };
+                var availableEvents = RoutedEventDiscovery.EnumerateAvailableRoutedEvents(uiElement.GetType());
+                return ToolErrorFactory.EventNotFound(eventName, availableEvents);
             }
 
             try
@@ -187,7 +190,9 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
         {
             if (string.IsNullOrEmpty(eventName))
             {
-                return new { success = false, error = "eventName is required" };
+                return ToolErrorFactory.InvalidArgument(
+                    "eventName is required",
+                    "Provide a routed event name such as Click, MouseDown, or PreviewMouseDown.");
             }
 
             // Check reflection support on first use
@@ -207,25 +212,21 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not UIElement uiElement)
             {
-                return new { success = false, error = "Element is not a UIElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a UIElement",
+                    "Choose a UIElement target from get_visual_tree before inspecting event handlers.");
             }
 
             var routedEvent = FindRoutedEvent(uiElement, eventName);
             if (routedEvent == null)
             {
                 var availableEvents = RoutedEventDiscovery.EnumerateAvailableRoutedEvents(uiElement.GetType());
-                return new
-                {
-                    success = false,
-                    error = $"Event '{eventName}' not found",
-                    availableEvents,
-                    hint = "Use one of the availableEvents names as the eventName parameter"
-                };
+                return ToolErrorFactory.EventNotFound(eventName, availableEvents);
             }
 
             try

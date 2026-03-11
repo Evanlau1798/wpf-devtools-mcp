@@ -164,15 +164,17 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
             var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
             if (element == null)
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
 
             var fe = element as FrameworkElement;
             if (fe?.DataContext == null)
-                return new { success = false, error = "No DataContext found" };
+                return ToolErrorFactory.InvalidArgument(
+                    "No DataContext found",
+                    "Choose an element with a ViewModel/DataContext or call get_viewmodel/get_commands first.");
 
             var prop = fe.DataContext.GetType().GetProperty(commandName);
             if (prop == null)
-                return new { success = false, error = $"Command '{commandName}' not found" };
+                return ToolErrorFactory.CommandNotFound(commandName);
 
             var cmd = prop.GetValue(fe.DataContext) as System.Windows.Input.ICommand;
             if (cmd == null)

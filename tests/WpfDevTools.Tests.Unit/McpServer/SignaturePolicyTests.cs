@@ -114,5 +114,66 @@ public class SignaturePolicyTests
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", previousValue);
         }
     }
+
+    [Fact]
+    public void EnumerateTrustedRoots_ShouldIncludePrimaryRepositoryRoot_ForWorktreeBaseDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var mainRoot = Path.Combine(root, "repo");
+        var worktreeRoot = Path.Combine(mainRoot, ".worktrees", "feature-branch");
+        var baseDirectory = Path.Combine(worktreeRoot, "src", "WpfDevTools.Mcp.Server", "bin", "Debug");
+        Directory.CreateDirectory(baseDirectory);
+        File.WriteAllText(Path.Combine(mainRoot, "WpfDevTools.sln"), string.Empty);
+        File.WriteAllText(Path.Combine(worktreeRoot, "WpfDevTools.sln"), string.Empty);
+
+        try
+        {
+            var trustedRoots = DllPathValidator.EnumerateTrustedRoots(baseDirectory);
+
+            trustedRoots.Should().Contain(Path.GetFullPath(baseDirectory));
+            trustedRoots.Should().Contain(Path.GetFullPath(mainRoot));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ValidateDllPath_WorktreeBuild_ShouldTrustPrimaryRepositoryArtifacts()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var mainRoot = Path.Combine(root, "repo");
+        var worktreeRoot = Path.Combine(mainRoot, ".worktrees", "feature-branch");
+        var baseDirectory = Path.Combine(worktreeRoot, "src", "WpfDevTools.Mcp.Server", "bin", "Debug");
+        var trustedDllPath = Path.Combine(
+            mainRoot,
+            "artifacts",
+            "bootstrapper",
+            "Debug",
+            "x64",
+            "WpfDevTools.Bootstrapper.x64.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(trustedDllPath)!);
+        Directory.CreateDirectory(baseDirectory);
+        File.WriteAllText(Path.Combine(mainRoot, "WpfDevTools.sln"), string.Empty);
+        File.WriteAllText(Path.Combine(worktreeRoot, "WpfDevTools.sln"), string.Empty);
+        File.WriteAllText(trustedDllPath, string.Empty);
+
+        try
+        {
+            var act = () => DllPathValidator.ValidateDllPath(trustedDllPath, baseDirectory);
+
+#if DEBUG
+            act.Should().NotThrow();
+#else
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*signature*");
+#endif
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }
 

@@ -37,9 +37,14 @@ public sealed class ProcessManagementE2eTests
         result.GetProperty("processes").GetArrayLength().Should().BeGreaterOrEqualTo(1,
             "at least one TestApp process should be detected");
 
-        var firstProcess = result.GetProperty("processes")[0];
-        firstProcess.GetProperty("processId").GetInt32().Should().Be(_fixture.TestAppProcessId);
-        firstProcess.GetProperty("processName").GetString().Should().Contain("TestApp");
+        var matchingProcess = result
+            .GetProperty("processes")
+            .EnumerateArray()
+            .FirstOrDefault(process => process.GetProperty("processId").GetInt32() == _fixture.TestAppProcessId);
+
+        matchingProcess.ValueKind.Should().NotBe(JsonValueKind.Undefined,
+            "the filtered process list should include the fixture TestApp process");
+        matchingProcess.GetProperty("processName").GetString().Should().Contain("TestApp");
     }
 
     [Fact]

@@ -39,7 +39,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             try
@@ -71,12 +71,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                     };
                 }
 
-                return new
-                {
-                    success = false,
-                    error = "Element is not clickable",
-                    elementType = element.GetType().Name
-                };
+                return ToolErrorFactory.ElementNotClickable(element.GetType().Name);
             }
             catch (Exception ex)
             {

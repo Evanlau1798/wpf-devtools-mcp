@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -19,12 +20,14 @@ public sealed partial class InteractionAnalyzer
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not UIElement uiElement)
             {
-                return new { success = false, error = "Element is not a UIElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a UIElement",
+                    "Choose a UIElement target from get_visual_tree before simulating keyboard input.");
             }
 
             try

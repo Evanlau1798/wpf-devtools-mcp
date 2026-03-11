@@ -38,7 +38,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             var bindings = recursive
@@ -110,7 +110,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             var chain = new List<object>();

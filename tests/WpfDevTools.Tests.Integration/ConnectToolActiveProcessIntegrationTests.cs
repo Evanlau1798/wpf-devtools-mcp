@@ -1,0 +1,97 @@
+using System.Diagnostics;
+using System.IO;
+using System.Text.Json;
+using FluentAssertions;
+using WpfDevTools.Injector;
+using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Tests.Integration.TestSupport;
+
+namespace WpfDevTools.Tests.Integration;
+
+public sealed class ConnectToolActiveProcessIntegrationTests : IDisposable
+{
+    private Process? _testApp;
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ConnectTool_WhenAnotherSessionIsActive_ShouldPromoteConnectedProcess()
+    {
+        BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
+            "the live bootstrap smoke test must fail fast when native bootstrapper artifacts are missing; " +
+            "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
+
+        _testApp = StartTestApp();
+
+        using var sessionManager = new SessionManager();
+        sessionManager.AddSession(54321);
+
+        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector());
+        var connectArgs = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(new { processId = _testApp.Id }));
+
+        var connectResult = await connectTool.ExecuteAsync(connectArgs, CancellationToken.None);
+        var connectJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(connectResult));
+
+        connectJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
+        activeProcessId.Should().Be(_testApp.Id);
+    }
+
+    public void Dispose()
+    {
+        if (_testApp != null && !_testApp.HasExited)
+        {
+            _testApp.Kill();
+            _testApp.WaitForExit(5000);
+            _testApp.Dispose();
+        }
+    }
+
+    private static Process StartTestApp()
+    {
+        var testAppPath = FindTestAppExe();
+        var process = Process.Start(
+            new ProcessStartInfo
+            {
+                FileName = testAppPath,
+                UseShellExecute = true
+            });
+        process.Should().NotBeNull();
+        Thread.Sleep(3000);
+        return process!;
+    }
+
+    private static string FindTestAppExe()
+    {
+        var solutionDir = FindSolutionRoot();
+        var candidates = new[]
+        {
+            Path.Combine(solutionDir, "tests", "WpfDevTools.Tests.TestApp",
+                "bin", "Debug", "net8.0-windows", "WpfDevTools.Tests.TestApp.exe"),
+            Path.Combine(solutionDir, "tests", "WpfDevTools.Tests.TestApp",
+                "bin", "Release", "net8.0-windows", "WpfDevTools.Tests.TestApp.exe")
+        };
+
+        return candidates.FirstOrDefault(File.Exists)
+            ?? throw new InvalidOperationException(
+                "TestApp executable not found. Build tests/WpfDevTools.Tests.TestApp first.");
+    }
+
+    private static string FindSolutionRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "WpfDevTools.sln")))
+            {
+                return dir.FullName;
+            }
+
+            dir = dir.Parent;
+        }
+
+        throw new InvalidOperationException("Solution root not found");
+    }
+}

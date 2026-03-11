@@ -249,6 +249,8 @@ public sealed class ConnectTool
                 };
             }
 
+            _sessionManager.SetActiveProcess(processId.Value);
+
             return new
             {
                 success = true,

@@ -14,7 +14,7 @@ public static class ToolErrorFactory
         ToolErrorCode.ElementNotFound,
         elementId is null
             ? "Element not found"
-            : $"Element '{elementId}' not found",
+            : $"Element not found: '{elementId}'",
         "Call get_visual_tree or get_logical_tree first to confirm the target elementId.");
 
     /// <summary>

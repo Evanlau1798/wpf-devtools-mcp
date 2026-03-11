@@ -33,12 +33,14 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Choose a FrameworkElement target from get_visual_tree or find_elements before inspecting styles.");
             }
 
             var styles = new List<object>();
@@ -123,7 +125,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
@@ -302,7 +304,9 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
         {
             if (string.IsNullOrEmpty(resourceKey))
             {
-                return new { success = false, error = "resourceKey is required" };
+                return ToolErrorFactory.InvalidArgument(
+                    "resourceKey is required",
+                    "Provide the resource key string you want to resolve.");
             }
 
             var element = elementId == null
@@ -311,7 +315,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
@@ -375,7 +379,9 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
         {
             if (string.IsNullOrEmpty(propertyName))
             {
-                return new { success = false, error = "propertyName is required" };
+                return ToolErrorFactory.InvalidArgument(
+                    "propertyName is required",
+                    "Provide the DependencyProperty name to override.");
             }
 
             var element = elementId == null
@@ -384,7 +390,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
@@ -398,7 +404,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                 var dp = FindDependencyProperty(fe, propertyName);
                 if (dp == null)
                 {
-                    return new { success = false, error = $"Property '{propertyName}' not found" };
+                    return ToolErrorFactory.PropertyNotFound(propertyName, fe.GetType().Name);
                 }
 
                 // Set local value (overrides style)

@@ -106,6 +106,90 @@ public class InspectorErrorContractCoverageTests
             expectedHintFragment: "elementId");
     }
 
+    [StaFact]
+    public void GetAppliedStyles_MissingElement_ShouldReturnStructuredError()
+    {
+        var analyzer = new StyleAnalyzer(new ElementFinder());
+
+        var result = analyzer.GetAppliedStyles("missing-element");
+
+        AssertStructuredError(
+            result,
+            "ElementNotFound",
+            expectedHintFragment: "elementId");
+    }
+
+    [StaFact]
+    public void GetResourceChain_EmptyKey_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new StyleAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.GetResourceChain(elementId, "");
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "resource key");
+    }
+
+    [StaFact]
+    public void OverrideStyleSetter_MissingProperty_ShouldReturnStructuredPropertyNotFound()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new StyleAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.OverrideStyleSetter(elementId, "MissingProperty", 100);
+
+        AssertStructuredError(
+            result,
+            "PropertyNotFound",
+            expectedHintFragment: "propertyName");
+    }
+
+    [StaFact]
+    public void GetLayoutInfo_MissingElement_ShouldReturnStructuredError()
+    {
+        var analyzer = new LayoutAnalyzer(new ElementFinder());
+
+        var result = analyzer.GetLayoutInfo("missing-element");
+
+        AssertStructuredError(
+            result,
+            "ElementNotFound",
+            expectedHintFragment: "elementId");
+    }
+
+    [StaFact]
+    public void GetLogicalTree_MissingElement_ShouldReturnStructuredError()
+    {
+        var analyzer = new LogicalTreeAnalyzer(new ElementFinder());
+
+        var result = analyzer.GetLogicalTree(null, "missing-element");
+
+        AssertStructuredError(
+            result,
+            "ElementNotFound",
+            expectedHintFragment: "elementId");
+    }
+
+    [StaFact]
+    public void GetVisualCount_MissingElement_ShouldReturnStructuredError()
+    {
+        var analyzer = new PerformanceAnalyzer(new ElementFinder());
+
+        var result = analyzer.GetVisualCount("missing-element");
+
+        AssertStructuredError(
+            result,
+            "ElementNotFound",
+            expectedHintFragment: "elementId");
+    }
+
     private static void AssertStructuredError(
         object result,
         string expectedErrorCode,

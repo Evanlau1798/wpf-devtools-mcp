@@ -38,12 +38,14 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Choose a FrameworkElement target from get_visual_tree or find_elements before inspecting layout.");
             }
 
             return new
@@ -103,7 +105,7 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not UIElement uiElement)

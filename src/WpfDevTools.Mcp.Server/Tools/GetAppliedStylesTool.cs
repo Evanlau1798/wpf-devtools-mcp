@@ -25,6 +25,9 @@ public sealed class GetAppliedStylesTool : PipeConnectedToolBase
         if (error != null) return error;
         var elements = BatchQueryArgumentParser.ParseElementTargets(arguments, "elementId", "elementIds");
         if (elements.Error != null) return elements.Error;
+        var compact = arguments.HasValue
+            && arguments.Value.TryGetProperty("compact", out var compactProperty)
+            && compactProperty.ValueKind == JsonValueKind.True;
 
         return await BatchQueryExecutor.ExecuteAsync(
             elements.Targets,
@@ -32,7 +35,7 @@ public sealed class GetAppliedStylesTool : PipeConnectedToolBase
             (elementId, _, ct) => SendInspectorRequestAsync(
                 processId,
                 "get_applied_styles",
-                new { elementId },
+                new { elementId, compact },
                 ct),
             cancellationToken);
     }

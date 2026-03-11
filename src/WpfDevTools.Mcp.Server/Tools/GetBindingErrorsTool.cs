@@ -23,8 +23,16 @@ public sealed class GetBindingErrorsTool : PipeConnectedToolBase
     {
         var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var maxErrors = arguments.HasValue && arguments.Value.TryGetProperty("maxErrors", out var maxErrorsProperty)
+            && maxErrorsProperty.ValueKind == JsonValueKind.Number
+            ? maxErrorsProperty.GetInt32()
+            : (int?)null;
+        var sinceTimestamp = arguments.HasValue && arguments.Value.TryGetProperty("sinceTimestamp", out var sinceProperty)
+            && sinceProperty.ValueKind == JsonValueKind.String
+            ? sinceProperty.GetString()
+            : null;
 
         return await SendInspectorRequestAsync(processId, "get_binding_errors",
-            new { }, cancellationToken);
+            new { maxErrors, sinceTimestamp }, cancellationToken);
     }
 }

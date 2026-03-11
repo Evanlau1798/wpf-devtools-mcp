@@ -48,4 +48,50 @@ public class ReadToolTokenOptimizationE2eTests
         result.TryGetProperty("rawBaseValueSource", out _).Should().BeFalse();
         result.TryGetProperty("localValue", out _).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task GetBindingErrors_WithMaxErrors_ShouldTruncateResponse()
+    {
+        var result = await _fixture.Client.CallToolAsync(
+            "get_binding_errors",
+            new
+            {
+                maxErrors = 1
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().BeLessThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task GetBindings_WithStatusFilterActive_ShouldReturnOnlyActiveStatuses()
+    {
+        var result = await _fixture.Client.CallToolAsync(
+            "get_bindings",
+            new
+            {
+                recursive = true,
+                statusFilter = "Active"
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        foreach (var binding in result.GetProperty("bindings").EnumerateArray())
+        {
+            binding.GetProperty("status").GetString().Should().Be("Active");
+        }
+    }
+
+    [Fact]
+    public async Task GetAppliedStyles_WithCompactTrue_ShouldReturnStyleSummary()
+    {
+        var result = await _fixture.Client.CallToolAsync(
+            "get_applied_styles",
+            new
+            {
+                compact = true
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("styleCount").GetInt32().Should().BeGreaterThanOrEqualTo(0);
+    }
 }

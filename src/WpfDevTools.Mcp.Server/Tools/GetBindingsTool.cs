@@ -27,6 +27,7 @@ public sealed class GetBindingsTool : PipeConnectedToolBase
         var elements = BatchQueryArgumentParser.ParseElementTargets(arguments, "elementId", "elementIds");
         if (elements.Error != null) return elements.Error;
         var recursive = ParameterParser.ParseBoolParam(arguments, "recursive");
+        var statusFilter = ParameterParser.ParseStringParam(arguments, "statusFilter");
 
         return await BatchQueryExecutor.ExecuteAsync(
             elements.Targets,
@@ -34,7 +35,7 @@ public sealed class GetBindingsTool : PipeConnectedToolBase
             (elementId, _, ct) => SendInspectorRequestAsync(
                 processId,
                 "get_bindings",
-                new { elementId, recursive },
+                new { elementId, recursive, statusFilter },
                 ct),
             cancellationToken);
     }

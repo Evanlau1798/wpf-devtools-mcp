@@ -29,8 +29,9 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     /// <param name="elementId">Element ID to get bindings for. If null, uses root element.</param>
     /// <param name="recursive">When true, also collect bindings from all descendant elements.</param>
+    /// <param name="statusFilter">Optional status category filter: All, Active, or Error.</param>
     /// <returns>Result object containing success status and list of bindings</returns>
-    public object GetBindings(string? elementId = null, bool recursive = false)
+    public object GetBindings(string? elementId = null, bool recursive = false, string? statusFilter = null)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -45,6 +46,12 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
                 ? CollectBindingsRecursive(element)
                 : GetDependencyPropertiesWithBindings(element);
 
+            var filteredBindings = ApplyStatusFilter(bindings, statusFilter);
+            if (filteredBindings is not null)
+            {
+                return filteredBindings;
+            }
+
             return new { success = true, bindings };
         });
     }
@@ -53,12 +60,34 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     /// Get binding errors captured by PresentationTraceSources.
     /// Installs the trace listener if not already installed.
     /// </summary>
+    /// <param name="maxErrors">Optional maximum number of binding errors to return after filtering.</param>
+    /// <param name="sinceTimestamp">Optional ISO-8601 timestamp filter.</param>
     /// <param name="clearAfterRead">If true, clears error list after reading</param>
     /// <returns>Result object containing success status, error count, and list of binding errors</returns>
-    public object GetBindingErrors(bool clearAfterRead = false)
+    public object GetBindingErrors(int? maxErrors = null, string? sinceTimestamp = null, bool clearAfterRead = false)
     {
         return InvokeOnUIThread<object>(() =>
         {
+            if (maxErrors is <= 0)
+            {
+                return ToolErrorFactory.InvalidArgument(
+                    "maxErrors must be a positive integer when provided",
+                    "Provide maxErrors > 0 or omit it to return the full filtered error list.");
+            }
+
+            DateTime? sinceUtc = null;
+            if (!string.IsNullOrWhiteSpace(sinceTimestamp))
+            {
+                if (!DateTimeOffset.TryParse(sinceTimestamp, out var parsed))
+                {
+                    return ToolErrorFactory.InvalidArgument(
+                        "sinceTimestamp must be a valid ISO-8601 timestamp",
+                        "Use an ISO-8601 UTC timestamp such as 2026-03-11T12:00:00Z.");
+                }
+
+                sinceUtc = parsed.UtcDateTime;
+            }
+
             var liveErrors = GetLiveBindingErrors();
 
             // Ensure trace listener is installed
@@ -71,6 +100,20 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             }
 
             var filteredErrors = FilterOutValidationErrors(errors);
+            if (sinceUtc.HasValue)
+            {
+                filteredErrors = filteredErrors
+                    .Where(error => error.Timestamp >= sinceUtc.Value)
+                    .ToList();
+            }
+
+            if (maxErrors.HasValue && filteredErrors.Count > maxErrors.Value)
+            {
+                filteredErrors = filteredErrors
+                    .OrderBy(error => error.Timestamp)
+                    .TakeLast(maxErrors.Value)
+                    .ToList();
+            }
 
             var result = new
             {

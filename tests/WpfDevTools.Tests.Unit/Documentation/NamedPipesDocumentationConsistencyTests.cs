@@ -21,5 +21,20 @@ public class NamedPipesDocumentationConsistencyTests
     }
 
     private static string GetRepoFilePath(string relativePath)
-        => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (current != null)
+        {
+            var candidate = Path.Combine(current.FullName, relativePath);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new FileNotFoundException($"Could not locate repository file '{relativePath}' from '{AppContext.BaseDirectory}'.");
+    }
 }

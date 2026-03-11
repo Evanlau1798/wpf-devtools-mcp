@@ -7,6 +7,7 @@ using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Tests.TestApp;
+using WpfDevTools.Tests.Unit.TestSupport;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
@@ -20,7 +21,8 @@ public sealed class BindingErrorClassificationTests
 
         var finder = new ElementFinder();
         var analyzer = new BindingAnalyzer(finder);
-        var hostWindow = EnsureHostWindow();
+        using var hostScope = WindowHostScope.Create();
+        var hostWindow = hostScope.Window;
         var root = new StackPanel();
         var nameTextBox = new TextBox();
 
@@ -55,7 +57,8 @@ public sealed class BindingErrorClassificationTests
 
         var finder = new ElementFinder();
         var analyzer = new BindingAnalyzer(finder);
-        var hostWindow = EnsureHostWindow();
+        using var hostScope = WindowHostScope.Create();
+        var hostWindow = hostScope.Window;
         var root = new StackPanel();
         var nameTextBox = new TextBox();
 
@@ -83,16 +86,5 @@ public sealed class BindingErrorClassificationTests
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("errorCount").GetInt32().Should().Be(0);
-    }
-
-    private static Window EnsureHostWindow()
-    {
-        var window = Application.Current?.MainWindow ?? new Window();
-        if (Application.Current?.MainWindow == null && Application.Current != null)
-        {
-            Application.Current.MainWindow = window;
-        }
-
-        return window;
     }
 }

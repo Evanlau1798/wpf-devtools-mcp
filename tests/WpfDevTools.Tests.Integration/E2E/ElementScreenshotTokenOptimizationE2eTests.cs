@@ -1,3 +1,4 @@
+using System.IO;
 using FluentAssertions;
 using Xunit.Abstractions;
 
@@ -57,5 +58,31 @@ public sealed class ElementScreenshotTokenOptimizationE2eTests
         result.GetProperty("width").GetInt32().Should().BeLessOrEqualTo(200);
         result.TryGetProperty("base64Image", out var image).Should().BeTrue();
         image.GetString().Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task ElementScreenshot_WithFileOutputMode_ShouldWriteScreenshotToDisk()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "element_screenshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                outputMode = "file",
+                maxWidth = 256
+            });
+
+        _output.WriteLine($"File screenshot result: {result.GetRawText()}");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.TryGetProperty("base64Image", out _).Should().BeFalse();
+        var path = result.GetProperty("path").GetString();
+        path.Should().NotBeNullOrEmpty();
+        File.Exists(path).Should().BeTrue();
+        result.GetProperty("width").GetInt32().Should().BeLessOrEqualTo(256);
+
+        File.Delete(path!);
     }
 }

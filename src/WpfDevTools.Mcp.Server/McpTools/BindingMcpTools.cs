@@ -20,7 +20,8 @@ public static class BindingMcpTools
         "(OneWay/TwoWay/OneTime), source type, converter, and current status.\n\n" +
         "USE WHEN: You need to inspect binding configuration on a specific element or subtree.\n" +
         "BATCH MODE: Provide `elementIds` to inspect multiple roots in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
-        "DO NOT USE: recursive=true on large apps without elementId scope (will be slow).\n\n" +
+        "DO NOT USE: recursive=true on large apps without elementId scope (will be slow).\n" +
+        "FILTERING: Optional `statusFilter` narrows the response to the binding statuses relevant to the current diagnosis.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -43,13 +44,15 @@ public static class BindingMcpTools
         [Description("Optional element ID to inspect. Omit for the root window.")] string? elementId = null,
         [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
         [Description("When true, inspect descendant elements under the chosen root as well.")] bool? recursive = null,
+        [Description("Optional binding status filter such as 'All', 'Active', or 'Error'. Omit to return every binding.")] string? statusFilter = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
             ("elementIds", elementIds),
-            ("recursive", recursive));
+            ("recursive", recursive),
+            ("statusFilter", statusFilter));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetBindingsTool>("GetBindingsTool", () => new GetBindingsTool(sessionManager)).ExecuteAsync(a, ct),
@@ -63,7 +66,8 @@ public static class BindingMcpTools
         BindingMetadata + "[Binding] Get ALL binding errors captured since Inspector connected. " +
         "FIRST tool to use when debugging data display issues.\n\n" +
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
-        "DO NOT USE: Before calling connect() - errors are only captured after injection; for validation rule errors use get_validation_errors.\n\n" +
+        "DO NOT USE: Before calling connect() - errors are only captured after injection; for validation rule errors use get_validation_errors.\n" +
+        "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -90,10 +94,14 @@ public static class BindingMcpTools
     public static Task<CallToolResult> GetBindingErrors(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID whose captured binding errors should be returned. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional maximum number of errors to return after filtering. Omit to return the full captured list.")] int? maxErrors = null,
+        [Description("Optional ISO-8601 timestamp filter. Only errors at or after this instant are returned.")] string? sinceTimestamp = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
-            ("processId", processId));
+            ("processId", processId),
+            ("maxErrors", maxErrors),
+            ("sinceTimestamp", sinceTimestamp));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetBindingErrorsTool>("GetBindingErrorsTool", () => new GetBindingErrorsTool(sessionManager)).ExecuteAsync(a, ct),

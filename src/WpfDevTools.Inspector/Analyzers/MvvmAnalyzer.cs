@@ -43,11 +43,12 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
     /// Reflects over the DataContext's public properties and their current values.
     /// </summary>
     /// <param name="elementId">Optional element ID. Uses the application root element when null.</param>
+    /// <param name="propertyNames">Optional list of ViewModel properties to include. Null returns all readable properties.</param>
     /// <returns>
     /// An object with <c>success: true</c>, <c>viewModelType</c>, and <c>properties</c> on success,
     /// or <c>success: false</c> and an <c>error</c> message on failure.
     /// </returns>
-    public object GetViewModel(string? elementId)
+    public object GetViewModel(string? elementId, IReadOnlyList<string>? propertyNames = null)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -76,8 +77,31 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
             }
 
             var dcType = dataContext.GetType();
+            var requestedPropertyNames = propertyNames?
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.Ordinal)
+                .ToHashSet(StringComparer.Ordinal);
+            var reflectedProperties = dcType.GetProperties();
+
+            if (requestedPropertyNames is { Count: > 0 })
+            {
+                var matchedProperties = reflectedProperties
+                    .Where(prop => requestedPropertyNames.Contains(prop.Name))
+                    .ToList();
+
+                if (matchedProperties.Count == 0)
+                {
+                    return ToolErrorFactory.Create(
+                        Shared.ErrorHandling.ToolErrorCode.PropertyNotFound,
+                        $"Property '{requestedPropertyNames.First()}' not found on ViewModel",
+                        "Call get_viewmodel without propertyNames first to inspect the available ViewModel property names.");
+                }
+
+                reflectedProperties = matchedProperties.ToArray();
+            }
+
             var properties = new List<object>();
-            foreach (var prop in dcType.GetProperties())
+            foreach (var prop in reflectedProperties)
             {
                 try
                 {

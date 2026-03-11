@@ -22,6 +22,7 @@ public static class DependencyPropertyMcpTools
         "TemplateBinding, LocalValue, or Animation.\n\n" +
         "USE WHEN: Property has unexpected value; need to understand precedence (Style vs LocalValue vs Animation).\n" +
         "BATCH MODE: Provide `elementIds`, `propertyNames`, or both to inspect multiple targets in one call. Single-target responses keep the original shape; batch responses return `results` with per-item correlation fields.\n" +
+        "COMPACT MODE: Optional `compact=true` trims each result to the minimum fields agents typically need for precedence decisions.\n" +
         "DO NOT USE: Without propertyName or propertyNames - at least one target property is required.\n\n" +
         "NORMALIZATION: baseValueSource is normalized into stable categories for agents, " +
         "while rawBaseValueSource preserves the original WPF BaseValueSource enum name. " +
@@ -51,6 +52,7 @@ public static class DependencyPropertyMcpTools
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
         [Description("Optional list of property names for batch inspection. Use either propertyName or propertyNames, not both.")] string[]? propertyNames = null,
+        [Description("Optional compact response mode. When true, only return the minimum decision-making fields for each result.")] bool compact = false,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -58,7 +60,8 @@ public static class DependencyPropertyMcpTools
             ("elementId", elementId),
             ("elementIds", elementIds),
             ("propertyName", propertyName),
-            ("propertyNames", propertyNames));
+            ("propertyNames", propertyNames),
+            ("compact", compact));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetDpValueSourceTool>("GetDpValueSourceTool", () => new GetDpValueSourceTool(sessionManager)).ExecuteAsync(a, ct),

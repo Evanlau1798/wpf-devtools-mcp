@@ -30,6 +30,17 @@ public class BuildConfigurationTests
     }
 
     [Fact]
+    public void DirectoryBuildProps_ShouldDisableNuGetAuditOutsideCi_ToAvoidLocalConnectivityWarnings()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("Directory.Build.props"));
+
+        content.Should().Contain("<NuGetAudit");
+        content.Should().Contain("Condition=");
+        content.Should().Contain("GITHUB_ACTIONS");
+        content.Should().Contain("TF_BUILD");
+    }
+
+    [Fact]
     public void MsBuildResponseFile_ShouldForceSingleNodeBuilds_ForDeterministicSolutionBuilds()
     {
         var content = File.ReadAllText(GetRepoFilePath("msbuild.rsp"));

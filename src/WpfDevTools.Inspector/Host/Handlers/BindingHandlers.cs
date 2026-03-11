@@ -64,17 +64,20 @@ public class BindingHandlers : IRequestHandler
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
         var recursive = ParameterHelpers.GetBoolParam(@params, "recursive") ?? false;
+        var statusFilter = ParameterHelpers.GetStringParam(@params, "statusFilter");
 
         return await Task.Run(() =>
-            _bindingAnalyzer.GetBindings(elementId, recursive), cancellationToken).ConfigureAwait(false);
+            _bindingAnalyzer.GetBindings(elementId, recursive, statusFilter), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetBindingErrorsAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         var clearAfterRead = ParameterHelpers.GetBoolParam(@params, "clearAfterRead") ?? false;
+        var maxErrors = ParameterHelpers.GetIntParam(@params, "maxErrors");
+        var sinceTimestamp = ParameterHelpers.GetStringParam(@params, "sinceTimestamp");
 
         return await Task.Run(() =>
-            _bindingAnalyzer.GetBindingErrors(clearAfterRead), cancellationToken).ConfigureAwait(false);
+            _bindingAnalyzer.GetBindingErrors(maxErrors, sinceTimestamp, clearAfterRead), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetDataContextChainAsync(JsonElement? @params, CancellationToken cancellationToken)

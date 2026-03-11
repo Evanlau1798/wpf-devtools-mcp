@@ -38,6 +38,36 @@ public static class ParameterHelpers
     }
 
     /// <summary>
+    /// Get string array parameter from JSON arguments.
+    /// </summary>
+    /// <param name="params">JSON parameters</param>
+    /// <param name="name">Parameter name</param>
+    /// <returns>String array if found, null otherwise</returns>
+    public static string[]? GetStringArrayParam(JsonElement? @params, string name)
+    {
+        if (@params == null || !@params.HasValue)
+            return null;
+
+        if (!@params.Value.TryGetProperty(name, out var property) || property.ValueKind != JsonValueKind.Array)
+            return null;
+
+        var values = new List<string>();
+        foreach (var item in property.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String)
+            {
+                var value = item.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    values.Add(value);
+                }
+            }
+        }
+
+        return values.ToArray();
+    }
+
+    /// <summary>
     /// Get integer parameter from JSON arguments
     /// </summary>
     /// <param name="params">JSON parameters</param>

@@ -64,9 +64,13 @@ public class WpfProcessDetector
         try
         {
             using var process = Process.GetProcessById(processId);
-            var window = TopLevelWindowEnumerator.SelectBestWindow(
-                TopLevelWindowEnumerator.Enumerate(),
-                processId);
+            var mainWindowHandle = process.MainWindowHandle;
+            var mainWindowTitle = process.MainWindowTitle;
+            var window = ShouldEnumerateWindowsForProcessInfo(mainWindowHandle, mainWindowTitle)
+                ? TopLevelWindowEnumerator.SelectBestWindow(
+                    TopLevelWindowEnumerator.Enumerate(),
+                    processId)
+                : null;
             return CreateProcessInfo(process, processId, window);
         }
         catch (ArgumentException)
@@ -118,7 +122,12 @@ public class WpfProcessDetector
         string[]? moduleNames = null)
     {
         var architecture = DetectArchitecture(process);
-        moduleNames ??= ShouldInspectModules(window) ? TryGetModuleNames(process) : null;
+        moduleNames ??= ShouldInspectModulesForProcessInfo(
+            window,
+            process.MainWindowHandle,
+            process.MainWindowTitle)
+            ? TryGetModuleNames(process)
+            : null;
         var isWpf = isWpfApplication ?? (moduleNames != null
             ? ContainsWpfAssembly(moduleNames)
             : HasWpfWindowClass(process, window));
@@ -174,6 +183,27 @@ public class WpfProcessDetector
         }
 
         return window.ClassName.IndexOf("HwndWrapper", StringComparison.Ordinal) >= 0;
+    }
+
+    internal static bool ShouldEnumerateWindowsForProcessInfo(
+        IntPtr mainWindowHandle,
+        string? mainWindowTitle)
+    {
+        return mainWindowHandle != IntPtr.Zero ||
+               !string.IsNullOrWhiteSpace(mainWindowTitle);
+    }
+
+    internal static bool ShouldInspectModulesForProcessInfo(
+        TopLevelWindowSnapshot? window,
+        IntPtr mainWindowHandle,
+        string? mainWindowTitle)
+    {
+        if (window != null)
+        {
+            return ShouldInspectModules(window);
+        }
+
+        return ShouldEnumerateWindowsForProcessInfo(mainWindowHandle, mainWindowTitle);
     }
 
     private string[]? TryGetModuleNames(Process process)

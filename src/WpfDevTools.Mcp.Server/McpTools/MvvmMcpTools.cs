@@ -27,6 +27,7 @@ public static class MvvmMcpTools
         "  typeName, implementsINotifyPropertyChanged: boolean,\n" +
         "  properties: [{ name, value, type, canWrite }]\n" +
         "}\n\n" +
+        "FILTERING: Optional `propertyNames` lets agents request only the ViewModel properties relevant to the current diagnosis.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"no datacontext\" -> element has no DataContext set\n" +
@@ -38,11 +39,13 @@ public static class MvvmMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose DataContext should be inspected. Omit for the root window.")] string? elementId = null,
+        [Description("Optional list of ViewModel property names to include. Omit to return all readable properties.")] string[]? propertyNames = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("propertyNames", propertyNames));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetViewModelTool>("GetViewModelTool", () => new GetViewModelTool(sessionManager)).ExecuteAsync(a, ct),

@@ -23,7 +23,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Get applied styles for an element
     /// </summary>
-    public object GetAppliedStyles(string? elementId)
+    public object GetAppliedStyles(string? elementId, bool compact = false)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -48,25 +48,33 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             // Get explicit style
             if (fe.Style != null)
             {
-                var setters = fe.Style.Setters
-                    .OfType<Setter>()
-                    .Select(setter => new
+                styles.Add(compact
+                    ? new
                     {
-                        property = setter.Property?.Name,
-                        value = setter.Value?.ToString()
-                    })
-                    .ToArray();
-
-                styles.Add(new
-                {
-                    styleType = "Explicit",
-                    type = "Explicit",
-                    targetType = fe.Style.TargetType?.Name,
-                    setters,
-                    setterCount = fe.Style.Setters.Count,
-                    triggerCount = fe.Style.Triggers.Count,
-                    hasBasedOn = fe.Style.BasedOn != null
-                });
+                        styleType = "Explicit",
+                        type = "Explicit",
+                        targetType = fe.Style.TargetType?.Name,
+                        setterCount = fe.Style.Setters.Count,
+                        triggerCount = fe.Style.Triggers.Count,
+                        hasBasedOn = fe.Style.BasedOn != null
+                    }
+                    : new
+                    {
+                        styleType = "Explicit",
+                        type = "Explicit",
+                        targetType = fe.Style.TargetType?.Name,
+                        setters = fe.Style.Setters
+                            .OfType<Setter>()
+                            .Select(setter => new
+                            {
+                                property = setter.Property?.Name,
+                                value = setter.Value?.ToString()
+                            })
+                            .ToArray(),
+                        setterCount = fe.Style.Setters.Count,
+                        triggerCount = fe.Style.Triggers.Count,
+                        hasBasedOn = fe.Style.BasedOn != null
+                    });
             }
 
             var localResourceReferences = GetLocalResourceReferences(fe);
@@ -77,6 +85,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                 hasStyle = fe.Style != null,
                 styles,
                 count = styles.Count,
+                styleCount = styles.Count,
                 localResourceReferenceCount = localResourceReferences.Count,
                 localResourceReferences,
                 notes = fe.Style == null && localResourceReferences.Count > 0

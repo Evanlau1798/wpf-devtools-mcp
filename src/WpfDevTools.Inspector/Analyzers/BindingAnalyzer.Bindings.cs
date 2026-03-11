@@ -78,12 +78,45 @@ public sealed partial class BindingAnalyzer
                         ["propertyName"] = dp.Name,
                         ["path"] = binding?.Path?.Path,
                         ["mode"] = binding?.Mode.ToString(),
-                        ["updateSourceTrigger"] = binding?.UpdateSourceTrigger.ToString()
+                        ["updateSourceTrigger"] = binding?.UpdateSourceTrigger.ToString(),
+                        ["status"] = bindingExpr.Status.ToString()
                     });
                 }
             }
         }
 
         return bindings;
+    }
+
+    private static object? ApplyStatusFilter(List<object> bindings, string? statusFilter)
+    {
+        if (string.IsNullOrWhiteSpace(statusFilter) ||
+            string.Equals(statusFilter, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        Func<string?, bool> predicate = statusFilter switch
+        {
+            var value when string.Equals(value, "Active", StringComparison.OrdinalIgnoreCase)
+                => status => string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase),
+            var value when string.Equals(value, "Error", StringComparison.OrdinalIgnoreCase)
+                => status => status is "PathError" or "UpdateTargetError" or "UpdateSourceError",
+            _ => null!
+        };
+
+        if (predicate is null)
+        {
+            return ToolErrorFactory.InvalidArgument(
+                $"Unsupported statusFilter '{statusFilter}'",
+                "Use statusFilter 'All', 'Active', or 'Error'.");
+        }
+
+        var filtered = bindings
+            .Where(binding => binding is Dictionary<string, object?> dict &&
+                              predicate(dict.TryGetValue("status", out var status) ? status?.ToString() : null))
+            .ToList();
+
+        return new { success = true, bindings = filtered };
     }
 }

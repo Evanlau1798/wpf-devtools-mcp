@@ -37,4 +37,25 @@ public class WpfProcessDetectorWindowHeuristicsTests
 
         result.Should().Be(expected);
     }
+
+    [Fact]
+    public void ShouldEnumerateWindowsForProcessInfo_WithoutMainWindowHandleOrTitle_ShouldReturnFalse()
+    {
+        var result = WpfProcessDetector.ShouldEnumerateWindowsForProcessInfo(
+            IntPtr.Zero,
+            mainWindowTitle: null);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldInspectModulesForProcessInfo_WithoutWindowOrMainWindowSignals_ShouldReturnFalse()
+    {
+        var result = WpfProcessDetector.ShouldInspectModulesForProcessInfo(
+            window: null,
+            mainWindowHandle: IntPtr.Zero,
+            mainWindowTitle: null);
+
+        result.Should().BeFalse();
+    }
 }

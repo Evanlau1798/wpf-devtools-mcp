@@ -23,8 +23,24 @@ public sealed class GetViewModelTool : PipeConnectedToolBase
     {
         var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var propertyNames = ParseStringArray(arguments, "propertyNames");
 
         return await SendInspectorRequestAsync(processId, "get_viewmodel",
-            new { elementId }, cancellationToken);
+            new { elementId, propertyNames }, cancellationToken);
+    }
+
+    private static string[]? ParseStringArray(JsonElement? arguments, string propertyName)
+    {
+        if (arguments == null || !arguments.Value.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        return property.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
     }
 }

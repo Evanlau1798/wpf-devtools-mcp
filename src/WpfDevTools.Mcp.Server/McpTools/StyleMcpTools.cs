@@ -21,6 +21,7 @@ public static class StyleMcpTools
         "setters (property+value), whether it's an implicit or explicit style, and localResourceReferences when appearance comes from a local resource expression instead of a Style.\n\n" +
         "USE WHEN: Element has unexpected appearance; need to understand which styles are applied.\n" +
         "BATCH MODE: Provide `elementIds` to inspect multiple elements in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
+        "COMPACT MODE: Optional `compact=true` returns style summaries without enumerating every setter value.\n" +
         "DO NOT USE: For runtime property values (use get_dp_value_source instead).\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -45,12 +46,14 @@ public static class StyleMcpTools
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose applied styles should be returned. Omit for the root window.")] string? elementId = null,
         [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
+        [Description("Optional compact response mode. When true, return style summaries instead of full setter payloads.")] bool compact = false,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("elementIds", elementIds));
+            ("elementIds", elementIds),
+            ("compact", compact));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetAppliedStylesTool>("GetAppliedStylesTool", () => new GetAppliedStylesTool(sessionManager)).ExecuteAsync(a, ct),

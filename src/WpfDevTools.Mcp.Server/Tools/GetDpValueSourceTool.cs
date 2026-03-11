@@ -23,6 +23,9 @@ public sealed class GetDpValueSourceTool : PipeConnectedToolBase
     {
         var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var compact = arguments.HasValue
+            && arguments.Value.TryGetProperty("compact", out var compactProperty)
+            && compactProperty.ValueKind == JsonValueKind.True;
 
         var elements = BatchQueryArgumentParser.ParseElementTargets(arguments, "elementId", "elementIds");
         if (elements.Error != null) return elements.Error;
@@ -36,7 +39,7 @@ public sealed class GetDpValueSourceTool : PipeConnectedToolBase
             (elementId, propertyName, ct) => SendInspectorRequestAsync(
                 processId,
                 "get_dp_value_source",
-                new { elementId, propertyName },
+                new { elementId, propertyName, compact },
                 ct),
             cancellationToken);
     }

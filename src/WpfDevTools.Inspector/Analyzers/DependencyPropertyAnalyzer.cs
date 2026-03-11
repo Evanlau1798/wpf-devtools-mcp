@@ -56,7 +56,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Get value source for a DependencyProperty
     /// </summary>
-    public object GetValueSource(string propertyName, string? elementId = null)
+    public object GetValueSource(string propertyName, string? elementId = null, bool compact = false)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -90,18 +90,32 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             var hadLocalValue = localValue != DependencyProperty.UnsetValue;
             var rawBaseValueSource = valueSource.BaseValueSource.ToString();
 
+            var baseValueSource = DependencyPropertyValueSourceNormalizer.Normalize(valueSource.BaseValueSource, hadLocalValue, valueSource.IsAnimated);
+            var effectiveValueText = FormatResponseValue(effectiveValue);
+
+            if (compact)
+            {
+                return new
+                {
+                    success = true,
+                    propertyName = propertyName,
+                    baseValueSource,
+                    effectiveValue = effectiveValueText
+                };
+            }
+
             return new
             {
                 success = true,
                 propertyName = propertyName,
-                baseValueSource = DependencyPropertyValueSourceNormalizer.Normalize(valueSource.BaseValueSource, hadLocalValue, valueSource.IsAnimated),
+                baseValueSource,
                 rawBaseValueSource,
                 isExpression = valueSource.IsExpression,
                 isAnimated = valueSource.IsAnimated,
                 isCoerced = valueSource.IsCoerced,
                 isCurrent = valueSource.IsCurrent,
-                currentValue = FormatResponseValue(effectiveValue),
-                effectiveValue = FormatResponseValue(effectiveValue),
+                currentValue = effectiveValueText,
+                effectiveValue = effectiveValueText,
                 hadLocalValue,
                 localValue = hadLocalValue ? FormatResponseValue(localValue) : null,
                 localValueType = hadLocalValue ? localValue?.GetType().Name : null

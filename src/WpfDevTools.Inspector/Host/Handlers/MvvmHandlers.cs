@@ -59,9 +59,10 @@ public class MvvmHandlers : IRequestHandler
     private async Task<object> HandleGetViewModelAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var propertyNames = ParameterHelpers.GetStringArrayParam(@params, "propertyNames");
 
         return await Task.Run(() =>
-            _mvvmAnalyzer.GetViewModel(elementId), cancellationToken).ConfigureAwait(false);
+            _mvvmAnalyzer.GetViewModel(elementId, propertyNames), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetCommandsAsync(JsonElement? @params, CancellationToken cancellationToken)

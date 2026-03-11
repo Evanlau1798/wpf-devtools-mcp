@@ -57,9 +57,10 @@ public class StyleHandlers : IRequestHandler
     private async Task<object> HandleGetAppliedStylesAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var compact = ParameterHelpers.GetBoolParam(@params, "compact") ?? false;
 
         return await Task.Run(() =>
-            _styleAnalyzer.GetAppliedStyles(elementId), cancellationToken).ConfigureAwait(false);
+            _styleAnalyzer.GetAppliedStyles(elementId, compact), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetTriggersAsync(JsonElement? @params, CancellationToken cancellationToken)

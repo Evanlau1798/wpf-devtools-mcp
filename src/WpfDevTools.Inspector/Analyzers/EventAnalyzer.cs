@@ -9,7 +9,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes and traces WPF RoutedEvents
 /// </summary>
-public sealed class EventAnalyzer : DispatcherAnalyzerBase
+public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private static readonly object _lock = new object();
@@ -176,84 +176,10 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to fire event: {ex.Message}" };
-            }
-        });
-    }
-
-    /// <summary>
-    /// Get event handlers attached to an element
-    /// </summary>
-    public object GetEventHandlers(string? elementId, string eventName)
-    {
-        return InvokeOnUIThread<object>(() =>
-        {
-            if (string.IsNullOrEmpty(eventName))
-            {
-                return ToolErrorFactory.InvalidArgument(
-                    "eventName is required",
-                    "Provide a routed event name such as Click, MouseDown, or PreviewMouseDown.");
-            }
-
-            // Check reflection support on first use
-            if (!IsReflectionSupported())
-            {
-                return new
-                {
-                    success = false,
-                    error = "Event handler inspection not supported on this .NET version",
-                    note = "This feature requires access to internal WPF structures that may not be available"
-                };
-            }
-
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
-
-            if (element == null)
-            {
-                return ToolErrorFactory.ElementNotFound(elementId);
-            }
-
-            if (element is not UIElement uiElement)
-            {
-                return ToolErrorFactory.InvalidArgument(
-                    "Element is not a UIElement",
-                    "Choose a UIElement target from get_visual_tree before inspecting event handlers.");
-            }
-
-            var routedEvent = FindRoutedEvent(uiElement, eventName);
-            if (routedEvent == null)
-            {
-                var availableEvents = RoutedEventDiscovery.EnumerateAvailableRoutedEvents(uiElement.GetType());
-                return ToolErrorFactory.EventNotFound(eventName, availableEvents);
-            }
-
-            try
-            {
-                var handlers = GetHandlerInfoList(uiElement, routedEvent);
-
-                return new
-                {
-                    success = true,
-                    eventName,
-                    handlerCount = handlers.Count,
-                    handlers,
-                    reflectionSupported = true,
-                    mayBeIncomplete = true,
-                    message = handlers.Count == 0
-                        ? "No handlers found. Reflection does not see class handlers, commands, template triggers, or inaccessible internals."
-                        : $"Found {handlers.Count} handler(s)"
-                };
-            }
-            catch (Exception ex)
-            {
-                return new
-                {
-                    success = false,
-                    error = $"Failed to get event handlers: {ex.Message}",
-                    note = "Event handler inspection is limited due to WPF internal structure"
-                };
+                return ToolErrorFactory.OperationFailed(
+                    "fire event",
+                    ex,
+                    "Verify the target control is loaded and that the chosen routed event is valid for its type.");
             }
         });
     }
@@ -394,96 +320,6 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
     private RoutedEvent? FindRoutedEvent(UIElement element, string eventName)
     {
         return RoutedEventDiscovery.FindRoutedEvent(element.GetType(), eventName);
-    }
-
-    private static List<object> GetHandlerInfoList(UIElement uiElement, RoutedEvent routedEvent)
-    {
-        var handlers = new List<object>();
-        var eventHandlersStore = GetEventHandlersStore(uiElement);
-
-        if (eventHandlersStore == null)
-        {
-            return handlers;
-        }
-
-        var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
-            "GetRoutedEventHandlers",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-
-        if (getRoutedEventHandlersMethod == null)
-        {
-            return handlers;
-        }
-
-        var routedEventHandlers = getRoutedEventHandlersMethod.Invoke(
-            eventHandlersStore,
-            new object[] { routedEvent }) as RoutedEventHandlerInfo[];
-
-        if (routedEventHandlers == null)
-        {
-            return handlers;
-        }
-
-        foreach (var handlerInfo in routedEventHandlers)
-        {
-            var handler = handlerInfo.Handler;
-            handlers.Add(new
-            {
-                handlerType = handler.GetType().Name,
-                targetType = handler.Target?.GetType().Name,
-                methodName = handler.Method.Name,
-                isClassHandler = handlerInfo.InvokeHandledEventsToo
-            });
-        }
-
-        return handlers;
-    }
-
-    /// <summary>
-    /// Check if reflection-based event handler inspection is supported
-    /// </summary>
-    private static bool IsReflectionSupported()
-    {
-        lock (_reflectionLock)
-        {
-            // Cache the result after first check
-            if (_reflectionSupported.HasValue)
-            {
-                return _reflectionSupported.Value;
-            }
-
-            // Check if the internal field exists
-            _reflectionSupported = GetEventHandlersStoreMember() != null;
-            return _reflectionSupported.Value;
-        }
-    }
-
-    private static object? GetEventHandlersStore(UIElement element)
-    {
-        var member = GetEventHandlersStoreMember();
-
-        return member switch
-        {
-            System.Reflection.FieldInfo field => field.GetValue(element),
-            System.Reflection.PropertyInfo property => property.GetValue(element),
-            _ => null
-        };
-    }
-
-    private static System.Reflection.MemberInfo? GetEventHandlersStoreMember()
-    {
-        var field = typeof(UIElement).GetField(
-            EVENT_HANDLERS_STORE_MEMBER,
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-
-        if (field != null)
-        {
-            return field;
-        }
-
-        return typeof(UIElement).GetProperty(
-            EVENT_HANDLERS_STORE_MEMBER,
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
     }
 
     private static bool IsButtonClickEvent(UIElement element, string eventName)

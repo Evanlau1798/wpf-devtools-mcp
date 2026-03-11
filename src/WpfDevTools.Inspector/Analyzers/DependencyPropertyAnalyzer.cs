@@ -19,7 +19,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// Thread Safety: ConcurrentDictionary and ConcurrentQueue provide thread-safe operations
 /// Memory Safety: WeakReference prevents memory leaks when elements are GC'd
 /// </summary>
-public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
+public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -226,7 +226,10 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to set property: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "set property",
+                    ex,
+                    "Verify the property accepts local values and that the provided value is compatible with the target property type.");
             }
         });
     }
@@ -283,226 +286,11 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to clear property: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "clear property",
+                    ex,
+                    "Verify the property supports clearing local values and still belongs to the current target element.");
             }
         });
-    }
-
-    /// <summary>
-    /// Start watching DependencyProperty changes
-    /// </summary>
-    public object WatchChanges(string propertyName, string? elementId = null)
-    {
-        return InvokeOnUIThread<object>(() =>
-        {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
-
-            if (element == null)
-            {
-                return ToolErrorFactory.ElementNotFound(elementId);
-            }
-
-            if (element is not DependencyObject depObj)
-            {
-                return ToolErrorFactory.InvalidArgument(
-                    "Element is not a DependencyObject",
-                    "Target a WPF DependencyObject element before watching DependencyProperty changes.");
-            }
-
-            // Find DependencyProperty by name
-            var dp = FindDependencyProperty(depObj, propertyName);
-            if (dp == null)
-            {
-                return ToolErrorFactory.PropertyNotFound(propertyName, depObj.GetType().Name);
-            }
-
-            try
-            {
-                var watchKey = $"{elementId}_{propertyName}";
-
-                // Check if already watching (ConcurrentDictionary is thread-safe for reads)
-                if (_watchers.ContainsKey(watchKey))
-                {
-                    return ToolErrorFactory.InvalidArgument(
-                        "Already watching this property",
-                        "Reuse the existing watcher or clear it before registering the same property again.");
-                }
-
-                // Create descriptor and add handler (must be on UI thread)
-                var descriptor = DependencyPropertyDescriptor.FromProperty(dp, depObj.GetType());
-                if (descriptor != null)
-                {
-                    // SECURITY: Use WeakReference to prevent memory leak
-                    // The closure must NOT capture depObj directly, as that creates
-                    // a strong reference preventing GC of the element
-                    var weakElement = new WeakReference<DependencyObject>(depObj);
-                    EventHandler handler = (sender, e) =>
-                    {
-                        if (!weakElement.TryGetTarget(out var element))
-                            return;
-                        var newValue = element.GetValue(dp);
-                        _changeLog.Enqueue(new
-                        {
-                            timestamp = DateTime.UtcNow,
-                            elementId,
-                            propertyName,
-                            newValue = newValue?.ToString(),
-                            valueType = newValue?.GetType().Name
-                        });
-
-                        // Increment count and trim oldest entries if over limit
-                        var count = Interlocked.Increment(ref _changeLogCount);
-                        while (count > MaxChangeLogEntries)
-                        {
-                            if (_changeLog.TryDequeue(out _))
-                            {
-                                count = Interlocked.Decrement(ref _changeLogCount);
-                            }
-                            else
-                            {
-                                break; // Queue empty, exit
-                            }
-                        }
-                    };
-
-                    descriptor.AddValueChanged(depObj, handler);
-                    _watchers[watchKey] = (descriptor, handler, new WeakReference<DependencyObject>(depObj));
-                }
-
-                return new
-                {
-                    success = true,
-                    message = $"Started watching property '{propertyName}'",
-                    propertyName,
-                    elementId
-                };
-            }
-            catch (Exception ex)
-            {
-                return new { success = false, error = $"Failed to watch property: {ex.Message}" };
-            }
-        });
-    }
-
-    /// <summary>
-    /// Stop watching DependencyProperty changes
-    /// </summary>
-    public object UnwatchChanges(string propertyName, string? elementId = null)
-    {
-        return InvokeOnUIThread<object>(() =>
-        {
-            var watchKey = $"{elementId}_{propertyName}";
-
-            if (_watchers.TryRemove(watchKey, out var watcher))
-            {
-                // Try to get the element from weak reference
-                if (watcher.ElementRef.TryGetTarget(out var element))
-                {
-                    // Element is still alive, remove the event handler
-                    watcher.Descriptor.RemoveValueChanged(element, watcher.Handler);
-                }
-                // If element is GC'd, the handler is already cleaned up by GC
-                // No need for fallback lookup
-
-                return new
-                {
-                    success = true,
-                    message = $"Stopped watching property '{propertyName}'",
-                    propertyName,
-                    elementId
-                };
-            }
-
-            return ToolErrorFactory.InvalidArgument(
-                "Property is not being watched",
-                "Register watch_dp_changes for the element/property pair before attempting to stop it.");
-        });
-    }
-
-    /// <summary>
-    /// Get change log for watched properties
-    /// </summary>
-    public object GetChangeLog()
-    {
-        return new
-        {
-            success = true,
-            changeCount = _changeLogCount,
-            changes = _changeLog.ToArray()
-        };
-    }
-
-    /// <summary>
-    /// Clear change log
-    /// </summary>
-    public object ClearChangeLog()
-    {
-        // Clear queue by dequeuing all items
-        while (_changeLog.TryDequeue(out _)) { }
-        Interlocked.Exchange(ref _changeLogCount, 0);
-        return new { success = true, message = "Change log cleared" };
-    }
-
-    /// <summary>
-    /// Stop all active property watchers (cleanup on shutdown)
-    /// </summary>
-    public static void StopAllWatchers()
-    {
-        foreach (var kvp in _watchers)
-        {
-            try
-            {
-                if (kvp.Value.ElementRef.TryGetTarget(out var element))
-                {
-                    kvp.Value.Descriptor.RemoveValueChanged(element, kvp.Value.Handler);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"DependencyPropertyAnalyzer: Failed to cleanup watcher: {ex.Message}");
-            }
-        }
-        _watchers.Clear();
-        // Stop timer but don't dispose - allow restart via ResetMonitoring
-        _cleanupTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-    }
-
-    /// <summary>
-    /// Reset monitoring state and restart cleanup timer.
-    /// Call after StopAllWatchers when re-initializing.
-    /// </summary>
-    public static void ResetMonitoring()
-    {
-        while (_changeLog.TryDequeue(out _)) { }
-        Interlocked.Exchange(ref _changeLogCount, 0);
-        _cleanupTimer?.Change(
-            TimeSpan.FromSeconds(CleanupIntervalSeconds),
-            TimeSpan.FromSeconds(CleanupIntervalSeconds));
-    }
-
-    /// <summary>
-    /// CRITICAL FIX: Clean up watchers for garbage-collected elements
-    /// This prevents dead watchers from accumulating over time
-    /// </summary>
-    private static void CleanupDeadWatchers()
-    {
-        var deadKeys = new List<string>();
-
-        foreach (var kvp in _watchers)
-        {
-            // Check if element is still alive
-            if (!kvp.Value.ElementRef.TryGetTarget(out _))
-            {
-                deadKeys.Add(kvp.Key);
-            }
-        }
-
-        // Remove dead watchers
-        foreach (var key in deadKeys)
-        {
-            _watchers.TryRemove(key, out _);
-        }
     }
 }

@@ -75,7 +75,10 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to click element: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "click element",
+                    ex,
+                    "Verify the element is enabled and still attached to the current visual tree before retrying.");
             }
         });
     }
@@ -116,7 +119,10 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to scroll to element: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "scroll to element",
+                    ex,
+                    "Ensure the target is inside a ScrollViewer and is still attached to the current visual tree.");
             }
         });
     }
@@ -166,7 +172,9 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 
                     if (renderSize.Width <= 0 || renderSize.Height <= 0)
                     {
-                        return new { success = false, error = "Element has no visual bounds" };
+                        return ToolErrorFactory.ElementNotLoaded(
+                            "Element has no visual bounds",
+                            "Ensure the element is visible and rendered in the visual tree before taking a screenshot.");
                     }
 
                     bounds = new Rect(0, 0, renderSize.Width, renderSize.Height);
@@ -175,7 +183,9 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                 const int MaxDimensionPixels = 3840;
                 if (bounds.Width > MaxDimensionPixels || bounds.Height > MaxDimensionPixels)
                 {
-                    return new { success = false, error = $"Element too large to screenshot ({bounds.Width:F0}x{bounds.Height:F0} px). Maximum is {MaxDimensionPixels}x{MaxDimensionPixels}." };
+                    return ToolErrorFactory.InvalidArgument(
+                        $"Element too large to screenshot ({bounds.Width:F0}x{bounds.Height:F0} px). Maximum is {MaxDimensionPixels}x{MaxDimensionPixels}.",
+                        "Target a smaller child element or reduce the rendered size before calling element_screenshot.");
                 }
 
                 // Create render target
@@ -238,7 +248,10 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to take screenshot: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "take screenshot",
+                    ex,
+                    "Scroll the element into view and ensure it is rendered before retrying element_screenshot.");
             }
         });
     }
@@ -253,12 +266,10 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
             // Check reflection support on first use
             if (!InteractionDragDropHelper.IsReflectionSupported())
             {
-                return new
-                {
-                    success = false,
-                    error = "Drag and drop simulation not supported on this .NET version",
-                    note = "This feature requires access to internal DragEventArgs constructor that may not be available"
-                };
+                return ToolErrorFactory.OperationFailed(
+                    "simulate drag and drop",
+                    new NotSupportedException("Drag and drop simulation not supported on this .NET version"),
+                    "This feature requires internal DragEventArgs reflection support that may be unavailable on the current runtime.");
             }
 
             var sourceElement = sourceElementId == null
@@ -306,13 +317,10 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                 if (constructor == null)
                 {
                     InteractionDragDropHelper.MarkReflectionUnsupported();
-
-                    return new
-                    {
-                        success = false,
-                        error = "Drag and drop simulation not available",
-                        note = "DragEventArgs internal constructor not found in this .NET version"
-                    };
+                    return ToolErrorFactory.OperationFailed(
+                        "simulate drag and drop",
+                        new NotSupportedException("DragEventArgs internal constructor not found in this .NET version"),
+                        "This feature requires internal DragEventArgs reflection support that may be unavailable on the current runtime.");
                 }
 
                 // Simulate drag enter
@@ -356,7 +364,10 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to simulate drag and drop: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "simulate drag and drop",
+                    ex,
+                    "Verify both elements still exist and support drag/drop semantics before retrying.");
             }
         });
     }

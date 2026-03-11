@@ -82,6 +82,19 @@ public static class ToolErrorFactory
         hint ?? "The element may not be loaded yet. Activate its parent window or tab and retry.");
 
     /// <summary>
+    /// Create a structured runtime-failure payload for operations that failed after input validation.
+    /// </summary>
+    public static ToolErrorPayload OperationFailed(
+        string operationDescription,
+        Exception exception,
+        string? hint = null,
+        object? errorData = null) => Create(
+        ToolErrorCode.OperationFailed,
+        $"Failed to {operationDescription}: {exception.Message}",
+        hint ?? "Retry after re-querying the current target state. If the issue persists, refresh the target element or reconnect to the process.",
+        errorData);
+
+    /// <summary>
     /// Create a structured error payload from primitive parts.
     /// </summary>
     public static ToolErrorPayload Create(

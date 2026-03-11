@@ -120,7 +120,7 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
         {
             var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
             if (element == null)
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
 
             var fe = element as FrameworkElement;
             if (fe?.DataContext == null)
@@ -192,14 +192,16 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                 AuditLogger.LogSecurityEvent("CommandExecution",
                     $"Blocked by CanExecute: {commandName}",
                     AuditSeverity.Warning);
-                return new
-                {
-                    success = false,
-                    error = $"Command '{commandName}' cannot execute",
-                    commandName,
-                    canExecute = false,
-                    executed = false
-                };
+                return ToolErrorFactory.Create(
+                    Shared.ErrorHandling.ToolErrorCode.InvalidArgument,
+                    $"Command '{commandName}' cannot execute",
+                    "Call get_commands first and verify CanExecute is true before invoking execute_command.",
+                    new
+                    {
+                        commandName,
+                        canExecute = false,
+                        executed = false
+                    });
             }
 
             // Execute command
@@ -350,11 +352,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                         $"Blocked sensitive property: {propertyName}",
                         AuditSeverity.Warning);
 
-                    return new
-                    {
-                        success = false,
-                        error = $"Property '{propertyName}' cannot be modified for security reasons"
-                    };
+                    return ToolErrorFactory.InvalidArgument(
+                        $"Property '{propertyName}' cannot be modified for security reasons",
+                        "Avoid modifying sensitive properties such as passwords, tokens, keys, or credentials.");
                 }
 
                 // Convert value to target type
@@ -366,11 +366,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                     // Check if target type accepts null
                     if (targetType.IsValueType && Nullable.GetUnderlyingType(targetType) == null)
                     {
-                        return new
-                        {
-                            success = false,
-                            error = $"Cannot assign null to non-nullable type '{targetType.Name}'"
-                        };
+                        return ToolErrorFactory.InvalidArgument(
+                            $"Cannot assign null to non-nullable type '{targetType.Name}'",
+                            "Provide a non-null value compatible with the target ViewModel property type.");
                     }
                     convertedValue = null;
                 }
@@ -405,14 +403,15 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                     }
                     catch (Exception conversionEx)
                     {
-                        return new
-                        {
-                            success = false,
-                            error = $"Type conversion failed: {conversionEx.Message}",
-                            sourceType = value.GetType().Name,
-                            targetType = targetType.Name,
-                            hint = "Ensure the value is compatible with the property type"
-                        };
+                        return ToolErrorFactory.Create(
+                            Shared.ErrorHandling.ToolErrorCode.InvalidArgument,
+                            $"Type conversion failed: {conversionEx.Message}",
+                            "Ensure the value is compatible with the property type",
+                            new
+                            {
+                                sourceType = value.GetType().Name,
+                                targetType = targetType.Name
+                            });
                     }
                 }
 
@@ -451,7 +450,10 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to modify ViewModel property: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "modify ViewModel property",
+                    ex,
+                    "Re-query the ViewModel with get_viewmodel and verify the property is writable before retrying modify_viewmodel.");
             }
         });
     }

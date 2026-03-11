@@ -11,7 +11,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF Layout information
 /// </summary>
-public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
+public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private static readonly ConcurrentDictionary<string, Border> _highlights = new();
@@ -392,119 +392,11 @@ public sealed class LayoutAnalyzer : DispatcherAnalyzerBase
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Failed to invalidate layout: {ex.Message}" };
+                return ToolErrorFactory.OperationFailed(
+                    "invalidate layout",
+                    ex,
+                    "Ensure the target UIElement is still loaded before retrying invalidate_layout.");
             }
         });
-    }
-
-    /// <summary>
-    /// Highlight an element with a colored border overlay
-    /// </summary>
-    public object HighlightElement(string? elementId, string color, int duration)
-    {
-        return InvokeOnUIThread<object>(() =>
-        {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
-
-            if (element == null)
-            {
-                return ToolErrorFactory.ElementNotFound(elementId);
-            }
-
-            if (element is not FrameworkElement fe)
-            {
-                return ToolErrorFactory.InvalidArgument(
-                    "Element is not a FrameworkElement",
-                    "Choose a FrameworkElement target before calling highlight_element.");
-            }
-
-            try
-            {
-                // Parse color with fallback
-                Color parsedColor;
-                try
-                {
-                    parsedColor = (Color)ColorConverter.ConvertFromString(color);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"LayoutAnalyzer: Invalid color '{color}', falling back to Red: {ex.Message}");
-                    parsedColor = Colors.Red;
-                }
-                var brush = new SolidColorBrush(parsedColor);
-
-                // Create highlight border
-                var highlightBorder = new Border
-                {
-                    BorderBrush = brush,
-                    BorderThickness = new Thickness(2),
-                    IsHitTestVisible = false
-                };
-
-                // Get adorner layer
-                var adornerLayer = AdornerLayer.GetAdornerLayer(fe);
-                if (adornerLayer == null)
-                {
-                    return new
-                    {
-                        success = false,
-                        error = "Cannot highlight element: AdornerLayer not available",
-                        hint = "Element may not be in the visual tree or may not have an AdornerDecorator ancestor"
-                    };
-                }
-
-                // Create adorner
-                var adorner = new HighlightAdorner(fe, highlightBorder);
-                adornerLayer.Add(adorner);
-
-                // Store reference
-                var key = elementId ?? "root";
-                _highlights[key] = highlightBorder;
-
-                // Remove highlight after duration
-                Task.Delay(duration).ContinueWith(task =>
-                {
-                    InvokeOnUIThread(() =>
-                    {
-                        adornerLayer.Remove(adorner);
-                        _highlights.TryRemove(key, out _);
-                    });
-                });
-
-                return new
-                {
-                    success = true,
-                    message = $"Element highlighted with {color} for {duration}ms",
-                    color,
-                    duration,
-                    elementType = element.GetType().Name
-                };
-            }
-            catch (Exception ex)
-            {
-                return new { success = false, error = $"Failed to highlight element: {ex.Message}" };
-            }
-        });
-    }
-
-    /// <summary>
-    /// Helper adorner class for highlighting elements
-    /// </summary>
-    private class HighlightAdorner : Adorner
-    {
-        private readonly Border _border;
-
-        public HighlightAdorner(UIElement adornedElement, Border border) : base(adornedElement)
-        {
-            _border = border;
-        }
-
-        protected override void OnRender(DrawingContext drawingContext)
-        {
-            var rect = new Rect(AdornedElement.RenderSize);
-            drawingContext.DrawRectangle(null, new Pen(_border.BorderBrush, 2), rect);
-        }
     }
 }

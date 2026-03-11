@@ -26,11 +26,13 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
     public object FindElements(
         string? rootElementId = null,
         string? typeName = null,
+        string[]? typeNames = null,
         string? elementName = null,
         string? automationId = null,
         string? propertyName = null,
         string? propertyValue = null,
-        int? maxResults = null)
+        int? maxResults = null,
+        string? matchMode = null)
     {
         var root = rootElementId == null
             ? ResolveRootElement()
@@ -53,12 +55,28 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
                 return ToolErrorFactory.InvalidArgument("maxResults must be a positive integer.");
             }
 
+            if (!string.IsNullOrWhiteSpace(typeName) && typeNames is { Length: > 0 })
+            {
+                return ToolErrorFactory.InvalidArgument(
+                    "Provide either typeName or typeNames, not both.",
+                    "Use typeName for a single exact type or typeNames for an OR-style multi-type search.");
+            }
+
+            var resolvedMatchMode = string.IsNullOrWhiteSpace(matchMode) ? "exact" : matchMode!;
+            if (!string.Equals(resolvedMatchMode, "exact", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(resolvedMatchMode, "contains", StringComparison.OrdinalIgnoreCase))
+            {
+                return ToolErrorFactory.InvalidArgument(
+                    $"Unsupported matchMode '{matchMode}'.",
+                    "Use matchMode 'exact' or 'contains'.");
+            }
+
             var results = new List<object>();
             var truncated = false;
 
             foreach (var current in DependencyObjectTraversal.EnumerateDescendantsAndSelf(resolvedRoot))
             {
-                if (!Matches(current, typeName, elementName, automationId, propertyName, propertyValue, out var matchedValue))
+                if (!Matches(current, typeName, typeNames, elementName, automationId, propertyName, propertyValue, resolvedMatchMode, out var matchedValue))
                 {
                     continue;
                 }
@@ -93,28 +111,29 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
     private static bool Matches(
         DependencyObject element,
         string? typeName,
+        string[]? typeNames,
         string? elementName,
         string? automationId,
         string? propertyName,
         string? propertyValue,
+        string matchMode,
         out string? matchedValue)
     {
         matchedValue = null;
 
-        if (!string.IsNullOrWhiteSpace(typeName) &&
-            !string.Equals(element.GetType().Name, typeName, StringComparison.Ordinal))
+        if (!MatchesString(element.GetType().Name, typeName, typeNames, matchMode))
         {
             return false;
         }
 
         if (!string.IsNullOrWhiteSpace(elementName) &&
-            !string.Equals((element as FrameworkElement)?.Name, elementName, StringComparison.Ordinal))
+            !MatchesValue((element as FrameworkElement)?.Name, elementName, matchMode))
         {
             return false;
         }
 
         if (!string.IsNullOrWhiteSpace(automationId) &&
-            !string.Equals(AutomationProperties.GetAutomationId(element), automationId, StringComparison.Ordinal))
+            !MatchesValue(AutomationProperties.GetAutomationId(element), automationId, matchMode))
         {
             return false;
         }
@@ -132,7 +151,39 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
             return value != null;
         }
 
-        return string.Equals(matchedValue, propertyValue, StringComparison.Ordinal);
+        return MatchesValue(matchedValue, propertyValue, matchMode);
+    }
+
+    private static bool MatchesString(string actual, string? exactValue, string[]? alternatives, string matchMode)
+    {
+        if (!string.IsNullOrWhiteSpace(exactValue))
+        {
+            return MatchesValue(actual, exactValue, matchMode);
+        }
+
+        if (alternatives is not { Length: > 0 })
+        {
+            return true;
+        }
+
+        return alternatives.Any(candidate => MatchesValue(actual, candidate, matchMode));
+    }
+
+    private static bool MatchesValue(string? actual, string? expected, string matchMode)
+    {
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(actual))
+        {
+            return false;
+        }
+
+        return string.Equals(matchMode, "contains", StringComparison.OrdinalIgnoreCase)
+            ? actual.Contains(expected, StringComparison.OrdinalIgnoreCase)
+            : string.Equals(actual, expected, StringComparison.Ordinal);
     }
 
     private static object? TryGetPropertyValue(DependencyObject element, string propertyName)

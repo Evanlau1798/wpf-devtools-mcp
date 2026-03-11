@@ -119,16 +119,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             {
                 success = true,
                 errorCount = filteredErrors.Count,
-                errors = filteredErrors.Select(e => new
-                {
-                    diagnosticKind = "BindingError",
-                    sourceKind = e.Origin,
-                    severity = "Error",
-                    timestamp = e.Timestamp.ToString("O"),
-                    message = e.Message,
-                    eventType = e.EventType,
-                    sourceId = e.SourceId
-                }).ToList()
+                errors = filteredErrors.Select(e => BuildBindingErrorPayload(e, liveErrors)).ToList()
             };
 
             if (clearAfterRead)

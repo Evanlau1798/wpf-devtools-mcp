@@ -170,10 +170,16 @@ public static class BatchQueryExecutor
             .Select(static item => AttachCorrelation(item.element, item.elementId, item.propertyName))
             .ToArray();
 
+        var successCount = combinations.Count(static item =>
+            !item.TryGetProperty("success", out var success) || success.GetBoolean());
+        var failureCount = combinations.Length - successCount;
+
         return JsonSerializer.SerializeToElement(new
         {
-            success = combinations.All(static item => !item.TryGetProperty("success", out var success) || success.GetBoolean()),
+            success = successCount > 0,
             resultCount = combinations.Length,
+            successCount,
+            failureCount,
             results = combinations
         });
     }

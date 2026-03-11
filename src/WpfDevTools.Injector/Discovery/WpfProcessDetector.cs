@@ -17,7 +17,8 @@ public class WpfProcessDetector
 
     /// <summary>
     /// Get all WPF processes currently running
-    /// Optimized: Filter by MainWindowHandle first to avoid expensive checks on non-GUI processes
+    /// Optimized: use top-level window indexing to skip non-windowed processes and
+    /// avoid expensive metadata probes until the target is confirmed as WPF.
     /// </summary>
     public virtual IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses()
     {
@@ -36,8 +37,8 @@ public class WpfProcessDetector
                     continue;
                 }
 
-                var info = CreateProcessInfo(process, process.Id, window);
-                if (info != null && info.IsWpfApplication)
+                var info = CreateEnumeratedWpfProcessInfo(process, process.Id, window);
+                if (info != null)
                 {
                     wpfProcesses.Add(info);
                 }
@@ -85,17 +86,42 @@ public class WpfProcessDetector
         }
     }
 
-    private WpfProcessInfo? CreateProcessInfo(
+    private WpfProcessInfo? CreateEnumeratedWpfProcessInfo(
         Process process,
         int processId,
-        TopLevelWindowSnapshot? window)
+        TopLevelWindowSnapshot window)
     {
-        var architecture = DetectArchitecture(process);
         var shouldInspectModules = ShouldInspectModules(window);
         var moduleNames = shouldInspectModules ? TryGetModuleNames(process) : null;
         var isWpf = moduleNames != null
             ? ContainsWpfAssembly(moduleNames)
             : HasWpfWindowClass(process, window);
+
+        if (!isWpf)
+        {
+            return null;
+        }
+
+        return CreateProcessInfo(
+            process,
+            processId,
+            window,
+            isWpfApplication: true,
+            moduleNames);
+    }
+
+    private WpfProcessInfo? CreateProcessInfo(
+        Process process,
+        int processId,
+        TopLevelWindowSnapshot? window,
+        bool? isWpfApplication = null,
+        string[]? moduleNames = null)
+    {
+        var architecture = DetectArchitecture(process);
+        moduleNames ??= ShouldInspectModules(window) ? TryGetModuleNames(process) : null;
+        var isWpf = isWpfApplication ?? (moduleNames != null
+            ? ContainsWpfAssembly(moduleNames)
+            : HasWpfWindowClass(process, window));
         var runtime = moduleNames != null
             ? DetectRuntimeFromModuleNames(moduleNames)
             : TargetRuntime.Unknown;

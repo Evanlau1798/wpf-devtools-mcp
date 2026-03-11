@@ -8,7 +8,7 @@ namespace WpfDevTools.Tests.Unit.Injector;
 public class WpfProcessDetectorPerformanceTests
 {
     [Fact]
-    public void GetAllWpfProcesses_ShouldFilterEarlyByMainWindowHandle()
+    public void GetAllWpfProcesses_ShouldSkipExpensiveMetadataUntilProcessLooksLikeWpf()
     {
         // Arrange
         var detector = new WpfProcessDetector();
@@ -18,11 +18,11 @@ public class WpfProcessDetectorPerformanceTests
         var processes = detector.GetAllWpfProcesses();
         sw.Stop();
 
-        // Assert - should complete quickly by filtering early
-        // Most processes don't have MainWindowHandle, so early filtering saves time
+        // Assert - should complete quickly by using top-level window indexing
+        // and only running expensive metadata probes after a process looks like WPF.
         // Use 10s threshold to account for system load during full test suite execution
         sw.ElapsedMilliseconds.Should().BeLessThan(10000,
-            "early filtering by MainWindowHandle should make detection fast");
+            "top-level window indexing and deferred metadata probes should keep WPF detection fast");
 
         // Verify we got some results (at least the test process itself might be WPF)
         processes.Should().NotBeNull();

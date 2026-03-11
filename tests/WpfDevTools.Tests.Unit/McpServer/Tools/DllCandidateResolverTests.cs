@@ -72,4 +72,32 @@ public class DllCandidateResolverTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void EnumerateInspectorCandidates_ShouldIncludeWorkspaceDebugInspectorArtifact()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var solutionRoot = Path.Combine(root, "repo");
+        var serverDir = Path.Combine(solutionRoot, "src", "WpfDevTools.Mcp.Server", "bin", "Debug", "net8.0");
+        Directory.CreateDirectory(serverDir);
+        File.WriteAllText(Path.Combine(solutionRoot, "WpfDevTools.sln"), string.Empty);
+
+        try
+        {
+            var candidates = DllCandidateResolver.EnumerateInspectorCandidates(serverDir).ToArray();
+
+            candidates.Should().Contain(Path.GetFullPath(Path.Combine(
+                solutionRoot,
+                "src",
+                "WpfDevTools.Inspector",
+                "bin",
+                "Debug",
+                "net8.0-windows",
+                "WpfDevTools.Inspector.dll")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

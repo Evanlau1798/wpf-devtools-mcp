@@ -130,10 +130,28 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Take screenshot of element
     /// </summary>
-    public object TakeScreenshot(string? elementId)
+    public object TakeScreenshot(
+        string? elementId,
+        string? outputMode = null,
+        int? maxWidth = null,
+        int? maxHeight = null)
     {
         return InvokeOnUIThread<object>(() =>
         {
+            if (maxWidth.HasValue && maxWidth.Value <= 0)
+            {
+                return ToolErrorFactory.InvalidArgument(
+                    "maxWidth must be a positive integer when provided",
+                    "Provide a positive maxWidth value, or omit it to keep the rendered width.");
+            }
+
+            if (maxHeight.HasValue && maxHeight.Value <= 0)
+            {
+                return ToolErrorFactory.InvalidArgument(
+                    "maxHeight must be a positive integer when provided",
+                    "Provide a positive maxHeight value, or omit it to keep the rendered height.");
+            }
+
             var element = elementId == null
                 ? _elementFinder.GetRootElement()
                 : _elementFinder.FindById(elementId);
@@ -188,10 +206,19 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                         "Target a smaller child element or reduce the rendered size before calling element_screenshot.");
                 }
 
+                var normalizedOutputMode = string.Equals(outputMode, "metadata", StringComparison.OrdinalIgnoreCase)
+                    ? "metadata"
+                    : "base64";
+                var (targetWidth, targetHeight) = CalculateScaledDimensions(
+                    bounds.Width,
+                    bounds.Height,
+                    maxWidth,
+                    maxHeight);
+
                 // Create render target
                 var renderTarget = new RenderTargetBitmap(
-                    (int)bounds.Width,
-                    (int)bounds.Height,
+                    targetWidth,
+                    targetHeight,
                     96, 96,
                     PixelFormats.Pbgra32);
 
@@ -200,7 +227,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                 using (var context = drawingVisual.RenderOpen())
                 {
                     var visualBrush = new VisualBrush(uiElement);
-                    context.DrawRectangle(visualBrush, null, bounds);
+                    context.DrawRectangle(visualBrush, null, new Rect(0, 0, targetWidth, targetHeight));
                 }
 
                 renderTarget.Render(drawingVisual);
@@ -235,15 +262,30 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 
                 using var stream = new MemoryStream();
                 encoder.Save(stream);
-                var base64Image = Convert.ToBase64String(stream.ToArray());
+                var imageBytes = stream.ToArray();
+
+                if (normalizedOutputMode == "metadata")
+                {
+                    return new
+                    {
+                        success = true,
+                        width = targetWidth,
+                        height = targetHeight,
+                        format = "png",
+                        byteLength = imageBytes.Length
+                    };
+                }
+
+                var base64Image = Convert.ToBase64String(imageBytes);
 
                 return new
                 {
                     success = true,
                     base64Image,
-                    width = (int)bounds.Width,
-                    height = (int)bounds.Height,
-                    format = "png"
+                    width = targetWidth,
+                    height = targetHeight,
+                    format = "png",
+                    byteLength = imageBytes.Length
                 };
             }
             catch (Exception ex)
@@ -254,6 +296,31 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                     "Scroll the element into view and ensure it is rendered before retrying element_screenshot.");
             }
         });
+    }
+
+    private static (int Width, int Height) CalculateScaledDimensions(
+        double originalWidth,
+        double originalHeight,
+        int? maxWidth,
+        int? maxHeight)
+    {
+        var scale = 1.0;
+
+        if (maxWidth.HasValue)
+        {
+            scale = Math.Min(scale, maxWidth.Value / originalWidth);
+        }
+
+        if (maxHeight.HasValue)
+        {
+            scale = Math.Min(scale, maxHeight.Value / originalHeight);
+        }
+
+        scale = Math.Min(scale, 1.0);
+
+        var width = Math.Max(1, (int)Math.Round(originalWidth * scale));
+        var height = Math.Max(1, (int)Math.Round(originalHeight * scale));
+        return (width, height);
     }
 
     /// <summary>

@@ -96,9 +96,12 @@ public class InteractionHandlers : IRequestHandler
     private async Task<object> HandleElementScreenshotAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var outputMode = ParameterHelpers.GetStringParam(@params, "outputMode");
+        var maxWidth = ParameterHelpers.GetIntParam(@params, "maxWidth");
+        var maxHeight = ParameterHelpers.GetIntParam(@params, "maxHeight");
 
         return await Task.Run(() =>
-            _interactionAnalyzer.TakeScreenshot(elementId), cancellationToken).ConfigureAwait(false);
+            _interactionAnalyzer.TakeScreenshot(elementId, outputMode, maxWidth, maxHeight), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleDragAndDropAsync(JsonElement? @params, CancellationToken cancellationToken)

@@ -268,17 +268,18 @@ public static class InteractionMcpTools
     [Description(
         "Use this tool to capture a WPF element screenshot for runtime visual verification.\n\n" +
         InteractionMetadata + "[Interaction] Capture a PNG screenshot of a specific element. " +
-        "Returns base64-encoded image data. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
+        "Returns base64 image data by default, or compact metadata when requested. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
         "USE WHEN: Visual verification needed; documenting UI state; debugging rendering issues.\n" +
         "DO NOT USE: On off-screen elements (use scroll_to_element first).\n\n" +
-        "PERFORMANCE: Large elements produce large base64 strings. Prefer smaller targets in interactive STDIO sessions.\n\n" +
+        "PERFORMANCE: Large elements produce large base64 strings. Prefer `outputMode: \"metadata\"` and/or `maxWidth` / `maxHeight` in interactive STDIO sessions.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  base64Image: string,\n" +
+        "  base64Image?: string,\n" +
         "  width: number,\n" +
         "  height: number,\n" +
-        "  format: 'png'\n" +
+        "  format: 'png',\n" +
+        "  byteLength: number\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -286,16 +287,23 @@ public static class InteractionMcpTools
         "- \"render failed\" -> element may be collapsed or have zero size\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\" }\n" +
+        "- { processId: 12345, outputMode: \"metadata\", maxWidth: 512 }\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> ElementScreenshot(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to capture. Omit for the root window.")] string? elementId = null,
+        [Description("Optional screenshot output mode: 'base64' (default) or 'metadata'.")] string? outputMode = null,
+        [Description("Optional maximum screenshot width. When provided, the image is downscaled proportionally and never upscaled.")] int? maxWidth = null,
+        [Description("Optional maximum screenshot height. When provided, the image is downscaled proportionally and never upscaled.")] int? maxHeight = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("outputMode", outputMode),
+            ("maxWidth", maxWidth),
+            ("maxHeight", maxHeight));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ElementScreenshotTool>("ElementScreenshotTool", () => new ElementScreenshotTool(sessionManager)).ExecuteAsync(a, ct),

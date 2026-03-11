@@ -3,6 +3,7 @@
     <BuildInParallel>false</BuildInParallel>
     <RestoreBuildInParallel>false</RestoreBuildInParallel>
     <UseSharedCompilation>false</UseSharedCompilation>
+    <NuGetAudit Condition="'$(GITHUB_ACTIONS)' != 'true' and '$(TF_BUILD)' != 'True'">false</NuGetAudit>
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
   </PropertyGroup>
 </Project>

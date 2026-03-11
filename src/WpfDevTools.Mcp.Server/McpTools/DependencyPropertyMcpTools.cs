@@ -22,7 +22,7 @@ public static class DependencyPropertyMcpTools
         "TemplateBinding, LocalValue, or Animation.\n\n" +
         "USE WHEN: Property has unexpected value; need to understand precedence (Style vs LocalValue vs Animation).\n" +
         "BATCH MODE: Provide `elementIds`, `propertyNames`, or both to inspect multiple targets in one call. Single-target responses keep the original shape; batch responses return `results` with per-item correlation fields.\n" +
-        "DO NOT USE: Without propertyName - it's required.\n\n" +
+        "DO NOT USE: Without propertyName or propertyNames - at least one target property is required.\n\n" +
         "NORMALIZATION: baseValueSource is normalized into stable categories for agents, " +
         "while rawBaseValueSource preserves the original WPF BaseValueSource enum name. " +
         "These two fields MAY legitimately differ: baseValueSource includes additional logic " +
@@ -39,13 +39,14 @@ public static class DependencyPropertyMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
-        "- \"propertyName required\" -> must specify which property\n\n" +
+        "- \"propertyName required\" -> must specify propertyName or propertyNames\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
+        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }\n" +
+        "- { processId: 12345, elementIds: [\"SaveButton\", \"NameTextBox\"], propertyNames: [\"IsEnabled\", \"Text\"] }")]
     public static Task<CallToolResult> GetDpValueSource(
         SessionManager sessionManager,
-        [Description("DependencyProperty name to inspect, such as Text or IsEnabled.")] string propertyName,
+        [Description("Optional DependencyProperty name to inspect, such as Text or IsEnabled. Omit only when propertyNames is provided for batch inspection.")] string? propertyName = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,

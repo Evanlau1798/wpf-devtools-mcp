@@ -149,6 +149,7 @@ public class McpToolContractConsistencyTests
     [Fact]
     public void GetDpValueSource_ShouldExposeOptionalBatchParameters()
     {
+        AssertOptionalParameter(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.GetDpValueSource), "propertyName", typeof(string), null);
         AssertOptionalParameter(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.GetDpValueSource), "elementIds", typeof(string[]), null);
         AssertOptionalParameter(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.GetDpValueSource), "propertyNames", typeof(string[]), null);
     }

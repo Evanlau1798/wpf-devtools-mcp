@@ -60,12 +60,13 @@ public class DependencyPropertyHandlers : IRequestHandler
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
         var propertyName = ParameterHelpers.GetStringParam(@params, "propertyName");
+        var compact = ParameterHelpers.GetBoolParam(@params, "compact") ?? false;
 
         if (string.IsNullOrEmpty(propertyName))
             throw new ArgumentException("Missing required parameter: propertyName");
 
         return await Task.Run(() =>
-            _dependencyPropertyAnalyzer.GetValueSource(propertyName!, elementId), cancellationToken).ConfigureAwait(false);
+            _dependencyPropertyAnalyzer.GetValueSource(propertyName!, elementId, compact), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleSetDpValueAsync(JsonElement? @params, CancellationToken cancellationToken)

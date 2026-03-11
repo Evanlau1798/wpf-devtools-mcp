@@ -30,4 +30,22 @@ public class ReadToolTokenOptimizationE2eTests
         properties.Select(property => property.GetProperty("name").GetString())
             .Should().Equal("Name", "CanSave");
     }
+
+    [Fact]
+    public async Task GetDpValueSource_WithCompactTrue_ShouldOmitVerboseFields()
+    {
+        var result = await _fixture.Client.CallToolAsync(
+            "get_dp_value_source",
+            new
+            {
+                propertyName = "Width",
+                compact = true
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("propertyName").GetString().Should().Be("Width");
+        result.TryGetProperty("effectiveValue", out _).Should().BeTrue();
+        result.TryGetProperty("rawBaseValueSource", out _).Should().BeFalse();
+        result.TryGetProperty("localValue", out _).Should().BeFalse();
+    }
 }

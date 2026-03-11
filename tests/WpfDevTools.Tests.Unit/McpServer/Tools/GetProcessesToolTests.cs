@@ -75,10 +75,10 @@ public class GetProcessesToolTests
     }
 
     [Fact]
-    public async Task Execute_ShouldReturnRuntimeAndElevationMetadata()
+    public async Task Execute_ShouldExposeElevationWarning_WhenCurrentServerIsNotElevated()
     {
         // Arrange
-        var tool = new GetProcessesTool(new FakeProcessDetector());
+        var tool = new GetProcessesTool(new FakeProcessDetector(), () => false);
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
@@ -90,6 +90,27 @@ public class GetProcessesToolTests
         firstProcess.GetProperty("runtime").GetString().Should().Be("NetCore");
         firstProcess.GetProperty("isElevated").GetBoolean().Should().BeTrue();
         firstProcess.GetProperty("requiresElevationToConnect").GetBoolean().Should().BeTrue();
+        firstProcess.GetProperty("canConnectFromCurrentServer").GetBoolean().Should().BeFalse();
+        firstProcess.GetProperty("connectionWarning").GetString().Should().Contain("administrator");
+    }
+
+    [Fact]
+    public async Task Execute_ShouldNotExposeElevationWarning_WhenCurrentServerIsAlreadyElevated()
+    {
+        // Arrange
+        var tool = new GetProcessesTool(new FakeProcessDetector(), () => true);
+
+        // Act
+        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        // Assert
+        var processes = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        var firstProcess = processes.GetProperty("processes").EnumerateArray().Single();
+
+        firstProcess.GetProperty("isElevated").GetBoolean().Should().BeTrue();
+        firstProcess.GetProperty("requiresElevationToConnect").GetBoolean().Should().BeFalse();
+        firstProcess.GetProperty("canConnectFromCurrentServer").GetBoolean().Should().BeTrue();
+        firstProcess.GetProperty("connectionWarning").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
     private sealed class FakeProcessDetector : WpfProcessDetector

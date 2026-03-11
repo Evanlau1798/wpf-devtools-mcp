@@ -21,13 +21,15 @@ public class ConnectToolTests : IDisposable
         SessionManager? sessionManager = null,
         FakeProcessInjector? injector = null,
         WpfProcessDetector? processDetector = null,
-        Action<string>? dllPathValidator = null)
+        Action<string>? dllPathValidator = null,
+        Func<bool>? isCurrentProcessElevated = null)
     {
         return new ConnectTool(
             sessionManager ?? new SessionManager(),
             injector ?? new FakeProcessInjector(),
             processDetector ?? new FakeProcessDetector(),
-            dllPathValidator ?? (_ => { }));
+            dllPathValidator ?? (_ => { }),
+            isCurrentProcessElevated ?? (() => false));
     }
 
     private void EnsureDummyBootstrapperExists()
@@ -196,7 +198,8 @@ public class ConnectToolTests : IDisposable
     {
         var tool = CreateTool(
             injector: new FakeProcessInjector { ValidationResult = InjectionError.AccessDenied },
-            processDetector: new FakeProcessDetector(isElevated: true));
+            processDetector: new FakeProcessDetector(isElevated: true),
+            isCurrentProcessElevated: () => false);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
@@ -205,6 +208,52 @@ public class ConnectToolTests : IDisposable
         resultJson.GetProperty("error").GetString().Should().Contain("elevated");
         resultJson.GetProperty("error").GetString().Should().Contain("administrator");
         resultJson.GetProperty("requiresElevationToConnect").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Execute_WithElevatedTargetAndNonElevatedServer_ShouldReturnPreflightPermissionWarning()
+    {
+        var injector = new FakeProcessInjector();
+        var tool = CreateTool(
+            injector: injector,
+            processDetector: new FakeProcessDetector(isElevated: true),
+            isCurrentProcessElevated: () => false);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("AccessDenied");
+        resultJson.GetProperty("targetIsElevated").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("requiresElevationToConnect").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("canConnectFromCurrentServer").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("administrator");
+        injector.InjectWithBootstrapCallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Execute_WithElevatedTargetAndElevatedServer_ShouldProceedPastPreflight()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var injector = new FakeProcessInjector
+        {
+            ShouldFailInjection = true,
+            InjectionErrorMessage = "Expected downstream injection failure",
+            FailedError = InjectionError.BootstrapFailed
+        };
+
+        var tool = CreateTool(
+            injector: injector,
+            processDetector: new FakeProcessDetector(isElevated: true),
+            isCurrentProcessElevated: () => true);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("Expected downstream injection failure");
+        injector.InjectWithBootstrapCallCount.Should().Be(1);
     }
 
     [Fact]

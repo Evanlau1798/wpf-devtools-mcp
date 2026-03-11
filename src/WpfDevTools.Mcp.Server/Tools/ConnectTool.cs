@@ -23,6 +23,7 @@ public sealed class ConnectTool
     private readonly SessionManager _sessionManager;
     private readonly WpfProcessDetector _processDetector;
     private readonly Action<string> _dllPathValidator;
+    private readonly Func<bool> _isCurrentProcessElevated;
 
     /// <summary>
     /// Create ConnectTool with dependency injection
@@ -31,12 +32,14 @@ public sealed class ConnectTool
         SessionManager sessionManager,
         IProcessInjector injector,
         WpfProcessDetector? processDetector = null,
-        Action<string>? dllPathValidator = null)
+        Action<string>? dllPathValidator = null,
+        Func<bool>? isCurrentProcessElevated = null)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _injector = injector ?? throw new ArgumentNullException(nameof(injector));
         _processDetector = processDetector ?? new WpfProcessDetector();
         _dllPathValidator = dllPathValidator ?? DllPathValidator.ValidateDllPath;
+        _isCurrentProcessElevated = isCurrentProcessElevated ?? CurrentProcessElevationDetector.IsCurrentProcessElevated;
     }
 
     /// <summary>
@@ -125,6 +128,24 @@ public sealed class ConnectTool
             };
         }
 
+        var access = ProcessConnectionAccessEvaluator.Evaluate(
+            processId.Value,
+            processInfo.IsElevated,
+            _isCurrentProcessElevated());
+        if (access.RequiresElevationToConnect)
+        {
+            return new
+            {
+                success = false,
+                error = access.ConnectionWarning,
+                errorCode = InjectionError.AccessDenied.ToString(),
+                targetIsElevated = processInfo.IsElevated,
+                requiresElevationToConnect = access.RequiresElevationToConnect,
+                canConnectFromCurrentServer = access.CanConnectFromCurrentServer,
+                suggestedAction = "Restart the MCP server as administrator and retry connect."
+            };
+        }
+
         var validationError = _injector.ValidateTarget(processId.Value);
         if (validationError != InjectionError.None)
         {
@@ -134,7 +155,8 @@ public sealed class ConnectTool
                 error = GetErrorMessage(validationError, processId.Value, processInfo),
                 errorCode = validationError.ToString(),
                 targetIsElevated = processInfo.IsElevated,
-                requiresElevationToConnect = processInfo.RequiresElevationToConnect
+                requiresElevationToConnect = access.RequiresElevationToConnect,
+                canConnectFromCurrentServer = access.CanConnectFromCurrentServer
             };
         }
 
@@ -162,6 +184,21 @@ public sealed class ConnectTool
         var injectionResult = _injector.InjectWithBootstrap(injectionRequest, cancellationToken);
         if (!injectionResult.Success)
         {
+            if (injectionResult.Error == InjectionError.AccessDenied && processInfo.IsElevated)
+            {
+                return new
+                {
+                    success = false,
+                    error = GetErrorMessage(InjectionError.AccessDenied, processId.Value, processInfo),
+                    errorCode = InjectionError.AccessDenied.ToString(),
+                    targetIsElevated = processInfo.IsElevated,
+                    requiresElevationToConnect = access.RequiresElevationToConnect,
+                    canConnectFromCurrentServer = access.CanConnectFromCurrentServer,
+                    stage = injectionResult.FailedAtStage?.ToString(),
+                    exitCode = injectionResult.BootstrapExitCode
+                };
+            }
+
             return new
             {
                 success = false,

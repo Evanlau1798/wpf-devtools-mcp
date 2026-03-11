@@ -17,7 +17,7 @@ public static class ProcessMcpTools
     [Description(
         "Use this tool to inspect a running WPF application and discover available WPF targets before connecting.\n\n" +
         ProcessMetadata + "[Process] List all running WPF processes available for inspection. " +
-        "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion, runtime, isElevated, requiresElevationToConnect.\n\n" +
+        "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion, runtime, isElevated, requiresElevationToConnect, canConnectFromCurrentServer, connectionWarning.\n\n" +
         "USE WHEN: Starting a new inspection session; discovering available WPF applications.\n" +
         "DO NOT USE: Repeatedly in a loop (process list changes infrequently).\n\n" +
         "RESPONSE FORMAT:\n" +
@@ -31,7 +31,9 @@ public static class ProcessMcpTools
         "    dotNetVersion: string,\n" +
         "    runtime: 'Unknown'|'NetFramework'|'NetCore',\n" +
         "    isElevated: boolean,\n" +
-        "    requiresElevationToConnect: boolean\n" +
+        "    requiresElevationToConnect: boolean,\n" +
+        "    canConnectFromCurrentServer: boolean,\n" +
+        "    connectionWarning: string|null\n" +
         "  }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
@@ -63,11 +65,18 @@ public static class ProcessMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  message: string,\n" +
-        "  processId: number\n" +
+        "  message?: string,\n" +
+        "  error?: string,\n" +
+        "  errorCode?: string,\n" +
+        "  processId?: number,\n" +
+        "  targetIsElevated?: boolean,\n" +
+        "  requiresElevationToConnect?: boolean,\n" +
+        "  canConnectFromCurrentServer?: boolean,\n" +
+        "  suggestedAction?: string\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"access denied\" -> run MCP server as administrator\n" +
+        "- elevated target + non-admin server -> preflight denial with requiresElevationToConnect=true and suggestedAction\n" +
         "- \"not a WPF application\" -> processId is not a WPF app (use get_processes)\n" +
         "- \"architecture mismatch\" -> server and target app must match (x64 vs x86)\n" +
         "- \"timeout\" -> connection took >30s, process may be unresponsive\n" +

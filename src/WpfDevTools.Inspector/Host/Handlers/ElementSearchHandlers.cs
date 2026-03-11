@@ -36,10 +36,12 @@ public sealed class ElementSearchHandlers : IRequestHandler
         return Task.FromResult<object>(_elementSearchAnalyzer.FindElements(
             rootElementId: ParameterHelpers.GetStringParam(@params, "elementId"),
             typeName: ParameterHelpers.GetStringParam(@params, "typeName"),
+            typeNames: ParameterHelpers.GetStringArrayParam(@params, "typeNames"),
             elementName: ParameterHelpers.GetStringParam(@params, "elementName"),
             automationId: ParameterHelpers.GetStringParam(@params, "automationId"),
             propertyName: ParameterHelpers.GetStringParam(@params, "propertyName"),
             propertyValue: ParameterHelpers.GetStringParam(@params, "propertyValue"),
-            maxResults: ParameterHelpers.GetIntParam(@params, "maxResults")));
+            maxResults: ParameterHelpers.GetIntParam(@params, "maxResults"),
+            matchMode: ParameterHelpers.GetStringParam(@params, "matchMode")));
     }
 }

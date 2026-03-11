@@ -24,7 +24,7 @@ public sealed partial class BindingAnalyzer
         return errors;
     }
 
-    private static void CollectLocalBindingErrors(
+    private void CollectLocalBindingErrors(
         DependencyObject element,
         List<BindingErrorInfo> errors)
     {
@@ -49,7 +49,10 @@ public sealed partial class BindingAnalyzer
                 Message = BuildLiveBindingErrorMessage(element, property, bindingExpression),
                 EventType = bindingExpression.Status.ToString(),
                 SourceId = 0,
-                Origin = BindingErrorInfo.OriginBindingExpression
+                Origin = BindingErrorInfo.OriginBindingExpression,
+                ElementId = _elementFinder.GenerateElementId(element),
+                PropertyName = property.Name,
+                BindingPath = bindingExpression.ParentBinding?.Path?.Path
             });
         }
     }

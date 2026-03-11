@@ -251,15 +251,17 @@ public static class TreeMcpTools
     [McpServerTool(Name = "find_elements", Title = "Find WPF Elements", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to search a running WPF tree for matching runtime elements without expanding the full visual tree first.\n\n" +
-        TreeMetadata + "[Tree] Search visual and logical descendants from the chosen root using exact-match filters. " +
+        TreeMetadata + "[Tree] Search visual and logical descendants from the chosen root using exact or contains filters. " +
         "Results are bounded by maxResults and optimized for follow-up tool calls.\n\n" +
         "USE WHEN: You need a compact lookup entry point before calling get_visual_tree, get_layout_info, get_bindings, or other element-scoped tools.\n" +
-        "DO NOT USE: As a full query language. This wave only supports exact-match filters.\n\n" +
+        "DO NOT USE: As a full query language. This wave supports exact-match and case-insensitive contains filters only.\n\n" +
         "SUPPORTED FILTERS:\n" +
         "- typeName\n" +
+        "- typeNames\n" +
         "- elementName\n" +
         "- automationId\n" +
-        "- propertyName + propertyValue\n\n" +
+        "- propertyName + propertyValue\n" +
+        "- matchMode: exact | contains\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -280,22 +282,26 @@ public static class TreeMcpTools
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional root element ID to search within. Omit for the root window.")] string? elementId = null,
         [Description("Optional exact WPF type name filter, such as Button or TextBox.")] string? typeName = null,
+        [Description("Optional WPF type name filters for OR-style matching. Use either typeName or typeNames, not both.")] string[]? typeNames = null,
         [Description("Optional exact FrameworkElement.Name filter.")] string? elementName = null,
         [Description("Optional exact AutomationProperties.AutomationId filter.")] string? automationId = null,
         [Description("Optional exact property name filter, such as Text or Content.")] string? propertyName = null,
         [Description("Optional exact property value filter used with propertyName.")] string? propertyValue = null,
         [Description("Optional maximum number of results to return. Default: 20.")] int? maxResults = null,
+        [Description("Optional match mode: 'exact' (default) or 'contains' for case-insensitive substring matching.")] string? matchMode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
             ("typeName", typeName),
+            ("typeNames", typeNames),
             ("elementName", elementName),
             ("automationId", automationId),
             ("propertyName", propertyName),
             ("propertyValue", propertyValue),
-            ("maxResults", maxResults));
+            ("maxResults", maxResults),
+            ("matchMode", matchMode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<FindElementsTool>("FindElementsTool", () => new FindElementsTool(sessionManager)).ExecuteAsync(a, ct),

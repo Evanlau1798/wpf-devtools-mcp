@@ -37,4 +37,29 @@ public sealed class BindingErrorInfo
     /// "BindingExpression" for errors from live BindingExpression inspection.
     /// </summary>
     public string Origin { get; init; } = OriginBindingTrace;
+
+    /// <summary>
+    /// Direct element correlation when the originating DependencyObject is known.
+    /// </summary>
+    public string? ElementId { get; init; }
+
+    /// <summary>
+    /// Best-effort suggested element correlation for trace-only errors.
+    /// </summary>
+    public string? SuggestedElementId { get; init; }
+
+    /// <summary>
+    /// Confidence level for best-effort element matching.
+    /// </summary>
+    public string? MatchConfidence { get; init; }
+
+    /// <summary>
+    /// The target DependencyProperty name when it can be determined.
+    /// </summary>
+    public string? PropertyName { get; init; }
+
+    /// <summary>
+    /// The binding path associated with the error when it can be determined.
+    /// </summary>
+    public string? BindingPath { get; init; }
 }

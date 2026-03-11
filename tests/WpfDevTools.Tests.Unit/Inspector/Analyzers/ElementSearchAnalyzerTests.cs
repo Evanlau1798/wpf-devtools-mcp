@@ -144,6 +144,129 @@ public sealed class ElementSearchAnalyzerTests
         }
     }
 
+    [StaFact]
+    public void FindElements_WithContainsMatchMode_ShouldUseCaseInsensitiveSubstringMatching()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new ElementSearchAnalyzer(finder);
+        var window = CreateWindow();
+        try
+        {
+            window.Content = new StackPanel
+            {
+                Children =
+                {
+                    new TextBlock { Name = "ErrorStatusText", Text = "Problem" },
+                    new TextBlock { Name = "ReadyText", Text = "Ready" }
+                }
+            };
+            window.Show();
+            window.UpdateLayout();
+            var windowId = finder.GenerateElementId(window);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.FindElements(
+                rootElementId: windowId,
+                elementName: "error",
+                matchMode: "contains"));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("resultCount").GetInt32().Should().Be(1);
+            result.GetProperty("results")[0].GetProperty("elementName").GetString().Should().Be("ErrorStatusText");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void FindElements_WithMultipleTypeNames_ShouldMatchAnyRequestedType()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new ElementSearchAnalyzer(finder);
+        var window = CreateWindow();
+        try
+        {
+            window.Content = new StackPanel
+            {
+                Children =
+                {
+                    new Button { Name = "SaveButton" },
+                    new CheckBox { Name = "EnabledCheckBox" },
+                    new TextBox { Name = "EditorTextBox" }
+                }
+            };
+            window.Show();
+            window.UpdateLayout();
+            var windowId = finder.GenerateElementId(window);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.FindElements(
+                rootElementId: windowId,
+                typeNames: new[] { "Button", "CheckBox" }));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("resultCount").GetInt32().Should().Be(2);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void FindElements_WithInvalidMatchMode_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new ElementSearchAnalyzer(finder);
+        var window = CreateWindow();
+        try
+        {
+            window.Content = new Button { Name = "SaveButton" };
+            window.Show();
+            window.UpdateLayout();
+            var windowId = finder.GenerateElementId(window);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.FindElements(
+                rootElementId: windowId,
+                elementName: "Save",
+                matchMode: "prefix"));
+
+            result.GetProperty("success").GetBoolean().Should().BeFalse();
+            result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void FindElements_WithTypeNameAndTypeNames_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new ElementSearchAnalyzer(finder);
+        var window = CreateWindow();
+        try
+        {
+            window.Content = new Button { Name = "SaveButton" };
+            window.Show();
+            window.UpdateLayout();
+            var windowId = finder.GenerateElementId(window);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.FindElements(
+                rootElementId: windowId,
+                typeName: "Button",
+                typeNames: new[] { "Button", "CheckBox" }));
+
+            result.GetProperty("success").GetBoolean().Should().BeFalse();
+            result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     private static Window CreateWindow()
     {
         var window = new Window();

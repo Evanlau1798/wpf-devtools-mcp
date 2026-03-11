@@ -79,7 +79,8 @@ public sealed partial class BindingAnalyzer
                         ["path"] = binding?.Path?.Path,
                         ["mode"] = binding?.Mode.ToString(),
                         ["updateSourceTrigger"] = binding?.UpdateSourceTrigger.ToString(),
-                        ["status"] = bindingExpr.Status.ToString()
+                        ["status"] = bindingExpr.Status.ToString(),
+                        ["currentValue"] = FormatResponseValue(element.GetValue(dp))
                     });
                 }
             }

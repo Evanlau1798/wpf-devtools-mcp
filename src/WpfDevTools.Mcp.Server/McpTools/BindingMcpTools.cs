@@ -17,7 +17,7 @@ public static class BindingMcpTools
     [Description(
         "Use this tool to inspect WPF bindings on a runtime element or subtree before changing UI or ViewModel state.\n\n" +
         BindingMetadata + "[Binding] Get all DataBindings on an element. Shows binding path, mode " +
-        "(OneWay/TwoWay/OneTime), source type, converter, and current status.\n\n" +
+        "(OneWay/TwoWay/OneTime), source type, converter, current runtime value, and current status.\n\n" +
         "USE WHEN: You need to inspect binding configuration on a specific element or subtree.\n" +
         "BATCH MODE: Provide `elementIds` to inspect multiple roots in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "DO NOT USE: recursive=true on large apps without elementId scope (will be slow).\n" +
@@ -28,7 +28,7 @@ public static class BindingMcpTools
         "  bindings: [{\n" +
         "    elementId, elementType, propertyName, bindingPath,\n" +
         "    mode: 'OneWay'|'TwoWay'|'OneTime'|'OneWayToSource',\n" +
-        "    sourceType, converter, updateSourceTrigger, status\n" +
+        "    sourceType, converter, updateSourceTrigger, status, currentValue\n" +
         "  }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
@@ -79,13 +79,19 @@ public static class BindingMcpTools
         "    timestamp: string (ISO 8601),\n" +
         "    message: string,\n" +
         "    eventType: string,\n" +
-        "    sourceId: integer\n" +
+        "    sourceId: integer,\n" +
+        "    elementId: string | null,\n" +
+        "    suggestedElementId: string | null,\n" +
+        "    matchConfidence: 'high' | 'low' | null,\n" +
+        "    propertyName: string | null,\n" +
+        "    bindingPath: string | null\n" +
         "  }]\n" +
         "}\n\n" +
         "sourceKind='BindingTrace': error captured from WPF PresentationTraceSources.\n" +
         "sourceKind='BindingExpression': error detected from live BindingExpression status inspection.\n" +
         "Empty errors array means no binding errors detected.\n" +
         "Validation rule errors belong in get_validation_errors, not get_binding_errors.\n" +
+        "elementId is present when the failing DependencyObject can be identified directly. suggestedElementId is a best-effort match for trace-only errors.\n" +
         "NOTE: sourceId is a numeric trace ID, NOT an elementId. It cannot be used directly as the elementId parameter in other tools.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +

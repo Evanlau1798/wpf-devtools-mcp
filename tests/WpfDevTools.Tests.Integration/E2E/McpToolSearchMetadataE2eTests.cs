@@ -25,6 +25,32 @@ public sealed class McpToolSearchMetadataE2eTests
         AssertTitle(tools, "get_viewmodel", "Inspect WPF ViewModel");
     }
 
+    [Fact]
+    public async Task ToolsList_ShouldNotExposeClaudeIncompatibleStructuredContentOutputSchema()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ListToolsAsync();
+        var tools = response.GetProperty("result").GetProperty("tools");
+
+        foreach (var tool in tools.EnumerateArray())
+        {
+            tool.TryGetProperty("outputSchema", out var outputSchema).Should().BeFalse(
+                $"tool '{tool.GetProperty("name").GetString()}' should not advertise Claude-incompatible structured content output schema");
+
+            if (tool.TryGetProperty("outputSchema", out outputSchema) &&
+                outputSchema.ValueKind == JsonValueKind.Object &&
+                outputSchema.TryGetProperty("properties", out var properties))
+            {
+                properties.TryGetProperty("structuredContent", out _).Should().BeFalse(
+                    $"tool '{tool.GetProperty("name").GetString()}' should not include outputSchema.properties.structuredContent because Claude rejects it during tools/list validation");
+            }
+        }
+    }
+
     private static void AssertTitle(JsonElement tools, string toolName, string expectedTitle)
     {
         var tool = tools.EnumerateArray()

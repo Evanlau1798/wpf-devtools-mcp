@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class MvvmMcpTools
 {
     private const string MvvmMetadata = "CATEGORY: MVVM | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_viewmodel", Title = "Inspect WPF ViewModel", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_viewmodel", Title = "Inspect WPF ViewModel", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect the current WPF ViewModel and runtime DataContext state for an element.\n\n" +
         MvvmMetadata + "[MVVM] Get the ViewModel (DataContext) of an element. Returns: typeName, " +
@@ -50,7 +50,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_commands", Title = "Inspect WPF ViewModel Commands", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_commands", Title = "Inspect WPF ViewModel Commands", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect WPF ViewModel commands and understand runtime CanExecute state.\n\n" +
         MvvmMetadata + "[MVVM] Get all ICommand properties from the ViewModel. Returns: commandName, " +
@@ -87,7 +87,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "execute_command", Title = "Execute WPF ViewModel Command", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "execute_command", Title = "Execute WPF ViewModel Command", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to execute a WPF ViewModel command without going through a button click path.\n\n" +
         MvvmMetadata + "[MVVM] Execute an ICommand on the ViewModel. Checks CanExecute first. " +
@@ -130,7 +130,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_validation_errors", Title = "Inspect WPF Validation Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_validation_errors", Title = "Inspect WPF Validation Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect WPF validation errors across a runtime element subtree, including inactive tabs.\n\n" +
         MvvmMetadata + "[MVVM] Get validation errors from a WPF element and all its logical and visual descendants (recursive). " +
@@ -177,7 +177,7 @@ public static class MvvmMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "modify_viewmodel", Title = "Modify WPF ViewModel", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "modify_viewmodel", Title = "Modify WPF ViewModel", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to modify a WPF ViewModel property during runtime debugging and UI verification.\n\n" +
         MvvmMetadata + "[MVVM] Modify a ViewModel property value via reflection. UI updates automatically " +

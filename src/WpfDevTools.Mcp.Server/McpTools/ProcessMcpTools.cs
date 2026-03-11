@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class ProcessMcpTools
 {
     private const string ProcessMetadata = "CATEGORY: Process | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_processes", Title = "List Inspectable WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_processes", Title = "List Inspectable WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect a running WPF application and discover available WPF targets before connecting.\n\n" +
         ProcessMetadata + "[Process] List all running WPF processes available for inspection. " +
@@ -52,7 +52,7 @@ public static class ProcessMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "connect", Title = "Connect To Running WPF Process", OpenWorld = false, Destructive = true, Idempotent = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "connect", Title = "Connect To Running WPF Process", OpenWorld = false, Destructive = true, Idempotent = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to connect to a running WPF process before any inspection tool is used.\n\n" +
         ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
@@ -89,7 +89,7 @@ public static class ProcessMcpTools
             timeoutSeconds: McpServerConfiguration.ConnectTimeoutSeconds);
     }
 
-    [McpServerTool(Name = "ping", Title = "Ping WPF Inspector Session", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "ping", Title = "Ping WPF Inspector Session", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to verify a connected WPF inspector session is still healthy before deeper runtime inspection.\n\n" +
         ProcessMetadata + "[Process] Check connection health and measure round-trip latency to the Inspector DLL " +

@@ -42,7 +42,7 @@ public static class PerformanceMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetRenderStats(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -82,7 +82,7 @@ public static class PerformanceMcpTools
         "- { processId: 12345, threshold: 50 }")]
     public static Task<CallToolResult> FindBindingLeaks(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional minimum live-binding count that should be flagged as suspicious.")] int? threshold = null,
         CancellationToken cancellationToken = default)
     {
@@ -118,7 +118,7 @@ public static class PerformanceMcpTools
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> MeasureElementRenderTime(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose render time should be measured. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -154,7 +154,7 @@ public static class PerformanceMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> GetVisualCount(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose visual subtree should be counted. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

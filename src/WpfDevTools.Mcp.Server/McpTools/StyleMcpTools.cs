@@ -20,6 +20,7 @@ public static class StyleMcpTools
         StyleMetadata + "[Style] Get all applied styles on a WPF element. Returns style type, target type, " +
         "setters (property+value), whether it's an implicit or explicit style, and localResourceReferences when appearance comes from a local resource expression instead of a Style.\n\n" +
         "USE WHEN: Element has unexpected appearance; need to understand which styles are applied.\n" +
+        "BATCH MODE: Provide `elementIds` to inspect multiple elements in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "DO NOT USE: For runtime property values (use get_dp_value_source instead).\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -41,13 +42,15 @@ public static class StyleMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetAppliedStyles(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose applied styles should be returned. Omit for the root window.")] string? elementId = null,
+        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("elementIds", elementIds));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetAppliedStylesTool>("GetAppliedStylesTool", () => new GetAppliedStylesTool(sessionManager)).ExecuteAsync(a, ct),
@@ -79,8 +82,8 @@ public static class StyleMcpTools
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> GetTriggers(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Element ID whose style and template triggers should be listed.")] string elementId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -118,8 +121,8 @@ public static class StyleMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", resourceKey: \"ButtonStyle\" }")]
     public static Task<CallToolResult> GetResourceChain(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("XAML resource key to resolve, such as PrimaryBrush or ButtonStyle.")] string resourceKey,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional starting element ID for resource lookup. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -142,6 +145,7 @@ public static class StyleMcpTools
         "USE WHEN: Testing different style values; debugging style precedence issues.\n" +
         "DO NOT USE: For permanent changes (not persisted to XAML).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core mutation result.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -158,17 +162,19 @@ public static class StyleMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"Background\", value: \"Red\" }")]
     public static Task<CallToolResult> OverrideStyleSetter(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Style-backed property name to override at runtime.")] string propertyName,
         [Description("New property value encoded as raw JSON.")] JsonElement value,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose style setter should be overridden.")] string? elementId = null,
+        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
             ("propertyName", propertyName),
-            ("value", value));
+            ("value", value),
+            ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<OverrideStyleSetterTool>("OverrideStyleSetterTool", () => new OverrideStyleSetterTool(sessionManager)).ExecuteAsync(a, ct),

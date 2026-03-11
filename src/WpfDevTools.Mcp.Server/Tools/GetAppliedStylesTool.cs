@@ -21,10 +21,19 @@ public sealed class GetAppliedStylesTool : PipeConnectedToolBase
     /// <returns>Tool result containing applied styles information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var elements = BatchQueryArgumentParser.ParseElementTargets(arguments, "elementId", "elementIds");
+        if (elements.Error != null) return elements.Error;
 
-        return await SendInspectorRequestAsync(processId, "get_applied_styles",
-            new { elementId }, cancellationToken);
+        return await BatchQueryExecutor.ExecuteAsync(
+            elements.Targets,
+            new string?[] { null },
+            (elementId, _, ct) => SendInspectorRequestAsync(
+                processId,
+                "get_applied_styles",
+                new { elementId },
+                ct),
+            cancellationToken);
     }
 }

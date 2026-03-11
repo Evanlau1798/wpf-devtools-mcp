@@ -1,50 +1,54 @@
-# 工具總覽
+# 工具參考總覽
 
-目前 server 共提供 49 個工具，分成十個類別。
+目前伺服器共提供 52 個工具，分成十個類別。
 
 ## 類別
 
-1. 處理程序管理
-2. Tree 與 XAML
-3. Binding 診斷
-4. Dependency Properties
-5. Style 與 Template
-6. Routed Events
+1. Process management
+2. Tree and XAML
+3. Binding diagnostics
+4. Dependency properties
+5. Style and template
+6. Routed events
 7. Interaction
 8. Layout
 9. MVVM
 10. Performance
 
-## 建議的使用順序
+## 建議使用順序
 
-大多數真實 session 都建議遵循以下節奏：
+大多數實際工作流程建議依照下列順序：
 
 1. `get_processes`
 2. `connect`
-3. `ping`
-4. Tree discovery
-5. Diagnostics
-6. Interaction 或 mutation
-7. Verification
+3. `select_active_process`
+4. `get_active_process`
+5. `ping`
+6. Tree discovery
+7. Diagnostics
+8. Interaction or mutation
+9. Verification
 
-## 各類別速覽
+## 類別速覽
 
-| 類別 | 常見第一個呼叫 | 為什麼 |
+| 類別 | 建議起手工具 | 用途 |
 | --- | --- | --- |
-| 處理程序管理 | `get_processes` | 先找出可連線的目標與架構 |
-| Tree 與 XAML | `get_visual_tree` | 先取得 `elementId` 與結構 |
-| Binding 診斷 | `get_binding_errors` | 快速找出最可操作的 binding 失敗 |
-| Dependency Properties | `get_dp_value_source` | 理解 precedence 與有效值來源 |
-| Style 與 Template | `get_applied_styles` | 說明繼承與 implicit 視覺行為 |
-| Routed Events | `get_event_handlers` | 檢查事件路徑與 handler |
-| Interaction | `click_element` | 在定位正確元素後觸發行為 |
-| Layout | `get_layout_info` | 檢查 bounds、desired size 與 layout 狀態 |
-| MVVM | `get_viewmodel` | 檢查 view 背後的資料與指令 |
-| Performance | `get_render_stats` | 作為效能 triage 起點 |
+| Process management | `get_processes` | 找出可用目標、架構與連線限制 |
+| Tree and XAML | `find_elements` | 在展開完整 tree 前先做精準元素查找 |
+| Binding diagnostics | `get_binding_errors` | 優先找到最具行動性的 binding 問題 |
+| Dependency properties | `get_dp_value_source` | 釐清 precedence 與目前有效值來源 |
+| Style and template | `get_applied_styles` | 說明 implicit 或 inherited 的視覺行為 |
+| Routed events | `get_event_handlers` | 追查 event route 與 handler |
+| Interaction | `click_element` | 找到正確元素後觸發互動 |
+| Layout | `get_layout_info` | 檢查尺寸、位置與 layout 狀態 |
+| MVVM | `get_viewmodel` | 檢查 ViewModel 資料與 command |
+| Performance | `get_render_stats` | 作為效能診斷的起點 |
 
-最近新增、建議優先熟悉的工具：
+最近值得優先熟悉的新增能力：
 
-- `get_focus_state` 與 `focus_element`，適合焦點敏感與多視窗工作流
-- `capture_state_snapshot` 與 `restore_state_snapshot`，適合 mutation 前後的安全回復
+- `select_active_process` 與 `get_active_process`：在後續呼叫省略 `processId` 時，明確管理目前的目標程序
+- `get_focus_state` 與 `focus_element`：處理焦點敏感的鍵盤與多視窗流程
+- `capture_state_snapshot` 與 `restore_state_snapshot`：支援可回復的 mutation 驗證
+- `find_elements`：在展開完整 tree 前，先用 type/name/automationId/property value 做精準查找
 
-若要了解各類別中最重要的工具、語意與常見陷阱，請繼續閱讀各分類頁面。
+請搭配各分類頁面閱讀重要語意、使用順序與常見陷阱。

@@ -321,8 +321,8 @@ public class McpServerGapTests
         // Arrange
         var sessionManager = new SessionManager();
         var errorResult = new { success = false, error = "Custom extraction failed" };
-        Func<JsonElement?, (int, object?, object?)> customExtractor =
-            _ => (-1, null, errorResult);
+        Func<SessionManager, JsonElement?, (int, object?, object?)> customExtractor =
+            (_, _) => (-1, null, errorResult);
 
         var tool = new GenericPipeTool(sessionManager, "test_method", customExtractor);
 

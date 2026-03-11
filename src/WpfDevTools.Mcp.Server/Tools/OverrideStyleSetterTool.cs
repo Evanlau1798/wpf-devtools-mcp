@@ -21,8 +21,10 @@ public sealed class OverrideStyleSetterTool : PipeConnectedToolBase
     /// <returns>Tool result indicating success or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var (detailMode, detailError) = ParseMutationDetailMode(arguments);
+        if (detailError != null) return detailError;
         var propertyName = ParseStringParam(arguments, "propertyName");
         var value = WpfDevTools.Shared.Utilities.ParameterParser.ParseJsonParam(arguments, "value");
 
@@ -42,6 +44,7 @@ public sealed class OverrideStyleSetterTool : PipeConnectedToolBase
         return AddSuccessMetadata(
             result,
             requestedInput,
-            "Runtime-only style override. Record the observed style values before using this in demos, troubleshooting, or regression flows.");
+            "Runtime-only style override. Record the observed style values before using this in demos, troubleshooting, or regression flows.",
+            detailMode: detailMode);
     }
 }

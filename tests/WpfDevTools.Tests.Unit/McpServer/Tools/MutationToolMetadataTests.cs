@@ -1,11 +1,7 @@
-using System.IO.Pipes;
-using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
-using WpfDevTools.Shared.Messages;
-using WpfDevTools.Shared.Serialization;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -13,27 +9,24 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 public class MutationToolMetadataTests
 {
     [Fact]
-    public async Task SetDpValue_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    public void SetDpValue_ShouldIncludeRequestedInputAndObservedEffectMetadata()
     {
-        const int processId = 50001;
-        var inspectorResult = JsonSerializer.Serialize(new
-        {
-            success = true,
-            propertyName = "Width",
-            oldValue = 50,
-            newValue = 100
-        });
-
-        using var connected = await CreateConnectedSessionAsync(processId, inspectorResult);
-        var tool = new SetDpValueTool(connected.SessionManager);
-
-        var result = await tool.ExecuteAsync(ToJsonElement(new
-        {
-            processId,
-            elementId = "Button_1",
-            propertyName = "Width",
-            value = 100
-        }), CancellationToken.None);
+        var result = MutationMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                propertyName = "Width",
+                oldValue = 50,
+                newValue = 100
+            },
+            new
+            {
+                elementId = "Button_1",
+                propertyName = "Width",
+                value = 100
+            },
+            null,
+            "Runtime-only mutation. Capture oldValue/newValue if you need manual restore after verification.");
 
         var json = JsonSerializer.SerializeToElement(result);
         json.GetProperty("requestedInput").GetProperty("propertyName").GetString().Should().Be("Width");
@@ -44,27 +37,24 @@ public class MutationToolMetadataTests
     }
 
     [Fact]
-    public async Task ClearDpValue_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    public void ClearDpValue_ShouldIncludeRequestedInputAndObservedEffectMetadata()
     {
-        const int processId = 50002;
-        var inspectorResult = JsonSerializer.Serialize(new
-        {
-            success = true,
-            propertyName = "Width",
-            hadLocalValue = true,
-            clearedValue = 100,
-            newValue = 50
-        });
-
-        using var connected = await CreateConnectedSessionAsync(processId, inspectorResult);
-        var tool = new ClearDpValueTool(connected.SessionManager);
-
-        var result = await tool.ExecuteAsync(ToJsonElement(new
-        {
-            processId,
-            elementId = "Button_1",
-            propertyName = "Width"
-        }), CancellationToken.None);
+        var result = MutationMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                propertyName = "Width",
+                hadLocalValue = true,
+                clearedValue = 100,
+                newValue = 50
+            },
+            new
+            {
+                elementId = "Button_1",
+                propertyName = "Width"
+            },
+            null,
+            "Runtime-only mutation. Use the observed old/new values for manual restore if later steps depend on the previous local value.");
 
         var json = JsonSerializer.SerializeToElement(result);
         json.GetProperty("requestedInput").GetProperty("propertyName").GetString().Should().Be("Width");
@@ -75,27 +65,24 @@ public class MutationToolMetadataTests
     }
 
     [Fact]
-    public async Task OverrideStyleSetter_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    public void OverrideStyleSetter_ShouldIncludeRequestedInputAndObservedEffectMetadata()
     {
-        const int processId = 50003;
-        var inspectorResult = JsonSerializer.Serialize(new
-        {
-            success = true,
-            propertyName = "Background",
-            oldValue = "Blue",
-            newValue = "Red"
-        });
-
-        using var connected = await CreateConnectedSessionAsync(processId, inspectorResult);
-        var tool = new OverrideStyleSetterTool(connected.SessionManager);
-
-        var result = await tool.ExecuteAsync(ToJsonElement(new
-        {
-            processId,
-            elementId = "Button_1",
-            propertyName = "Background",
-            value = "Red"
-        }), CancellationToken.None);
+        var result = MutationMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                propertyName = "Background",
+                oldValue = "Blue",
+                newValue = "Red"
+            },
+            new
+            {
+                elementId = "Button_1",
+                propertyName = "Background",
+                value = "Red"
+            },
+            null,
+            "Runtime-only style override. Record the observed style values before using this in demos, troubleshooting, or regression flows.");
 
         var json = JsonSerializer.SerializeToElement(result);
         json.GetProperty("requestedInput").GetProperty("propertyName").GetString().Should().Be("Background");
@@ -105,81 +92,104 @@ public class MutationToolMetadataTests
         json.GetProperty("notes").GetString().Should().Contain("style");
     }
 
-    private static async Task<ConnectedMutationSession> CreateConnectedSessionAsync(int processId, string resultJson)
+    [Fact]
+    public void SetDpValue_WithDetailStandard_ShouldPreserveVerboseMetadata()
     {
-        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
-        var server = new NamedPipeServerStream(
-            pipeName,
-            PipeDirection.InOut,
-            1,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
-
-        var serverTask = Task.Run(async () =>
-        {
-            await server.WaitForConnectionAsync();
-            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
-            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
-
-            var response = new InspectorResponse
+        var result = MutationMetadataProbe.Apply(
+            new
             {
-                Id = request!.Id,
-                CorrelationId = request.CorrelationId,
-                Result = JsonSerializer.Deserialize<JsonElement>(resultJson),
-                Error = null
-            };
+                success = true,
+                propertyName = "Width",
+                oldValue = 50,
+                newValue = 100
+            },
+            new
+            {
+                elementId = "Button_1",
+                propertyName = "Width",
+                value = 100
+            },
+            ToJsonElement(new { detail = "standard" }),
+            "Runtime-only mutation. Capture oldValue/newValue if you need manual restore after verification.");
 
-            await MessageFraming.WriteMessageAsync(
-                server,
-                JsonSerializer.Serialize(response),
-                CancellationToken.None);
-        });
-
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(processId);
-
-        var client = new NamedPipeClient(processId, pipeName);
-        var connected = await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1);
-        connected.Should().BeTrue();
-
-        ReplacePipeClient(sessionManager, processId, client);
-        return new ConnectedMutationSession(sessionManager, server, serverTask);
+        var json = JsonSerializer.SerializeToElement(result);
+        json.TryGetProperty("requestedInput", out _).Should().BeTrue();
+        json.TryGetProperty("effectiveInput", out _).Should().BeTrue();
+        json.TryGetProperty("observedEffect", out _).Should().BeTrue();
+        json.TryGetProperty("notes", out _).Should().BeTrue();
+        json.GetProperty("usedFallback").GetBoolean().Should().BeFalse();
     }
 
-    private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
+    [Fact]
+    public void SetDpValue_WithDetailCompact_ShouldOmitVerboseMetadataAndKeepCoreFields()
     {
-        var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
-        field.Should().NotBeNull();
+        var result = MutationMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                propertyName = "Width",
+                oldValue = 50,
+                newValue = 100
+            },
+            new
+            {
+                elementId = "Button_1",
+                propertyName = "Width",
+                value = 100
+            },
+            ToJsonElement(new { detail = "compact" }),
+            "Runtime-only mutation. Capture oldValue/newValue if you need manual restore after verification.");
 
-        var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
-        pipeClients.Should().NotBeNull();
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("propertyName").GetString().Should().Be("Width");
+        json.GetProperty("oldValue").GetInt32().Should().Be(50);
+        json.GetProperty("newValue").GetInt32().Should().Be(100);
+        json.TryGetProperty("requestedInput", out _).Should().BeFalse();
+        json.TryGetProperty("effectiveInput", out _).Should().BeFalse();
+        json.TryGetProperty("observedEffect", out _).Should().BeFalse();
+        json.TryGetProperty("notes", out _).Should().BeFalse();
+        json.TryGetProperty("usedFallback", out _).Should().BeFalse();
+    }
 
-        if (pipeClients!.TryGetValue(processId, out var existingClient))
+    [Fact]
+    public async Task SetDpValueTool_WithInvalidDetail_ShouldReturnStructuredError()
+    {
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(50006);
+        var tool = new SetDpValueTool(sessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new
         {
-            existingClient.Dispose();
+            processId = 50006,
+            elementId = "Button_1",
+            propertyName = "Width",
+            value = 100,
+            detail = "verbose"
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("detail");
+    }
+
+    private sealed class MutationMetadataProbe : PipeConnectedToolBase
+    {
+        private MutationMetadataProbe() : base(new SessionManager())
+        {
         }
 
-        pipeClients[processId] = replacement;
-    }
-
-    private sealed class ConnectedMutationSession(
-        SessionManager sessionManager,
-        NamedPipeServerStream server,
-        Task serverTask) : IDisposable
-    {
-        public SessionManager SessionManager { get; } = sessionManager;
-
-        public void Dispose()
+        public static object Apply(object result, object requestedInput, JsonElement? arguments, string notes)
         {
-            try
+            var (_, error) = ParseMutationDetailMode(arguments);
+            if (error != null)
             {
-                serverTask.GetAwaiter().GetResult();
+                return error;
             }
-            finally
-            {
-                SessionManager.Dispose();
-                server.Dispose();
-            }
+
+            var (mode, _) = ParseMutationDetailMode(arguments);
+            return AddSuccessMetadata(result, requestedInput, notes, detailMode: mode);
         }
     }
 }

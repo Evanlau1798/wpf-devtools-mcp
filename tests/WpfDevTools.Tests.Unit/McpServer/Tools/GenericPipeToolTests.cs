@@ -52,7 +52,7 @@ public class GenericPipeToolTests
     {
         // Arrange
         var sessionManager = new SessionManager();
-        Func<JsonElement?, (int processId, object? parameters, object? error)> customExtractor = (JsonElement? args) =>
+        Func<SessionManager, JsonElement?, (int processId, object? parameters, object? error)> customExtractor = (SessionManager _, JsonElement? args) =>
         {
             var processId = args?.GetProperty("pid").GetInt32() ?? 0;
             if (processId == 0)
@@ -95,9 +95,10 @@ public class GenericPipeToolTests
     [Fact]
     public void ExtractElementPropertyAndValueParams_WithNumericValue_ShouldAcceptJsonValue()
     {
+        var sessionManager = new SessionManager();
         var arguments = ToJsonElement(new { processId = 12345, propertyName = "Width", value = 100, elementId = "Button_1" });
 
-        var (_, parameters, error) = GenericPipeTool.ExtractElementPropertyAndValueParams(arguments);
+        var (_, parameters, error) = GenericPipeTool.ExtractElementPropertyAndValueParams(sessionManager, arguments);
 
         error.Should().BeNull();
         parameters.Should().NotBeNull();

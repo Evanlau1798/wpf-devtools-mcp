@@ -6,7 +6,7 @@ using WpfDevTools.Mcp.Server.Tools;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
-/// MCP SDK wrapper for Process Management tools (3 tools).
+/// MCP SDK wrapper for Process Management tools.
 /// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
 /// </summary>
 [McpServerToolType]
@@ -51,6 +51,52 @@ public static class ProcessMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetProcessesTool>("GetProcessesTool", () => new GetProcessesTool()).ExecuteAsync(a, ct),
             args,
+            cancellationToken);
+    }
+
+    [McpServerTool(Name = "select_active_process", Title = "Select Active WPF Process", OpenWorld = false, Destructive = true, Idempotent = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to explicitly choose which connected WPF process should be used when later tool calls omit processId.\n\n" +
+        ProcessMetadata + "[Process] Set the active connected process for processId-omission workflows.\n\n" +
+        "USE WHEN: Multiple WPF sessions are connected and you want one explicit default target.\n" +
+        "DO NOT USE: Before connect(processId) has succeeded for the chosen process.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{ success: boolean, processId?: number, message?: string, error?: string, errorCode?: string }\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345 }")]
+    public static Task<CallToolResult> SelectActiveProcess(
+        SessionManager sessionManager,
+        [Description("Connected WPF process ID to make active for omitted processId workflows.")] int processId,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(("processId", processId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<SelectActiveProcessTool>(
+                "SelectActiveProcessTool",
+                () => new SelectActiveProcessTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
+
+    [McpServerTool(Name = "get_active_process", Title = "Get Active WPF Process", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to verify which connected WPF process is currently active for omitted processId workflows.\n\n" +
+        ProcessMetadata + "[Process] Returns the active selected process, if any.\n\n" +
+        "USE WHEN: Verifying session state before omitting processId in later calls.\n" +
+        "RESPONSE FORMAT:\n" +
+        "{ success: boolean, hasActiveProcess: boolean, processId?: number, selectedAtUtc?: string }\n\n" +
+        "EXAMPLES:\n" +
+        "- { }")]
+    public static Task<CallToolResult> GetActiveProcess(
+        SessionManager sessionManager,
+        CancellationToken cancellationToken = default)
+    {
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<GetActiveProcessTool>(
+                "GetActiveProcessTool",
+                () => new GetActiveProcessTool(sessionManager)).ExecuteAsync(a, ct),
+            null,
             cancellationToken);
     }
 
@@ -122,7 +168,7 @@ public static class ProcessMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> Ping(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID to ping.")] int processId,
+        [Description("Optional connected WPF process ID to ping. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

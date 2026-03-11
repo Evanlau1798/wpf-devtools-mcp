@@ -27,6 +27,7 @@ public static class InteractionMcpTools
         "- fire_routed_event('Click'): on ButtonBase calls OnClick() (same ICommand execution); on non-ButtonBase only fires routed event handlers\n" +
         "- For button ICommand testing, both tools work; click_element is preferred for general use\n\n" +
         "WARNING: This triggers real application logic (e.g., button handlers, navigation, data modifications).\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core click result.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -42,13 +43,15 @@ public static class InteractionMcpTools
         "- { processId: 12345, elementId: \"ClearButton\" }")]
     public static Task<CallToolResult> ClickElement(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Element ID of the clickable control.")] string elementId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ClickElementTool>("ClickElementTool", () => new ClickElementTool(sessionManager)).ExecuteAsync(a, ct),
@@ -78,7 +81,7 @@ public static class InteractionMcpTools
         "- { processId: 12345, elementId: \"SettingsDialog_1\" }")]
     public static Task<CallToolResult> GetFocusState(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID used to scope focus resolution to a specific window or subtree.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -115,8 +118,8 @@ public static class InteractionMcpTools
         "- { processId: 12345, elementId: \"SearchTextBox\" }")]
     public static Task<CallToolResult> FocusElement(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Element ID that should receive focus.")] string elementId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -155,9 +158,9 @@ public static class InteractionMcpTools
         "- { processId: 12345, sourceElementId: \"Item1\", targetElementId: \"Item2\" }")]
     public static Task<CallToolResult> DragAndDrop(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Element ID that acts as the drag source.")] string sourceElementId,
         [Description("Element ID that acts as the drop target.")] string targetElementId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional WPF data format for the drag payload, such as Text.")] string? dataFormat = null,
         CancellationToken cancellationToken = default)
     {
@@ -196,8 +199,8 @@ public static class InteractionMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> ScrollToElement(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Element ID that should be brought into view.")] string elementId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -243,8 +246,8 @@ public static class InteractionMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", key: \"Tab\" }")]
     public static Task<CallToolResult> SimulateKeyboard(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("WPF Key enum name to simulate, such as Enter or Tab.")] string key,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional focused element ID that should receive the key input.")] string? elementId = null,
         [Description("Optional keyboard event type: 'KeyDown' (default) or 'KeyUp'.")] string? eventType = null,
         CancellationToken cancellationToken = default)
@@ -286,7 +289,7 @@ public static class InteractionMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> ElementScreenshot(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to capture. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

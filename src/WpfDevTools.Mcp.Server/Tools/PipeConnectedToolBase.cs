@@ -1,5 +1,6 @@
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.ErrorHandling;
 using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -29,6 +30,14 @@ public abstract class PipeConnectedToolBase
     /// Returns (processId, elementId, errorResult). If errorResult is non-null, return it immediately.
     /// </summary>
     public static (int processId, string? elementId, object? error) ParseCommonParams(JsonElement? arguments)
+        => ParseCommonParams(arguments, null);
+
+    /// <summary>
+    /// Parse processId and optional elementId from JSON arguments, using the active process when allowed.
+    /// </summary>
+    public static (int processId, string? elementId, object? error) ParseCommonParams(
+        JsonElement? arguments,
+        SessionManager? sessionManager)
     {
         int? processId = null;
         string? elementId = null;
@@ -57,7 +66,18 @@ public abstract class PipeConnectedToolBase
         }
 
         if (!processId.HasValue)
-            return (-1, elementId, CreateMissingParamError("processId"));
+        {
+            if (sessionManager != null && sessionManager.TryGetActiveProcessId(out var activeProcessId))
+            {
+                processId = activeProcessId;
+            }
+            else
+            {
+                return (-1, elementId, sessionManager != null
+                    ? CreateNoActiveProcessError()
+                    : CreateMissingParamError("processId"));
+            }
+        }
 
         if (processId.Value <= 0)
             return (-1, elementId, CreateInvalidParamError("processId must be a positive integer"));
@@ -87,22 +107,54 @@ public abstract class PipeConnectedToolBase
         => ParameterParser.ParseBoolParam(arguments, paramName);
 
     /// <summary>
+    /// Parse mutation detail mode from JSON arguments.
+    /// </summary>
+    protected static (MutationDetailMode mode, object? error) ParseMutationDetailMode(JsonElement? arguments)
+        => MutationDetailModeParser.Parse(arguments);
+
+    /// <summary>
     /// Create error response for missing required parameter
     /// </summary>
     protected static object CreateMissingParamError(string paramName) =>
-        new { success = false, error = $"Missing required parameter: {paramName}" };
+        new ToolErrorPayload
+        {
+            Error = $"Missing required parameter: {paramName}",
+            ErrorCode = ToolErrorCode.MissingRequiredParameter.ToString(),
+            Hint = $"Provide {paramName} explicitly, or establish an active process/session before retrying."
+        };
 
     /// <summary>
     /// Create error response for invalid parameter value.
     /// </summary>
     protected static object CreateInvalidParamError(string message) =>
-        new { success = false, error = message };
+        new ToolErrorPayload
+        {
+            Error = message,
+            ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
+            Hint = "Correct the parameter value and retry the tool."
+        };
 
     /// <summary>
     /// Create error response for not-connected process
     /// </summary>
     protected static object CreateNotConnectedError(int processId) =>
-        new { success = false, error = $"Process {processId} is not connected. Call connect(processId: {processId}) first, then retry this tool." };
+        new ToolErrorPayload
+        {
+            Error = $"Process {processId} is not connected. Call connect(processId: {processId}) first, then retry this tool.",
+            ErrorCode = ToolErrorCode.NotConnected.ToString(),
+            Hint = $"Call connect(processId: {processId}) before using inspection or mutation tools."
+        };
+
+    /// <summary>
+    /// Create error response for omitted processId when no active process has been selected.
+    /// </summary>
+    protected static object CreateNoActiveProcessError() =>
+        new ToolErrorPayload
+        {
+            Error = "No active process is selected. Provide processId explicitly or select an active process first.",
+            ErrorCode = ToolErrorCode.NoActiveProcess.ToString(),
+            Hint = "Call select_active_process(processId) or connect(processId) before omitting processId."
+        };
 
     /// <summary>
     /// Send a request to the Inspector DLL via Named Pipe
@@ -162,7 +214,8 @@ public abstract class PipeConnectedToolBase
         object result,
         object requestedInput,
         string notes,
-        bool usedFallback = false)
+        bool usedFallback = false,
+        MutationDetailMode detailMode = MutationDetailMode.Standard)
     {
         var element = result is JsonElement jsonElement
             ? jsonElement
@@ -181,6 +234,16 @@ public abstract class PipeConnectedToolBase
             payload[property.Name] = property.Value.Clone();
         }
 
+        if (detailMode == MutationDetailMode.Compact)
+        {
+            if (usedFallback)
+            {
+                payload["usedFallback"] = true;
+            }
+
+            return JsonSerializer.SerializeToElement(payload);
+        }
+
         payload["requestedInput"] = JsonSerializer.SerializeToElement(requestedInput);
         payload["effectiveInput"] = JsonSerializer.SerializeToElement(requestedInput);
         payload["observedEffect"] = element.Clone();
@@ -193,18 +256,26 @@ public abstract class PipeConnectedToolBase
     private static object CreateInspectorError(InspectorError error)
     {
         return error.Data.HasValue
-            ? new
+            ? new ToolErrorPayload
             {
-                success = false,
-                error = error.Message,
-                errorCode = error.Code.ToString(),
-                errorData = error.Data.Value
+                Error = error.Message,
+                ErrorCode = error.Code.ToString(),
+                Hint = GetInspectorHint(error.Code.ToString()),
+                ErrorData = error.Data.Value
             }
-            : new
+            : new ToolErrorPayload
             {
-                success = false,
-                error = error.Message,
-                errorCode = error.Code.ToString()
+                Error = error.Message,
+                ErrorCode = error.Code.ToString(),
+                Hint = GetInspectorHint(error.Code.ToString())
             };
     }
+
+    private static string? GetInspectorHint(string errorCode) => errorCode switch
+    {
+        "ElementNotFound" => "Refresh the visual/logical tree and confirm the elementId before retrying.",
+        "PropertyNotFound" => "Verify the propertyName spelling and the target element type.",
+        "EventNotFound" => "Use a valid eventName for the target control type.",
+        _ => null
+    };
 }

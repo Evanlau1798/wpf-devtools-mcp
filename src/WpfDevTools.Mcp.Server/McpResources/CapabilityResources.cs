@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Mcp.Server.McpResources;
 
@@ -19,11 +20,23 @@ public static class CapabilityResources
         - Server: `wpf-devtools-mcp`
         - Version: `{ServerMetadata.GetDisplayVersion()}`
         - Schema version: `{ServerMetadata.GetSchemaVersion()}`
+        - Response contract version: `{ResponseContractVersion.Current}`
         - Transport: `stdio`
-        - Tool surface: WPF process discovery, connection, tree inspection, binding diagnostics, DependencyProperty analysis, MVVM inspection, style/template inspection, interaction, layout, performance, and routed-event diagnostics
+        - Tool surface: WPF process discovery, connection, exact-match element search, tree inspection, binding diagnostics, DependencyProperty analysis, MVVM inspection, style/template inspection, interaction, layout, performance, and routed-event diagnostics
         - Prompt surface: workflow entry points for connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, and secondary-window inspection
         - Resource surface: capability summary, workflow references, elevated-target limitations, and window/focus limitations
         - Feature flags: `prompts=true`, `resources=true`, `stateSnapshots=true`, `diagnosticNormalization=true`, `elevatedTargetDiagnostics=true`
+
+        ## Response contract notes
+
+        - Compatibility aliases remain in the current response contract to avoid breaking existing clients.
+        - Compatibility aliases:
+          - `currentValue -> effectiveValue`
+          - `typeName -> viewModelType`
+          - `avgRenderTime -> averageFrameTime`
+          - `count -> totalCount`
+          - `renderTimeMs -> renderTime`
+        - Mutation and interaction tools support `detail=compact` when clients want to drop additive normalization metadata without changing core semantics.
 
         ## Transport notes
 

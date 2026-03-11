@@ -21,8 +21,10 @@ public sealed class ClearDpValueTool : PipeConnectedToolBase
     /// <returns>Tool result indicating success or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var (detailMode, detailError) = ParseMutationDetailMode(arguments);
+        if (detailError != null) return detailError;
         var propertyName = ParseStringParam(arguments, "propertyName");
 
         if (string.IsNullOrEmpty(propertyName))
@@ -38,6 +40,7 @@ public sealed class ClearDpValueTool : PipeConnectedToolBase
         return AddSuccessMetadata(
             result,
             requestedInput,
-            "Runtime-only mutation. Use the observed old/new values for manual restore if later steps depend on the previous local value.");
+            "Runtime-only mutation. Use the observed old/new values for manual restore if later steps depend on the previous local value.",
+            detailMode: detailMode);
     }
 }

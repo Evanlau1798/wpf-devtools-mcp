@@ -21,6 +21,7 @@ public static class DependencyPropertyMcpTools
         "Returns where the current value comes from: Default, Inherited, Style, Trigger, " +
         "TemplateBinding, LocalValue, or Animation.\n\n" +
         "USE WHEN: Property has unexpected value; need to understand precedence (Style vs LocalValue vs Animation).\n" +
+        "BATCH MODE: Provide `elementIds`, `propertyNames`, or both to inspect multiple targets in one call. Single-target responses keep the original shape; batch responses return `results` with per-item correlation fields.\n" +
         "DO NOT USE: Without propertyName - it's required.\n\n" +
         "NORMALIZATION: baseValueSource is normalized into stable categories for agents, " +
         "while rawBaseValueSource preserves the original WPF BaseValueSource enum name. " +
@@ -44,15 +45,19 @@ public static class DependencyPropertyMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
     public static Task<CallToolResult> GetDpValueSource(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name to inspect, such as Text or IsEnabled.")] string propertyName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
+        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
+        [Description("Optional list of property names for batch inspection. Use either propertyName or propertyNames, not both.")] string[]? propertyNames = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("propertyName", propertyName));
+            ("elementIds", elementIds),
+            ("propertyName", propertyName),
+            ("propertyNames", propertyNames));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetDpValueSourceTool>("GetDpValueSourceTool", () => new GetDpValueSourceTool(sessionManager)).ExecuteAsync(a, ct),
@@ -81,8 +86,8 @@ public static class DependencyPropertyMcpTools
         "- { processId: 12345, propertyName: \"Visibility\" }")]
     public static Task<CallToolResult> GetDpMetadata(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name whose metadata should be returned.")] string propertyName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID used to resolve owner-specific metadata.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -105,6 +110,7 @@ public static class DependencyPropertyMcpTools
         "USE WHEN: Testing UI behavior with different property values; debugging layout/styling issues.\n" +
         "DO NOT USE: For permanent changes (changes are NOT persisted to XAML).\n\n" +
         "WARNING: This modifies the running app. Changes are lost on app restart.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core mutation result.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -122,17 +128,19 @@ public static class DependencyPropertyMcpTools
         "- { processId: 12345, elementId: \"Panel\", propertyName: \"Width\", value: 200 }")]
     public static Task<CallToolResult> SetDpValue(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name to set at runtime.")] string propertyName,
         [Description("New property value encoded as raw JSON.")] JsonElement value,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
+        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
             ("propertyName", propertyName),
-            ("value", value));
+            ("value", value),
+            ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<SetDpValueTool>("SetDpValueTool", () => new SetDpValueTool(sessionManager)).ExecuteAsync(a, ct),
@@ -148,6 +156,7 @@ public static class DependencyPropertyMcpTools
         "USE WHEN: Removing overrides applied by set_dp_value; testing default/inherited behavior.\n" +
         "DO NOT USE: On properties without local values (has no effect).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core mutation result.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -161,15 +170,17 @@ public static class DependencyPropertyMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }")]
     public static Task<CallToolResult> ClearDpValue(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name whose local value should be cleared.")] string propertyName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
+        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("propertyName", propertyName));
+            ("propertyName", propertyName),
+            ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ClearDpValueTool>("ClearDpValueTool", () => new ClearDpValueTool(sessionManager)).ExecuteAsync(a, ct),
@@ -200,8 +211,8 @@ public static class DependencyPropertyMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }")]
     public static Task<CallToolResult> WatchDpChanges(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name to watch for runtime changes.")] string propertyName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

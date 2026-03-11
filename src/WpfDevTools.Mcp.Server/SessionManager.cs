@@ -13,6 +13,7 @@ public sealed class SessionManager : IDisposable
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly Dictionary<int, Dictionary<string, StoredStateSnapshot>> _stateSnapshots = new();
+    private ActiveProcessSelection? _activeProcessSelection;
     private readonly IRateLimiterManager _rateLimiter;
     private readonly AuthenticationManager? _authManager;
     private readonly CertificateManager? _certManager;
@@ -112,6 +113,11 @@ public sealed class SessionManager : IDisposable
 
             _pipeClients[processId] = new NamedPipeClient(processId, _authManager, _certManager);
             _stateSnapshots[processId] = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
+            _activeProcessSelection ??= new ActiveProcessSelection
+            {
+                ProcessId = processId,
+                SelectedAtUtc = DateTimeOffset.UtcNow
+            };
         }
     }
 
@@ -132,6 +138,11 @@ public sealed class SessionManager : IDisposable
             }
 
             _stateSnapshots.Remove(processId);
+
+            if (_activeProcessSelection?.ProcessId == processId)
+            {
+                _activeProcessSelection = null;
+            }
 
             // Clean up rate limiter state
             _rateLimiter.RemoveSession(processId);
@@ -234,6 +245,70 @@ public sealed class SessionManager : IDisposable
         {
             return _sessions.Keys.ToList();
         }
+    }
+
+    /// <summary>
+    /// Mark an existing connected session as the active process for process-id omission workflows.
+    /// </summary>
+    /// <param name="processId">Connected process ID to mark active.</param>
+    public void SetActiveProcess(int processId)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (!_sessions.ContainsKey(processId))
+            {
+                throw new InvalidOperationException($"Process {processId} is not connected. Connect first or choose an existing session.");
+            }
+
+            _activeProcessSelection = new ActiveProcessSelection
+            {
+                ProcessId = processId,
+                SelectedAtUtc = DateTimeOffset.UtcNow
+            };
+        }
+    }
+
+    /// <summary>
+    /// Try to get the active process ID for process-id omission workflows.
+    /// </summary>
+    /// <param name="processId">The active process ID when available.</param>
+    /// <returns>True when an active process is selected; otherwise false.</returns>
+    public bool TryGetActiveProcessId(out int processId)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (_activeProcessSelection != null)
+            {
+                processId = _activeProcessSelection.ProcessId;
+                return true;
+            }
+        }
+
+        processId = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Try to get the full active-process selection state.
+    /// </summary>
+    /// <param name="selection">Selection payload when available.</param>
+    /// <returns>True when an active process is selected; otherwise false.</returns>
+    internal bool TryGetActiveProcessSelection(out ActiveProcessSelection? selection)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (_activeProcessSelection != null)
+            {
+                selection = _activeProcessSelection;
+                return true;
+            }
+        }
+
+        selection = null;
+        return false;
     }
 
     /// <summary>

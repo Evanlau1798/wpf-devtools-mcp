@@ -59,7 +59,9 @@ public class EventAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
-        doc.GetProperty("error").GetString().Should().Contain("Element not found");
+        doc.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+        doc.GetProperty("error").GetString().Should().Contain("not found");
+        doc.GetProperty("hint").GetString().Should().Contain("elementId");
     }
 
     [StaFact]
@@ -78,7 +80,9 @@ public class EventAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeFalse();
+        doc.GetProperty("errorCode").GetString().Should().Be("EventNotFound");
         doc.GetProperty("error").GetString().Should().Contain("not found");
+        doc.GetProperty("hint").GetString().Should().Contain("eventName");
     }
 
     [StaFact]

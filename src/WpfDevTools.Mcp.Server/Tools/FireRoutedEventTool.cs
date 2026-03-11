@@ -21,8 +21,10 @@ public sealed class FireRoutedEventTool : PipeConnectedToolBase
     /// <returns>Tool result indicating success or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var (detailMode, detailError) = ParseMutationDetailMode(arguments);
+        if (detailError != null) return detailError;
         var eventName = ParseStringParam(arguments, "eventName");
         var eventArgs = WpfDevTools.Shared.Utilities.ParameterParser.ParseJsonParam(arguments, "eventArgs");
 
@@ -45,6 +47,7 @@ public sealed class FireRoutedEventTool : PipeConnectedToolBase
             result,
             requestedInput,
             "Routed-event execution may use the ButtonBase OnClick path when applicable. Inspect usedFallback and observedEffect before assuming the event path used.",
-            usedFallback);
+            usedFallback,
+            detailMode);
     }
 }

@@ -107,6 +107,7 @@ public sealed class ConnectTool
             var existingPipeClient = _sessionManager.GetPipeClient(processId.Value);
             if (existingPipeClient?.IsConnected == true)
             {
+                _sessionManager.SetActiveProcess(processId.Value);
                 return new
                 {
                     success = true,

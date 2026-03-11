@@ -20,6 +20,7 @@ public static class LayoutMcpTools
         "desiredSize, renderSize, margin, padding, horizontalAlignment, verticalAlignment, " +
         "position relative to parent and window.\n\n" +
         "USE WHEN: Element has wrong size, position, or alignment; debugging layout issues.\n" +
+        "BATCH MODE: Provide `elementIds` to inspect multiple elements in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "DO NOT USE: For clipping issues (use get_clipping_info instead).\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -38,13 +39,15 @@ public static class LayoutMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetLayoutInfo(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose layout metrics should be returned. Omit for the root window.")] string? elementId = null,
+        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("elementIds", elementIds));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetLayoutInfoTool>("GetLayoutInfoTool", () => new GetLayoutInfoTool(sessionManager)).ExecuteAsync(a, ct),
@@ -74,8 +77,8 @@ public static class LayoutMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> GetClippingInfo(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Element ID whose clipping state should be analyzed.")] string elementId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -110,7 +113,7 @@ public static class LayoutMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", color: \"Red\", duration: 3000 }")]
     public static Task<CallToolResult> HighlightElement(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to highlight. Omit for the root window.")] string? elementId = null,
         [Description("Optional WPF color name or hex color string for the highlight overlay.")] string? color = null,
         [Description("Optional highlight duration in milliseconds before the overlay is removed.")] int? duration = null,
@@ -151,7 +154,7 @@ public static class LayoutMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> InvalidateLayout(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose layout should be invalidated. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

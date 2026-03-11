@@ -1,29 +1,37 @@
 # Process and Connection Tools
 
-## `get_processes`
+## Most important tools
 
-Use this first. It discovers candidate WPF processes and reports architecture, which is essential for choosing the right bootstrapper build.
+- `get_processes`
+- `select_active_process`
+- `get_active_process`
+- `connect`
+- `ping`
 
-## `connect`
+## When to use which
 
-Creates a session for a specific process.
+- Use `get_processes` first to discover valid WPF targets, architecture, and elevation constraints.
+- Use `connect` to create a live inspector session for a specific process.
+- Use `select_active_process` after connecting multiple targets when later calls should omit `processId`.
+- Use `get_active_process` before a process-id-omission workflow to confirm the active selection.
+- Use `ping` after `connect` or before expensive inspection steps to confirm the inspector is still responsive.
 
-### Important behavior
+## Important behavior
 
-- validates the process
-- resolves inspector and bootstrapper candidates
-- enforces architecture compatibility
-- performs bootstrap + pipe readiness checks
-- creates the session only after readiness succeeds
+- `get_processes` reports `isElevated`, `requiresElevationToConnect`, and `canConnectFromCurrentServer`
+- `connect` validates the target, resolves bootstrapper candidates, and blocks early when the current server lacks permission to attach
+- `select_active_process` only succeeds for already-connected sessions
+- `get_active_process` exposes whether an active selection exists and when it was chosen
+- `ping` is a fast liveness check, not a substitute for `connect`
 
-## `ping`
-
-Use `ping` after `connect` and any time you want a fast liveness check for the active session.
-
-## Practical sequence
+## Practical sequences
 
 ```text
 get_processes -> connect -> ping
 ```
 
-If this sequence fails, solve it before using any process-specific tool.
+```text
+get_processes -> connect -> select_active_process -> get_active_process -> get_visual_tree
+```
+
+If these sequences fail, fix the process/session problem before using any process-specific inspection tool.

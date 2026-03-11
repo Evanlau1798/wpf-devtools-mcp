@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.ComponentModel;
 using FluentAssertions;
+using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpTools;
 using Xunit;
 
@@ -114,14 +115,95 @@ public class McpToolContractConsistencyTests
 
     [Theory]
     [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.SetDpValue))]
+    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.ClearDpValue))]
     [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.ModifyViewModel))]
+    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.ExecuteCommand))]
     [InlineData(typeof(StyleMcpTools), nameof(StyleMcpTools.OverrideStyleSetter))]
+    [InlineData(typeof(InteractionMcpTools), nameof(InteractionMcpTools.ClickElement))]
+    [InlineData(typeof(EventMcpTools), nameof(EventMcpTools.FireRoutedEvent))]
+    public void MutationTools_ShouldExposeOptionalDetailMode(Type toolType, string methodName)
+    {
+        AssertOptionalParameter(toolType, methodName, "detail", typeof(string), null);
+    }
+
+    [Theory]
+    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.SetDpValue))]
     public void ValueMutationTools_ShouldAcceptJsonValue(Type toolType, string methodName)
     {
         var parameter = GetParameter(toolType, methodName, "value");
 
         parameter.ParameterType.Should().Be(typeof(JsonElement));
         parameter.HasDefaultValue.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindings))]
+    [InlineData(typeof(LayoutMcpTools), nameof(LayoutMcpTools.GetLayoutInfo))]
+    [InlineData(typeof(StyleMcpTools), nameof(StyleMcpTools.GetAppliedStyles))]
+    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetValidationErrors))]
+    public void ElementBatchTools_ShouldExposeOptionalElementIds(Type toolType, string methodName)
+    {
+        AssertOptionalParameter(toolType, methodName, "elementIds", typeof(string[]), null);
+    }
+
+    [Fact]
+    public void GetDpValueSource_ShouldExposeOptionalBatchParameters()
+    {
+        AssertOptionalParameter(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.GetDpValueSource), "elementIds", typeof(string[]), null);
+        AssertOptionalParameter(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.GetDpValueSource), "propertyNames", typeof(string[]), null);
+    }
+
+    [Theory]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Ping))]
+    [InlineData(typeof(TreeMcpTools), nameof(TreeMcpTools.GetVisualTree))]
+    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindings))]
+    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.GetDpValueSource))]
+    [InlineData(typeof(StyleMcpTools), nameof(StyleMcpTools.GetAppliedStyles))]
+    [InlineData(typeof(EventMcpTools), nameof(EventMcpTools.GetEventHandlers))]
+    [InlineData(typeof(InteractionMcpTools), nameof(InteractionMcpTools.ClickElement))]
+    [InlineData(typeof(LayoutMcpTools), nameof(LayoutMcpTools.GetLayoutInfo))]
+    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetViewModel))]
+    [InlineData(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats))]
+    [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.CaptureStateSnapshot))]
+    public void ConnectedTools_ShouldExposeOptionalProcessId_ForActiveProcessWorkflows(Type toolType, string methodName)
+    {
+        AssertOptionalParameter(toolType, methodName, "processId", typeof(int?), null);
+    }
+
+    [Fact]
+    public void AllConnectedMcpTools_ShouldExposeOptionalProcessId_ExceptConnectionSelectionEntrypoints()
+    {
+        var exemptToolNames = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "connect",
+            "select_active_process"
+        };
+
+        var toolMethods = typeof(ProcessMcpTools).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            .Select(method => new
+            {
+                Method = method,
+                Tool = method.GetCustomAttribute<McpServerToolAttribute>()
+            })
+            .Where(item => item.Tool != null)
+            .Where(item => item.Tool!.Name != null && !exemptToolNames.Contains(item.Tool.Name))
+            .Select(item => item.Method);
+
+        foreach (var method in toolMethods)
+        {
+            var processId = method.GetParameters().SingleOrDefault(parameter => parameter.Name == "processId");
+            if (processId == null)
+            {
+                continue;
+            }
+
+            processId.ParameterType.Should().Be(typeof(int?),
+                $"{method.DeclaringType!.Name}.{method.Name} should allow processId omission after active-process selection");
+            processId.HasDefaultValue.Should().BeTrue();
+            processId.DefaultValue.Should().BeNull();
+        }
     }
 
     private static ParameterInfo GetParameter(Type declaringType, string methodName, string parameterName)

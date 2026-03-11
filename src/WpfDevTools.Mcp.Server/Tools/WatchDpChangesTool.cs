@@ -21,7 +21,7 @@ public sealed class WatchDpChangesTool : PipeConnectedToolBase
     /// <returns>Tool result indicating success or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
         var propertyName = ParseStringParam(arguments, "propertyName");
 

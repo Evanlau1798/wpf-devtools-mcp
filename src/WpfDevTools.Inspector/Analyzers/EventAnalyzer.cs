@@ -49,18 +49,21 @@ public sealed class EventAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not UIElement uiElement)
             {
-                return new { success = false, error = "Element is not a UIElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a UIElement",
+                    "Choose a UIElement target from get_visual_tree before tracing routed events.");
             }
 
             var routedEvent = FindRoutedEvent(uiElement, eventName);
             if (routedEvent == null)
             {
-                return new { success = false, error = $"Event '{eventName}' not found" };
+                var availableEvents = RoutedEventDiscovery.EnumerateAvailableRoutedEvents(uiElement.GetType());
+                return ToolErrorFactory.EventNotFound(eventName, availableEvents);
             }
 
             CleanupPreviousSession();

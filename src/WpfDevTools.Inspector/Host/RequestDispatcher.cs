@@ -35,6 +35,7 @@ public sealed class RequestDispatcher : IDisposable
         var visualTreeAnalyzer = new VisualTreeAnalyzer(elementFinder);
         var bindingAnalyzer = new BindingAnalyzer(elementFinder);
         var logicalTreeAnalyzer = new LogicalTreeAnalyzer(elementFinder);
+        var elementSearchAnalyzer = new ElementSearchAnalyzer(elementFinder);
         var mvvmAnalyzer = new MvvmAnalyzer(elementFinder);
         var dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(elementFinder);
         var layoutAnalyzer = new LayoutAnalyzer(elementFinder);
@@ -47,6 +48,7 @@ public sealed class RequestDispatcher : IDisposable
         var handlers = new IRequestHandler[]
         {
             new TreeHandlers(visualTreeAnalyzer, logicalTreeAnalyzer, xamlSerializer, elementFinder),
+            new ElementSearchHandlers(elementSearchAnalyzer),
             new BindingHandlers(bindingAnalyzer, elementFinder),
             new MvvmHandlers(mvvmAnalyzer),
             new DependencyPropertyHandlers(dependencyPropertyAnalyzer),

@@ -36,7 +36,7 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\" }")]
     public static Task<CallToolResult> GetViewModel(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose DataContext should be inspected. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -73,7 +73,7 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> GetCommands(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose ViewModel commands should be listed. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -95,6 +95,7 @@ public static class MvvmMcpTools
         "USE WHEN: Testing command logic; simulating button clicks via command.\n" +
         "DO NOT USE: When CanExecute is false (will fail); check with get_commands first.\n\n" +
         "WARNING: This triggers real application logic (saves data, navigates, etc.).\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core command result.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -112,17 +113,19 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", commandName: \"SaveCommand\" }")]
     public static Task<CallToolResult> ExecuteCommand(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("ICommand property name to execute, such as SaveCommand.")] string commandName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose DataContext provides the command. Omit for the root window.")] string? elementId = null,
         [Description("Optional command parameter serialized as a string.")] string? parameter = null,
+        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
             ("commandName", commandName),
-            ("parameter", parameter));
+            ("parameter", parameter),
+            ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ExecuteCommandTool>("ExecuteCommandTool", () => new ExecuteCommandTool(sessionManager)).ExecuteAsync(a, ct),
@@ -136,6 +139,7 @@ public static class MvvmMcpTools
         MvvmMetadata + "[MVVM] Get validation errors from a WPF element and all its logical and visual descendants (recursive). " +
         "Returns all WPF validation errors (via Validation.GetErrors) aggregated from the target element and its entire subtree.\n\n" +
         "USE WHEN: Form shows validation errors; need to understand validation state; querying a parent to find all child validation errors at once.\n" +
+        "BATCH MODE: Provide `elementIds` to inspect multiple scopes in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "DO NOT USE: For binding path errors (use get_binding_errors instead).\n\n" +
         "AGGREGATION: When called on a parent element (e.g., StackPanel, Grid, Window), " +
         "errors from ALL logical and visual descendant elements are collected recursively (max depth: 50, max errors: 200). " +
@@ -163,13 +167,15 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"AgeTextBox\" }  // get errors on a single element")]
     public static Task<CallToolResult> GetValidationErrors(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose validation errors should be returned. Omit to inspect the root window.")] string? elementId = null,
+        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("elementIds", elementIds));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetValidationErrorsTool>("GetValidationErrorsTool", () => new GetValidationErrorsTool(sessionManager)).ExecuteAsync(a, ct),
@@ -185,6 +191,7 @@ public static class MvvmMcpTools
         "USE WHEN: Testing UI updates with different ViewModel values; debugging binding issues.\n" +
         "DO NOT USE: For permanent changes (not persisted); when INotifyPropertyChanged is missing (UI won't update).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core mutation result.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -202,17 +209,19 @@ public static class MvvmMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Age\", value: 30 }")]
     public static Task<CallToolResult> ModifyViewModel(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("ViewModel property name to update at runtime.")] string propertyName,
         [Description("New property value encoded as raw JSON.")] JsonElement value,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose DataContext owns the property. Omit for the root window.")] string? elementId = null,
+        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
             ("propertyName", propertyName),
-            ("value", value));
+            ("value", value),
+            ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(

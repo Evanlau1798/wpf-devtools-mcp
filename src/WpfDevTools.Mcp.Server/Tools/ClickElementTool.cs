@@ -21,8 +21,10 @@ public sealed class ClickElementTool : PipeConnectedToolBase
     /// <returns>Tool result indicating success or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var (detailMode, detailError) = ParseMutationDetailMode(arguments);
+        if (detailError != null) return detailError;
 
         var requestedInput = new { elementId };
         var result = await SendInspectorRequestAsync(
@@ -34,6 +36,7 @@ public sealed class ClickElementTool : PipeConnectedToolBase
         return AddSuccessMetadata(
             result,
             requestedInput,
-            "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.");
+            "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.",
+            detailMode: detailMode);
     }
 }

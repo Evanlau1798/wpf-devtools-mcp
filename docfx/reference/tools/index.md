@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 49 tools across ten categories.
+The server currently exposes 52 tools across ten categories.
 
 ## Categories
 
@@ -21,18 +21,20 @@ Most real sessions should follow this progression:
 
 1. `get_processes`
 2. `connect`
-3. `ping`
-4. Tree discovery
-5. Diagnostics
-6. Interaction or mutation
-7. Verification
+3. `select_active_process`
+4. `get_active_process`
+5. `ping`
+6. Tree discovery
+7. Diagnostics
+8. Interaction or mutation
+9. Verification
 
 ## Categories at a glance
 
 | Category | Typical first call | Why |
 | --- | --- | --- |
-| Process management | `get_processes` | Discover valid targets and architecture |
-| Tree and XAML | `get_visual_tree` | Obtain `elementId` values and structure |
+| Process management | `get_processes` | Discover valid targets, architecture, and connection constraints |
+| Tree and XAML | `find_elements` | Perform a compact exact-match lookup before expanding a full tree |
 | Binding diagnostics | `get_binding_errors` | Find the most actionable binding failures quickly |
 | Dependency properties | `get_dp_value_source` | Understand precedence and effective values |
 | Style and template | `get_applied_styles` | Explain inherited or implicit visual behavior |
@@ -44,7 +46,9 @@ Most real sessions should follow this progression:
 
 Recent additions worth learning early:
 
+- `select_active_process` and `get_active_process` for explicit process selection when later calls omit `processId`
 - `get_focus_state` and `focus_element` for focus-sensitive keyboard and multi-window workflows
 - `capture_state_snapshot` and `restore_state_snapshot` for mutation-safe validation and rollback
+- `find_elements` for compact exact-match lookup before full tree inspection
 
 Use the category pages for the most important tools, semantics, and gotchas.

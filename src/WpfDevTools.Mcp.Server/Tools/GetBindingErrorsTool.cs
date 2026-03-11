@@ -21,7 +21,7 @@ public sealed class GetBindingErrorsTool : PipeConnectedToolBase
     /// <returns>Tool result containing binding error information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, _, error) = ParseCommonParams(arguments);
+        var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
 
         return await SendInspectorRequestAsync(processId, "get_binding_errors",

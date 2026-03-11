@@ -131,6 +131,23 @@ public class HandlerRoutingTests
         result.Should().NotBeNull();
     }
 
+    [Fact]
+    public void ElementSearchHandlers_GetSupportedMethods_ShouldReturnFindElements()
+    {
+        var handler = new ElementSearchHandlers(new ElementSearchAnalyzer(new ElementFinder()));
+        var methods = handler.GetSupportedMethods().ToList();
+
+        methods.Should().ContainSingle().Which.Should().Be("find_elements");
+    }
+
+    [Fact]
+    public async Task ElementSearchHandlers_HandleAsync_FindElements_ShouldReturnResult()
+    {
+        var handler = new ElementSearchHandlers(new ElementSearchAnalyzer(new ElementFinder()));
+        var result = await handler.HandleAsync("find_elements", null, CancellationToken.None);
+        result.Should().NotBeNull();
+    }
+
     // ---- DependencyPropertyHandlers ----
 
     [Fact]

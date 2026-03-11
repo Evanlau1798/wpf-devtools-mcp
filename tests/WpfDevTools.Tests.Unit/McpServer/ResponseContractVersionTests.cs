@@ -1,0 +1,39 @@
+using FluentAssertions;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpResources;
+using WpfDevTools.Mcp.Server.Schema;
+using Xunit;
+
+namespace WpfDevTools.Tests.Unit.McpServer;
+
+public sealed class ResponseContractVersionTests
+{
+    [Fact]
+    public void Current_ShouldExposeStableResponseContractVersion()
+    {
+        ResponseContractVersion.Current.Should().NotBeNullOrWhiteSpace();
+        ResponseContractVersion.DeprecatedAliases.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void CapabilitiesResource_ShouldDescribeResponseContractVersionAndCompatibilityAliases()
+    {
+        var content = CapabilityResources.GetCapabilities();
+
+        content.Should().Contain(ResponseContractVersion.Current);
+        content.Should().Contain("Compatibility aliases");
+        content.Should().Contain("currentValue -> effectiveValue");
+        content.Should().Contain("typeName -> viewModelType");
+        content.Should().Contain("avgRenderTime -> averageFrameTime");
+        content.Should().Contain("detail=compact");
+    }
+
+    [Fact]
+    public void ServerInstructions_ShouldDescribeCompatibilityAliasesAndCompactMode()
+    {
+        ServerInstructions.Value.Should().Contain("RESPONSE CONTRACT VERSION");
+        ServerInstructions.Value.Should().Contain(ResponseContractVersion.Current);
+        ServerInstructions.Value.Should().Contain("Compatibility aliases");
+        ServerInstructions.Value.Should().Contain("detail=compact");
+    }
+}

@@ -19,6 +19,7 @@ public static class BindingMcpTools
         BindingMetadata + "[Binding] Get all DataBindings on an element. Shows binding path, mode " +
         "(OneWay/TwoWay/OneTime), source type, converter, and current status.\n\n" +
         "USE WHEN: You need to inspect binding configuration on a specific element or subtree.\n" +
+        "BATCH MODE: Provide `elementIds` to inspect multiple roots in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "DO NOT USE: recursive=true on large apps without elementId scope (will be slow).\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -38,14 +39,16 @@ public static class BindingMcpTools
         "- { processId: 12345, recursive: true }")]
     public static Task<CallToolResult> GetBindings(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to inspect. Omit for the root window.")] string? elementId = null,
+        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
         [Description("When true, inspect descendant elements under the chosen root as well.")] bool? recursive = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
+            ("elementIds", elementIds),
             ("recursive", recursive));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
@@ -86,7 +89,7 @@ public static class BindingMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetBindingErrors(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID whose captured binding errors should be returned.")] int processId,
+        [Description("Optional connected WPF process ID whose captured binding errors should be returned. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -125,8 +128,8 @@ public static class BindingMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
     public static Task<CallToolResult> GetBindingValueChain(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name whose binding value chain should be traced, such as Text.")] string propertyName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the bound property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -166,7 +169,7 @@ public static class BindingMcpTools
         "- { processId: 12345, elementId: \"ErrorTextBox1\" }")]
     public static Task<CallToolResult> GetDataContextChain(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose DataContext inheritance path should be returned.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -202,8 +205,8 @@ public static class BindingMcpTools
         "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\", direction: \"Target\" }")]
     public static Task<CallToolResult> ForceBindingUpdate(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("DependencyProperty name whose binding should be refreshed.")] string propertyName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the binding. Omit for the root window.")] string? elementId = null,
         [Description("Optional update direction: 'Source' (push UI value to ViewModel) or 'Target' (pull ViewModel value to UI). Default: both.")] string? direction = null,
         CancellationToken cancellationToken = default)

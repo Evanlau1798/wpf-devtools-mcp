@@ -21,7 +21,7 @@ public sealed class GetVisualCountTool : PipeConnectedToolBase
     /// <returns>Tool result containing visual element count or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
 
         return await SendInspectorRequestAsync(processId, "get_visual_count",

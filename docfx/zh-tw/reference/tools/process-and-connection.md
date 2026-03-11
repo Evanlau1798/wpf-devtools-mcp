@@ -1,29 +1,37 @@
-# 處理程序與連線工具
+# 程序與連線工具
 
-## `get_processes`
+## 最重要的工具
 
-這通常是第一個要呼叫的工具。它會找出候選 WPF 行程，並回報 architecture；這是選擇正確 bootstrapper build 的關鍵資訊。
+- `get_processes`
+- `select_active_process`
+- `get_active_process`
+- `connect`
+- `ping`
 
-## `connect`
+## 什麼時候用哪一個
 
-為指定行程建立 session。
+- 先用 `get_processes` 找出可連線的 WPF 目標、程序架構與權限限制。
+- 用 `connect` 為指定程序建立 live inspector session。
+- 當你已連上多個目標，且後續工具想省略 `processId` 時，使用 `select_active_process` 明確指定預設目標。
+- 在省略 `processId` 前，用 `get_active_process` 確認目前 active selection 是否正確。
+- 在 `connect` 之後，或在高成本檢查前，用 `ping` 快速確認 inspector 仍可回應。
 
-### 重要行為
+## 重要行為
 
-- 驗證目標行程
-- 解析 inspector 與 bootstrapper 候選路徑
-- 強制執行 architecture compatibility 檢查
-- 執行 bootstrap 與 pipe readiness 驗證
-- 只有在 readiness 成功後才建立 session
+- `get_processes` 會回傳 `isElevated`、`requiresElevationToConnect` 與 `canConnectFromCurrentServer`
+- `connect` 會驗證目標、解析 bootstrapper 候選項，並在目前 server 權限不足時提早阻擋
+- `select_active_process` 只接受已成功建立 session 的程序
+- `get_active_process` 會顯示目前是否已有 active selection，以及它是在何時被選擇
+- `ping` 是快速存活檢查，不會取代 `connect`
 
-## `ping`
-
-在 `connect` 之後，以及任何你需要快速確認目前 session 是否仍存活時，都可以使用 `ping`。
-
-## 實務順序
+## 實際工作流程
 
 ```text
 get_processes -> connect -> ping
 ```
 
-如果這個序列失敗，請先把它解決，再使用任何針對特定目標行程的工具。
+```text
+get_processes -> connect -> select_active_process -> get_active_process -> get_visual_tree
+```
+
+如果以上流程失敗，請先解決程序或 session 問題，再呼叫其他依賴程序狀態的工具。

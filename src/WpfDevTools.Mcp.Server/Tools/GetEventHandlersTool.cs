@@ -21,7 +21,7 @@ public sealed class GetEventHandlersTool : PipeConnectedToolBase
     /// <returns>Tool result containing event handler information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
         var eventName = ParseStringParam(arguments, "eventName");
 

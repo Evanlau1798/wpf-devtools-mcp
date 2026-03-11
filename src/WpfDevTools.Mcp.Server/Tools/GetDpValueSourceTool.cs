@@ -21,14 +21,23 @@ public sealed class GetDpValueSourceTool : PipeConnectedToolBase
     /// <returns>Tool result containing value source information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
-        var propertyName = ParseStringParam(arguments, "propertyName");
 
-        if (string.IsNullOrEmpty(propertyName))
-            return CreateMissingParamError("propertyName");
+        var elements = BatchQueryArgumentParser.ParseElementTargets(arguments, "elementId", "elementIds");
+        if (elements.Error != null) return elements.Error;
 
-        return await SendInspectorRequestAsync(processId, "get_dp_value_source",
-            new { elementId, propertyName }, cancellationToken);
+        var properties = BatchQueryArgumentParser.ParseStringTargets(arguments, "propertyName", "propertyNames", requireAtLeastOne: true);
+        if (properties.Error != null) return properties.Error;
+
+        return await BatchQueryExecutor.ExecuteAsync(
+            elements.Targets,
+            properties.Targets,
+            (elementId, propertyName, ct) => SendInspectorRequestAsync(
+                processId,
+                "get_dp_value_source",
+                new { elementId, propertyName },
+                ct),
+            cancellationToken);
     }
 }

@@ -21,7 +21,7 @@ public sealed class GetTemplateTreeTool : PipeConnectedToolBase
     /// <returns>Tool result containing template tree data or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
         var depth = ParseIntParam(arguments, "depth");
 

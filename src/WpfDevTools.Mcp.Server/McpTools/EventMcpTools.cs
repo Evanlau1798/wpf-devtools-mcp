@@ -46,7 +46,7 @@ public static class EventMcpTools
         "- { processId: 12345, mode: \"get\" }")]
     public static Task<CallToolResult> TraceRoutedEvents(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional WPF routed event name to trace, such as Click or MouseDown. Required for `capture` and `start`, optional for `get`.")] string? eventName = null,
         [Description("Optional element ID to scope the event trace. Omit for the root window.")] string? elementId = null,
         [Description("Optional capture window in milliseconds (default: 5000). Use smaller values (250-2000) for interactive STDIO sessions.")] int? durationMs = null,
@@ -99,8 +99,8 @@ public static class EventMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }")]
     public static Task<CallToolResult> GetEventHandlers(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("WPF routed event name whose handlers should be listed.")] string eventName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose handlers should be inspected. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -130,6 +130,7 @@ public static class EventMcpTools
         "- fire_routed_event('Click') on non-ButtonBase: only fires routed event handlers, no ICommand\n" +
         "- click_element: calls OnClick() for ButtonBase descendants, selects TabItem; returns error for other element types\n\n" +
         "WARNING: This triggers real application logic. For ButtonBase+Click, ICommand WILL execute.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core routed-event result while still preserving semantically relevant fallback indicators.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -147,17 +148,19 @@ public static class EventMcpTools
         "- { processId: 12345, elementId: \"Panel1\", eventName: \"MouseDown\" }")]
     public static Task<CallToolResult> FireRoutedEvent(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("WPF routed event name to raise, such as Click.")] string eventName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional target element ID that should receive the routed event.")] string? elementId = null,
         [Description("Optional JSON payload for custom routed event arguments. Currently unused for standard RoutedEvents (Click, MouseDown); reserved for custom events.")] JsonElement? eventArgs = null,
+        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
             ("eventName", eventName),
-            ("eventArgs", eventArgs));
+            ("eventArgs", eventArgs),
+            ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<FireRoutedEventTool>("FireRoutedEventTool", () => new FireRoutedEventTool(sessionManager)).ExecuteAsync(a, ct),

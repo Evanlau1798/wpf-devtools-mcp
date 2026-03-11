@@ -290,6 +290,8 @@ public class ConnectToolTests : IDisposable
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("message").GetString().Should().Contain("Already connected");
+        sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
+        activeProcessId.Should().Be(processId);
     }
 
     [Fact]

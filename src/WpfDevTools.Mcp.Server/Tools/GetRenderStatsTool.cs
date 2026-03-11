@@ -21,7 +21,7 @@ public sealed class GetRenderStatsTool : PipeConnectedToolBase
     /// <returns>Tool result containing render statistics or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, _, error) = ParseCommonParams(arguments);
+        var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
 
         return await SendInspectorRequestAsync(processId, "get_render_stats",

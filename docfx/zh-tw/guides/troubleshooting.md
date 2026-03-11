@@ -34,9 +34,13 @@
 - 改用非 elevated 的 target process 重新驗證
 - 如果目標 packaging 或部署型態不適合一般 injection 路徑，改用 SDK mode
 
-## project scope 註冊混淆
+## pipe readiness timeout
 
-如果 Claude Code 常常重新找不到 server，建議優先使用安裝時產生的 `client-registration/claude-code.project.mcp.json`，或改用 project scope 註冊命令。project scope 可以降低 shell、repo 與本機設定狀態不一致造成的漂移。
+如果 injection 已開始，但 named pipe 始終沒有 ready，通常表示 target app 內部的啟動或 UI thread readiness 有問題。
+
+## project-scoped registration confusion
+
+如果 Claude Code 常常重新找不到 server，建議優先使用安裝時產生的 `client-registration/claude-code.project.mcp.json`，或改用 project-scoped 註冊命令。project-scoped 設定可降低 shell、repo 與本機 profile 狀態不一致造成的漂移。
 
 ## 不支援的封裝型態與 injection 限制
 

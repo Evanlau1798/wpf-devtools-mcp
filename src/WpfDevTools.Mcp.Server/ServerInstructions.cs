@@ -1,5 +1,7 @@
 namespace WpfDevTools.Mcp.Server;
 
+using WpfDevTools.Mcp.Server.Schema;
+
 /// <summary>
 /// Server instructions sent to MCP clients during initialization.
 /// Provides comprehensive guidance for AI agents on tool usage, workflows, and error recovery.
@@ -9,10 +11,10 @@ public static class ServerInstructions
     /// <summary>
     /// The complete server instructions text
     /// </summary>
-    public const string Value = """
+    public static readonly string Value = $$"""
         WPF DevTools MCP Server inspects and debugs a running WPF application through in-process runtime diagnostics and interaction tools.
-        Search this server when you need to inspect a running WPF application, its visual tree, logical tree, binding failures, ViewModel state, dependency properties, commands, focus, performance, or secondary windows.
-        Use this server for runtime desktop UI diagnostics, WPF element lookup, XAML structure inspection, multi-window investigation, and safe temporary automation against a connected WPF process.
+        Search this server when you need to inspect a running WPF application, its visual tree, logical tree, binding failures, ViewModel state, dependency properties, commands, focus, performance, secondary windows, or exact runtime element matches.
+        Use this server for runtime desktop UI diagnostics, WPF element lookup, exact-match element search, XAML structure inspection, multi-window investigation, and safe temporary automation against a connected WPF process.
 
         === MANDATORY WORKFLOW ===
         1. get_processes -> discover running WPF apps and their processIds
@@ -43,7 +45,8 @@ public static class ServerInstructions
 
         === ELEMENT DISCOVERY ===
         - elementId is required by many tools; omitting it targets the root window
-        - First call get_visual_tree or get_logical_tree to discover elementId values
+        - First call find_elements when you need a compact lookup by type/name/automationId/property value
+        - Then call get_visual_tree or get_logical_tree when you need the surrounding structure
         - Each tree node returns an elementId field - use these in subsequent tool calls
         - elementId format: 'TypeName_N' (e.g., 'Button_1', 'TextBox_5') - stable per session
         - For multi-window apps: call get_windows first to discover all windows and their elementId values
@@ -61,13 +64,14 @@ public static class ServerInstructions
         - MCP prompts may surface as slash commands in compatible clients; use them as workflow entry points
         - MCP resources may surface through @resource references in compatible clients; use them for capability and limitation summaries
         - Process discovery keywords: process, connect, session, WPF app
-        - Tree keywords: visual tree, logical tree, namescope, template, windows
+        - Tree keywords: visual tree, logical tree, namescope, template, windows, find elements, search element
         - Binding keywords: binding, DataContext, validation, value chain
         - Interaction keywords: click, keyboard, screenshot, drag, scroll
         - State keywords: snapshot, restore, rollback, focus
         - Runtime metadata is returned as structured JSON; use structured fields over text scraping when possible
 
         === TOOL SELECTION GUIDE ===
+        - Need exact element lookup first? -> find_elements, then get_visual_tree/get_logical_tree for local structure
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
         - UI not responding to changes? -> get_dp_value_source, get_viewmodel
         - Button disabled/not working? -> get_commands (CanExecute), get_event_handlers
@@ -142,6 +146,17 @@ public static class ServerInstructions
         - get_validation_errors: recursively aggregates errors from ALL visual descendants (max depth: 50, max errors: 200). Each error includes elementType/elementName to identify the source.
         - set_dp_value / modify_viewmodel: JSON string values with surrounding double-quotes are auto-stripped (e.g., "\"hello\"" becomes "hello").
         - binding/data-context/validation diagnostics expose normalized diagnosticKind/sourceKind fields for cross-tool correlation.
+        - mutation and interaction tools accept detail=compact when you want to trim additive normalization metadata but keep the same core semantics.
+
+        === RESPONSE CONTRACT VERSION ===
+        - Current response contract version: {{ResponseContractVersion.Current}}
+        - Compatibility aliases remain available in the current contract for backward compatibility.
+        - Compatibility aliases:
+          - currentValue -> effectiveValue
+          - typeName -> viewModelType
+          - avgRenderTime -> averageFrameTime
+          - count -> totalCount
+          - renderTimeMs -> renderTime
 
         === ERROR RECOVERY ===
         - "not connected" -> call connect(processId) first, then retry

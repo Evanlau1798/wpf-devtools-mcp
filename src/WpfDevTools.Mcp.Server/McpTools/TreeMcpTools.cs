@@ -6,7 +6,7 @@ using WpfDevTools.Mcp.Server.Tools;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
-/// MCP SDK wrapper for Tree and XAML tools (6 tools).
+/// MCP SDK wrapper for Tree and XAML tools.
 /// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
 /// </summary>
 [McpServerToolType]
@@ -38,7 +38,7 @@ public static class TreeMcpTools
         "- { processId: 12345, elementId: \"Button_1\", depth: 2 }")]
     public static Task<CallToolResult> GetVisualTree(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional starting element ID from get_visual_tree or get_logical_tree. Omit for the root window.")] string? elementId = null,
         [Description("Optional maximum traversal depth. Use 2-4 for initial exploration.")] int? depth = null,
         [Description("Set true to omit null names and empty children arrays for smaller responses.")] bool compact = false,
@@ -85,7 +85,7 @@ public static class TreeMcpTools
         "- { processId: 12345, depth: 5 }")]
     public static Task<CallToolResult> GetLogicalTree(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional starting element ID from get_logical_tree or get_visual_tree. Omit for the root window.")] string? elementId = null,
         [Description("Optional maximum traversal depth for the logical tree walk.")] int? depth = null,
         [Description("Set true to omit null names and empty children arrays for smaller responses.")] bool compact = false,
@@ -129,7 +129,7 @@ public static class TreeMcpTools
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> SerializeToXaml(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to serialize. Omit to serialize the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -163,7 +163,7 @@ public static class TreeMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetNamescope(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional namescope root element ID. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -197,8 +197,8 @@ public static class TreeMcpTools
         "- { processId: 12345, elementId: \"SaveButton\" }")]
     public static Task<CallToolResult> GetTemplateTree(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Element ID of the templated control to inspect.")] string elementId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional maximum traversal depth for the template visual tree.")] int? depth = null,
         CancellationToken cancellationToken = default)
     {
@@ -236,7 +236,7 @@ public static class TreeMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetWindows(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -244,6 +244,61 @@ public static class TreeMcpTools
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("get_windows", () => new GenericPipeTool(sessionManager, "get_windows")).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
+
+    [McpServerTool(Name = "find_elements", Title = "Find WPF Elements", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to search a running WPF tree for matching runtime elements without expanding the full visual tree first.\n\n" +
+        TreeMetadata + "[Tree] Search visual and logical descendants from the chosen root using exact-match filters. " +
+        "Results are bounded by maxResults and optimized for follow-up tool calls.\n\n" +
+        "USE WHEN: You need a compact lookup entry point before calling get_visual_tree, get_layout_info, get_bindings, or other element-scoped tools.\n" +
+        "DO NOT USE: As a full query language. This wave only supports exact-match filters.\n\n" +
+        "SUPPORTED FILTERS:\n" +
+        "- typeName\n" +
+        "- elementName\n" +
+        "- automationId\n" +
+        "- propertyName + propertyValue\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  resultCount: integer,\n" +
+        "  truncated: boolean,\n" +
+        "  results: [{ elementId, elementType, elementName, automationId, matchedProperty, matchedValue }]\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"element not found\" -> verify the root elementId before retrying\n" +
+        "- \"maxResults\" -> must be a positive integer\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345, typeName: \"Button\", maxResults: 10 }\n" +
+        "- { processId: 12345, elementName: \"SaveButton\" }\n" +
+        "- { processId: 12345, propertyName: \"Text\", propertyValue: \"Ready\" }")]
+    public static Task<CallToolResult> FindElements(
+        SessionManager sessionManager,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional root element ID to search within. Omit for the root window.")] string? elementId = null,
+        [Description("Optional exact WPF type name filter, such as Button or TextBox.")] string? typeName = null,
+        [Description("Optional exact FrameworkElement.Name filter.")] string? elementName = null,
+        [Description("Optional exact AutomationProperties.AutomationId filter.")] string? automationId = null,
+        [Description("Optional exact property name filter, such as Text or Content.")] string? propertyName = null,
+        [Description("Optional exact property value filter used with propertyName.")] string? propertyValue = null,
+        [Description("Optional maximum number of results to return. Default: 20.")] int? maxResults = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId),
+            ("typeName", typeName),
+            ("elementName", elementName),
+            ("automationId", automationId),
+            ("propertyName", propertyName),
+            ("propertyValue", propertyValue),
+            ("maxResults", maxResults));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<FindElementsTool>("FindElementsTool", () => new FindElementsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -269,7 +324,7 @@ public static class TreeMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> CompareTrees(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to compare from instead of the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

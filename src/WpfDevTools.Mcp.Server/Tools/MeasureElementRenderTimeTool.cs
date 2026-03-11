@@ -21,7 +21,7 @@ public sealed class MeasureElementRenderTimeTool : PipeConnectedToolBase
     /// <returns>Tool result containing render time measurements or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
 
         return await SendInspectorRequestAsync(processId, "measure_element_render_time",

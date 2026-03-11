@@ -21,7 +21,7 @@ public sealed class SimulateKeyboardTool : PipeConnectedToolBase
     /// <returns>Tool result indicating success or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
         var key = ParseStringParam(arguments, "key");
         var eventType = ParseStringParam(arguments, "eventType");

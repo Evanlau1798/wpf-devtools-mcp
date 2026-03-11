@@ -22,7 +22,7 @@ public sealed class PingTool : PipeConnectedToolBase
     /// <returns>Tool result containing connection status and latency or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, _, error) = ParseCommonParams(arguments);
+        var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
 
         if (!_sessionManager.HasSession(processId))

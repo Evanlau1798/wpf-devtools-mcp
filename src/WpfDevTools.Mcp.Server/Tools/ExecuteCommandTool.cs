@@ -21,8 +21,10 @@ public sealed class ExecuteCommandTool : PipeConnectedToolBase
     /// <returns>Tool result indicating success or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments);
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var (detailMode, detailError) = ParseMutationDetailMode(arguments);
+        if (detailError != null) return detailError;
         var commandName = ParseStringParam(arguments, "commandName");
         var parameter = ParseStringParam(arguments, "parameter");
 
@@ -39,6 +41,7 @@ public sealed class ExecuteCommandTool : PipeConnectedToolBase
         return AddSuccessMetadata(
             result,
             requestedInput,
-            "Triggers real application logic. Confirm the observedEffect before assuming navigation, save, or side effects completed.");
+            "Triggers real application logic. Confirm the observedEffect before assuming navigation, save, or side effects completed.",
+            detailMode: detailMode);
     }
 }

@@ -20,6 +20,20 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/process-and-connection.md")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
+    public void ProcessReferencePages_ShouldDocumentActiveProcessWorkflow(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("get_processes");
+        content.Should().Contain("select_active_process");
+        content.Should().Contain("get_active_process");
+        content.Should().Contain("connect");
+        content.Should().Contain("ping");
+    }
+
+    [Theory]
     [InlineData("docfx/reference/tools/interaction-events-layout.md")]
     [InlineData("docfx/zh-tw/reference/tools/interaction-events-layout.md")]
     public void InteractionReferencePages_ShouldDocumentFocusAndStateTools(string relativePath)
@@ -47,7 +61,7 @@ public sealed class DocfxCapabilityDocumentationTests
 
     [Theory]
     [InlineData("docfx/guides/troubleshooting.md", "elevated", "Access denied", "SDK mode", "project-scoped")]
-    [InlineData("docfx/zh-tw/guides/troubleshooting.md", "系統管理員", "存取遭拒", "SDK mode", "project scope")]
+    [InlineData("docfx/zh-tw/guides/troubleshooting.md", "系統管理員", "Access denied", "SDK mode", "project-scoped")]
     public void TroubleshootingPages_ShouldCoverElevationAndRegistrationConstraints(
         string relativePath,
         string elevationKeyword,

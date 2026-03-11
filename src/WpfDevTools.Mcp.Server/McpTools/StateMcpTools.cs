@@ -30,7 +30,7 @@ public static class StateMcpTools
         "- { processId: 12345, elementId: \"EditorPanel\", viewModelPropertyNames: [\"Name\"], includeFocus: true }")]
     public static Task<CallToolResult> CaptureStateSnapshot(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose state should be captured. Omit for the root window.")] string? elementId = null,
         [Description("Optional DependencyProperty names to capture as restorable local-value state.")] string[]? propertyNames = null,
         [Description("Optional ViewModel property names to capture from the current DataContext.")] string[]? viewModelPropertyNames = null,
@@ -77,8 +77,8 @@ public static class StateMcpTools
         "- { processId: 12345, snapshotId: \"snapshot_abc\" }")]
     public static Task<CallToolResult> RestoreStateSnapshot(
         SessionManager sessionManager,
-        [Description("Connected WPF process ID returned by get_processes.")] int processId,
         [Description("Snapshot ID returned by capture_state_snapshot.")] string snapshotId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Remove the stored snapshot after restore succeeds. Defaults to true.")] bool removeAfterRestore = true,
         CancellationToken cancellationToken = default)
     {

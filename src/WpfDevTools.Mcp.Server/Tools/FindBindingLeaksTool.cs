@@ -21,7 +21,7 @@ public sealed class FindBindingLeaksTool : PipeConnectedToolBase
     /// <returns>Tool result containing binding leak information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, _, error) = ParseCommonParams(arguments);
+        var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
         var threshold = ParseIntParam(arguments, "threshold");
 

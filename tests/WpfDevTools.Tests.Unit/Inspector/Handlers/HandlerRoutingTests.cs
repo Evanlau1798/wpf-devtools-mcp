@@ -142,7 +142,7 @@ public class HandlerRoutingTests
         var parameters = JsonDocument.Parse("{\"elementId\":\"missing-element\"}").RootElement;
 
         var result = await handler.HandleAsync("serialize_to_xaml", parameters, CancellationToken.None);
-        var json = JsonSerializer.SerializeToElement(result, result!.GetType());
+        var json = JsonDocument.Parse(JsonSerializer.Serialize(result, result!.GetType())).RootElement;
 
         json.GetProperty("success").GetBoolean().Should().BeFalse();
         json.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");

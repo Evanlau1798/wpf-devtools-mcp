@@ -182,7 +182,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             return GetBindingValueChainCore(element, propertyName);
@@ -204,7 +204,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             return ForceBindingUpdateCore(element, propertyName, direction);
@@ -221,19 +221,21 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     {
         if (element == null)
         {
-            return new { success = false, error = "Element is null" };
+            return ToolErrorFactory.ElementNotFound();
         }
 
         if (string.IsNullOrEmpty(propertyName))
         {
-            return new { success = false, error = "propertyName is required" };
+            return ToolErrorFactory.InvalidArgument(
+                "propertyName is required",
+                "Provide propertyName to inspect a specific bound DependencyProperty.");
         }
 
         // Find DependencyProperty
         var dp = FindDependencyProperty(element, propertyName);
         if (dp == null)
         {
-            return new { success = false, error = $"Property '{propertyName}' not found" };
+            return ToolErrorFactory.PropertyNotFound(propertyName, element.GetType().Name);
         }
 
         // Get binding expression
@@ -360,26 +362,30 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     {
         if (element == null)
         {
-            return new { success = false, error = "Element is null" };
+            return ToolErrorFactory.ElementNotFound();
         }
 
         if (string.IsNullOrEmpty(propertyName))
         {
-            return new { success = false, error = "propertyName is required" };
+            return ToolErrorFactory.InvalidArgument(
+                "propertyName is required",
+                "Provide propertyName to update a specific binding.");
         }
 
         // Find DependencyProperty
         var dp = FindDependencyProperty(element, propertyName);
         if (dp == null)
         {
-            return new { success = false, error = $"Property '{propertyName}' not found" };
+            return ToolErrorFactory.PropertyNotFound(propertyName, element.GetType().Name);
         }
 
         // Get binding expression
         var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
         if (bindingExpr == null)
         {
-            return new { success = false, error = "No binding on this property" };
+            return ToolErrorFactory.InvalidArgument(
+                "No binding on this property",
+                "Call get_bindings first to confirm the target property has an active binding.");
         }
 
         try
@@ -408,12 +414,16 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             }
             else
             {
-                return new { success = false, error = "Invalid direction. Use 'Source' or 'Target'" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Invalid direction. Use 'Source' or 'Target'",
+                    "Set direction to 'Source' or 'Target' when calling force_binding_update.");
             }
         }
         catch (Exception ex)
         {
-            return new { success = false, error = $"Failed to update binding: {ex.Message}" };
+            return ToolErrorFactory.InvalidArgument(
+                $"Failed to update binding: {ex.Message}",
+                "Inspect the binding with get_bindings or get_binding_value_chain before retrying.");
         }
     }
 

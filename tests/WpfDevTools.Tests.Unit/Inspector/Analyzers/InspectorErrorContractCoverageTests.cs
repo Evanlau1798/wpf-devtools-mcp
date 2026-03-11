@@ -192,6 +192,98 @@ public class InspectorErrorContractCoverageTests
     }
 
     [StaFact]
+    public void GetBindingValueChain_EmptyPropertyName_ShouldReturnStructuredInvalidArgument()
+    {
+        var analyzer = new BindingAnalyzer(new ElementFinder());
+        var button = new Button();
+
+        var result = analyzer.GetBindingValueChain(button, "");
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "propertyName");
+    }
+
+    [StaFact]
+    public void ForceBindingUpdate_NoBinding_ShouldReturnStructuredInvalidArgument()
+    {
+        var analyzer = new BindingAnalyzer(new ElementFinder());
+        var textBox = new TextBox();
+
+        var result = analyzer.ForceBindingUpdate(textBox, "Text", "Source");
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "get_bindings");
+    }
+
+    [StaFact]
+    public void GetMetadata_MissingProperty_ShouldReturnStructuredPropertyNotFound()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.GetMetadata("MissingProperty", elementId);
+
+        AssertStructuredError(
+            result,
+            "PropertyNotFound",
+            expectedHintFragment: "propertyName");
+    }
+
+    [StaFact]
+    public void GetViewModel_NoDataContext_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new MvvmAnalyzer(finder);
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.GetViewModel(elementId);
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "DataContext");
+    }
+
+    [StaFact]
+    public void ExecuteCommand_NotICommandProperty_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new MvvmAnalyzer(finder);
+        var button = new Button { DataContext = new NonCommandViewModel() };
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.ExecuteCommand(elementId, nameof(NonCommandViewModel.Name), null);
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "ICommand");
+    }
+
+    [StaFact]
+    public void ModifyViewModel_ReadOnlyProperty_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new MvvmAnalyzer(finder);
+        var button = new Button { DataContext = new ReadOnlyViewModel() };
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.ModifyViewModel(elementId, nameof(ReadOnlyViewModel.Name), "Updated");
+
+        AssertStructuredError(
+            result,
+            "InvalidArgument",
+            expectedHintFragment: "writable");
+    }
+
+    [StaFact]
     public void GetVisualTree_MissingRoot_ShouldReturnStructuredError()
     {
         var analyzer = new VisualTreeAnalyzer(new ElementFinder());
@@ -286,7 +378,7 @@ public class InspectorErrorContractCoverageTests
         string expectedErrorCode,
         string expectedHintFragment)
     {
-        var json = JsonSerializer.SerializeToElement(result, result.GetType());
+        var json = JsonDocument.Parse(JsonSerializer.Serialize(result, result.GetType())).RootElement;
         json.GetProperty("success").GetBoolean().Should().BeFalse();
         json.GetProperty("errorCode").GetString().Should().Be(expectedErrorCode);
         json.GetProperty("hint").GetString().Should().Contain(expectedHintFragment);
@@ -296,5 +388,15 @@ public class InspectorErrorContractCoverageTests
     private sealed class CommandlessViewModel
     {
         public string Name { get; set; } = "Test";
+    }
+
+    private sealed class NonCommandViewModel
+    {
+        public string Name { get; set; } = "Test";
+    }
+
+    private sealed class ReadOnlyViewModel
+    {
+        public string Name => "ReadOnly";
     }
 }

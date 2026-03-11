@@ -57,18 +57,22 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Target a FrameworkElement with a DataContext before calling get_viewmodel.");
             }
 
             var dataContext = fe.DataContext;
             if (dataContext == null)
             {
-                return new { success = false, error = "Element has no DataContext" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element has no DataContext",
+                    "Choose an element with a ViewModel/DataContext or call get_datacontext_chain first.");
             }
 
             var dcType = dataContext.GetType();
@@ -178,7 +182,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
             var cmd = prop.GetValue(fe.DataContext) as System.Windows.Input.ICommand;
             if (cmd == null)
-                return new { success = false, error = $"'{commandName}' is not an ICommand" };
+                return ToolErrorFactory.InvalidArgument(
+                    $"'{commandName}' is not an ICommand",
+                    "Call get_commands first and choose a property whose type implements ICommand.");
 
             var canExecute = cmd.CanExecute(parameter);
             if (!canExecute)
@@ -229,7 +235,7 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
         {
             var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
             if (element == null)
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
 
             var errors = new List<object>();
             if (element is DependencyObject depObj)
@@ -291,7 +297,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
         {
             if (string.IsNullOrEmpty(propertyName))
             {
-                return new { success = false, error = "propertyName is required" };
+                return ToolErrorFactory.InvalidArgument(
+                    "propertyName is required",
+                    "Provide propertyName and value when calling modify_viewmodel.");
             }
 
             var element = elementId == null
@@ -300,18 +308,22 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not FrameworkElement fe)
             {
-                return new { success = false, error = "Element is not a FrameworkElement" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a FrameworkElement",
+                    "Target a FrameworkElement with a DataContext before calling modify_viewmodel.");
             }
 
             var viewModel = fe.DataContext;
             if (viewModel == null)
             {
-                return new { success = false, error = "Element has no DataContext" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element has no DataContext",
+                    "Choose an element with a ViewModel/DataContext or call get_viewmodel first.");
             }
 
             try
@@ -320,12 +332,14 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
                 var propertyInfo = viewModel.GetType().GetProperty(propertyName);
                 if (propertyInfo == null)
                 {
-                    return new { success = false, error = $"Property '{propertyName}' not found on ViewModel" };
+                    return ToolErrorFactory.PropertyNotFound(propertyName, "ViewModel");
                 }
 
                 if (!propertyInfo.CanWrite)
                 {
-                    return new { success = false, error = $"Property '{propertyName}' is read-only" };
+                    return ToolErrorFactory.InvalidArgument(
+                        $"Property '{propertyName}' is read-only",
+                        "Choose a writable ViewModel property. Inspect canWrite via get_viewmodel before retrying.");
                 }
 
                 // SECURITY: Check property name against sensitive property pattern

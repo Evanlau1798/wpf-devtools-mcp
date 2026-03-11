@@ -122,19 +122,21 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not DependencyObject depObj)
             {
-                return new { success = false, error = "Element is not a DependencyObject" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a DependencyObject",
+                    "Target a WPF DependencyObject element before reading DependencyProperty metadata.");
             }
 
             // Find DependencyProperty by name
             var dp = FindDependencyProperty(depObj, propertyName);
             if (dp == null)
             {
-                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+                return ToolErrorFactory.PropertyNotFound(propertyName, depObj.GetType().Name);
             }
 
             // Get metadata
@@ -175,19 +177,21 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not DependencyObject depObj)
             {
-                return new { success = false, error = "Element is not a DependencyObject" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a DependencyObject",
+                    "Target a WPF DependencyObject element before setting a DependencyProperty value.");
             }
 
             // Find DependencyProperty by name
             var dp = FindDependencyProperty(depObj, propertyName);
             if (dp == null)
             {
-                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+                return ToolErrorFactory.PropertyNotFound(propertyName, depObj.GetType().Name);
             }
 
             try
@@ -240,19 +244,21 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not DependencyObject depObj)
             {
-                return new { success = false, error = "Element is not a DependencyObject" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a DependencyObject",
+                    "Target a WPF DependencyObject element before clearing a DependencyProperty value.");
             }
 
             // Find DependencyProperty by name
             var dp = FindDependencyProperty(depObj, propertyName);
             if (dp == null)
             {
-                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+                return ToolErrorFactory.PropertyNotFound(propertyName, depObj.GetType().Name);
             }
 
             try
@@ -295,19 +301,21 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return new { success = false, error = "Element not found" };
+                return ToolErrorFactory.ElementNotFound(elementId);
             }
 
             if (element is not DependencyObject depObj)
             {
-                return new { success = false, error = "Element is not a DependencyObject" };
+                return ToolErrorFactory.InvalidArgument(
+                    "Element is not a DependencyObject",
+                    "Target a WPF DependencyObject element before watching DependencyProperty changes.");
             }
 
             // Find DependencyProperty by name
             var dp = FindDependencyProperty(depObj, propertyName);
             if (dp == null)
             {
-                return new { success = false, error = $"DependencyProperty '{propertyName}' not found" };
+                return ToolErrorFactory.PropertyNotFound(propertyName, depObj.GetType().Name);
             }
 
             try
@@ -317,7 +325,9 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 // Check if already watching (ConcurrentDictionary is thread-safe for reads)
                 if (_watchers.ContainsKey(watchKey))
                 {
-                    return new { success = false, error = "Already watching this property" };
+                    return ToolErrorFactory.InvalidArgument(
+                        "Already watching this property",
+                        "Reuse the existing watcher or clear it before registering the same property again.");
                 }
 
                 // Create descriptor and add handler (must be on UI thread)
@@ -405,7 +415,9 @@ public sealed class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 };
             }
 
-            return new { success = false, error = "Property is not being watched" };
+            return ToolErrorFactory.InvalidArgument(
+                "Property is not being watched",
+                "Register watch_dp_changes for the element/property pair before attempting to stop it.");
         });
     }
 

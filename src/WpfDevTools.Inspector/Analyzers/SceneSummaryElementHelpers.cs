@@ -202,7 +202,7 @@ internal static class SceneSummaryElementHelpers
 
         if (element.ActualWidth <= 0 || element.ActualHeight <= 0)
         {
-            blockers.Add("NoLayoutSize");
+            blockers.Add(GetLayoutSizeBlockerReason(element));
         }
 
         if (element is ButtonBase button && button.Command != null && !button.Command.CanExecute(button.CommandParameter))
@@ -211,6 +211,26 @@ internal static class SceneSummaryElementHelpers
         }
 
         return (blockers.Count == 0, blockers);
+    }
+
+    internal static string GetLayoutSizeBlockerReason(FrameworkElement element)
+    {
+        return IsInsideInactiveTab(element)
+            ? "ElementInInactiveTab"
+            : "NoLayoutSize";
+    }
+
+    internal static bool IsInsideInactiveTab(DependencyObject element)
+    {
+        for (var current = GetParent(element); current != null; current = GetParent(current))
+        {
+            if (current is TabItem tabItem && !tabItem.IsSelected)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     internal static bool IsPrimaryCommand(ButtonBase button)
@@ -329,10 +349,38 @@ internal static class SceneSummaryElementHelpers
     }
 
     private static DependencyObject? GetParent(DependencyObject element)
-        => LogicalTreeHelper.GetParent(element)
+    {
+        if (element is FrameworkElement frameworkElement)
+        {
+            if (frameworkElement.Parent != null)
+            {
+                return frameworkElement.Parent;
+            }
+
+            if (frameworkElement.TemplatedParent != null)
+            {
+                return frameworkElement.TemplatedParent;
+            }
+        }
+
+        if (element is FrameworkContentElement frameworkContentElement)
+        {
+            if (frameworkContentElement.Parent != null)
+            {
+                return frameworkContentElement.Parent;
+            }
+
+            if (frameworkContentElement.TemplatedParent != null)
+            {
+                return frameworkContentElement.TemplatedParent;
+            }
+        }
+
+        return LogicalTreeHelper.GetParent(element)
             ?? (element is Visual or System.Windows.Media.Media3D.Visual3D
                 ? VisualTreeHelper.GetParent(element)
                 : null);
+    }
 
     private static bool ContainsIgnoreCase(string value, string expected)
         => value.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0;

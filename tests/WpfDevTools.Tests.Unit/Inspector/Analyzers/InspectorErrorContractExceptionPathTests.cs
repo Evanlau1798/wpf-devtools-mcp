@@ -54,6 +54,8 @@ public sealed class InspectorErrorContractExceptionPathTests
         var result = analyzer.SimulateKeyboard(elementId, "A", "KeyDown");
 
         AssertStructuredError(result, "ElementNotLoaded", "visual tree");
+        var json = JsonDocument.Parse(JsonSerializer.Serialize(result, result.GetType())).RootElement;
+        json.GetProperty("hint").GetString().Should().Contain("TabItem");
     }
 
     [StaFact]

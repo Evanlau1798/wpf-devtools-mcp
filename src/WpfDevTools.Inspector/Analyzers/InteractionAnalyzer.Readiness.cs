@@ -55,7 +55,11 @@ public sealed partial class InteractionAnalyzer
 
             if (frameworkElement.ActualWidth <= 0 || frameworkElement.ActualHeight <= 0)
             {
-                blockers.Add(CreateBlocker("NoLayoutSize", "Element has zero ActualWidth or ActualHeight."));
+                var reason = SceneSummaryElementHelpers.GetLayoutSizeBlockerReason(frameworkElement);
+                var message = reason == "ElementInInactiveTab"
+                    ? "Element belongs to an inactive TabItem and has not been rendered into the active visual tree yet."
+                    : "Element has zero ActualWidth or ActualHeight.";
+                blockers.Add(CreateBlocker(reason, message));
             }
 
             if (frameworkElement is ButtonBase button && button.Command is ICommand command)

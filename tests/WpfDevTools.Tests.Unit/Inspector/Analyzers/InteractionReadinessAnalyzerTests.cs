@@ -51,4 +51,39 @@ public sealed class InteractionReadinessAnalyzerTests
         result.GetProperty("isReady").GetBoolean().Should().BeFalse();
         result.GetProperty("elementState").GetProperty("isEnabled").GetBoolean().Should().BeFalse();
     }
+
+    [StaFact]
+    public void GetInteractionReadiness_WhenElementIsInsideInactiveTab_ShouldReportInactiveTabBlocker()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var tabControl = new TabControl();
+        var activeTab = new TabItem
+        {
+            Header = "Active",
+            Content = new TextBlock { Text = "Visible" }
+        };
+        var inactiveButton = new Button
+        {
+            Name = "InactiveAction",
+            Content = "Run"
+        };
+        var inactiveTab = new TabItem
+        {
+            Header = "Inactive",
+            Content = inactiveButton
+        };
+        tabControl.Items.Add(activeTab);
+        tabControl.Items.Add(inactiveTab);
+        tabControl.SelectedIndex = 0;
+        var elementId = finder.GenerateElementId(inactiveButton);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetInteractionReadiness(elementId));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("isReady").GetBoolean().Should().BeFalse();
+        result.GetProperty("blockers").EnumerateArray()
+            .Select(item => item.GetProperty("reason").GetString())
+            .Should().Contain("ElementInInactiveTab");
+    }
 }

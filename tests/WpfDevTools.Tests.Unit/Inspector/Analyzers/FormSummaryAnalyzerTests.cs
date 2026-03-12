@@ -79,6 +79,11 @@ public sealed class FormSummaryAnalyzerTests
             .Select(command => command.GetProperty("elementName").GetString())
             .Should()
             .Contain("SubmitButton");
+        result.GetProperty("commands")
+            .EnumerateArray()
+            .SelectMany(command => command.GetProperty("blockers").EnumerateArray())
+            .Should()
+            .Contain(blocker => blocker.GetString() == "ElementInInactiveTab");
     }
 
     [StaFact]

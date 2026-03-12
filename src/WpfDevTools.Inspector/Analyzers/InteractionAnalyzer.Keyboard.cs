@@ -52,7 +52,7 @@ public sealed partial class InteractionAnalyzer
                 {
                     return ToolErrorFactory.ElementNotLoaded(
                         "Element is not connected to a presentation source",
-                        "Ensure the element is attached to a rendered visual tree before calling simulate_keyboard.");
+                        "Ensure the element is attached to a rendered visual tree before calling simulate_keyboard. If it is inside an inactive TabItem, activate that tab first and then retry.");
                 }
 
                 if (routedEvent == Keyboard.KeyDownEvent &&

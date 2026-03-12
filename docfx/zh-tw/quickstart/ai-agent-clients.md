@@ -8,6 +8,8 @@
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+維護者對應的來源入口腳本位於 `scripts/online-installer.ps1`。
+
 若要指定架構並一次產生多個 client 的設定，可使用：
 
 ```powershell

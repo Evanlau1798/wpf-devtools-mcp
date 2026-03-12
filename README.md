@@ -33,6 +33,7 @@ irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
 That GitHub Pages hosted bootstrap script downloads the matching `WpfDevTools-win-<arch>.zip` package from GitHub Releases and runs the packaged `setup.ps1` wizard.
+Maintainers should treat `scripts/online-installer.ps1` as the canonical source entrypoint for that hosted installer flow.
 
 If you want a single-command, non-interactive setup for a specific client and architecture, use:
 

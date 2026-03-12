@@ -5,6 +5,8 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class PublicQuickstartDocumentationTests
 {
+    private static readonly string RepoRoot = ResolveRepoRoot();
+
     [Fact]
     public void PublicQuickstartPages_ShouldUseInstalledExecutableExamples()
     {
@@ -112,6 +114,26 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void PublicQuickstartPages_ShouldReferenceScriptsOnlineInstallerEntryPoint()
+    {
+        var files = new[]
+        {
+            "README.md",
+            "docfx/quickstart/index.md",
+            "docfx/quickstart/ai-agent-clients.md",
+            "docfx/zh-tw/quickstart/index.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("scripts/online-installer.ps1",
+                $"{file} should point maintainers at the canonical online installer source entrypoint");
+        }
+    }
+
+    [Fact]
     public void ReleaseLayoutDocs_ShouldDescribeZipAssetsAndSetupWizard()
     {
         var files = new[]
@@ -138,5 +160,22 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     private static string GetRepoFilePath(string relativePath)
-        => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
+        => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
+
+    private static string ResolveRepoRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, ".git")) ||
+                Directory.Exists(Path.Combine(current.FullName, ".git")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root from test base directory.");
+    }
 }

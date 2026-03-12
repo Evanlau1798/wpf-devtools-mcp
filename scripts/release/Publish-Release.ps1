@@ -5,7 +5,9 @@ param(
     [ValidateSet('x64', 'x86', 'arm64')]
     [string[]]$Architectures = @('x64'),
 
-    [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release')
+    [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release'),
+
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -128,9 +130,10 @@ foreach ($architecture in $Architectures) {
     $channel = Get-PackageChannel -BuildConfiguration $Configuration
     $signaturePolicy = Get-SignaturePolicy -BuildConfiguration $Configuration
     $packageDir = Join-Path $outputRootFullPath "release_${version}_win-$architecture"
-    $packageArchiveName = if ($channel -eq 'dev') { "release_${version}_dev_win-$architecture.zip" } else { "release_${version}_win-$architecture.zip" }
+    $packageArchiveName = "release_${version}_win-$architecture.zip"
     $packageArchivePath = Join-Path $outputRootFullPath $packageArchiveName
     $binDir = Join-Path $packageDir 'bin'
+    $serverBuildDir = Join-Path $repoRoot "src\WpfDevTools.Mcp.Server\bin\$Configuration\net8.0"
 
     Remove-PathIfExists -Path $packageDir
     Remove-PathIfExists -Path $packageArchivePath
@@ -141,19 +144,26 @@ foreach ($architecture in $Architectures) {
     $bootstrapperDir = Join-Path $binDir (Join-Path 'bootstrapper' $architecture)
     New-Item -ItemType Directory -Force -Path $binDir, $inspectorNet8Dir, $inspectorNet48Dir, $bootstrapperDir | Out-Null
 
-    Invoke-Step -FilePath 'dotnet' -Arguments @(
-        'publish', $serverProject,
-        '-c', $Configuration,
-        '-r', $runtimeId,
-        '--self-contained', 'false',
-        '-o', $binDir
-    )
+    if ($SkipBuild) {
+        Copy-DirectoryContents -Source $serverBuildDir -Destination $binDir
+    }
+    else {
+        Invoke-Step -FilePath 'dotnet' -Arguments @(
+            'publish', $serverProject,
+            '-c', $Configuration,
+            '-r', $runtimeId,
+            '--self-contained', 'false',
+            '-o', $binDir
+        )
+    }
 
-    Invoke-Step -FilePath 'dotnet' -Arguments @(
-        'build', $inspectorProject,
-        '-c', $Configuration,
-        '-f', 'net8.0-windows'
-    )
+    if (-not $SkipBuild) {
+        Invoke-Step -FilePath 'dotnet' -Arguments @(
+            'build', $inspectorProject,
+            '-c', $Configuration,
+            '-f', 'net8.0-windows'
+        )
+    }
 
     Invoke-Step -FilePath 'dotnet' -Arguments @(
         'build', $inspectorProject,

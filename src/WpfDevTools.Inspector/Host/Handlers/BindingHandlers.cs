@@ -32,6 +32,7 @@ public class BindingHandlers : IRequestHandler
         return new[]
         {
             "get_bindings",
+            "get_binding_mismatches",
             "get_binding_errors",
             "get_datacontext_chain",
             "get_binding_value_chain",
@@ -52,6 +53,7 @@ public class BindingHandlers : IRequestHandler
         return method switch
         {
             "get_bindings" => await HandleGetBindingsAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_binding_mismatches" => await HandleGetBindingMismatchesAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_binding_errors" => await HandleGetBindingErrorsAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_datacontext_chain" => await HandleGetDataContextChainAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_binding_value_chain" => await HandleGetBindingValueChainAsync(@params, cancellationToken).ConfigureAwait(false),
@@ -68,6 +70,15 @@ public class BindingHandlers : IRequestHandler
 
         return await Task.Run(() =>
             _bindingAnalyzer.GetBindings(elementId, recursive, statusFilter), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<object> HandleGetBindingMismatchesAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var recursive = ParameterHelpers.GetBoolParam(@params, "recursive") ?? false;
+
+        return await Task.Run(() =>
+            _bindingAnalyzer.GetBindingMismatches(elementId, recursive), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetBindingErrorsAsync(JsonElement? @params, CancellationToken cancellationToken)

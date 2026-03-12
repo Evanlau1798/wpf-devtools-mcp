@@ -5,6 +5,8 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class ReleaseReadinessDocumentationTests
 {
+    private static readonly string RepoRoot = ResolveRepoRoot();
+
     [Fact]
     public void Readme_ShouldLinkToReleaseGuideAndPreflightCommand()
     {
@@ -36,5 +38,22 @@ public sealed class ReleaseReadinessDocumentationTests
     }
 
     private static string GetRepoFilePath(string relativePath)
-        => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
+        => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
+
+    private static string ResolveRepoRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, ".git")) ||
+                Directory.Exists(Path.Combine(current.FullName, ".git")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root from test base directory.");
+    }
 }

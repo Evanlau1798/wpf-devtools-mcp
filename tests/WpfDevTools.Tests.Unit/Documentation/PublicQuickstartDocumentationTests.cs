@@ -145,7 +145,7 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("WpfDevTools-win-x64.zip");
+            content.Should().Contain("release_{version}_win-x64.zip");
             content.Should().Contain("setup.ps1");
             content.Should().Contain("install.ps1");
         }

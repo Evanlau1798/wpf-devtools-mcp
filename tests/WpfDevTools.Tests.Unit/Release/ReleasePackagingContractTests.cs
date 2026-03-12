@@ -58,6 +58,8 @@ public sealed class ReleasePackagingContractTests
 
         content.Should().Contain("release_${version}_win-$architecture.zip",
             "GitHub release assets should use the new versioned naming contract");
+        content.Should().NotContain("_dev_win-",
+            "release archive names should stay stable regardless of Debug or Release packaging mode");
     }
 
     [Fact]

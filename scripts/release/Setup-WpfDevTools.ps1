@@ -12,7 +12,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $script:IsJsonOutput = $OutputJson.IsPresent
-$script:KnownClients = @('claude-code', 'claude-desktop', 'codex', 'cursor')
+$script:KnownClients = @('claude-code', 'claude-desktop', 'codex', 'cursor', 'github-copilot-vscode', 'other')
 
 function Write-SetupMessage {
     param([Parameter(Mandatory)] [string]$Message)
@@ -120,6 +120,12 @@ function Test-ClientDetected {
                 }
             }
 
+            return $false
+        }
+        'github-copilot-vscode' {
+            return $false
+        }
+        'other' {
             return $false
         }
         default {
@@ -403,6 +409,24 @@ foreach ($client in $selectedClients) {
         }
         'cursor' {
             $registrations += Set-JsonConfigRegistration -Client $client -CollectionName 'servers' -ConfigPath (Resolve-CursorConfigPath -OverridePath $CursorConfigPath) -InstalledExecutable $installedExecutable
+        }
+        'github-copilot-vscode' {
+            $registrations += [ordered]@{
+                client = $client
+                mode = 'artifact-only'
+                target = (Join-Path $resolvedInstallRootFullPath "$architecture\client-registration\github-copilot-vscode.json")
+                backupPath = $null
+                applied = $true
+            }
+        }
+        'other' {
+            $registrations += [ordered]@{
+                client = $client
+                mode = 'artifact-only'
+                target = (Join-Path $resolvedInstallRootFullPath "$architecture\client-registration\other.mcpServers.json")
+                backupPath = $null
+                applied = $true
+            }
         }
         default {
             throw "Unsupported registration client: $client"

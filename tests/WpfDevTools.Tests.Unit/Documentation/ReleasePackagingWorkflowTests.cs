@@ -45,7 +45,7 @@ public class ReleasePackagingWorkflowTests
 
         content.Should().Contain("Compress-Archive",
             "the GitHub Pages bootstrap installer needs versioned zip assets to download per architecture");
-        content.Should().Contain("WpfDevTools-win-$architecture.zip",
+        content.Should().Contain("release_${version}_win-$architecture.zip",
             "zip asset naming should stay stable for the one-command installer");
     }
 

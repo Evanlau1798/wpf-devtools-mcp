@@ -19,6 +19,12 @@ Run the release preflight script from the repository root:
 powershell -ExecutionPolicy Bypass -File scripts/release/Preflight-Release.ps1 -VersionTag v0.1.0 -OutputJson
 ```
 
+To generate GitHub Release-ready zip packages locally without uploading anything, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build-release.ps1 -Configuration Release -Architectures x64,x86,arm64 -OutputRoot release
+```
+
 What this does:
 
 1. Builds `WpfDevTools.sln` in `Release`
@@ -39,9 +45,9 @@ powershell -ExecutionPolicy Bypass -File scripts/release/Preflight-Release.ps1 -
 
 After a successful preflight run, verify these outputs under the preflight output root:
 
-- `packages/WpfDevTools-win-x64.zip`
-- `packages/WpfDevTools-win-x86.zip`
-- `packages/WpfDevTools-win-arm64.zip`
+- `packages/release_<version>_win-x64.zip`
+- `packages/release_<version>_win-x86.zip`
+- `packages/release_<version>_win-arm64.zip`
 - `github-assets/<tag>/SHA256SUMS.txt`
 - `github-assets/<tag>/release-assets.json`
 - `github-assets/<tag>/upload-gh-release.ps1`

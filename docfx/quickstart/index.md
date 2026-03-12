@@ -25,6 +25,7 @@ irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
 That command fetches the static bootstrap script from GitHub Pages. The script then downloads the matching `WpfDevTools-win-<arch>.zip` release asset and runs the packaged `setup.ps1` wizard.
+The corresponding source entrypoint for maintainers lives in `scripts/online-installer.ps1`.
 
 If you want a deterministic non-interactive install for a specific client, use:
 

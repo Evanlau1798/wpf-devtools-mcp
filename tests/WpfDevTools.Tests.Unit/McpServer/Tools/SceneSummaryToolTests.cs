@@ -138,6 +138,9 @@ public sealed class SceneSummaryToolTests
             catch (EndOfStreamException)
             {
             }
+            catch (ObjectDisposedException)
+            {
+            }
         });
 
         var sessionManager = new SessionManager();

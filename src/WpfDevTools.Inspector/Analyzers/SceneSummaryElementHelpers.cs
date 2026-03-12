@@ -216,10 +216,10 @@ internal static class SceneSummaryElementHelpers
     internal static bool IsPrimaryCommand(ButtonBase button)
     {
         var candidate = $"{button.Name} {button.Content}".Trim();
-        return candidate.Contains("save", StringComparison.OrdinalIgnoreCase)
-            || candidate.Contains("submit", StringComparison.OrdinalIgnoreCase)
-            || candidate.Contains("confirm", StringComparison.OrdinalIgnoreCase)
-            || candidate.Contains("ok", StringComparison.OrdinalIgnoreCase);
+        return ContainsIgnoreCase(candidate, "save")
+            || ContainsIgnoreCase(candidate, "submit")
+            || ContainsIgnoreCase(candidate, "confirm")
+            || ContainsIgnoreCase(candidate, "ok");
     }
 
     internal static string? TryGetNearbyLabel(FrameworkElement element)
@@ -333,4 +333,7 @@ internal static class SceneSummaryElementHelpers
             ?? (element is Visual or System.Windows.Media.Media3D.Visual3D
                 ? VisualTreeHelper.GetParent(element)
                 : null);
+
+    private static bool ContainsIgnoreCase(string value, string expected)
+        => value.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0;
 }

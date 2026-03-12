@@ -5,7 +5,9 @@ param(
     [ValidateSet('x64', 'x86', 'arm64')]
     [string[]]$Architectures = @('x64'),
 
-    [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release')
+    [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release'),
+
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -110,6 +112,7 @@ $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
 $bootstrapperProject = Join-Path $repoRoot 'src\WpfDevTools.Bootstrapper\WpfDevTools.Bootstrapper.vcxproj'
 $installScript = Join-Path $repoRoot 'scripts\release\Install-WpfDevTools.ps1'
+$installBatchTemplate = Join-Path $repoRoot 'scripts\release\install-template.bat'
 $setupScript = Join-Path $repoRoot 'scripts\release\Setup-WpfDevTools.ps1'
 $uninstallScript = Join-Path $repoRoot 'scripts\release\Uninstall-WpfDevTools.ps1'
 $outputRootFullPath = (Resolve-Path (New-Item -ItemType Directory -Force -Path $OutputRoot)).Path
@@ -126,32 +129,41 @@ foreach ($architecture in $Architectures) {
     $bootstrapperPlatform = Get-BootstrapperPlatform -Architecture $architecture
     $channel = Get-PackageChannel -BuildConfiguration $Configuration
     $signaturePolicy = Get-SignaturePolicy -BuildConfiguration $Configuration
-    $packageDir = Join-Path $outputRootFullPath "WpfDevTools-$runtimeId"
-    $packageArchiveName = if ($channel -eq 'dev') { "WpfDevTools-dev-win-$architecture.zip" } else { "WpfDevTools-win-$architecture.zip" }
+    $packageDir = Join-Path $outputRootFullPath "release_${version}_win-$architecture"
+    $packageArchiveName = "release_${version}_win-$architecture.zip"
     $packageArchivePath = Join-Path $outputRootFullPath $packageArchiveName
+    $binDir = Join-Path $packageDir 'bin'
+    $serverBuildDir = Join-Path $repoRoot "src\WpfDevTools.Mcp.Server\bin\$Configuration\net8.0"
 
     Remove-PathIfExists -Path $packageDir
     Remove-PathIfExists -Path $packageArchivePath
 
     New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
-    $inspectorNet8Dir = Join-Path $packageDir 'inspectors\net8.0-windows'
-    $inspectorNet48Dir = Join-Path $packageDir 'inspectors\net48'
-    $bootstrapperDir = Join-Path $packageDir (Join-Path 'bootstrapper' $architecture)
-    New-Item -ItemType Directory -Force -Path $inspectorNet8Dir, $inspectorNet48Dir, $bootstrapperDir | Out-Null
+    $inspectorNet8Dir = Join-Path $binDir 'inspectors\net8.0-windows'
+    $inspectorNet48Dir = Join-Path $binDir 'inspectors\net48'
+    $bootstrapperDir = Join-Path $binDir (Join-Path 'bootstrapper' $architecture)
+    New-Item -ItemType Directory -Force -Path $binDir, $inspectorNet8Dir, $inspectorNet48Dir, $bootstrapperDir | Out-Null
 
-    Invoke-Step -FilePath 'dotnet' -Arguments @(
-        'publish', $serverProject,
-        '-c', $Configuration,
-        '-r', $runtimeId,
-        '--self-contained', 'false',
-        '-o', $packageDir
-    )
+    if ($SkipBuild) {
+        Copy-DirectoryContents -Source $serverBuildDir -Destination $binDir
+    }
+    else {
+        Invoke-Step -FilePath 'dotnet' -Arguments @(
+            'publish', $serverProject,
+            '-c', $Configuration,
+            '-r', $runtimeId,
+            '--self-contained', 'false',
+            '-o', $binDir
+        )
+    }
 
-    Invoke-Step -FilePath 'dotnet' -Arguments @(
-        'build', $inspectorProject,
-        '-c', $Configuration,
-        '-f', 'net8.0-windows'
-    )
+    if (-not $SkipBuild) {
+        Invoke-Step -FilePath 'dotnet' -Arguments @(
+            'build', $inspectorProject,
+            '-c', $Configuration,
+            '-f', 'net8.0-windows'
+        )
+    }
 
     Invoke-Step -FilePath 'dotnet' -Arguments @(
         'build', $inspectorProject,
@@ -172,6 +184,7 @@ foreach ($architecture in $Architectures) {
     Copy-DirectoryContents -Source $inspectorNet8BuildDir -Destination $inspectorNet8Dir
     Copy-DirectoryContents -Source $inspectorNet48BuildDir -Destination $inspectorNet48Dir
     Copy-Item -Path $bootstrapperSource -Destination (Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)) -Force
+    Copy-Item -Path $installBatchTemplate -Destination (Join-Path $packageDir 'install.bat') -Force
     Copy-Item -Path $installScript -Destination (Join-Path $packageDir 'install.ps1') -Force
     Copy-Item -Path $setupScript -Destination (Join-Path $packageDir 'setup.ps1') -Force
     Copy-Item -Path $uninstallScript -Destination (Join-Path $packageDir 'uninstall.ps1') -Force
@@ -185,15 +198,16 @@ foreach ($architecture in $Architectures) {
         buildConfiguration = $Configuration
         signaturePolicy = $signaturePolicy
         createdUtc = [DateTime]::UtcNow.ToString('o')
-        entryExecutable = 'WpfDevTools.Mcp.Server.exe'
+        entryExecutable = 'bin/WpfDevTools.Mcp.Server.exe'
+        installBatch = 'install.bat'
         installScript = 'install.ps1'
         setupScript = 'setup.ps1'
         uninstallScript = 'uninstall.ps1'
         inspector = [ordered]@{
-            net8 = 'inspectors/net8.0-windows/WpfDevTools.Inspector.dll'
-            net48 = 'inspectors/net48/WpfDevTools.Inspector.dll'
+            net8 = 'bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll'
+            net48 = 'bin/inspectors/net48/WpfDevTools.Inspector.dll'
         }
-        bootstrapper = "bootstrapper/$architecture/WpfDevTools.Bootstrapper.$architecture.dll"
+        bootstrapper = "bin/bootstrapper/$architecture/WpfDevTools.Bootstrapper.$architecture.dll"
     }
 
     $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $packageDir 'manifest.json') -Encoding UTF8

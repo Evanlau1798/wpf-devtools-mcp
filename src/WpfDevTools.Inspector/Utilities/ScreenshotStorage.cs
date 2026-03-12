@@ -9,7 +9,10 @@ internal static class ScreenshotStorage
 
     public static ScreenshotFile WritePng(byte[] imageBytes)
     {
-        ArgumentNullException.ThrowIfNull(imageBytes);
+        if (imageBytes == null)
+        {
+            throw new ArgumentNullException(nameof(imageBytes));
+        }
 
         var screenshotId = $"shot_{Guid.NewGuid():N}";
         var directory = Path.Combine(Path.GetTempPath(), "WpfDevTools", "Screenshots");
@@ -21,7 +24,14 @@ internal static class ScreenshotStorage
         return new ScreenshotFile(
             screenshotId,
             path,
-            Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant());
+            ComputeSha256Hex(imageBytes));
+    }
+
+    private static string ComputeSha256Hex(byte[] imageBytes)
+    {
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(imageBytes);
+        return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
     }
 
     internal sealed record ScreenshotFile(string ScreenshotId, string Path, string Sha256);

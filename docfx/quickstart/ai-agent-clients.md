@@ -8,6 +8,8 @@ Install WPF DevTools first, then register the installed executable with your pre
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+The corresponding source entrypoint for maintainers lives in `scripts/online-installer.ps1`.
+
 Advanced non-interactive example:
 
 ```powershell

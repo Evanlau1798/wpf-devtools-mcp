@@ -41,8 +41,12 @@ public class McpDiscoveryContentTests
     public void WorkflowPrompts_ShouldCoverBindingCommandAndSecondaryWindowScenarios()
     {
         WorkflowPrompts.DebugBindingIssue().Should().Contain("get_binding_errors");
+        WorkflowPrompts.DebugBindingIssue().Should().Contain("get_element_snapshot");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("click_element");
+        WorkflowPrompts.DebugCommandOrClick().Should().Contain("get_interaction_readiness");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("get_windows");
+        WorkflowPrompts.ConnectAndListWindows().Should().Contain("connect()");
+        WorkflowPrompts.ConnectAndListWindows().Should().Contain("windowFilter");
         WorkflowPrompts.InspectSecondaryWindow().Should().Contain("Application.MainWindow");
     }
 }

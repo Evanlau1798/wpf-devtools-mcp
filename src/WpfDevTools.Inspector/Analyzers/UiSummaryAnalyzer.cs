@@ -121,6 +121,11 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         var kind = SceneSummaryElementHelpers.GetKind(frameworkElement);
         var currentValue = SceneSummaryElementHelpers.GetCurrentValue(frameworkElement);
 
+        if (SceneSummaryElementHelpers.ShouldOmitSemanticNode(frameworkElement, kind, text, currentValue, annotations))
+        {
+            return;
+        }
+
         nodes.Add(new
         {
             elementId,

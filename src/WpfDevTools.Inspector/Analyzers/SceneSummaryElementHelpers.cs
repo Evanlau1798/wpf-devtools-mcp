@@ -254,7 +254,7 @@ internal static class SceneSummaryElementHelpers
             }
         }
 
-        return null;
+        return TryGetAncestorHeaderLabel(element);
     }
 
     internal static string? TryGetBindingPath(FrameworkElement element)
@@ -284,6 +284,8 @@ internal static class SceneSummaryElementHelpers
         {
             TextBlock textBlock => textBlock.Text,
             Label label => label.Content?.ToString(),
+            HeaderedContentControl headeredContentControl => headeredContentControl.Header?.ToString(),
+            HeaderedItemsControl headeredItemsControl => headeredItemsControl.Header?.ToString(),
             _ => null
         };
 
@@ -291,4 +293,44 @@ internal static class SceneSummaryElementHelpers
             ? null
             : rawText.Trim().TrimEnd(':');
     }
+
+    internal static bool ShouldOmitSemanticNode(
+        FrameworkElement element,
+        string kind,
+        string? text,
+        object? currentValue,
+        IReadOnlyList<string> annotations)
+    {
+        if (kind != "text")
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        return currentValue == null && annotations.Count == 0;
+    }
+
+    private static string? TryGetAncestorHeaderLabel(FrameworkElement element)
+    {
+        for (var current = GetParent(element); current != null; current = GetParent(current))
+        {
+            if (current is FrameworkElement frameworkElement
+                && TryExtractLabelText(frameworkElement) is { } headerLabel)
+            {
+                return headerLabel;
+            }
+        }
+
+        return null;
+    }
+
+    private static DependencyObject? GetParent(DependencyObject element)
+        => LogicalTreeHelper.GetParent(element)
+            ?? (element is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(element)
+                : null);
 }

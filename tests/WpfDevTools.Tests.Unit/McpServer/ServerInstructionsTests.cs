@@ -19,8 +19,9 @@ public class ServerInstructionsTests
     public void Value_ShouldContainMandatoryWorkflow()
     {
         ServerInstructions.Value.Should().Contain("MANDATORY WORKFLOW");
-        ServerInstructions.Value.Should().Contain("get_processes");
-        ServerInstructions.Value.Should().Contain("connect");
+        ServerInstructions.Value.Should().Contain("connect()");
+        ServerInstructions.Value.Should().Contain("auto-discovery");
+        ServerInstructions.Value.Should().Contain("windowFilter");
     }
 
     [Fact]
@@ -57,6 +58,10 @@ public class ServerInstructionsTests
     {
         ServerInstructions.Value.Should().Contain("COMMON WORKFLOWS");
         ServerInstructions.Value.Should().Contain("Debug Binding Error");
+        ServerInstructions.Value.Should().Contain("get_ui_summary");
+        ServerInstructions.Value.Should().Contain("get_element_snapshot");
+        ServerInstructions.Value.Should().Contain("get_form_summary");
+        ServerInstructions.Value.Should().Contain("get_state_diff");
     }
 
     [Fact]

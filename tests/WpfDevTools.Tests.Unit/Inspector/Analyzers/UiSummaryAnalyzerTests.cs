@@ -261,4 +261,29 @@ public sealed class UiSummaryAnalyzerTests
         result.GetProperty("depthMode").GetString().Should().Be("semantic");
         result.GetProperty("summaryText").GetString().Should().Contain("SemanticDefaultBox");
     }
+
+    [StaFact]
+    public void GetUiSummary_ShouldOmitEmptyTextBlocksThatCarryNoSignal()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel
+        {
+            Name = "SummaryRoot",
+            Children =
+            {
+                new TextBlock { Name = "EmptyTemplateText", Text = string.Empty },
+                new TextBlock { Name = "WhitespaceTemplateText", Text = "   " },
+                new TextBlock { Name = "StatusText", Text = "Ready" }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 2));
+        var summaryText = result.GetProperty("summaryText").GetString();
+
+        summaryText.Should().Contain("StatusText");
+        summaryText.Should().NotContain("EmptyTemplateText");
+        summaryText.Should().NotContain("WhitespaceTemplateText");
+    }
 }

@@ -5,12 +5,13 @@ This server is explicitly intended for AI-assisted WPF debugging and testing. Th
 ## Recommended workflow
 
 1. Discover tools and schemas.
-2. Call `get_processes`.
-3. Call `connect(processId)`.
-4. Call `ping`.
-5. Explore the tree to obtain stable `elementId` values.
-6. Run diagnostics.
-7. Perform controlled interaction or mutation only when needed.
+2. Call `connect()` first and let the server auto-discover the target when there is only one visible WPF app.
+3. If auto-discovery returns multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`.
+4. Use scene-level tools such as `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before falling back to tree-heavy inspection.
+5. Call `ping` only when you need an explicit health check or reconnect confirmation.
+6. Explore the tree to obtain stable `elementId` values only after the scene summary is insufficient.
+7. Run focused diagnostics.
+8. Perform controlled interaction or mutation only when needed.
 
 ## Best practices
 
@@ -76,30 +77,45 @@ Also use MCP discovery surfaces instead of relying on memory:
 - prompts such as `/mcp__wpf-devtools__debug_binding_issue`
 - resources such as `@wpf-devtools:capabilities`
 
+### 6. Prefer scene-level aggregation before screenshots or tree dumps
+
+The fastest agent workflows now start with one of these tools:
+
+- `get_ui_summary` for fast semantic context
+- `get_element_snapshot` for one-element triage
+- `get_form_summary` for form state and submit readiness
+- `get_state_diff` after an interaction or mutation
+
+Use tree tools when exact structure matters, not as the default first step.
+
 ## Prompt patterns that work well
 
 ### Tree-first prompt
 
 ```text
 Connect to the WPF test app, inspect the visual tree to find the main form controls, then summarize the top-level structure before making any changes.
+Connect to the WPF test app with connect(), get_ui_summary(depthMode: "semantic"), then inspect the visual tree only if the summary is insufficient.
 ```
 
 ### Binding triage prompt
 
 ```text
 Connect to the target WPF app, inspect binding errors, and explain which elements are failing and why. Do not modify the UI unless a fix requires it.
+Connect to the target WPF app with connect(), inspect binding errors, use get_element_snapshot on the failing element, and explain which bindings are failing and why. Do not modify the UI unless a fix requires it.
 ```
 
 ### Safe interaction prompt
 
 ```text
 Find the Save button in the current visual tree, confirm its binding and command metadata, then click it and report what changed.
+Connect with connect(), get_form_summary or get_interaction_readiness for the target form, then find the Save button, confirm its command metadata, click it, and report the state diff.
 ```
 
 ### Snapshot-safe mutation prompt
 
 ```text
 Capture a state snapshot, locate the target control, apply one UI mutation, verify the result, and restore the snapshot before finishing.
+Connect with connect(), capture a state snapshot, locate the target control, apply one UI mutation, verify the result with get_state_diff, and restore the snapshot before finishing.
 ```
 
 ## Anti-patterns
@@ -108,19 +124,18 @@ Capture a state snapshot, locate the target control, apply one UI mutation, veri
 - Calling mutation tools before confirming the target element.
 - Skipping `capture_state_snapshot` before a mutation that may need rollback.
 - Treating `fire_routed_event` as a guaranteed substitute for user input.
-- Assuming the target process is x64 without checking `get_processes`.
+- Assuming the target process is x64 without checking `get_processes(windowFilter)` when auto-discovery is ambiguous.
 - Ignoring architecture or bootstrapper requirements when `connect` fails.
 
 ## Golden sequence for automation
 
 For end-to-end automated validation, use this order whenever possible:
 
-1. `get_processes`
-2. `connect`
-3. `ping`
-4. `get_visual_tree`
-5. One or more diagnostics
-6. One mutation or interaction at a time
-7. A verification tool call after each mutation
+1. `connect()`
+2. If needed, `get_processes(windowFilter)` and `connect(processId)`
+3. `get_ui_summary` or `get_element_snapshot`
+4. One or more focused diagnostics
+5. One mutation or interaction at a time
+6. `get_state_diff` or a focused verification tool after each mutation
 
 This keeps failures easy to localize and makes agent traces easier to trust.

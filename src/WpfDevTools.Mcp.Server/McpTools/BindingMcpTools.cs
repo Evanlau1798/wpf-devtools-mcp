@@ -13,6 +13,50 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class BindingMcpTools
 {
     private const string BindingMetadata = "CATEGORY: Binding | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+
+    [McpServerTool(Name = "get_binding_mismatches", Title = "Detect WPF Binding Mismatches", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to detect deterministic WPF binding mismatches before they become silent runtime confusion.\n\n" +
+        BindingMetadata + "[Binding] Cross-reference target DependencyProperty types with resolved binding source property types and report deterministic path, type, and nullability mismatches.\n\n" +
+        "USE WHEN: A binding looks active but still behaves suspiciously, or you need to catch path/type issues without stitching together get_bindings, get_viewmodel, and get_dp_value_source.\n" +
+        "DO NOT USE: For fuzzy guessing. This tool only reports deterministic mismatches and skips unresolved heuristics.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  mismatchCount: integer,\n" +
+        "  mismatches: [{\n" +
+        "    elementId, elementType, elementName, propertyName, bindingPath,\n" +
+        "    targetType, sourceType, converter,\n" +
+        "    diagnosis: 'PathMismatch'|'TypeMismatch'|'TypeMismatchWithConverter'|'NullabilityMismatch',\n" +
+        "    severity: 'Info'|'Warning'\n" +
+        "  }]\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect() or connect(processId) first\n" +
+        "- \"element not found\" -> verify elementId from find_elements or get_visual_tree\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345 }\n" +
+        "- { processId: 12345, elementId: \"BasicControlsTab\", recursive: true }")]
+    public static Task<CallToolResult> GetBindingMismatches(
+        SessionManager sessionManager,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect() or connect(processId) has established the active process.")] int? processId = null,
+        [Description("Optional element ID to inspect. Omit for the root window.")] string? elementId = null,
+        [Description("When true, inspect descendant elements under the chosen root as well.")] bool recursive = false,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId),
+            ("recursive", recursive));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<GetBindingMismatchesTool>(
+                "GetBindingMismatchesTool",
+                () => new GetBindingMismatchesTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
+
     [McpServerTool(Name = "get_bindings", Title = "Inspect WPF Bindings", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect WPF bindings on a runtime element or subtree before changing UI or ViewModel state.\n\n" +

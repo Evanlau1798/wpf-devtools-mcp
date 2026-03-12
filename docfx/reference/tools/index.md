@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 58 tools across eleven categories.
+The server currently exposes 59 tools across eleven categories.
 
 ## Categories
 

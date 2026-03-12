@@ -26,28 +26,32 @@ public static class BindingMcpTools
         "  mismatchCount: integer,\n" +
         "  mismatches: [{\n" +
         "    elementId, elementType, elementName, propertyName, bindingPath,\n" +
-        "    targetType, sourceType, converter,\n" +
+        "    targetType, sourceType, converter, origin,\n" +
         "    diagnosis: 'PathMismatch'|'TypeMismatch'|'TypeMismatchWithConverter'|'NullabilityMismatch',\n" +
         "    severity: 'Info'|'Warning'\n" +
         "  }]\n" +
         "}\n\n" +
+        "DEFAULT BEHAVIOR: Unnamed framework template parts are excluded by default to reduce noise. Set includeFramework=true to include internal/template-generated framework mismatches.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect() or connect(processId) first\n" +
         "- \"element not found\" -> verify elementId from find_elements or get_visual_tree\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"BasicControlsTab\", recursive: true }")]
+        "- { processId: 12345, elementId: \"BasicControlsTab\", recursive: true }\n" +
+        "- { processId: 12345, recursive: true, includeFramework: true }")]
     public static Task<CallToolResult> GetBindingMismatches(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect() or connect(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to inspect. Omit for the root window.")] string? elementId = null,
         [Description("When true, inspect descendant elements under the chosen root as well.")] bool recursive = false,
+        [Description("When true, include unnamed framework template/internal mismatch entries that are excluded by default to reduce diagnostic noise.")] bool includeFramework = false,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("recursive", recursive));
+            ("recursive", recursive),
+            ("includeFramework", includeFramework));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetBindingMismatchesTool>(

@@ -9,7 +9,10 @@ namespace WpfDevTools.Inspector.Analyzers;
 
 public sealed partial class BindingAnalyzer
 {
-    public object GetBindingMismatches(string? elementId = null, bool recursive = false)
+    /// <summary>
+    /// Cross-reference binding source and target types to surface deterministic mismatch diagnostics.
+    /// </summary>
+    public object GetBindingMismatches(string? elementId = null, bool recursive = false, bool includeFramework = false)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -20,8 +23,8 @@ public sealed partial class BindingAnalyzer
             }
 
             var mismatches = recursive
-                ? CollectBindingMismatchesRecursive(element)
-                : GetBindingMismatchesForElement(element);
+                ? CollectBindingMismatchesRecursive(element, includeFramework)
+                : GetBindingMismatchesForElement(element, includeFramework);
 
             return new
             {
@@ -32,33 +35,34 @@ public sealed partial class BindingAnalyzer
         });
     }
 
-    private List<object> CollectBindingMismatchesRecursive(DependencyObject root)
+    private List<object> CollectBindingMismatchesRecursive(DependencyObject root, bool includeFramework)
     {
         var mismatches = new List<object>();
         var visited = new HashSet<DependencyObject>();
-        CollectBindingMismatchesRecursiveCore(root, visited, mismatches);
+        CollectBindingMismatchesRecursiveCore(root, visited, mismatches, includeFramework);
         return mismatches;
     }
 
     private void CollectBindingMismatchesRecursiveCore(
         DependencyObject element,
         HashSet<DependencyObject> visited,
-        List<object> mismatches)
+        List<object> mismatches,
+        bool includeFramework)
     {
         if (!visited.Add(element))
         {
             return;
         }
 
-        mismatches.AddRange(GetBindingMismatchesForElement(element));
+        mismatches.AddRange(GetBindingMismatchesForElement(element, includeFramework));
 
         foreach (var child in DependencyObjectTraversal.EnumerateChildren(element))
         {
-            CollectBindingMismatchesRecursiveCore(child, visited, mismatches);
+            CollectBindingMismatchesRecursiveCore(child, visited, mismatches, includeFramework);
         }
     }
 
-    private List<object> GetBindingMismatchesForElement(DependencyObject element)
+    private List<object> GetBindingMismatchesForElement(DependencyObject element, bool includeFramework)
     {
         var mismatches = new List<object>();
         var enumerator = element.GetLocalValueEnumerator();
@@ -77,6 +81,11 @@ public sealed partial class BindingAnalyzer
                 var mismatch = AnalyzeBindingMismatch(element, dp, bindingExpression);
                 if (mismatch != null)
                 {
+                    if (!includeFramework && string.Equals(mismatch["origin"] as string, "FrameworkTemplate", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
                     mismatches.Add(mismatch);
                 }
             }
@@ -85,7 +94,7 @@ public sealed partial class BindingAnalyzer
         return mismatches;
     }
 
-    private object? AnalyzeBindingMismatch(
+    private Dictionary<string, object?>? AnalyzeBindingMismatch(
         DependencyObject element,
         DependencyProperty property,
         BindingExpression bindingExpression)
@@ -282,7 +291,7 @@ public sealed partial class BindingAnalyzer
                targetType == sourceUnderlying;
     }
 
-    private object BuildMismatchPayload(
+    private Dictionary<string, object?> BuildMismatchPayload(
         DependencyObject element,
         DependencyProperty property,
         string? bindingPath,
@@ -302,9 +311,27 @@ public sealed partial class BindingAnalyzer
             ["targetType"] = FormatTypeName(targetType),
             ["sourceType"] = sourceType == null ? null : FormatTypeName(sourceType),
             ["converter"] = converterName,
+            ["origin"] = ClassifyMismatchOrigin(element),
             ["diagnosis"] = diagnosis,
             ["severity"] = severity
         };
+    }
+
+    private static string ClassifyMismatchOrigin(DependencyObject element)
+    {
+        if (element is FrameworkElement frameworkElement &&
+            frameworkElement.TemplatedParent != null &&
+            string.IsNullOrWhiteSpace(frameworkElement.Name))
+        {
+            var assemblyName = frameworkElement.GetType().Assembly.GetName().Name;
+            if (string.Equals(assemblyName, "PresentationFramework", StringComparison.Ordinal) ||
+                string.Equals(assemblyName, "PresentationCore", StringComparison.Ordinal))
+            {
+                return "FrameworkTemplate";
+            }
+        }
+
+        return "UserCode";
     }
 
     private static string FormatTypeName(Type type)

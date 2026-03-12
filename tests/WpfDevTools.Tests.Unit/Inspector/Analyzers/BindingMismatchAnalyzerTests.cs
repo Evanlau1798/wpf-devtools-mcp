@@ -97,6 +97,109 @@ public sealed class BindingMismatchAnalyzerTests
         mismatch.GetProperty("sourceType").GetString().Should().Be("Nullable<Double>");
     }
 
+    [StaFact]
+    public void GetBindingMismatches_ShouldExcludeUnnamedFrameworkTemplateElementsByDefault()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var button = new Button
+        {
+            Template = BuildTemplateWithUnnamedFrameworkHost()
+        };
+
+        button.ApplyTemplate();
+        var border = AttachUnnamedFrameworkMismatch(button);
+        var elementId = finder.GenerateElementId(border);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingMismatches(elementId));
+
+        result.GetProperty("mismatchCount").GetInt32().Should().Be(0);
+    }
+
+    [StaFact]
+    public void GetBindingMismatches_ShouldIncludeUnnamedFrameworkTemplateElementsWhenRequested()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var button = new Button
+        {
+            Template = BuildTemplateWithUnnamedFrameworkHost()
+        };
+
+        button.ApplyTemplate();
+        var border = AttachUnnamedFrameworkMismatch(button);
+        var elementId = finder.GenerateElementId(border);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingMismatches(elementId, includeFramework: true));
+        var mismatch = result.GetProperty("mismatches")[0];
+
+        mismatch.GetProperty("origin").GetString().Should().Be("FrameworkTemplate");
+        mismatch.GetProperty("elementType").GetString().Should().Be("Border");
+        mismatch.GetProperty("diagnosis").GetString().Should().Be("TypeMismatch");
+    }
+
+    [StaFact]
+    public void GetBindingMismatches_ShouldKeepUserCodeMismatchWhenFrameworkFilteringIsEnabled()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var root = new Grid();
+        var button = new Button
+        {
+            Name = "UserMismatchButton",
+            Template = BuildTemplateWithUnnamedFrameworkHost()
+        };
+        button.SetBinding(Control.BackgroundProperty, new Binding(nameof(BindingMismatchSource.IsEnabled))
+        {
+            Source = new BindingMismatchSource { IsEnabled = true }
+        });
+        root.Children.Add(button);
+
+        button.ApplyTemplate();
+        AttachUnnamedFrameworkMismatch(button);
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingMismatches(elementId, recursive: true));
+
+        result.GetProperty("mismatches").EnumerateArray()
+            .Should()
+            .ContainSingle(item =>
+                item.GetProperty("elementName").GetString() == "UserMismatchButton" &&
+                item.GetProperty("origin").GetString() == "UserCode");
+    }
+
+    private static ControlTemplate BuildTemplateWithUnnamedFrameworkHost()
+    {
+        var template = new ControlTemplate(typeof(Button));
+        var borderFactory = new FrameworkElementFactory(typeof(Border));
+        template.VisualTree = borderFactory;
+        return template;
+    }
+
+    private static Border AttachUnnamedFrameworkMismatch(Button button)
+    {
+        var border = FindDescendant<Border>(button);
+        border.Should().NotBeNull();
+        border!.SetBinding(Border.BackgroundProperty, new Binding(nameof(BindingMismatchSource.IsEnabled))
+        {
+            Source = new BindingMismatchSource { IsEnabled = true }
+        });
+        return border;
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        foreach (var descendant in DependencyObjectTraversal.EnumerateDescendantsAndSelf(root))
+        {
+            if (descendant is T match && !ReferenceEquals(match, root))
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
     private sealed class BindingMismatchSource
     {
         public bool IsEnabled { get; set; }

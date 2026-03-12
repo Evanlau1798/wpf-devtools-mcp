@@ -18,10 +18,11 @@ public sealed class GetBindingMismatchesTool : PipeConnectedToolBase
         }
 
         var recursive = ParameterParser.ParseBoolParam(arguments, "recursive");
+        var includeFramework = ParameterParser.ParseBoolParam(arguments, "includeFramework");
         return await SendInspectorRequestAsync(
             processId,
             "get_binding_mismatches",
-            new { elementId, recursive },
+            new { elementId, recursive, includeFramework },
             cancellationToken).ConfigureAwait(false);
     }
 }

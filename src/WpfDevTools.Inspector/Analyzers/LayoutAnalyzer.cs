@@ -48,6 +48,8 @@ public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
                     "Choose a FrameworkElement target from get_visual_tree or find_elements before inspecting layout.");
             }
 
+            var notRenderedReason = GetNotRenderedReason(fe);
+
             return new
             {
                 success = true,
@@ -81,10 +83,19 @@ public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
                 padding = GetPaddingInfo(fe),
                 horizontalAlignment = fe.HorizontalAlignment.ToString(),
                 verticalAlignment = fe.VerticalAlignment.ToString(),
+                layoutState = notRenderedReason == null ? "Rendered" : "NotRendered",
+                notRenderedReason,
                 positionInParent = GetPositionInfo(fe, VisualTreeHelper.GetParent(fe) as Visual),
                 positionInWindow = GetPositionInfo(fe, Window.GetWindow(fe))
             };
         });
+    }
+
+    private static string? GetNotRenderedReason(FrameworkElement element)
+    {
+        return element.ActualWidth <= 0 || element.ActualHeight <= 0
+            ? SceneSummaryElementHelpers.GetLayoutSizeBlockerReason(element)
+            : null;
     }
 
     private static double? NormalizeDouble(double value)

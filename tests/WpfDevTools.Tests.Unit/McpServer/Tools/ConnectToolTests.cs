@@ -66,9 +66,9 @@ public class ConnectToolTests : IDisposable
     }
 
     [Fact]
-    public async Task Execute_WithMissingProcessId_ShouldReturnError()
+    public async Task Execute_WithMissingProcessId_ShouldReturnAutoDiscoveryError()
     {
-        var tool = new ConnectTool(new SessionManager());
+        var tool = CreateTool(processDetector: new EmptyProcessDetector());
         var parameters = new { };
 
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -76,7 +76,7 @@ public class ConnectToolTests : IDisposable
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("processId");
+        resultJson.GetProperty("errorCode").GetString().Should().Be("NoWpfProcessesFound");
     }
 
     [Theory]
@@ -482,6 +482,12 @@ public class ConnectToolTests : IDisposable
                 IsElevated = isElevated
             };
         }
+    }
+
+    private sealed class EmptyProcessDetector : WpfProcessDetector
+    {
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
+            => [];
     }
 
     private sealed class FakeProcessInjector : IProcessInjector

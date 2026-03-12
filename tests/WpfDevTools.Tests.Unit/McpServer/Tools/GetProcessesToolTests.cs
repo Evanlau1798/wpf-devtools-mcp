@@ -113,10 +113,48 @@ public class GetProcessesToolTests
         firstProcess.GetProperty("connectionWarning").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
+    [Fact]
+    public async Task Execute_WithoutWindowFilter_ShouldDefaultToVisible()
+    {
+        var detector = new FakeProcessDetector();
+        var tool = new GetProcessesTool(detector, () => false);
+
+        await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        detector.RequestedWindowFilters.Should().ContainSingle().Which.Should().Be(ProcessWindowFilter.Visible);
+    }
+
+    [Fact]
+    public async Task Execute_WithWindowFilterAll_ShouldForwardAllFilter()
+    {
+        var detector = new FakeProcessDetector();
+        var tool = new GetProcessesTool(detector, () => false);
+
+        await tool.ExecuteAsync(ToJsonElement(new { windowFilter = "all" }), CancellationToken.None);
+
+        detector.RequestedWindowFilters.Should().ContainSingle().Which.Should().Be(ProcessWindowFilter.All);
+    }
+
+    [Fact]
+    public async Task Execute_WithInvalidWindowFilter_ShouldReturnValidationError()
+    {
+        var detector = new FakeProcessDetector();
+        var tool = new GetProcessesTool(detector, () => false);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { windowFilter = "bad-filter" }), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+    }
+
     private sealed class FakeProcessDetector : WpfProcessDetector
     {
-        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses()
+        internal List<ProcessWindowFilter> RequestedWindowFilters { get; } = [];
+
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
         {
+            RequestedWindowFilters.Add(windowFilter);
             return
             [
                 new WpfProcessInfo

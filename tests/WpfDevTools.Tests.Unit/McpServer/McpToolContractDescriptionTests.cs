@@ -36,6 +36,9 @@ public sealed class McpToolContractDescriptionTests
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "autoDiscovered")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "selectionStrategy")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "largest_working_set")]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "windowFilter")]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "windowFilter")]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "foreground")]
     public void ToolDescriptions_ShouldMentionUpdatedContractTerms(Type toolType, string methodName, string expectedTerm)
     {
         var method = toolType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);

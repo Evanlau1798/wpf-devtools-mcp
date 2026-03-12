@@ -85,6 +85,24 @@ public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
         json.GetProperty("processes").GetArrayLength().Should().Be(2);
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ConnectTool_WithWindowFilterAll_ShouldForwardWindowFilter()
+    {
+        using var sessionManager = new SessionManager();
+        var detector = new FakeProcessDetector(CreateProcessInfo(12345, "SingleApp"));
+        var tool = CreateTool(
+            sessionManager,
+            detector,
+            new FakeProcessInjector());
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { windowFilter = "all" }), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        detector.RequestedWindowFilters.Should().ContainSingle().Which.Should().Be(ProcessWindowFilter.All);
+    }
+
     public void Dispose()
     {
         if (_dummyBootstrapperPath != null && File.Exists(_dummyBootstrapperPath))
@@ -161,8 +179,13 @@ public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
     private sealed class FakeProcessDetector(params WpfProcessInfo[] processes) : WpfProcessDetector
     {
         private readonly IReadOnlyList<WpfProcessInfo> _processes = processes;
+        internal List<ProcessWindowFilter> RequestedWindowFilters { get; } = [];
 
-        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses() => _processes;
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
+        {
+            RequestedWindowFilters.Add(windowFilter);
+            return _processes;
+        }
 
         public override WpfProcessInfo? GetProcessInfo(int processId)
             => _processes.FirstOrDefault(process => process.ProcessId == processId);

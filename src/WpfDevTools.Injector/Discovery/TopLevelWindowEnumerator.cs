@@ -5,9 +5,12 @@ namespace WpfDevTools.Injector.Discovery;
 
 internal static class TopLevelWindowEnumerator
 {
+    private const uint DwmwaCloaked = 14;
+
     public static IReadOnlyList<TopLevelWindowSnapshot> Enumerate()
     {
         var windows = new List<TopLevelWindowSnapshot>();
+        var foregroundWindow = GetForegroundWindow();
 
         EnumWindows((hWnd, _) =>
         {
@@ -17,7 +20,10 @@ internal static class TopLevelWindowEnumerator
                 hWnd,
                 GetWindowTextValue(hWnd),
                 GetClassNameValue(hWnd),
-                IsWindowVisible(hWnd)));
+                IsWindowVisible(hWnd),
+                IsIconic(hWnd),
+                IsWindowCloaked(hWnd),
+                hWnd == foregroundWindow));
             return true;
         }, IntPtr.Zero);
 
@@ -78,4 +84,34 @@ internal static class TopLevelWindowEnumerator
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(
+        IntPtr hwnd,
+        uint dwAttribute,
+        out int pvAttribute,
+        int cbAttribute);
+
+    private static bool IsWindowCloaked(IntPtr hWnd)
+    {
+        try
+        {
+            return DwmGetWindowAttribute(hWnd, DwmwaCloaked, out var cloaked, sizeof(int)) == 0 && cloaked != 0;
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+    }
 }

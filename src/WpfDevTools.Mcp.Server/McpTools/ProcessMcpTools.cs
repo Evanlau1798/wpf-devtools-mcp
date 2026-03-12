@@ -20,6 +20,10 @@ public static class ProcessMcpTools
         "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion, runtime, isElevated, requiresElevationToConnect, canConnectFromCurrentServer, connectionWarning.\n\n" +
         "USE WHEN: Starting a new inspection session; discovering available WPF applications.\n" +
         "DO NOT USE: Repeatedly in a loop (process list changes infrequently).\n\n" +
+        "WINDOW FILTERS:\n" +
+        "- Omit windowFilter for the visible-only default\n" +
+        "- Use windowFilter='all' to include background or hidden WPF windows\n" +
+        "- Use windowFilter='foreground' to restrict results to the active foreground WPF window\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -37,16 +41,20 @@ public static class ProcessMcpTools
         "  }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
-        "- \"access denied\" -> run MCP server as administrator\n\n" +
+        "- \"access denied\" -> run MCP server as administrator\n" +
+        "- invalid windowFilter -> use 'visible', 'all', or 'foreground'\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +
-        "- { nameFilter: \"TestApp\" }")]
+        "- { nameFilter: \"TestApp\" }\n" +
+        "- { windowFilter: \"foreground\" }")]
     public static Task<CallToolResult> GetProcesses(
         [Description("Optional case-insensitive substring filter for the target process name.")] string? nameFilter = null,
+        [Description("Optional window visibility filter: 'visible' (default), 'all', or 'foreground'.")] string? windowFilter = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
-            ("nameFilter", nameFilter));
+            ("nameFilter", nameFilter),
+            ("windowFilter", windowFilter));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetProcessesTool>("GetProcessesTool", () => new GetProcessesTool()).ExecuteAsync(a, ct),
@@ -105,7 +113,7 @@ public static class ProcessMcpTools
         "Use this tool to connect to a running WPF process before any inspection tool is used.\n\n" +
         ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +
-        "USE WHEN: Before using any inspection tools. If processId is omitted, connect auto-discovers the target when exactly one WPF process is running.\n" +
+        "USE WHEN: Before using any inspection tools. If processId is omitted, connect auto-discovers the target when exactly one WPF process is running under the chosen window filter.\n" +
         "DO NOT USE: On already-connected processes (returns immediately with success=true).\n\n" +
         "TIMEOUT: Connection attempt times out after 30 seconds.\n\n" +
         "RESPONSE FORMAT:\n" +
@@ -137,21 +145,27 @@ public static class ProcessMcpTools
         "- 0 WPF processes + no processId -> returns errorCode=NoWpfProcessesFound\n\n" +
         "AUTO-DISCOVERY:\n" +
         "- Omit processId to auto-connect when exactly one WPF process is available\n" +
+        "- Omit windowFilter for the visible-only default\n" +
+        "- Use windowFilter='all' to include background or hidden WPF windows during auto-discovery\n" +
+        "- Use windowFilter='foreground' to restrict auto-discovery to the active foreground WPF window\n" +
         "- Use selectionStrategy='largest_working_set' to auto-select the largest candidate when multiple WPF processes are present\n" +
         "- Keep the safe default by omitting selectionStrategy or using selectionStrategy='single_only'\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +
         "- { processId: 12345 }\n" +
-        "- { selectionStrategy: \"largest_working_set\" }")]
+        "- { selectionStrategy: \"largest_working_set\" }\n" +
+        "- { windowFilter: \"all\" }")]
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
         [Description("Optional target WPF process ID returned by get_processes. Omit to auto-discover when exactly one WPF process is running.")] int? processId = null,
         [Description("Optional auto-discovery strategy: 'single_only' (safe default) or 'largest_working_set' for multi-process auto-selection.")] string? selectionStrategy = null,
+        [Description("Optional auto-discovery window filter: 'visible' (default), 'all', or 'foreground'.")] string? windowFilter = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("selectionStrategy", selectionStrategy));
+            ("selectionStrategy", selectionStrategy),
+            ("windowFilter", windowFilter));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ConnectTool>("ConnectTool", () => new ConnectTool(sessionManager)).ExecuteAsync(a, ct),

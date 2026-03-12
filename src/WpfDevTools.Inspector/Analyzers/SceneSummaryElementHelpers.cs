@@ -87,6 +87,21 @@ internal static class SceneSummaryElementHelpers
         return children;
     }
 
+    internal static int GetNextTraversalDepth(
+        DependencyObject element,
+        int currentDepth,
+        SceneTraversalDepthMode depthMode)
+    {
+        if (depthMode == SceneTraversalDepthMode.Visual)
+        {
+            return currentDepth + 1;
+        }
+
+        return IsSemanticElement(element)
+            ? currentDepth + 1
+            : currentDepth;
+    }
+
     internal static string? GetElementName(DependencyObject element) =>
         element is FrameworkElement frameworkElement && !string.IsNullOrWhiteSpace(frameworkElement.Name)
             ? frameworkElement.Name

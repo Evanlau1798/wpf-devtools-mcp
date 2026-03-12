@@ -88,10 +88,24 @@ public sealed class ConnectTool
             };
         }
 
+        var windowFilterValue = arguments.HasValue && arguments.Value.TryGetProperty("windowFilter", out var windowFilterProp)
+            ? windowFilterProp.GetString()
+            : null;
+        if (!ProcessWindowFilters.TryParse(windowFilterValue, out var windowFilter))
+        {
+            return new
+            {
+                success = false,
+                error = "windowFilter must be 'all', 'visible', or 'foreground'",
+                errorCode = "InvalidArgument",
+                hint = "Omit windowFilter for the visible-only default, or use all to include background WPF windows during auto-discovery."
+            };
+        }
+
         AutoDiscoveryResolution? autoDiscoveryResolution = null;
         if (!processId.HasValue)
         {
-            autoDiscoveryResolution = TryResolveAutoDiscoveredProcess(selectionStrategy);
+            autoDiscoveryResolution = TryResolveAutoDiscoveredProcess(selectionStrategy, windowFilter);
             if (autoDiscoveryResolution.ErrorResult != null)
             {
                 return autoDiscoveryResolution.ErrorResult;
@@ -347,11 +361,13 @@ public sealed class ConnectTool
     internal static void ValidateDllPath(string dllPath)
         => DllPathValidator.ValidateDllPath(dllPath);
 
-    private AutoDiscoveryResolution TryResolveAutoDiscoveredProcess(ProcessDiscoverySelectionStrategy selectionStrategy)
+    private AutoDiscoveryResolution TryResolveAutoDiscoveredProcess(
+        ProcessDiscoverySelectionStrategy selectionStrategy,
+        ProcessWindowFilter windowFilter)
     {
         var currentProcessIsElevated = _isCurrentProcessElevated();
         var candidates = _processDetector
-            .GetAllWpfProcesses()
+            .GetAllWpfProcesses(windowFilter)
             .Select(process =>
             {
                 var access = ProcessConnectionAccessEvaluator.Evaluate(
@@ -379,9 +395,9 @@ public sealed class ConnectTool
                 new
                 {
                     success = false,
-                    error = "No running WPF processes were found. Start the target app or call get_processes() to confirm availability.",
+                    error = "No running WPF processes were found for the requested window filter. Start the target app or call get_processes() to confirm availability.",
                     errorCode = "NoWpfProcessesFound",
-                    hint = "Launch the WPF app first, then retry connect(), or call get_processes() for manual discovery."
+                    hint = "Launch the WPF app first, retry connect(windowFilter='all') to include background targets, or call get_processes() for manual discovery."
                 },
                 0,
                 candidates,

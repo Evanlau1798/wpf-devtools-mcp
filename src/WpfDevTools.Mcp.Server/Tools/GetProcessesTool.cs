@@ -38,10 +38,24 @@ public sealed class GetProcessesTool
         try
         {
             string? nameFilter = null;
+            string? windowFilterValue = null;
             if (arguments.HasValue && arguments.Value.TryGetProperty("nameFilter", out var filterProp))
                 nameFilter = filterProp.GetString();
+            if (arguments.HasValue && arguments.Value.TryGetProperty("windowFilter", out var windowFilterProp))
+                windowFilterValue = windowFilterProp.GetString();
 
-            var allProcesses = _detector.GetAllWpfProcesses();
+            if (!ProcessWindowFilters.TryParse(windowFilterValue, out var windowFilter))
+            {
+                return Task.FromResult<object>(new
+                {
+                    success = false,
+                    error = "windowFilter must be 'all', 'visible', or 'foreground'",
+                    errorCode = "InvalidArgument",
+                    hint = "Omit windowFilter for the visible-only default, or use all to include background WPF windows."
+                });
+            }
+
+            var allProcesses = _detector.GetAllWpfProcesses(windowFilter);
             var currentProcessIsElevated = _isCurrentProcessElevated();
 
             var filteredProcesses = string.IsNullOrEmpty(nameFilter)

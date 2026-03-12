@@ -176,6 +176,13 @@ public class McpToolContractConsistencyTests
     {
         AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "processId", typeof(int?), null);
         AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "selectionStrategy", typeof(string), null);
+        AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "windowFilter", typeof(string), null);
+    }
+
+    [Fact]
+    public void GetProcesses_ShouldExposeOptionalWindowFilter()
+    {
+        AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "windowFilter", typeof(string), null);
     }
 
     [Fact]

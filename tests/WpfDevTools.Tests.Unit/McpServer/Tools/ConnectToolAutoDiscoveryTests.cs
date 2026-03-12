@@ -113,6 +113,47 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WithoutWindowFilter_ShouldDefaultAutoDiscoveryToVisible()
+    {
+        var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp"));
+        var tool = CreateTool(detector: detector);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        detector.RequestedWindowFilters.Should().Contain(ProcessWindowFilter.Visible);
+    }
+
+    [Fact]
+    public async Task Execute_WithWindowFilterAll_ShouldForwardAllFilter()
+    {
+        var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp"));
+        var tool = CreateTool(detector: detector);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { windowFilter = "all" }), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        detector.RequestedWindowFilters.Should().Contain(ProcessWindowFilter.All);
+    }
+
+    [Fact]
+    public async Task Execute_WithInvalidWindowFilter_ShouldReturnValidationError()
+    {
+        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp")));
+
+        var result = await tool.ExecuteAsync(
+            ToJsonElement(new { windowFilter = "bad-filter" }),
+            CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("windowFilter");
+    }
+
+    [Fact]
     public async Task Execute_WithoutProcessId_ShouldUseInitialAutoDiscoveryResolutionForSuccessPayload()
     {
         EnsureDummyBootstrapperExists();
@@ -203,8 +244,13 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     private sealed class FakeAutoDiscoveryProcessDetector(params WpfProcessInfo[] processes) : WpfProcessDetector
     {
         private readonly IReadOnlyList<WpfProcessInfo> _processes = processes;
+        internal List<ProcessWindowFilter> RequestedWindowFilters { get; } = [];
 
-        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses() => _processes;
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
+        {
+            RequestedWindowFilters.Add(windowFilter);
+            return _processes;
+        }
 
         public override WpfProcessInfo? GetProcessInfo(int processId)
             => _processes.FirstOrDefault(process => process.ProcessId == processId);
@@ -216,7 +262,7 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     {
         private int _enumerationCount;
 
-        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses()
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
         {
             var current = Interlocked.Increment(ref _enumerationCount) == 1
                 ? initialProcesses

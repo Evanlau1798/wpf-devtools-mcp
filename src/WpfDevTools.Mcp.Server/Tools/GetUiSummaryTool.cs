@@ -21,11 +21,12 @@ public sealed class GetUiSummaryTool(SessionManager sessionManager) : PipeConnec
 
         var elementId = ParameterParser.ParseStringParam(arguments, "elementId");
         var depth = ParameterParser.ParseIntParam(arguments, "depth");
+        var depthMode = ParameterParser.ParseStringParam(arguments, "depthMode");
 
         return await SendInspectorRequestAsync(
             processId,
             "get_ui_summary",
-            new { elementId, depth },
+            new { elementId, depth, depthMode },
             cancellationToken).ConfigureAwait(false);
     }
 }

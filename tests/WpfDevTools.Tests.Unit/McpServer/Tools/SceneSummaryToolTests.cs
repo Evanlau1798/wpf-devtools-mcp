@@ -32,6 +32,61 @@ public sealed class SceneSummaryToolTests
     }
 
     [Fact]
+    public async Task GetUiSummaryTool_ShouldForwardDepthModeToInspectorRequest()
+    {
+        const int processId = 60212;
+        const string pipeName = "WpfDevTools_Test_SceneDepthMode";
+        using var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        var requestCompletion = new TaskCompletionSource<InspectorRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+            requestCompletion.TrySetResult(request!);
+
+            var response = new InspectorResponse
+            {
+                Id = request!.Id,
+                CorrelationId = request.CorrelationId,
+                Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"rootElementId":"Window_1","semanticNodeCount":1,"summaryText":"- TextBox Box","nodes":[{"elementId":"TextBox_1"}]}""")
+            };
+
+            await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        try
+        {
+            var tool = new GetUiSummaryTool(sessionManager);
+            var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+            {
+                processId,
+                depth = 2,
+                depthMode = "semantic"
+            }), CancellationToken.None));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            var request = await requestCompletion.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            request.Params.Should().NotBeNull();
+            request.Params!.Value.TryGetProperty("depthMode", out var depthMode).Should().BeTrue();
+            depthMode.GetString().Should().Be("semantic");
+        }
+        finally
+        {
+            sessionManager.Dispose();
+            server.Dispose();
+            await serverTask;
+        }
+    }
+
+    [Fact]
     public async Task GetFormSummaryTool_ShouldPassThroughStructuredSummaryPayload()
     {
         const int processId = 60211;

@@ -23,7 +23,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Build a semantic UI summary for the root window or a scoped subtree.
     /// </summary>
-    public object GetUiSummary(string? elementId = null, int? depth = null)
+    public object GetUiSummary(string? elementId = null, int? depth = null, string? depthMode = null)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -32,6 +32,13 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                 return ToolErrorFactory.InvalidArgument(
                     "depth must be greater than or equal to 0",
                     "Use a non-negative depth or omit the parameter to use the default semantic summary depth.");
+            }
+
+            if (!SceneTraversalDepthModes.TryParse(depthMode, out var traversalDepthMode))
+            {
+                return ToolErrorFactory.InvalidArgument(
+                    "depthMode must be 'visual' or 'semantic'",
+                    "Use depthMode='semantic' to skip layout-only wrappers, or omit the parameter to keep visual depth semantics.");
             }
 
             var root = elementId == null
@@ -51,7 +58,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             var summary = new StringBuilder();
             var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
 
-            Traverse(root, currentDepth: 0, maxDepth, nodes, summary, visited);
+            Traverse(root, currentDepth: 0, maxDepth, traversalDepthMode, nodes, summary, visited);
 
             return new
             {
@@ -60,6 +67,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                 rootElementType = rootType,
                 rootElementName = rootName,
                 depth = maxDepth,
+                depthMode = SceneTraversalDepthModes.ToContractValue(traversalDepthMode),
                 semanticNodeCount = nodes.Count,
                 summaryText = summary.ToString().TrimEnd(),
                 nodes
@@ -71,6 +79,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         DependencyObject current,
         int currentDepth,
         int maxDepth,
+        SceneTraversalDepthMode depthMode,
         List<object> nodes,
         StringBuilder summary,
         HashSet<DependencyObject> visited)
@@ -88,7 +97,8 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
 
         foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(current))
         {
-            Traverse(child, currentDepth + 1, maxDepth, nodes, summary, visited);
+            var nextDepth = SceneSummaryElementHelpers.GetNextTraversalDepth(child, currentDepth, depthMode);
+            Traverse(child, nextDepth, maxDepth, depthMode, nodes, summary, visited);
         }
     }
 

@@ -211,12 +211,14 @@ public static class SceneDiagnosticsMcpTools
         [Description("Optional runtime element ID to scope the semantic summary. Omit to summarize the root window.")] string? elementId = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional maximum visual depth to summarize. Omit to use the default semantic summary depth.")] int? depth = null,
+        [Description("Optional depth accounting mode: 'visual' (default) counts every traversed level, while 'semantic' skips layout-only wrapper levels when budgeting depth.")] string? depthMode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("depth", depth));
+            ("depth", depth),
+            ("depthMode", depthMode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetUiSummaryTool>(

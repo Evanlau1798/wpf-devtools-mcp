@@ -105,7 +105,7 @@ public static class ProcessMcpTools
         "Use this tool to connect to a running WPF process before any inspection tool is used.\n\n" +
         ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +
-        "USE WHEN: After get_processes, before using any inspection tools.\n" +
+        "USE WHEN: Before using any inspection tools. If processId is omitted, connect auto-discovers the target when exactly one WPF process is running.\n" +
         "DO NOT USE: On already-connected processes (returns immediately with success=true).\n\n" +
         "TIMEOUT: Connection attempt times out after 30 seconds.\n\n" +
         "RESPONSE FORMAT:\n" +
@@ -115,6 +115,13 @@ public static class ProcessMcpTools
         "  error?: string,\n" +
         "  errorCode?: string,\n" +
         "  processId?: number,\n" +
+        "  processName?: string,\n" +
+        "  windowTitle?: string,\n" +
+        "  autoDiscovered?: boolean,\n" +
+        "  autoSelected?: boolean,\n" +
+        "  selectionReason?: 'largest_working_set'|'single_only',\n" +
+        "  candidateCount?: number,\n" +
+        "  processes?: [{ processId, processName, windowTitle, workingSetBytes, isElevated, requiresElevationToConnect, canConnectFromCurrentServer, connectionWarning }],\n" +
         "  targetIsElevated?: boolean,\n" +
         "  requiresElevationToConnect?: boolean,\n" +
         "  canConnectFromCurrentServer?: boolean,\n" +
@@ -126,16 +133,25 @@ public static class ProcessMcpTools
         "- \"not a WPF application\" -> processId is not a WPF app (use get_processes)\n" +
         "- \"architecture mismatch\" -> server and target app must match (x64 vs x86)\n" +
         "- \"timeout\" -> connection took >30s, process may be unresponsive\n" +
-        "- \"processId required\" -> must specify which process to connect to\n\n" +
+        "- multiple WPF processes + no processId -> returns errorCode=MultipleWpfProcessesFound and a candidate process list\n" +
+        "- 0 WPF processes + no processId -> returns errorCode=NoWpfProcessesFound\n\n" +
+        "AUTO-DISCOVERY:\n" +
+        "- Omit processId to auto-connect when exactly one WPF process is available\n" +
+        "- Use selectionStrategy='largest_working_set' to auto-select the largest candidate when multiple WPF processes are present\n" +
+        "- Keep the safe default by omitting selectionStrategy or using selectionStrategy='single_only'\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }")]
+        "- { }\n" +
+        "- { processId: 12345 }\n" +
+        "- { selectionStrategy: \"largest_working_set\" }")]
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
-        [Description("Target WPF process ID returned by get_processes.")] int processId,
+        [Description("Optional target WPF process ID returned by get_processes. Omit to auto-discover when exactly one WPF process is running.")] int? processId = null,
+        [Description("Optional auto-discovery strategy: 'single_only' (safe default) or 'largest_working_set' for multi-process auto-selection.")] string? selectionStrategy = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
-            ("processId", processId));
+            ("processId", processId),
+            ("selectionStrategy", selectionStrategy));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ConnectTool>("ConnectTool", () => new ConnectTool(sessionManager)).ExecuteAsync(a, ct),

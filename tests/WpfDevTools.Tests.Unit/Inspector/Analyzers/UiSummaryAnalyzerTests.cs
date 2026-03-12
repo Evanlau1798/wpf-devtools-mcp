@@ -184,4 +184,45 @@ public sealed class UiSummaryAnalyzerTests
             window.Close();
         }
     }
+
+    [StaFact]
+    public void GetUiSummary_WithSemanticDepthMode_ShouldSkipWrapperOnlyLevels()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new Grid
+        {
+            Name = "RootGrid",
+            Children =
+            {
+                new Border
+                {
+                    Child = new Grid
+                    {
+                        Children =
+                        {
+                            new Border
+                            {
+                                Child = new TextBox
+                                {
+                                    Name = "DeepSemanticBox",
+                                    Text = "Reached"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var visualResult = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1, depthMode: "visual"));
+        var semanticResult = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1, depthMode: "semantic"));
+
+        visualResult.GetProperty("summaryText").GetString().Should().NotContain("DeepSemanticBox");
+        semanticResult.GetProperty("summaryText").GetString().Should().Contain("DeepSemanticBox");
+        semanticResult.GetProperty("depthMode").GetString().Should().Be("semantic");
+    }
 }

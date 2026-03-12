@@ -54,6 +54,38 @@ public sealed class UiSummaryE2eTests
         result.GetProperty("summaryText").GetString().Should().Contain("Button SaveButton");
     }
 
+    [Fact]
+    public async Task GetUiSummary_WithSemanticDepthMode_ShouldReachModernTabControlsWithLowerDepth()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var modernTabId = await FindElementIdAsync("ModernThemeTab");
+        var visualResult = await _fixture.Client.CallToolAsync(
+            "get_ui_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = modernTabId,
+                depth = 3,
+                depthMode = "visual"
+            });
+        var semanticResult = await _fixture.Client.CallToolAsync(
+            "get_ui_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = modernTabId,
+                depth = 3,
+                depthMode = "semantic"
+            });
+
+        visualResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        semanticResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        visualResult.GetProperty("summaryText").GetString().Should().NotContain("CurrentThemeModeText");
+        semanticResult.GetProperty("summaryText").GetString().Should().Contain("CurrentThemeModeText");
+        semanticResult.GetProperty("depthMode").GetString().Should().Be("semantic");
+    }
+
     private async Task<string?> FindElementIdAsync(string elementName)
     {
         var result = await _fixture.Client.CallToolAsync(

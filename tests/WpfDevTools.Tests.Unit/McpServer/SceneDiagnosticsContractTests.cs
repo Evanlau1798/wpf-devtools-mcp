@@ -85,7 +85,7 @@ public sealed class SceneDiagnosticsContractTests
     }
 
     [Fact]
-    public void GetUiSummary_ShouldExposeOptionalElementIdAndDepth()
+    public void GetUiSummary_ShouldExposeOptionalElementIdDepthAndDepthMode()
     {
         var method = typeof(SceneDiagnosticsMcpTools).GetMethod(nameof(SceneDiagnosticsMcpTools.GetUiSummary));
 
@@ -105,6 +105,11 @@ public sealed class SceneDiagnosticsContractTests
         depth.ParameterType.Should().Be(typeof(int?));
         depth.HasDefaultValue.Should().BeTrue();
         depth.DefaultValue.Should().BeNull();
+
+        var depthMode = method.GetParameters().Single(parameter => parameter.Name == "depthMode");
+        depthMode.ParameterType.Should().Be(typeof(string));
+        depthMode.HasDefaultValue.Should().BeTrue();
+        depthMode.DefaultValue.Should().BeNull();
     }
 
     [Fact]

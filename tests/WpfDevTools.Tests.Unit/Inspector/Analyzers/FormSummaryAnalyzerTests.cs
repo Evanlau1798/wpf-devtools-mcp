@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Windows;
 using System.Windows.Controls;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
@@ -78,5 +79,56 @@ public sealed class FormSummaryAnalyzerTests
             .Select(command => command.GetProperty("elementName").GetString())
             .Should()
             .Contain("SubmitButton");
+    }
+
+    [StaFact]
+    public void GetFormSummary_WhenRootContainsTemplatedTabs_ShouldNotDuplicateInputs()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new FormSummaryAnalyzer(finder);
+        var window = new Window();
+        var tabs = new TabControl
+        {
+            Name = "RootTabs",
+            Items =
+            {
+                new TabItem
+                {
+                    Header = "Profile",
+                    Content = new StackPanel
+                    {
+                        Children =
+                        {
+                            new TextBox { Name = "FirstNameBox", Text = "Edge" },
+                            new TextBox { Name = "LastNameBox", Text = "Case" },
+                            new Button { Name = "SaveButton", Content = "Save", IsEnabled = true }
+                        }
+                    }
+                }
+            }
+        };
+        window.Content = tabs;
+        window.Show();
+        try
+        {
+            window.ApplyTemplate();
+            tabs.ApplyTemplate();
+            window.UpdateLayout();
+            var elementId = finder.GenerateElementId(window);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("summary").GetProperty("totalInputs").GetInt32().Should().Be(2);
+            result.GetProperty("inputs")
+                .EnumerateArray()
+                .Select(input => input.GetProperty("elementName").GetString())
+                .Should()
+                .OnlyHaveUniqueItems();
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 }

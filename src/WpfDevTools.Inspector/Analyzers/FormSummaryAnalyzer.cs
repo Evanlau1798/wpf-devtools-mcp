@@ -44,8 +44,9 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
             var hasReadyPrimaryCommand = false;
             var hasReadyFallbackCommand = false;
             var hasPrimaryCommand = false;
+            var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
 
-            foreach (var descendant in EnumerateDescendantsAndSelf(root))
+            foreach (var descendant in EnumerateDescendantsAndSelf(root, visited))
             {
                 if (descendant is not FrameworkElement frameworkElement)
                 {
@@ -141,13 +142,20 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
         }, isReady, isPrimary);
     }
 
-    private static IEnumerable<DependencyObject> EnumerateDescendantsAndSelf(DependencyObject root)
+    private static IEnumerable<DependencyObject> EnumerateDescendantsAndSelf(
+        DependencyObject root,
+        HashSet<DependencyObject> visited)
     {
+        if (!visited.Add(root))
+        {
+            yield break;
+        }
+
         yield return root;
 
         foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(root))
         {
-            foreach (var descendant in EnumerateDescendantsAndSelf(child))
+            foreach (var descendant in EnumerateDescendantsAndSelf(child, visited))
             {
                 yield return descendant;
             }

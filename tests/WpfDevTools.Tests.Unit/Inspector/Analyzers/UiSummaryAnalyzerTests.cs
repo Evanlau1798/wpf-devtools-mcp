@@ -134,4 +134,54 @@ public sealed class UiSummaryAnalyzerTests
         result.GetProperty("summaryText").GetString().Should().Contain("HiddenTabBox");
         result.GetProperty("semanticNodeCount").GetInt32().Should().BeGreaterThan(1);
     }
+
+    [StaFact]
+    public void GetUiSummary_WhenRootContainsTemplatedTabs_ShouldNotDuplicateSemanticNodes()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var window = new Window();
+        var tabs = new TabControl
+        {
+            Name = "RootTabs",
+            Items =
+            {
+                new TabItem
+                {
+                    Header = "Profile",
+                    Content = new StackPanel
+                    {
+                        Children =
+                        {
+                            new TextBox { Name = "FirstNameBox", Text = "Edge" },
+                            new TextBox { Name = "LastNameBox", Text = "Case" },
+                            new Button { Name = "SaveButton", Content = "Save" }
+                        }
+                    }
+                }
+            }
+        };
+        window.Content = tabs;
+        window.Show();
+        try
+        {
+            window.ApplyTemplate();
+            tabs.ApplyTemplate();
+            window.UpdateLayout();
+            var elementId = finder.GenerateElementId(window);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 6));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("nodes")
+                .EnumerateArray()
+                .Select(node => node.GetProperty("elementId").GetString())
+                .Should()
+                .OnlyHaveUniqueItems();
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 }

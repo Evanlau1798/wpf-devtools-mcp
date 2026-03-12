@@ -49,8 +49,9 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             var rootName = SceneSummaryElementHelpers.GetElementName(root);
             var nodes = new List<object>();
             var summary = new StringBuilder();
+            var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
 
-            Traverse(root, currentDepth: 0, maxDepth, nodes, summary);
+            Traverse(root, currentDepth: 0, maxDepth, nodes, summary, visited);
 
             return new
             {
@@ -71,9 +72,10 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         int currentDepth,
         int maxDepth,
         List<object> nodes,
-        StringBuilder summary)
+        StringBuilder summary,
+        HashSet<DependencyObject> visited)
     {
-        if (currentDepth > maxDepth)
+        if (currentDepth > maxDepth || !visited.Add(current))
         {
             return;
         }
@@ -86,7 +88,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
 
         foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(current))
         {
-            Traverse(child, currentDepth + 1, maxDepth, nodes, summary);
+            Traverse(child, currentDepth + 1, maxDepth, nodes, summary, visited);
         }
     }
 

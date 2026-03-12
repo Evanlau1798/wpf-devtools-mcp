@@ -66,6 +66,34 @@ public sealed class FormSummaryE2eTests
         result.GetProperty("summary").GetProperty("errorCount").GetInt32().Should().Be(0);
     }
 
+    [Fact]
+    public async Task GetFormSummary_OnRootScope_ShouldNotDuplicateInputsOrCommands()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_form_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var inputIds = result.GetProperty("inputs")
+            .EnumerateArray()
+            .Select(input => input.GetProperty("elementId").GetString())
+            .ToArray();
+        var commandIds = result.GetProperty("commands")
+            .EnumerateArray()
+            .Select(command => command.GetProperty("elementId").GetString())
+            .ToArray();
+
+        inputIds.Should().OnlyHaveUniqueItems();
+        commandIds.Should().OnlyHaveUniqueItems();
+        result.GetProperty("summary").GetProperty("totalInputs").GetInt32().Should().Be(inputIds.Length);
+    }
+
     private async Task ResetFormAsync()
     {
         await _fixture.Client.CallToolAsync("modify_viewmodel", new

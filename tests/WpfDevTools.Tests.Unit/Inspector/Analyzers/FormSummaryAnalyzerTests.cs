@@ -131,4 +131,28 @@ public sealed class FormSummaryAnalyzerTests
             window.Close();
         }
     }
+
+    [StaFact]
+    public void GetFormSummary_ShouldUseHeaderedContainerHeaderAsLabelFallback()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new FormSummaryAnalyzer(finder);
+        var groupBox = new GroupBox
+        {
+            Header = "Account Details",
+            Content = new StackPanel
+            {
+                Children =
+                {
+                    new TextBox { Name = "AccountNameBox", Text = string.Empty }
+                }
+            }
+        };
+        var elementId = finder.GenerateElementId(groupBox);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("inputs")[0].GetProperty("label").GetString().Should().Be("Account Details");
+    }
 }

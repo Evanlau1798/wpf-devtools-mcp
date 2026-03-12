@@ -125,9 +125,29 @@ $codexCommand
         }
     }
 
+    $githubCopilotVsCode = [ordered]@{
+        servers = [ordered]@{
+            'wpf-devtools' = [ordered]@{
+                command = $InstalledExecutable
+                args = @()
+            }
+        }
+    }
+
+    $otherConfig = [ordered]@{
+        mcpServers = [ordered]@{
+            'wpf-devtools' = [ordered]@{
+                command = $InstalledExecutable
+                args = @()
+            }
+        }
+    }
+
     Write-RegistrationArtifact -Path (Join-Path $registrationDir 'claude-desktop.json') -Content ($claudeDesktop | ConvertTo-Json -Depth 5)
     Write-RegistrationArtifact -Path (Join-Path $registrationDir 'claude-code.project.mcp.json') -Content ($claudeCodeProject | ConvertTo-Json -Depth 5)
     Write-RegistrationArtifact -Path (Join-Path $registrationDir 'cursor-vscode.json') -Content ($cursorVsCode | ConvertTo-Json -Depth 5)
+    Write-RegistrationArtifact -Path (Join-Path $registrationDir 'github-copilot-vscode.json') -Content ($githubCopilotVsCode | ConvertTo-Json -Depth 5)
+    Write-RegistrationArtifact -Path (Join-Path $registrationDir 'other.mcpServers.json') -Content ($otherConfig | ConvertTo-Json -Depth 5)
 
     return $registrationDir
 }

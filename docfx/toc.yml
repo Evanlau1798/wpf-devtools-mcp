@@ -24,6 +24,10 @@
       href: guides/common-workflows.md
     - name: Troubleshooting
       href: guides/troubleshooting.md
+- name: Agent Feedback
+  items:
+    - name: Overview
+      href: agent-feedback/index.md
 - name: Production
   items:
     - name: Security Model

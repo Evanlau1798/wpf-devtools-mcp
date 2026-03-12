@@ -6,11 +6,14 @@
 
 - `get_bindings`
 - `get_binding_errors`
+- `get_binding_mismatches`
 - `get_binding_value_chain`
 - `get_datacontext_chain`
 - `force_binding_update`
 
 當 UI 看起來不對，但 tree 本身仍正常時，這組工具通常是最快縮小問題的方式。
+
+當 binding path 可以解析，但值仍然因型別不相容、nullability 或 converter 互動而異常時，優先使用 `get_binding_mismatches`。
 
 ## Dependency Property 分析
 

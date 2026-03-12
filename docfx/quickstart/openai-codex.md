@@ -45,12 +45,13 @@ codex mcp list
 ## 5. First useful prompt
 
 ```text
-List WPF processes, connect to the target app, ping it, and summarize the root visual tree.
+Connect to the running WPF app, auto-discover the target if there is only one visible candidate, and summarize the root visual tree.
 ```
 
 ## Notes
 
 - Keep the MCP server on Windows even if your editor tooling spans multiple environments.
+- Start with `connect()` in the common case. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you want explicit target metadata first.
 - If `connect` fails, check server bitness, bootstrapper bitness, and the target process bitness together.
 - Keep `stdout` clean because Codex uses STDIO MCP transport.
 - If the target app is elevated, start Codex or the host terminal as administrator. A non-administrator Codex host can usually discover the process but cannot control an elevated target.

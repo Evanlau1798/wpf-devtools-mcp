@@ -42,6 +42,12 @@ src/WpfDevTools.Bootstrapper/Release/
 *.key
 *.secret
 cert/
+todo/
+release/s
+docfx/agent-feedback/*.md
+!docfx/agent-feedback/index.md
+docfx/zh-tw/agent-feedback/*.md
+!docfx/zh-tw/agent-feedback/index.md
 
 # Worktrees
 .worktrees/

@@ -53,7 +53,7 @@ claude mcp list
 ## 5. First useful prompt
 
 ```text
-List WPF processes, connect to the target app, ping it, and show the first two levels of the visual tree.
+Connect to the running WPF app, auto-discover the target if there is only one visible candidate, and summarize the root UI state.
 ```
 
 ## 6. Discovery entry points inside Claude Code
@@ -66,5 +66,6 @@ List WPF processes, connect to the target app, ping it, and show the first two l
 
 - Keep the server on Windows.
 - Do not wrap `WpfDevTools.Mcp.Server.exe` with extra stdout logging.
+- Start with `connect()` in the common case. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you need explicit target metadata first.
 - If `connect` fails, check server bitness, bootstrapper bitness, and target bitness together.
 - If the target app is elevated, start Claude Code as administrator so the STDIO-launched MCP server can attach at the same integrity level.

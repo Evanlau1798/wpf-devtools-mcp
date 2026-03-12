@@ -45,12 +45,13 @@ codex mcp list
 ## 5. 第一個實用提示詞
 
 ```text
-List WPF processes, connect to the target app, ping it, and summarize the root visual tree.
+Use the WPF DevTools MCP server to connect to the running WPF app, auto-discover the target if there is only one visible candidate, and summarize the root visual tree.
 ```
 
 ## 注意事項
 
 - 即使你的編輯器或 agent workflow 跨環境，MCP server 本體仍需在 Windows 執行。
+- 一般情況先從 `connect()` 開始；只有 auto-discovery 出現多個候選，或你想先看明確 target metadata 時，才使用 `get_processes(windowFilter)`。
 - 若 `connect` 失敗，請一起檢查 server、bootstrapper 與 target process 的 bitness。
 - Codex 使用 STDIO transport，因此請保持 `stdout` 乾淨。
 - 如果目標 app 是 elevated，請以系統管理員權限啟動 Codex 或其宿主終端機。非系統管理員權限的 Codex host 通常看得到 process，但無法真正控制 elevated target。

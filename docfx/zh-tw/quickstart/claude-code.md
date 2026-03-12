@@ -53,7 +53,7 @@ claude mcp list
 ## 5. 第一個實用提示詞
 
 ```text
-List WPF processes, connect to the target app, ping it, and show the first two levels of the visual tree.
+Use the WPF DevTools MCP server to connect to the running WPF app, auto-discover the target if there is only one visible candidate, and summarize the root UI state.
 ```
 
 ## 6. 在 Claude Code 內做 discovery
@@ -66,5 +66,6 @@ List WPF processes, connect to the target app, ping it, and show the first two l
 
 - server 必須執行在 Windows。
 - 不要在 `WpfDevTools.Mcp.Server.exe` 外層再包會污染 `stdout` 的啟動器。
+- 一般情況先從 `connect()` 開始；只有 auto-discovery 出現多個候選，或你想先看明確 target metadata 時，才使用 `get_processes(windowFilter)`。
 - 若 `connect` 失敗，先一起檢查 server、bootstrapper 與 target 的 bitness。
 - 如果目標 app 是 elevated，請以系統管理員權限啟動 Claude Code，讓它透過 STDIO 拉起的 MCP server 能在相同完整性等級下 attach。

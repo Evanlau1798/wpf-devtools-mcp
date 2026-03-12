@@ -41,10 +41,10 @@ installer 也會在以下位置產生各 client 專用的註冊片段：
 
 不管你選哪一種 client，第一次連線都建議照這個順序驗證：
 
-1. `get_processes`
-2. `connect`
-3. `ping`
-4. `get_visual_tree`
+1. `connect`
+2. 若 auto-discovery 回傳多個候選，再呼叫 `get_processes(windowFilter)` 並使用 `connect(processId)`
+3. `get_visual_tree`
+4. 只有在需要明確存活檢查時才呼叫 `ping`
 
 ## WPF 專案特有提醒
 

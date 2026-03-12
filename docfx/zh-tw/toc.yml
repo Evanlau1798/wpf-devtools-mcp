@@ -22,6 +22,10 @@
       href: guides/common-workflows.md
     - name: 疑難排解
       href: guides/troubleshooting.md
+- name: Agent 使用心得
+  items:
+    - name: 總覽
+      href: agent-feedback/index.md
 - name: 生產環境
   items:
     - name: 安全模型

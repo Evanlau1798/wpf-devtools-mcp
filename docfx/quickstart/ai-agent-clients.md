@@ -41,10 +41,10 @@ The installer also generates client-specific registration snippets under:
 
 No matter which client you choose, verify the first connection in this order:
 
-1. `get_processes`
-2. `connect`
-3. `ping`
-4. `get_visual_tree`
+1. `connect`
+2. If auto-discovery reports multiple candidates, `get_processes(windowFilter)` and retry `connect(processId)`
+3. `get_visual_tree`
+4. `ping` only if you want an explicit liveness check
 
 ## WPF-specific reminders
 

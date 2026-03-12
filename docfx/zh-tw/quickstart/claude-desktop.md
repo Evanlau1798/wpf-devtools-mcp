@@ -34,11 +34,11 @@ installer 會輸出 `client-registration\claude-desktop.json`，格式如下：
 ## 3. 第一個提示詞
 
 ```text
-Use the WPF DevTools MCP server to list processes, connect to the target app, and summarize the visual tree root.
+Use the WPF DevTools MCP server to connect to the running WPF app, auto-discover the target if there is only one visible candidate, and summarize the visual tree root.
 ```
 
 ## 注意事項
 
-- 先從 `get_processes` 與 `connect` 開始。
+- 一般情況先從 `connect()` 開始；只有 auto-discovery 出現多個候選時，才使用 `get_processes(windowFilter)`。
 - 變更狀態的工具留到確認 session 穩定後再使用。
 - 如果切換 `x64`、`x86` 或 `arm64`，請重新安裝或重新註冊。

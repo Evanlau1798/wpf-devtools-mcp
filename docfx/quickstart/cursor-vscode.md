@@ -34,8 +34,8 @@ Use the same command path in Cursor or `.vscode/mcp.json`.
 ## 3. First useful workflow
 
 1. Ask the client to call `tools/list`.
-2. Run `get_processes`.
-3. Run `connect`.
+2. Run `connect()`.
+3. If auto-discovery reports multiple candidates, run `get_processes(windowFilter)` and retry `connect(processId)`.
 4. Run `get_visual_tree`.
 
 ## Notes

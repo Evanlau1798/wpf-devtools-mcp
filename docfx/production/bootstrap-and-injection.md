@@ -8,7 +8,7 @@ This design tightens the success contract and makes runtime-specific startup mor
 
 ## High-level connect flow
 
-1. The MCP client calls `connect(processId)`.
+1. The MCP client calls `connect()` for the common case, or `connect(processId)` when the target has already been selected explicitly.
 2. The server validates the process and candidate DLL paths.
 3. The injector validates architecture compatibility.
 4. The native bootstrapper is loaded into the target process.

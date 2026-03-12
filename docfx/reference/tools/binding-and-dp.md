@@ -6,11 +6,14 @@ Key tools:
 
 - `get_bindings`
 - `get_binding_errors`
+- `get_binding_mismatches`
 - `get_binding_value_chain`
 - `get_datacontext_chain`
 - `force_binding_update`
 
 These are the fastest path when the UI looks wrong but the tree itself is intact.
+
+Use `get_binding_mismatches` when the binding path resolves but the value still looks wrong because of type mismatches, nullability mismatches, or converter interactions.
 
 ## Dependency property analysis
 

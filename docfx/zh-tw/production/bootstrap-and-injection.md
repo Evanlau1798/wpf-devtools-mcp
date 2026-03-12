@@ -8,7 +8,7 @@ server 不會直接把 inspector 載入目標行程，而是先注入 native boo
 
 ## `connect` 的高階流程
 
-1. MCP client 呼叫 `connect(processId)`。
+1. MCP client 在一般情況下呼叫 `connect()`；若目標已明確選定，則呼叫 `connect(processId)`。
 2. server 驗證目標行程與候選 DLL 路徑。
 3. injector 驗證架構相容性。
 4. 將 native bootstrapper 載入目標行程。

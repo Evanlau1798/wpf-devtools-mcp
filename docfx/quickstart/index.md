@@ -71,22 +71,21 @@ The server only inspects live WPF processes. Start your app first, then launch t
 
 Use this sequence in your MCP client:
 
-1. `get_processes`
-2. `connect`
-3. `ping`
-4. `get_visual_tree`
+1. `connect`
+2. If auto-discovery reports multiple candidates, `get_processes(windowFilter)` and retry `connect(processId)`
+3. `get_visual_tree`
+4. `ping` only if you want an explicit health check
 
 Healthy first-run signs:
 
-- `get_processes` lists the target WPF process.
-- `connect` succeeds without an architecture mismatch.
-- `ping` responds quickly.
+- `connect()` succeeds immediately when there is only one visible WPF target.
+- If multiple targets exist, `get_processes(windowFilter)` returns the correct candidate list.
 - `get_visual_tree` returns the root window and child elements.
 
 ## Fastest useful prompt for an AI client
 
 ```text
-List WPF processes, connect to the target app, ping it, and summarize the first two levels of the visual tree.
+Connect to the running WPF app, auto-discover the target if there is only one visible candidate, and summarize the first two levels of the visual tree.
 ```
 
 ## Need a source-based setup instead?

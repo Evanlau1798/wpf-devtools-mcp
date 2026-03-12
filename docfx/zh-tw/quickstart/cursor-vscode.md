@@ -34,8 +34,8 @@ installer 會輸出 `client-registration\cursor-vscode.json`，格式如下：
 ## 3. 第一個實用流程
 
 1. 請 client 先呼叫 `tools/list`。
-2. 執行 `get_processes`。
-3. 執行 `connect`。
+2. 執行 `connect()`。
+3. 若 auto-discovery 回傳多個候選，執行 `get_processes(windowFilter)` 並重新執行 `connect(processId)`。
 4. 執行 `get_visual_tree`。
 
 ## 注意事項

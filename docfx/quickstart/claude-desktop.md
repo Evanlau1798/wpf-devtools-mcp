@@ -34,11 +34,11 @@ Copy the installed path into your local `claude_desktop_config.json` if you need
 ## 3. First prompt
 
 ```text
-Use the WPF DevTools MCP server to list processes, connect to the target app, and summarize the visual tree root.
+Use the WPF DevTools MCP server to connect to the running WPF app, auto-discover the target if there is only one visible candidate, and summarize the visual tree root.
 ```
 
 ## Notes
 
-- Start with `get_processes` and `connect`.
+- Start with `connect()` in the common case. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates.
 - Keep mutation tools for later in the workflow.
 - Reinstall or re-register after switching between `x64`, `x86`, and `arm64` targets.

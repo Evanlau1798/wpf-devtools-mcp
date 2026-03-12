@@ -24,6 +24,7 @@ public sealed class ConnectTool
     private readonly WpfProcessDetector _processDetector;
     private readonly Action<string> _dllPathValidator;
     private readonly Func<bool> _isCurrentProcessElevated;
+    private readonly Func<int, long> _workingSetResolver;
 
     /// <summary>
     /// Create ConnectTool with dependency injection
@@ -33,13 +34,15 @@ public sealed class ConnectTool
         IProcessInjector injector,
         WpfProcessDetector? processDetector = null,
         Action<string>? dllPathValidator = null,
-        Func<bool>? isCurrentProcessElevated = null)
+        Func<bool>? isCurrentProcessElevated = null,
+        Func<int, long>? workingSetResolver = null)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _injector = injector ?? throw new ArgumentNullException(nameof(injector));
         _processDetector = processDetector ?? new WpfProcessDetector();
         _dllPathValidator = dllPathValidator ?? DllPathValidator.ValidateDllPath;
         _isCurrentProcessElevated = isCurrentProcessElevated ?? CurrentProcessElevationDetector.IsCurrentProcessElevated;
+        _workingSetResolver = workingSetResolver ?? ResolveWorkingSetBytes;
     }
 
     /// <summary>
@@ -56,6 +59,7 @@ public sealed class ConnectTool
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         int? processId = null;
+        var explicitProcessSelection = false;
         if (arguments.HasValue && arguments.Value.TryGetProperty("processId", out var pidProp))
         {
             if (!pidProp.TryGetInt32(out var parsedPid))
@@ -67,6 +71,33 @@ public sealed class ConnectTool
                 };
             }
             processId = parsedPid;
+            explicitProcessSelection = true;
+        }
+
+        var selectionStrategyValue = arguments.HasValue && arguments.Value.TryGetProperty("selectionStrategy", out var strategyProp)
+            ? strategyProp.GetString()
+            : null;
+        if (!ProcessDiscoverySelectionStrategies.TryParse(selectionStrategyValue, out var selectionStrategy))
+        {
+            return new
+            {
+                success = false,
+                error = "selectionStrategy must be 'single_only' or 'largest_working_set'",
+                errorCode = "InvalidArgument",
+                hint = "Omit selectionStrategy for the safe default, or use largest_working_set only when automatic disambiguation is acceptable."
+            };
+        }
+
+        AutoDiscoveryResolution? autoDiscoveryResolution = null;
+        if (!processId.HasValue)
+        {
+            autoDiscoveryResolution = TryResolveAutoDiscoveredProcess(selectionStrategy);
+            if (autoDiscoveryResolution.ErrorResult != null)
+            {
+                return autoDiscoveryResolution.ErrorResult;
+            }
+
+            processId = autoDiscoveryResolution.ProcessId;
         }
 
         if (!processId.HasValue)
@@ -74,7 +105,9 @@ public sealed class ConnectTool
             return new
             {
                 success = false,
-                error = "Missing required parameter: processId"
+                error = "Missing required parameter: processId",
+                errorCode = "InvalidArgument",
+                hint = "Call connect() with no processId only when auto-discovery can resolve a single WPF target."
             };
         }
 
@@ -251,6 +284,25 @@ public sealed class ConnectTool
 
             _sessionManager.SetActiveProcess(processId.Value);
 
+            if (!explicitProcessSelection && autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
+            {
+                return new
+                {
+                    success = true,
+                    message = "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.",
+                    processId = processId.Value,
+                    processName = candidate.ProcessName,
+                    windowTitle = candidate.WindowTitle,
+                    autoDiscovered = true,
+                    autoSelected = autoDiscoveryResolution.AutoSelected,
+                    selectionReason = autoDiscoveryResolution.AutoSelected
+                        ? ProcessDiscoverySelectionStrategies.ToContractValue(selectionStrategy)
+                        : null,
+                    candidateCount = autoDiscoveryResolution.CandidateCount,
+                    processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray()
+                };
+            }
+
             return new
             {
                 success = true,
@@ -294,4 +346,121 @@ public sealed class ConnectTool
 
     internal static void ValidateDllPath(string dllPath)
         => DllPathValidator.ValidateDllPath(dllPath);
+
+    private AutoDiscoveryResolution TryResolveAutoDiscoveredProcess(ProcessDiscoverySelectionStrategy selectionStrategy)
+    {
+        var currentProcessIsElevated = _isCurrentProcessElevated();
+        var candidates = _processDetector
+            .GetAllWpfProcesses()
+            .Select(process =>
+            {
+                var access = ProcessConnectionAccessEvaluator.Evaluate(
+                    process.ProcessId,
+                    process.IsElevated,
+                    currentProcessIsElevated);
+                return new ProcessDiscoveryCandidateSummary(
+                    process.ProcessId,
+                    process.ProcessName,
+                    process.WindowTitle,
+                    _workingSetResolver(process.ProcessId),
+                    process.IsElevated,
+                    access.RequiresElevationToConnect,
+                    access.CanConnectFromCurrentServer,
+                    access.ConnectionWarning);
+            })
+            .OrderByDescending(candidate => candidate.WorkingSetBytes)
+            .ThenBy(candidate => candidate.ProcessId)
+            .ToArray();
+
+        if (candidates.Length == 0)
+        {
+            return new AutoDiscoveryResolution(
+                null,
+                new
+                {
+                    success = false,
+                    error = "No running WPF processes were found. Start the target app or call get_processes() to confirm availability.",
+                    errorCode = "NoWpfProcessesFound",
+                    hint = "Launch the WPF app first, then retry connect(), or call get_processes() for manual discovery."
+                },
+                0,
+                candidates,
+                null,
+                false);
+        }
+
+        if (candidates.Length == 1)
+        {
+            return new AutoDiscoveryResolution(
+                candidates[0].ProcessId,
+                null,
+                1,
+                candidates,
+                candidates[0],
+                false);
+        }
+
+        if (selectionStrategy != ProcessDiscoverySelectionStrategy.LargestWorkingSet)
+        {
+            return new AutoDiscoveryResolution(
+                null,
+                new
+                {
+                    success = false,
+                    error = "Multiple WPF processes found; specify processId or use selectionStrategy='largest_working_set'.",
+                    errorCode = "MultipleWpfProcessesFound",
+                    candidateCount = candidates.Length,
+                    processes = candidates.Select(ToContractCandidate).ToArray(),
+                    hint = "Call connect(processId) for a specific target, or retry connect(selectionStrategy='largest_working_set') if the largest process is acceptable."
+                },
+                candidates.Length,
+                candidates,
+                null,
+                false);
+        }
+
+        return new AutoDiscoveryResolution(
+            candidates[0].ProcessId,
+            null,
+            candidates.Length,
+            candidates,
+            candidates[0],
+            true);
+    }
+
+    private static object ToContractCandidate(ProcessDiscoveryCandidateSummary candidate)
+    {
+        return new
+        {
+            processId = candidate.ProcessId,
+            processName = candidate.ProcessName,
+            windowTitle = candidate.WindowTitle,
+            workingSetBytes = candidate.WorkingSetBytes,
+            isElevated = candidate.IsElevated,
+            requiresElevationToConnect = candidate.RequiresElevationToConnect,
+            canConnectFromCurrentServer = candidate.CanConnectFromCurrentServer,
+            connectionWarning = candidate.ConnectionWarning
+        };
+    }
+
+    private static long ResolveWorkingSetBytes(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            return process.WorkingSet64;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private sealed record AutoDiscoveryResolution(
+        int? ProcessId,
+        object? ErrorResult,
+        int CandidateCount,
+        IReadOnlyList<ProcessDiscoveryCandidateSummary> Candidates,
+        ProcessDiscoveryCandidateSummary? SelectedCandidate,
+        bool AutoSelected);
 }

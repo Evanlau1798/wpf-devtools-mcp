@@ -359,15 +359,16 @@ public class ConnectToolTests : IDisposable
     [Fact]
     public async Task Execute_WhenPipeConnectionFails_ShouldCleanupSession()
     {
+        var processId = Random.Shared.Next(700_000, 999_999);
         var sessionManager = new SessionManager();
         var tool = CreateTool(sessionManager: sessionManager);
-        var parameters = new { processId = 12345 };
+        var parameters = new { processId };
 
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        sessionManager.HasSession(12345).Should().BeFalse();
+        sessionManager.HasSession(processId).Should().BeFalse();
     }
 
     [Fact]

@@ -157,9 +157,15 @@ if ([string]::IsNullOrWhiteSpace($signaturePolicy)) {
     $signaturePolicy = if ($buildConfiguration -eq 'Debug') { 'DebugTrustedRootSkip' } else { 'RequireAuthenticodeSignature' }
 }
 
-$packageExecutable = Join-Path $packageDir 'WpfDevTools.Mcp.Server.exe'
+$packageExecutable = Join-Path $packageDir 'bin\WpfDevTools.Mcp.Server.exe'
 if (-not (Test-Path $packageExecutable)) {
-    throw "Package does not contain WpfDevTools.Mcp.Server.exe: $packageDir"
+    $legacyExecutable = Join-Path $packageDir 'WpfDevTools.Mcp.Server.exe'
+    if (Test-Path $legacyExecutable) {
+        $packageExecutable = $legacyExecutable
+    }
+    else {
+        throw "Package does not contain WpfDevTools.Mcp.Server.exe under bin\\ or package root: $packageDir"
+    }
 }
 
 $installRootFullPath = Resolve-AbsoluteDirectory -Path $InstallRoot
@@ -176,7 +182,8 @@ if (Test-Path $currentDir) {
 New-Item -ItemType Directory -Force -Path $installBase | Out-Null
 Copy-Item -Path $packageDir -Destination $currentDir -Recurse -Force
 
-$installedExecutable = Join-Path $currentDir 'WpfDevTools.Mcp.Server.exe'
+$packageExecutableRelativePath = $packageExecutable.Substring($packageDir.Length).TrimStart('\', '/')
+$installedExecutable = Join-Path $currentDir $packageExecutableRelativePath
 $installManifest = [ordered]@{
     name = 'wpf-devtools'
     architecture = $architecture

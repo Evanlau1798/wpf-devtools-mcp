@@ -126,25 +126,26 @@ foreach ($architecture in $Architectures) {
     $bootstrapperPlatform = Get-BootstrapperPlatform -Architecture $architecture
     $channel = Get-PackageChannel -BuildConfiguration $Configuration
     $signaturePolicy = Get-SignaturePolicy -BuildConfiguration $Configuration
-    $packageDir = Join-Path $outputRootFullPath "WpfDevTools-$runtimeId"
-    $packageArchiveName = if ($channel -eq 'dev') { "WpfDevTools-dev-win-$architecture.zip" } else { "WpfDevTools-win-$architecture.zip" }
+    $packageDir = Join-Path $outputRootFullPath "release_${version}_win-$architecture"
+    $packageArchiveName = if ($channel -eq 'dev') { "release_${version}_dev_win-$architecture.zip" } else { "release_${version}_win-$architecture.zip" }
     $packageArchivePath = Join-Path $outputRootFullPath $packageArchiveName
+    $binDir = Join-Path $packageDir 'bin'
 
     Remove-PathIfExists -Path $packageDir
     Remove-PathIfExists -Path $packageArchivePath
 
     New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
-    $inspectorNet8Dir = Join-Path $packageDir 'inspectors\net8.0-windows'
-    $inspectorNet48Dir = Join-Path $packageDir 'inspectors\net48'
-    $bootstrapperDir = Join-Path $packageDir (Join-Path 'bootstrapper' $architecture)
-    New-Item -ItemType Directory -Force -Path $inspectorNet8Dir, $inspectorNet48Dir, $bootstrapperDir | Out-Null
+    $inspectorNet8Dir = Join-Path $binDir 'inspectors\net8.0-windows'
+    $inspectorNet48Dir = Join-Path $binDir 'inspectors\net48'
+    $bootstrapperDir = Join-Path $binDir (Join-Path 'bootstrapper' $architecture)
+    New-Item -ItemType Directory -Force -Path $binDir, $inspectorNet8Dir, $inspectorNet48Dir, $bootstrapperDir | Out-Null
 
     Invoke-Step -FilePath 'dotnet' -Arguments @(
         'publish', $serverProject,
         '-c', $Configuration,
         '-r', $runtimeId,
         '--self-contained', 'false',
-        '-o', $packageDir
+        '-o', $binDir
     )
 
     Invoke-Step -FilePath 'dotnet' -Arguments @(
@@ -185,15 +186,15 @@ foreach ($architecture in $Architectures) {
         buildConfiguration = $Configuration
         signaturePolicy = $signaturePolicy
         createdUtc = [DateTime]::UtcNow.ToString('o')
-        entryExecutable = 'WpfDevTools.Mcp.Server.exe'
+        entryExecutable = 'bin/WpfDevTools.Mcp.Server.exe'
         installScript = 'install.ps1'
         setupScript = 'setup.ps1'
         uninstallScript = 'uninstall.ps1'
         inspector = [ordered]@{
-            net8 = 'inspectors/net8.0-windows/WpfDevTools.Inspector.dll'
-            net48 = 'inspectors/net48/WpfDevTools.Inspector.dll'
+            net8 = 'bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll'
+            net48 = 'bin/inspectors/net48/WpfDevTools.Inspector.dll'
         }
-        bootstrapper = "bootstrapper/$architecture/WpfDevTools.Bootstrapper.$architecture.dll"
+        bootstrapper = "bin/bootstrapper/$architecture/WpfDevTools.Bootstrapper.$architecture.dll"
     }
 
     $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $packageDir 'manifest.json') -Encoding UTF8

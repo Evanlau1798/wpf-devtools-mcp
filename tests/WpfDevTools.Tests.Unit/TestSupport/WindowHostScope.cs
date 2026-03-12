@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Threading;
 
 namespace WpfDevTools.Tests.Unit.TestSupport;
 
@@ -38,16 +39,35 @@ internal sealed class WindowHostScope : IDisposable
         }
 
         _disposed = true;
-        Window.Content = null;
-
-        if (Window.IsLoaded)
+        ExecuteOnWindowDispatcher(() =>
         {
-            Window.Close();
+            Window.Content = null;
+
+            if (Window.IsLoaded)
+            {
+                Window.Close();
+            }
+
+            if (Application.Current?.MainWindow == Window)
+            {
+                Application.Current.MainWindow = null;
+            }
+        });
+    }
+
+    private void ExecuteOnWindowDispatcher(Action action)
+    {
+        var dispatcher = Window.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            action();
+            return;
         }
 
-        if (Application.Current?.MainWindow == Window)
-        {
-            Application.Current.MainWindow = null;
-        }
+        dispatcher.Invoke(
+            action,
+            DispatcherPriority.Normal,
+            CancellationToken.None,
+            TimeSpan.FromSeconds(5));
     }
 }

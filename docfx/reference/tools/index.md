@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 59 tools across eleven categories.
+The server currently exposes 60 tools across eleven categories.
 
 ## Categories
 
@@ -20,22 +20,26 @@ The server currently exposes 59 tools across eleven categories.
 
 Most real sessions should follow this progression:
 
-1. `get_processes`
-2. `connect`
-3. `select_active_process`
-4. `get_active_process`
-5. `ping`
-6. Tree discovery
-7. Diagnostics
-8. Interaction or mutation
-9. Verification
+1. `connect()` for the default auto-discovery path
+2. `get_active_process`
+3. `ping` when you need an explicit health check
+4. Scene or tree discovery
+5. Diagnostics
+6. Interaction or mutation
+7. Verification
+
+Use `get_processes(windowFilter)` only when:
+
+- more than one WPF target is available
+- you need to inspect background or foreground-only windows explicitly
+- you want to choose a specific `processId` before connecting
 
 ## Categories at a glance
 
 | Category | Typical first call | Why |
 | --- | --- | --- |
-| Process management | `get_processes` | Discover valid targets, architecture, and connection constraints |
-| Tree and XAML | `find_elements` | Perform a compact exact-match lookup before expanding a full tree |
+| Process management | `connect()` | Auto-discover and connect to the most relevant WPF target quickly |
+| Tree and XAML | `find_elements` | Perform a compact lookup before expanding a full tree |
 | Binding diagnostics | `get_binding_errors` | Find the most actionable binding failures quickly |
 | Dependency properties | `get_dp_value_source` | Understand precedence and effective values |
 | Style and template | `get_applied_styles` | Explain inherited or implicit visual behavior |
@@ -50,8 +54,8 @@ Recent additions worth learning early:
 
 - `select_active_process` and `get_active_process` for explicit process selection when later calls omit `processId`
 - `get_focus_state` and `focus_element` for focus-sensitive keyboard and multi-window workflows
-- `capture_state_snapshot` and `restore_state_snapshot` for mutation-safe validation and rollback
-- `find_elements` for compact exact-match lookup before full tree inspection
+- `capture_state_snapshot`, `wait_for_dp_change`, and `restore_state_snapshot` for mutation-safe validation and rollback
+- `find_elements` for compact lookup with `exact` or case-insensitive `contains` matching
 - `get_state_diff`, `get_element_snapshot`, `diagnose_visibility`, and `get_interaction_readiness` for scene-level diagnostics that reduce screenshot dependence
 - `get_ui_summary` and `get_form_summary` for semantic subtree summaries before deep inspection or form triage
 

@@ -24,8 +24,11 @@ Key tools:
 - `set_dp_value`
 - `clear_dp_value`
 - `watch_dp_changes`
+- `wait_for_dp_change`
 
 Use them to explain precedence, local values, styles, inheritance, triggers, and metadata.
+
+Use `wait_for_dp_change` when you need a polling-friendly timeout-bounded wait over STDIO. It is the recommended fallback when `watch_dp_changes` can only register interest but cannot push live events.
 
 ## Mutation warning
 

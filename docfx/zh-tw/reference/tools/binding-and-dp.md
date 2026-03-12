@@ -2,7 +2,7 @@
 
 ## Binding 診斷
 
-關鍵工具：
+主要工具：
 
 - `get_bindings`
 - `get_binding_errors`
@@ -11,22 +11,25 @@
 - `get_datacontext_chain`
 - `force_binding_update`
 
-當 UI 看起來不對，但 tree 本身仍正常時，這組工具通常是最快縮小問題的方式。
+當 UI 看起來不對，但 tree 本身仍正常時，這一組工具通常是最快的診斷入口。
 
-當 binding path 可以解析，但值仍然因型別不相容、nullability 或 converter 互動而異常時，優先使用 `get_binding_mismatches`。
+當 binding path 已經能解析，但值仍然看起來不合理，例如型別不相容、nullability 衝突、或 converter 造成的問題時，請優先使用 `get_binding_mismatches`。
 
 ## Dependency Property 分析
 
-關鍵工具：
+主要工具：
 
 - `get_dp_value_source`
 - `get_dp_metadata`
 - `set_dp_value`
 - `clear_dp_value`
 - `watch_dp_changes`
+- `wait_for_dp_change`
 
-它們能用來解釋 precedence、local values、styles、inheritance、triggers 與 metadata。
+這一組工具用來解釋 precedence、local values、styles、inheritance、triggers 與 metadata。
 
-## Mutation 警告
+在 STDIO transport 下，若 `watch_dp_changes` 只能完成註冊而無法推送即時事件，請改用 `wait_for_dp_change`。它提供 polling-based、可設定 timeout 的等待流程，更適合 agent workflow。
 
-`set_dp_value` 與 `clear_dp_value` 會直接修改執行中的應用程式。每次 mutation 後，都應緊接著做一次 verification 呼叫。
+## Mutation 注意事項
+
+`set_dp_value` 與 `clear_dp_value` 會直接修改執行中的應用程式。每次 mutation 之後，都應搭配 verification 呼叫確認結果。

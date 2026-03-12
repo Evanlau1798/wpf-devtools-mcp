@@ -185,6 +185,7 @@ public class McpToolAttributeTests
     [InlineData("set_dp_value")]
     [InlineData("clear_dp_value")]
     [InlineData("watch_dp_changes")]
+    [InlineData("wait_for_dp_change")]
     public void DependencyPropertyTools_ShouldExist(string toolName)
     {
         AllTools.Should().Contain(t => t.Attr.Name == toolName);

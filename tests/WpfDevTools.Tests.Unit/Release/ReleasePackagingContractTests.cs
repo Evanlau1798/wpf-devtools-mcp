@@ -30,6 +30,27 @@ public sealed class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void InstallBatchTemplate_ShouldExistAsPackageEntryPoint()
+    {
+        var batchTemplatePath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/install-template.bat");
+
+        File.Exists(batchTemplatePath).Should().BeTrue(
+            "downloaded release packages should expose a batch entrypoint for users who cannot execute .ps1 directly");
+    }
+
+    [Fact]
+    public void PublishReleaseScript_ShouldCopyBatchInstallerIntoPackageRoot()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Publish-Release.ps1"));
+
+        content.Should().Contain("install-template.bat",
+            "the packaged release root should include install.bat alongside install.ps1");
+        content.Should().Contain("install.bat",
+            "the release publisher should emit a batch installer at the package root");
+    }
+
+    [Fact]
     public void PublishReleaseScript_ShouldUseVersionedReleaseArchiveNames()
     {
         var content = File.ReadAllText(

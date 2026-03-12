@@ -139,4 +139,46 @@ public static class SceneDiagnosticsMcpTools
             args,
             cancellationToken);
     }
+
+    [McpServerTool(Name = "get_interaction_readiness", Title = "Inspect WPF Interaction Readiness", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to determine whether a WPF runtime element is currently ready for interaction.\n\n" +
+        SceneMetadata +
+        "[Scene] Aggregate enabled state, visibility, opacity, hit testing, layout size, and ButtonBase ICommand.CanExecute into one interaction readiness verdict.\n\n" +
+        "USE WHEN: Before click_element or simulate_keyboard when you need to know whether the target is interactable right now.\n" +
+        "DO NOT USE: As a replacement for diagnose_visibility when the question is specifically why something is not visible.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  elementId: string,\n" +
+        "  interactionType: string,\n" +
+        "  isReady: boolean,\n" +
+        "  blockers: [],\n" +
+        "  elementState: object\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree\n" +
+        "- \"not connected\" -> reconnect before inspecting readiness\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345, elementId: \"SaveButton_7\" }\n" +
+        "- { elementId: \"FocusActionButton_3\", interactionType: \"Click\" }")]
+    public static Task<CallToolResult> GetInteractionReadiness(
+        SessionManager sessionManager,
+        [Description("Runtime element ID to inspect.")] string elementId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional interaction type label. Defaults to Click.")] string interactionType = "Click",
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId),
+            ("interactionType", interactionType));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<GetInteractionReadinessTool>(
+                nameof(GetInteractionReadinessTool),
+                () => new GetInteractionReadinessTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
 }

@@ -32,6 +32,18 @@ public sealed class StateSnapshotRestoreContractTests
                         new { name = "CanSave", type = "Boolean", value = "False", canWrite = false }
                     }
                 },
+                "get_binding_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
+                "get_validation_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
                 _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
             });
 
@@ -56,7 +68,7 @@ public sealed class StateSnapshotRestoreContractTests
         restoreResult.GetProperty("warnings").GetArrayLength().Should().Be(0);
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("propertyName").GetString().Should().Be("CanSave");
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("verified").GetBoolean().Should().BeTrue();
-        connected.RequestMethods.Should().Equal("get_viewmodel", "get_viewmodel");
+        connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "get_viewmodel");
     }
 
     [Fact]
@@ -77,6 +89,18 @@ public sealed class StateSnapshotRestoreContractTests
                     }
                 },
                 "modify_viewmodel" => (object)new { success = false, error = "Setter failed." },
+                "get_binding_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
+                "get_validation_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
                 _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
             });
 
@@ -99,7 +123,7 @@ public sealed class StateSnapshotRestoreContractTests
         restoreResult.GetProperty("restoredViewModelPropertyCount").GetInt32().Should().Be(0);
         restoreResult.GetProperty("skippedViewModelPropertyCount").GetInt32().Should().Be(0);
         restoreResult.GetProperty("warnings")[0].GetString().Should().Contain("Name");
-        connected.RequestMethods.Should().Equal("get_viewmodel", "modify_viewmodel");
+        connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "modify_viewmodel");
     }
 
     [Fact]
@@ -132,6 +156,18 @@ public sealed class StateSnapshotRestoreContractTests
                         }
                     }
                 }),
+                "get_binding_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
+                "get_validation_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
                 _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
             });
 
@@ -154,7 +190,7 @@ public sealed class StateSnapshotRestoreContractTests
         restoreResult.GetProperty("skippedViewModelPropertyCount").GetInt32().Should().Be(1);
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("verified").GetBoolean().Should().BeFalse();
         restoreResult.GetProperty("warnings")[0].GetString().Should().Contain("CanSave");
-        connected.RequestMethods.Should().Equal("get_viewmodel", "get_viewmodel");
+        connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "get_viewmodel");
     }
 
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(

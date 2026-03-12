@@ -28,6 +28,7 @@ public class InteractionHandlers : IRequestHandler
         return new[]
         {
             "click_element",
+            "get_interaction_readiness",
             "get_focus_state",
             "focus_element",
             "scroll_to_element",
@@ -50,6 +51,7 @@ public class InteractionHandlers : IRequestHandler
         return method switch
         {
             "click_element" => await HandleClickElementAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_interaction_readiness" => await HandleGetInteractionReadinessAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_focus_state" => await HandleGetFocusStateAsync(@params, cancellationToken).ConfigureAwait(false),
             "focus_element" => await HandleFocusElementAsync(@params, cancellationToken).ConfigureAwait(false),
             "scroll_to_element" => await HandleScrollToElementAsync(@params, cancellationToken).ConfigureAwait(false),
@@ -66,6 +68,15 @@ public class InteractionHandlers : IRequestHandler
 
         return await Task.Run(() =>
             _interactionAnalyzer.ClickElement(elementId), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<object> HandleGetInteractionReadinessAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var interactionType = ParameterHelpers.GetStringParam(@params, "interactionType");
+
+        return await Task.Run(() =>
+            _interactionAnalyzer.GetInteractionReadiness(elementId, interactionType), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetFocusStateAsync(JsonElement? @params, CancellationToken cancellationToken)

@@ -1,0 +1,71 @@
+using FluentAssertions;
+using Xunit.Abstractions;
+
+namespace WpfDevTools.Tests.Integration.E2E;
+
+[Collection("McpE2E")]
+[Trait("Category", "E2E")]
+public sealed class StateDiffE2eTests
+{
+    private readonly McpE2eFixture _fixture;
+    private readonly ITestOutputHelper _output;
+
+    public StateDiffE2eTests(McpE2eFixture fixture, ITestOutputHelper output)
+    {
+        _fixture = fixture;
+        _output = output;
+    }
+
+    [Fact]
+    public async Task GetStateDiff_AfterModifyViewModel_ShouldReportSemanticChanges()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var findResult = await _fixture.Client.CallToolAsync(
+            "find_elements",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementName = "NameTextBox"
+            });
+        var runtimeElementId = findResult.GetProperty("results")[0].GetProperty("elementId").GetString();
+
+        var capture = await _fixture.Client.CallToolAsync(
+            "capture_state_snapshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = runtimeElementId,
+                propertyNames = new[] { "Text" },
+                viewModelPropertyNames = new[] { "Name" }
+            });
+        _output.WriteLine($"capture_state_snapshot => {capture.GetRawText()}");
+
+        var snapshotId = capture.GetProperty("snapshotId").GetString();
+
+        var mutate = await _fixture.Client.CallToolAsync(
+            "modify_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = runtimeElementId,
+                propertyName = "Name",
+                value = "State Diff Test"
+            });
+        mutate.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var diff = await _fixture.Client.CallToolAsync(
+            "get_state_diff",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                snapshotId,
+                trigger = "modify_viewmodel(Name)"
+            });
+
+        diff.GetProperty("success").GetBoolean().Should().BeTrue();
+        diff.GetProperty("trigger").GetString().Should().Be("modify_viewmodel(Name)");
+        diff.GetProperty("propertyChanges").GetArrayLength().Should().BeGreaterThan(0);
+        diff.GetProperty("viewModelChanges").GetArrayLength().Should().BeGreaterThan(0);
+    }
+}

@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 52 tools across ten categories.
+The server currently exposes 58 tools across eleven categories.
 
 ## Categories
 
@@ -14,6 +14,7 @@ The server currently exposes 52 tools across ten categories.
 8. Layout
 9. MVVM
 10. Performance
+11. Scene diagnostics
 
 ## Recommended order of use
 
@@ -43,6 +44,7 @@ Most real sessions should follow this progression:
 | Layout | `get_layout_info` | Inspect bounds, desired size, and layout state |
 | MVVM | `get_viewmodel` | Inspect data and commands behind a view |
 | Performance | `get_render_stats` | Start performance triage |
+| Scene diagnostics | `get_element_snapshot` | Collapse common multi-call inspection flows into one scene summary |
 
 Recent additions worth learning early:
 
@@ -50,5 +52,7 @@ Recent additions worth learning early:
 - `get_focus_state` and `focus_element` for focus-sensitive keyboard and multi-window workflows
 - `capture_state_snapshot` and `restore_state_snapshot` for mutation-safe validation and rollback
 - `find_elements` for compact exact-match lookup before full tree inspection
+- `get_state_diff`, `get_element_snapshot`, `diagnose_visibility`, and `get_interaction_readiness` for scene-level diagnostics that reduce screenshot dependence
+- `get_ui_summary` and `get_form_summary` for semantic subtree summaries before deep inspection or form triage
 
 Use the category pages for the most important tools, semantics, and gotchas.

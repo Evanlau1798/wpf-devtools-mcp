@@ -111,6 +111,14 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
                 GetOptionalString(response, "focusedElementId"));
         }
 
+        var (bindingErrors, hasBindingErrorBaseline) = await TryCaptureBindingErrorBaselineAsync(
+            processId,
+            cancellationToken).ConfigureAwait(false);
+        var (validationErrors, hasValidationBaseline) = await TryCaptureValidationBaselineAsync(
+            processId,
+            elementId,
+            cancellationToken).ConfigureAwait(false);
+
         var snapshotId = $"snapshot_{Guid.NewGuid():N}";
         _sessionManager.SaveStateSnapshot(processId, new StoredStateSnapshot(
             snapshotId,
@@ -119,6 +127,10 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             dependencyProperties,
             viewModelProperties,
             focus,
+            bindingErrors,
+            hasBindingErrorBaseline,
+            validationErrors,
+            hasValidationBaseline,
             DateTimeOffset.UtcNow));
 
         return new
@@ -187,5 +199,61 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             Hint = hint ?? $"Inspect the failing {method} step and re-query the current runtime state before retrying capture_state_snapshot.",
             ErrorData = response.Clone()
         };
+    }
+
+    private async Task<(IReadOnlyList<StoredBindingErrorSnapshot> bindingErrors, bool success)> TryCaptureBindingErrorBaselineAsync(
+        int processId,
+        CancellationToken cancellationToken)
+    {
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+            processId,
+            "get_binding_errors",
+            new { },
+            cancellationToken).ConfigureAwait(false));
+
+        if (!IsSuccess(response) || !response.TryGetProperty("errors", out var errors) || errors.ValueKind != JsonValueKind.Array)
+        {
+            return (Array.Empty<StoredBindingErrorSnapshot>(), false);
+        }
+
+        var snapshots = errors.EnumerateArray()
+            .Select(error => new StoredBindingErrorSnapshot(
+                GetOptionalString(error, "elementId"),
+                GetOptionalString(error, "suggestedElementId"),
+                GetOptionalString(error, "matchConfidence"),
+                GetOptionalString(error, "propertyName"),
+                GetOptionalString(error, "bindingPath"),
+                GetOptionalString(error, "message")))
+            .ToArray();
+
+        return (snapshots, true);
+    }
+
+    private async Task<(IReadOnlyList<StoredValidationErrorSnapshot> validationErrors, bool success)> TryCaptureValidationBaselineAsync(
+        int processId,
+        string? elementId,
+        CancellationToken cancellationToken)
+    {
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+            processId,
+            "get_validation_errors",
+            new { elementId },
+            cancellationToken).ConfigureAwait(false));
+
+        if (!IsSuccess(response) || !response.TryGetProperty("errors", out var errors) || errors.ValueKind != JsonValueKind.Array)
+        {
+            return (Array.Empty<StoredValidationErrorSnapshot>(), false);
+        }
+
+        var snapshots = errors.EnumerateArray()
+            .Select(error => new StoredValidationErrorSnapshot(
+                GetOptionalString(error, "elementType") ?? "Unknown",
+                GetOptionalString(error, "elementName"),
+                GetOptionalString(error, "errorContent") ?? string.Empty,
+                error.TryGetProperty("isRuleError", out var isRuleErrorProperty) && isRuleErrorProperty.GetBoolean(),
+                GetOptionalString(error, "ruleType")))
+            .ToArray();
+
+        return (snapshots, true);
     }
 }

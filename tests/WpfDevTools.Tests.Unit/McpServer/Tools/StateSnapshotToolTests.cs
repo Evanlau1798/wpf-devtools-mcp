@@ -43,6 +43,18 @@ public sealed class StateSnapshotToolTests
                     success = true,
                     focusKind = "Logical",
                     focusedElementId = "TextBox_42"
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
                 })
             });
 
@@ -86,6 +98,18 @@ public sealed class StateSnapshotToolTests
                     success = true,
                     focusKind = "Logical",
                     focusedElementId = "TextBox_42"
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
                 }),
                 JsonSerializer.Serialize(new { success = true, propertyName = "Width", oldValue = "240", newValue = "120" }),
                 JsonSerializer.Serialize(new { success = true, focused = true })
@@ -148,6 +172,18 @@ public sealed class StateSnapshotToolTests
                     {
                         new { name = "Name", type = "String", value = "Alice", canWrite = true }
                     }
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
                 })
             });
 
@@ -213,23 +249,29 @@ public sealed class StateSnapshotToolTests
         var serverTask = Task.Run(async () =>
         {
             await server.WaitForConnectionAsync();
-            foreach (var resultJson in resultJsonSequence)
+            try
             {
-                var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
-                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
-
-                var response = new InspectorResponse
+                foreach (var resultJson in resultJsonSequence)
                 {
-                    Id = request!.Id,
-                    CorrelationId = request.CorrelationId,
-                    Result = JsonSerializer.Deserialize<JsonElement>(resultJson),
-                    Error = null
-                };
+                    var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                    var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
 
-                await MessageFraming.WriteMessageAsync(
-                    server,
-                    JsonSerializer.Serialize(response),
-                    CancellationToken.None);
+                    var response = new InspectorResponse
+                    {
+                        Id = request!.Id,
+                        CorrelationId = request.CorrelationId,
+                        Result = JsonSerializer.Deserialize<JsonElement>(resultJson),
+                        Error = null
+                    };
+
+                    await MessageFraming.WriteMessageAsync(
+                        server,
+                        JsonSerializer.Serialize(response),
+                        CancellationToken.None);
+                }
+            }
+            catch (EndOfStreamException)
+            {
             }
         });
 

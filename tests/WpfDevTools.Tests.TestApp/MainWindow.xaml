@@ -326,9 +326,16 @@
             </TabItem>
 
             <!-- Tab 6: Layout &amp; Transforms -->
-            <TabItem Header="Layout &amp; Transforms">
+            <TabItem x:Name="LayoutTransformsTab" Header="Layout &amp; Transforms">
                 <ScrollViewer>
                     <StackPanel Margin="10">
+                        <TextBlock Text="Hidden By Ancestor" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <StackPanel x:Name="HiddenByAncestorPanel" Visibility="Collapsed" Margin="5">
+                            <TextBlock x:Name="HiddenByAncestorText" Text="You should not see me"/>
+                        </StackPanel>
+
+                        <Separator Margin="0,20,0,20"/>
+
                         <TextBlock Text="Clipping" FontWeight="Bold" Margin="0,0,0,10"/>
                         <Border x:Name="ClippingBorderSample" Width="150" Height="50" BorderBrush="Black" BorderThickness="1" ClipToBounds="True" Margin="5">
                             <TextBlock x:Name="ClippingTextSample" Text="This text is very long and will be clipped by the border because ClipToBounds is True"

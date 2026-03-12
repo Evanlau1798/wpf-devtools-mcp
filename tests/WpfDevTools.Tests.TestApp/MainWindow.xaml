@@ -68,7 +68,7 @@
         <TabControl x:Name="MainTabControl" Grid.Row="1">
             <TabItem x:Name="BasicControlsTab" Header="Basic Controls">
                 <ScrollViewer>
-                    <StackPanel Margin="10">
+                    <StackPanel x:Name="BasicControlsStackPanel" Margin="10">
                         <TextBlock Text="Valid Bindings" FontWeight="Bold" Margin="0,0,0,10"/>
 
                         <Grid>

@@ -36,6 +36,7 @@ public partial class MainWindow : Window
         SetupDragAndDrop();
 
         SetupCustomEvents();
+        SetupBindingDiagnosticsSamples();
 
         InitializeModernTheme();
     }
@@ -128,6 +129,27 @@ public partial class MainWindow : Window
                 viewModel.RecordActionMessage("Custom routed event fired!");
             }
         };
+    }
+
+    private void SetupBindingDiagnosticsSamples()
+    {
+        var multiBindingTextBlock = new TextBlock
+        {
+            Name = "MultiBindingTextBlock",
+            Margin = new Thickness(5)
+        };
+
+        multiBindingTextBlock.SetBinding(TextBlock.TextProperty, new MultiBinding
+        {
+            Converter = new ConcatMultiConverter(),
+            Bindings =
+            {
+                new Binding(nameof(TestViewModel.FirstName)),
+                new Binding(nameof(TestViewModel.LastName))
+            }
+        });
+
+        BasicControlsStackPanel.Children.Add(multiBindingTextBlock);
     }
 
     private void FocusWorkflowElement_GotFocus(object sender, RoutedEventArgs e)

@@ -17,7 +17,7 @@ public static class BindingMcpTools
     [Description(
         "Use this tool to inspect WPF bindings on a runtime element or subtree before changing UI or ViewModel state.\n\n" +
         BindingMetadata + "[Binding] Get all DataBindings on an element. Shows binding path, mode " +
-        "(OneWay/TwoWay/OneTime), source type, converter, current runtime value, and current status.\n\n" +
+        "(OneWay/TwoWay/OneTime), converter, current runtime value, and current status. MultiBinding entries include bindingType and bindingPaths.\n\n" +
         "USE WHEN: You need to inspect binding configuration on a specific element or subtree.\n" +
         "BATCH MODE: Provide `elementIds` to inspect multiple roots in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "DO NOT USE: recursive=true on large apps without elementId scope (will be slow).\n" +
@@ -26,9 +26,9 @@ public static class BindingMcpTools
         "{\n" +
         "  success: boolean,\n" +
         "  bindings: [{\n" +
-        "    elementId, elementType, propertyName, bindingPath,\n" +
+        "    elementId, elementType, propertyName, path, bindingType, bindingPaths,\n" +
         "    mode: 'OneWay'|'TwoWay'|'OneTime'|'OneWayToSource',\n" +
-        "    sourceType, converter, updateSourceTrigger, status, currentValue\n" +
+        "    converter, updateSourceTrigger, status, currentValue\n" +
         "  }]\n" +
         "}\n\n" +
         "ERRORS:\n" +

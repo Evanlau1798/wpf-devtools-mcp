@@ -9,6 +9,8 @@ namespace WpfDevTools.Tests.TestApp;
 /// </summary>
 public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
 {
+    private string _firstName = "Ada";
+    private string _lastName = "Lovelace";
     private string _name = "";
     private int _age;
     private bool _isEnabled = true;
@@ -26,6 +28,26 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanSave));
             _saveCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public string FirstName
+    {
+        get => _firstName;
+        set
+        {
+            _firstName = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string LastName
+    {
+        get => _lastName;
+        set
+        {
+            _lastName = value;
+            OnPropertyChanged();
         }
     }
 

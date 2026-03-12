@@ -187,7 +187,7 @@ public static class SceneDiagnosticsMcpTools
         "Use this tool to get a token-efficient semantic summary of a WPF window or subtree without relying on screenshots.\n\n" +
         SceneMetadata +
         "[Scene] Traverse a WPF runtime subtree, suppress layout-only wrappers, and return a compact semantic overview of user-facing controls.\n\n" +
-        "USE WHEN: You need fast screen context for an unfamiliar area before drilling into a specific element.\n" +
+        "USE WHEN: You need fast screen context for an unfamiliar area before drilling into a specific element. For agent workflows, prefer depthMode='semantic' so layout-only wrapper levels do not consume the depth budget.\n" +
         "DO NOT USE: As a replacement for full tree inspection when exact structure matters.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -204,14 +204,14 @@ public static class SceneDiagnosticsMcpTools
         "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree, or omit it to summarize the root window\n" +
         "- \"not connected\" -> reconnect before requesting a semantic UI summary\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { elementId: \"BasicControlsStackPanel_4\", depth: 4 }")]
+        "- { processId: 12345, depthMode: \"semantic\" }\n" +
+        "- { elementId: \"BasicControlsStackPanel_4\", depth: 4, depthMode: \"semantic\" }")]
     public static Task<CallToolResult> GetUiSummary(
         SessionManager sessionManager,
         [Description("Optional runtime element ID to scope the semantic summary. Omit to summarize the root window.")] string? elementId = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
-        [Description("Optional maximum visual depth to summarize. Omit to use the default semantic summary depth.")] int? depth = null,
-        [Description("Optional depth accounting mode: 'visual' (default) counts every traversed level, while 'semantic' skips layout-only wrapper levels when budgeting depth.")] string? depthMode = null,
+        [Description("Optional maximum visual depth to summarize. Omit to use the default semantic summary depth budget.")] int? depth = null,
+        [Description("Optional depth accounting mode: 'semantic' (default) skips layout-only wrapper levels when budgeting depth, while 'visual' counts every traversed level.")] string? depthMode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

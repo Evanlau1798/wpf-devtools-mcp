@@ -14,7 +14,7 @@ public sealed class UiSummarySemanticDepthRegressionE2eTests
     }
 
     [Fact]
-    public async Task GetUiSummary_DefaultDepthMode_ShouldRemainVisualOnWrapperHeavyModernTab()
+    public async Task GetUiSummary_DefaultDepthMode_ShouldUseSemanticOnWrapperHeavyModernTab()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
 
@@ -39,8 +39,8 @@ public sealed class UiSummarySemanticDepthRegressionE2eTests
 
         defaultResult.GetProperty("success").GetBoolean().Should().BeTrue();
         semanticResult.GetProperty("success").GetBoolean().Should().BeTrue();
-        defaultResult.GetProperty("depthMode").GetString().Should().Be("visual");
-        defaultResult.GetProperty("summaryText").GetString().Should().NotContain("CurrentThemeModeText");
+        defaultResult.GetProperty("depthMode").GetString().Should().Be("semantic");
+        defaultResult.GetProperty("summaryText").GetString().Should().Contain("CurrentThemeModeText");
         semanticResult.GetProperty("summaryText").GetString().Should().Contain("CurrentThemeModeText");
     }
 

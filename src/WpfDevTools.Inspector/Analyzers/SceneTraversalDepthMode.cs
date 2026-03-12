@@ -12,7 +12,7 @@ internal static class SceneTraversalDepthModes
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            mode = SceneTraversalDepthMode.Visual;
+            mode = SceneTraversalDepthMode.Semantic;
             return true;
         }
 
@@ -28,7 +28,7 @@ internal static class SceneTraversalDepthModes
             return true;
         }
 
-        mode = SceneTraversalDepthMode.Visual;
+        mode = SceneTraversalDepthMode.Semantic;
         return false;
     }
 

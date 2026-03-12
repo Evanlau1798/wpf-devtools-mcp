@@ -66,9 +66,10 @@ public sealed class UiSummaryAnalyzerTests
         };
         var elementId = finder.GenerateElementId(nested);
 
-        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 1));
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 1, depthMode: "visual"));
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("depthMode").GetString().Should().Be("visual");
         result.GetProperty("summaryText").GetString().Should().Contain("TopButton");
         result.GetProperty("summaryText").GetString().Should().NotContain("DeepBox");
     }
@@ -224,5 +225,40 @@ public sealed class UiSummaryAnalyzerTests
         visualResult.GetProperty("summaryText").GetString().Should().NotContain("DeepSemanticBox");
         semanticResult.GetProperty("summaryText").GetString().Should().Contain("DeepSemanticBox");
         semanticResult.GetProperty("depthMode").GetString().Should().Be("semantic");
+    }
+
+    [StaFact]
+    public void GetUiSummary_WithoutExplicitDepthMode_ShouldDefaultToSemantic()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new Grid
+        {
+            Name = "RootGrid",
+            Children =
+            {
+                new Border
+                {
+                    Child = new Grid
+                    {
+                        Children =
+                        {
+                            new TextBox
+                            {
+                                Name = "SemanticDefaultBox",
+                                Text = "Reached"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1));
+
+        result.GetProperty("depthMode").GetString().Should().Be("semantic");
+        result.GetProperty("summaryText").GetString().Should().Contain("SemanticDefaultBox");
     }
 }

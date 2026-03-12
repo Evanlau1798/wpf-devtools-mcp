@@ -172,6 +172,13 @@ public class McpToolContractConsistencyTests
     }
 
     [Fact]
+    public void Connect_ShouldExposeOptionalProcessId_AndSelectionStrategy()
+    {
+        AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "processId", typeof(int?), null);
+        AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "selectionStrategy", typeof(string), null);
+    }
+
+    [Fact]
     public void AllConnectedMcpTools_ShouldExposeOptionalProcessId_ExceptConnectionSelectionEntrypoints()
     {
         var exemptToolNames = new HashSet<string>(StringComparer.Ordinal)

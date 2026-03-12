@@ -5,4 +5,7 @@ internal sealed record TopLevelWindowSnapshot(
     IntPtr Handle,
     string? Title,
     string? ClassName,
-    bool IsVisible);
+    bool IsVisible,
+    bool IsMinimized = false,
+    bool IsCloaked = false,
+    bool IsForeground = false);

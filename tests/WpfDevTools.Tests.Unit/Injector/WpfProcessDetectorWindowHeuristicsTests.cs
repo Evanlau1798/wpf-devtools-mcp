@@ -58,4 +58,28 @@ public class WpfProcessDetectorWindowHeuristicsTests
 
         result.Should().BeFalse();
     }
+
+    [Fact]
+    public void MatchesWindowFilter_Visible_ShouldExcludeHiddenMinimizedAndCloakedWindows()
+    {
+        var visibleWindow = new TopLevelWindowSnapshot(1, IntPtr.Zero, "Visible", "HwndWrapper[Test;;]", true);
+        var hiddenWindow = new TopLevelWindowSnapshot(2, IntPtr.Zero, "Hidden", "HwndWrapper[Test;;]", false);
+        var minimizedWindow = new TopLevelWindowSnapshot(3, IntPtr.Zero, "Minimized", "HwndWrapper[Test;;]", true, IsMinimized: true);
+        var cloakedWindow = new TopLevelWindowSnapshot(4, IntPtr.Zero, "Cloaked", "HwndWrapper[Test;;]", true, IsCloaked: true);
+
+        WpfProcessDetector.MatchesWindowFilter(visibleWindow, ProcessWindowFilter.Visible).Should().BeTrue();
+        WpfProcessDetector.MatchesWindowFilter(hiddenWindow, ProcessWindowFilter.Visible).Should().BeFalse();
+        WpfProcessDetector.MatchesWindowFilter(minimizedWindow, ProcessWindowFilter.Visible).Should().BeFalse();
+        WpfProcessDetector.MatchesWindowFilter(cloakedWindow, ProcessWindowFilter.Visible).Should().BeFalse();
+    }
+
+    [Fact]
+    public void MatchesWindowFilter_Foreground_ShouldIncludeOnlyForegroundWindow()
+    {
+        var foregroundWindow = new TopLevelWindowSnapshot(5, IntPtr.Zero, "Foreground", "HwndWrapper[Test;;]", true, IsForeground: true);
+        var backgroundWindow = new TopLevelWindowSnapshot(6, IntPtr.Zero, "Background", "HwndWrapper[Test;;]", true);
+
+        WpfProcessDetector.MatchesWindowFilter(foregroundWindow, ProcessWindowFilter.Foreground).Should().BeTrue();
+        WpfProcessDetector.MatchesWindowFilter(backgroundWindow, ProcessWindowFilter.Foreground).Should().BeFalse();
+    }
 }

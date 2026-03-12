@@ -21,9 +21,17 @@ public class WpfProcessDetector
     /// avoid expensive metadata probes until the target is confirmed as WPF.
     /// </summary>
     public virtual IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses()
+        => GetAllWpfProcesses(ProcessWindowFilter.Visible);
+
+    /// <summary>
+    /// Get all WPF processes currently running using the requested window visibility filter.
+    /// </summary>
+    public virtual IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
     {
         var wpfProcesses = new List<WpfProcessInfo>();
-        var windows = TopLevelWindowEnumerator.Enumerate();
+        var windows = TopLevelWindowEnumerator.Enumerate()
+            .Where(window => MatchesWindowFilter(window, windowFilter))
+            .ToArray();
         var bestWindows = BuildBestWindowIndex(windows);
         var allProcesses = Process.GetProcesses();
 
@@ -54,6 +62,17 @@ public class WpfProcessDetector
         }
 
         return wpfProcesses;
+    }
+
+    internal static bool MatchesWindowFilter(TopLevelWindowSnapshot window, ProcessWindowFilter windowFilter)
+    {
+        return windowFilter switch
+        {
+            ProcessWindowFilter.All => true,
+            ProcessWindowFilter.Visible => window.IsVisible && !window.IsMinimized && !window.IsCloaked,
+            ProcessWindowFilter.Foreground => window.IsForeground && window.IsVisible && !window.IsMinimized && !window.IsCloaked,
+            _ => true
+        };
     }
 
     /// <summary>

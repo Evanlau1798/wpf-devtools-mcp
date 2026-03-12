@@ -40,11 +40,51 @@ internal static class SceneSummaryElementHelpers
 
     internal static IEnumerable<DependencyObject> GetVisualChildren(DependencyObject element)
     {
+        if (element is not Visual and not System.Windows.Media.Media3D.Visual3D)
+        {
+            yield break;
+        }
+
         var count = VisualTreeHelper.GetChildrenCount(element);
         for (var index = 0; index < count; index++)
         {
             yield return VisualTreeHelper.GetChild(element, index);
         }
+    }
+
+    internal static IEnumerable<DependencyObject> GetLogicalChildren(DependencyObject element)
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(element))
+        {
+            if (child is DependencyObject dependencyObject)
+            {
+                yield return dependencyObject;
+            }
+        }
+    }
+
+    internal static IReadOnlyList<DependencyObject> GetSceneChildren(DependencyObject element)
+    {
+        var children = new List<DependencyObject>();
+        var seen = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
+
+        foreach (var child in GetVisualChildren(element))
+        {
+            if (seen.Add(child))
+            {
+                children.Add(child);
+            }
+        }
+
+        foreach (var child in GetLogicalChildren(element))
+        {
+            if (seen.Add(child))
+            {
+                children.Add(child);
+            }
+        }
+
+        return children;
     }
 
     internal static string? GetElementName(DependencyObject element) =>

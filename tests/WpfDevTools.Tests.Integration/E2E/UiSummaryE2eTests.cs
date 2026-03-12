@@ -34,6 +34,26 @@ public sealed class UiSummaryE2eTests
         result.GetProperty("summaryText").GetString().Should().NotContain("BasicControlsStackPanel");
     }
 
+    [Fact]
+    public async Task GetUiSummary_WhenScopedToSemanticRoot_ShouldIncludeRootNode()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var saveButtonId = await FindElementIdAsync("SaveButton");
+        var result = await _fixture.Client.CallToolAsync(
+            "get_ui_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = saveButtonId,
+                depth = 0
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("semanticNodeCount").GetInt32().Should().Be(1);
+        result.GetProperty("summaryText").GetString().Should().Contain("Button SaveButton");
+    }
+
     private async Task<string?> FindElementIdAsync(string elementName)
     {
         var result = await _fixture.Client.CallToolAsync(

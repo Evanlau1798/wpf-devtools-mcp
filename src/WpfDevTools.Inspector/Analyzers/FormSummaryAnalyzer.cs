@@ -145,7 +145,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
     {
         yield return root;
 
-        foreach (var child in SceneSummaryElementHelpers.GetVisualChildren(root))
+        foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(root))
         {
             foreach (var descendant in EnumerateDescendantsAndSelf(child))
             {

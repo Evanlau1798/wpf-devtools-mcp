@@ -78,12 +78,13 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             return;
         }
 
-        if (currentDepth > 0 && SceneSummaryElementHelpers.IsSemanticElement(current))
+        if (SceneSummaryElementHelpers.IsSemanticElement(current)
+            && (currentDepth > 0 || current is FrameworkElement))
         {
             AppendSemanticNode(current, currentDepth, nodes, summary);
         }
 
-        foreach (var child in SceneSummaryElementHelpers.GetVisualChildren(current))
+        foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(current))
         {
             Traverse(child, currentDepth + 1, maxDepth, nodes, summary);
         }

@@ -80,15 +80,18 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
                     };
                 }
 
-                var canRestore = !property.TryGetProperty("canWrite", out var canWriteProperty) ||
+                var canWrite = !property.TryGetProperty("canWrite", out var canWriteProperty) ||
                     (canWriteProperty.ValueKind == JsonValueKind.True);
+                var propertyType = GetOptionalString(property, "type");
+                var propertyValue = GetOptionalString(property, "value");
+                var canRestore = canWrite && IsRestorableViewModelValue(propertyType, propertyValue);
                 viewModelProperties.Add(new StoredViewModelPropertySnapshot(
                     elementId,
                     propertyName,
-                    GetOptionalString(property, "type"),
-                    GetOptionalString(property, "value"),
+                    propertyType,
+                    propertyValue,
                     canRestore,
-                    canRestore ? null : $"Property '{propertyName}' is read-only or derived and cannot be restored via modify_viewmodel."));
+                    GetRestoreSkipReason(propertyName, canWrite, propertyType, propertyValue)));
             }
         }
 
@@ -171,6 +174,47 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         element.TryGetProperty(propertyName, out var property) && property.ValueKind != JsonValueKind.Null
             ? property.ToString()
             : null;
+
+    private static bool IsRestorableViewModelValue(string? propertyType, string? propertyValue)
+    {
+        if (propertyValue != null)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(propertyType))
+        {
+            return false;
+        }
+
+        return propertyType switch
+        {
+            "String" or "Boolean" or "Byte" or "SByte" or "Char" or "Decimal" or "Double" or "Single" or
+            "Int16" or "Int32" or "Int64" or "UInt16" or "UInt32" or "UInt64" or "DateTime" or "Guid" or
+            "TimeSpan" or "Uri" => true,
+            _ when propertyType.StartsWith("Nullable<", StringComparison.Ordinal) => true,
+            _ => false
+        };
+    }
+
+    private static string? GetRestoreSkipReason(
+        string propertyName,
+        bool canWrite,
+        string? propertyType,
+        string? propertyValue)
+    {
+        if (!canWrite)
+        {
+            return $"Property '{propertyName}' is read-only or derived and cannot be restored via modify_viewmodel.";
+        }
+
+        if (!IsRestorableViewModelValue(propertyType, propertyValue))
+        {
+            return $"Property '{propertyName}' is a complex reference with a null snapshot value and cannot be deterministically restored via modify_viewmodel.";
+        }
+
+        return null;
+    }
 
     private static ToolErrorPayload CreateStepFailure(string method, string? propertyName, JsonElement response)
     {

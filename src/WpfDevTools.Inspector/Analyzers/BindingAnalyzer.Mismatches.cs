@@ -319,19 +319,44 @@ public sealed partial class BindingAnalyzer
 
     private static string ClassifyMismatchOrigin(DependencyObject element)
     {
-        if (element is FrameworkElement frameworkElement &&
-            frameworkElement.TemplatedParent != null &&
-            string.IsNullOrWhiteSpace(frameworkElement.Name))
+        if (element is not FrameworkElement frameworkElement || frameworkElement.TemplatedParent == null)
         {
-            var assemblyName = frameworkElement.GetType().Assembly.GetName().Name;
-            if (string.Equals(assemblyName, "PresentationFramework", StringComparison.Ordinal) ||
-                string.Equals(assemblyName, "PresentationCore", StringComparison.Ordinal))
-            {
-                return "FrameworkTemplate";
-            }
+            return "UserCode";
+        }
+
+        if (HasFrameworkTemplateOrigin(frameworkElement))
+        {
+            return "FrameworkTemplate";
         }
 
         return "UserCode";
+    }
+
+    private static bool HasFrameworkTemplateOrigin(FrameworkElement element)
+    {
+        if (!IsFrameworkAssembly(element.GetType().Assembly.GetName().Name))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(element.Name))
+        {
+            return true;
+        }
+
+        return HasFrameworkTemplatePartName(element.Name);
+    }
+
+    private static bool HasFrameworkTemplatePartName(string elementName)
+    {
+        return elementName.StartsWith("PART_", StringComparison.Ordinal) ||
+               elementName.StartsWith("DG_", StringComparison.Ordinal);
+    }
+
+    private static bool IsFrameworkAssembly(string? assemblyName)
+    {
+        return string.Equals(assemblyName, "PresentationFramework", StringComparison.Ordinal) ||
+               string.Equals(assemblyName, "PresentationCore", StringComparison.Ordinal);
     }
 
     private static string FormatTypeName(Type type)

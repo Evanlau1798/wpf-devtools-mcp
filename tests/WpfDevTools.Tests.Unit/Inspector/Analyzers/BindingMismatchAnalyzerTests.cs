@@ -139,6 +139,48 @@ public sealed class BindingMismatchAnalyzerTests
     }
 
     [StaFact]
+    public void GetBindingMismatches_ShouldClassifyNamedPartTemplateElementsAsFrameworkTemplate()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var textBox = new TextBox { Text = "sample" };
+        PrepareControl(textBox);
+        var part = FindNamedDescendant<FrameworkElement>(textBox, "PART_ContentHost");
+        part.Should().NotBeNull();
+        AttachFrameworkMismatch(part!);
+        var elementId = finder.GenerateElementId(part!);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingMismatches(elementId, includeFramework: true));
+        var mismatch = result.GetProperty("mismatches")[0];
+
+        mismatch.GetProperty("origin").GetString().Should().Be("FrameworkTemplate");
+        mismatch.GetProperty("elementName").GetString().Should().Be("PART_ContentHost");
+    }
+
+    [StaFact]
+    public void GetBindingMismatches_ShouldClassifyDataGridTemplatePartNamesAsFrameworkTemplate()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var dataGrid = new DataGrid
+        {
+            ItemsSource = new[] { new { Name = "one" } },
+            AutoGenerateColumns = true
+        };
+        PrepareControl(dataGrid);
+        var part = FindNamedDescendant<FrameworkElement>(dataGrid, "DG_ScrollViewer");
+        part.Should().NotBeNull();
+        AttachFrameworkMismatch(part!);
+        var elementId = finder.GenerateElementId(part!);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingMismatches(elementId, includeFramework: true));
+        var mismatch = result.GetProperty("mismatches")[0];
+
+        mismatch.GetProperty("origin").GetString().Should().Be("FrameworkTemplate");
+        mismatch.GetProperty("elementName").GetString().Should().Be("DG_ScrollViewer");
+    }
+
+    [StaFact]
     public void GetBindingMismatches_ShouldKeepUserCodeMismatchWhenFrameworkFilteringIsEnabled()
     {
         var finder = new ElementFinder();
@@ -185,6 +227,59 @@ public sealed class BindingMismatchAnalyzerTests
             Source = new BindingMismatchSource { IsEnabled = true }
         });
         return border;
+    }
+
+    private static void AttachFrameworkMismatch(FrameworkElement element)
+    {
+        if (element is Border border)
+        {
+            border.SetBinding(Border.BackgroundProperty, new Binding(nameof(BindingMismatchSource.IsEnabled))
+            {
+                Source = new BindingMismatchSource { IsEnabled = true }
+            });
+            return;
+        }
+
+        if (element is Control control)
+        {
+            control.SetBinding(Control.BackgroundProperty, new Binding(nameof(BindingMismatchSource.IsEnabled))
+            {
+                Source = new BindingMismatchSource { IsEnabled = true }
+            });
+            return;
+        }
+
+        throw new NotSupportedException($"Unsupported framework part type: {element.GetType().FullName}");
+    }
+
+    private static T? FindNamedDescendant<T>(DependencyObject root, string name) where T : FrameworkElement
+    {
+        foreach (var descendant in DependencyObjectTraversal.EnumerateDescendantsAndSelf(root))
+        {
+            if (descendant is T match && string.Equals(match.Name, name, StringComparison.Ordinal))
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static void PrepareControl(Control control)
+    {
+        var host = new Window
+        {
+            Content = control,
+            Width = 640,
+            Height = 480,
+            WindowStyle = WindowStyle.None,
+            ShowInTaskbar = false
+        };
+        host.Show();
+        control.ApplyTemplate();
+        control.UpdateLayout();
+        host.Content = null;
+        host.Close();
     }
 
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject

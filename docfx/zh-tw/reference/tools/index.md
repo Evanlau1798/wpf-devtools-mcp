@@ -1,6 +1,6 @@
 # 工具參考總覽
 
-目前伺服器共提供 52 個工具，分成十個類別。
+目前伺服器共提供 58 個工具，分屬 11 個類別。
 
 ## 類別
 
@@ -14,10 +14,11 @@
 8. Layout
 9. MVVM
 10. Performance
+11. Scene diagnostics
 
 ## 建議使用順序
 
-大多數實際工作流程建議依照下列順序：
+多數實際工作流程可依下列順序進行：
 
 1. `get_processes`
 2. `connect`
@@ -33,22 +34,25 @@
 
 | 類別 | 建議起手工具 | 用途 |
 | --- | --- | --- |
-| Process management | `get_processes` | 找出可用目標、架構與連線限制 |
-| Tree and XAML | `find_elements` | 在展開完整 tree 前先做精準元素查找 |
-| Binding diagnostics | `get_binding_errors` | 優先找到最具行動性的 binding 問題 |
-| Dependency properties | `get_dp_value_source` | 釐清 precedence 與目前有效值來源 |
-| Style and template | `get_applied_styles` | 說明 implicit 或 inherited 的視覺行為 |
-| Routed events | `get_event_handlers` | 追查 event route 與 handler |
-| Interaction | `click_element` | 找到正確元素後觸發互動 |
-| Layout | `get_layout_info` | 檢查尺寸、位置與 layout 狀態 |
-| MVVM | `get_viewmodel` | 檢查 ViewModel 資料與 command |
-| Performance | `get_render_stats` | 作為效能診斷的起點 |
+| Process management | `get_processes` | 找出可連線目標、架構與權限限制 |
+| Tree and XAML | `find_elements` | 先做精準搜尋，再決定是否展開完整 tree |
+| Binding diagnostics | `get_binding_errors` | 快速定位最有價值的 binding 問題 |
+| Dependency properties | `get_dp_value_source` | 判斷 precedence 與有效值來源 |
+| Style and template | `get_applied_styles` | 解釋 implicit / inherited 樣式效果 |
+| Routed events | `get_event_handlers` | 檢查事件路徑與 handler 綁定 |
+| Interaction | `click_element` | 在確認目標後觸發互動行為 |
+| Layout | `get_layout_info` | 檢查大小、位置與 layout 狀態 |
+| MVVM | `get_viewmodel` | 檢視資料與命令狀態 |
+| Performance | `get_render_stats` | 啟動效能診斷 |
+| Scene diagnostics | `get_element_snapshot` | 用單次呼叫聚合常見診斷資訊 |
 
-最近值得優先熟悉的新增能力：
+近期新增且建議優先熟悉的能力：
 
-- `select_active_process` 與 `get_active_process`：在後續呼叫省略 `processId` 時，明確管理目前的目標程序
-- `get_focus_state` 與 `focus_element`：處理焦點敏感的鍵盤與多視窗流程
-- `capture_state_snapshot` 與 `restore_state_snapshot`：支援可回復的 mutation 驗證
-- `find_elements`：在展開完整 tree 前，先用 type/name/automationId/property value 做精準查找
+- `select_active_process` 與 `get_active_process`：在後續省略 `processId` 前先固定作用中的目標程序
+- `get_focus_state` 與 `focus_element`：處理焦點敏感與多視窗工作流程
+- `capture_state_snapshot` 與 `restore_state_snapshot`：在 mutation 前後保留可回復狀態
+- `find_elements`：在展開完整 tree 前先做精準搜尋
+- `get_state_diff`、`get_element_snapshot`、`diagnose_visibility`、`get_interaction_readiness`：以場景級診斷取代大量截圖與多次交叉查詢
+- `get_ui_summary` 與 `get_form_summary`：在深度檢查前，先取得語意化的子樹與表單摘要
 
-請搭配各分類頁面閱讀重要語意、使用順序與常見陷阱。
+其餘細節與語意差異請參閱各分類頁面。

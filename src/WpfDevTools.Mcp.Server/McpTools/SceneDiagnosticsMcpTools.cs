@@ -181,4 +181,87 @@ public static class SceneDiagnosticsMcpTools
             args,
             cancellationToken);
     }
+
+    [McpServerTool(Name = "get_ui_summary", Title = "Summarize WPF UI Semantics", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to get a token-efficient semantic summary of a WPF window or subtree without relying on screenshots.\n\n" +
+        SceneMetadata +
+        "[Scene] Traverse a WPF runtime subtree, suppress layout-only wrappers, and return a compact semantic overview of user-facing controls.\n\n" +
+        "USE WHEN: You need fast screen context for an unfamiliar area before drilling into a specific element.\n" +
+        "DO NOT USE: As a replacement for full tree inspection when exact structure matters.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  rootElementId: string,\n" +
+        "  rootElementType: string,\n" +
+        "  rootElementName: string|null,\n" +
+        "  depth: number,\n" +
+        "  semanticNodeCount: number,\n" +
+        "  summaryText: string,\n" +
+        "  nodes: []\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree, or omit it to summarize the root window\n" +
+        "- \"not connected\" -> reconnect before requesting a semantic UI summary\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345 }\n" +
+        "- { elementId: \"BasicControlsStackPanel_4\", depth: 4 }")]
+    public static Task<CallToolResult> GetUiSummary(
+        SessionManager sessionManager,
+        [Description("Optional runtime element ID to scope the semantic summary. Omit to summarize the root window.")] string? elementId = null,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional maximum visual depth to summarize. Omit to use the default semantic summary depth.")] int? depth = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId),
+            ("depth", depth));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<GetUiSummaryTool>(
+                nameof(GetUiSummaryTool),
+                () => new GetUiSummaryTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
+
+    [McpServerTool(Name = "get_form_summary", Title = "Summarize WPF Form State", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to summarize the current state of a WPF form subtree in one call.\n\n" +
+        SceneMetadata +
+        "[Scene] Aggregate common input controls, nearby labels, current values, validation errors, command readiness, and overall form submittability.\n\n" +
+        "USE WHEN: You want a single triage call for form-style layouts before validating or clicking Save/Submit.\n" +
+        "DO NOT USE: For arbitrary non-form regions with no input or action controls.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  formScope: string,\n" +
+        "  inputs: [],\n" +
+        "  commands: [],\n" +
+        "  summary: { totalInputs, emptyInputs, errorCount, isSubmittable }\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree, or omit it to summarize the root window form state\n" +
+        "- \"not connected\" -> reconnect before requesting a form summary\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345, elementId: \"BasicControlsStackPanel_4\" }\n" +
+        "- { elementId: \"ProfileForm_2\" }")]
+    public static Task<CallToolResult> GetFormSummary(
+        SessionManager sessionManager,
+        [Description("Optional runtime element ID to scope the form summary. Omit to use the root window.")] string? elementId = null,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<GetFormSummaryTool>(
+                nameof(GetFormSummaryTool),
+                () => new GetFormSummaryTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
 }

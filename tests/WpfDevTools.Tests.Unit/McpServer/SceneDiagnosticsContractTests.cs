@@ -83,4 +83,45 @@ public sealed class SceneDiagnosticsContractTests
         interactionType.HasDefaultValue.Should().BeTrue();
         interactionType.DefaultValue.Should().Be("Click");
     }
+
+    [Fact]
+    public void GetUiSummary_ShouldExposeOptionalElementIdAndDepth()
+    {
+        var method = typeof(SceneDiagnosticsMcpTools).GetMethod(nameof(SceneDiagnosticsMcpTools.GetUiSummary));
+
+        method.Should().NotBeNull();
+
+        var elementId = method!.GetParameters().Single(parameter => parameter.Name == "elementId");
+        elementId.ParameterType.Should().Be(typeof(string));
+        elementId.HasDefaultValue.Should().BeTrue();
+        elementId.DefaultValue.Should().BeNull();
+
+        var processId = method.GetParameters().Single(parameter => parameter.Name == "processId");
+        processId.ParameterType.Should().Be(typeof(int?));
+        processId.HasDefaultValue.Should().BeTrue();
+        processId.DefaultValue.Should().BeNull();
+
+        var depth = method.GetParameters().Single(parameter => parameter.Name == "depth");
+        depth.ParameterType.Should().Be(typeof(int?));
+        depth.HasDefaultValue.Should().BeTrue();
+        depth.DefaultValue.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetFormSummary_ShouldExposeOptionalElementIdAndProcessId()
+    {
+        var method = typeof(SceneDiagnosticsMcpTools).GetMethod(nameof(SceneDiagnosticsMcpTools.GetFormSummary));
+
+        method.Should().NotBeNull();
+
+        var elementId = method!.GetParameters().Single(parameter => parameter.Name == "elementId");
+        elementId.ParameterType.Should().Be(typeof(string));
+        elementId.HasDefaultValue.Should().BeTrue();
+        elementId.DefaultValue.Should().BeNull();
+
+        var processId = method.GetParameters().Single(parameter => parameter.Name == "processId");
+        processId.ParameterType.Should().Be(typeof(int?));
+        processId.HasDefaultValue.Should().BeTrue();
+        processId.DefaultValue.Should().BeNull();
+    }
 }

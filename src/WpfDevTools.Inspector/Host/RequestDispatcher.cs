@@ -43,6 +43,8 @@ public sealed class RequestDispatcher : IDisposable
         var styleAnalyzer = new StyleAnalyzer(elementFinder);
         var eventAnalyzer = new EventAnalyzer(elementFinder);
         var performanceAnalyzer = new PerformanceAnalyzer(elementFinder);
+        var uiSummaryAnalyzer = new UiSummaryAnalyzer(elementFinder);
+        var formSummaryAnalyzer = new FormSummaryAnalyzer(elementFinder);
 
         // Initialize handlers
         var handlers = new IRequestHandler[]
@@ -56,7 +58,8 @@ public sealed class RequestDispatcher : IDisposable
             new InteractionHandlers(interactionAnalyzer),
             new StyleHandlers(styleAnalyzer),
             new EventHandlers(eventAnalyzer),
-            new PerformanceHandlers(performanceAnalyzer)
+            new PerformanceHandlers(performanceAnalyzer),
+            new SceneSummaryHandlers(uiSummaryAnalyzer, formSummaryAnalyzer)
         };
 
         // Build handler map

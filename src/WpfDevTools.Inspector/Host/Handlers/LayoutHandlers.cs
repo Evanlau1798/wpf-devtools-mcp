@@ -29,6 +29,7 @@ public class LayoutHandlers : IRequestHandler
         {
             "get_layout_info",
             "get_clipping_info",
+            "diagnose_visibility",
             "highlight_element",
             "invalidate_layout"
         };
@@ -48,6 +49,7 @@ public class LayoutHandlers : IRequestHandler
         {
             "get_layout_info" => await HandleGetLayoutInfoAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_clipping_info" => await HandleGetClippingInfoAsync(@params, cancellationToken).ConfigureAwait(false),
+            "diagnose_visibility" => await HandleDiagnoseVisibilityAsync(@params, cancellationToken).ConfigureAwait(false),
             "highlight_element" => await HandleHighlightElementAsync(@params, cancellationToken).ConfigureAwait(false),
             "invalidate_layout" => await HandleInvalidateLayoutAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
@@ -68,6 +70,14 @@ public class LayoutHandlers : IRequestHandler
 
         return await Task.Run(() =>
             _layoutAnalyzer.GetClippingInfo(elementId), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<object> HandleDiagnoseVisibilityAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+
+        return await Task.Run(() =>
+            _layoutAnalyzer.DiagnoseVisibility(elementId), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleHighlightElementAsync(JsonElement? @params, CancellationToken cancellationToken)

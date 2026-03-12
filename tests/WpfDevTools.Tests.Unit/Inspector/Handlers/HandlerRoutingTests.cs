@@ -230,9 +230,10 @@ public class HandlerRoutingTests
         var handler = new LayoutHandlers(new LayoutAnalyzer(new ElementFinder()));
         var methods = handler.GetSupportedMethods().ToList();
 
-        methods.Should().HaveCount(4);
+        methods.Should().HaveCount(5);
         methods.Should().Contain("get_layout_info");
         methods.Should().Contain("get_clipping_info");
+        methods.Should().Contain("diagnose_visibility");
         methods.Should().Contain("highlight_element");
         methods.Should().Contain("invalidate_layout");
     }
@@ -250,6 +251,14 @@ public class HandlerRoutingTests
     {
         var handler = new LayoutHandlers(new LayoutAnalyzer(new ElementFinder()));
         var result = await handler.HandleAsync("get_clipping_info", null, CancellationToken.None);
+        result.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task LayoutHandlers_HandleAsync_DiagnoseVisibility_ShouldReturnResult()
+    {
+        var handler = new LayoutHandlers(new LayoutAnalyzer(new ElementFinder()));
+        var result = await handler.HandleAsync("diagnose_visibility", null, CancellationToken.None);
         result.Should().NotBeNull();
     }
 

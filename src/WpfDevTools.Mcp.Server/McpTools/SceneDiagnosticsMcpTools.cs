@@ -99,4 +99,44 @@ public static class SceneDiagnosticsMcpTools
             args,
             cancellationToken);
     }
+
+    [McpServerTool(Name = "diagnose_visibility", Title = "Diagnose WPF Element Visibility", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to explain why a WPF runtime element is or is not user-visible without relying on screenshots.\n\n" +
+        SceneMetadata +
+        "[Scene] Diagnose visibility blockers such as element or ancestor Visibility, zero Opacity, zero layout size, and clipping.\n\n" +
+        "USE WHEN: An element exists in the tree but does not appear on screen, or when you want a structured replacement for screenshot-based visibility debugging.\n" +
+        "DO NOT USE: As a generic tree browser; use get_visual_tree/get_logical_tree for structure exploration.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  elementId: string,\n" +
+        "  isUserVisible: boolean,\n" +
+        "  checks: [],\n" +
+        "  rootCause: string|null,\n" +
+        "  suggestedFix: string|null\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree\n" +
+        "- \"not connected\" -> reconnect before diagnosing visibility\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345, elementId: \"Button_12\" }\n" +
+        "- { elementId: \"HiddenByAncestorText_4\" }")]
+    public static Task<CallToolResult> DiagnoseVisibility(
+        SessionManager sessionManager,
+        [Description("Runtime element ID to inspect.")] string elementId,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<DiagnoseVisibilityTool>(
+                nameof(DiagnoseVisibilityTool),
+                () => new DiagnoseVisibilityTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
 }

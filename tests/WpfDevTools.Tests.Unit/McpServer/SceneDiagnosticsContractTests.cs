@@ -44,4 +44,21 @@ public sealed class SceneDiagnosticsContractTests
         processId.HasDefaultValue.Should().BeTrue();
         processId.DefaultValue.Should().BeNull();
     }
+
+    [Fact]
+    public void DiagnoseVisibility_ShouldExposeRequiredElementIdAndOptionalProcessId()
+    {
+        var method = typeof(SceneDiagnosticsMcpTools).GetMethod(nameof(SceneDiagnosticsMcpTools.DiagnoseVisibility));
+
+        method.Should().NotBeNull();
+
+        var elementId = method!.GetParameters().Single(parameter => parameter.Name == "elementId");
+        elementId.ParameterType.Should().Be(typeof(string));
+        elementId.HasDefaultValue.Should().BeFalse();
+
+        var processId = method.GetParameters().Single(parameter => parameter.Name == "processId");
+        processId.ParameterType.Should().Be(typeof(int?));
+        processId.HasDefaultValue.Should().BeTrue();
+        processId.DefaultValue.Should().BeNull();
+    }
 }

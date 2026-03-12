@@ -5,12 +5,13 @@
 ## 建議工作流程
 
 1. 先探索工具與 schema。
-2. 呼叫 `get_processes`。
-3. 呼叫 `connect(processId)`。
-4. 呼叫 `ping`。
-5. 先瀏覽 tree，取得穩定的 `elementId`。
-6. 執行診斷工具。
-7. 只有在必要時，才進行受控互動或 mutation。
+2. 先呼叫 `connect()`，若目前只有一個可見的 WPF app，讓 server 自動完成連線。
+3. 若 auto-discovery 回傳多個候選，再呼叫 `get_processes(windowFilter)`，之後用 `connect(processId)` 明確指定目標。
+4. 先用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 建立場景理解，再決定是否需要完整 tree。
+5. 只有在需要明確健康檢查或 reconnect 驗證時，才呼叫 `ping`。
+6. 當 scene-level 摘要仍不足時，再瀏覽 tree 取得穩定的 `elementId`。
+7. 執行聚焦式診斷工具。
+8. 只有在必要時，才進行受控互動或 mutation。
 
 ## 最佳實務
 
@@ -76,30 +77,45 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 - prompts，例如 `/mcp__wpf-devtools__debug_binding_issue`
 - resources，例如 `@wpf-devtools:capabilities`
 
+### 6. 先用 scene-level 聚合，再考慮 screenshot 或大型 tree
+
+目前最有效率的 agent 流程，通常先從這些工具開始：
+
+- `get_ui_summary`：快速取得語義化畫面上下文
+- `get_element_snapshot`：單一元素的聚合診斷
+- `get_form_summary`：表單輸入與送出狀態總覽
+- `get_state_diff`：互動或 mutation 後的 before/after 差異
+
+只有在需要精確結構時，才改用 tree 類工具，而不是一開始就展開整棵 visual tree。
+
 ## 容易成功的提示模式
 
 ### 先看 tree 的提示詞
 
 ```text
 連線到 WPF 測試應用程式，先檢查 visual tree 找出主要表單控制項，再在不做任何修改的前提下摘要頂層結構。
+先用 `connect()` 連線到 WPF 測試應用程式，呼叫 `get_ui_summary(depthMode: "semantic")` 建立語義上下文，只有在摘要不足時才展開 visual tree。
 ```
 
 ### Binding triage 提示詞
 
 ```text
 連線到目標 WPF 應用程式，檢查 binding errors，說明哪些元素失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
+先用 `connect()` 連線到目標 WPF 應用程式，檢查 binding errors，對失敗元素呼叫 `get_element_snapshot`，說明哪些 bindings 失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
 ```
 
 ### 安全互動提示詞
 
 ```text
 在目前 visual tree 中找到 Save 按鈕，先確認其 binding 與 command metadata，再點擊它並回報發生了什麼變化。
+先用 `connect()` 連線，對目標表單呼叫 `get_form_summary` 或 `get_interaction_readiness`，再找到 Save 按鈕、確認 command metadata、點擊並回報 `get_state_diff` 結果。
 ```
 
 ### 可回復 mutation 提示詞
 
 ```text
 先建立 state snapshot，找到目標控制項後只做一次 UI mutation，驗證結果，最後在結束前還原 snapshot。
+先用 `connect()` 連線並建立 state snapshot，找到目標控制項後只做一次 UI mutation，使用 `get_state_diff` 驗證結果，最後在結束前還原 snapshot。
 ```
 
 ## 常見反模式
@@ -108,19 +124,18 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 - 還沒確認目標元素就先呼叫 mutation 工具。
 - 對可能需要回復的 mutation 流程略過 `capture_state_snapshot`。
 - 把 `fire_routed_event` 當成等價於真實使用者輸入。
-- 未經 `get_processes` 驗證就假設目標一定是 x64。
+- 在 auto-discovery 有歧義時，未經 `get_processes(windowFilter)` 驗證就假設目標一定是 x64。
 - `connect` 失敗時忽略架構與 bootstrapper 需求。
 
 ## 自動化的黃金順序
 
 若要做端到端自動化驗證，建議盡量遵守以下順序：
 
-1. `get_processes`
-2. `connect`
-3. `ping`
-4. `get_visual_tree`
-5. 一個或多個診斷工具
-6. 一次只做一個 mutation 或 interaction
-7. 每次 mutation 後都立刻做一次 verification
+1. `connect()`
+2. 若需要，再呼叫 `get_processes(windowFilter)` 並使用 `connect(processId)`
+3. `get_ui_summary` 或 `get_element_snapshot`
+4. 一個或多個聚焦式診斷工具
+5. 一次只做一個 mutation 或 interaction
+6. 每次 mutation 後都立刻呼叫 `get_state_diff` 或其他聚焦 verification tool
 
 這能讓失敗點更容易定位，也讓 agent trace 更值得信任。

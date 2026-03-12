@@ -13,9 +13,9 @@ public static class WorkflowPrompts
         Goal: connect to a WPF process and discover all open windows.
 
         Recommended workflow:
-        1. Call get_processes to list running WPF applications.
-        2. Choose the target processId and call connect(processId).
-        3. Call ping(processId) to confirm the Inspector session is healthy.
+        1. Call connect() first; let the server auto-discover the target when there is only one visible WPF app.
+        2. If connect() returns multiple candidates, call get_processes(windowFilter='visible' or 'all'), choose the target processId, and retry connect(processId).
+        3. Call ping(processId) only if you need an explicit Inspector health check.
         4. Call get_windows(processId) to enumerate all windows.
         5. If a secondary window matters, pass its elementId into get_visual_tree or get_logical_tree.
 
@@ -29,13 +29,13 @@ public static class WorkflowPrompts
         Goal: diagnose why WPF data is blank, stale, or incorrect.
 
         Recommended workflow:
-        1. connect(processId)
-        2. get_binding_errors(processId)
-        3. get_visual_tree(processId, depth=3) to locate the affected elementId
-        4. get_bindings(processId, elementId)
-        5. get_binding_value_chain(processId, elementId, propertyName)
-        6. get_datacontext_chain(processId, elementId)
-        7. get_validation_errors(processId, elementId) when validation may be involved
+        1. connect()
+        2. get_binding_errors()
+        3. If the failing element is known, call get_element_snapshot(elementId) for one-call local context
+        4. get_bindings(elementId)
+        5. get_binding_value_chain(elementId, propertyName)
+        6. get_datacontext_chain(elementId)
+        7. get_validation_errors(elementId) when validation may be involved
 
         Prefer these tools as a set. They describe different layers of the same binding story.
         """;
@@ -47,14 +47,15 @@ public static class WorkflowPrompts
         Goal: understand why a button, menu item, or clickable control does not respond.
 
         Recommended workflow:
-        1. capture_state_snapshot(processId, elementId, includeFocus=true) if you need a clean rollback point
-        2. connect(processId)
-        3. get_dp_value_source(processId, elementId, propertyName='IsEnabled')
-        4. get_commands(processId, elementId)
-        5. get_event_handlers(processId, elementId, eventName='Click')
-        6. trace_routed_events(processId, elementId, eventName='Click', mode='start')
-        7. click_element(processId, elementId)
-        8. trace_routed_events(processId, mode='get')
+        1. connect()
+        2. capture_state_snapshot(elementId, includeFocus=true) if you need a clean rollback point
+        3. get_interaction_readiness(elementId, interactionType='Click')
+        4. get_commands(elementId)
+        5. get_event_handlers(elementId, eventName='Click')
+        6. trace_routed_events(elementId, eventName='Click', mode='start')
+        7. click_element(elementId)
+        8. trace_routed_events(mode='get')
+        9. get_state_diff(snapshotId, trigger='click_element(...)') when you need to summarize what changed
 
         If the control is disabled, diagnose CanExecute or style/trigger state before forcing interaction.
         """;

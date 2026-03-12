@@ -17,12 +17,14 @@ public static class ServerInstructions
         Use this server for runtime desktop UI diagnostics, WPF element lookup, exact-match element search, XAML structure inspection, multi-window investigation, and safe temporary automation against a connected WPF process.
 
         === MANDATORY WORKFLOW ===
-        1. get_processes -> discover running WPF apps and their processIds
-        2. connect(processId) -> inject Inspector DLL; MUST succeed before any other tool
-        3. Use inspection/interaction tools with the same processId
+        1. connect() -> try auto-discovery against visible WPF apps and inject Inspector DLL
+        2. If connect() reports multiple candidates, call get_processes(windowFilter) and retry connect(processId)
+        3. Build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees
+        4. Use focused inspection/interaction tools against the connected process
 
         === PARAMETER CONVENTIONS ===
-        - processId: integer, from get_processes, required by all tools except get_processes
+        - processId: integer, from get_processes, optional after connect()/select_active_process() establishes the active process
+        - windowFilter: string, one of 'visible' (default), 'all', or 'foreground' for process discovery and auto-discovery narrowing
         - nameFilter: string, optional on get_processes, case-insensitive substring match on process name
         - elementId: string, from get_visual_tree/get_logical_tree, optional (omit = root window)
         - depth: integer (1-100), controls tree traversal depth, default=10
@@ -71,6 +73,7 @@ public static class ServerInstructions
         - Runtime metadata is returned as structured JSON; use structured fields over text scraping when possible
 
         === TOOL SELECTION GUIDE ===
+        - Need quick scene context first? -> get_ui_summary (semantic default), get_element_snapshot, or get_form_summary
         - Need exact element lookup first? -> find_elements, then get_visual_tree/get_logical_tree for local structure
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
         - UI not responding to changes? -> get_dp_value_source, get_viewmodel
@@ -91,8 +94,10 @@ public static class ServerInstructions
         - Use nameFilter on get_processes to reduce response size
 
         === AI AGENT BEST PRACTICES ===
-        - Always call get_processes first to discover available WPF apps
+        - Start with connect() unless you already know you need a specific processId or non-default windowFilter
+        - When connect() reports multiple candidates, use get_processes(windowFilter) to disambiguate and retry
         - Store processId in conversation context after successful connect()
+        - Prefer get_ui_summary/get_element_snapshot/get_form_summary before tree-heavy inspection
         - Use depth=2-3 for initial tree exploration; increase only if needed
         - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
         - Prefer slash commands from MCP prompts when you want a predefined workflow entry point
@@ -116,28 +121,28 @@ public static class ServerInstructions
         === COMMON WORKFLOWS ===
 
         Workflow 1 - Debug Binding Error:
-        get_processes -> connect -> get_binding_errors -> get_visual_tree(depth=3) -> get_datacontext_chain(elementId) -> get_bindings(elementId)
+        connect() -> get_binding_errors -> get_element_snapshot(elementId) -> get_datacontext_chain(elementId) -> get_bindings(elementId)
 
         Workflow 2 - Test Button Click:
-        get_processes -> connect -> get_visual_tree(depth=2) -> get_dp_value_source(elementId, 'IsEnabled') -> click_element(elementId)
+        connect() -> get_form_summary or get_ui_summary -> get_interaction_readiness(elementId, 'Click') -> click_element(elementId) -> get_state_diff(snapshotId)
 
         Workflow 3 - Inspect ViewModel:
-        get_processes -> connect -> get_viewmodel -> get_commands -> modify_viewmodel(propertyName, value)
+        connect() -> get_element_snapshot(elementId) -> get_viewmodel -> get_commands -> modify_viewmodel(propertyName, value)
 
         Workflow 4 - Performance Profiling:
         get_processes -> connect -> get_visual_count -> get_render_stats -> find_binding_leaks(threshold=50) -> measure_element_render_time(elementId)
 
         Workflow 5 - Multi-Window Inspection:
-        get_processes -> connect -> get_windows -> get_visual_tree(elementId=<windowElementId>, depth=3) -> inspect subtree
+        connect() -> get_windows -> get_ui_summary(elementId=<windowElementId>, depthMode='semantic') -> get_visual_tree(elementId=<windowElementId>, depth=3) -> inspect subtree
 
         Workflow 6 - Debug Event Handling:
         get_processes -> connect -> get_event_handlers(elementId, eventName) -> trace_routed_events(mode="start", eventName) -> click_element(elementId) -> trace_routed_events(mode="get")
 
         Workflow 7 - Debug Validation Errors:
-        get_processes -> connect -> get_validation_errors() [root-scope aggregates all descendants] -> get_validation_errors(elementId) [narrow to specific element] -> get_bindings(elementId)
+        connect() -> get_form_summary -> get_validation_errors() [root-scope aggregates all descendants] -> get_validation_errors(elementId) [narrow to specific element] -> get_bindings(elementId)
 
         Workflow 8 - Safe Mutation Session:
-        get_processes -> connect -> capture_state_snapshot(processId, elementId, propertyNames/viewModelPropertyNames, includeFocus=true) -> perform runtime mutations -> restore_state_snapshot(processId, snapshotId)
+        connect() -> capture_state_snapshot(processId, elementId, propertyNames/viewModelPropertyNames, includeFocus=true) -> perform runtime mutations -> get_state_diff(snapshotId, trigger='...') -> restore_state_snapshot(processId, snapshotId)
 
         === NORMALIZATION & CONTRACT NOTES ===
         Some tools apply automatic normalization. Responses include metadata so you can see what was normalized:

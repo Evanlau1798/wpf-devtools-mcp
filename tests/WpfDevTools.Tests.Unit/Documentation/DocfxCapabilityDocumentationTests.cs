@@ -107,6 +107,21 @@ public sealed class DocfxCapabilityDocumentationTests
         content.Should().Contain(secondKeyword);
     }
 
+    [Theory]
+    [InlineData("docfx/guides/ai-agent-guide.md")]
+    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md")]
+    public void AgentGuides_ShouldRecommendConnectAutoDiscoveryAndSceneDiagnostics(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("connect()");
+        content.Should().Contain("windowFilter");
+        content.Should().Contain("get_ui_summary");
+        content.Should().Contain("get_element_snapshot");
+        content.Should().Contain("get_form_summary");
+        content.Should().Contain("get_state_diff");
+    }
+
     private static int CountOccurrences(string content, string value)
     {
         var count = 0;

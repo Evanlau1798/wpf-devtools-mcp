@@ -54,3 +54,7 @@ Use this structure for each local feedback report:
 4. Friction observed
 5. Suggested improvements
 6. Priority assessment
+
+## Template
+
+Start from [template.md](template.md).

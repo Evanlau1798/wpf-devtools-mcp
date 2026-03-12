@@ -46,8 +46,10 @@ todo/
 release/s
 docfx/agent-feedback/*.md
 !docfx/agent-feedback/index.md
+!docfx/agent-feedback/template.md
 docfx/zh-tw/agent-feedback/*.md
 !docfx/zh-tw/agent-feedback/index.md
+!docfx/zh-tw/agent-feedback/template.md
 
 # Worktrees
 .worktrees/

@@ -117,6 +117,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                 {
                     propertyName = snapshot.PropertyName,
                     reason = snapshot.SkipReason ?? $"Property '{snapshot.PropertyName}' is not writable.",
+                    restoreDisposition = ClassifyRestoreDisposition(snapshot),
                     verified = verification.verified,
                     expectedValue = snapshot.Value,
                     currentValue = verification.currentValue
@@ -213,4 +214,14 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         element.TryGetProperty(propertyName, out var property) && property.ValueKind != JsonValueKind.Null
             ? property.ToString()
             : null;
+
+    private static string ClassifyRestoreDisposition(StoredViewModelPropertySnapshot snapshot)
+    {
+        if (snapshot.SkipReason?.IndexOf("complex reference", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return "SkippedComplexReference";
+        }
+
+        return "SkippedReadOnly";
+    }
 }

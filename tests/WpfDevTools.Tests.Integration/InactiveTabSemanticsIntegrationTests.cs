@@ -65,6 +65,28 @@ public sealed class InactiveTabSemanticsIntegrationTests
         result.GetProperty("hint").GetString().Should().Contain("TabItem");
     }
 
+    [Fact]
+    public void GetLayoutInfo_OnInactiveTabContent_ShouldExplainNotRenderedReason()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var finder = new ElementFinder();
+            var analyzer = new LayoutAnalyzer(finder);
+            var tabControl = CreateTabbedWindowContent(out _, out var inactiveInput);
+
+            Application.Current.MainWindow.Content = tabControl;
+            Application.Current.MainWindow.Show();
+            Application.Current.MainWindow.UpdateLayout();
+
+            var elementId = finder.GenerateElementId(inactiveInput);
+            return JsonSerializer.SerializeToElement(analyzer.GetLayoutInfo(elementId));
+        });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("layoutState").GetString().Should().Be("NotRendered");
+        result.GetProperty("notRenderedReason").GetString().Should().Be("ElementInInactiveTab");
+    }
+
     private static TabControl CreateTabbedWindowContent(out Button activeButton, out TextBox inactiveInput)
     {
         activeButton = new Button

@@ -236,6 +236,51 @@ public sealed class StateSnapshotToolTests
         json.GetProperty("error").GetString().Should().Contain("get_dp_value_source");
     }
 
+    [Fact]
+    public async Task CaptureStateSnapshot_ShouldMarkComplexNullViewModelPropertyAsNonRestorable()
+    {
+        const int processId = 51006;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            new[]
+            {
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    typeName = "SampleViewModel",
+                    properties = new[]
+                    {
+                        new { name = "SelectedTask", type = "TaskItem", value = (string?)null, canWrite = true }
+                    }
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                })
+            });
+
+        var captureTool = new CaptureStateSnapshotTool(connected.SessionManager);
+        var captureResult = JsonSerializer.SerializeToElement(await captureTool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            viewModelPropertyNames = new[] { "SelectedTask" }
+        }), CancellationToken.None));
+
+        var snapshotId = captureResult.GetProperty("snapshotId").GetString();
+        var sessionManager = connected.SessionManager;
+        sessionManager.TryGetStateSnapshot(processId, snapshotId!, out var snapshot).Should().BeTrue();
+        snapshot!.ViewModelProperties[0].CanRestore.Should().BeFalse();
+        snapshot.ViewModelProperties[0].SkipReason.Should().Contain("complex reference");
+    }
+
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(int processId, IReadOnlyList<string> resultJsonSequence)
     {
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";

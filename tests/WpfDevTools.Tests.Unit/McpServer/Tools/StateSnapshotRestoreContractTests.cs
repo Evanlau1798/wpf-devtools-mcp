@@ -193,6 +193,62 @@ public sealed class StateSnapshotRestoreContractTests
         connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "get_viewmodel");
     }
 
+    [Fact]
+    public async Task RestoreStateSnapshot_ShouldClassifyComplexNullReferenceAsSkippedCapabilityBoundary()
+    {
+        const int processId = 51013;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "get_viewmodel" => (object)new
+                {
+                    success = true,
+                    typeName = "SampleViewModel",
+                    properties = new[]
+                    {
+                        new { name = "SelectedTask", type = "TaskItem", value = (string?)null, canWrite = true }
+                    }
+                },
+                "get_binding_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
+                "get_validation_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+
+        var captureTool = new CaptureStateSnapshotTool(connected.SessionManager);
+        var captureResult = JsonSerializer.SerializeToElement(await captureTool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            viewModelPropertyNames = new[] { "SelectedTask" }
+        }), CancellationToken.None));
+
+        var snapshotId = captureResult.GetProperty("snapshotId").GetString();
+        var restoreTool = new RestoreStateSnapshotTool(connected.SessionManager);
+        var restoreResult = JsonSerializer.SerializeToElement(await restoreTool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            snapshotId
+        }), CancellationToken.None));
+
+        restoreResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        restoreResult.GetProperty("restoredViewModelPropertyCount").GetInt32().Should().Be(0);
+        restoreResult.GetProperty("skippedViewModelPropertyCount").GetInt32().Should().Be(1);
+        restoreResult.GetProperty("warnings").GetArrayLength().Should().Be(0);
+        restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("restoreDisposition").GetString().Should().Be("SkippedComplexReference");
+        restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("reason").GetString().Should().Contain("complex reference");
+        connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "get_viewmodel");
+    }
+
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(
         int processId,
         Func<InspectorRequest, object> responder)

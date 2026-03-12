@@ -13,6 +13,7 @@ public sealed class BindingMismatchToolContractTests
         AssertOptionalParameter(nameof(BindingMcpTools.GetBindingMismatches), "processId", typeof(int?), null);
         AssertOptionalParameter(nameof(BindingMcpTools.GetBindingMismatches), "elementId", typeof(string), null);
         AssertOptionalParameter(nameof(BindingMcpTools.GetBindingMismatches), "recursive", typeof(bool), false);
+        AssertOptionalParameter(nameof(BindingMcpTools.GetBindingMismatches), "includeFramework", typeof(bool), false);
     }
 
     private static void AssertOptionalParameter(

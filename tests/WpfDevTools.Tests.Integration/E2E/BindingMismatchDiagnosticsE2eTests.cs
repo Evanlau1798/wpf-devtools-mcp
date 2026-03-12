@@ -35,4 +35,30 @@ public sealed class BindingMismatchDiagnosticsE2eTests
                 item.GetProperty("elementName").GetString() == "BrushMismatchButton" &&
                 item.GetProperty("diagnosis").GetString() == "TypeMismatch");
     }
+
+    [Fact]
+    public async Task GetBindingMismatches_ShouldExcludeFrameworkTemplateNoiseByDefault()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var defaultResult = await _fixture.Client.CallToolAsync(
+            "get_binding_mismatches",
+            new { processId = _fixture.TestAppProcessId, recursive = true });
+
+        var includeFrameworkResult = await _fixture.Client.CallToolAsync(
+            "get_binding_mismatches",
+            new { processId = _fixture.TestAppProcessId, recursive = true, includeFramework = true });
+
+        _output.WriteLine(E2eTestHelpers.Truncate(defaultResult.GetRawText(), 800));
+        _output.WriteLine(E2eTestHelpers.Truncate(includeFrameworkResult.GetRawText(), 800));
+
+        var defaultCount = defaultResult.GetProperty("mismatchCount").GetInt32();
+        var includeFrameworkCount = includeFrameworkResult.GetProperty("mismatchCount").GetInt32();
+        var defaultOrigins = defaultResult.GetProperty("mismatches").EnumerateArray()
+            .Select(item => item.GetProperty("origin").GetString())
+            .ToArray();
+
+        includeFrameworkCount.Should().BeGreaterThanOrEqualTo(defaultCount);
+        defaultOrigins.Should().NotContain("FrameworkTemplate");
+    }
 }

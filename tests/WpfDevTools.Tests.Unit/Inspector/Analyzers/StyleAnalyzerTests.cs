@@ -56,6 +56,25 @@ public class StyleAnalyzerTests
     }
 
     [StaFact]
+    public void GetTriggers_WithControlTemplateTriggers_ShouldReturnTemplateTriggerInfo()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new StyleAnalyzer(finder);
+        var button = new Button
+        {
+            Template = BuildTemplateWithTrigger()
+        };
+        button.ApplyTemplate();
+        var elementId = finder.GenerateElementId(button);
+
+        var json = JsonSerializer.SerializeToElement(analyzer.GetTriggers(elementId));
+
+        json.GetProperty("triggerCount").GetInt32().Should().Be(1);
+        json.GetProperty("triggers")[0].GetProperty("source").GetString().Should().Be("ControlTemplate");
+        json.GetProperty("triggers")[0].GetProperty("triggerType").GetString().Should().Be("Property");
+    }
+
+    [StaFact]
     public void GetTemplateTree_WithControl_ShouldReturnTemplateInfo()
     {
         var finder = new ElementFinder();
@@ -135,5 +154,22 @@ public class StyleAnalyzerTests
 
         result.Should().NotBeNull();
         button.Width.Should().Be(200.0);
+    }
+
+    private static ControlTemplate BuildTemplateWithTrigger()
+    {
+        var template = new ControlTemplate(typeof(Button));
+        var borderFactory = new FrameworkElementFactory(typeof(Border));
+        template.VisualTree = borderFactory;
+        template.Triggers.Add(new Trigger
+        {
+            Property = UIElement.IsMouseOverProperty,
+            Value = true,
+            Setters =
+            {
+                new Setter(UIElement.OpacityProperty, 0.8)
+            }
+        });
+        return template;
     }
 }

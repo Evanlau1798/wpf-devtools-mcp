@@ -151,7 +151,15 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             {
                 foreach (var trigger in fe.Style.Triggers)
                 {
-                    triggers.Add(CreateTriggerInfo(trigger));
+                    triggers.Add(CreateTriggerInfo(trigger, "Style"));
+                }
+            }
+
+            if (fe is Control control && control.Template != null)
+            {
+                foreach (var trigger in control.Template.Triggers)
+                {
+                    triggers.Add(CreateTriggerInfo(trigger, "ControlTemplate"));
                 }
             }
 
@@ -165,12 +173,13 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    private static object CreateTriggerInfo(TriggerBase trigger)
+    private static object CreateTriggerInfo(TriggerBase trigger, string source)
     {
         return trigger switch
         {
             Trigger propertyTrigger => new
             {
+                source,
                 type = nameof(Trigger),
                 triggerType = "Property",
                 conditions = new[]
@@ -185,6 +194,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             },
             DataTrigger dataTrigger => new
             {
+                source,
                 type = nameof(DataTrigger),
                 triggerType = "Data",
                 conditions = new[]
@@ -199,6 +209,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             },
             MultiTrigger multiTrigger => new
             {
+                source,
                 type = nameof(MultiTrigger),
                 triggerType = "MultiTrigger",
                 conditions = multiTrigger.Conditions
@@ -213,6 +224,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             },
             MultiDataTrigger multiDataTrigger => new
             {
+                source,
                 type = nameof(MultiDataTrigger),
                 triggerType = "MultiTrigger",
                 conditions = multiDataTrigger.Conditions
@@ -227,6 +239,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             },
             EventTrigger eventTrigger => new
             {
+                source,
                 type = nameof(EventTrigger),
                 triggerType = "Event",
                 conditions = new[]
@@ -241,6 +254,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
             },
             _ => new
             {
+                source,
                 type = trigger.GetType().Name,
                 triggerType = trigger.GetType().Name,
                 conditions = Array.Empty<object>(),

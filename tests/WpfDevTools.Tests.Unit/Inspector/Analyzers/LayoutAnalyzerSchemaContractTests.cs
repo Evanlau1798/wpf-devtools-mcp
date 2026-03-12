@@ -57,4 +57,47 @@ public class LayoutAnalyzerSchemaContractTests
         doc.TryGetProperty("isClipped", out _).Should().BeTrue();
         doc.TryGetProperty("overflowAmount", out _).Should().BeTrue();
     }
+
+    [StaFact]
+    public void GetLayoutInfo_OnInactiveTabContent_ShouldExposeNotRenderedSemantics()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var textBox = new TextBox { Name = "InactiveTextBox", Width = 120 };
+        var tabControl = new TabControl
+        {
+            Items =
+            {
+                new TabItem
+                {
+                    Header = "Active",
+                    Content = new TextBlock { Text = "Visible" }
+                },
+                new TabItem
+                {
+                    Header = "Inactive",
+                    Content = textBox
+                }
+            },
+            SelectedIndex = 0
+        };
+
+        var window = new Window { Content = tabControl };
+        window.Show();
+        window.UpdateLayout();
+
+        try
+        {
+            var elementId = finder.GenerateElementId(textBox);
+            var result = analyzer.GetLayoutInfo(elementId);
+            var doc = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+
+            doc.GetProperty("layoutState").GetString().Should().Be("NotRendered");
+            doc.GetProperty("notRenderedReason").GetString().Should().Be("ElementInInactiveTab");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 }

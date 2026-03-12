@@ -109,9 +109,10 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (maxErrors.HasValue && filteredErrors.Count > maxErrors.Value)
             {
+                var skipCount = filteredErrors.Count - maxErrors.Value;
                 filteredErrors = filteredErrors
                     .OrderBy(error => error.Timestamp)
-                    .TakeLast(maxErrors.Value)
+                    .Skip(skipCount)
                     .ToList();
             }
 

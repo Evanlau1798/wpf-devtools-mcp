@@ -182,7 +182,7 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         }
 
         return string.Equals(matchMode, "contains", StringComparison.OrdinalIgnoreCase)
-            ? actual.Contains(expected, StringComparison.OrdinalIgnoreCase)
+            ? actual.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0
             : string.Equals(actual, expected, StringComparison.Ordinal);
     }
 

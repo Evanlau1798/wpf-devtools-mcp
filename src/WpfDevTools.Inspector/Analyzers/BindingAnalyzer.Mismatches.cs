@@ -151,7 +151,10 @@ public sealed partial class BindingAnalyzer
         }
 
         var currentType = sourceRoot.GetType();
-        var segments = bindingPath.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var segments = bindingPath
+            .Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(segment => segment.Trim())
+            .ToArray();
         foreach (var segment in segments)
         {
             if (segment.Contains('[') || segment.Contains('('))

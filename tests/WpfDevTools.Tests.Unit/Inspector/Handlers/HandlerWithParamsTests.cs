@@ -128,6 +128,17 @@ public class HandlerWithParamsTests
         result.Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task DependencyPropertyHandlers_WaitForDpChange_WithPropertyNameAndTimeout_ShouldReturnResult()
+    {
+        var handler = new DependencyPropertyHandlers(new DependencyPropertyAnalyzer(new ElementFinder()));
+        var @params = JsonSerializer.SerializeToElement(new { propertyName = "Visibility", timeoutMs = 100, pollIntervalMs = 50 });
+
+        var result = await handler.HandleAsync("wait_for_dp_change", @params, CancellationToken.None);
+
+        result.Should().NotBeNull();
+    }
+
     // ---- MvvmHandlers ----
 
     [Fact]

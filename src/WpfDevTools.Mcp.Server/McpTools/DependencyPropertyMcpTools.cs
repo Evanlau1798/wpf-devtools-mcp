@@ -7,7 +7,7 @@ using WpfDevTools.Mcp.Server.Tools;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
-/// MCP SDK wrapper for DependencyProperty tools (5 tools).
+/// MCP SDK wrapper for DependencyProperty tools (6 tools).
 /// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
 /// </summary>
 [McpServerToolType]
@@ -227,6 +227,59 @@ public static class DependencyPropertyMcpTools
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<WatchDpChangesTool>("WatchDpChangesTool", () => new WatchDpChangesTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
+
+    [McpServerTool(Name = "wait_for_dp_change", Title = "Wait For WPF DependencyProperty Change", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to wait for a WPF DependencyProperty to change over a bounded polling window.\n\n" +
+        DependencyPropertyMetadata + "[DependencyProperty] Wait for a DependencyProperty change using polling. " +
+        "This tool is designed for STDIO transports where push notifications are not available.\n\n" +
+        "USE WHEN: You need to wait for a property transition after an interaction, command, or state mutation without implementing your own polling loop.\n" +
+        "DO NOT USE: As a real-time push subscription. This tool polls get_dp_value_source-style state until timeout.\n\n" +
+        "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value. Omit it to stop on any value change.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  changed: boolean,\n" +
+        "  timedOut: boolean,\n" +
+        "  elementId: string|null,\n" +
+        "  propertyName: string,\n" +
+        "  initialValue,\n" +
+        "  currentValue,\n" +
+        "  baseValueSource,\n" +
+        "  elapsedMs: number,\n" +
+        "  pollCount: number\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
+        "- \"invalid argument\" -> verify timeoutMs/pollIntervalMs are within allowed bounds\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", timeoutMs: 5000 }\n" +
+        "- { processId: 12345, elementId: \"StatusText\", propertyName: \"Text\", expectedValue: \"Complete\", timeoutMs: 10000 }\n" +
+        "- { elementId: \"NameTextBox\", propertyName: \"Text\", pollIntervalMs: 100, timeoutMs: 2000 }")]
+    public static Task<CallToolResult> WaitForDpChange(
+        SessionManager sessionManager,
+        [Description("DependencyProperty name to monitor for changes.")] string propertyName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
+        [Description("Optional timeout in milliseconds. Default: 5000.")] int? timeoutMs = null,
+        [Description("Optional polling interval in milliseconds. Default: 200.")] int? pollIntervalMs = null,
+        [Description("Optional expected property value. Omit to stop on any value change.")] JsonElement? expectedValue = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId),
+            ("propertyName", propertyName),
+            ("timeoutMs", timeoutMs),
+            ("pollIntervalMs", pollIntervalMs),
+            ("expectedValue", expectedValue));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<WaitForDpChangeTool>("WaitForDpChangeTool", () => new WaitForDpChangeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

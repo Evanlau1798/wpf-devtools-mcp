@@ -131,6 +131,17 @@ public class HandlerParameterValidationTests
     }
 
     [Fact]
+    public async Task DependencyPropertyHandlers_WaitForDpChange_WithoutPropertyName_ShouldThrowArgumentException()
+    {
+        var handler = new DependencyPropertyHandlers(new DependencyPropertyAnalyzer(new ElementFinder()));
+
+        var act = () => handler.HandleAsync("wait_for_dp_change", null, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*propertyName*");
+    }
+
+    [Fact]
     public async Task DependencyPropertyHandlers_UnsupportedMethod_ShouldThrowInvalidOperationException()
     {
         var handler = new DependencyPropertyHandlers(new DependencyPropertyAnalyzer(new ElementFinder()));

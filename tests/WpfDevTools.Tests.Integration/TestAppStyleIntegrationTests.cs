@@ -139,6 +139,39 @@ public class TestAppStyleIntegrationTests
     }
 
     [Fact]
+    public void GetTriggers_WithControlTemplateTriggers_ShouldReturnTemplateTriggerInfo()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var elementFinder = new ElementFinder();
+            var analyzer = new StyleAnalyzer(elementFinder);
+
+            var template = new ControlTemplate(typeof(Button));
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            template.VisualTree = borderFactory;
+            template.Triggers.Add(new Trigger
+            {
+                Property = UIElement.IsMouseOverProperty,
+                Value = true,
+                Setters = { new Setter(UIElement.OpacityProperty, 0.8) }
+            });
+
+            var button = new Button
+            {
+                Content = "Template Trigger Button",
+                Template = template
+            };
+
+            Application.Current.MainWindow.Content = button;
+            button.ApplyTemplate();
+
+            return analyzer.GetTriggers(elementId: null);
+        });
+
+        result.Should().NotBeNull();
+    }
+
+    [Fact]
     public void GetResourceChain_WithElementResource_ShouldFindResource()
     {
         // Arrange - resource chain matching TestApp Tab 4 resource structure

@@ -1,7 +1,11 @@
+using System.IO.Pipes;
+using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Serialization;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -22,5 +26,117 @@ public class FindElementsToolTests
         var json = JsonSerializer.SerializeToElement(result);
         json.GetProperty("success").GetBoolean().Should().BeFalse();
         json.GetProperty("errorCode").GetString().Should().Be("NotConnected");
+    }
+
+    [Fact]
+    public async Task Execute_WithTypeNamesAndMatchMode_ShouldForwardParametersToInspector()
+    {
+        const int processId = 53002;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request =>
+            {
+                request.Method.Should().Be("find_elements");
+                request.Params.HasValue.Should().BeTrue();
+
+                var payload = request.Params!.Value;
+                payload.GetProperty("matchMode").GetString().Should().Be("contains");
+                payload.GetProperty("typeNames").EnumerateArray()
+                    .Select(item => item.GetString())
+                    .Should().Equal("TextBox", "ComboBox");
+
+                return new { success = true, resultCount = 0, truncated = false, results = Array.Empty<object>() };
+            });
+
+        var tool = new FindElementsTool(connected.SessionManager);
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            typeNames = new[] { "TextBox", "ComboBox" },
+            matchMode = "contains"
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+    }
+
+    private static async Task<ConnectedFindElementsSession> CreateConnectedSessionAsync(
+        int processId,
+        Func<InspectorRequest, object> responder)
+    {
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+            var result = responder(request!);
+
+            var response = new InspectorResponse
+            {
+                Id = request!.Id,
+                CorrelationId = request.CorrelationId,
+                Result = JsonSerializer.SerializeToElement(result),
+                Error = null
+            };
+
+            await MessageFraming.WriteMessageAsync(
+                server,
+                JsonSerializer.Serialize(response),
+                CancellationToken.None);
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        return new ConnectedFindElementsSession(sessionManager, server, serverTask);
+    }
+
+    private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
+    {
+        var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
+        field.Should().NotBeNull();
+
+        var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
+        pipeClients.Should().NotBeNull();
+
+        if (pipeClients!.TryGetValue(processId, out var existingClient))
+        {
+            existingClient.Dispose();
+        }
+
+        pipeClients[processId] = replacement;
+    }
+
+    private sealed class ConnectedFindElementsSession(
+        SessionManager sessionManager,
+        NamedPipeServerStream server,
+        Task serverTask) : IDisposable
+    {
+        public SessionManager SessionManager { get; } = sessionManager;
+
+        public void Dispose()
+        {
+            try
+            {
+                serverTask.GetAwaiter().GetResult();
+            }
+            finally
+            {
+                SessionManager.Dispose();
+                server.Dispose();
+            }
+        }
     }
 }

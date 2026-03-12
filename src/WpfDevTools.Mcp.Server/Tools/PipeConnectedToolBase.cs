@@ -95,6 +95,12 @@ public abstract class PipeConnectedToolBase
         => ParameterParser.ParseStringParam(arguments, paramName);
 
     /// <summary>
+    /// Parse a string array parameter from JSON arguments.
+    /// </summary>
+    protected static string[]? ParseStringArrayParam(JsonElement? arguments, string paramName)
+        => ParameterParser.ParseStringArrayParam(arguments, paramName);
+
+    /// <summary>
     /// Parse an integer parameter from JSON arguments
     /// </summary>
     protected static int? ParseIntParam(JsonElement? arguments, string paramName)

@@ -14,16 +14,29 @@ public sealed class FindElementsTool : PipeConnectedToolBase
         if (error != null) return error;
 
         var typeName = ParseStringParam(arguments, "typeName");
+        var typeNames = ParseStringArrayParam(arguments, "typeNames");
         var elementName = ParseStringParam(arguments, "elementName");
         var automationId = ParseStringParam(arguments, "automationId");
         var propertyName = ParseStringParam(arguments, "propertyName");
         var propertyValue = ParseStringParam(arguments, "propertyValue");
         var maxResults = ParseIntParam(arguments, "maxResults");
+        var matchMode = ParseStringParam(arguments, "matchMode");
 
         return await SendInspectorRequestAsync(
             processId,
             "find_elements",
-            new { elementId, typeName, elementName, automationId, propertyName, propertyValue, maxResults },
+            new
+            {
+                elementId,
+                typeName,
+                typeNames,
+                elementName,
+                automationId,
+                propertyName,
+                propertyValue,
+                maxResults,
+                matchMode
+            },
             cancellationToken);
     }
 }

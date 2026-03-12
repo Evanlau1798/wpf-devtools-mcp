@@ -34,6 +34,40 @@ public static class ParameterParser
     }
 
     /// <summary>
+    /// Parse a string array parameter from JSON arguments.
+    /// </summary>
+    /// <param name="arguments">JSON element containing arguments</param>
+    /// <param name="paramName">Name of parameter to parse</param>
+    /// <returns>String array value if parameter exists and is an array of strings, null otherwise</returns>
+    public static string[]? ParseStringArrayParam(JsonElement? arguments, string paramName)
+    {
+        if (!arguments.HasValue || !arguments.Value.TryGetProperty(paramName, out var prop))
+        {
+            return null;
+        }
+
+        if (prop.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var values = new List<string>();
+        foreach (var item in prop.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String)
+            {
+                var value = item.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    values.Add(value);
+                }
+            }
+        }
+
+        return values.ToArray();
+    }
+
+    /// <summary>
     /// Parse an integer parameter from JSON arguments
     /// </summary>
     /// <param name="arguments">JSON element containing arguments</param>

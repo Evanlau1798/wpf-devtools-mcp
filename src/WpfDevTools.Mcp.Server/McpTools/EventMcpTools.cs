@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class EventMcpTools
 {
     private const string EventMetadata = "CATEGORY: Event | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `nextSteps`; prefer those returned follow-ups over ad hoc tool guessing.\n\n";
+    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `navigation.recommended` plus compatibility field `nextSteps`; prefer `navigation.recommended` when present instead of ad hoc tool guessing.\n\n";
 
     [McpServerTool(Name = "trace_routed_events", Title = "Trace WPF Routed Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(

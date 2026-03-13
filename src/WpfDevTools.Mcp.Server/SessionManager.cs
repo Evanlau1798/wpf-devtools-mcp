@@ -71,8 +71,25 @@ public sealed partial class SessionManager : IDisposable
     /// <exception cref="ObjectDisposedException">Thrown when session manager has been disposed</exception>
     public bool CheckRateLimit(int processId)
     {
+        return CheckRateLimitStatus(processId).Allowed;
+    }
+
+    /// <summary>
+    /// Attempt to acquire a rate-limit token and return the resulting snapshot.
+    /// </summary>
+    public RateLimitStatus CheckRateLimitStatus(int processId)
+    {
         ThrowIfDisposed();
-        return _rateLimiter.TryAcquire(processId);
+
+        if (_rateLimiter is IRateLimiterStatusProvider provider)
+        {
+            return provider.TryAcquireWithStatus(processId);
+        }
+
+        var allowed = _rateLimiter.TryAcquire(processId);
+        var availableTokens = _rateLimiter.GetAvailableTokens(processId);
+        var retryAfter = allowed ? TimeSpan.Zero : _rateLimiter.GetRetryAfter(processId);
+        return new RateLimitStatus(allowed, availableTokens, retryAfter);
     }
 
     /// <summary>

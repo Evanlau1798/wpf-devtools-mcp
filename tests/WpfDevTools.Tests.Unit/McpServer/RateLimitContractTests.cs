@@ -27,6 +27,24 @@ public class RateLimitContractTests
     }
 
     [Fact]
+    public async Task ConnectTool_RateLimitResponse_ShouldUseDeniedSnapshotInsteadOfDriftingMonitoringValues()
+    {
+        var sessionManager = new SessionManager(new SnapshotAwareRateLimiterManager(
+            deniedSnapshot: new RateLimitStatus(false, 0, TimeSpan.FromSeconds(17)),
+            monitoringTokens: 1,
+            monitoringRetryAfter: TimeSpan.Zero));
+        var tool = new ConnectTool(sessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("availableTokens").GetInt32().Should().Be(0);
+        json.GetProperty("retryAfterSeconds").GetInt32().Should().Be(17);
+        json.GetProperty("retryAfter").GetString().Should().NotBe("Retry now");
+    }
+
+    [Fact]
     public async Task ConnectTool_RateLimitResponse_ShouldContainRetryAfterSeconds()
     {
         // Arrange
@@ -113,5 +131,23 @@ public class RateLimitContractTests
         public int GetAvailableTokens(int processId) => availableTokens;
 
         public TimeSpan GetRetryAfter(int processId) => retryAfter;
+    }
+
+    private sealed class SnapshotAwareRateLimiterManager(
+        RateLimitStatus deniedSnapshot,
+        int monitoringTokens,
+        TimeSpan monitoringRetryAfter) : IRateLimiterManager, IRateLimiterStatusProvider
+    {
+        public bool TryAcquire(int processId) => false;
+
+        public RateLimitStatus TryAcquireWithStatus(int processId) => deniedSnapshot;
+
+        public void RemoveSession(int processId)
+        {
+        }
+
+        public int GetAvailableTokens(int processId) => monitoringTokens;
+
+        public TimeSpan GetRetryAfter(int processId) => monitoringRetryAfter;
     }
 }

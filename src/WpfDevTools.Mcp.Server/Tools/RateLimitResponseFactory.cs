@@ -2,22 +2,29 @@ namespace WpfDevTools.Mcp.Server.Tools;
 
 internal static class RateLimitResponseFactory
 {
-    public static object Create(SessionManager sessionManager, int processId, string errorMessage)
+    public static object Create(RateLimitStatus status, string errorMessage)
     {
-        ArgumentNullException.ThrowIfNull(sessionManager);
-
-        var availableTokens = sessionManager.GetAvailableTokens(processId);
-        var retryAfter = sessionManager.GetRetryAfter(processId);
-        var retryAfterSeconds = NormalizeRetryAfterSeconds(retryAfter);
+        var retryAfterSeconds = NormalizeRetryAfterSeconds(status.RetryAfter);
 
         return new
         {
             success = false,
             error = errorMessage,
-            availableTokens,
+            availableTokens = status.AvailableTokens,
             retryAfterSeconds,
             retryAfter = BuildHumanReadableRetryAfter(retryAfterSeconds)
         };
+    }
+
+    public static object Create(SessionManager sessionManager, int processId, string errorMessage)
+    {
+        ArgumentNullException.ThrowIfNull(sessionManager);
+
+        var status = new RateLimitStatus(
+            Allowed: false,
+            AvailableTokens: sessionManager.GetAvailableTokens(processId),
+            RetryAfter: sessionManager.GetRetryAfter(processId));
+        return Create(status, errorMessage);
     }
 
     private static int NormalizeRetryAfterSeconds(TimeSpan retryAfter)

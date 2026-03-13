@@ -104,6 +104,22 @@ public class RateLimiterTests
     }
 
     [Fact]
+    public void TryAcquireWithStatus_WhenLimitExceeded_ShouldReturnDeniedSnapshot()
+    {
+        var currentTime = DateTime.UtcNow;
+        var limiter = new RateLimiter(maxRequestsPerInterval: 1, interval: TimeSpan.FromMinutes(1), () => currentTime);
+
+        limiter.TryAcquireWithStatus().Allowed.Should().BeTrue();
+
+        currentTime = currentTime.AddSeconds(43);
+        var denied = limiter.TryAcquireWithStatus();
+
+        denied.Allowed.Should().BeFalse();
+        denied.AvailableTokens.Should().Be(0);
+        denied.RetryAfter.Should().Be(TimeSpan.FromSeconds(17));
+    }
+
+    [Fact]
     public async Task TryAcquire_AfterIntervalElapsed_ShouldRefillTokens()
     {
         // Arrange
@@ -238,6 +254,20 @@ public class RateLimiterManagerTests
 
         // Assert
         tokens.Should().Be(8);
+    }
+
+    [Fact]
+    public void TryAcquireWithStatus_AfterLimitExceeded_ShouldReturnDeniedManagerSnapshot()
+    {
+        var manager = new RateLimiterManager(maxRequestsPerMinute: 1);
+
+        manager.TryAcquireWithStatus(12345).Allowed.Should().BeTrue();
+
+        var denied = manager.TryAcquireWithStatus(12345);
+
+        denied.Allowed.Should().BeFalse();
+        denied.AvailableTokens.Should().Be(0);
+        denied.RetryAfter.Should().BeGreaterThan(TimeSpan.Zero);
     }
 
     [Fact]

@@ -9,7 +9,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class SceneDiagnosticsMcpTools
 {
     private const string SceneMetadata = "CATEGORY: Scene Diagnostics | SAFETY: These tools aggregate existing runtime diagnostics to reduce multi-call analysis flows.\n\n";
-    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `nextSteps`; prefer those returned follow-ups over ad hoc tool guessing.\n\n";
+    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `navigation.recommended` plus compatibility field `nextSteps`; prefer `navigation.recommended` when present instead of ad hoc tool guessing.\n\n";
 
     [McpServerTool(Name = "get_state_diff", Title = "Inspect WPF Runtime State Diff", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(

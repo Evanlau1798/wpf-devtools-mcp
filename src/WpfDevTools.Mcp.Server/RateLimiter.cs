@@ -4,6 +4,23 @@ namespace WpfDevTools.Mcp.Server;
 /// Rate limiter to prevent DoS attacks via rapid tool invocations
 /// Uses token bucket algorithm for smooth rate limiting
 /// </summary>
+public readonly record struct RateLimitStatus(bool Allowed, int AvailableTokens, TimeSpan RetryAfter);
+
+/// <summary>
+/// Optional extension surface for callers that need an atomic post-acquire snapshot.
+/// </summary>
+public interface IRateLimiterStatusProvider
+{
+    /// <summary>
+    /// Attempt to acquire a request token and return the resulting rate-limit snapshot.
+    /// </summary>
+    RateLimitStatus TryAcquireWithStatus(int processId);
+}
+
+/// <summary>
+/// Rate limiter to prevent DoS attacks via rapid tool invocations
+/// Uses token bucket algorithm for smooth rate limiting
+/// </summary>
 public sealed class RateLimiter
 {
     private readonly int _maxTokens;
@@ -36,15 +53,18 @@ public sealed class RateLimiter
     {
         lock (_lock)
         {
-            RefillTokens();
+            return TryAcquireWithStatusCore().Allowed;
+        }
+    }
 
-            if (_tokens > 0)
-            {
-                _tokens--;
-                return true;
-            }
-
-            return false;
+    /// <summary>
+    /// Try to acquire a token and return the resulting rate-limit snapshot.
+    /// </summary>
+    public RateLimitStatus TryAcquireWithStatus()
+    {
+        lock (_lock)
+        {
+            return TryAcquireWithStatusCore();
         }
     }
 
@@ -74,9 +94,7 @@ public sealed class RateLimiter
                 return TimeSpan.Zero;
             }
 
-            var nextRefillAt = _lastRefill.Add(_refillInterval);
-            var remaining = nextRefillAt - _timeProvider();
-            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+            return GetRetryAfterCore();
         }
     }
 
@@ -113,6 +131,26 @@ public sealed class RateLimiter
             _lastRefill = _lastRefill.Add(TimeSpan.FromTicks((long)intervalsElapsed * _refillInterval.Ticks));
         }
     }
+
+    private RateLimitStatus TryAcquireWithStatusCore()
+    {
+        RefillTokens();
+
+        if (_tokens > 0)
+        {
+            _tokens--;
+            return new RateLimitStatus(true, _tokens, TimeSpan.Zero);
+        }
+
+        return new RateLimitStatus(false, _tokens, GetRetryAfterCore());
+    }
+
+    private TimeSpan GetRetryAfterCore()
+    {
+        var nextRefillAt = _lastRefill.Add(_refillInterval);
+        var remaining = nextRefillAt - _timeProvider();
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
 }
 
 /// <summary>
@@ -147,7 +185,7 @@ public interface IRateLimiterManager
 /// <summary>
 /// Rate limiter manager for multiple sessions
 /// </summary>
-public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
+public sealed class RateLimiterManager : IRateLimiterManager, IRateLimiterStatusProvider, IDisposable
 {
     // INTENTIONAL DEVIATION from project immutability principle:
     // LastAccessed is mutated in-place to avoid allocating a new entry on every TryAcquire() call.
@@ -216,6 +254,31 @@ public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
             // CRITICAL FIX: Update LastAccessed without creating new tuple
             entry.LastAccessed = DateTimeOffset.UtcNow;
             return entry.Limiter.TryAcquire();
+        }
+    }
+
+    /// <summary>
+    /// Try to acquire permission for a request and return the resulting rate-limit snapshot.
+    /// </summary>
+    public RateLimitStatus TryAcquireWithStatus(int processId)
+    {
+        lock (_lock)
+        {
+            if (!_limiters.TryGetValue(processId, out var entry))
+            {
+                if (_limiters.Count >= MaxEntries)
+                {
+                    EvictOldestEntries(_limiters.Count - MaxEntries + 1);
+                }
+
+                var limiter = new RateLimiter(_maxRequestsPerMinute, _interval);
+                entry = new RateLimiterEntry(limiter);
+                _limiters[processId] = entry;
+                return limiter.TryAcquireWithStatus();
+            }
+
+            entry.LastAccessed = DateTimeOffset.UtcNow;
+            return entry.Limiter.TryAcquireWithStatus();
         }
     }
 

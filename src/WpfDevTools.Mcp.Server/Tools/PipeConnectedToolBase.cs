@@ -174,11 +174,11 @@ public abstract class PipeConnectedToolBase
             return CreateNotConnectedError(processId);
 
         // SECURITY: Check rate limit to prevent DoS attacks (only for connected sessions)
-        if (!_sessionManager.CheckRateLimit(processId))
+        var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId);
+        if (!rateLimitStatus.Allowed)
         {
             return RateLimitResponseFactory.Create(
-                _sessionManager,
-                processId,
+                rateLimitStatus,
                 "Rate limit exceeded. Please slow down your requests.");
         }
 

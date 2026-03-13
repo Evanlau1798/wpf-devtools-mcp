@@ -136,11 +136,11 @@ public sealed class ConnectTool
 
         var connectStopwatch = Stopwatch.StartNew();
 
-        if (!_sessionManager.CheckRateLimit(processId.Value))
+        var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId.Value);
+        if (!rateLimitStatus.Allowed)
         {
             return RateLimitResponseFactory.Create(
-                _sessionManager,
-                processId.Value,
+                rateLimitStatus,
                 "Rate limit exceeded for connect operations. Please slow down your requests.");
         }
 

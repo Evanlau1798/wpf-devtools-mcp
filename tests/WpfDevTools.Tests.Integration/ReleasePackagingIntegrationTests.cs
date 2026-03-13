@@ -6,6 +6,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
 
+[Collection("PackagingIntegration")]
 public sealed class ReleasePackagingIntegrationTests
 {
     [Fact]

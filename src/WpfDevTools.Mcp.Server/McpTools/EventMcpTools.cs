@@ -168,6 +168,7 @@ public static class EventMcpTools
             (a, ct) => ToolCallHelper.CachedTool<FireRoutedEventTool>("FireRoutedEventTool", () => new FireRoutedEventTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
             toolName: "fire_routed_event");
     }
 }

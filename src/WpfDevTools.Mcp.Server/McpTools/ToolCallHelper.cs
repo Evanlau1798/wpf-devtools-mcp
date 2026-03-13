@@ -67,6 +67,7 @@ public static class ToolCallHelper
     /// <param name="args">JSON arguments for the tool</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <param name="timeoutSeconds">Optional override for tool timeout in seconds.</param>
+    /// <param name="navigationState">Optional navigation-only session state used to compute conditional next steps.</param>
     /// <param name="toolName">Tool name for metrics (auto-populated from caller method name)</param>
     /// <returns>CallToolResult with IsError set appropriately</returns>
     public static async Task<CallToolResult> ExecuteAndWrapAsync(
@@ -74,6 +75,7 @@ public static class ToolCallHelper
         JsonElement? args,
         CancellationToken cancellationToken,
         int? timeoutSeconds = null,
+        NavigationSessionState? navigationState = null,
         [System.Runtime.CompilerServices.CallerMemberName] string toolName = "unknown")
     {
         var effectiveTimeoutSeconds = timeoutSeconds ?? McpServerConfiguration.DefaultToolTimeoutSeconds;
@@ -89,7 +91,7 @@ public static class ToolCallHelper
             var result = await execute(args, cts.Token).ConfigureAwait(false);
             sw.Stop();
             var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
-            var nextSteps = _navigationPlanner.Plan(toolName, jsonElement, args);
+            var nextSteps = _navigationPlanner.Plan(toolName, jsonElement, args, navigationState);
             jsonElement = EnsureNextSteps(jsonElement, nextSteps);
             var isError = IsToolResultError(jsonElement);
 
@@ -229,6 +231,24 @@ public static class ToolCallHelper
     internal static void SetNavigationPlannerForTesting(ToolNavigationPlanner planner) =>
         _navigationPlanner = planner ?? throw new ArgumentNullException(nameof(planner));
 
+    internal static NavigationSessionState? ResolveNavigationState(SessionManager sessionManager, JsonElement? args)
+    {
+        ArgumentNullException.ThrowIfNull(sessionManager);
+
+        var processId = TryGetProcessId(args);
+        if (processId is null)
+        {
+            if (!sessionManager.TryGetActiveProcessId(out var activeProcessId))
+            {
+                return null;
+            }
+
+            processId = activeProcessId;
+        }
+
+        return sessionManager.TryGetNavigationState(processId.Value, out var state) ? state : null;
+    }
+
     private static JsonElement EnsureNextSteps(JsonElement element, IReadOnlyList<ToolNextStep> nextSteps)
     {
         if (element.ValueKind != JsonValueKind.Object || element.TryGetProperty("nextSteps", out _))
@@ -252,6 +272,20 @@ public static class ToolCallHelper
 
         using var document = JsonDocument.Parse(buffer.WrittenMemory);
         return document.RootElement.Clone();
+    }
+
+    private static int? TryGetProcessId(JsonElement? args)
+    {
+        if (args is not { } candidate
+            || candidate.ValueKind != JsonValueKind.Object
+            || !candidate.TryGetProperty("processId", out var property)
+            || property.ValueKind != JsonValueKind.Number
+            || !property.TryGetInt32(out var processId))
+        {
+            return null;
+        }
+
+        return processId;
     }
 }
 

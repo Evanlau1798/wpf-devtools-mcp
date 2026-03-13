@@ -152,6 +152,7 @@ public static class DependencyPropertyMcpTools
             (a, ct) => ToolCallHelper.CachedTool<SetDpValueTool>("SetDpValueTool", () => new SetDpValueTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
             toolName: "set_dp_value");
     }
 

@@ -7,4 +7,8 @@ public sealed record ToolNextStep(
     JsonElement Params,
     string Reason,
     ToolNextStepKind Kind,
-    int Priority);
+    int Priority,
+    IReadOnlyList<string>? Preconditions = null,
+    string? ExpectedOutcome = null,
+    string? WorkflowId = null,
+    IReadOnlyList<string>? PrefetchTools = null);

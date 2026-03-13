@@ -4,6 +4,7 @@ using System.ComponentModel;
 using FluentAssertions;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.Schema;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -93,6 +94,15 @@ public class McpToolContractConsistencyTests
         parameter.ParameterType.Should().Be(typeof(string));
         parameter.HasDefaultValue.Should().BeTrue();
         parameter.DefaultValue.Should().BeNull();
+    }
+
+    [Fact]
+    public void ToolNextStep_ShouldExposeOptionalConditionalNavigationFields()
+    {
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.Preconditions))!.PropertyType.Should().Be(typeof(IReadOnlyList<string>));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.ExpectedOutcome))!.PropertyType.Should().Be(typeof(string));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.WorkflowId))!.PropertyType.Should().Be(typeof(string));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.PrefetchTools))!.PropertyType.Should().Be(typeof(IReadOnlyList<string>));
     }
     [Fact]
     public void TraceRoutedEvents_ShouldExposeOptionalMode()

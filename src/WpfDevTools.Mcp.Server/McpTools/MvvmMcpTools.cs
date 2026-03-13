@@ -136,6 +136,7 @@ public static class MvvmMcpTools
             (a, ct) => ToolCallHelper.CachedTool<ExecuteCommandTool>("ExecuteCommandTool", () => new ExecuteCommandTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
             toolName: "execute_command");
     }
 
@@ -243,6 +244,7 @@ public static class MvvmMcpTools
             ).ExecuteAsync(a, ct),
             args,
             cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
             toolName: "modify_viewmodel");
     }
 }

@@ -122,12 +122,14 @@ internal static class SceneNavigationRules
 
         return
         [
-            CreateDiagnostic(
+            ConditionalNavigationRules.CreateActiveSnapshotStep(
                 "get_state_diff",
-                1,
+                BuildScopedParams(context, ("snapshotId", snapshotId)),
                 "Compare the snapshot against current runtime state after mutations.",
-                context,
-                ("snapshotId", snapshotId)),
+                ToolNextStepKind.Verification,
+                1,
+                "Returns semantic changes since the captured snapshot.",
+                "restore_state_snapshot"),
             CreateAction(
                 "restore_state_snapshot",
                 2,

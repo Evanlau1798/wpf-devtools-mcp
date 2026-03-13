@@ -59,6 +59,7 @@ public static class InteractionMcpTools
             (a, ct) => ToolCallHelper.CachedTool<ClickElementTool>("ClickElementTool", () => new ClickElementTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
             toolName: "click_element");
     }
 

@@ -5,4 +5,5 @@ namespace WpfDevTools.Mcp.Server.Navigation;
 public sealed record ToolNavigationContext(
     string ToolName,
     JsonElement Payload,
-    JsonElement? Arguments);
+    JsonElement? Arguments,
+    NavigationSessionState? SessionState = null);

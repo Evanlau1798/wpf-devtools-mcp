@@ -54,6 +54,11 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             _sessionManager.RemoveStateSnapshot(processId, snapshotId);
         }
 
+        if (warnings.Count == 0)
+        {
+            _sessionManager.ClearActiveSnapshotId(processId);
+        }
+
         return new
         {
             success = warnings.Count == 0,

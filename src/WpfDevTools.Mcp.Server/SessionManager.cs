@@ -7,7 +7,7 @@ namespace WpfDevTools.Mcp.Server;
 /// <summary>
 /// Manages active Inspector sessions
 /// </summary>
-public sealed class SessionManager : IDisposable
+public sealed partial class SessionManager : IDisposable
 {
     private volatile bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
@@ -113,6 +113,7 @@ public sealed class SessionManager : IDisposable
 
             _pipeClients[processId] = new NamedPipeClient(processId, _authManager, _certManager);
             _stateSnapshots[processId] = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
+            _navigationStateStore.EnsureProcess(processId);
             _activeProcessSelection ??= new ActiveProcessSelection
             {
                 ProcessId = processId,
@@ -138,6 +139,7 @@ public sealed class SessionManager : IDisposable
             }
 
             _stateSnapshots.Remove(processId);
+            _navigationStateStore.RemoveProcess(processId);
 
             if (_activeProcessSelection?.ProcessId == processId)
             {
@@ -511,6 +513,7 @@ public sealed class SessionManager : IDisposable
 
             _pipeClients.Clear();
             _sessions.Clear();
+            _navigationStateStore.Clear();
         }
     }
 }

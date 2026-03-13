@@ -68,6 +68,8 @@ public sealed class StateSnapshotRestoreContractTests
         restoreResult.GetProperty("warnings").GetArrayLength().Should().Be(0);
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("propertyName").GetString().Should().Be("CanSave");
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("verified").GetBoolean().Should().BeTrue();
+        connected.SessionManager.TryGetNavigationState(processId, out var navigationState).Should().BeTrue();
+        navigationState!.ActiveSnapshotId.Should().BeNull();
         connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "get_viewmodel");
     }
 
@@ -123,6 +125,8 @@ public sealed class StateSnapshotRestoreContractTests
         restoreResult.GetProperty("restoredViewModelPropertyCount").GetInt32().Should().Be(0);
         restoreResult.GetProperty("skippedViewModelPropertyCount").GetInt32().Should().Be(0);
         restoreResult.GetProperty("warnings")[0].GetString().Should().Contain("Name");
+        connected.SessionManager.TryGetNavigationState(processId, out var navigationState).Should().BeTrue();
+        navigationState!.ActiveSnapshotId.Should().Be(snapshotId);
         connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "modify_viewmodel");
     }
 

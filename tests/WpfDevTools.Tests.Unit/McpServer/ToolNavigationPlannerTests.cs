@@ -103,4 +103,26 @@ public sealed class ToolNavigationPlannerTests : IDisposable
 
         result.Select(step => step.Tool).Should().Equal("get_bindings");
     }
+
+    [Fact]
+    public void Plan_WithNavigationState_ShouldExposeSessionFactsToHandler()
+    {
+        NavigationSessionState? capturedState = null;
+        var registry = new ToolNavigationRegistry();
+        registry.Register("known_tool", context =>
+        {
+            capturedState = context.SessionState;
+            return Array.Empty<ToolNextStep>();
+        });
+
+        var planner = new ToolNavigationPlanner(registry);
+        var payload = JsonSerializer.SerializeToElement(new { success = true });
+        var state = new NavigationSessionState(
+            "snapshot_123",
+            new ActiveTraceNavigationState("Click", "Button_1", DateTimeOffset.UtcNow));
+
+        _ = planner.Plan("known_tool", payload, null, state);
+
+        capturedState.Should().BeEquivalentTo(state);
+    }
 }

@@ -80,6 +80,8 @@ public sealed class StateSnapshotToolTests : IDisposable
         json.GetProperty("snapshotSummary").GetProperty("dependencyPropertyCount").GetInt32().Should().Be(1);
         json.GetProperty("snapshotSummary").GetProperty("viewModelPropertyCount").GetInt32().Should().Be(1);
         json.GetProperty("snapshotSummary").GetProperty("capturedFocus").GetBoolean().Should().BeTrue();
+        connected.SessionManager.TryGetNavigationState(processId, out var navigationState).Should().BeTrue();
+        navigationState!.ActiveSnapshotId.Should().Be(json.GetProperty("snapshotId").GetString());
     }
 
     [Fact]

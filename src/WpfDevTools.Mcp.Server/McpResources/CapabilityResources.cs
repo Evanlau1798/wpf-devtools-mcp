@@ -32,7 +32,7 @@ public static class CapabilityResources
         - Start with `connect()` and let auto-discovery pick the single visible WPF target when possible.
         - Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you explicitly need a filtered process list before connecting.
         - Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.
-        - After each diagnostic, interaction, or mutation, follow returned `nextSteps` / `navigation` guidance before guessing the next tool.
+        - After each diagnostic, interaction, or mutation, prefer returned `navigation.recommended`; treat compatibility `nextSteps` as the fallback for older clients before guessing the next tool.
 
         ## Response contract notes
 

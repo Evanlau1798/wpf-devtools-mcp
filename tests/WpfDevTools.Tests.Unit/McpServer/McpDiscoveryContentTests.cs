@@ -70,7 +70,10 @@ public class McpDiscoveryContentTests
 
         capabilities.Should().Contain("connect()");
         capabilities.Should().Contain("get_ui_summary");
-        capabilities.Should().Contain("navigation");
+        capabilities.Should().Contain("navigation.recommended");
+        capabilities.Should().Contain("compatibility `nextSteps`");
+        capabilities.Should().NotContain("nextSteps / `navigation` guidance",
+            "capability guidance should explicitly prefer navigation.recommended over the compatibility field");
         bindingWorkflow.Should().Contain("navigation.recommended");
         bindingWorkflow.Should().Contain("get_element_snapshot");
         bindingWorkflow.Should().NotContain("get_visual_tree or get_logical_tree",

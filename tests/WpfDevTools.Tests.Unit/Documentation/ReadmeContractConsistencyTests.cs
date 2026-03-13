@@ -1,37 +1,45 @@
+using System.ComponentModel;
+using System.Reflection;
 using FluentAssertions;
+using ModelContextProtocol.Server;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class ReadmeContractConsistencyTests
 {
-    private static readonly (string Category, string FileName)[] CategoryFiles =
-    [
-        ("Process Management", "ProcessMcpTools.cs"),
-        ("Tree & XAML", "TreeMcpTools.cs"),
-        ("Binding Diagnostics", "BindingMcpTools.cs"),
-        ("DependencyProperty", "DependencyPropertyMcpTools.cs"),
-        ("Style/Template", "StyleMcpTools.cs"),
-        ("RoutedEvent", "EventMcpTools.cs"),
-        ("Interaction", "InteractionMcpTools.cs"),
-        ("Layout", "LayoutMcpTools.cs"),
-        ("MVVM", "MvvmMcpTools.cs"),
-        ("Performance", "PerformanceMcpTools.cs"),
-        ("State & Scene Diagnostics", "StateMcpTools.cs"),
-        ("State & Scene Diagnostics", "SceneDiagnosticsMcpTools.cs")
-    ];
+    private static readonly Assembly McpServerAssembly =
+        typeof(WpfDevTools.Mcp.Server.ServerInstructions).Assembly;
+
+    private static readonly IReadOnlyDictionary<string, string> ReadmeCategoryMap =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Process"] = "Process Management",
+            ["Tree"] = "Tree & XAML",
+            ["Binding"] = "Binding Diagnostics",
+            ["DependencyProperty"] = "DependencyProperty",
+            ["Style"] = "Style/Template",
+            ["Event"] = "RoutedEvent",
+            ["Interaction"] = "Interaction",
+            ["Layout"] = "Layout",
+            ["MVVM"] = "MVVM",
+            ["Performance"] = "Performance",
+            ["State"] = "State & Scene Diagnostics",
+            ["Scene Diagnostics"] = "State & Scene Diagnostics"
+        };
 
     [Fact]
     public void Readme_ToolCategorySummary_ShouldMatchCurrentMcpSurface()
     {
         var readme = File.ReadAllText(GetRepoFilePath("README.md"));
-        var toolCounts = CategoryFiles
+        var toolCounts = GetToolCategories()
             .GroupBy(entry => entry.Category)
             .Select(group => new
             {
                 group.Key,
-                Count = group.Sum(entry => CountTools(entry.FileName))
+                Count = group.Count()
             })
+            .OrderBy(entry => entry.Key, StringComparer.Ordinal)
             .ToArray();
         var totalCount = toolCounts.Sum(entry => entry.Count);
 
@@ -55,24 +63,49 @@ public sealed class ReadmeContractConsistencyTests
         readme.Should().NotContain("Structured content: `StructuredContent` and `Annotations` populated on all tool results");
     }
 
-    private static int CountTools(string fileName)
+    private static IReadOnlyList<(string ToolName, string Category)> GetToolCategories()
     {
-        var content = File.ReadAllText(GetRepoFilePath(Path.Combine("src", "WpfDevTools.Mcp.Server", "McpTools", fileName)));
-        return CountOccurrences(content, "[McpServerTool(");
-    }
+        var tools = new List<(string ToolName, string Category)>();
 
-    private static int CountOccurrences(string content, string value)
-    {
-        var count = 0;
-        var startIndex = 0;
-
-        while ((startIndex = content.IndexOf(value, startIndex, StringComparison.Ordinal)) >= 0)
+        foreach (var type in McpServerAssembly.GetTypes()
+                     .Where(candidate => candidate.GetCustomAttribute<McpServerToolTypeAttribute>() != null))
         {
-            count++;
-            startIndex += value.Length;
+            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            {
+                var toolAttribute = method.GetCustomAttribute<McpServerToolAttribute>();
+                if (toolAttribute == null)
+                {
+                    continue;
+                }
+
+                var descriptionAttribute = method.GetCustomAttribute<DescriptionAttribute>();
+                descriptionAttribute.Should().NotBeNull(
+                    $"tool '{toolAttribute.Name}' should expose a [Description] attribute");
+                toolAttribute.Name.Should().NotBeNullOrWhiteSpace(
+                    "all MCP tool attributes should provide a stable tool name");
+
+                var codeCategory = ExtractCodeCategory(descriptionAttribute!.Description);
+                ReadmeCategoryMap.TryGetValue(codeCategory, out var readmeCategory).Should().BeTrue(
+                    $"tool '{toolAttribute.Name}' should map code category '{codeCategory}' to a README category");
+
+                tools.Add((toolAttribute.Name!, readmeCategory!));
+            }
         }
 
-        return count;
+        return tools;
+    }
+
+    private static string ExtractCodeCategory(string description)
+    {
+        const string prefix = "CATEGORY: ";
+        var start = description.IndexOf(prefix, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0, "tool descriptions should include a CATEGORY header");
+
+        var categoryStart = start + prefix.Length;
+        var categoryEnd = description.IndexOf(" | SAFETY:", categoryStart, StringComparison.Ordinal);
+        categoryEnd.Should().BeGreaterThan(categoryStart, "tool descriptions should include the SAFETY separator");
+
+        return description.Substring(categoryStart, categoryEnd - categoryStart);
     }
 
     private static string GetRepoFilePath(string relativePath)

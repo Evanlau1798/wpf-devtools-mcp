@@ -172,10 +172,10 @@ public static class ToolCallHelper
     {
         return ex switch
         {
-            InvalidOperationException => ("OperationError", $"Operation failed: {ex.Message}"),
+            InvalidOperationException => ("OperationError", "Operation failed"),
             FileNotFoundException => ("FileNotFound", "Required file not found"),
             UnauthorizedAccessException => ("AccessDenied", "Access denied"),
-            ArgumentException => ("InvalidArgument", $"Invalid argument: {ex.Message}"),
+            ArgumentException => ("InvalidArgument", "Invalid argument"),
             System.Security.Cryptography.CryptographicException => ("SecurityError", "Security verification failed"),
             _ => ("InternalError", "An internal error occurred during tool execution")
         };

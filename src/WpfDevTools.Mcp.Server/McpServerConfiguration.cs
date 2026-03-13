@@ -48,7 +48,7 @@ public static class McpServerConfiguration
     /// Rate limit: maximum requests per minute per session.
     /// Prevents DoS attacks and accidental infinite loops in AI agents.
     /// </summary>
-    public const int RateLimitRequestsPerMinute = 100;
+    public const int RateLimitRequestsPerMinute = 300;
 
     /// <summary>
     /// Named pipe connection timeout.

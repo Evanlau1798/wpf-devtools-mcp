@@ -51,6 +51,17 @@ public class ParameterParserTests
     }
 
     [Fact]
+    public void ParseStringArrayParam_WithMixedEntries_ShouldReturnOnlyNonEmptyStrings()
+    {
+        var args = JsonSerializer.Deserialize<JsonElement>(
+            "{\"names\":[\"first\",null,\"  \",\"second\",42]}");
+
+        var result = ParameterParser.ParseStringArrayParam(args, "names");
+
+        result.Should().Equal("first", "second");
+    }
+
+    [Fact]
     public void ParseIntParam_WithNullArguments_ShouldReturnNull()
     {
         var result = ParameterParser.ParseIntParam(null, "key");

@@ -54,13 +54,11 @@ public static class ParameterHelpers
         var values = new List<string>();
         foreach (var item in property.EnumerateArray())
         {
-            if (item.ValueKind == JsonValueKind.String)
+            if (item.ValueKind == JsonValueKind.String &&
+                item.GetString() is string value &&
+                !string.IsNullOrWhiteSpace(value))
             {
-                var value = item.GetString();
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    values.Add(value);
-                }
+                values.Add(value);
             }
         }
 

@@ -138,12 +138,13 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(propertyName))
+        var requestedPropertyName = propertyName;
+        if (string.IsNullOrWhiteSpace(requestedPropertyName))
         {
             return true;
         }
 
-        var value = TryGetPropertyValue(element, propertyName);
+        var value = TryGetPropertyValue(element, requestedPropertyName!);
         matchedValue = FormatResponseValue(value);
 
         if (propertyValue == null)
@@ -176,14 +177,15 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(actual))
+        var actualValue = actual;
+        if (string.IsNullOrWhiteSpace(actualValue))
         {
             return false;
         }
 
         return string.Equals(matchMode, "contains", StringComparison.OrdinalIgnoreCase)
-            ? actual.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0
-            : string.Equals(actual, expected, StringComparison.Ordinal);
+            ? actualValue!.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0
+            : string.Equals(actualValue, expected, StringComparison.Ordinal);
     }
 
     private static object? TryGetPropertyValue(DependencyObject element, string propertyName)

@@ -309,9 +309,15 @@ internal static class SceneSummaryElementHelpers
             _ => null
         };
 
-        return string.IsNullOrWhiteSpace(rawText)
+        if (string.IsNullOrWhiteSpace(rawText))
+        {
+            return null;
+        }
+
+        var trimmedText = rawText!.Trim().TrimEnd(':');
+        return string.IsNullOrWhiteSpace(trimmedText)
             ? null
-            : rawText.Trim().TrimEnd(':');
+            : trimmedText;
     }
 
     internal static bool ShouldOmitSemanticNode(

@@ -39,6 +39,17 @@ public class ParameterHelpersTests
     }
 
     [Fact]
+    public void GetStringArrayParam_WithMixedEntries_ShouldReturnOnlyNonEmptyStrings()
+    {
+        var json = JsonSerializer.Deserialize<JsonElement>(
+            "{\"names\":[\"first\",null,\"  \",\"second\",42]}");
+
+        var result = ParameterHelpers.GetStringArrayParam(json, "names");
+
+        result.Should().Equal("first", "second");
+    }
+
+    [Fact]
     public void GetIntParam_WithNullParams_ShouldReturnNull()
     {
         var result = ParameterHelpers.GetIntParam(null, "key");

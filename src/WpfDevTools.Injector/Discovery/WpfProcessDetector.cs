@@ -196,12 +196,13 @@ public class WpfProcessDetector
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(window.ClassName))
+        var className = window.ClassName;
+        if (string.IsNullOrWhiteSpace(className))
         {
             return true;
         }
 
-        return window.ClassName.IndexOf("HwndWrapper", StringComparison.Ordinal) >= 0;
+        return className!.IndexOf("HwndWrapper", StringComparison.Ordinal) >= 0;
     }
 
     internal static bool ShouldEnumerateWindowsForProcessInfo(

@@ -154,13 +154,14 @@ public sealed partial class BindingAnalyzer
             return (false, null);
         }
 
-        if (string.IsNullOrWhiteSpace(bindingPath))
+        var resolvedBindingPath = bindingPath;
+        if (string.IsNullOrWhiteSpace(resolvedBindingPath))
         {
             return (true, sourceRoot.GetType());
         }
 
         var currentType = sourceRoot.GetType();
-        var segments = bindingPath
+        var segments = resolvedBindingPath!
             .Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(segment => segment.Trim())
             .ToArray();

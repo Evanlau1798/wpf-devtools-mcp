@@ -41,8 +41,8 @@ public sealed partial class BindingAnalyzer
         {
             foreach (var error in Validation.GetErrors(current))
             {
-                var message = error.ErrorContent?.ToString();
-                if (!string.IsNullOrWhiteSpace(message))
+                if (error.ErrorContent?.ToString() is string message &&
+                    !string.IsNullOrWhiteSpace(message))
                 {
                     messages.Add(message);
                 }

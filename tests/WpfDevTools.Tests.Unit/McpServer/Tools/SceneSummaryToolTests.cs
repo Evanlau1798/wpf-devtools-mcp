@@ -48,18 +48,27 @@ public sealed class SceneSummaryToolTests : IDisposable
         var serverTask = Task.Run(async () =>
         {
             await server.WaitForConnectionAsync();
-            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
-            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
-            requestCompletion.TrySetResult(request!);
-
-            var response = new InspectorResponse
+            try
             {
-                Id = request!.Id,
-                CorrelationId = request.CorrelationId,
-                Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"rootElementId":"Window_1","semanticNodeCount":1,"summaryText":"- TextBox Box","nodes":[{"elementId":"TextBox_1"}]}""")
-            };
+                var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+                requestCompletion.TrySetResult(request!);
 
-            await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+                var response = new InspectorResponse
+                {
+                    Id = request!.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"rootElementId":"Window_1","semanticNodeCount":1,"summaryText":"- TextBox Box","nodes":[{"elementId":"TextBox_1"}]}""")
+                };
+
+                await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         });
 
         var sessionManager = new SessionManager();

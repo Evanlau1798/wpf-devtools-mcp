@@ -67,6 +67,7 @@ dotnet build WpfDevTools.sln -c Debug -p:Platform=x64
 msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /p:Configuration=Debug /p:Platform=x64
 ```
 > **Build note**: The repository ships `Directory.Build.props` and `Directory.Build.rsp` that disable shared compilation and MSBuild node reuse to prevent file-lock warnings (MSB3026). These settings are applied automatically - no extra flags are needed.
+> **Rebuild note**: Close running `WpfDevTools.Mcp.Server` and test-app processes before broad rebuilds, or MSBuild can still hit locked output files.
 > **Public setup note**: Prefer a published release for first-time setup so the server, Inspector DLLs, and native bootstrapper stay in the documented release layout.
 
 ### Run the server
@@ -171,23 +172,24 @@ Security deployment guidance lives in `SECURITY.md`.
 
 ## Tool Categories
 
-The server ships 60+ MCP tools across 10 categories. Use MCP tool discovery for full schemas.
+The server ships 60 MCP tools across 11 categories. Use MCP tool discovery for full schemas.
 
 <details>
 <summary>Tool category overview</summary>
 
 | Category | Tools | Description |
 |----------|-------|-------------|
-| Process Management | 4 | `connect`, `get_processes`, `ping`, `get_active_process`, `select_active_process` |
+| Process Management | 5 | `connect`, `get_processes`, `ping`, `get_active_process`, `select_active_process` |
 | Tree & XAML | 8 | `get_visual_tree`, `get_logical_tree`, `compare_trees`, `serialize_to_xaml`, `get_namescope`, `get_template_tree`, `get_windows`, `find_elements` |
 | Binding Diagnostics | 6 | `get_bindings`, `get_binding_errors`, `get_binding_value_chain`, `get_binding_mismatches`, `get_datacontext_chain`, `force_binding_update` |
-| DependencyProperty | 5 | `get_dp_value_source`, `get_dp_metadata`, `set_dp_value`, `clear_dp_value`, `watch_dp_changes` |
+| DependencyProperty | 6 | `get_dp_value_source`, `get_dp_metadata`, `set_dp_value`, `clear_dp_value`, `watch_dp_changes`, `wait_for_dp_change` |
 | Style/Template | 4 | `get_applied_styles`, `get_triggers`, `get_resource_chain`, `override_style_setter` |
 | RoutedEvent | 3 | `trace_routed_events`, `get_event_handlers`, `fire_routed_event` |
-| Interaction | 7 | `click_element`, `drag_and_drop`, `scroll_to_element`, `simulate_keyboard`, `element_screenshot`, `get_interaction_readiness`, `highlight_element` |
-| Layout & Visibility | 4 | `get_layout_info`, `get_clipping_info`, `invalidate_layout`, `diagnose_visibility` |
+| Interaction | 7 | `click_element`, `drag_and_drop`, `get_focus_state`, `focus_element`, `scroll_to_element`, `simulate_keyboard`, `element_screenshot` |
+| Layout | 4 | `get_layout_info`, `get_clipping_info`, `highlight_element`, `invalidate_layout` |
 | MVVM | 5 | `get_viewmodel`, `get_commands`, `execute_command`, `modify_viewmodel`, `get_validation_errors` |
-| Scene & Performance | 8 | `get_ui_summary`, `get_element_snapshot`, `get_form_summary`, `get_render_stats`, `find_binding_leaks`, `measure_element_render_time`, `get_visual_count`, `get_state_diff` |
+| Performance | 4 | `get_render_stats`, `find_binding_leaks`, `measure_element_render_time`, `get_visual_count` |
+| State & Scene Diagnostics | 8 | `capture_state_snapshot`, `restore_state_snapshot`, `get_state_diff`, `get_element_snapshot`, `diagnose_visibility`, `get_interaction_readiness`, `get_ui_summary`, `get_form_summary` |
 
 </details>
 
@@ -252,5 +254,5 @@ MIT. DLL injection code includes Snoop-based components under Ms-PL attribution.
 - STDIO transport: in use
 - HTTP transport: planned
 - Tool metadata: maintained in code
-- Structured content: `StructuredContent` and `Annotations` populated on all tool results
+- Structured content: `StructuredContent` is populated on all tool results, and error results include `Annotations`.
 - README tool catalog: intentionally minimized to prevent schema drift

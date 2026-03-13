@@ -7,6 +7,7 @@ using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("EventTrace")]
 public class EventAnalyzerGapTests
 {
 

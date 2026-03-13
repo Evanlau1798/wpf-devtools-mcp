@@ -11,6 +11,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("ToolCallHelperState")]
 public sealed class GetElementSnapshotToolTests : IDisposable
 {
     public void Dispose()

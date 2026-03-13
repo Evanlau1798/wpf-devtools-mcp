@@ -5,6 +5,7 @@ using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("ToolCallHelperState")]
 public sealed class SceneDiagnosticsContractTests : IDisposable
 {
     public void Dispose()

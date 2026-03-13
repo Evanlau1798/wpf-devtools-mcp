@@ -6,6 +6,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("ToolCallHelperState")]
 public sealed class BindingMismatchToolContractTests : IDisposable
 {
     public void Dispose()

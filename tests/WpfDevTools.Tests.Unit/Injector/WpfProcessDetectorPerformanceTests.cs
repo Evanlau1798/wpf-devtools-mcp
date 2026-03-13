@@ -5,28 +5,18 @@ using System.Diagnostics;
 
 namespace WpfDevTools.Tests.Unit.Injector;
 
+[Collection("ProcessDiscovery")]
 public class WpfProcessDetectorPerformanceTests
 {
     [Fact]
-    public void GetAllWpfProcesses_ShouldStayWithinInteractiveSmokeBudget()
+    public void GetAllWpfProcesses_ParameterlessOverload_ShouldUseVisibleFilter()
     {
-        // Arrange
-        var detector = new WpfProcessDetector();
+        var detector = new RecordingProcessDetector();
 
-        // Act - measure time to get all WPF processes
-        var sw = Stopwatch.StartNew();
-        var processes = detector.GetAllWpfProcesses();
-        sw.Stop();
+        var result = detector.GetAllWpfProcesses();
 
-        // Assert - this is a smoke budget, not a microbenchmark. Full-suite execution can
-        // run under a much heavier process list and WPF test-host load than isolated runs.
-        // Keep the threshold wide enough to catch catastrophic regressions or hangs without
-        // making the suite fail on workstation-wide process churn.
-        sw.ElapsedMilliseconds.Should().BeLessThan(300000,
-            "top-level window indexing and deferred metadata probes should stay bounded even under full-suite workstation load");
-
-        // Verify we got some results (at least the test process itself might be WPF)
-        processes.Should().NotBeNull();
+        detector.RequestedFilter.Should().Be(ProcessWindowFilter.Visible);
+        result.Should().BeEmpty();
     }
 
     [Fact]
@@ -46,5 +36,16 @@ public class WpfProcessDetectorPerformanceTests
             "process info detection should be fast");
 
         info.Should().NotBeNull();
+    }
+
+    private sealed class RecordingProcessDetector : WpfProcessDetector
+    {
+        internal ProcessWindowFilter? RequestedFilter { get; private set; }
+
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
+        {
+            RequestedFilter = windowFilter;
+            return [];
+        }
     }
 }

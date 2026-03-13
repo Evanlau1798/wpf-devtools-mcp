@@ -8,6 +8,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("ToolCallHelperState")]
 public sealed class InteractionToolMetadataTests : IDisposable
 {
     public void Dispose()

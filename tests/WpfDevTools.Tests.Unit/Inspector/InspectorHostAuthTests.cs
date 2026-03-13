@@ -7,9 +7,11 @@ using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
 using Xunit;
+using WpfDevTools.Tests.Unit.Execution;
 
 namespace WpfDevTools.Tests.Unit.Inspector;
 
+[Collection("TimingSensitive")]
 public class InspectorHostAuthTests
 {
     [Fact]

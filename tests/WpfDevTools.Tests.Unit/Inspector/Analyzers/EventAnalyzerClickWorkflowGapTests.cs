@@ -8,6 +8,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("EventTrace")]
 public class EventAnalyzerClickWorkflowGapTests
 {
     [StaFact]

@@ -6,6 +6,7 @@ using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("ToolCallHelperState")]
 public sealed class ToolNavigationPlannerTests : IDisposable
 {
     public void Dispose()

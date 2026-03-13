@@ -2,9 +2,11 @@ using System.Security.Cryptography.X509Certificates;
 using Xunit;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Tests.Unit.Execution;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("ProcessEnvironment")]
 public class SignaturePolicyTests
 {
     // === Policy decision tests (pure logic, no file system) ===

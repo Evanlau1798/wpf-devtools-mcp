@@ -11,6 +11,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("ToolCallHelperState")]
 public sealed class GetInteractionReadinessToolTests : IDisposable
 {
     public void Dispose()

@@ -14,7 +14,11 @@ public class GetProcessesToolTests
     public async Task Execute_WithNoFilter_ShouldReturnAllWpfProcesses()
     {
         // Arrange
-        var tool = new GetProcessesTool();
+        var tool = new GetProcessesTool(new FakeProcessDetector(
+        [
+            CreateProcessInfo(42, "TestApp"),
+            CreateProcessInfo(43, "DesignerHost")
+        ]), () => false);
         var parameters = new { };
 
         // Act
@@ -23,14 +27,18 @@ public class GetProcessesToolTests
         // Assert
         result.Should().NotBeNull();
         var processes = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        processes.GetProperty("processes").EnumerateArray().Should().NotBeNull();
+        processes.GetProperty("processes").EnumerateArray().Should().HaveCount(2);
     }
 
     [Fact]
     public async Task Execute_WithNameFilter_ShouldReturnFilteredProcesses()
     {
         // Arrange
-        var tool = new GetProcessesTool();
+        var tool = new GetProcessesTool(new FakeProcessDetector(
+        [
+            CreateProcessInfo(42, "TestApp"),
+            CreateProcessInfo(43, "DesignerHost")
+        ]), () => false);
         var parameters = new { nameFilter = "TestApp" };
 
         // Act
@@ -53,7 +61,7 @@ public class GetProcessesToolTests
     public async Task Execute_ShouldReturnProcessInfo()
     {
         // Arrange
-        var tool = new GetProcessesTool();
+        var tool = new GetProcessesTool(new FakeProcessDetector([CreateProcessInfo(42, "TestApp")]), () => false);
         var parameters = new { };
 
         // Act
@@ -163,25 +171,24 @@ public class GetProcessesToolTests
 
     private sealed class FakeProcessDetector : WpfProcessDetector
     {
+        private readonly IReadOnlyList<WpfProcessInfo> _processes;
+
+        internal FakeProcessDetector()
+            : this([CreateProcessInfo(42, "ElevatedTestApp", isElevated: true)])
+        {
+        }
+
+        internal FakeProcessDetector(IReadOnlyList<WpfProcessInfo> processes)
+        {
+            _processes = processes;
+        }
+
         internal List<ProcessWindowFilter> RequestedWindowFilters { get; } = [];
 
         public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
         {
             RequestedWindowFilters.Add(windowFilter);
-            return
-            [
-                new WpfProcessInfo
-                {
-                    ProcessId = 42,
-                    ProcessName = "ElevatedTestApp",
-                    WindowTitle = "Elevated Test",
-                    Architecture = ProcessArchitecture.X64,
-                    DotNetVersion = ".NET Core/5+",
-                    Runtime = TargetRuntime.NetCore,
-                    IsWpfApplication = true,
-                    IsElevated = true
-                }
-            ];
+            return _processes;
         }
     }
 
@@ -190,4 +197,17 @@ public class GetProcessesToolTests
         public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
             => throw new InvalidOperationException("simulated enumeration failure");
     }
+
+    private static WpfProcessInfo CreateProcessInfo(int processId, string processName, bool isElevated = false)
+        => new()
+        {
+            ProcessId = processId,
+            ProcessName = processName,
+            WindowTitle = processName + " Window",
+            Architecture = ProcessArchitecture.X64,
+            DotNetVersion = ".NET Core/5+",
+            Runtime = TargetRuntime.NetCore,
+            IsWpfApplication = true,
+            IsElevated = isElevated
+        };
 }

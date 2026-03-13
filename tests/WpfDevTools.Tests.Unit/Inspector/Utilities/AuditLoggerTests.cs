@@ -2,9 +2,11 @@ using Xunit;
 using FluentAssertions;
 using WpfDevTools.Inspector.Utilities;
 using System.Diagnostics;
+using WpfDevTools.Tests.Unit.Execution;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
 
+[Collection("TraceState")]
 public class TraceAuditLoggerTests
 {
     [Fact]
@@ -113,17 +115,28 @@ public class TraceAuditLoggerTests
         public override void Write(string? message)
         {
             if (message != null)
-                Messages.Add(message);
+            {
+                lock (Messages)
+                {
+                    Messages.Add(message);
+                }
+            }
         }
 
         public override void WriteLine(string? message)
         {
             if (message != null)
-                Messages.Add(message);
+            {
+                lock (Messages)
+                {
+                    Messages.Add(message);
+                }
+            }
         }
     }
 }
 
+[Collection("TraceState")]
 public class AuditLoggerStaticTests
 {
     [Fact]
@@ -236,6 +249,7 @@ public class AuditLoggerStaticTests
     }
 }
 
+[Collection("TraceState")]
 public class EventLogAuditLoggerTests
 {
     [Fact]

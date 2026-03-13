@@ -9,6 +9,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("ToolCallHelperState")]
 public sealed class MvvmAnalyzerCommandContractTests : IDisposable
 {
     public void Dispose()

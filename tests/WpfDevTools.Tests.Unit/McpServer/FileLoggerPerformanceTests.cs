@@ -2,9 +2,11 @@ using Xunit;
 using FluentAssertions;
 using WpfDevTools.Shared.Utilities;
 using System.Diagnostics;
+using WpfDevTools.Tests.Unit.Execution;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("TimingSensitive")]
 public class FileLoggerPerformanceTests : IDisposable
 {
     private readonly string _testLogPath;

@@ -10,6 +10,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("InteractionState")]
 public sealed class InteractionAnalyzerKeyboardNavigationTests
 {
     [StaFact]

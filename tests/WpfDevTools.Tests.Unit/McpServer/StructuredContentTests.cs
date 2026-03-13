@@ -10,6 +10,7 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 /// Validates that tool results leverage the MCP SDK's StructuredContent
 /// and Annotations properties for improved AI-client discoverability.
 /// </summary>
+[Collection("ToolCallHelperState")]
 public class StructuredContentTests
 {
     public StructuredContentTests()

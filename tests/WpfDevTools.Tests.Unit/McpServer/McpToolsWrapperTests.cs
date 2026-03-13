@@ -10,6 +10,7 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 /// to existing tool ExecuteAsync implementations and return proper CallToolResult.
 /// These tests exercise the wrapper logic without requiring actual WPF processes.
 /// </summary>
+[Collection("ToolCallHelperState")]
 public class McpToolsWrapperTests : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
@@ -23,9 +24,9 @@ public class McpToolsWrapperTests : IDisposable
     // === Process Tools ===
 
     [Fact]
-    public async Task GetProcesses_WithNoFilter_ShouldReturnCallToolResult()
+    public async Task GetActiveProcess_WithoutSelection_ShouldReturnCallToolResult()
     {
-        var result = await ProcessMcpTools.GetProcesses();
+        var result = await ProcessMcpTools.GetActiveProcess(_sessionManager);
 
         result.Should().NotBeNull();
         result.Content.Should().NotBeEmpty();
@@ -33,9 +34,9 @@ public class McpToolsWrapperTests : IDisposable
     }
 
     [Fact]
-    public async Task GetProcesses_WithNameFilter_ShouldReturnCallToolResult()
+    public async Task GetActiveProcess_WithoutSelection_ShouldReturnNonErrorResult()
     {
-        var result = await ProcessMcpTools.GetProcesses(nameFilter: "NonExistentApp");
+        var result = await ProcessMcpTools.GetActiveProcess(_sessionManager);
 
         result.Should().NotBeNull();
         result.IsError.Should().BeFalse();
@@ -412,7 +413,7 @@ public class McpToolsWrapperTests : IDisposable
     [Fact]
     public async Task AllWrappers_ShouldReturnTextContentBlock()
     {
-        var result = await ProcessMcpTools.GetProcesses();
+        var result = await ProcessMcpTools.GetActiveProcess(_sessionManager);
 
         var textBlock = result.Content[0] as TextContentBlock;
         textBlock.Should().NotBeNull();

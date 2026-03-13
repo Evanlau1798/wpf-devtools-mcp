@@ -11,6 +11,7 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 /// Tests for ToolCallHelper - the bridge between MCP SDK tool methods
 /// and existing tool ExecuteAsync implementations.
 /// </summary>
+[Collection("ToolCallHelperState")]
 public class ToolCallHelperTests
 {
     // === BuildJsonArgs Tests ===

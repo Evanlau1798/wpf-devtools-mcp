@@ -9,6 +9,7 @@ using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("InteractionState")]
 public class InteractionAnalyzerTests
 {
 

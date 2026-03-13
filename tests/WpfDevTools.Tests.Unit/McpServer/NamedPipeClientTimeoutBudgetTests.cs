@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Tests.Unit.Execution;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("TimingSensitive")]
 public class NamedPipeClientTimeoutBudgetTests
 {
     [Fact]

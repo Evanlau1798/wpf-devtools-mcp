@@ -5,37 +5,42 @@ using WpfDevTools.Shared.Enums;
 
 namespace WpfDevTools.Tests.Unit.Injector;
 
+[Collection("ProcessDiscovery")]
 public class WpfProcessDetectorTests
 {
     [Fact]
-    public void GetAllWpfProcesses_ShouldReturnProcessList()
+    public void GetAllWpfProcesses_ParameterlessOverload_ShouldUseVisibleFilter()
     {
-        // Arrange
-        var detector = new WpfProcessDetector();
+        var detector = new RecordingProcessDetector([]);
 
         // Act
         var processes = detector.GetAllWpfProcesses();
 
         // Assert
-        processes.Should().NotBeNull();
-        // Note: May be empty if no WPF apps running
+        detector.RequestedFilter.Should().Be(ProcessWindowFilter.Visible);
+        processes.Should().BeEmpty();
     }
 
     [Fact]
-    public void GetAllWpfProcesses_ShouldFilterNonWpfProcesses()
+    public void GetAllWpfProcesses_ParameterlessOverload_ShouldReturnOverriddenResult()
     {
-        // Arrange
-        var detector = new WpfProcessDetector();
+        var expected = new[]
+        {
+            new WpfProcessInfo
+            {
+                ProcessId = 42,
+                ProcessName = "TestApp",
+                IsWpfApplication = true,
+                Architecture = ProcessArchitecture.X64
+            }
+        };
+        var detector = new RecordingProcessDetector(expected);
 
         // Act
         var processes = detector.GetAllWpfProcesses();
 
         // Assert
-        // All returned processes should be WPF applications
-        foreach (var process in processes)
-        {
-            process.IsWpfApplication.Should().BeTrue();
-        }
+        processes.Should().BeEquivalentTo(expected);
     }
 
     [Fact]
@@ -85,6 +90,17 @@ public class WpfProcessDetectorTests
                 ProcessArchitecture.X86,
                 ProcessArchitecture.X64,
                 ProcessArchitecture.ARM64);
+        }
+    }
+
+    private sealed class RecordingProcessDetector(IReadOnlyList<WpfProcessInfo> results) : WpfProcessDetector
+    {
+        internal ProcessWindowFilter? RequestedFilter { get; private set; }
+
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
+        {
+            RequestedFilter = windowFilter;
+            return results;
         }
     }
 }

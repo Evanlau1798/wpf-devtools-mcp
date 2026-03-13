@@ -11,6 +11,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Host.Handlers;
 /// Contract regression tests ensuring response shapes for event-related
 /// operations remain stable across refactors.
 /// </summary>
+[Collection("ToolCallHelperState")]
 public sealed class EventHandlersContractTests : IDisposable
 {
     public void Dispose()

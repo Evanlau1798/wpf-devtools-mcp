@@ -91,8 +91,8 @@ public static class ToolCallHelper
             var result = await execute(args, cts.Token).ConfigureAwait(false);
             sw.Stop();
             var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
-            var nextSteps = _navigationPlanner.Plan(toolName, jsonElement, args, navigationState);
-            jsonElement = EnsureNextSteps(jsonElement, nextSteps);
+            var navigation = _navigationPlanner.PlanEnvelope(toolName, jsonElement, args, navigationState);
+            jsonElement = EnsureNavigation(jsonElement, navigation);
             var isError = IsToolResultError(jsonElement);
 
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, !isError);
@@ -114,7 +114,7 @@ public static class ToolCallHelper
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
 
             // Timeout occurred (our CTS was cancelled, but caller's token was not)
-            var timeoutPayload = EnsureNextSteps(JsonSerializer.SerializeToElement(new
+            var timeoutPayload = EnsureNavigation(JsonSerializer.SerializeToElement(new
             {
                 success = false,
                 error = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive.",
@@ -122,7 +122,7 @@ public static class ToolCallHelper
                 toolName,
                 timeoutSeconds = effectiveTimeoutSeconds,
                 suggestedAction = "Check target responsiveness, then retry the tool or reconnect if the session may be stale."
-            }, SerializerOptions), Array.Empty<ToolNextStep>());
+            }, SerializerOptions), ToolNavigationEnvelope.Empty);
 
             return new CallToolResult()
             {
@@ -144,12 +144,12 @@ public static class ToolCallHelper
             // to prevent localized OS text or internal details from leaking to clients
             var (errorCode, sanitizedMessage) = ClassifyException(ex);
 
-            var exceptionPayload = EnsureNextSteps(JsonSerializer.SerializeToElement(new
+            var exceptionPayload = EnsureNavigation(JsonSerializer.SerializeToElement(new
             {
                 success = false,
                 error = sanitizedMessage,
                 errorCode
-            }, SerializerOptions), Array.Empty<ToolNextStep>());
+            }, SerializerOptions), ToolNavigationEnvelope.Empty);
 
             return new CallToolResult()
             {
@@ -249,9 +249,9 @@ public static class ToolCallHelper
         return sessionManager.TryGetNavigationState(processId.Value, out var state) ? state : null;
     }
 
-    private static JsonElement EnsureNextSteps(JsonElement element, IReadOnlyList<ToolNextStep> nextSteps)
+    private static JsonElement EnsureNavigation(JsonElement element, ToolNavigationEnvelope navigation)
     {
-        if (element.ValueKind != JsonValueKind.Object || element.TryGetProperty("nextSteps", out _))
+        if (element.ValueKind != JsonValueKind.Object)
         {
             return element;
         }
@@ -262,11 +262,18 @@ public static class ToolCallHelper
 
         foreach (var property in element.EnumerateObject())
         {
+            if (property.NameEquals("nextSteps") || property.NameEquals("navigation"))
+            {
+                continue;
+            }
+
             property.WriteTo(writer);
         }
 
         writer.WritePropertyName("nextSteps");
-        JsonSerializer.Serialize(writer, nextSteps, SerializerOptions);
+        JsonSerializer.Serialize(writer, navigation.Recommended, SerializerOptions);
+        writer.WritePropertyName("navigation");
+        JsonSerializer.Serialize(writer, navigation, SerializerOptions);
         writer.WriteEndObject();
         writer.Flush();
 

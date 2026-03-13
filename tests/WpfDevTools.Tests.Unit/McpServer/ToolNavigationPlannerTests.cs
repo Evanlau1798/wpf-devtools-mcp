@@ -125,4 +125,33 @@ public sealed class ToolNavigationPlannerTests : IDisposable
 
         capturedState.Should().BeEquivalentTo(state);
     }
+
+    [Fact]
+    public void PlanEnvelope_ShouldPreserveRecommendedAlternativeAndContextRefBranches()
+    {
+        var registry = new ToolNavigationRegistry();
+        registry.Register("known_tool", _ => new ToolNavigationEnvelope(
+            [
+                new ToolNextStep("get_datacontext_chain", NavigationParamBuilders.Create(("elementId", "TextBox_1")), "Inspect DataContext.", ToolNextStepKind.Diagnostic, 1)
+            ],
+            [
+                new ToolNextStep("get_bindings", NavigationParamBuilders.Create(("elementId", "TextBox_1")), "Inspect binding declaration.", ToolNextStepKind.Diagnostic, 2)
+            ],
+            ["get_bindings"],
+            [
+                ToolNavigationReference.Create(
+                    "binding-issue",
+                    ("elementId", "TextBox_1"),
+                    ("propertyName", "Text"),
+                    ("diagnosis", "PathMismatch"))
+            ]));
+
+        var planner = new ToolNavigationPlanner(registry);
+        var envelope = planner.PlanEnvelope("known_tool", JsonSerializer.SerializeToElement(new { success = true }), null);
+
+        envelope.Recommended[0].Tool.Should().Be("get_datacontext_chain");
+        envelope.Alternatives[0].Tool.Should().Be("get_bindings");
+        envelope.PrefetchTools.Should().Equal("get_bindings");
+        envelope.ContextRefs[0].Type.Should().Be("binding-issue");
+    }
 }

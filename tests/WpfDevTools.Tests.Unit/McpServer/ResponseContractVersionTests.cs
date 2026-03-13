@@ -29,6 +29,8 @@ public sealed class ResponseContractVersionTests
         content.Should().Contain("nextSteps");
         content.Should().Contain("preconditions");
         content.Should().Contain("prefetchTools");
+        content.Should().Contain("navigation");
+        content.Should().Contain("contextRefs");
     }
 
     [Fact]
@@ -42,5 +44,7 @@ public sealed class ResponseContractVersionTests
         ServerInstructions.Value.Should().Contain("preconditions");
         ServerInstructions.Value.Should().Contain("workflowId");
         ServerInstructions.Value.Should().Contain("prefetchTools");
+        ServerInstructions.Value.Should().Contain("navigation");
+        ServerInstructions.Value.Should().Contain("contextRef");
     }
 }

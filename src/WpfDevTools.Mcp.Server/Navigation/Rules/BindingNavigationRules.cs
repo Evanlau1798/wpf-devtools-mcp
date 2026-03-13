@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.Navigation.ContextRefs;
 using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Mcp.Server.Navigation.Rules;
@@ -12,14 +13,16 @@ internal static class BindingNavigationRules
         registry.Register("get_validation_errors", BuildValidationErrors);
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildBindingErrors(ToolNavigationContext context)
+    private static ToolNavigationEnvelope BuildBindingErrors(ToolNavigationContext context)
     {
         if (!TryGetArray(context.Payload, "errors", out var errors))
         {
-            return Array.Empty<ToolNextStep>();
+            return ToolNavigationEnvelope.Empty;
         }
 
-        var steps = new List<ToolNextStep>();
+        var recommended = new List<ToolNextStep>();
+        var alternatives = new List<ToolNextStep>();
+        ToolNavigationReference? contextRef = null;
         foreach (var error in errors.EnumerateArray())
         {
             if (!TryGetString(error, "elementId", out var elementId))
@@ -29,40 +32,47 @@ internal static class BindingNavigationRules
 
             if (IsPathMismatch(error))
             {
-                AddUnique(steps, CreateDiagnostic(
+                AddUnique(recommended, CreateDiagnostic(
                     "get_datacontext_chain",
                     1,
                     "Inspect the DataContext inheritance for the failing element.",
                     ("elementId", elementId)));
-                AddUnique(steps, CreateDiagnostic(
+                AddUnique(alternatives, CreateDiagnostic(
                     "get_bindings",
                     2,
                     "Inspect the binding declaration on the failing element.",
                     ("elementId", elementId)));
+                contextRef ??= BindingIssueContextRefBuilder.TryBuild(error, "PathMismatch");
             }
 
             if (IsConverterOrUpdateFailure(error) && TryGetString(error, "propertyName", out var propertyName))
             {
-                AddUnique(steps, CreateDiagnostic(
+                AddUnique(recommended, CreateDiagnostic(
                     "get_binding_value_chain",
                     1,
                     "Trace the binding value flow for the failing property.",
                     ("elementId", elementId),
                     ("propertyName", propertyName)));
+                contextRef ??= BindingIssueContextRefBuilder.TryBuild(error, "ConverterOrUpdateFailure");
             }
         }
 
-        return steps;
+        return ToolNavigationEnvelope.FromRecommended(
+            recommended,
+            alternatives,
+            NavigationLoadHint.ToolNames(alternatives.Select(step => step.Tool).ToArray()),
+            contextRef is null ? [] : [contextRef]);
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildBindingMismatches(ToolNavigationContext context)
+    private static ToolNavigationEnvelope BuildBindingMismatches(ToolNavigationContext context)
     {
         if (!TryGetArray(context.Payload, "mismatches", out var mismatches))
         {
-            return Array.Empty<ToolNextStep>();
+            return ToolNavigationEnvelope.Empty;
         }
 
         var steps = new List<ToolNextStep>();
+        ToolNavigationReference? contextRef = null;
         foreach (var mismatch in mismatches.EnumerateArray())
         {
             if (!TryGetString(mismatch, "elementId", out var elementId))
@@ -82,6 +92,7 @@ internal static class BindingNavigationRules
                     1,
                     "Inspect the binding declaration for the mismatched path.",
                     ("elementId", elementId)));
+                contextRef ??= BindingIssueContextRefBuilder.TryBuild(mismatch, diagnosis);
                 continue;
             }
 
@@ -99,6 +110,7 @@ internal static class BindingNavigationRules
                     "Inspect the target dependency property value source.",
                     ("elementId", elementId),
                     ("propertyName", propertyName)));
+                contextRef ??= BindingIssueContextRefBuilder.TryBuild(mismatch, diagnosis);
             }
 
             if (string.Equals(diagnosis, "NullabilityMismatch", StringComparison.Ordinal))
@@ -109,10 +121,13 @@ internal static class BindingNavigationRules
                     "Trace how the binding resolved into a nullability mismatch.",
                     ("elementId", elementId),
                     ("propertyName", propertyName)));
+                contextRef ??= BindingIssueContextRefBuilder.TryBuild(mismatch, diagnosis);
             }
         }
 
-        return steps;
+        return ToolNavigationEnvelope.FromRecommended(
+            steps,
+            contextRefs: contextRef is null ? [] : [contextRef]);
     }
 
     private static IReadOnlyList<ToolNextStep> BuildValidationErrors(ToolNavigationContext context)

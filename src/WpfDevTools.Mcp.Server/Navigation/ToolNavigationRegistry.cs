@@ -5,7 +5,7 @@ namespace WpfDevTools.Mcp.Server.Navigation;
 
 public sealed class ToolNavigationRegistry
 {
-    private readonly Dictionary<string, Func<ToolNavigationContext, IReadOnlyList<ToolNextStep>>> _handlers =
+    private readonly Dictionary<string, Func<ToolNavigationContext, ToolNavigationEnvelope>> _handlers =
         new(StringComparer.Ordinal);
 
     public ToolNavigationRegistry()
@@ -20,11 +20,18 @@ public sealed class ToolNavigationRegistry
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         ArgumentNullException.ThrowIfNull(handler);
+        _handlers[toolName] = context => ToolNavigationEnvelope.FromRecommended(handler(context));
+    }
+
+    public void Register(string toolName, Func<ToolNavigationContext, ToolNavigationEnvelope> handler)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+        ArgumentNullException.ThrowIfNull(handler);
         _handlers[toolName] = handler;
     }
 
     public bool TryResolve(
         string toolName,
-        out Func<ToolNavigationContext, IReadOnlyList<ToolNextStep>>? handler) =>
+        out Func<ToolNavigationContext, ToolNavigationEnvelope>? handler) =>
         _handlers.TryGetValue(toolName, out handler);
 }

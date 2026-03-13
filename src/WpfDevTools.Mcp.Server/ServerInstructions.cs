@@ -158,9 +158,11 @@ public static class ServerInstructions
         - Current response contract version: {{ResponseContractVersion.Current}}
         - Every tool response includes `nextSteps`; use it as the preferred follow-up navigation field when present, prefer it over ad hoc tool guessing, and expect `nextSteps: []` when the server has no deterministic runtime guidance.
         - v2 `nextSteps` entries may also include optional `preconditions`, `expectedOutcome`, `workflowId`, and `prefetchTools` fields.
+        - v3 also adds an additive `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and descriptive `contextRef` entries.
         - These optional fields are session-aware hints for capable clients; older clients can ignore them safely.
         - `workflowId` and `expectedOutcome` are advisory only and describe short verification loops, not executable server-side orchestration.
         - `prefetchTools` is advisory only and contains tool names, not parameters or hidden commands.
+        - `contextRef` entries are descriptive JSON only; they are not opaque handles and must not be treated as implicit tool execution requests.
         - Compatibility aliases remain available in the current contract for backward compatibility.
         - Compatibility aliases:
           - currentValue -> effectiveValue

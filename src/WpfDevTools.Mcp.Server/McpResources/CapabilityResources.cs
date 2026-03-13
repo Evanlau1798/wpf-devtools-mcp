@@ -27,6 +27,13 @@ public static class CapabilityResources
         - Resource surface: capability summary, workflow references, elevated-target limitations, and window/focus limitations
         - Feature flags: `prompts=true`, `resources=true`, `stateSnapshots=true`, `diagnosticNormalization=true`, `elevatedTargetDiagnostics=true`
 
+        ## Recommended workflow shape
+
+        - Start with `connect()` and let auto-discovery pick the single visible WPF target when possible.
+        - Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you explicitly need a filtered process list before connecting.
+        - Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.
+        - After each diagnostic, interaction, or mutation, follow returned `nextSteps` / `navigation` guidance before guessing the next tool.
+
         ## Response contract notes
 
         - Every tool response now includes a compatibility `nextSteps` field; tools without runtime-computable guidance return `nextSteps: []`.
@@ -72,11 +79,12 @@ public static class CapabilityResources
         Use this when UI data is blank, wrong, or stale.
 
         1. `get_binding_errors`
-        2. `get_visual_tree` or `get_logical_tree` to locate the relevant `elementId`
-        3. `get_bindings`
-        4. `get_binding_value_chain`
-        5. `get_datacontext_chain`
-        6. `get_validation_errors` when validation may block updates
+        2. Follow `navigation.recommended` or `nextSteps` from the latest diagnostic result
+        3. `get_element_snapshot` for one-call local context on the failing element
+        4. `get_bindings`
+        5. `get_binding_value_chain`
+        6. `get_datacontext_chain`
+        7. `get_validation_errors` when validation may block updates
 
         Cross-tool semantics:
         - `get_binding_errors` reports failures captured by WPF binding tracing.
@@ -156,7 +164,7 @@ public static class CapabilityResources
         Title = "Runtime State Safety Notes",
         UriTemplate = "wpf://limitations/state-safety",
         MimeType = "text/markdown")]
-    [Description("Summarizes current mutation safety boundaries until snapshot/restore helpers exist.")]
+    [Description("Summarizes the shipped mutation safety model, snapshot boundaries, and rollback expectations.")]
     public static string GetStateSafetyNotes() =>
         """
         # Runtime State Safety Notes

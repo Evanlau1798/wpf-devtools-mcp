@@ -22,6 +22,8 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("connect()");
         ServerInstructions.Value.Should().Contain("auto-discovery");
         ServerInstructions.Value.Should().Contain("windowFilter");
+        ServerInstructions.Value.Should().Contain("Do not call get_processes before connect()");
+        ServerInstructions.Value.Should().Contain("Prefer get_ui_summary");
     }
 
     [Fact]
@@ -44,7 +46,7 @@ public class ServerInstructionsTests
     public void Value_ShouldContainRateLimits()
     {
         ServerInstructions.Value.Should().Contain("RATE LIMITS");
-        ServerInstructions.Value.Should().Contain("100 requests/minute");
+        ServerInstructions.Value.Should().Contain($"{McpServerConfiguration.RateLimitRequestsPerMinute} requests/minute");
     }
 
     [Fact]
@@ -62,6 +64,7 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("get_element_snapshot");
         ServerInstructions.Value.Should().Contain("get_form_summary");
         ServerInstructions.Value.Should().Contain("get_state_diff");
+        ServerInstructions.Value.Should().Contain("follow navigation.recommended");
     }
 
     [Fact]

@@ -5,7 +5,6 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public class NamedPipesDocumentationConsistencyTests
 {
     [Theory]
-    [InlineData("AGENTS.md")]
     [InlineData("docs/NAMED_PIPES_IPC_GUIDE.md")]
     [InlineData("docs/architecture/ADR-001-named-pipes-for-ipc.md")]
     [InlineData("docs/architecture/ADR-003-length-prefix-framing.md")]

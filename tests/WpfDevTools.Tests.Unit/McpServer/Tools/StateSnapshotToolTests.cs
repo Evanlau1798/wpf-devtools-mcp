@@ -172,18 +172,6 @@ public sealed class StateSnapshotToolTests
                     {
                         new { name = "Name", type = "String", value = "Alice", canWrite = true }
                     }
-                }),
-                JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    errorCount = 0,
-                    errors = Array.Empty<object>()
-                }),
-                JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    errorCount = 0,
-                    errors = Array.Empty<object>()
                 })
             });
 
@@ -357,6 +345,8 @@ public sealed class StateSnapshotToolTests
         {
             try
             {
+                SessionManager.Dispose();
+                server.Dispose();
                 serverTask.GetAwaiter().GetResult();
             }
             finally

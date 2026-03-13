@@ -83,4 +83,23 @@ public class ReadmeDocumentationTests
         content.Should().Contain("server process architecture must match the target process",
             "README quick start must state that the MCP server/injector bitness must match the target app");
     }
+
+    [Fact]
+    public void Readme_ShouldDescribeConnectFirstSceneFirstWorkflow()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("connect()",
+            "the primary workflow should start from connect() auto-discovery");
+        content.Should().Contain("get_ui_summary",
+            "README should direct agents toward scene-level context before tree expansion");
+        content.Should().Contain("nextSteps",
+            "README should explain that clients should prefer returned runtime navigation guidance");
+        content.Should().Contain("get_processes(windowFilter)",
+            "README should frame process listing as a disambiguation path rather than the default path");
+        content.Should().NotContain("Call `get_processes` to discover WPF targets.",
+            "README should not instruct agents to list processes before trying connect()");
+        content.Should().NotContain("Use tree tools first",
+            "README should not present tree-first exploration as the default path");
+    }
 }

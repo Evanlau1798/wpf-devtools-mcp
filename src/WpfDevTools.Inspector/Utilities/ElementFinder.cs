@@ -202,7 +202,7 @@ public sealed class ElementFinder : IDisposable
         return InvokeOnDispatcher(searchRoot.Dispatcher, () =>
         {
             // Search the provided root first
-            var found = SearchVisualTree(searchRoot, elementId!);
+            var found = SearchTree(searchRoot, elementId!);
             if (found != null)
             {
                 return found;
@@ -229,7 +229,7 @@ public sealed class ElementFinder : IDisposable
                     continue;
                 }
 
-                found = SearchVisualTree(window, elementId!);
+                found = SearchTree(window, elementId!);
                 if (found != null)
                 {
                     return found;
@@ -255,28 +255,18 @@ public sealed class ElementFinder : IDisposable
             actualTimeout);
     }
 
-    private DependencyObject? SearchVisualTree(DependencyObject element, string targetId)
+    private DependencyObject? SearchTree(DependencyObject element, string targetId)
     {
-        // Check if this element matches the target ID
-        if (_objectToIdCache.TryGetValue(element, out var id) && id == targetId)
+        foreach (var current in DependencyObjectTraversal.EnumerateDescendantsAndSelf(element))
         {
-            // Re-cache the weak reference
-            _elementCache[targetId] = new WeakReference<DependencyObject>(element);
-            return element;
-        }
-
-        // Recursively search children
-        var childCount = VisualTreeHelper.GetChildrenCount(element);
-        for (int i = 0; i < childCount; i++)
-        {
-            var child = VisualTreeHelper.GetChild(element, i);
-            var found = SearchVisualTree(child, targetId);
-            if (found != null)
+            if (!_objectToIdCache.TryGetValue(current, out var id) || id != targetId)
             {
-                return found;
+                continue;
             }
-        }
 
+            _elementCache[targetId] = new WeakReference<DependencyObject>(current);
+            return current;
+        }
         return null;
     }
 

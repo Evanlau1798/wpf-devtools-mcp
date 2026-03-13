@@ -21,6 +21,7 @@ public static class ServerInstructions
         2. If connect() reports multiple candidates, call get_processes(windowFilter) and retry connect(processId)
         3. Build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees
         4. Use focused inspection/interaction tools against the connected process
+        5. Do not call get_processes before connect() unless auto-discovery is ambiguous or you explicitly need filtered discovery before connecting
 
         === PARAMETER CONVENTIONS ===
         - processId: integer, from get_processes, optional after connect()/select_active_process() establishes the active process
@@ -41,7 +42,7 @@ public static class ServerInstructions
         - If timeout occurs, process may be frozen or unresponsive
 
         === RATE LIMITS ===
-        - Per-session: 100 requests/minute per connected process
+        - Per-session: 300 requests/minute per connected process
         - Tree tools: Use depth parameter to limit response size
         - Performance tools: Avoid calling in tight loops
 
@@ -96,8 +97,10 @@ public static class ServerInstructions
         === AI AGENT BEST PRACTICES ===
         - Start with connect() unless you already know you need a specific processId or non-default windowFilter
         - When connect() reports multiple candidates, use get_processes(windowFilter) to disambiguate and retry
+        - Do not call get_processes before connect() as a default habit; treat it as a disambiguation or filtering tool
         - Store processId in conversation context after successful connect()
         - Prefer get_ui_summary/get_element_snapshot/get_form_summary before tree-heavy inspection
+        - Prefer get_ui_summary for initial context unless you already have a narrow element-centric question
         - Use depth=2-3 for initial tree exploration; increase only if needed
         - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
         - Prefer slash commands from MCP prompts when you want a predefined workflow entry point
@@ -122,7 +125,7 @@ public static class ServerInstructions
         === COMMON WORKFLOWS ===
 
         Workflow 1 - Debug Binding Error:
-        connect() -> get_binding_errors -> get_element_snapshot(elementId) -> get_datacontext_chain(elementId) -> get_bindings(elementId)
+        connect() -> get_binding_errors -> follow navigation.recommended -> get_element_snapshot(elementId) -> get_bindings(elementId) -> get_datacontext_chain(elementId)
 
         Workflow 2 - Test Button Click:
         connect() -> get_form_summary or get_ui_summary -> get_interaction_readiness(elementId, 'Click') -> click_element(elementId) -> get_state_diff(snapshotId)
@@ -131,13 +134,13 @@ public static class ServerInstructions
         connect() -> get_element_snapshot(elementId) -> get_viewmodel -> get_commands -> modify_viewmodel(propertyName, value)
 
         Workflow 4 - Performance Profiling:
-        get_processes -> connect -> get_visual_count -> get_render_stats -> find_binding_leaks(threshold=50) -> measure_element_render_time(elementId)
+        connect() -> get_processes(windowFilter) only if connect() reports multiple candidates -> get_visual_count -> get_render_stats -> find_binding_leaks(threshold=50) -> measure_element_render_time(elementId)
 
         Workflow 5 - Multi-Window Inspection:
         connect() -> get_windows -> get_ui_summary(elementId=<windowElementId>, depthMode='semantic') -> get_visual_tree(elementId=<windowElementId>, depth=3) -> inspect subtree
 
         Workflow 6 - Debug Event Handling:
-        get_processes -> connect -> get_event_handlers(elementId, eventName) -> trace_routed_events(mode="start", eventName) -> click_element(elementId) -> trace_routed_events(mode="get")
+        connect() -> get_processes(windowFilter) only if connect() reports multiple candidates -> get_event_handlers(elementId, eventName) -> trace_routed_events(mode="start", eventName) -> click_element(elementId) -> trace_routed_events(mode="get")
 
         Workflow 7 - Debug Validation Errors:
         connect() -> get_form_summary -> get_validation_errors() [root-scope aggregates all descendants] -> get_validation_errors(elementId) [narrow to specific element] -> get_bindings(elementId)

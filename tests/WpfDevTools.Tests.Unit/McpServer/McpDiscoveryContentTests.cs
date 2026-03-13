@@ -35,6 +35,14 @@ public class McpDiscoveryContentTests
 
         CapabilityResources.GetStateSafetyNotes().Should().Contain("Snapshot/restore");
         CapabilityResources.GetStateSafetyNotes().Should().Contain("capture_state_snapshot");
+        typeof(CapabilityResources)
+            .GetMethod(nameof(CapabilityResources.GetStateSafetyNotes))!
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .Cast<System.ComponentModel.DescriptionAttribute>()
+            .Single()
+            .Description
+            .Should().NotContain("until snapshot/restore helpers exist",
+                "resource descriptions should not advertise outdated pre-snapshot wording");
     }
 
     [Fact]
@@ -42,11 +50,30 @@ public class McpDiscoveryContentTests
     {
         WorkflowPrompts.DebugBindingIssue().Should().Contain("get_binding_errors");
         WorkflowPrompts.DebugBindingIssue().Should().Contain("get_element_snapshot");
+        WorkflowPrompts.DebugBindingIssue().Should().Contain("navigation.recommended");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("click_element");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("get_interaction_readiness");
+        WorkflowPrompts.DebugCommandOrClick().Should().Contain("trace_routed_events(mode='get')");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("get_windows");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("connect()");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("windowFilter");
+        WorkflowPrompts.ConnectAndListWindows().Should().Contain("Do not call get_processes");
         WorkflowPrompts.InspectSecondaryWindow().Should().Contain("Application.MainWindow");
+        WorkflowPrompts.InspectSecondaryWindow().Should().Contain("connect()");
+    }
+
+    [Fact]
+    public void CapabilityResources_ShouldPreferConnectFirstAndSceneFirstGuidance()
+    {
+        var capabilities = CapabilityResources.GetCapabilities();
+        var bindingWorkflow = CapabilityResources.GetBindingWorkflow();
+
+        capabilities.Should().Contain("connect()");
+        capabilities.Should().Contain("get_ui_summary");
+        capabilities.Should().Contain("navigation");
+        bindingWorkflow.Should().Contain("navigation.recommended");
+        bindingWorkflow.Should().Contain("get_element_snapshot");
+        bindingWorkflow.Should().NotContain("get_visual_tree or get_logical_tree",
+            "binding workflow should not recommend tree expansion before scene-level diagnostics");
     }
 }

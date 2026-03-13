@@ -77,10 +77,11 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 
 ### Typical MCP workflow
 
-1. Call `get_processes` to discover WPF targets.
-2. Call `connect(processId)` before any process-specific tool.
-3. Use tree tools first (`get_visual_tree`, `get_logical_tree`) to obtain `elementId` values.
-4. Move to diagnostics (`get_bindings`, `get_binding_errors`, `get_dp_value_source`) or interaction tools (`click_element`, `simulate_keyboard`, `element_screenshot`).
+1. Call `connect()` first and let the server auto-discover the target when only one visible WPF app is available.
+2. Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you intentionally need background / foreground filtering before connecting.
+3. Build initial context with `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before expanding full trees.
+4. Use tree tools only when scene-level summaries are insufficient and you need stable `elementId` values.
+5. After diagnostics, interaction, or mutation, prefer the returned `nextSteps` / `navigation` guidance over ad hoc tool guessing.
 
 ## Maintainer Release Flow
 

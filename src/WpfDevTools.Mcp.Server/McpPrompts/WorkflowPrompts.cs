@@ -14,10 +14,12 @@ public static class WorkflowPrompts
 
         Recommended workflow:
         1. Call connect() first; let the server auto-discover the target when there is only one visible WPF app.
-        2. If connect() returns multiple candidates, call get_processes(windowFilter='visible' or 'all'), choose the target processId, and retry connect(processId).
-        3. Call ping(processId) only if you need an explicit Inspector health check.
-        4. Call get_windows(processId) to enumerate all windows.
-        5. If a secondary window matters, pass its elementId into get_visual_tree or get_logical_tree.
+        2. Do not call get_processes before connect() unless auto-discovery is ambiguous or you explicitly need filtered process discovery.
+        3. If connect() returns multiple candidates, call get_processes(windowFilter='visible' or 'all'), choose the target processId, and retry connect(processId).
+        4. Prefer get_ui_summary before expanding full trees for a specific window.
+        5. Call get_windows(processId) to enumerate all windows.
+        6. If a secondary window matters, pass its elementId into get_visual_tree or get_logical_tree.
+        7. Call ping(processId) only if you need an explicit Inspector health check.
 
         If connect fails with an elevated-target error, stop and restart the MCP server as administrator.
         """;
@@ -31,11 +33,12 @@ public static class WorkflowPrompts
         Recommended workflow:
         1. connect()
         2. get_binding_errors()
-        3. If the failing element is known, call get_element_snapshot(elementId) for one-call local context
-        4. get_bindings(elementId)
-        5. get_binding_value_chain(elementId, propertyName)
-        6. get_datacontext_chain(elementId)
-        7. get_validation_errors(elementId) when validation may be involved
+        3. Follow navigation.recommended or nextSteps from the latest diagnostic result
+        4. If the failing element is known, call get_element_snapshot(elementId) for one-call local context
+        5. get_bindings(elementId)
+        6. get_binding_value_chain(elementId, propertyName)
+        7. get_datacontext_chain(elementId)
+        8. get_validation_errors(elementId) when validation may be involved
 
         Prefer these tools as a set. They describe different layers of the same binding story.
         """;
@@ -84,12 +87,13 @@ public static class WorkflowPrompts
         Goal: inspect a non-main WPF window without accidentally targeting the wrong root.
 
         Recommended workflow:
-        1. connect(processId)
-        2. get_windows(processId)
-        3. get_focus_state(processId)
-        4. Select the desired window by title, type, isVisible, or isMainWindow
-        5. Use that window elementId with get_visual_tree, get_logical_tree, screenshot, or interaction tools
-        6. Re-check get_windows if focus or visibility changes during the flow
+        1. connect()
+        2. If connect() reports multiple candidates, call get_processes(windowFilter) and retry connect(processId)
+        3. get_windows(processId)
+        4. get_focus_state(processId)
+        5. Select the desired window by title, type, isVisible, or isMainWindow
+        6. Use that window elementId with get_ui_summary, get_visual_tree, get_logical_tree, screenshot, or interaction tools
+        7. Re-check get_windows if focus or visibility changes during the flow
 
         Never assume omitted elementId means the currently focused window. It means Application.MainWindow.
         """;

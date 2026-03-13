@@ -1,6 +1,9 @@
 using Xunit;
 using FluentAssertions;
 using WpfDevTools.Inspector.Utilities;
+using System.Reflection;
+using System.Collections.Concurrent;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
@@ -156,6 +159,51 @@ public class ElementFinderTests
     }
 
     [StaFact]
+    public void FindById_WhenWeakCacheMisses_ShouldFindInactiveTabContentViaTraversal()
+    {
+        using var finder = new ElementFinder();
+        var tabControl = new TabControl();
+        var activeTab = new TabItem
+        {
+            Header = "Active",
+            Content = new TextBlock { Text = "Visible" }
+        };
+        var inactiveContent = new TextBlock { Name = "InactiveContentText", Text = "Hidden" };
+        var inactiveTab = new TabItem
+        {
+            Header = "Inactive",
+            Content = inactiveContent
+        };
+        tabControl.Items.Add(activeTab);
+        tabControl.Items.Add(inactiveTab);
+        tabControl.SelectedIndex = 0;
+
+        var window = new Window
+        {
+            Width = 320,
+            Height = 200,
+            Content = tabControl
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+
+            var elementId = finder.GenerateElementId(inactiveContent);
+            ClearWeakElementCacheEntry(finder, elementId);
+
+            var found = finder.FindById(elementId, window);
+
+            found.Should().BeSameAs(inactiveContent);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
     public void CleanupDeadReferences_RemovesEntriesForCollectedElements()
     {
         // Arrange
@@ -178,5 +226,14 @@ public class ElementFinderTests
     {
         var element = new TextBlock();
         return finder.GenerateElementId(element);
+    }
+
+    private static void ClearWeakElementCacheEntry(ElementFinder finder, string elementId)
+    {
+        var field = typeof(ElementFinder).GetField("_elementCache", BindingFlags.Instance | BindingFlags.NonPublic);
+        field.Should().NotBeNull();
+        var cache = field!.GetValue(finder) as ConcurrentDictionary<string, WeakReference<DependencyObject>>;
+        cache.Should().NotBeNull();
+        cache!.TryRemove(elementId, out _).Should().BeTrue();
     }
 }

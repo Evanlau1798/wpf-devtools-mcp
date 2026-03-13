@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Buffers;
 using ModelContextProtocol.Protocol;
+using WpfDevTools.Mcp.Server.Navigation;
+using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
@@ -12,6 +15,7 @@ public static class ToolCallHelper
 {
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
     private static MetricsCollector? _metrics;
+    private static ToolNavigationPlanner _navigationPlanner = new(new ToolNavigationRegistry());
 
     private static readonly Annotations ErrorAnnotations = new() { Priority = 1.0f };
 
@@ -85,6 +89,8 @@ public static class ToolCallHelper
             var result = await execute(args, cts.Token).ConfigureAwait(false);
             sw.Stop();
             var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
+            var nextSteps = _navigationPlanner.Plan(toolName, jsonElement, args);
+            jsonElement = EnsureNextSteps(jsonElement, nextSteps);
             var isError = IsToolResultError(jsonElement);
 
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, !isError);
@@ -106,7 +112,7 @@ public static class ToolCallHelper
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
 
             // Timeout occurred (our CTS was cancelled, but caller's token was not)
-            var timeoutPayload = JsonSerializer.SerializeToElement(new
+            var timeoutPayload = EnsureNextSteps(JsonSerializer.SerializeToElement(new
             {
                 success = false,
                 error = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive.",
@@ -114,7 +120,7 @@ public static class ToolCallHelper
                 toolName,
                 timeoutSeconds = effectiveTimeoutSeconds,
                 suggestedAction = "Check target responsiveness, then retry the tool or reconnect if the session may be stale."
-            }, SerializerOptions);
+            }, SerializerOptions), Array.Empty<ToolNextStep>());
 
             return new CallToolResult()
             {
@@ -136,12 +142,12 @@ public static class ToolCallHelper
             // to prevent localized OS text or internal details from leaking to clients
             var (errorCode, sanitizedMessage) = ClassifyException(ex);
 
-            var exceptionPayload = JsonSerializer.SerializeToElement(new
+            var exceptionPayload = EnsureNextSteps(JsonSerializer.SerializeToElement(new
             {
                 success = false,
                 error = sanitizedMessage,
                 errorCode
-            }, SerializerOptions);
+            }, SerializerOptions), Array.Empty<ToolNextStep>());
 
             return new CallToolResult()
             {
@@ -217,6 +223,35 @@ public static class ToolCallHelper
     {
         ToolCache.Clear();
         _metrics = null;
+        _navigationPlanner = new ToolNavigationPlanner(new ToolNavigationRegistry());
+    }
+
+    internal static void SetNavigationPlannerForTesting(ToolNavigationPlanner planner) =>
+        _navigationPlanner = planner ?? throw new ArgumentNullException(nameof(planner));
+
+    private static JsonElement EnsureNextSteps(JsonElement element, IReadOnlyList<ToolNextStep> nextSteps)
+    {
+        if (element.ValueKind != JsonValueKind.Object || element.TryGetProperty("nextSteps", out _))
+        {
+            return element;
+        }
+
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartObject();
+
+        foreach (var property in element.EnumerateObject())
+        {
+            property.WriteTo(writer);
+        }
+
+        writer.WritePropertyName("nextSteps");
+        JsonSerializer.Serialize(writer, nextSteps, SerializerOptions);
+        writer.WriteEndObject();
+        writer.Flush();
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
     }
 }
 

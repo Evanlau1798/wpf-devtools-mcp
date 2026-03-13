@@ -58,7 +58,8 @@ public static class BindingMcpTools
                 "GetBindingMismatchesTool",
                 () => new GetBindingMismatchesTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_binding_mismatches");
     }
 
     [McpServerTool(Name = "get_bindings", Title = "Inspect WPF Bindings", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
@@ -160,7 +161,8 @@ public static class BindingMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetBindingErrorsTool>("GetBindingErrorsTool", () => new GetBindingErrorsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_binding_errors");
     }
 
     [McpServerTool(Name = "get_binding_value_chain", Title = "Trace WPF Binding Value Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]

@@ -107,6 +107,10 @@ public class ToolCallHelperTests
         result.Should().NotBeNull();
         result.IsError.Should().BeFalse();
         result.Content.Should().HaveCount(1);
+        result.StructuredContent.Should().NotBeNull();
+        result.StructuredContent!.Value.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
+        nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+        nextSteps.GetArrayLength().Should().Be(0);
     }
 
     [Fact]
@@ -120,6 +124,10 @@ public class ToolCallHelperTests
         result.Should().NotBeNull();
         result.IsError.Should().BeTrue();
         result.Content.Should().HaveCount(1);
+        result.StructuredContent.Should().NotBeNull();
+        result.StructuredContent!.Value.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
+        nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+        nextSteps.GetArrayLength().Should().Be(0);
     }
 
     [Fact]

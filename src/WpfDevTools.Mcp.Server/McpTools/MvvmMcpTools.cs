@@ -183,7 +183,8 @@ public static class MvvmMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetValidationErrorsTool>("GetValidationErrorsTool", () => new GetValidationErrorsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_validation_errors");
     }
 
     [McpServerTool(Name = "modify_viewmodel", Title = "Modify WPF ViewModel", OpenWorld = false, Destructive = true, UseStructuredContent = false)]

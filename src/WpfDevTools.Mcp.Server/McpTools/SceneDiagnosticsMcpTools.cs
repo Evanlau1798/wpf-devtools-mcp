@@ -137,7 +137,8 @@ public static class SceneDiagnosticsMcpTools
                 nameof(DiagnoseVisibilityTool),
                 () => new DiagnoseVisibilityTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "diagnose_visibility");
     }
 
     [McpServerTool(Name = "get_interaction_readiness", Title = "Inspect WPF Interaction Readiness", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
@@ -179,7 +180,8 @@ public static class SceneDiagnosticsMcpTools
                 nameof(GetInteractionReadinessTool),
                 () => new GetInteractionReadinessTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_interaction_readiness");
     }
 
     [McpServerTool(Name = "get_ui_summary", Title = "Summarize WPF UI Semantics", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
@@ -264,6 +266,7 @@ public static class SceneDiagnosticsMcpTools
                 nameof(GetFormSummaryTool),
                 () => new GetFormSummaryTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_form_summary");
     }
 }

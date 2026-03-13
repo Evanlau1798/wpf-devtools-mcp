@@ -29,6 +29,7 @@ public static class CapabilityResources
 
         ## Response contract notes
 
+        - Every tool response now includes a `nextSteps` field; tools without runtime-computable guidance return `nextSteps: []`.
         - Compatibility aliases remain in the current response contract to avoid breaking existing clients.
         - Compatibility aliases:
           - `currentValue -> effectiveValue`

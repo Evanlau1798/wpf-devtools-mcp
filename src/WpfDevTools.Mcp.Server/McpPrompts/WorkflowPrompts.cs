@@ -80,6 +80,26 @@ public static class WorkflowPrompts
         - In stdio mode, the MCP server inherits the host client's privilege level.
         """;
 
+    [McpServerPrompt(Name = "profile_performance", Title = "Profile Performance")]
+    [Description("Workflow prompt for visual count, render stats, binding leak detection, and element render measurement.")]
+    public static string ProfilePerformance() =>
+        """
+        Goal: identify performance bottlenecks in the WPF application.
+
+        Recommended workflow:
+        1. connect()
+        2. get_visual_count() to understand the total visual tree size
+        3. get_render_stats() for frame timing and render metrics (first call may return zeros; call again after a short wait)
+        4. find_binding_leaks(threshold=50) to detect binding references that may indicate memory leaks
+        5. If a specific element is suspected: measure_element_render_time(elementId) for targeted profiling
+        6. Use get_ui_summary to correlate heavy subtrees with their visual count
+
+        Key notes:
+        - get_render_stats requires the Inspector to have monitored at least one render cycle; a warm-up call is normal.
+        - Avoid calling performance tools in tight loops; use one-shot polling instead.
+        - Performance metrics are session-scoped and reset on reconnect.
+        """;
+
     [McpServerPrompt(Name = "inspect_secondary_window", Title = "Inspect Secondary Window")]
     [Description("Workflow prompt for dialogs, tool windows, popups, and focus-sensitive multi-window flows.")]
     public static string InspectSecondaryWindow() =>

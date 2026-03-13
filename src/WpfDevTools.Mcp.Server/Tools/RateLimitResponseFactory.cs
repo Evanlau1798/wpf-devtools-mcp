@@ -10,6 +10,7 @@ internal static class RateLimitResponseFactory
         {
             success = false,
             error = errorMessage,
+            errorCode = "RateLimitExceeded",
             availableTokens = status.AvailableTokens,
             retryAfterSeconds,
             retryAfter = BuildHumanReadableRetryAfter(retryAfterSeconds)

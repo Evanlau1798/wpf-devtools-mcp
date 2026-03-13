@@ -160,6 +160,36 @@ public static class CapabilityResources
         """;
 
     [McpServerResource(
+        Name = "wpf_performance_profiling_notes",
+        Title = "Performance Profiling Notes",
+        UriTemplate = "wpf://limitations/performance-profiling",
+        MimeType = "text/markdown")]
+    [Description("Explains warm-up requirements, polling cadence, and interpretation guidance for performance tools.")]
+    public static string GetPerformanceProfiling() =>
+        """
+        # Performance Profiling Notes
+
+        Performance tools require specific awareness for correct interpretation:
+
+        ## Warm-up
+        - `get_render_stats` returns zeros on the first call because the Inspector has not yet observed a render cycle.
+        - Call `get_render_stats` once to start monitoring, wait a few seconds, then call again for meaningful data.
+
+        ## Polling cadence
+        - Avoid calling `get_render_stats` or `measure_element_render_time` in tight loops.
+        - Use one-shot polling: call, wait, call again. The rate limit (300 req/min) applies.
+
+        ## Interpretation
+        - `get_visual_count` > 5000 elements may indicate a complex tree worth optimizing.
+        - `find_binding_leaks(threshold)` reports binding references above the threshold; high counts may indicate leaked DataContext references.
+        - `measure_element_render_time` isolates rendering cost to a single element subtree.
+
+        ## Session scope
+        - Performance metrics are session-scoped and reset on reconnect.
+        - Monitoring starts when the Inspector DLL is injected and stops on process disconnect.
+        """;
+
+    [McpServerResource(
         Name = "wpf_state_safety_notes",
         Title = "Runtime State Safety Notes",
         UriTemplate = "wpf://limitations/state-safety",

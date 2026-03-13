@@ -77,13 +77,16 @@ public static class ServerInstructions
         - Need quick scene context first? -> get_ui_summary (semantic default), get_element_snapshot, or get_form_summary
         - Need exact element lookup first? -> find_elements, then get_visual_tree/get_logical_tree for local structure
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
+        - Binding active but data looks wrong? -> get_binding_mismatches (path, type, nullability analysis)
         - UI not responding to changes? -> get_dp_value_source, get_viewmodel
+        - Element exists but not visible? -> diagnose_visibility (checks Visibility, Opacity, size, clipping)
         - Button disabled/not working? -> get_commands (CanExecute), get_event_handlers
         - Button click not working? -> click_element (full pipeline with ICommand) or fire_routed_event (event-handler-only for non-ButtonBase; OnClick path for ButtonBase+Click)
         - Form validation errors? -> get_validation_errors (aggregates ALL descendant errors recursively)
         - Layout broken? -> get_layout_info (size), get_clipping_info (overflow)
         - Style not applied? -> get_applied_styles, get_resource_chain
         - Performance slow? -> get_visual_count, get_render_stats, find_binding_leaks
+        - Focus-related issues? -> get_focus_state (current focus), focus_element (move focus)
         - Multiple windows / dialogs? -> get_windows to discover all windows, use elementId to target specific window
         - Need safe rollback before debugging? -> capture_state_snapshot before mutation, restore_state_snapshot afterwards
 

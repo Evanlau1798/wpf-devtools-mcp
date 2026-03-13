@@ -1,5 +1,11 @@
 # WPF DevTools MCP Server
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-8.0-purple)](https://dotnet.microsoft.com/)
+[![MCP](https://img.shields.io/badge/MCP-SDK%20v1.0-blue)](https://modelcontextprotocol.io/)
+[![Tests](https://img.shields.io/badge/tests-1300%2B-brightgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)]()
+
 `wpf-devtools-mcp` is a Model Context Protocol server for inspecting and interacting with running WPF applications. It bridges MCP clients to an in-process inspector so agents can query visual trees, inspect bindings, analyze dependency properties, and trigger UI interactions that out-of-process tooling cannot access.
 
 ## Current State
@@ -27,6 +33,8 @@
 For first-time setup, prefer the published release flow instead of launching from the source tree.
 
 Fastest path on Windows:
+
+> **Security note**: This command downloads and executes a remote script. Review the [script source](scripts/online-installer.ps1) before running in sensitive environments.
 
 ```powershell
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
@@ -161,8 +169,31 @@ The current implementation supports opt-in transport hardening through environme
 
 Security deployment guidance lives in `SECURITY.md`.
 
+## Tool Categories
+
+The server ships 60+ MCP tools across 10 categories. Use MCP tool discovery for full schemas.
+
+<details>
+<summary>Tool category overview</summary>
+
+| Category | Tools | Description |
+|----------|-------|-------------|
+| Process Management | 4 | `connect`, `get_processes`, `ping`, `get_active_process`, `select_active_process` |
+| Tree & XAML | 8 | `get_visual_tree`, `get_logical_tree`, `compare_trees`, `serialize_to_xaml`, `get_namescope`, `get_template_tree`, `get_windows`, `find_elements` |
+| Binding Diagnostics | 6 | `get_bindings`, `get_binding_errors`, `get_binding_value_chain`, `get_binding_mismatches`, `get_datacontext_chain`, `force_binding_update` |
+| DependencyProperty | 5 | `get_dp_value_source`, `get_dp_metadata`, `set_dp_value`, `clear_dp_value`, `watch_dp_changes` |
+| Style/Template | 4 | `get_applied_styles`, `get_triggers`, `get_resource_chain`, `override_style_setter` |
+| RoutedEvent | 3 | `trace_routed_events`, `get_event_handlers`, `fire_routed_event` |
+| Interaction | 7 | `click_element`, `drag_and_drop`, `scroll_to_element`, `simulate_keyboard`, `element_screenshot`, `get_interaction_readiness`, `highlight_element` |
+| Layout & Visibility | 4 | `get_layout_info`, `get_clipping_info`, `invalidate_layout`, `diagnose_visibility` |
+| MVVM | 5 | `get_viewmodel`, `get_commands`, `execute_command`, `modify_viewmodel`, `get_validation_errors` |
+| Scene & Performance | 8 | `get_ui_summary`, `get_element_snapshot`, `get_form_summary`, `get_render_stats`, `find_binding_leaks`, `measure_element_render_time`, `get_visual_count`, `get_state_diff` |
+
+</details>
+
 ## Documentation Map
 
+- `CONTRIBUTING.md` -> contribution guidelines with TDD requirements
 - `docfx/` -> public DocFX site source for GitHub Pages
 - `docfx/zh-tw/` -> Traditional Chinese public documentation mirror
 - `RELEASING.md` -> maintainer-facing release checklist, workflow, and local preflight guide

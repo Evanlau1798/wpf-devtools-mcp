@@ -67,7 +67,8 @@ public sealed class ConnectTool
                 return new
                 {
                     success = false,
-                    error = "processId must be a valid 32-bit integer"
+                    error = "processId must be a valid 32-bit integer",
+                    errorCode = "InvalidArgument"
                 };
             }
             processId = parsedPid;
@@ -130,7 +131,8 @@ public sealed class ConnectTool
             return new
             {
                 success = false,
-                error = "processId must be a positive integer"
+                error = "processId must be a positive integer",
+                errorCode = "InvalidArgument"
             };
         }
 
@@ -167,7 +169,8 @@ public sealed class ConnectTool
             return new
             {
                 success = false,
-                error = $"Could not detect process info for {processId.Value}"
+                error = $"Could not detect process info for {processId.Value}",
+                errorCode = "ProcessNotFound"
             };
         }
 
@@ -217,7 +220,9 @@ public sealed class ConnectTool
             {
                 success = false,
                 error = "No matching Inspector or Bootstrapper DLL found for target process. " +
-                    $"Runtime: {processInfo.Runtime}, Architecture: {processInfo.Architecture}"
+                    $"Runtime: {processInfo.Runtime}, Architecture: {processInfo.Architecture}",
+                errorCode = "FileNotFound",
+                hint = "Verify that the server was built for the correct architecture and that Inspector/Bootstrapper DLLs exist in the output directory."
             };
         }
 
@@ -246,6 +251,11 @@ public sealed class ConnectTool
             {
                 success = false,
                 error = injectionResult.ErrorMessage ?? "Injection failed",
+                errorCode = injectionResult.Error switch
+                {
+                    InjectionError.Timeout or InjectionError.PipeReadyTimeout => "Timeout",
+                    _ => injectionResult.Error.ToString()
+                },
                 stage = injectionResult.FailedAtStage?.ToString(),
                 exitCode = injectionResult.BootstrapExitCode
             };
@@ -261,7 +271,8 @@ public sealed class ConnectTool
                 return new
                 {
                     success = false,
-                    error = "Failed to create Named Pipe client"
+                    error = "Failed to create Named Pipe client",
+                    errorCode = "InternalError"
                 };
             }
 
@@ -274,7 +285,9 @@ public sealed class ConnectTool
                 return new
                 {
                     success = false,
-                    error = "Connect timed out before the final Inspector Named Pipe handshake could start"
+                    error = "Connect timed out before the final Inspector Named Pipe handshake could start",
+                    errorCode = "Timeout",
+                    hint = "The injection phase consumed the full timeout budget. Target process may be slow to load the Inspector DLL."
                 };
             }
 
@@ -287,7 +300,9 @@ public sealed class ConnectTool
                 return new
                 {
                     success = false,
-                    error = "Timeout connecting to Inspector Named Pipe"
+                    error = "Timeout connecting to Inspector Named Pipe",
+                    errorCode = "Timeout",
+                    hint = "The Inspector DLL may not have started its Named Pipe server. Check if the target process is frozen or if antivirus is blocking the pipe."
                 };
             }
 
@@ -461,7 +476,15 @@ public sealed class ConnectTool
             using var process = Process.GetProcessById(processId);
             return process.WorkingSet64;
         }
-        catch
+        catch (ArgumentException)
+        {
+            return 0;
+        }
+        catch (InvalidOperationException)
+        {
+            return 0;
+        }
+        catch (System.ComponentModel.Win32Exception)
         {
             return 0;
         }

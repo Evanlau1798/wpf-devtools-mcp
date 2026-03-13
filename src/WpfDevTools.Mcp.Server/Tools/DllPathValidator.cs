@@ -150,7 +150,7 @@ internal static class DllPathValidator
                 if (!cert2.Thumbprint.Equals(expectedThumbprint, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException(
-                        $"Certificate thumbprint mismatch. Expected: {expectedThumbprint}, Got: {cert2.Thumbprint}");
+                        "Certificate thumbprint does not match the expected value configured in WPFDEVTOOLS_CERT_THUMBPRINT.");
                 }
             }
         }

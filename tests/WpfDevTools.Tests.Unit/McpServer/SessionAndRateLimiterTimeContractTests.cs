@@ -97,4 +97,18 @@ public class SessionAndRateLimiterTimeContractTests
         secondState.ActiveTrace.Should().NotBeNull();
         secondState.ActiveTrace!.EventName.Should().Be("MouseDown");
     }
+
+    [Fact]
+    public void SessionManager_RemoveSession_ShouldClearNavigationState()
+    {
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(1005);
+        sessionManager.SetActiveSnapshotId(1005, "snapshot_stale");
+        sessionManager.SetActiveTraceState(1005, new ActiveTraceNavigationState("Click", "SaveButton", DateTimeOffset.UtcNow));
+
+        sessionManager.RemoveSession(1005);
+
+        sessionManager.TryGetNavigationState(1005, out var state).Should().BeFalse();
+        state.Should().BeNull();
+    }
 }

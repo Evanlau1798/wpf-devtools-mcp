@@ -2,7 +2,7 @@ namespace WpfDevTools.Mcp.Server.Schema;
 
 public static class ResponseContractVersion
 {
-    public const string Current = "2026-03-11-ai-friendly-v1";
+    public const string Current = "2026-03-13-ai-friendly-v2";
 
     public static IReadOnlyList<string> DeprecatedAliases { get; } =
     [

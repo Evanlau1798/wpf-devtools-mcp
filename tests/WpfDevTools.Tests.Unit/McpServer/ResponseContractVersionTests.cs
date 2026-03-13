@@ -27,6 +27,8 @@ public sealed class ResponseContractVersionTests
         content.Should().Contain("avgRenderTime -> averageFrameTime");
         content.Should().Contain("detail=compact");
         content.Should().Contain("nextSteps");
+        content.Should().Contain("preconditions");
+        content.Should().Contain("prefetchTools");
     }
 
     [Fact]
@@ -37,5 +39,8 @@ public sealed class ResponseContractVersionTests
         ServerInstructions.Value.Should().Contain("Compatibility aliases");
         ServerInstructions.Value.Should().Contain("detail=compact");
         ServerInstructions.Value.Should().Contain("nextSteps");
+        ServerInstructions.Value.Should().Contain("preconditions");
+        ServerInstructions.Value.Should().Contain("workflowId");
+        ServerInstructions.Value.Should().Contain("prefetchTools");
     }
 }

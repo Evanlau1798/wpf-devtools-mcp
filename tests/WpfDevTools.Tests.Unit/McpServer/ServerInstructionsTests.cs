@@ -91,6 +91,10 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("preferred follow-up navigation field");
         ServerInstructions.Value.Should().Contain("nextSteps: []");
         ServerInstructions.Value.Should().Contain("ad hoc tool guessing");
+        ServerInstructions.Value.Should().Contain("session-aware");
+        ServerInstructions.Value.Should().Contain("workflowId");
+        ServerInstructions.Value.Should().Contain("prefetchTools");
+        ServerInstructions.Value.Should().Contain("advisory");
     }
 
     [Fact]

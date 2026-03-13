@@ -85,4 +85,22 @@ public sealed class ToolNavigationPlannerTests : IDisposable
         first.Select(step => step.Tool).Should().Equal("first", "second");
         second.Select(step => step.Tool).Should().Equal("first", "second");
     }
+
+    [Fact]
+    public void Plan_ShouldDropSelfReferentialRecommendations_ToAvoidLoops()
+    {
+        var registry = new ToolNavigationRegistry();
+        registry.Register("known_tool", _ =>
+        [
+            new ToolNextStep("known_tool", NavigationParamBuilders.Create(), "Loop", ToolNextStepKind.Diagnostic, 1),
+            new ToolNextStep("get_bindings", NavigationParamBuilders.Create(), "Inspect bindings", ToolNextStepKind.Diagnostic, 2)
+        ]);
+
+        var planner = new ToolNavigationPlanner(registry);
+        var payload = JsonSerializer.SerializeToElement(new { success = true });
+
+        var result = planner.Plan("known_tool", payload, null);
+
+        result.Select(step => step.Tool).Should().Equal("get_bindings");
+    }
 }

@@ -8,6 +8,25 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 
 public sealed class McpToolContractDescriptionTests
 {
+    private static readonly (Type ToolType, string MethodName)[] RuntimeNavigationTools =
+    [
+        (typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors)),
+        (typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingMismatches)),
+        (typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetValidationErrors)),
+        (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.DiagnoseVisibility)),
+        (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetInteractionReadiness)),
+        (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetFormSummary)),
+        (typeof(InteractionMcpTools), nameof(InteractionMcpTools.ClickElement)),
+        (typeof(MvvmMcpTools), nameof(MvvmMcpTools.ExecuteCommand)),
+        (typeof(MvvmMcpTools), nameof(MvvmMcpTools.ModifyViewModel)),
+        (typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.SetDpValue)),
+        (typeof(EventMcpTools), nameof(EventMcpTools.FireRoutedEvent)),
+        (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetUiSummary)),
+        (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetElementSnapshot)),
+        (typeof(StateMcpTools), nameof(StateMcpTools.CaptureStateSnapshot)),
+        (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetStateDiff))
+    ];
+
     [Theory]
     [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.SetDpValue), "requestedValue")]
     [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.ClearDpValue), "hadLocalValue")]
@@ -47,5 +66,41 @@ public sealed class McpToolContractDescriptionTests
         var description = method!.GetCustomAttribute<DescriptionAttribute>();
         description.Should().NotBeNull();
         description!.Description.Should().Contain(expectedTerm);
+    }
+
+    [Fact]
+    public void RuntimeNavigationToolDescriptions_ShouldMentionReturnedNextStepsGuidance()
+    {
+        foreach (var (toolType, methodName) in RuntimeNavigationTools)
+        {
+            var description = GetDescription(toolType, methodName);
+
+            description.Should().Contain("nextSteps",
+                $"{toolType.Name}.{methodName} should document runtime navigation guidance");
+            description.Should().Contain("ad hoc tool guessing",
+                $"{toolType.Name}.{methodName} should direct agents to prefer returned guidance");
+        }
+    }
+
+    [Fact]
+    public void RuntimeNavigationToolDescriptions_ShouldKeepNextStepsOutOfPayloadExamples()
+    {
+        foreach (var (toolType, methodName) in RuntimeNavigationTools)
+        {
+            var description = GetDescription(toolType, methodName);
+
+            description.Should().NotContain("\"nextSteps\"");
+            description.Should().NotContain("nextSteps: [");
+        }
+    }
+
+    private static string GetDescription(Type toolType, string methodName)
+    {
+        var method = toolType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var description = method!.GetCustomAttribute<DescriptionAttribute>();
+        description.Should().NotBeNull();
+        return description!.Description;
     }
 }

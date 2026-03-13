@@ -155,7 +155,7 @@ public static class ServerInstructions
 
         === RESPONSE CONTRACT VERSION ===
         - Current response contract version: {{ResponseContractVersion.Current}}
-        - Every tool response includes `nextSteps`; use it as the preferred follow-up navigation field when present, and expect `nextSteps: []` when the server has no deterministic runtime guidance.
+        - Every tool response includes `nextSteps`; use it as the preferred follow-up navigation field when present, prefer it over ad hoc tool guessing, and expect `nextSteps: []` when the server has no deterministic runtime guidance.
         - Compatibility aliases remain available in the current contract for backward compatibility.
         - Compatibility aliases:
           - currentValue -> effectiveValue

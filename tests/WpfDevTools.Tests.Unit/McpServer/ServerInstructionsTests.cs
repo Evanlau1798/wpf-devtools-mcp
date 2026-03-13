@@ -86,6 +86,14 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldExplainHowToUseRuntimeNavigation()
+    {
+        ServerInstructions.Value.Should().Contain("preferred follow-up navigation field");
+        ServerInstructions.Value.Should().Contain("nextSteps: []");
+        ServerInstructions.Value.Should().Contain("ad hoc tool guessing");
+    }
+
+    [Fact]
     public void Value_ShouldContainLimitations()
     {
         ServerInstructions.Value.Should().Contain("LIMITATIONS");

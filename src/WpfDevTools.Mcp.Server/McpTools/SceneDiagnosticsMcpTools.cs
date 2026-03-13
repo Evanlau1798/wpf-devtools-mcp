@@ -9,6 +9,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class SceneDiagnosticsMcpTools
 {
     private const string SceneMetadata = "CATEGORY: Scene Diagnostics | SAFETY: These tools aggregate existing runtime diagnostics to reduce multi-call analysis flows.\n\n";
+    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `nextSteps`; prefer those returned follow-ups over ad hoc tool guessing.\n\n";
 
     [McpServerTool(Name = "get_state_diff", Title = "Inspect WPF Runtime State Diff", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
@@ -17,6 +18,7 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Compute semantic before/after differences for tracked DependencyProperty values, ViewModel properties, focus, binding errors, and validation errors.\n\n" +
         "USE WHEN: After click_element, execute_command, modify_viewmodel, or manual debugging steps when you need to know what changed.\n" +
         "DO NOT USE: As a replacement for capture_state_snapshot; you must capture a snapshot first.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -64,6 +66,7 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Gather element identity, selected DependencyProperty values, bindings, validation errors, style summary, layout summary, and DataContext type in one call.\n\n" +
         "USE WHEN: Before falling back to screenshots, or when you need one element-centric snapshot instead of multiple diagnostic calls.\n" +
         "DO NOT USE: As a full-tree replacement; use get_visual_tree/get_logical_tree for broad structural inspection.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -109,6 +112,7 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Diagnose visibility blockers such as element or ancestor Visibility, zero Opacity, zero layout size, and clipping.\n\n" +
         "USE WHEN: An element exists in the tree but does not appear on screen, or when you want a structured replacement for screenshot-based visibility debugging.\n" +
         "DO NOT USE: As a generic tree browser; use get_visual_tree/get_logical_tree for structure exploration.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -150,6 +154,7 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Aggregate enabled state, visibility, opacity, hit testing, layout size, and ButtonBase ICommand.CanExecute into one interaction readiness verdict.\n\n" +
         "USE WHEN: Before click_element or simulate_keyboard when you need to know whether the target is interactable right now.\n" +
         "DO NOT USE: As a replacement for diagnose_visibility when the question is specifically why something is not visible.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -193,6 +198,7 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Traverse a WPF runtime subtree, suppress layout-only wrappers, and return a compact semantic overview of user-facing controls.\n\n" +
         "USE WHEN: You need fast screen context for an unfamiliar area before drilling into a specific element. For agent workflows, prefer depthMode='semantic' so layout-only wrapper levels do not consume the depth budget.\n" +
         "DO NOT USE: As a replacement for full tree inspection when exact structure matters.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -240,6 +246,7 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Aggregate common input controls, nearby labels, current values, validation errors, command readiness, and overall form submittability.\n\n" +
         "USE WHEN: You want a single triage call for form-style layouts before validating or clicking Save/Submit.\n" +
         "DO NOT USE: For arbitrary non-form regions with no input or action controls.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

@@ -14,6 +14,7 @@ public sealed class ToolNavigationPlanner(ToolNavigationRegistry registry)
         }
 
         return handler(new ToolNavigationContext(toolName, payload, arguments))
+            .Where(step => !string.Equals(step.Tool, toolName, StringComparison.Ordinal))
             .OrderBy(step => step.Priority)
             .Take(3)
             .ToArray();

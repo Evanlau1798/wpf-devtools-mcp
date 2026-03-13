@@ -9,6 +9,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class StateMcpTools
 {
     private const string StateMetadata = "CATEGORY: State | SAFETY: Snapshot tools inspect or restore live runtime state within an already connected WPF process.\n\n";
+    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `nextSteps`; prefer those returned follow-ups over ad hoc tool guessing.\n\n";
 
     [McpServerTool(Name = "capture_state_snapshot", Title = "Capture WPF Runtime State Snapshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
@@ -16,6 +17,7 @@ public static class StateMcpTools
         StateMetadata + "[State] Capture a restorable runtime snapshot for a connected WPF process.\n\n" +
         "USE WHEN: Before mutation-heavy debugging, demos, or regression flows where rollback matters.\n" +
         "DO NOT USE: As durable persistence; snapshots are in-memory and session-scoped only.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

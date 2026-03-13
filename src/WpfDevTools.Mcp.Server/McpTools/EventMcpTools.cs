@@ -14,6 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class EventMcpTools
 {
     private const string EventMetadata = "CATEGORY: Event | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `nextSteps`; prefer those returned follow-ups over ad hoc tool guessing.\n\n";
 
     [McpServerTool(Name = "trace_routed_events", Title = "Trace WPF Routed Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
@@ -131,6 +132,7 @@ public static class EventMcpTools
         "- click_element: calls OnClick() for ButtonBase descendants, selects TabItem; returns error for other element types\n\n" +
         "WARNING: This triggers real application logic. For ButtonBase+Click, ICommand WILL execute.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core routed-event result while still preserving semantically relevant fallback indicators.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

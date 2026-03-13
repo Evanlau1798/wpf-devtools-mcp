@@ -151,6 +151,22 @@ public class ToolCallHelperTests
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_ShouldKeepExistingResponseFields_WhenAddingNextSteps()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, message = "OK", count = 42 }),
+            null,
+            CancellationToken.None);
+
+        var structured = result.StructuredContent!.Value;
+        structured.GetProperty("success").GetBoolean().Should().BeTrue();
+        structured.GetProperty("message").GetString().Should().Be("OK");
+        structured.GetProperty("count").GetInt32().Should().Be(42);
+        structured.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
+        nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_ShouldSerializeResultAsJson()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(

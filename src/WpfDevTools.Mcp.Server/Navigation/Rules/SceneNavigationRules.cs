@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.Navigation.ContextRefs;
 using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Mcp.Server.Navigation.Rules;
@@ -13,11 +14,11 @@ internal static class SceneNavigationRules
         registry.Register("get_state_diff", BuildStateDiff);
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildUiSummary(ToolNavigationContext context)
+    private static ToolNavigationEnvelope BuildUiSummary(ToolNavigationContext context)
     {
         if (!TryGetArray(context.Payload, "nodes", out var nodes))
         {
-            return Array.Empty<ToolNextStep>();
+            return ToolNavigationEnvelope.Empty;
         }
 
         foreach (var node in nodes.EnumerateArray())
@@ -29,45 +30,49 @@ internal static class SceneNavigationRules
 
             if (HasAnnotation(node, "disabled"))
             {
-                return
-                [
-                    CreateDiagnostic(
+                return ToolNavigationEnvelope.FromRecommended(
+                    [
+                        CreateDiagnostic(
                         "get_interaction_readiness",
                         1,
                         "Inspect why the disabled UI control is not ready for interaction.",
                         context,
                         ("elementId", elementId))
-                ];
+                    ]);
             }
 
             if (HasAnnotation(node, "visibility:") || HasAnnotation(node, "transparent"))
             {
-                return
-                [
-                    CreateDiagnostic(
+                var rootCause = HasAnnotation(node, "transparent")
+                    ? "transparent"
+                    : "hidden";
+                return ToolNavigationEnvelope.FromRecommended(
+                    [
+                        CreateDiagnostic(
                         "diagnose_visibility",
                         1,
                         "Inspect why the element is hidden or transparent in the scene summary.",
                         context,
                         ("elementId", elementId))
-                ];
+                    ],
+                    contextRefs: [VisibilityIssueContextRefBuilder.Create(elementId, rootCause)]);
             }
         }
 
         if (TryGetString(context.Payload, "summaryText", out var summaryText)
             && summaryText.Contains("binding", StringComparison.OrdinalIgnoreCase))
         {
-            return
-            [
-                CreateDiagnostic(
+            return ToolNavigationEnvelope.FromRecommended(
+                [
+                    CreateDiagnostic(
                     "get_binding_errors",
                     2,
                     "Inspect binding diagnostics hinted by the scene summary.",
                     context)
-            ];
+                ]);
         }
 
-        return Array.Empty<ToolNextStep>();
+        return ToolNavigationEnvelope.Empty;
     }
 
     private static IReadOnlyList<ToolNextStep> BuildElementSnapshot(ToolNavigationContext context)
@@ -113,16 +118,16 @@ internal static class SceneNavigationRules
         return steps;
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildCaptureStateSnapshot(ToolNavigationContext context)
+    private static ToolNavigationEnvelope BuildCaptureStateSnapshot(ToolNavigationContext context)
     {
         if (!TryGetString(context.Payload, "snapshotId", out var snapshotId))
         {
-            return Array.Empty<ToolNextStep>();
+            return ToolNavigationEnvelope.Empty;
         }
 
-        return
-        [
-            ConditionalNavigationRules.CreateActiveSnapshotStep(
+        return ToolNavigationEnvelope.FromRecommended(
+            [
+                ConditionalNavigationRules.CreateActiveSnapshotStep(
                 "get_state_diff",
                 BuildScopedParams(context, ("snapshotId", snapshotId)),
                 "Compare the snapshot against current runtime state after mutations.",
@@ -130,43 +135,58 @@ internal static class SceneNavigationRules
                 1,
                 "Returns semantic changes since the captured snapshot.",
                 "restore_state_snapshot"),
-            CreateAction(
+            ],
+            alternatives:
+            [
+                CreateAction(
                 "restore_state_snapshot",
                 2,
                 "Restore the captured snapshot when you need to roll back changes.",
                 context,
                 ("snapshotId", snapshotId))
-        ];
+            ],
+            contextRefs:
+            [
+                MutationSessionContextRefBuilder.Create(snapshotId, "capture_state_snapshot")
+            ]);
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildStateDiff(ToolNavigationContext context)
+    private static ToolNavigationEnvelope BuildStateDiff(ToolNavigationContext context)
     {
         if (!TryGetString(context.Payload, "snapshotId", out var snapshotId))
         {
-            return Array.Empty<ToolNextStep>();
+            return ToolNavigationEnvelope.Empty;
         }
 
         if (HasMeaningfulChanges(context.Payload))
         {
-            return
-            [
-                CreateAction(
+            return ToolNavigationEnvelope.FromRecommended(
+                [
+                    CreateAction(
                     "restore_state_snapshot",
                     1,
                     "Restore the snapshot to roll back the detected runtime changes.",
                     context,
                     ("snapshotId", snapshotId))
-            ];
+                ],
+                contextRefs:
+                [
+                    MutationSessionContextRefBuilder.Create(snapshotId, "get_state_diff")
+                ]);
         }
 
-        return
-        [
-            CreateDiagnostic(
+        return ToolNavigationEnvelope.FromRecommended(
+            [
+                CreateDiagnostic(
                 "get_ui_summary",
                 1,
                 "Refresh the scene summary when no tracked changes were detected.",
                 context)
-        ];
+            ],
+            contextRefs:
+            [
+                MutationSessionContextRefBuilder.Create(snapshotId, "get_state_diff")
+            ]);
     }
 
     private static bool HasMeaningfulChanges(JsonElement payload) =>

@@ -91,12 +91,13 @@ public sealed class GetBindingErrorsToolTests : IDisposable
             CancellationToken.None,
             toolName: "get_binding_errors");
 
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
         var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
-        nextSteps.GetArrayLength().Should().Be(2);
+        nextSteps.GetArrayLength().Should().Be(1);
         nextSteps[0].GetProperty("tool").GetString().Should().Be("get_datacontext_chain");
         nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("TextBox_1");
-        nextSteps[1].GetProperty("tool").GetString().Should().Be("get_bindings");
-        nextSteps[1].GetProperty("params").GetProperty("elementId").GetString().Should().Be("TextBox_1");
+        navigation.GetProperty("alternatives")[0].GetProperty("tool").GetString().Should().Be("get_bindings");
+        navigation.GetProperty("alternatives")[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("TextBox_1");
     }
 
     [Fact]

@@ -154,4 +154,101 @@ public sealed class ToolNavigationPlannerTests : IDisposable
         envelope.PrefetchTools.Should().Equal("get_bindings");
         envelope.ContextRefs[0].Type.Should().Be("binding-issue");
     }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithVisibilityCue_ShouldEmitVisibilityContextRef()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                nodes = new[]
+                {
+                    new
+                    {
+                        elementId = "Text_1",
+                        annotations = new[] { "visibility:collapsed" }
+                    }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        var contextRef = result.StructuredContent!.Value
+            .GetProperty("navigation")
+            .GetProperty("contextRefs")[0];
+        contextRef.GetProperty("type").GetString().Should().Be("visibility-issue");
+        contextRef.GetProperty("elementId").GetString().Should().Be("Text_1");
+        contextRef.TryGetProperty("rootCause", out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithSnapshotAwareAction_ShouldEmitMutationSessionContextRef()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, clicked = true }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState("snapshot_123", null),
+            toolName: "click_element");
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        navigation.GetProperty("contextRefs")[0].GetProperty("type").GetString().Should().Be("mutation-session");
+        navigation.GetProperty("contextRefs")[0].GetProperty("snapshotId").GetString().Should().Be("snapshot_123");
+        navigation.GetProperty("prefetchTools").EnumerateArray().Select(item => item.GetString()).Should().Contain("restore_state_snapshot");
+    }
+
+    [Fact]
+    public void PlanEnvelope_ShouldDeriveCompactPrefetchToolsFromRecommendedAndAlternatives()
+    {
+        var registry = new ToolNavigationRegistry();
+        registry.Register("known_tool", _ => new ToolNavigationEnvelope(
+            [
+                new ToolNextStep(
+                    "get_state_diff",
+                    NavigationParamBuilders.Create(("snapshotId", "snapshot_123")),
+                    "Compare state changes.",
+                    ToolNextStepKind.Verification,
+                    1,
+                    PrefetchTools: ["restore_state_snapshot"])
+            ],
+            [
+                new ToolNextStep(
+                    "get_bindings",
+                    NavigationParamBuilders.Create(("elementId", "TextBox_1")),
+                    "Inspect bindings.",
+                    ToolNextStepKind.Diagnostic,
+                    2)
+            ],
+            [],
+            []));
+
+        var planner = new ToolNavigationPlanner(registry);
+        var envelope = planner.PlanEnvelope("known_tool", JsonSerializer.SerializeToElement(new { success = true }), null);
+
+        envelope.PrefetchTools.Should().Equal("restore_state_snapshot", "get_bindings");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_ContextRefs_ShouldRemainDescriptiveOnly()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_123",
+                snapshotSummary = new { dependencyPropertyCount = 1 }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("propertyNames", new[] { "Width" })),
+            CancellationToken.None,
+            toolName: "capture_state_snapshot");
+
+        var contextRef = result.StructuredContent!.Value
+            .GetProperty("navigation")
+            .GetProperty("contextRefs")[0];
+        contextRef.TryGetProperty("handleId", out _).Should().BeFalse();
+        contextRef.TryGetProperty("serverHandle", out _).Should().BeFalse();
+        contextRef.GetProperty("type").GetString().Should().Be("mutation-session");
+    }
 }

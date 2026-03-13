@@ -216,6 +216,35 @@ public class ToolCallHelperTests
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_ShouldPreserveLegacyNextStepsConsumers_WhenNavigationExists()
+    {
+        var registry = new ToolNavigationRegistry();
+        registry.Register("known_tool", _ => new ToolNavigationEnvelope(
+            [
+                new ToolNextStep(
+                    "get_bindings",
+                    ToolCallHelper.BuildJsonArgs(("elementId", "TextBox_1"))!.Value,
+                    "Inspect the binding declaration directly.",
+                    ToolNextStepKind.Diagnostic,
+                    1)
+            ],
+            [],
+            [],
+            []));
+        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(registry));
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true }),
+            null,
+            CancellationToken.None,
+            toolName: "known_tool");
+
+        result.StructuredContent!.Value.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
+        nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_bindings");
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_ShouldSerializeResultAsJson()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(

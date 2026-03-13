@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.Json;
 using Xunit.Abstractions;
 
 namespace WpfDevTools.Tests.Integration.E2E;
@@ -67,5 +68,25 @@ public sealed class StateDiffE2eTests
         diff.GetProperty("trigger").GetString().Should().Be("modify_viewmodel(Name)");
         diff.GetProperty("propertyChanges").GetArrayLength().Should().BeGreaterThan(0);
         diff.GetProperty("viewModelChanges").GetArrayLength().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task CaptureStateSnapshot_ShouldExposeMutationSessionNavigationContextRef()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var capture = await _fixture.Client.CallToolAsync(
+            "capture_state_snapshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyNames = new[] { "Visibility" }
+            });
+
+        capture.GetProperty("success").GetBoolean().Should().BeTrue();
+        capture.TryGetProperty("navigation", out var navigation).Should().BeTrue();
+        navigation.GetProperty("contextRefs")[0].GetProperty("type").GetString().Should().Be("mutation-session");
+        navigation.GetProperty("contextRefs")[0].GetProperty("snapshotId").GetString().Should().NotBeNullOrWhiteSpace();
+        navigation.GetProperty("recommended").ValueKind.Should().Be(JsonValueKind.Array);
     }
 }

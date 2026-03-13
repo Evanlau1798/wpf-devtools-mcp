@@ -31,6 +31,8 @@ public sealed class ResponseContractVersionTests
         content.Should().Contain("prefetchTools");
         content.Should().Contain("navigation");
         content.Should().Contain("contextRefs");
+        content.Should().Contain("additive");
+        content.Should().Contain("descriptive JSON");
     }
 
     [Fact]
@@ -46,5 +48,8 @@ public sealed class ResponseContractVersionTests
         ServerInstructions.Value.Should().Contain("prefetchTools");
         ServerInstructions.Value.Should().Contain("navigation");
         ServerInstructions.Value.Should().Contain("contextRef");
+        ServerInstructions.Value.Should().Contain("additive");
+        ServerInstructions.Value.Should().Contain("compatibility field");
+        ServerInstructions.Value.Should().Contain("descriptive JSON");
     }
 }

@@ -291,14 +291,15 @@ public sealed class StateSnapshotToolTests : IDisposable
             CancellationToken.None,
             toolName: "capture_state_snapshot");
 
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
         var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
-        nextSteps.GetArrayLength().Should().Be(2);
+        nextSteps.GetArrayLength().Should().Be(1);
         nextSteps[0].GetProperty("tool").GetString().Should().Be("get_state_diff");
         nextSteps[0].GetProperty("params").GetProperty("snapshotId").GetString().Should().Be("snapshot_123");
         nextSteps[0].GetProperty("workflowId").GetString().Should().Be("safe-mutation-loop");
         nextSteps[0].GetProperty("prefetchTools")[0].GetString().Should().Be("restore_state_snapshot");
-        nextSteps[1].GetProperty("tool").GetString().Should().Be("restore_state_snapshot");
-        nextSteps[1].GetProperty("params").GetProperty("snapshotId").GetString().Should().Be("snapshot_123");
+        navigation.GetProperty("alternatives")[0].GetProperty("tool").GetString().Should().Be("restore_state_snapshot");
+        navigation.GetProperty("alternatives")[0].GetProperty("params").GetProperty("snapshotId").GetString().Should().Be("snapshot_123");
     }
 
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(int processId, IReadOnlyList<string> resultJsonSequence)

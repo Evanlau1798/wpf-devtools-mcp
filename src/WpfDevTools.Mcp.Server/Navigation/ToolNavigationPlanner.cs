@@ -31,16 +31,30 @@ public sealed class ToolNavigationPlanner(ToolNavigationRegistry registry)
     {
         var recommended = NormalizeSteps(toolName, envelope.Recommended);
         var alternatives = NormalizeSteps(toolName, envelope.Alternatives, recommended);
-        var prefetchTools = envelope.PrefetchTools
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+        var prefetchTools = NormalizePrefetchTools(envelope, alternatives);
 
         return new ToolNavigationEnvelope(
             recommended,
             alternatives,
             prefetchTools,
             envelope.ContextRefs.Where(reference => reference is not null).ToArray()!);
+    }
+
+    private static IReadOnlyList<string> NormalizePrefetchTools(
+        ToolNavigationEnvelope envelope,
+        IReadOnlyList<ToolNextStep> alternatives)
+    {
+        var explicitHints = envelope.PrefetchTools
+            .Where(name => !string.IsNullOrWhiteSpace(name));
+        var recommendedHints = envelope.Recommended
+            .SelectMany(step => step.PrefetchTools ?? []);
+        var alternativeHints = alternatives.Select(step => step.Tool);
+
+        return explicitHints
+            .Concat(recommendedHints)
+            .Concat(alternativeHints)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static IReadOnlyList<ToolNextStep> NormalizeSteps(

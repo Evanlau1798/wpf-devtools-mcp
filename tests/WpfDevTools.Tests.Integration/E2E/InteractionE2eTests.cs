@@ -69,6 +69,34 @@ public sealed class InteractionE2eTests
     }
 
     [Fact]
+    public async Task ClickElement_AfterSnapshotCapture_ShouldExposeMutationSessionContextRef()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var buttonElementId = await E2eTestHelpers.FindElementByTypeAsync(
+            _fixture.Client, _fixture.TestAppProcessId, "Button");
+
+        var capture = await _fixture.Client.CallToolAsync(
+            "capture_state_snapshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = buttonElementId,
+                propertyNames = new[] { "IsEnabled" }
+            });
+        capture.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var click = await _fixture.Client.CallToolAsync(
+            "click_element",
+            new { processId = _fixture.TestAppProcessId, elementId = buttonElementId });
+
+        click.GetProperty("success").GetBoolean().Should().BeTrue();
+        var navigation = click.GetProperty("navigation");
+        navigation.GetProperty("contextRefs")[0].GetProperty("type").GetString().Should().Be("mutation-session");
+        navigation.GetProperty("prefetchTools").EnumerateArray().Select(item => item.GetString()).Should().Contain("restore_state_snapshot");
+    }
+
+    [Fact]
     public async Task SimulateKeyboard_OnTextBox_ShouldSucceed()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.Navigation.ContextRefs;
 using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Mcp.Server.Navigation.Rules;
@@ -14,25 +15,28 @@ internal static class ActionNavigationRules
         registry.Register("fire_routed_event", BuildFireRoutedEvent);
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildClickElement(ToolNavigationContext context) =>
+    private static ToolNavigationEnvelope BuildClickElement(ToolNavigationContext context) =>
         BuildSnapshotAwareUiVerification(
             context,
+            "click_element",
             "Inspect the updated UI state after the click.",
             "Returns semantic runtime changes caused by the click.");
 
-    private static IReadOnlyList<ToolNextStep> BuildExecuteCommand(ToolNavigationContext context) =>
+    private static ToolNavigationEnvelope BuildExecuteCommand(ToolNavigationContext context) =>
         BuildSnapshotAwareUiVerification(
             context,
+            "execute_command",
             "Inspect the updated UI state after command execution.",
             "Returns semantic runtime changes caused by the command execution.");
 
-    private static IReadOnlyList<ToolNextStep> BuildFireRoutedEvent(ToolNavigationContext context)
+    private static ToolNavigationEnvelope BuildFireRoutedEvent(ToolNavigationContext context)
     {
-        var steps = new List<ToolNextStep>();
+        var recommended = new List<ToolNextStep>();
+        ToolNavigationReference? mutationContext = null;
 
         if (context.SessionState?.ActiveTrace is not null)
         {
-            steps.Add(ConditionalNavigationRules.CreateActiveTraceStep(
+            recommended.Add(ConditionalNavigationRules.CreateActiveTraceStep(
                 "trace_routed_events",
                 NavigationParamBuilders.Create(
                     ("processId", TryGetInt(context.Arguments, "processId")),
@@ -50,18 +54,21 @@ internal static class ActionNavigationRules
                 "Returns semantic runtime changes caused by the routed event.",
                 out var snapshotStep))
         {
-            steps.Add(snapshotStep);
+            recommended.Add(snapshotStep);
+            mutationContext = CreateMutationSessionContext(context, "fire_routed_event");
         }
 
-        if (steps.Count == 0)
+        if (recommended.Count == 0)
         {
-            steps.AddRange(BuildUiSummaryVerification(context, "Inspect the updated UI state after the routed event fired."));
+            return BuildUiSummaryVerification(context, "Inspect the updated UI state after the routed event fired.");
         }
 
-        return steps;
+        return ToolNavigationEnvelope.FromRecommended(
+            recommended,
+            contextRefs: mutationContext is null ? [] : [mutationContext]);
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildModifyViewModel(ToolNavigationContext context)
+    private static ToolNavigationEnvelope BuildModifyViewModel(ToolNavigationContext context)
     {
         if (TryBuildStateDiffStep(
                 context,
@@ -70,7 +77,9 @@ internal static class ActionNavigationRules
                 "Returns semantic runtime changes caused by the ViewModel mutation.",
                 out var snapshotStep))
         {
-            return [snapshotStep];
+            return ToolNavigationEnvelope.FromRecommended(
+                [snapshotStep],
+                contextRefs: [CreateMutationSessionContext(context, "modify_viewmodel")!]);
         }
 
         var parameters = new List<(string name, object? value)>
@@ -83,22 +92,22 @@ internal static class ActionNavigationRules
             parameters.Add(("elementId", elementId));
         }
 
-        return
-        [
-            new ToolNextStep(
+        return ToolNavigationEnvelope.FromRecommended(
+            [
+                new ToolNextStep(
                 "get_bindings",
                 NavigationParamBuilders.Create(parameters.ToArray()),
                 "Inspect the binding state after the ViewModel mutation.",
                 ToolNextStepKind.Diagnostic,
                 1)
-        ];
+            ]);
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildSetDpValue(ToolNavigationContext context)
+    private static ToolNavigationEnvelope BuildSetDpValue(ToolNavigationContext context)
     {
         if (!TryGetString(context.Arguments, "propertyName", out var propertyName))
         {
-            return Array.Empty<ToolNextStep>();
+            return ToolNavigationEnvelope.Empty;
         }
 
         var steps = new List<ToolNextStep>
@@ -124,21 +133,27 @@ internal static class ActionNavigationRules
             steps.Add(snapshotStep);
         }
 
-        return steps;
+        return ToolNavigationEnvelope.FromRecommended(
+            steps,
+            contextRefs: context.SessionState?.ActiveSnapshotId is null
+                ? []
+                : [CreateMutationSessionContext(context, "set_dp_value")!]);
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildUiSummaryVerification(ToolNavigationContext context, string reason) =>
-        [
-            new ToolNextStep(
+    private static ToolNavigationEnvelope BuildUiSummaryVerification(ToolNavigationContext context, string reason) =>
+        ToolNavigationEnvelope.FromRecommended(
+            [
+                new ToolNextStep(
                 "get_ui_summary",
                 NavigationParamBuilders.Create(("processId", TryGetInt(context.Arguments, "processId"))),
                 reason,
                 ToolNextStepKind.Verification,
                 1)
-        ];
+            ]);
 
-    private static IReadOnlyList<ToolNextStep> BuildSnapshotAwareUiVerification(
+    private static ToolNavigationEnvelope BuildSnapshotAwareUiVerification(
         ToolNavigationContext context,
+        string sourceTool,
         string fallbackReason,
         string expectedOutcome)
     {
@@ -149,7 +164,9 @@ internal static class ActionNavigationRules
                 expectedOutcome,
                 out var snapshotStep))
         {
-            return [snapshotStep];
+            return ToolNavigationEnvelope.FromRecommended(
+                [snapshotStep],
+                contextRefs: [CreateMutationSessionContext(context, sourceTool)!]);
         }
 
         return BuildUiSummaryVerification(context, fallbackReason);
@@ -180,6 +197,11 @@ internal static class ActionNavigationRules
             "restore_state_snapshot");
         return true;
     }
+
+    private static ToolNavigationReference? CreateMutationSessionContext(ToolNavigationContext context, string sourceTool) =>
+        string.IsNullOrWhiteSpace(context.SessionState?.ActiveSnapshotId)
+            ? null
+            : MutationSessionContextRefBuilder.Create(context.SessionState!.ActiveSnapshotId!, sourceTool);
 
     private static bool TryGetString(JsonElement? element, string propertyName, out string value)
     {

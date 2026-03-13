@@ -51,6 +51,23 @@ public sealed class McpToolSearchMetadataE2eTests
         }
     }
 
+    [Fact]
+    public async Task Initialize_ShouldDescribeNavigationEnvelopeForAdvancedClients()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        var init = await client.StartAsync(serverExe);
+        init.TryGetProperty("result", out var result).Should().BeTrue();
+        result.TryGetProperty("instructions", out var instructions).Should().BeTrue();
+        var text = instructions.GetString();
+
+        text.Should().Contain("navigation");
+        text.Should().Contain("nextSteps");
+        text.Should().Contain("contextRef");
+        text.Should().Contain("prefetchTools");
+    }
+
     private static void AssertTitle(JsonElement tools, string toolName, string expectedTitle)
     {
         var tool = tools.EnumerateArray()

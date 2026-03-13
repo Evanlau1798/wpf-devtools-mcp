@@ -95,6 +95,9 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("workflowId");
         ServerInstructions.Value.Should().Contain("prefetchTools");
         ServerInstructions.Value.Should().Contain("advisory");
+        ServerInstructions.Value.Should().Contain("navigation.recommended");
+        ServerInstructions.Value.Should().Contain("compatibility field");
+        ServerInstructions.Value.Should().Contain("descriptive JSON");
     }
 
     [Fact]

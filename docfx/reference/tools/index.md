@@ -59,4 +59,12 @@ Recent additions worth learning early:
 - `get_state_diff`, `get_element_snapshot`, `diagnose_visibility`, and `get_interaction_readiness` for scene-level diagnostics that reduce screenshot dependence
 - `get_ui_summary` and `get_form_summary` for semantic subtree summaries before deep inspection or form triage
 
+## Navigation model
+
+- Every tool response keeps `nextSteps` as the compatibility field for older clients.
+- v3 also adds a `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
+- `nextSteps` is derived from `navigation.recommended`, so both surfaces stay synchronized.
+- `prefetchTools` is advisory only and contains tool names for progressive schema loading.
+- `contextRefs` are descriptive JSON only; they are not executable handles or hidden server-side orchestration.
+
 Use the category pages for the most important tools, semantics, and gotchas.

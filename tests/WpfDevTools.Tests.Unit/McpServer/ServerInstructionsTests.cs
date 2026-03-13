@@ -86,6 +86,21 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldExplainHowToUseRuntimeNavigation()
+    {
+        ServerInstructions.Value.Should().Contain("preferred follow-up navigation field");
+        ServerInstructions.Value.Should().Contain("nextSteps: []");
+        ServerInstructions.Value.Should().Contain("ad hoc tool guessing");
+        ServerInstructions.Value.Should().Contain("session-aware");
+        ServerInstructions.Value.Should().Contain("workflowId");
+        ServerInstructions.Value.Should().Contain("prefetchTools");
+        ServerInstructions.Value.Should().Contain("advisory");
+        ServerInstructions.Value.Should().Contain("navigation.recommended");
+        ServerInstructions.Value.Should().Contain("compatibility field");
+        ServerInstructions.Value.Should().Contain("descriptive JSON");
+    }
+
+    [Fact]
     public void Value_ShouldContainLimitations()
     {
         ServerInstructions.Value.Should().Contain("LIMITATIONS");

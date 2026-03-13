@@ -53,6 +53,27 @@ public sealed class BindingDiagnosticsE2eTests
     }
 
     [Fact]
+    public async Task GetBindingErrors_ShouldExposeBindingIssueNavigationContextRef()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_binding_errors",
+            new { processId = _fixture.TestAppProcessId });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.TryGetProperty("navigation", out var navigation).Should().BeTrue();
+        navigation.TryGetProperty("contextRefs", out var contextRefs).Should().BeTrue();
+        contextRefs.ValueKind.Should().Be(JsonValueKind.Array);
+        contextRefs.GetArrayLength().Should().BeGreaterThan(0);
+        contextRefs[0].GetProperty("type").GetString().Should().Be("binding-issue");
+        contextRefs[0].TryGetProperty("elementId", out _).Should().BeTrue();
+        contextRefs[0].TryGetProperty("diagnosis", out _).Should().BeTrue();
+        result.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
+        nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+    }
+
+    [Fact]
     public async Task GetBindings_OnRootWindow_ShouldReturnBindingInfo()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);

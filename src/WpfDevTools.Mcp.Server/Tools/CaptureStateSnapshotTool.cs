@@ -135,6 +135,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             validationErrors,
             hasValidationBaseline,
             DateTimeOffset.UtcNow));
+        _sessionManager.SetActiveSnapshotId(processId, snapshotId);
 
         return new
         {

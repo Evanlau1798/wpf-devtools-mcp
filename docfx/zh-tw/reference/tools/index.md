@@ -1,4 +1,4 @@
-# 工具參考總覽
+# 工具總覽
 
 目前伺服器共提供 60 個工具，分成 11 個類別。
 
@@ -18,45 +18,53 @@
 
 ## 建議使用順序
 
-大多數實際工作階段建議採用以下流程：
+大多數實際工作流程可依照下列順序進行：
 
-1. `connect()` 作為預設 auto-discovery 入口
+1. `connect()` 使用預設 auto-discovery 路徑
 2. `get_active_process`
-3. 需要顯式健康檢查時再用 `ping`
-4. scene 或 tree 探查
-5. diagnostics
-6. interaction 或 mutation
-7. verification
+3. 只有需要明確健康檢查時再呼叫 `ping`
+4. 先做 scene 或 tree discovery
+5. 再做 diagnostics
+6. 最後進行 interaction 或 mutation
+7. 用 verification 收尾
 
-以下情況再使用 `get_processes(windowFilter)`：
+只有在下列情況才優先使用 `get_processes(windowFilter)`：
 
-- 系統中同時有多個 WPF 目標
-- 你要明確查看背景或前景限定視窗
-- 你想先挑選特定 `processId` 再執行 `connect(processId)`
+- 同時存在多個 WPF target
+- 需要明確查看背景或前景視窗
+- 想在連線前先選定 `processId`
 
-## 類別摘要
+## 類別速覽
 
-| 類別 | 建議第一個呼叫的工具 | 用途 |
+| 類別 | 常見第一個呼叫 | 用途 |
 | --- | --- | --- |
-| Process management | `connect()` | 快速自動發現並連線到最相關的 WPF 目標 |
-| Tree and XAML | `find_elements` | 先做精簡查找，再決定是否展開完整 tree |
-| Binding diagnostics | `get_binding_errors` | 快速找到最值得先處理的 binding 錯誤 |
-| Dependency properties | `get_dp_value_source` | 釐清 precedence 與實際生效值 |
-| Style and template | `get_applied_styles` | 解釋 inherited / implicit 視覺行為 |
-| Routed events | `get_event_handlers` | 追查事件路徑與 handler |
-| Interaction | `click_element` | 定位正確元素後觸發行為 |
-| Layout | `get_layout_info` | 檢查邊界、期望尺寸與 layout 狀態 |
-| MVVM | `get_viewmodel` | 查看 view 背後的資料與命令 |
-| Performance | `get_render_stats` | 開始效能診斷 |
-| Scene diagnostics | `get_element_snapshot` | 用單次呼叫收斂常見多工具檢查流程 |
+| Process management | `connect()` | 快速自動探索並連線到最相關的 WPF target |
+| Tree and XAML | `find_elements` | 先做緊湊查找，再決定是否展開完整 tree |
+| Binding diagnostics | `get_binding_errors` | 先找最有行動價值的 binding 問題 |
+| Dependency properties | `get_dp_value_source` | 理解 precedence 與 effective value |
+| Style and template | `get_applied_styles` | 說明 inherited 或 implicit 的外觀來源 |
+| Routed events | `get_event_handlers` | 追查 event route 與 handler |
+| Interaction | `click_element` | 在定位正確 element 後觸發行為 |
+| Layout | `get_layout_info` | 檢查 bounds、desired size 與 layout state |
+| MVVM | `get_viewmodel` | 檢查 view 背後的資料與 commands |
+| Performance | `get_render_stats` | 作為效能初步診斷入口 |
+| Scene diagnostics | `get_element_snapshot` | 把常見多步驟檢查收斂成單一 scene summary |
 
-近期值得優先熟悉的新增能力：
+近期值得優先熟悉的功能：
 
-- `select_active_process` 與 `get_active_process`：當後續呼叫省略 `processId` 時，用來明確管理目前作用中的目標
-- `get_focus_state` 與 `focus_element`：處理鍵盤輸入、多視窗與焦點敏感流程
-- `capture_state_snapshot`、`wait_for_dp_change` 與 `restore_state_snapshot`：支援 mutation-safe 驗證、等待 DP 變化與回復狀態
-- `find_elements`：支援 `exact` 與不分大小寫的 `contains` 模式，適合在展開 tree 前先做精簡搜尋
-- `get_state_diff`、`get_element_snapshot`、`diagnose_visibility`、`get_interaction_readiness`：提供 scene-level 診斷，降低對 screenshot 的依賴
-- `get_ui_summary` 與 `get_form_summary`：在深入檢查前，先取得語義化子樹或表單摘要
+- `select_active_process` 與 `get_active_process`：支援省略 `processId` 的明確 process selection
+- `get_focus_state` 與 `focus_element`：支援 focus-sensitive keyboard 與多視窗流程
+- `capture_state_snapshot`、`wait_for_dp_change`、`restore_state_snapshot`：支援 mutation-safe 驗證與 rollback
+- `find_elements`：支援 `exact` 與不分大小寫的 `contains` 搜尋
+- `get_state_diff`、`get_element_snapshot`、`diagnose_visibility`、`get_interaction_readiness`：提供 scene-level diagnostics，降低對 screenshot 的依賴
+- `get_ui_summary` 與 `get_form_summary`：在深入檢查前先取得語意化摘要
 
-如需細節、回傳契約與限制，請閱讀各分類頁面。
+## Navigation 模型
+
+- 每個工具回應都保留 `nextSteps`，作為舊版 client 的 compatibility field。
+- v3 另外加入 `navigation` envelope，包含 `recommended`、`alternatives`、`prefetchTools`、`contextRefs`。
+- `nextSteps` 由 `navigation.recommended` 推導，兩種表示法保持同步。
+- `prefetchTools` 只是 advisory hint，內容只包含 tool name，供 capable client 做 progressive schema loading。
+- `contextRefs` 是 descriptive JSON only，不是 executable handle，也不是隱藏的 server-side orchestration token。
+
+需要更深入的語意與使用注意事項時，請再查看各分類頁面。

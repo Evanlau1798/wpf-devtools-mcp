@@ -68,6 +68,8 @@ public sealed class StateSnapshotRestoreContractTests
         restoreResult.GetProperty("warnings").GetArrayLength().Should().Be(0);
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("propertyName").GetString().Should().Be("CanSave");
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("verified").GetBoolean().Should().BeTrue();
+        connected.SessionManager.TryGetNavigationState(processId, out var navigationState).Should().BeTrue();
+        navigationState!.ActiveSnapshotId.Should().BeNull();
         connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "get_viewmodel");
     }
 
@@ -123,6 +125,8 @@ public sealed class StateSnapshotRestoreContractTests
         restoreResult.GetProperty("restoredViewModelPropertyCount").GetInt32().Should().Be(0);
         restoreResult.GetProperty("skippedViewModelPropertyCount").GetInt32().Should().Be(0);
         restoreResult.GetProperty("warnings")[0].GetString().Should().Contain("Name");
+        connected.SessionManager.TryGetNavigationState(processId, out var navigationState).Should().BeTrue();
+        navigationState!.ActiveSnapshotId.Should().Be(snapshotId);
         connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "modify_viewmodel");
     }
 
@@ -247,6 +251,85 @@ public sealed class StateSnapshotRestoreContractTests
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("restoreDisposition").GetString().Should().Be("SkippedComplexReference");
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("reason").GetString().Should().Contain("complex reference");
         connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "get_viewmodel");
+    }
+
+    [Fact]
+    public async Task RestoreStateSnapshot_WhenRestoringOlderSnapshot_ShouldKeepNewerActiveSnapshot()
+    {
+        const int processId = 51014;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "get_dp_value_source" => (object)new
+                {
+                    success = true,
+                    propertyName = "Width",
+                    currentValue = "120",
+                    hadLocalValue = true,
+                    localValue = "120",
+                    baseValueSource = "LocalValue"
+                },
+                "set_dp_value" => (object)new
+                {
+                    success = true,
+                    propertyName = "Width",
+                    oldValue = "120",
+                    newValue = "120"
+                },
+                "get_viewmodel" => (object)new
+                {
+                    success = true,
+                    typeName = "SampleViewModel",
+                    properties = Array.Empty<object>()
+                },
+                "get_binding_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
+                "get_validation_errors" => (object)new
+                {
+                    success = true,
+                    errorCount = 0,
+                    errors = Array.Empty<object>()
+                },
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+
+        var captureTool = new CaptureStateSnapshotTool(connected.SessionManager);
+        var olderCapture = JsonSerializer.SerializeToElement(await captureTool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            snapshotName = "older",
+            propertyNames = new[] { "Width" }
+        }), CancellationToken.None));
+        var newerCapture = JsonSerializer.SerializeToElement(await captureTool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            snapshotName = "newer",
+            propertyNames = new[] { "Width" }
+        }), CancellationToken.None));
+
+        var olderSnapshotId = olderCapture.GetProperty("snapshotId").GetString();
+        var newerSnapshotId = newerCapture.GetProperty("snapshotId").GetString();
+        newerSnapshotId.Should().NotBe(olderSnapshotId);
+
+        connected.SessionManager.TryGetNavigationState(processId, out var stateBeforeRestore).Should().BeTrue();
+        stateBeforeRestore!.ActiveSnapshotId.Should().Be(newerSnapshotId);
+
+        var restoreTool = new RestoreStateSnapshotTool(connected.SessionManager);
+        var restoreResult = JsonSerializer.SerializeToElement(await restoreTool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            snapshotId = olderSnapshotId,
+            removeAfterRestore = false
+        }), CancellationToken.None));
+
+        restoreResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        connected.SessionManager.TryGetNavigationState(processId, out var stateAfterRestore).Should().BeTrue();
+        stateAfterRestore!.ActiveSnapshotId.Should().Be(newerSnapshotId);
     }
 
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(

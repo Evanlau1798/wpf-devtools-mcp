@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
@@ -10,8 +11,13 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
-public sealed class GetInteractionReadinessToolTests
+public sealed class GetInteractionReadinessToolTests : IDisposable
 {
+    public void Dispose()
+    {
+        ToolCallHelper.ResetCacheForTesting();
+    }
+
     [Fact]
     public async Task ExecuteAsync_ShouldPassThroughStructuredReadinessPayload()
     {
@@ -30,6 +36,60 @@ public sealed class GetInteractionReadinessToolTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("isReady").GetBoolean().Should().BeFalse();
         result.GetProperty("blockers").GetArrayLength().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithDisabledAndCommandBlockers_ShouldSuggestInspectionTools()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                elementId = "Button_1",
+                interactionType = "Click",
+                isReady = false,
+                blockers = new[]
+                {
+                    new { reason = "ElementDisabled" },
+                    new { reason = "CommandCannotExecute" }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Button_1")),
+            CancellationToken.None,
+            toolName: "get_interaction_readiness");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(2);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_dp_value_source");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Button_1");
+        nextSteps[0].GetProperty("params").GetProperty("propertyName").GetString().Should().Be("IsEnabled");
+        nextSteps[1].GetProperty("tool").GetString().Should().Be("get_commands");
+        nextSteps[1].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Button_1");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithVisibilityBlocker_ShouldSuggestDiagnoseVisibility()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                elementId = "Button_2",
+                interactionType = "Click",
+                isReady = false,
+                blockers = new[]
+                {
+                    new { reason = "VisibilityBlocked" }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Button_2")),
+            CancellationToken.None,
+            toolName: "get_interaction_readiness");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("diagnose_visibility");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Button_2");
     }
 
     private static async Task<ConnectedReadinessSession> CreateConnectedSessionAsync(int processId, string responseJson)

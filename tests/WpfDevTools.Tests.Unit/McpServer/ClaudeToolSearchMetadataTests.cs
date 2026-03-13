@@ -105,6 +105,17 @@ public class ClaudeToolSearchMetadataTests
         opening.Should().Contain("secondary windows");
     }
 
+    [Fact]
+    public void ServerInstructions_ShouldDescribeSessionAwareNavigationHints()
+    {
+        ServerInstructions.Value.Should().Contain("session-aware");
+        ServerInstructions.Value.Should().Contain("preconditions");
+        ServerInstructions.Value.Should().Contain("expectedOutcome");
+        ServerInstructions.Value.Should().Contain("workflowId");
+        ServerInstructions.Value.Should().Contain("prefetchTools");
+        ServerInstructions.Value.Should().Contain("advisory");
+    }
+
     private static (Type Type, MethodInfo Method, McpServerToolAttribute Attr) GetTool(string toolName) =>
         GetAllTools().Single(tool => tool.Attr.Name == toolName);
 

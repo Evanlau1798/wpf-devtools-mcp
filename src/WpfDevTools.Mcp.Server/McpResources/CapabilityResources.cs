@@ -29,6 +29,12 @@ public static class CapabilityResources
 
         ## Response contract notes
 
+        - Every tool response now includes a compatibility `nextSteps` field; tools without runtime-computable guidance return `nextSteps: []`.
+        - v3 also adds an additive `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
+        - `nextSteps` remains a compatibility field and is derived from `navigation.recommended`.
+        - v2 adds optional `preconditions`, `expectedOutcome`, `workflowId`, and `prefetchTools` fields on `nextSteps` entries.
+        - `contextRefs` are descriptive JSON only; they are not executable handles or hidden server-side orchestration tokens.
+        - `prefetchTools` is advisory only and contains tool names for clients that can load nearby schemas progressively.
         - Compatibility aliases remain in the current response contract to avoid breaking existing clients.
         - Compatibility aliases:
           - `currentValue -> effectiveValue`

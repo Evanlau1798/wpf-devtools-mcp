@@ -1,11 +1,17 @@
 using System.Reflection;
+using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
-public sealed class SceneDiagnosticsContractTests
+public sealed class SceneDiagnosticsContractTests : IDisposable
 {
+    public void Dispose()
+    {
+        ToolCallHelper.ResetCacheForTesting();
+    }
+
     [Fact]
     public void GetStateDiff_ShouldExposeSnapshotIdAndOptionalTrigger()
     {
@@ -128,5 +134,96 @@ public sealed class SceneDiagnosticsContractTests
         processId.ParameterType.Should().Be(typeof(int?));
         processId.HasDefaultValue.Should().BeTrue();
         processId.DefaultValue.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithCollapsedRootCause_ShouldSuggestSetVisibility()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                elementId = "Text_1",
+                isUserVisible = false,
+                rootCause = "Element Visibility=Collapsed."
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Text_1")),
+            CancellationToken.None,
+            toolName: "diagnose_visibility");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("set_dp_value");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Text_1");
+        nextSteps[0].GetProperty("params").GetProperty("propertyName").GetString().Should().Be("Visibility");
+        nextSteps[0].GetProperty("params").GetProperty("value").GetString().Should().Be("Visible");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithAncestorVisibilityRootCause_ShouldPreferDpInspection()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                elementId = "Text_2",
+                isUserVisible = false,
+                rootCause = "Ancestor HiddenPanel has Visibility=Collapsed."
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Text_2")),
+            CancellationToken.None,
+            toolName: "diagnose_visibility");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_dp_value_source");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Text_2");
+        nextSteps[0].GetProperty("params").GetProperty("propertyName").GetString().Should().Be("Visibility");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithOpacityRootCause_ShouldSuggestOpacityReset()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                elementId = "Text_3",
+                isUserVisible = false,
+                rootCause = "Element Opacity=0 makes it transparent."
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Text_3")),
+            CancellationToken.None,
+            toolName: "diagnose_visibility");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("set_dp_value");
+        nextSteps[0].GetProperty("params").GetProperty("propertyName").GetString().Should().Be("Opacity");
+        nextSteps[0].GetProperty("params").GetProperty("value").GetDouble().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithFormCommandBlocker_ShouldSuggestMostActionableControl()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                formScope = "Form_1",
+                commands = new[]
+                {
+                    new { elementId = "SaveButton", blockers = new[] { "CommandCannotExecute" } }
+                },
+                summary = new { totalInputs = 2, emptyInputs = 1, errorCount = 1, isSubmittable = false }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Form_1")),
+            CancellationToken.None,
+            toolName: "get_form_summary");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_commands");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
     }
 }

@@ -104,6 +104,7 @@ public static class ServerInstructions
         - Prefer @resource lookups when you need capability summaries, workflow references, or known limitations before acting
         - Check IsEnabled with get_dp_value_source before click_element to avoid errors
         - Use get_binding_errors as first diagnostic step for data display issues
+        - Treat returned runtime navigation as session-aware when you have already captured a snapshot or started a routed-event trace in the same connected process
         - In STDIO transport, prefer polling workflows over push-style watcher/event streaming expectations
         - Avoid calling performance tools (get_render_stats, measure_element_render_time) in loops
         - When debugging, start broad (get_binding_errors) then narrow (get_bindings on specific element)
@@ -155,6 +156,14 @@ public static class ServerInstructions
 
         === RESPONSE CONTRACT VERSION ===
         - Current response contract version: {{ResponseContractVersion.Current}}
+        - Every tool response includes `nextSteps`; use it as the preferred follow-up navigation field when present, prefer it over ad hoc tool guessing, and expect `nextSteps: []` when the server has no deterministic runtime guidance.
+        - v2 `nextSteps` entries may also include optional `preconditions`, `expectedOutcome`, `workflowId`, and `prefetchTools` fields.
+        - v3 also adds an additive `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and descriptive `contextRef` entries.
+        - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` for clients that ignore the richer envelope.
+        - These optional fields are session-aware hints for capable clients; older clients can ignore them safely.
+        - `workflowId` and `expectedOutcome` are advisory only and describe short verification loops, not executable server-side orchestration.
+        - `prefetchTools` is advisory only and contains tool names, not parameters or hidden commands.
+        - `contextRef` entries are descriptive JSON only; they are not opaque handles and must not be treated as implicit tool execution requests.
         - Compatibility aliases remain available in the current contract for backward compatibility.
         - Compatibility aliases:
           - currentValue -> effectiveValue

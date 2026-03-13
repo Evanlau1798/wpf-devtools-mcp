@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
@@ -10,8 +11,13 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
-public sealed class SceneSummaryToolTests
+public sealed class SceneSummaryToolTests : IDisposable
 {
+    public void Dispose()
+    {
+        ToolCallHelper.ResetCacheForTesting();
+    }
+
     [Fact]
     public async Task GetUiSummaryTool_ShouldPassThroughStructuredSummaryPayload()
     {
@@ -102,6 +108,73 @@ public sealed class SceneSummaryToolTests
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("summary").GetProperty("totalInputs").GetInt32().Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetUiSummary_Navigation_ShouldRouteDisabledNodeToInteractionReadiness()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                rootElementId = "Window_1",
+                summaryText = "- Button SaveButton [disabled]",
+                nodes = new[]
+                {
+                    new { elementId = "Button_1", elementType = "Button", annotations = new[] { "disabled" } }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_interaction_readiness");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Button_1");
+    }
+
+    [Fact]
+    public async Task GetUiSummary_Navigation_ShouldRouteVisibilityCueToDiagnoseVisibility()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                rootElementId = "Window_1",
+                summaryText = "- Text HiddenText [visibility:Collapsed]",
+                nodes = new[]
+                {
+                    new { elementId = "Text_1", elementType = "TextBlock", annotations = new[] { "visibility:Collapsed" } }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("diagnose_visibility");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Text_1");
+    }
+
+    [Fact]
+    public async Task GetUiSummary_Navigation_ShouldRouteBindingCueToBindingErrors()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                rootElementId = "Window_1",
+                summaryText = "- TextBox NameTextBox [binding issue]",
+                nodes = new[]
+                {
+                    new { elementId = "TextBox_1", elementType = "TextBox", annotations = Array.Empty<string>() }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        result.StructuredContent!.Value.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_binding_errors");
     }
 
     private static async Task<ConnectedSceneSummarySession> CreateConnectedSessionAsync(int processId, string responseJson)

@@ -14,6 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class DependencyPropertyMcpTools
 {
     private const string DependencyPropertyMetadata = "CATEGORY: DependencyProperty | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `nextSteps`; prefer those returned follow-ups over ad hoc tool guessing.\n\n";
     [McpServerTool(Name = "get_dp_value_source", Title = "Inspect DependencyProperty Value Source", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect the runtime source and precedence of a WPF DependencyProperty value.\n\n" +
@@ -115,6 +116,7 @@ public static class DependencyPropertyMcpTools
         "DO NOT USE: For permanent changes (changes are NOT persisted to XAML).\n\n" +
         "WARNING: This modifies the running app. Changes are lost on app restart.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core mutation result.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -149,7 +151,9 @@ public static class DependencyPropertyMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<SetDpValueTool>("SetDpValueTool", () => new SetDpValueTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "set_dp_value");
     }
 
     [McpServerTool(Name = "clear_dp_value", Title = "Clear WPF DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = false)]

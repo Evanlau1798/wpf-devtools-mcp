@@ -1,13 +1,20 @@
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.Navigation;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
-public class InteractionToolMetadataTests
+public sealed class InteractionToolMetadataTests : IDisposable
 {
+    public void Dispose()
+    {
+        ToolCallHelper.ResetCacheForTesting();
+    }
+
     [Fact]
     public void ExecuteCommand_ShouldIncludeRequestedInputAndObservedEffectMetadata()
     {
@@ -187,6 +194,134 @@ public class InteractionToolMetadataTests
         json.GetProperty("success").GetBoolean().Should().BeFalse();
         json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
         json.GetProperty("error").GetString().Should().Contain("detail");
+    }
+
+    [Fact]
+    public async Task ClickElement_Navigation_ShouldRecommendUiSummaryVerification()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, clicked = true }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton")),
+            CancellationToken.None,
+            toolName: "click_element");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+    }
+
+    [Fact]
+    public async Task ClickElement_Navigation_WithActiveSnapshot_ShouldRecommendStateDiffWorkflow()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, clicked = true }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState("snapshot_123", null),
+            toolName: "click_element");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_state_diff");
+        nextSteps[0].GetProperty("workflowId").GetString().Should().Be("safe-mutation-loop");
+        nextSteps[0].GetProperty("prefetchTools")[0].GetString().Should().Be("restore_state_snapshot");
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_Navigation_ShouldRecommendUiSummaryAndNotTraceRoutedEvents()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                commandName = "SaveCommand",
+                executed = true,
+                canExecute = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("commandName", "SaveCommand")),
+            CancellationToken.None,
+            toolName: "execute_command");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+        nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
+    }
+
+    [Fact]
+    public async Task FireRoutedEvent_Navigation_WithActiveTrace_ShouldPreferTraceRetrieval()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState(null, new ActiveTraceNavigationState("Click", "SaveButton", DateTimeOffset.UtcNow)),
+            toolName: "fire_routed_event");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("trace_routed_events");
+        nextSteps[0].GetProperty("params").GetProperty("mode").GetString().Should().Be("get");
+        nextSteps[0].GetProperty("preconditions")[0].GetString().Should().Be("activeTrace");
+    }
+
+    [Fact]
+    public async Task FireRoutedEvent_Navigation_WithoutActiveTrace_ShouldNotSuggestTraceRetrieval()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState(null, null),
+            toolName: "fire_routed_event");
+
+        result.StructuredContent!.Value.GetProperty("nextSteps")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("tool").GetString())
+            .Should()
+            .NotContain("trace_routed_events");
+        result.StructuredContent!.Value.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        result.StructuredContent!.Value.GetProperty("nextSteps")[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+    }
+
+    [Fact]
+    public async Task FireRoutedEvent_Navigation_WithExpiredActiveTrace_ShouldNotSuggestTraceRetrieval()
+    {
+        var expiredTrace = new ActiveTraceNavigationState(
+            "Click",
+            "SaveButton",
+            DateTimeOffset.UtcNow.AddMinutes(-1),
+            TimeSpan.FromSeconds(5));
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState(null, expiredTrace),
+            toolName: "fire_routed_event");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+        nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
     }
 
     private sealed class InteractionMetadataProbe : PipeConnectedToolBase

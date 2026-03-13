@@ -14,6 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class MvvmMcpTools
 {
     private const string MvvmMetadata = "CATEGORY: MVVM | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `nextSteps`; prefer those returned follow-ups over ad hoc tool guessing.\n\n";
     [McpServerTool(Name = "get_viewmodel", Title = "Inspect WPF ViewModel", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect the current WPF ViewModel and runtime DataContext state for an element.\n\n" +
@@ -99,6 +100,7 @@ public static class MvvmMcpTools
         "DO NOT USE: When CanExecute is false (will fail); check with get_commands first.\n\n" +
         "WARNING: This triggers real application logic (saves data, navigates, etc.).\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core command result.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -133,7 +135,9 @@ public static class MvvmMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ExecuteCommandTool>("ExecuteCommandTool", () => new ExecuteCommandTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "execute_command");
     }
 
     [McpServerTool(Name = "get_validation_errors", Title = "Inspect WPF Validation Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
@@ -148,6 +152,7 @@ public static class MvvmMcpTools
         "errors from ALL logical and visual descendant elements are collected recursively (max depth: 50, max errors: 200). " +
         "This includes inactive TabItem content and other subtree content that may not currently be visible in the visual tree. " +
         "Each error includes elementType and elementName to identify the source element.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -183,7 +188,8 @@ public static class MvvmMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetValidationErrorsTool>("GetValidationErrorsTool", () => new GetValidationErrorsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_validation_errors");
     }
 
     [McpServerTool(Name = "modify_viewmodel", Title = "Modify WPF ViewModel", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
@@ -195,6 +201,7 @@ public static class MvvmMcpTools
         "DO NOT USE: For permanent changes (not persisted); when INotifyPropertyChanged is missing (UI won't update).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core mutation result.\n\n" +
+        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -236,6 +243,8 @@ public static class MvvmMcpTools
                     GenericPipeTool.AugmentModifyViewModelResult)
             ).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "modify_viewmodel");
     }
 }

@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Buffers;
 using ModelContextProtocol.Protocol;
+using WpfDevTools.Mcp.Server.Navigation;
+using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
@@ -12,6 +15,7 @@ public static class ToolCallHelper
 {
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
     private static MetricsCollector? _metrics;
+    private static ToolNavigationPlanner _navigationPlanner = new(new ToolNavigationRegistry());
 
     private static readonly Annotations ErrorAnnotations = new() { Priority = 1.0f };
 
@@ -63,6 +67,7 @@ public static class ToolCallHelper
     /// <param name="args">JSON arguments for the tool</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <param name="timeoutSeconds">Optional override for tool timeout in seconds.</param>
+    /// <param name="navigationState">Optional navigation-only session state used to compute conditional next steps.</param>
     /// <param name="toolName">Tool name for metrics (auto-populated from caller method name)</param>
     /// <returns>CallToolResult with IsError set appropriately</returns>
     public static async Task<CallToolResult> ExecuteAndWrapAsync(
@@ -70,6 +75,7 @@ public static class ToolCallHelper
         JsonElement? args,
         CancellationToken cancellationToken,
         int? timeoutSeconds = null,
+        NavigationSessionState? navigationState = null,
         [System.Runtime.CompilerServices.CallerMemberName] string toolName = "unknown")
     {
         var effectiveTimeoutSeconds = timeoutSeconds ?? McpServerConfiguration.DefaultToolTimeoutSeconds;
@@ -85,6 +91,8 @@ public static class ToolCallHelper
             var result = await execute(args, cts.Token).ConfigureAwait(false);
             sw.Stop();
             var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
+            var navigation = _navigationPlanner.PlanEnvelope(toolName, jsonElement, args, navigationState);
+            jsonElement = EnsureNavigation(jsonElement, navigation);
             var isError = IsToolResultError(jsonElement);
 
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, !isError);
@@ -106,7 +114,7 @@ public static class ToolCallHelper
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
 
             // Timeout occurred (our CTS was cancelled, but caller's token was not)
-            var timeoutPayload = JsonSerializer.SerializeToElement(new
+            var timeoutPayload = EnsureNavigation(JsonSerializer.SerializeToElement(new
             {
                 success = false,
                 error = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive.",
@@ -114,7 +122,7 @@ public static class ToolCallHelper
                 toolName,
                 timeoutSeconds = effectiveTimeoutSeconds,
                 suggestedAction = "Check target responsiveness, then retry the tool or reconnect if the session may be stale."
-            }, SerializerOptions);
+            }, SerializerOptions), ToolNavigationEnvelope.Empty);
 
             return new CallToolResult()
             {
@@ -136,12 +144,12 @@ public static class ToolCallHelper
             // to prevent localized OS text or internal details from leaking to clients
             var (errorCode, sanitizedMessage) = ClassifyException(ex);
 
-            var exceptionPayload = JsonSerializer.SerializeToElement(new
+            var exceptionPayload = EnsureNavigation(JsonSerializer.SerializeToElement(new
             {
                 success = false,
                 error = sanitizedMessage,
                 errorCode
-            }, SerializerOptions);
+            }, SerializerOptions), ToolNavigationEnvelope.Empty);
 
             return new CallToolResult()
             {
@@ -217,6 +225,85 @@ public static class ToolCallHelper
     {
         ToolCache.Clear();
         _metrics = null;
+        _navigationPlanner = new ToolNavigationPlanner(new ToolNavigationRegistry());
+    }
+
+    internal static void SetNavigationPlannerForTesting(ToolNavigationPlanner planner) =>
+        _navigationPlanner = planner ?? throw new ArgumentNullException(nameof(planner));
+
+    internal static NavigationSessionState? ResolveNavigationState(SessionManager sessionManager, JsonElement? args)
+    {
+        ArgumentNullException.ThrowIfNull(sessionManager);
+
+        var processId = TryGetProcessId(args);
+        if (processId is null)
+        {
+            if (!sessionManager.TryGetActiveProcessId(out var activeProcessId))
+            {
+                return null;
+            }
+
+            processId = activeProcessId;
+        }
+
+        if (!sessionManager.TryGetNavigationState(processId.Value, out var state) || state is null)
+        {
+            return null;
+        }
+
+        if (state.ActiveTrace is { } activeTrace && activeTrace.HasExpired(DateTimeOffset.UtcNow))
+        {
+            sessionManager.ClearActiveTraceState(processId.Value);
+            return state with { ActiveTrace = null };
+        }
+
+        return state;
+    }
+
+    private static JsonElement EnsureNavigation(JsonElement element, ToolNavigationEnvelope navigation)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return element;
+        }
+
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartObject();
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.NameEquals("nextSteps") || property.NameEquals("navigation"))
+            {
+                continue;
+            }
+
+            property.WriteTo(writer);
+        }
+
+        writer.WritePropertyName("nextSteps");
+        JsonSerializer.Serialize(writer, navigation.Recommended, SerializerOptions);
+        writer.WritePropertyName("navigation");
+        JsonSerializer.Serialize(writer, navigation, SerializerOptions);
+        writer.WriteEndObject();
+        writer.Flush();
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
+    }
+
+    private static int? TryGetProcessId(JsonElement? args)
+    {
+        if (args is not { } candidate
+            || candidate.ValueKind != JsonValueKind.Object
+            || !candidate.TryGetProperty("processId", out var property)
+            || property.ValueKind != JsonValueKind.Number
+            || !property.TryGetInt32(out var processId))
+        {
+            return null;
+        }
+
+        return processId;
     }
 }
 

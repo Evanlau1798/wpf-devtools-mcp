@@ -2,6 +2,8 @@ using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.Navigation;
+using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -107,6 +109,10 @@ public class ToolCallHelperTests
         result.Should().NotBeNull();
         result.IsError.Should().BeFalse();
         result.Content.Should().HaveCount(1);
+        result.StructuredContent.Should().NotBeNull();
+        result.StructuredContent!.Value.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
+        nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+        nextSteps.GetArrayLength().Should().Be(0);
     }
 
     [Fact]
@@ -120,6 +126,10 @@ public class ToolCallHelperTests
         result.Should().NotBeNull();
         result.IsError.Should().BeTrue();
         result.Content.Should().HaveCount(1);
+        result.StructuredContent.Should().NotBeNull();
+        result.StructuredContent!.Value.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
+        nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+        nextSteps.GetArrayLength().Should().Be(0);
     }
 
     [Fact]
@@ -140,6 +150,98 @@ public class ToolCallHelperTests
         receivedArgs.Should().NotBeNull();
         receivedArgs!.Value.TryGetProperty("processId", out var pid).Should().BeTrue();
         pid.GetInt32().Should().Be(999);
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_ShouldKeepExistingResponseFields_WhenAddingNextSteps()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, message = "OK", count = 42 }),
+            null,
+            CancellationToken.None);
+
+        var structured = result.StructuredContent!.Value;
+        structured.GetProperty("success").GetBoolean().Should().BeTrue();
+        structured.GetProperty("message").GetString().Should().Be("OK");
+        structured.GetProperty("count").GetInt32().Should().Be(42);
+        structured.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
+        nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_ShouldDeriveNextStepsFromNavigationRecommended()
+    {
+        var registry = new ToolNavigationRegistry();
+        registry.Register("known_tool", _ => new ToolNavigationEnvelope(
+            [
+                new ToolNextStep(
+                    "get_datacontext_chain",
+                    ToolCallHelper.BuildJsonArgs(("elementId", "TextBox_1"))!.Value,
+                    "Inspect the DataContext inheritance for the failing element.",
+                    ToolNextStepKind.Diagnostic,
+                    1)
+            ],
+            [
+                new ToolNextStep(
+                    "get_bindings",
+                    ToolCallHelper.BuildJsonArgs(("elementId", "TextBox_1"))!.Value,
+                    "Inspect the binding declaration directly.",
+                    ToolNextStepKind.Diagnostic,
+                    2)
+            ],
+            ["get_bindings"],
+            [
+                ToolNavigationReference.Create(
+                    "binding-issue",
+                    ("elementId", "TextBox_1"),
+                    ("propertyName", "Text"),
+                    ("diagnosis", "PathMismatch"))
+            ]));
+        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(registry));
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, errorCount = 1 }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "known_tool");
+
+        var structured = result.StructuredContent!.Value;
+        var navigation = structured.GetProperty("navigation");
+        navigation.GetProperty("recommended")[0].GetProperty("tool").GetString().Should().Be("get_datacontext_chain");
+        navigation.GetProperty("alternatives")[0].GetProperty("tool").GetString().Should().Be("get_bindings");
+        navigation.GetProperty("prefetchTools")[0].GetString().Should().Be("get_bindings");
+        navigation.GetProperty("contextRefs")[0].GetProperty("type").GetString().Should().Be("binding-issue");
+        structured.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_datacontext_chain");
+        structured.GetProperty("nextSteps").GetRawText().Should().Be(navigation.GetProperty("recommended").GetRawText());
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_ShouldPreserveLegacyNextStepsConsumers_WhenNavigationExists()
+    {
+        var registry = new ToolNavigationRegistry();
+        registry.Register("known_tool", _ => new ToolNavigationEnvelope(
+            [
+                new ToolNextStep(
+                    "get_bindings",
+                    ToolCallHelper.BuildJsonArgs(("elementId", "TextBox_1"))!.Value,
+                    "Inspect the binding declaration directly.",
+                    ToolNextStepKind.Diagnostic,
+                    1)
+            ],
+            [],
+            [],
+            []));
+        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(registry));
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true }),
+            null,
+            CancellationToken.None,
+            toolName: "known_tool");
+
+        result.StructuredContent!.Value.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
+        nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_bindings");
     }
 
     [Fact]

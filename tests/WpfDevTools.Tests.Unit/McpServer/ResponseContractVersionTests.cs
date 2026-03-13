@@ -26,6 +26,13 @@ public sealed class ResponseContractVersionTests
         content.Should().Contain("typeName -> viewModelType");
         content.Should().Contain("avgRenderTime -> averageFrameTime");
         content.Should().Contain("detail=compact");
+        content.Should().Contain("nextSteps");
+        content.Should().Contain("preconditions");
+        content.Should().Contain("prefetchTools");
+        content.Should().Contain("navigation");
+        content.Should().Contain("contextRefs");
+        content.Should().Contain("additive");
+        content.Should().Contain("descriptive JSON");
     }
 
     [Fact]
@@ -35,5 +42,14 @@ public sealed class ResponseContractVersionTests
         ServerInstructions.Value.Should().Contain(ResponseContractVersion.Current);
         ServerInstructions.Value.Should().Contain("Compatibility aliases");
         ServerInstructions.Value.Should().Contain("detail=compact");
+        ServerInstructions.Value.Should().Contain("nextSteps");
+        ServerInstructions.Value.Should().Contain("preconditions");
+        ServerInstructions.Value.Should().Contain("workflowId");
+        ServerInstructions.Value.Should().Contain("prefetchTools");
+        ServerInstructions.Value.Should().Contain("navigation");
+        ServerInstructions.Value.Should().Contain("contextRef");
+        ServerInstructions.Value.Should().Contain("additive");
+        ServerInstructions.Value.Should().Contain("compatibility field");
+        ServerInstructions.Value.Should().Contain("descriptive JSON");
     }
 }

@@ -4,6 +4,7 @@ using System.ComponentModel;
 using FluentAssertions;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.Schema;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -94,6 +95,31 @@ public class McpToolContractConsistencyTests
         parameter.HasDefaultValue.Should().BeTrue();
         parameter.DefaultValue.Should().BeNull();
     }
+
+    [Fact]
+    public void ToolNextStep_ShouldExposeOptionalConditionalNavigationFields()
+    {
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.Preconditions))!.PropertyType.Should().Be(typeof(IReadOnlyList<string>));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.ExpectedOutcome))!.PropertyType.Should().Be(typeof(string));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.WorkflowId))!.PropertyType.Should().Be(typeof(string));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.PrefetchTools))!.PropertyType.Should().Be(typeof(IReadOnlyList<string>));
+    }
+
+    [Fact]
+    public void ToolNavigationEnvelope_ShouldExposeStableCollectionShapes()
+    {
+        typeof(ToolNavigationEnvelope).GetProperty(nameof(ToolNavigationEnvelope.Recommended))!.PropertyType.Should().Be(typeof(IReadOnlyList<ToolNextStep>));
+        typeof(ToolNavigationEnvelope).GetProperty(nameof(ToolNavigationEnvelope.Alternatives))!.PropertyType.Should().Be(typeof(IReadOnlyList<ToolNextStep>));
+        typeof(ToolNavigationEnvelope).GetProperty(nameof(ToolNavigationEnvelope.PrefetchTools))!.PropertyType.Should().Be(typeof(IReadOnlyList<string>));
+        typeof(ToolNavigationEnvelope).GetProperty(nameof(ToolNavigationEnvelope.ContextRefs))!.PropertyType.Should().Be(typeof(IReadOnlyList<ToolNavigationReference>));
+    }
+
+    [Fact]
+    public void ToolNavigationReference_ShouldExposeType()
+    {
+        typeof(ToolNavigationReference).GetProperty(nameof(ToolNavigationReference.Type))!.PropertyType.Should().Be(typeof(string));
+    }
+
     [Fact]
     public void TraceRoutedEvents_ShouldExposeOptionalMode()
     {

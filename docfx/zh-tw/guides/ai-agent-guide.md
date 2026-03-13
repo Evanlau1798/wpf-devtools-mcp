@@ -10,8 +10,9 @@
 4. 先用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 建立場景理解，再決定是否需要完整 tree。
 5. 只有在需要明確健康檢查或 reconnect 驗證時，才呼叫 `ping`。
 6. 當 scene-level 摘要仍不足時，再瀏覽 tree 取得穩定的 `elementId`。
-7. 執行聚焦式診斷工具。
+7. 執行聚焦式診斷工具，並優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`。
 8. 只有在必要時，才進行受控互動或 mutation。
+9. 每次互動或 mutation 後，都先看該工具回應建議的 follow-up；若目前 session 有 active snapshot，通常第一步應是 `get_state_diff`。
 
 ## 最佳實務
 
@@ -31,8 +32,9 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 1. `capture_state_snapshot`
 2. 檢查後只做一次 mutation
-3. 立刻驗證結果
-4. 如果需要保持 app 不變，再呼叫 `restore_state_snapshot`
+3. 先依 `navigation.recommended` 或 `nextSteps` 驗證結果
+4. 若 snapshot 仍 active，優先呼叫 `get_state_diff`
+5. 如果需要保持 app 不變，再呼叫 `restore_state_snapshot`
 
 常見的 mutation 工具包含：
 
@@ -76,6 +78,16 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 - prompts，例如 `/mcp__wpf-devtools__debug_binding_issue`
 - resources，例如 `@wpf-devtools:capabilities`
+
+當工具回應包含下列欄位時，也應一併解析：
+
+- `nextSteps`
+- `navigation.recommended`
+- `navigation.alternatives`
+- `navigation.prefetchTools`
+- `navigation.contextRefs`
+
+`nextSteps` 是相容舊版 client 的欄位；新的 client 應以 `navigation.recommended` 為主，再把 `alternatives` 視為人工判斷時的備選路徑。
 
 ### 6. 先用 scene-level 聚合，再考慮 screenshot 或大型 tree
 
@@ -136,6 +148,8 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 3. `get_ui_summary` 或 `get_element_snapshot`
 4. 一個或多個聚焦式診斷工具
 5. 一次只做一個 mutation 或 interaction
-6. 每次 mutation 後都立刻呼叫 `get_state_diff` 或其他聚焦 verification tool
+6. 先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`
+7. 若目前 session 有 active snapshot，優先呼叫 `get_state_diff`
+8. 其餘情況再用其他聚焦 verification tool 補強
 
 這能讓失敗點更容易定位，也讓 agent trace 更值得信任。

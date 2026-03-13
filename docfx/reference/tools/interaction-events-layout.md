@@ -16,6 +16,8 @@
 
 `capture_state_snapshot` and `restore_state_snapshot` are the preferred guard rails before trying UI mutations that may need rollback.
 
+Interaction tool responses now also carry `nextSteps` and `navigation`. When the tool already recommends the follow-up, prefer that guidance over a fixed manual verification checklist.
+
 ## Routed events
 
 - `trace_routed_events`
@@ -23,6 +25,8 @@
 - `fire_routed_event`
 
 `fire_routed_event` is useful for route analysis. It is not a universal substitute for real user input.
+
+If you start a trace session with `trace_routed_events(mode: "start")` before the interaction, the usual next step is `trace_routed_events(mode: "get")` to read back the captured event records.
 
 ## Layout
 
@@ -52,6 +56,8 @@
 2. Call `capture_state_snapshot` before changing UI state.
 3. Use `get_focus_state` and `focus_element` before keyboard-sensitive actions.
 4. Interact once.
-5. Verify immediately.
-6. Use `restore_state_snapshot` if the workflow requires rollback or if you need to leave the app unchanged.
-7. Avoid stacking many mutations into one agent step.
+5. Verify by following `navigation.recommended` or `nextSteps` from the interaction result.
+6. If the session has an active snapshot, `get_state_diff` is usually the first follow-up.
+7. If the session has an active routed-event trace, `trace_routed_events(mode: "get")` is usually the first follow-up.
+8. Use `restore_state_snapshot` if the workflow requires rollback or if you need to leave the app unchanged.
+9. Avoid stacking many mutations into one agent step.

@@ -10,8 +10,9 @@ This server is explicitly intended for AI-assisted WPF debugging and testing. Th
 4. Use scene-level tools such as `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before falling back to tree-heavy inspection.
 5. Call `ping` only when you need an explicit health check or reconnect confirmation.
 6. Explore the tree to obtain stable `elementId` values only after the scene summary is insufficient.
-7. Run focused diagnostics.
+7. Run focused diagnostics and prefer the `navigation.recommended` or `nextSteps` guidance returned by each tool.
 8. Perform controlled interaction or mutation only when needed.
+9. After each interaction or mutation, inspect the recommended follow-up from that response first. If the session has an active snapshot, `get_state_diff` is usually the first verification step.
 
 ## Best practices
 
@@ -31,8 +32,9 @@ For stateful validation, prefer this sequence:
 
 1. `capture_state_snapshot`
 2. Inspect and mutate once
-3. Verify immediately
-4. `restore_state_snapshot` if the app should be left unchanged
+3. Verify by following `navigation.recommended` or `nextSteps`
+4. If the snapshot is still active, call `get_state_diff`
+5. `restore_state_snapshot` if the app should be left unchanged
 
 Examples of mutation tools:
 
@@ -76,6 +78,16 @@ Also use MCP discovery surfaces instead of relying on memory:
 
 - prompts such as `/mcp__wpf-devtools__debug_binding_issue`
 - resources such as `@wpf-devtools:capabilities`
+
+When present, parse these follow-up fields as part of the contract:
+
+- `nextSteps`
+- `navigation.recommended`
+- `navigation.alternatives`
+- `navigation.prefetchTools`
+- `navigation.contextRefs`
+
+`nextSteps` remains the compatibility field for older clients. Newer clients should prefer `navigation.recommended` and treat `alternatives` as optional human-guided branches.
 
 ### 6. Prefer scene-level aggregation before screenshots or tree dumps
 
@@ -136,6 +148,8 @@ For end-to-end automated validation, use this order whenever possible:
 3. `get_ui_summary` or `get_element_snapshot`
 4. One or more focused diagnostics
 5. One mutation or interaction at a time
-6. `get_state_diff` or a focused verification tool after each mutation
+6. Follow `navigation.recommended` or `nextSteps` from the latest tool result
+7. If the session has an active snapshot, call `get_state_diff`
+8. Use another focused verification tool only when more detail is still required
 
 This keeps failures easy to localize and makes agent traces easier to trust.

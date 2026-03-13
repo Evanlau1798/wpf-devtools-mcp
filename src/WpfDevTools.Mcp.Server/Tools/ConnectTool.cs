@@ -138,15 +138,10 @@ public sealed class ConnectTool
 
         if (!_sessionManager.CheckRateLimit(processId.Value))
         {
-            var availableTokens = _sessionManager.GetAvailableTokens(processId.Value);
-            return new
-            {
-                success = false,
-                error = "Rate limit exceeded for connect operations. Please slow down your requests.",
-                availableTokens,
-                retryAfterSeconds = 60,
-                retryAfter = "Wait 1 minute for rate limit to reset"
-            };
+            return RateLimitResponseFactory.Create(
+                _sessionManager,
+                processId.Value,
+                "Rate limit exceeded for connect operations. Please slow down your requests.");
         }
 
         if (_sessionManager.HasSession(processId.Value))

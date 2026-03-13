@@ -176,15 +176,10 @@ public abstract class PipeConnectedToolBase
         // SECURITY: Check rate limit to prevent DoS attacks (only for connected sessions)
         if (!_sessionManager.CheckRateLimit(processId))
         {
-            var availableTokens = _sessionManager.GetAvailableTokens(processId);
-            return new
-            {
-                success = false,
-                error = "Rate limit exceeded. Please slow down your requests.",
-                availableTokens,
-                retryAfterSeconds = 60,
-                retryAfter = "Wait 1 minute for rate limit to reset"
-            };
+            return RateLimitResponseFactory.Create(
+                _sessionManager,
+                processId,
+                "Rate limit exceeded. Please slow down your requests.");
         }
 
         if (!client.IsConnected)

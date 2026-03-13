@@ -61,6 +61,26 @@ public sealed class RateLimiter
     }
 
     /// <summary>
+    /// Get the remaining wait time until the next refill window when no tokens are available.
+    /// Returns TimeSpan.Zero when a request can proceed immediately.
+    /// </summary>
+    public TimeSpan GetRetryAfter()
+    {
+        lock (_lock)
+        {
+            RefillTokens();
+            if (_tokens > 0)
+            {
+                return TimeSpan.Zero;
+            }
+
+            var nextRefillAt = _lastRefill.Add(_refillInterval);
+            var remaining = nextRefillAt - _timeProvider();
+            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+        }
+    }
+
+    /// <summary>
     /// Reset rate limiter (for testing)
     /// </summary>
     public void Reset()
@@ -116,6 +136,12 @@ public interface IRateLimiterManager
     /// Get available tokens for a session (for monitoring)
     /// </summary>
     int GetAvailableTokens(int processId);
+
+    /// <summary>
+    /// Get the remaining wait time until the session can issue another request.
+    /// Returns TimeSpan.Zero when a request can proceed immediately.
+    /// </summary>
+    TimeSpan GetRetryAfter(int processId);
 }
 
 /// <summary>
@@ -216,6 +242,22 @@ public sealed class RateLimiterManager : IRateLimiterManager, IDisposable
                 return entry.Limiter.GetAvailableTokens();
             }
             return _maxRequestsPerMinute;
+        }
+    }
+
+    /// <summary>
+    /// Get the remaining wait time until the session can issue another request.
+    /// </summary>
+    public TimeSpan GetRetryAfter(int processId)
+    {
+        lock (_lock)
+        {
+            if (_limiters.TryGetValue(processId, out var entry))
+            {
+                return entry.Limiter.GetRetryAfter();
+            }
+
+            return TimeSpan.Zero;
         }
     }
 

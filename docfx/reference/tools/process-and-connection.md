@@ -40,6 +40,8 @@ connect -> get_ui_summary -> get_element_snapshot
 connect -> MultipleWpfProcessesFound -> get_processes(windowFilter) -> connect(processId)
 ```
 
+Exception-only discovery path:
+
 ```text
 get_processes(windowFilter) -> connect(processId) -> select_active_process -> get_active_process -> get_visual_tree
 ```

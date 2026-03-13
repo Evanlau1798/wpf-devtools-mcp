@@ -34,6 +34,20 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/process-and-connection.md", "Exception-only discovery path")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md", "例外情境")]
+    public void ProcessReferencePages_ShouldMarkListThenConnectSequenceAsExceptionPath(
+        string relativePath,
+        string marker)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("get_processes(windowFilter) -> connect(processId)");
+        content.Should().Contain(marker,
+            "list-then-connect examples should be framed as exception-only disambiguation flows");
+    }
+
+    [Theory]
     [InlineData("docfx/reference/tools/interaction-events-layout.md")]
     [InlineData("docfx/zh-tw/reference/tools/interaction-events-layout.md")]
     public void InteractionReferencePages_ShouldDocumentFocusAndStateTools(string relativePath)

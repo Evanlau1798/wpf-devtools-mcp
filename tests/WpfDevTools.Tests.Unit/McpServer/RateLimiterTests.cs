@@ -79,6 +79,31 @@ public class RateLimiterTests
     }
 
     [Fact]
+    public void GetRetryAfter_WhenTokensRemain_ShouldReturnZero()
+    {
+        var currentTime = DateTime.UtcNow;
+        var limiter = new RateLimiter(maxRequestsPerInterval: 2, interval: TimeSpan.FromMinutes(1), () => currentTime);
+
+        limiter.TryAcquire().Should().BeTrue();
+
+        limiter.GetRetryAfter().Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public void GetRetryAfter_WhenLimitExceeded_ShouldReturnRemainingInterval()
+    {
+        var currentTime = DateTime.UtcNow;
+        var limiter = new RateLimiter(maxRequestsPerInterval: 1, interval: TimeSpan.FromMinutes(1), () => currentTime);
+
+        limiter.TryAcquire().Should().BeTrue();
+        limiter.TryAcquire().Should().BeFalse();
+
+        currentTime = currentTime.AddSeconds(43);
+
+        limiter.GetRetryAfter().Should().Be(TimeSpan.FromSeconds(17));
+    }
+
+    [Fact]
     public async Task TryAcquire_AfterIntervalElapsed_ShouldRefillTokens()
     {
         // Arrange

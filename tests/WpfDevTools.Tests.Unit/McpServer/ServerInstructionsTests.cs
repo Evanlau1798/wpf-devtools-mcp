@@ -91,7 +91,7 @@ public class ServerInstructionsTests
     [Fact]
     public void Value_ShouldExplainHowToUseRuntimeNavigation()
     {
-        ServerInstructions.Value.Should().Contain("preferred follow-up navigation field");
+        ServerInstructions.Value.Should().Contain("preferred follow-up surface");
         ServerInstructions.Value.Should().Contain("nextSteps: []");
         ServerInstructions.Value.Should().Contain("ad hoc tool guessing");
         ServerInstructions.Value.Should().Contain("session-aware");
@@ -101,6 +101,8 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("navigation.recommended");
         ServerInstructions.Value.Should().Contain("compatibility field");
         ServerInstructions.Value.Should().Contain("descriptive JSON");
+        ServerInstructions.Value.Should().NotContain("use it as the preferred follow-up navigation field",
+            "nextSteps should remain a compatibility field rather than the preferred navigation surface");
     }
 
     [Fact]

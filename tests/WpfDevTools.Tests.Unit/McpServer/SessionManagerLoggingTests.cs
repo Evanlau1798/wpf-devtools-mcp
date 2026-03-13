@@ -111,5 +111,7 @@ public class SessionManagerLoggingTests : IDisposable
             => throw new InvalidOperationException("Simulated rate limiter failure");
 
         public int GetAvailableTokens(int processId) => 100;
+
+        public TimeSpan GetRetryAfter(int processId) => TimeSpan.Zero;
     }
 }

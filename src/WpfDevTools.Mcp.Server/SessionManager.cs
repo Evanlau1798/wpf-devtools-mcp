@@ -86,6 +86,16 @@ public sealed partial class SessionManager : IDisposable
     }
 
     /// <summary>
+    /// Get the remaining wait time until the session can issue another request.
+    /// Returns TimeSpan.Zero when the rate limiter would currently allow the request.
+    /// </summary>
+    public TimeSpan GetRetryAfter(int processId)
+    {
+        ThrowIfDisposed();
+        return _rateLimiter.GetRetryAfter(processId);
+    }
+
+    /// <summary>
     /// Add a new session
     /// </summary>
     /// <param name="processId">Process ID to create session for</param>

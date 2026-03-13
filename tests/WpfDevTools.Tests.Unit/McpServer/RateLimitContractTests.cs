@@ -13,6 +13,20 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public class RateLimitContractTests
 {
     [Fact]
+    public async Task ConnectTool_RateLimitResponse_ShouldUseManagerRetryAfterInsteadOfHardcodedMinute()
+    {
+        var sessionManager = new SessionManager(new FixedRateLimiterManager(availableTokens: 0, retryAfter: TimeSpan.FromSeconds(17)));
+        var tool = new ConnectTool(sessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("retryAfterSeconds").GetInt32().Should().Be(17);
+        json.GetProperty("retryAfter").GetString().Should().Contain("17");
+    }
+
+    [Fact]
     public async Task ConnectTool_RateLimitResponse_ShouldContainRetryAfterSeconds()
     {
         // Arrange
@@ -86,5 +100,18 @@ public class RateLimitContractTests
             "ServerInstructions must document the numeric retryAfterSeconds field");
         instructions.Should().Contain("availableTokens",
             "ServerInstructions must document the availableTokens field");
+    }
+
+    private sealed class FixedRateLimiterManager(int availableTokens, TimeSpan retryAfter) : IRateLimiterManager
+    {
+        public bool TryAcquire(int processId) => false;
+
+        public void RemoveSession(int processId)
+        {
+        }
+
+        public int GetAvailableTokens(int processId) => availableTokens;
+
+        public TimeSpan GetRetryAfter(int processId) => retryAfter;
     }
 }

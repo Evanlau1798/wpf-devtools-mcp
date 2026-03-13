@@ -40,6 +40,8 @@ connect -> get_ui_summary -> get_element_snapshot
 connect -> MultipleWpfProcessesFound -> get_processes(windowFilter) -> connect(processId)
 ```
 
+例外情境的 discovery 路徑：
+
 ```text
 get_processes(windowFilter) -> connect(processId) -> select_active_process -> get_active_process -> get_visual_tree
 ```

@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
@@ -10,8 +11,13 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
-public sealed class StateSnapshotToolTests
+public sealed class StateSnapshotToolTests : IDisposable
 {
+    public void Dispose()
+    {
+        ToolCallHelper.ResetCacheForTesting();
+    }
+
     [Fact]
     public async Task CaptureStateSnapshot_ShouldPersistSnapshotAndExposeSummary()
     {
@@ -267,6 +273,28 @@ public sealed class StateSnapshotToolTests
         sessionManager.TryGetStateSnapshot(processId, snapshotId!, out var snapshot).Should().BeTrue();
         snapshot!.ViewModelProperties[0].CanRestore.Should().BeFalse();
         snapshot.ViewModelProperties[0].SkipReason.Should().Contain("complex reference");
+    }
+
+    [Fact]
+    public async Task CaptureStateSnapshot_Navigation_ShouldSuggestDiffAndRestoreBranches()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_123",
+                snapshotSummary = new { dependencyPropertyCount = 1, viewModelPropertyCount = 1, capturedFocus = true }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton")),
+            CancellationToken.None,
+            toolName: "capture_state_snapshot");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(2);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_state_diff");
+        nextSteps[0].GetProperty("params").GetProperty("snapshotId").GetString().Should().Be("snapshot_123");
+        nextSteps[1].GetProperty("tool").GetString().Should().Be("restore_state_snapshot");
+        nextSteps[1].GetProperty("params").GetProperty("snapshotId").GetString().Should().Be("snapshot_123");
     }
 
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(int processId, IReadOnlyList<string> resultJsonSequence)

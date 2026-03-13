@@ -1,13 +1,19 @@
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
-public class InteractionToolMetadataTests
+public sealed class InteractionToolMetadataTests : IDisposable
 {
+    public void Dispose()
+    {
+        ToolCallHelper.ResetCacheForTesting();
+    }
+
     [Fact]
     public void ExecuteCommand_ShouldIncludeRequestedInputAndObservedEffectMetadata()
     {
@@ -187,6 +193,41 @@ public class InteractionToolMetadataTests
         json.GetProperty("success").GetBoolean().Should().BeFalse();
         json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
         json.GetProperty("error").GetString().Should().Contain("detail");
+    }
+
+    [Fact]
+    public async Task ClickElement_Navigation_ShouldRecommendUiSummaryVerification()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, clicked = true }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton")),
+            CancellationToken.None,
+            toolName: "click_element");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_Navigation_ShouldRecommendUiSummaryAndNotTraceRoutedEvents()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                commandName = "SaveCommand",
+                executed = true,
+                canExecute = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("commandName", "SaveCommand")),
+            CancellationToken.None,
+            toolName: "execute_command");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
     }
 
     private sealed class InteractionMetadataProbe : PipeConnectedToolBase

@@ -133,7 +133,8 @@ public static class MvvmMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ExecuteCommandTool>("ExecuteCommandTool", () => new ExecuteCommandTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "execute_command");
     }
 
     [McpServerTool(Name = "get_validation_errors", Title = "Inspect WPF Validation Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
@@ -237,6 +238,7 @@ public static class MvvmMcpTools
                     GenericPipeTool.AugmentModifyViewModelResult)
             ).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "modify_viewmodel");
     }
 }

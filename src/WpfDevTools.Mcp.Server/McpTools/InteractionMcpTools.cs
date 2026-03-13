@@ -56,7 +56,8 @@ public static class InteractionMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ClickElementTool>("ClickElementTool", () => new ClickElementTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "click_element");
     }
 
     [McpServerTool(Name = "get_focus_state", Title = "Inspect WPF Focus State", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]

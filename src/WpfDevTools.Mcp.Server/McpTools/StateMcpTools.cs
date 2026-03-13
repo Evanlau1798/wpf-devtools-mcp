@@ -51,7 +51,8 @@ public static class StateMcpTools
                 nameof(CaptureStateSnapshotTool),
                 () => new CaptureStateSnapshotTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "capture_state_snapshot");
     }
 
     [McpServerTool(Name = "restore_state_snapshot", Title = "Restore WPF Runtime State Snapshot", OpenWorld = false, Destructive = true, UseStructuredContent = false)]

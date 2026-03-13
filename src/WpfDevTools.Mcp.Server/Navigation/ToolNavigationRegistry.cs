@@ -12,6 +12,8 @@ public sealed class ToolNavigationRegistry
     {
         BindingNavigationRules.Register(this);
         SceneDiagnosticNavigationRules.Register(this);
+        ActionNavigationRules.Register(this);
+        SceneNavigationRules.Register(this);
     }
 
     public void Register(string toolName, Func<ToolNavigationContext, IReadOnlyList<ToolNextStep>> handler)

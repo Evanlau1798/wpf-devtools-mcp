@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
@@ -10,8 +11,13 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
-public sealed class GetElementSnapshotToolTests
+public sealed class GetElementSnapshotToolTests : IDisposable
 {
+    public void Dispose()
+    {
+        ToolCallHelper.ResetCacheForTesting();
+    }
+
     [Fact]
     public async Task ExecuteAsync_ShouldAggregateElementDiagnosticsIntoSingleSnapshot()
     {
@@ -141,6 +147,35 @@ public sealed class GetElementSnapshotToolTests
 
         result.GetProperty("success").GetBoolean().Should().BeFalse();
         result.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+    }
+
+    [Fact]
+    public async Task GetElementSnapshot_Navigation_ShouldRouteBindingAndValidationFollowUps()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                elementId = "TextBox_1",
+                bindings = new[]
+                {
+                    new { propertyName = "Text", status = "Error" }
+                },
+                validationErrors = new[]
+                {
+                    new { errorContent = "Name is required" }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "TextBox_1")),
+            CancellationToken.None,
+            toolName: "get_element_snapshot");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(2);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_binding_value_chain");
+        nextSteps[0].GetProperty("params").GetProperty("propertyName").GetString().Should().Be("Text");
+        nextSteps[1].GetProperty("tool").GetString().Should().Be("get_validation_errors");
+        nextSteps[1].GetProperty("params").GetProperty("elementId").GetString().Should().Be("TextBox_1");
     }
 
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(

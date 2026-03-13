@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Mcp.Server.McpTools;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Host.Handlers;
@@ -10,8 +11,13 @@ namespace WpfDevTools.Tests.Unit.Inspector.Host.Handlers;
 /// Contract regression tests ensuring response shapes for event-related
 /// operations remain stable across refactors.
 /// </summary>
-public sealed class EventHandlersContractTests
+public sealed class EventHandlersContractTests : IDisposable
 {
+    public void Dispose()
+    {
+        ToolCallHelper.ResetCacheForTesting();
+    }
+
     [StaFact]
     public void FireRoutedEvent_ClickOnButtonWithCommand_ShouldReturnUsedOnClickFlag()
     {
@@ -54,6 +60,27 @@ public sealed class EventHandlersContractTests
         payload.GetProperty("success").GetBoolean().Should().BeTrue();
         payload.TryGetProperty("usedOnClick", out _).Should().BeFalse(
             "Non-Click events must not include usedOnClick in the response");
+    }
+
+    [Fact]
+    public async Task FireRoutedEvent_Navigation_ShouldRecommendSafeVerificationPath()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            toolName: "fire_routed_event");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
     }
 
     private sealed class TestRelayCommand : System.Windows.Input.ICommand

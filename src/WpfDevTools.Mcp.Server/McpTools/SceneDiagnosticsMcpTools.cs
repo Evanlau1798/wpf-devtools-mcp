@@ -53,7 +53,8 @@ public static class SceneDiagnosticsMcpTools
                 nameof(GetStateDiffTool),
                 () => new GetStateDiffTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_state_diff");
     }
 
     [McpServerTool(Name = "get_element_snapshot", Title = "Inspect WPF Element Snapshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
@@ -97,7 +98,8 @@ public static class SceneDiagnosticsMcpTools
                 nameof(GetElementSnapshotTool),
                 () => new GetElementSnapshotTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_element_snapshot");
     }
 
     [McpServerTool(Name = "diagnose_visibility", Title = "Diagnose WPF Element Visibility", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
@@ -227,7 +229,8 @@ public static class SceneDiagnosticsMcpTools
                 nameof(GetUiSummaryTool),
                 () => new GetUiSummaryTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_ui_summary");
     }
 
     [McpServerTool(Name = "get_form_summary", Title = "Summarize WPF Form State", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]

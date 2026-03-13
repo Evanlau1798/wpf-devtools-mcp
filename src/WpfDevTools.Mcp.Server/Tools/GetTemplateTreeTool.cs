@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -26,12 +27,11 @@ public sealed class GetTemplateTreeTool : PipeConnectedToolBase
         var depth = ParseIntParam(arguments, "depth");
 
         if (depth.HasValue && depth.Value > 100)
-            return new
+            return new ToolErrorPayload
             {
-                success = false,
-                error = "depth must be between 0 and 100. Use smaller depth values for better performance (depth=2-3 recommended for most cases).",
-                providedDepth = depth,
-                suggestedAction = "retry_with_valid_depth"
+                Error = "depth must be between 0 and 100. Use smaller depth values for better performance (depth=2-3 recommended for most cases).",
+                ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
+                Hint = "Provide a depth between 0 and 100. For most template inspections, start with depth=2 or depth=3."
             };
 
         return await SendInspectorRequestAsync(processId, "get_template_tree",

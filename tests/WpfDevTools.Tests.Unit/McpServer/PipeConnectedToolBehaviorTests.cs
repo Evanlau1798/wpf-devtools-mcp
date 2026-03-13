@@ -60,4 +60,19 @@ public class PipeConnectedToolBehaviorTests : IDisposable
         resultJson.GetProperty("error").GetString().Should().Contain("Method not found");
         resultJson.GetProperty("errorCode").GetString().Should().Be("MethodNotFound");
     }
+
+    [Fact]
+    public async Task GenericPipeTool_Execute_WithDisconnectedPipe_ShouldReturnStructuredNotConnectedError()
+    {
+        var processId = Random.Shared.Next(100_000, 999_999);
+        _sessionManager.AddSession(processId);
+
+        var tool = new GenericPipeTool(_sessionManager, "ping");
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
+        var resultJson = JsonSerializer.SerializeToElement(result);
+
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("NotConnected");
+        resultJson.GetProperty("hint").GetString().Should().Contain("connect");
+    }
 }

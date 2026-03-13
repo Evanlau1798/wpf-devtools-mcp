@@ -131,10 +131,10 @@ public static class ServerInstructions
         connect() -> get_binding_errors -> follow navigation.recommended -> get_element_snapshot(elementId) -> get_bindings(elementId) -> get_datacontext_chain(elementId)
 
         Workflow 2 - Test Button Click:
-        connect() -> get_form_summary or get_ui_summary -> get_interaction_readiness(elementId, 'Click') -> click_element(elementId) -> get_state_diff(snapshotId)
+        connect() -> capture_state_snapshot(processId, elementId, propertyNames/viewModelPropertyNames, includeFocus=true) -> get_form_summary or get_ui_summary -> get_interaction_readiness(elementId, 'Click') -> click_element(elementId) -> get_state_diff(snapshotId)
 
         Workflow 3 - Inspect ViewModel:
-        connect() -> get_element_snapshot(elementId) -> get_viewmodel -> get_commands -> modify_viewmodel(propertyName, value)
+        connect() -> get_element_snapshot(elementId) -> get_viewmodel(elementId) -> get_commands(elementId) -> modify_viewmodel(elementId, propertyName, value)
 
         Workflow 4 - Performance Profiling:
         connect() -> get_processes(windowFilter) only if connect() reports multiple candidates -> get_visual_count -> get_render_stats -> find_binding_leaks(threshold=50) -> measure_element_render_time(elementId)

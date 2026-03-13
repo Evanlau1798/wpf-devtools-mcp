@@ -148,6 +148,19 @@ public class GetProcessesToolTests
         json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
     }
 
+    [Fact]
+    public async Task Execute_WhenDetectorThrows_ShouldReturnStructuredErrorContract()
+    {
+        var tool = new GetProcessesTool(new ThrowingProcessDetector(), () => false);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().NotBeNullOrWhiteSpace();
+        json.GetProperty("hint").GetString().Should().NotBeNullOrWhiteSpace();
+    }
+
     private sealed class FakeProcessDetector : WpfProcessDetector
     {
         internal List<ProcessWindowFilter> RequestedWindowFilters { get; } = [];
@@ -170,5 +183,11 @@ public class GetProcessesToolTests
                 }
             ];
         }
+    }
+
+    private sealed class ThrowingProcessDetector : WpfProcessDetector
+    {
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
+            => throw new InvalidOperationException("simulated enumeration failure");
     }
 }

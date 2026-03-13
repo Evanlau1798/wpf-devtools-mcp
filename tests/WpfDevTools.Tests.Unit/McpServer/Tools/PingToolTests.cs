@@ -1,6 +1,7 @@
 using Xunit;
 using FluentAssertions;
 using System.Text.Json;
+using WpfDevTools.Inspector.Host;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using static WpfDevTools.Tests.Unit.TestHelpers;
@@ -47,18 +48,46 @@ public class PingToolTests
     public async Task Execute_WithValidSession_ShouldReturnSuccess()
     {
         // Arrange
+        var processId = Random.Shared.Next(100_000, 999_999);
+        using var host = new InspectorHost(processId);
+        host.Start();
+
         var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
+        sessionManager.AddSession(processId);
+        var client = sessionManager.GetPipeClient(processId);
+        client.Should().NotBeNull();
+        (await client!.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+
         var tool = new PingTool(sessionManager);
-        var parameters = new { processId = 12345 };
+        var parameters = new { processId };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        var resultJson = JsonSerializer.SerializeToElement(result);
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("status").GetString().Should().Be("connected");
+        resultJson.GetProperty("processId").GetInt32().Should().Be(processId);
+        resultJson.GetProperty("latencyMs").GetInt64().Should().BeGreaterOrEqualTo(0);
+    }
+
+    [Fact]
+    public async Task Execute_WithSessionButNoPipeConnection_ShouldReturnStructuredNotConnectedError()
+    {
+        // Arrange
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(23456);
+        var tool = new PingTool(sessionManager);
+
+        // Act
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 23456 }), CancellationToken.None);
+
+        // Assert
+        var resultJson = JsonSerializer.SerializeToElement(result);
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("NotConnected");
+        resultJson.GetProperty("hint").GetString().Should().Contain("connect");
     }
 }

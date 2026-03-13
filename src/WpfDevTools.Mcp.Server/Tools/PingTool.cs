@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -35,6 +37,12 @@ public sealed class PingTool : PipeConnectedToolBase
             var response = await SendInspectorRequestAsync(processId, "ping", new { }, cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
 
+            var responseJson = JsonSerializer.SerializeToElement(response);
+            if (ToolCallHelper.IsToolResultError(responseJson))
+            {
+                return response;
+            }
+
             // Update last activity
             _sessionManager.UpdateLastActivity(processId);
 
@@ -50,11 +58,12 @@ public sealed class PingTool : PipeConnectedToolBase
         catch (Exception ex)
         {
             stopwatch.Stop();
-            return new
+            var (errorCode, message) = ToolCallHelper.ClassifyException(ex);
+            return new ToolErrorPayload
             {
-                success = false,
-                error = $"Ping failed: {ex.Message}",
-                processId
+                Error = message,
+                ErrorCode = errorCode,
+                Hint = $"Retry ping after reconnecting process {processId}, or inspect server logs if the connection should still be alive."
             };
         }
     }

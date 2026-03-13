@@ -184,12 +184,11 @@ public abstract class PipeConnectedToolBase
 
         if (!client.IsConnected)
         {
-            return new
+            return new ToolErrorPayload
             {
-                success = false,
-                error = $"Named pipe not connected for process {processId}. The Inspector DLL may have crashed or the target process exited. Try reconnecting with connect(processId: {processId}).",
-                processId,
-                suggestedAction = "reconnect"
+                Error = $"Named pipe not connected for process {processId}. The Inspector DLL may have crashed or the target process exited. Try reconnecting with connect(processId: {processId}).",
+                ErrorCode = ToolErrorCode.NotConnected.ToString(),
+                Hint = $"Call connect(processId: {processId}) to re-establish the inspector session before retrying."
             };
         }
 

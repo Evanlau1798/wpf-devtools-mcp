@@ -1,5 +1,7 @@
 using System.Text.Json;
 using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -98,10 +100,12 @@ public sealed class GetProcessesTool
         }
         catch (Exception ex)
         {
-            return Task.FromResult<object>(new
+            var (errorCode, message) = ToolCallHelper.ClassifyException(ex);
+            return Task.FromResult<object>(new ToolErrorPayload
             {
-                success = false,
-                error = $"Failed to enumerate processes: {ex.Message}"
+                Error = message,
+                ErrorCode = errorCode,
+                Hint = "Retry get_processes, or inspect local process permissions and server logs if enumeration keeps failing."
             });
         }
     }

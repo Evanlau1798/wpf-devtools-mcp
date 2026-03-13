@@ -68,6 +68,22 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldDescribeSnapshotPrerequisite_BeforeGetStateDiffWorkflow()
+    {
+        ServerInstructions.Value.Should().Contain("capture_state_snapshot",
+            "workflow guidance should not tell agents to call get_state_diff without first creating a snapshot");
+    }
+
+    [Fact]
+    public void Value_ShouldKeepViewModelWorkflowElementScoped()
+    {
+        ServerInstructions.Value.Should().Contain("get_viewmodel(elementId)",
+            "the view-model workflow should keep using the same element scope that was introduced earlier in the example");
+        ServerInstructions.Value.Should().Contain("get_commands(elementId)",
+            "the command inspection workflow should stay element-scoped to avoid silently switching to the root window DataContext");
+    }
+
+    [Fact]
     public void Value_ShouldContainErrorRecovery()
     {
         ServerInstructions.Value.Should().Contain("ERROR RECOVERY");

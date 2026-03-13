@@ -34,7 +34,7 @@ internal static class ActionNavigationRules
         var recommended = new List<ToolNextStep>();
         ToolNavigationReference? mutationContext = null;
 
-        if (context.SessionState?.ActiveTrace is not null)
+        if (TryGetActiveTrace(context.SessionState, out _))
         {
             recommended.Add(ConditionalNavigationRules.CreateActiveTraceStep(
                 "trace_routed_events",
@@ -145,7 +145,9 @@ internal static class ActionNavigationRules
             [
                 new ToolNextStep(
                 "get_ui_summary",
-                NavigationParamBuilders.Create(("processId", TryGetInt(context.Arguments, "processId"))),
+                NavigationParamBuilders.Create(
+                    ("processId", TryGetInt(context.Arguments, "processId")),
+                    ("elementId", TryGetOptionalString(context.Arguments, "elementId"))),
                 reason,
                 ToolNextStepKind.Verification,
                 1)
@@ -202,6 +204,18 @@ internal static class ActionNavigationRules
         string.IsNullOrWhiteSpace(context.SessionState?.ActiveSnapshotId)
             ? null
             : MutationSessionContextRefBuilder.Create(context.SessionState!.ActiveSnapshotId!, sourceTool);
+
+    private static bool TryGetActiveTrace(NavigationSessionState? sessionState, out ActiveTraceNavigationState? traceState)
+    {
+        traceState = sessionState?.ActiveTrace;
+        if (traceState is null || traceState.HasExpired(DateTimeOffset.UtcNow))
+        {
+            traceState = null;
+            return false;
+        }
+
+        return true;
+    }
 
     private static bool TryGetString(JsonElement? element, string propertyName, out string value)
     {

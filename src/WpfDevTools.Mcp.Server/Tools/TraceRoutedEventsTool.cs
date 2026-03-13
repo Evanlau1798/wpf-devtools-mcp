@@ -78,7 +78,8 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
                 new ActiveTraceNavigationState(
                     eventName ?? GetOptionalString(payload, "eventName") ?? string.Empty,
                     elementId,
-                    DateTimeOffset.UtcNow));
+                    DateTimeOffset.UtcNow,
+                    GetEffectiveDuration(payload)));
             return;
         }
 
@@ -93,6 +94,14 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
 
     private static bool IsTracing(JsonElement payload) =>
         payload.TryGetProperty("isTracing", out var isTracing) && isTracing.GetBoolean();
+
+    private static TimeSpan GetEffectiveDuration(JsonElement payload) =>
+        payload.TryGetProperty("effectiveDuration", out var durationProperty)
+        && durationProperty.ValueKind == JsonValueKind.Number
+        && durationProperty.TryGetInt32(out var milliseconds)
+        && milliseconds > 0
+            ? TimeSpan.FromMilliseconds(milliseconds)
+            : TimeSpan.Zero;
 
     private static string? GetOptionalString(JsonElement payload, string propertyName) =>
         payload.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String

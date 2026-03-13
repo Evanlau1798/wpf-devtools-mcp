@@ -107,6 +107,7 @@ public class TraceRoutedEventsToolTests
         state!.ActiveTrace.Should().NotBeNull();
         state.ActiveTrace!.EventName.Should().Be("Click");
         state.ActiveTrace.ElementId.Should().Be("SaveButton");
+        state.ActiveTrace.EffectiveDuration.Should().Be(TimeSpan.FromMilliseconds(30000));
     }
 
     [Fact]

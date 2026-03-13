@@ -246,7 +246,18 @@ public static class ToolCallHelper
             processId = activeProcessId;
         }
 
-        return sessionManager.TryGetNavigationState(processId.Value, out var state) ? state : null;
+        if (!sessionManager.TryGetNavigationState(processId.Value, out var state) || state is null)
+        {
+            return null;
+        }
+
+        if (state.ActiveTrace is { } activeTrace && activeTrace.HasExpired(DateTimeOffset.UtcNow))
+        {
+            sessionManager.ClearActiveTraceState(processId.Value);
+            return state with { ActiveTrace = null };
+        }
+
+        return state;
     }
 
     private static JsonElement EnsureNavigation(JsonElement element, ToolNavigationEnvelope navigation)

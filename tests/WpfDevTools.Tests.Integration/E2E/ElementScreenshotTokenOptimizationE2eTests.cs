@@ -80,6 +80,12 @@ public sealed class ElementScreenshotTokenOptimizationE2eTests
         result.TryGetProperty("base64Image", out _).Should().BeFalse();
         var path = result.GetProperty("path").GetString();
         path.Should().NotBeNullOrEmpty();
+        var expectedDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "WpfDevTools",
+            "tmp",
+            "screenshots");
+        path!.StartsWith(expectedDirectory, StringComparison.OrdinalIgnoreCase).Should().BeTrue();
         File.Exists(path).Should().BeTrue();
         result.GetProperty("width").GetInt32().Should().BeLessOrEqualTo(256);
 

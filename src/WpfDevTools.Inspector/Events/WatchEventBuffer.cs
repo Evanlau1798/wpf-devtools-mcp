@@ -46,7 +46,10 @@ internal sealed class WatchEventBuffer
 
     public void Enqueue(WatchEventRecord record)
     {
-        ArgumentNullException.ThrowIfNull(record);
+        if (record == null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
 
         lock (_lock)
         {

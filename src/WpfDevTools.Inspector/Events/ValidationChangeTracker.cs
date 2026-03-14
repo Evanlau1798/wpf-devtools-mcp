@@ -66,6 +66,6 @@ internal sealed class ValidationChangeTracker(ElementFinder elementFinder)
         using var sha = SHA256.Create();
         var payload = string.Join("\n", entries);
         var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(payload));
-        return Convert.ToHexString(hash);
+        return BitConverter.ToString(hash).Replace("-", string.Empty);
     }
 }

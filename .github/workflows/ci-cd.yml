@@ -133,33 +133,35 @@ jobs:
     - name: Install published package smoke test
       shell: pwsh
       run: |
-        $packageDir = switch ('${{ matrix.architecture }}') {
-          'x64' { 'artifacts/release/WpfDevTools-win-x64' }
-          'x86' { 'artifacts/release/WpfDevTools-win-x86' }
-          'arm64' { 'artifacts/release/WpfDevTools-win-arm64' }
-          default { throw "Unsupported release packaging architecture: ${{ matrix.architecture }}" }
+        $packageDir = Get-ChildItem 'artifacts/release' -Directory -Filter "release_*_win-${{ matrix.architecture }}" |
+          Sort-Object Name -Descending |
+          Select-Object -First 1
+
+        if ($null -eq $packageDir) {
+          throw "Could not locate packaged release directory for architecture ${{ matrix.architecture }}"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/release/Install-WpfDevTools.ps1 -PackagePath $packageDir -InstallRoot './tmp-release-install-smoke' -Force
+        & powershell -ExecutionPolicy Bypass -File scripts/release/Install-WpfDevTools.ps1 -PackagePath $packageDir.FullName -InstallRoot './tmp-release-install-smoke' -Force
 
-    - name: GitHub Pages bootstrap installer smoke test
+    - name: Online installer smoke test
       shell: pwsh
       run: |
-        $packageArchive = switch ('${{ matrix.architecture }}') {
-          'x64' { 'artifacts/release/WpfDevTools-win-x64.zip' }
-          'x86' { 'artifacts/release/WpfDevTools-win-x86.zip' }
-          'arm64' { 'artifacts/release/WpfDevTools-win-arm64.zip' }
-          default { throw "Unsupported bootstrap smoke architecture: ${{ matrix.architecture }}" }
+        $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter "release_*_win-${{ matrix.architecture }}.zip" |
+          Sort-Object Name -Descending |
+          Select-Object -First 1
+
+        if ($null -eq $packageArchive) {
+          throw "Could not locate packaged release archive for architecture ${{ matrix.architecture }}"
         }
 
-        & powershell -ExecutionPolicy Bypass -File docfx/install.ps1 -PackageArchivePath $packageArchive -InstallRoot './tmp-release-bootstrap-smoke' -Clients none -NonInteractive -Force -OutputJson
+        & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Uninstall published package smoke test
       shell: pwsh
       run: |
         & powershell -ExecutionPolicy Bypass -File scripts/release/Uninstall-WpfDevTools.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}'
 
-    - name: Uninstall bootstrap installer smoke test
+    - name: Uninstall online installer smoke test
       shell: pwsh
       run: |
         & powershell -ExecutionPolicy Bypass -File scripts/release/Uninstall-WpfDevTools.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}'

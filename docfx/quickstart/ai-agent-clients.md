@@ -2,25 +2,37 @@
 
 Install WPF DevTools first, then register the installed executable with your preferred client.
 
-## One-command install
+## Install source of truth
+
+- Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
+- Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
+- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+
+Recommended public path:
 
 ```powershell
-irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
 ```
 
-> Security note: Review the hosted installer script before using `irm | iex` in sensitive environments.
-
-The corresponding source entrypoint for maintainers lives in `scripts/online-installer.ps1`.
-
-If you do not want `irm | iex`, download the release zip manually, inspect it, and run `setup.ps1 -Force` locally before registering the installed executable.
-
-Advanced non-interactive example:
+Client-specific example:
 
 ```powershell
-& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code,codex-cli -NonInteractive -Force
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
 ```
 
-Every public setup path should eventually launch the installed executable, not a source-tree command.
+Manual package alternative:
+
+1. Download `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
+2. Extract the package.
+3. Run `setup.ps1 -Force`.
+
+Local script example:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+```
+
+Every supported setup path should eventually launch the installed executable, not a source-tree command.
 
 Default installed path example:
 
@@ -28,7 +40,7 @@ Default installed path example:
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
 ```
 
-The installer also generates client-specific registration snippets under:
+The online installer and manual package setup both generate client-specific registration snippets under:
 
 ```text
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\client-registration\
@@ -49,8 +61,9 @@ No matter which client you choose, verify the first connection in this order:
 
 1. `connect`
 2. If auto-discovery reports multiple candidates, `get_processes(windowFilter)` and retry `connect(processId)`
-3. `get_visual_tree`
-4. `ping` only if you want an explicit liveness check
+3. `get_ui_summary(depthMode: "semantic")`
+4. `get_element_snapshot` or `get_visual_tree` only if the summary is insufficient
+5. `ping` only if you want an explicit liveness check
 
 ## WPF-specific reminders
 
@@ -58,5 +71,6 @@ No matter which client you choose, verify the first connection in this order:
 - Keep `stdout` clean because the transport is STDIO.
 - Match the server and bootstrapper bitness to the target process.
 - Treat the generated `client-registration` artifacts as the source of truth for copy-paste setup.
+- Prefer scene-level tools before tree dumps or screenshots.
 
 Next: pick your client-specific guide.

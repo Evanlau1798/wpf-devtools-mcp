@@ -60,7 +60,8 @@ Before publishing a public Release channel build, confirm:
 - The version tag is final
 - Release packages were produced from the tagged revision
 - Authenticode signing inputs are ready for the Inspector DLLs used in Release builds
-- The GitHub Pages bootstrap installer URL still resolves to `https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1`
+- The repository online installer source remains available at `https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1`
+- The raw installer URL still resolves to `https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1`
 
 ## 4. GitHub automation
 
@@ -84,7 +85,7 @@ The workflow will:
 2. Inspect the generated zips and checksum manifest
 3. Create the Git tag locally and push it when you are satisfied
 4. Create a GitHub Release or run `workflow_dispatch` against the tag
-5. Verify the uploaded assets on the Release page and the GitHub Pages installer path
+5. Verify the uploaded assets on the Release page and the online installer path
 
 ## 6. Rollback note
 

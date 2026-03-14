@@ -7,21 +7,24 @@
 1. `connect`
 2. `get_binding_errors`
 3. 先依 `navigation.recommended` 或 `nextSteps` 決定下一步
-4. 常見 follow-up 是 `get_bindings`、`get_element_snapshot`、`get_binding_value_chain`
+4. 常見 follow-up 是 `get_affected_elements`、`get_bindings`、`get_element_snapshot`、`get_binding_value_chain`
 5. 若仍不清楚 source 來源，再呼叫 `get_datacontext_chain`
 6. 若需要重新觸發評估，再呼叫 `force_binding_update`
+7. 若 mutation 後需要明確讀出 buffered binding 或 validation event，再呼叫 `drain_events`
 
-當 UI 看起來不對，但問題可能來自過時的 binding path、缺少 `DataContext`、converter 失敗或 source chain 無效時，請使用這個流程。若 `get_binding_errors` 或 `get_bindings` 已經明確指出下一步，請優先沿著該工具回應繼續走，而不是機械式地把整串工具全部跑完。
+當 UI 看起來不對，但問題可能來自過時的 binding path、缺少 `DataContext`、converter 失敗或 source chain 無效時，請使用這個流程。若 `get_binding_errors` 或 `get_bindings` 已經明確指出下一步，請優先沿著該工具回應繼續走，而不是機械式地把整串工具全部跑完。`get_binding_errors` 預設應維持 compact 模式，只有在精簡資訊不夠時才要求 verbose。
 
 ## 檢查 visual subtree
 
-1. `get_visual_tree`
-2. `get_logical_tree`
-3. `get_namescope`
-4. `get_template_tree`
-5. `compare_trees`
+1. `get_ui_summary`
+2. `find_elements`
+3. `get_visual_tree`
+4. `get_logical_tree`
+5. `get_namescope`
+6. `get_template_tree`
+7. `compare_trees`
 
-當 template 產生的元素或 content presenter 讓 logical view 與 visual view 不一致時，這是最有效的工作流。
+當 template 產生的元素或 content presenter 讓 logical view 與 visual view 不一致時，這是最有效的工作流。先取得 scene summary，再決定是否真的需要展開 tree。
 
 ## 分析 dependency property 優先順序
 
@@ -40,16 +43,18 @@
 3. 使用 `click_element`、`simulate_keyboard` 或 `drag_and_drop`
 4. 優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`
 5. 若當前 session 有 active snapshot，通常應先呼叫 `get_state_diff`
-6. 若沒有 snapshot，則用 `get_interaction_readiness`、`get_element_snapshot`、`get_dp_value_source` 或 scoped `get_ui_summary` 驗證結果
+6. 若當前 session 有 buffered runtime event，第一個明確的 event verification 步驟是 `drain_events`
+7. 若沒有 snapshot，則用 `get_interaction_readiness`、`get_element_snapshot`、`get_dp_value_source` 或 scoped `get_ui_summary` 驗證結果
 
 ## 搭配 snapshot 的可回復 mutation 流程
 
 1. `capture_state_snapshot`
 2. 用 scene-level 工具或其他診斷工具確認目標
-3. 套用單一 mutation，例如 `set_dp_value`、`modify_viewmodel` 或 `override_style_setter`
+3. 套用單一 mutation，例如 `set_dp_value`、`modify_viewmodel` 或 `override_style_setter`，或在需要有順序的多步驟時使用 `batch_mutate`
 4. 優先呼叫 `get_state_diff`
-5. 若工具回應提供更精確的 `navigation.recommended`，沿著該建議做補充驗證
-6. 如果需要回到原狀，呼叫 `restore_state_snapshot`
+5. 若需要明確讀出 buffered binding、DP 或 validation event，呼叫 `drain_events`
+6. 若工具回應提供更精確的 `navigation.recommended`，沿著該建議做補充驗證
+7. 如果需要回到原狀，呼叫 `restore_state_snapshot`
 
 當你在正式環境除錯、示範或驗證時，希望實驗結束後讓 app 回到原始狀態，這是最穩健的流程。只要 snapshot 仍然 active，`get_state_diff` 應該是 mutation 後的第一優先驗證工具。
 

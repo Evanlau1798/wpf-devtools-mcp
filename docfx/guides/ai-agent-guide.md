@@ -8,11 +8,11 @@ This server is explicitly intended for AI-assisted WPF debugging and testing. Th
 2. Call `connect()` first and let the server auto-discover the target when there is only one visible WPF app.
 3. If auto-discovery returns multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`.
 4. Use scene-level tools such as `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before falling back to tree-heavy inspection.
-5. Call `ping` only when you need an explicit health check or reconnect confirmation.
-6. Explore the tree to obtain stable `elementId` values only after the scene summary is insufficient.
-7. Run focused diagnostics and prefer the `navigation.recommended` or `nextSteps` guidance returned by each tool.
-8. Perform controlled interaction or mutation only when needed.
-9. After each interaction or mutation, inspect the recommended follow-up from that response first. If the session has an active snapshot, `get_state_diff` is usually the first verification step.
+5. Explore the tree to obtain stable `elementId` values only after the scene summary is insufficient.
+6. Run focused diagnostics and prefer the `navigation.recommended` or `nextSteps` guidance returned by each tool.
+7. Perform controlled interaction or mutation only when needed.
+8. After each interaction or mutation, inspect the recommended follow-up from that response first. If the session has an active snapshot, `get_state_diff` is usually the first verification step.
+9. Call `ping` only when you need an explicit health check or reconnect confirmation.
 
 ## Best practices
 
@@ -89,6 +89,8 @@ When present, parse these follow-up fields as part of the contract:
 
 `nextSteps` remains the compatibility field for older clients. Newer clients should prefer `navigation.recommended` and treat `alternatives` as optional human-guided branches.
 
+If the next action is already obvious, pass `navigation=false` on that tool call to omit `nextSteps` and `navigation` from the response and save tokens.
+
 ### 6. Prefer scene-level aggregation before screenshots or tree dumps
 
 The fastest agent workflows now start with one of these tools:
@@ -100,34 +102,40 @@ The fastest agent workflows now start with one of these tools:
 
 Use tree tools when exact structure matters, not as the default first step.
 
+### 7. Prefer compact diagnostics unless verbose detail is required
+
+- `get_binding_errors` defaults to `compact=true`; keep that default unless you explicitly need full per-error message text.
+- Use `get_affected_elements` before broad recursive binding inspection when you already know the suspect binding path or property.
+- Use `drain_events` when you need an explicit read of buffered `BindingError`, `DpChange`, or validation events instead of relying on opportunistic piggyback fields.
+
+### 8. Use sequential mutation orchestration deliberately
+
+When a workflow needs multiple ordered live mutations, prefer `batch_mutate` over improvising several destructive calls in one reasoning step. It keeps the sequence explicit, preserves per-operation results, and is easier to verify with `get_state_diff`, `drain_events`, or focused follow-up tools.
+
 ## Prompt patterns that work well
 
 ### Tree-first prompt
 
 ```text
-Connect to the WPF test app, inspect the visual tree to find the main form controls, then summarize the top-level structure before making any changes.
 Connect to the WPF test app with connect(), get_ui_summary(depthMode: "semantic"), then inspect the visual tree only if the summary is insufficient.
 ```
 
 ### Binding triage prompt
 
 ```text
-Connect to the target WPF app, inspect binding errors, and explain which elements are failing and why. Do not modify the UI unless a fix requires it.
-Connect to the target WPF app with connect(), inspect binding errors, use get_element_snapshot on the failing element, and explain which bindings are failing and why. Do not modify the UI unless a fix requires it.
+Connect to the target WPF app with connect(), inspect binding errors with compact defaults, use get_affected_elements or get_element_snapshot on the failing path, and explain which bindings are failing and why. Do not modify the UI unless a fix requires it.
 ```
 
 ### Safe interaction prompt
 
 ```text
-Find the Save button in the current visual tree, confirm its binding and command metadata, then click it and report what changed.
-Connect with connect(), get_form_summary or get_interaction_readiness for the target form, then find the Save button, confirm its command metadata, click it, and report the state diff.
+Connect with connect(), get_form_summary or get_interaction_readiness for the target form, then find the Save button, confirm its command metadata, click it, drain buffered runtime events if present, and report the state diff.
 ```
 
 ### Snapshot-safe mutation prompt
 
 ```text
-Capture a state snapshot, locate the target control, apply one UI mutation, verify the result, and restore the snapshot before finishing.
-Connect with connect(), capture a state snapshot, locate the target control, apply one UI mutation, verify the result with get_state_diff, and restore the snapshot before finishing.
+Connect with connect(), capture a state snapshot, locate the target control, apply one UI mutation or an ordered batch_mutate sequence, verify the result with get_state_diff, and restore the snapshot before finishing.
 ```
 
 ## Anti-patterns
@@ -150,6 +158,7 @@ For end-to-end automated validation, use this order whenever possible:
 5. One mutation or interaction at a time
 6. Follow `navigation.recommended` or `nextSteps` from the latest tool result
 7. If the session has an active snapshot, call `get_state_diff`
-8. Use another focused verification tool only when more detail is still required
+8. If the session has buffered runtime events, call `drain_events`
+9. Use another focused verification tool only when more detail is still required
 
 This keeps failures easy to localize and makes agent traces easier to trust.

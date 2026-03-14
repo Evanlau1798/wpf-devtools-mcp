@@ -2,74 +2,84 @@
 
 [English version](../index.md)
 
-WPF DevTools MCP Server 是一個只支援 Windows 的 Model Context Protocol 伺服器，透過將 in-process inspector 注入執行中的 WPF 應用程式，讓 AI agent 能做到 UI Automation 做不到的 WPF 深度診斷與互動，例如 Binding 診斷、Dependency Property 優先順序分析、Visual Tree 檢視、MVVM 狀態分析、Routed Event 追蹤與 Layout 除錯。
+WPF DevTools MCP Server 是一個只支援 Windows 的 Model Context Protocol 伺服器。它透過注入執行中的 in-process inspector，讓你直接檢查與操作 WPF 應用程式，涵蓋 Binding 診斷、Dependency Property 優先順序、scene-level 摘要、MVVM 檢視、Routed Event 追蹤、Layout 除錯與受控 runtime mutation 等場景。
 
-## 一鍵安裝
-
-對大多數使用者來說，最快的正式安裝方式是使用 GitHub Pages bootstrap installer：
-
-```powershell
-irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
-```
-
-> 安全提醒：在敏感環境執行 `irm | iex` 前，請先審查這個 hosted installer script 的內容。
-
-這個腳本會從 GitHub Releases 下載符合架構的 `WpfDevTools-win-<arch>.zip`，再執行 package 內的 `setup.ps1`。
-
-如果你不想使用 `irm | iex`，請手動下載 release zip、先檢查內容，再於本機執行 `setup.ps1 -Force`。
-
-如果你想指定架構與 client，使用：
-
-```powershell
-& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code -NonInteractive -Force
-```
-
-Repository 與 Releases：
+## 正式來源
 
 - Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
+- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Release packaging source: [scripts/release/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Publish-Release.ps1)
+- Installed-layout source: [scripts/release/Install-WpfDevTools.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Install-WpfDevTools.ps1)
+
+`scripts/` 是安裝與 release 行為的唯一真源。這個 DocFX 站台只負責說明，不定義腳本本身。
+
+## 安裝路徑
+
+### 線上安裝腳本路徑
+
+請先審查正式來源：[scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+
+預設一鍵安裝：
+
+```powershell
+irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
+```
+
+指定 client 的範例：
+
+```powershell
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+```
+
+### 手動 release package 路徑
+
+1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載 `release_<version>_win-x64.zip`、`release_<version>_win-x86.zip` 或 `release_<version>_win-arm64.zip`。
+2. 解壓縮套件。
+3. 在解壓後的資料夾內執行 `setup.ps1 -Force`。
 
 ## 依需求選擇入口
 
 | 我想要... | 從這裡開始 |
 | --- | --- |
-| 用繁體中文閱讀完整文件 | [繁體中文文件](index.md) |
-| 五分鐘內完成第一次 setup | [5 分鐘快速開始](quickstart/index.md) |
+| 用英文閱讀完整文件 | [English version](../index.md) |
+| 快速安裝並驗證第一個 session | [5 分鐘快速開始](quickstart/index.md) |
+| 比較不同 AI client 的註冊方式 | [AI Agent Client 快速開始](quickstart/ai-agent-clients.md) |
 | 從 Claude Code 使用這個 server | [Claude Code 快速開始](quickstart/claude-code.md) |
 | 從 OpenAI Codex 或 Codex CLI 使用這個 server | [OpenAI Codex 與 Codex CLI 快速開始](quickstart/openai-codex.md) |
-| 先比較各種 AI client 的差異 | [AI Agent Client 總覽](quickstart/ai-agent-clients.md) |
 | 從 Claude Desktop 使用這個 server | [Claude Desktop 快速開始](quickstart/claude-desktop.md) |
 | 從 Cursor 或 VS Code 使用這個 server | [Cursor 與 VS Code 快速開始](quickstart/cursor-vscode.md) |
-| 了解 AI agent 應如何安全使用工具 | [AI Agent 使用指南](guides/ai-agent-guide.md) |
-| 了解生產環境安全與部署方式 | [安全模型](production/security.md) |
-| 了解 runtime、bootstrapper 與 injection 限制 | [Bootstrap 與 Injection](production/bootstrap-and-injection.md) |
-| 參與程式碼、測試或文件貢獻 | [貢獻指南](contributors/index.md) |
+| 了解 agent-safe 工作流與回應契約 | [AI Agent 指南](guides/ai-agent-guide.md) |
+| 查看部署與 package layout 契約 | [部署指南](production/deployment.md) |
+| 了解 runtime 與 injection 限制 | [Bootstrap 與 Injection](production/bootstrap-and-injection.md) |
+| 參與程式、測試或文件貢獻 | [貢獻指南](contributors/index.md) |
 
-## 這個專案的特色
+## 這個 server 的差異化價值
 
-- **WPF 原生可見性**：可以直接檢視 `BindingOperations`、Dependency Property value source、namescope、template、routed event 與 layout 細節，這些都是 out-of-process 工具拿不到的資訊。
-- **對 AI agent 友善**：tool metadata 由程式碼維護、structured content 一致、常見工作流與錯誤恢復都有文件化。
-- **生產環境硬化**：目前程式碼已包含 DLL 驗證、可選 HMAC 驗證、可選 named pipe TLS、pipe ACL 與有界限的 request handling。
-- **已驗證的工作流**：repository 內含 unit tests、integration tests，以及會實際執行全部工具的 live MCP smoke harness。
+- **WPF 原生可見性**：可直接檢查 `BindingOperations`、Dependency Property value source、Namescope、Template、Routed Event 與 Layout 狀態，這些資訊不是一般 out-of-process 工具能完整取得的。
+- **面向 agent 的契約**：tool metadata 由程式碼定義，scene-first 工作流有明確文件，runtime follow-up guidance 透過 `navigation` 與相容欄位 `nextSteps` 提供。
+- **正式環境等級的診斷能力**：目前能力面已包含 compact binding triage、state snapshot、sequential batch mutation、buffered runtime event drain 與 scene-level summary。
+- **穩定的封裝與安裝流程**：repo 內含 release packaging、installer 建置、可選安全設定與適合公開發佈的驗證步驟。
 
-## 你現在可以做到的事
+## 目前可以做什麼
 
-- 掃描執行中的 WPF process 並建立連線。
-- 瀏覽 visual tree、logical tree、namescope 與 template tree。
-- 診斷 binding error、檢查 binding chain，並強制更新 binding。
-- 分析 dependency property 值來源、metadata、style setter 與 resource lookup。
-- 執行受控互動，例如 click、scroll、keyboard、screenshot 與 drag/drop。
-- 檢查 layout、clipping、routed event、MVVM command 與 performance 資訊。
+- 探索執行中的 WPF process 並連接到正確 target。
+- 以 `get_ui_summary`、`get_element_snapshot`、`get_form_summary` 等 scene-level 工具作為第一步。
+- 使用 `get_binding_errors`、`get_affected_elements`、`get_bindings`、`get_binding_value_chain` 進行 binding 問題診斷。
+- 分析 Dependency Property 優先順序、metadata、watch 與 timeout-bounded wait。
+- 透過 `capture_state_snapshot`、`get_state_diff`、`restore_state_snapshot`、`batch_mutate` 執行安全的 runtime workflow。
+- 使用 `trace_routed_events` 與 `drain_events` 追蹤或排空 runtime event buffer。
 
-## 目前的邊界
+## 範圍與邊界
 
-- **Transport**：目前正式支援的是 STDIO MCP transport。
-- **平台**：僅支援 Windows。
-- **目標 UI 技術**：僅支援 WPF。
-- **Injection 模型**：native bootstrapper 搭配 managed inspector。
-- **安全模型**：authentication 與 TLS 為可選；Debug 與 Release 在 DLL 驗證上有不同策略。
+- **Transport**：正式發佈版本使用 STDIO MCP transport。
+- **平台**：只支援 Windows。
+- **Target UI stack**：只支援 WPF。
+- **Injection 模型**：native bootstrapper 加 managed inspector。
+- **持久化行為**：runtime mutation 不會寫回 XAML。
+- **安全姿態**：authentication 與 TLS 為 opt-in；Debug 與 Release build 在 DLL 驗證策略上不同。
 
-## 架構一覽
+## 架構總覽
 
 ```text
 AI Client (Claude Code / Codex / Claude Desktop / Cursor / VS Code)
@@ -81,13 +91,13 @@ Native bootstrapper + managed inspector
 Target WPF application
 ```
 
-完整資料流請參考 [架構總覽](architecture/overview.md)，設計決策請參考 [ADR 索引](architecture/adrs/index.md)。
+完整資料流請參考 [架構總覽](architecture/overview.md)，設計決策索引請參考 [ADR 索引](architecture/adrs/index.md)。
 
 ## 建議閱讀順序
 
 1. [5 分鐘快速開始](quickstart/index.md)
-2. [AI Agent Client 總覽](quickstart/ai-agent-clients.md)
-3. [AI Agent 使用指南](guides/ai-agent-guide.md)
+2. [AI Agent Client 快速開始](quickstart/ai-agent-clients.md)
+3. [AI Agent 指南](guides/ai-agent-guide.md)
 4. [工具總覽](reference/tools/index.md)
-5. [安全模型](production/security.md)
+5. [部署指南](production/deployment.md)
 6. [Bootstrap 與 Injection](production/bootstrap-and-injection.md)

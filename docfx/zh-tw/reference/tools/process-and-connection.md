@@ -29,11 +29,11 @@
 ## 實際工作流程
 
 ```text
-connect -> get_visual_tree
+connect -> get_ui_summary -> get_element_snapshot
 ```
 
 ```text
-connect -> get_ui_summary -> get_element_snapshot
+connect -> get_ui_summary -> find_elements -> get_visual_tree
 ```
 
 ```text
@@ -43,7 +43,7 @@ connect -> MultipleWpfProcessesFound -> get_processes(windowFilter) -> connect(p
 例外情境的 discovery 路徑：
 
 ```text
-get_processes(windowFilter) -> connect(processId) -> select_active_process -> get_active_process -> get_visual_tree
+get_processes(windowFilter) -> connect(processId) -> select_active_process -> get_active_process -> get_ui_summary
 ```
 
 如果以上流程失敗，請先解決程序或 session 問題，再呼叫其他依賴程序狀態的工具。

@@ -80,9 +80,9 @@ jobs:
         with:
           name: github-release-assets-${{ steps.release-metadata.outputs.tag }}
           path: |
-            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/WpfDevTools-win-x64.zip
-            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/WpfDevTools-win-x86.zip
-            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/WpfDevTools-win-arm64.zip
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release_*_win-x64.zip
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release_*_win-x86.zip
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release_*_win-arm64.zip
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/SHA256SUMS.txt
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-assets.json
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/upload-gh-release.ps1

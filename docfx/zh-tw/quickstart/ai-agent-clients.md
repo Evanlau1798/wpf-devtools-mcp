@@ -1,26 +1,38 @@
 # AI Agent Client 快速開始
 
-先安裝 WPF DevTools，再將已安裝的執行檔註冊到你偏好的 client。
+先安裝 WPF DevTools，再把安裝後的執行檔註冊到你偏好的 client。
 
-## 一鍵安裝
+## 安裝真源
 
-```powershell
-irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
-```
+- Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
+- Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
+- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
 
-> 安全提醒：在敏感環境執行 `irm | iex` 前，請先審查這個 hosted installer script 的內容。
-
-維護者對應的來源入口腳本位於 `scripts/online-installer.ps1`。
-
-如果你不想使用 `irm | iex`，請先手動下載 release zip、檢查內容，再於本機執行 `setup.ps1 -Force`，之後再註冊已安裝的 executable。
-
-若要指定架構並一次產生多個 client 的設定，可使用：
+建議的公開安裝路徑：
 
 ```powershell
-& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code,codex-cli -NonInteractive -Force
+irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
 ```
 
-所有公開文件中的安裝流程，最終都應該指向已安裝的 executable，而不是 source tree 中的啟動命令。
+指定 client 的範例：
+
+```powershell
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+```
+
+手動 package 的替代路徑：
+
+1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載 `release_<version>_win-<arch>.zip`。
+2. 解壓縮套件。
+3. 執行 `setup.ps1 -Force`。
+
+本機腳本範例：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+```
+
+所有支援的 setup 路徑最後都應該啟動安裝後的執行檔，而不是 source tree 內的命令。
 
 預設安裝路徑範例：
 
@@ -28,35 +40,37 @@ irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
 ```
 
-installer 也會在以下位置產生各 client 專用的註冊片段：
+線上安裝腳本與手動 package 安裝都會在下列位置產生 client-specific registration artifact：
 
 ```text
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\client-registration\
 ```
 
-## 建議路徑
+## 建議選擇
 
 | Client | 最適合的情境 | 註冊方式 | 指南 |
 | --- | --- | --- | --- |
-| Claude Code | 終端機導向的 agent workflow | installer 產生的命令 | [Claude Code](claude-code.md) |
-| OpenAI Codex / Codex CLI | OpenAI CLI 與 agent workflow | installer 產生的命令 | [OpenAI Codex 與 Codex CLI](openai-codex.md) |
-| Claude Desktop | 桌面聊天工作流 | installer 產生的 JSON | [Claude Desktop](claude-desktop.md) |
-| Cursor / VS Code | 編輯器導向工作流 | installer 產生的 JSON | [Cursor 與 VS Code](cursor-vscode.md) |
+| Claude Code | 終端機導向的 agent workflow | installer 產生的 command | [Claude Code](claude-code.md) |
+| OpenAI Codex / Codex CLI | OpenAI CLI 與 agent workflow | installer 產生的 command | [OpenAI Codex 與 Codex CLI](openai-codex.md) |
+| Claude Desktop | 桌面聊天 workflow | installer 產生的 JSON config | [Claude Desktop](claude-desktop.md) |
+| Cursor / VS Code | 編輯器導向 workflow | installer 產生的 JSON config | [Cursor 與 VS Code](cursor-vscode.md) |
 
 ## 第一次驗證流程
 
-不管你選哪一種 client，第一次連線都建議照這個順序驗證：
+不論你選哪個 client，都建議依序驗證：
 
 1. `connect`
-2. 若 auto-discovery 回傳多個候選，再呼叫 `get_processes(windowFilter)` 並使用 `connect(processId)`
-3. `get_visual_tree`
-4. 只有在需要明確存活檢查時才呼叫 `ping`
+2. 如果 auto-discovery 回報多個候選，先呼叫 `get_processes(windowFilter)`，再重試 `connect(processId)`
+3. `get_ui_summary(depthMode: "semantic")`
+4. 只有當 summary 還不夠時，才使用 `get_element_snapshot` 或 `get_visual_tree`
+5. 只有需要明確存活檢查時才呼叫 `ping`
 
-## WPF 專案特有提醒
+## WPF 特有提醒
 
-- MCP server 必須在 Windows 上執行。
-- 由於 transport 是 STDIO，請保持 `stdout` 乾淨。
-- server 與 bootstrapper 的 bitness 必須和 target process 相符。
-- `client-registration` 目錄是公開安裝流程下的 copy-paste 真實來源。
+- MCP server 必須跑在 Windows 上。
+- 請保持 `stdout` 乾淨，因為 transport 是 STDIO。
+- server 與 bootstrapper 位元數必須和 target process 一致。
+- `client-registration` 產物是最可靠的 copy-paste 真源。
+- 在需要之前，先用 scene-level 工具，不要太早展開整棵 tree 或索取完整 screenshot。
 
-下一步：選擇對應的 client 指南。
+下一步：選擇你要使用的 client-specific 指南。

@@ -29,11 +29,11 @@
 ## Practical sequences
 
 ```text
-connect -> get_visual_tree
+connect -> get_ui_summary -> get_element_snapshot
 ```
 
 ```text
-connect -> get_ui_summary -> get_element_snapshot
+connect -> get_ui_summary -> find_elements -> get_visual_tree
 ```
 
 ```text
@@ -43,7 +43,7 @@ connect -> MultipleWpfProcessesFound -> get_processes(windowFilter) -> connect(p
 Exception-only discovery path:
 
 ```text
-get_processes(windowFilter) -> connect(processId) -> select_active_process -> get_active_process -> get_visual_tree
+get_processes(windowFilter) -> connect(processId) -> select_active_process -> get_active_process -> get_ui_summary
 ```
 
 If these sequences fail, fix the process/session problem before using any process-specific inspection tool.

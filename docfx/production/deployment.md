@@ -4,25 +4,47 @@
 
 This server is usually deployed as a local Windows companion process next to the target WPF application.
 
+## Canonical script sources
+
+Installer and packaging behavior are defined in `scripts/`, not in the documentation site:
+
+- [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- [scripts/release/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Publish-Release.ps1)
+- [scripts/release/Install-WpfDevTools.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Install-WpfDevTools.ps1)
+
 ## Recommended install modes
 
-### GitHub Pages bootstrap installer
+### Public release package
 
-The public fast path is the static GitHub Pages bootstrap script:
+1. Download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
+2. Extract the package.
+3. Run `setup.ps1 -Force`.
+
+### Script-driven install
+
+Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) first. Then choose either remote or local execution.
+
+Remote example:
 
 ```powershell
-irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
 ```
 
-That script downloads the architecture-matched `WpfDevTools-win-<arch>.zip` asset from GitHub Releases and then runs the packaged `setup.ps1` installer.
+Client-specific remote example:
 
-### Offline or reviewed install
+```powershell
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+```
 
-If you do not want `irm | iex`, download the release zip manually, inspect it, extract it, and run `setup.ps1 -Force` locally.
+Local example:
 
-## `irm | iex` is optional, not a trust boundary
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+```
 
-The `irm | iex` path exists for fast setup, but it is optional and should not be your only trust model. It is also not a SmartScreen bypass. SmartScreen reputation and code signing remain separate concerns.
+## Remote script execution is optional
+
+Any remote `irm | iex` flow is optional. Review the repository source first and treat the script in `scripts/` as the authoritative implementation.
 
 ## Release layout matters
 
@@ -41,7 +63,7 @@ The MCP client should launch the installed `WpfDevTools.Mcp.Server.exe`, for exa
 ## Production checklist
 
 - Use the architecture that matches the target process.
-- Keep the published `inspectors` and `bootstrapper` folders next to the installed server layout.
-- Sign release inspector binaries.
+- Keep the published `bin/inspectors` and `bin/bootstrapper` folders next to the installed server layout.
+- Sign Release inspector binaries.
 - Configure authentication and TLS settings for hardened environments.
-- Validate `get_processes`, `connect`, and `ping` from the installed path outside the repository.
+- Validate `get_processes`, `connect`, and a scene-level call such as `get_ui_summary` from the installed path outside the repository.

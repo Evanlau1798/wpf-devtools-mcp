@@ -1,99 +1,100 @@
 # 5 分鐘快速開始
 
-這份 quickstart 以公開安裝流程為主：執行 GitHub Pages bootstrap installer、讓它下載發佈版 release package、將已安裝的執行檔註冊到 MCP client，最後再對實際執行中的 WPF 應用程式進行驗證。
+這份 quickstart 以目前正式發佈流程為準：從 GitHub Releases 下載 release package、將安裝後的執行檔註冊到 MCP client，最後用 scene-first 工作流驗證第一個 live WPF session。
 
 ## 先決條件
 
-- Windows 10 以上。
-- 有一個正在執行中的 WPF 應用程式，且與 MCP server 使用同一個使用者帳號。
-- 選對與 target process 相同的架構：`x64`、`x86` 或 `arm64`。
+- Windows 10 以上
+- 與 MCP server 使用同一個使用者帳號執行的 WPF 應用程式
+- 已確認 target process 架構為 `x64`、`x86` 或 `arm64`
 
-## 先記住架構規則
+## 先確認架構規則
 
-只有在 server process architecture 與 bootstrapper architecture 都和 target process 相符時，`connect` 才會成功。
+`connect` 只有在 server process 架構與 bootstrapper 架構都和 target process 相符時才會成功。
 
-- `x64` target -> 安裝並使用 `x64` package。
-- `x86` target -> 安裝並使用 `x86` package。
-- `arm64` target -> 安裝並使用 `arm64` package。
+- `x64` target -> 安裝並執行 `x64` 套件
+- `x86` target -> 安裝並執行 `x86` 套件
+- `arm64` target -> 安裝並執行 `arm64` 套件
 
-## Step 1：執行一鍵安裝
+## Step 1：選擇安裝路徑
 
-最快方式：
+### 線上安裝腳本
 
-```powershell
-irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
-```
-
-> 安全提醒：在敏感環境執行 `irm | iex` 前，請先審查這個 hosted installer script 的內容。
-
-維護者對應的來源入口腳本位於 `scripts/online-installer.ps1`。
-
-這個指令會從 GitHub Pages 取得靜態 bootstrap script。之後該腳本會下載符合架構的 `WpfDevTools-win-<arch>.zip` release asset，並執行 package 內的 `setup.ps1`。
-
-如果你想固定架構並指定 client，可使用：
+請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)，再使用 raw 腳本：
 
 ```powershell
-& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code -NonInteractive -Force
+irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
 ```
 
-Repository 與 Releases：
+指定 client 的範例：
 
-- Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
-- Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
+```powershell
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+```
 
-## Step 2：如果你不想使用 `irm | iex`
+### 手動 release package
 
-1. 從 Releases 下載 `WpfDevTools-win-x64.zip`、`WpfDevTools-win-x86.zip` 或 `WpfDevTools-win-arm64.zip`。
-2. 解壓縮。
-3. 在解壓後的資料夾執行 `setup.ps1 -Force`。
+1. 開啟 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)。
+2. 下載 `release_<version>_win-x64.zip`、`release_<version>_win-x86.zip` 或 `release_<version>_win-arm64.zip`。
+3. 解壓縮。
+4. 在解壓後的資料夾執行 `setup.ps1 -Force`。
 
-解壓後的 package 也包含 included `install.ps1`，可用於較低階的 copy/install 自動化；若只是一般使用者安裝，優先使用 `setup.ps1`。
+### 本機腳本執行
 
-## Step 3：確認安裝後的執行檔路徑
+如果你偏好從本機 clone 執行同一支 installer，而不是 `irm | iex`，可使用：
 
-安裝後的預設執行檔路徑通常是：
+範例：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+```
+
+## Step 2：確認安裝後的執行檔位置
+
+安裝完成後，預設執行檔路徑通常會是：
 
 ```text
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
 ```
 
-## Step 4：註冊已安裝的執行檔
+## Step 3：註冊安裝後的執行檔
 
-installer 會把可直接複製使用的註冊指令輸出到：
+線上安裝腳本與手動 package 安裝都會在下列位置產生可直接複製的 client registration artifact：
 
 ```text
 %LOCALAPPDATA%\WpfDevToolsMcp\x64\client-registration\
 ```
 
-如果你要手動註冊，請直接指向 `WpfDevTools.Mcp.Server.exe`。
+如果你要手動註冊，請一律指向已安裝的 `WpfDevTools.Mcp.Server.exe`，不要使用 source tree 的 `dotnet run`。
 
-## Step 5：先讓 WPF target 保持執行
+## Step 4：啟動或保持 WPF target 正在執行
 
-server 只能檢查正在執行中的 WPF process，所以請先啟動目標應用程式，再啟動 MCP client。
+server 只能檢查 live WPF process。先啟動目標應用程式，再啟動 MCP client。
 
-## Step 6：驗證第一個 session
+## Step 5：驗證第一個 session
 
-在 MCP client 中依序執行：
+在 MCP client 中使用以下順序：
 
 1. `connect`
-2. 若 auto-discovery 回傳多個候選，呼叫 `get_processes(windowFilter)` 並重新執行 `connect(processId)`
-3. `get_visual_tree`
-4. 只有在需要明確健康檢查時才執行 `ping`
+2. 如果 auto-discovery 回報多個候選，先呼叫 `get_processes(windowFilter)`，再重試 `connect(processId)`
+3. `get_ui_summary(depthMode: "semantic")`
+4. 只有當 summary 還不夠時，才使用 `get_element_snapshot` 或 `get_visual_tree`
+5. 只有需要明確健康檢查時才呼叫 `ping`
 
-健康的首次連線應該會看到：
+健康的首次執行徵象：
 
-- `connect()` 在只有一個可見 WPF target 時可直接成功。
-- 若存在多個 target，`get_processes(windowFilter)` 能回傳正確候選清單。
-- `get_visual_tree` 能回傳 root window 與子元素。
+- `connect()` 在只有一個可見 WPF target 時立即成功
+- 若存在多個 target，`get_processes(windowFilter)` 能回傳正確候選清單
+- `get_ui_summary` 能穩定回傳 root scene 的語意摘要
 
-## 給 AI client 的第一個實用提示詞
+## 給 AI client 的快速提示詞
 
 ```text
-Use the WPF DevTools MCP server to connect to the running WPF app, auto-discover the target if there is only one visible candidate, and summarize the first two levels of the visual tree.
+Connect to the running WPF app, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
-## 需要 source-based setup 嗎？
+## 想看更深入的安裝說明？
 
-如果你是要貢獻程式碼或除錯 server 本身，請改看 contributor setup，而不是公開安裝流程。
-
-下一步：[AI Agent Client 總覽](ai-agent-clients.md)
+- [AI Agent Client 快速開始](ai-agent-clients.md)
+- [部署指南](../production/deployment.md)
+- [Release Layout](../production/release-layout.md)

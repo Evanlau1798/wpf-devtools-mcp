@@ -37,16 +37,16 @@ Fastest path on Windows:
 > **Security note**: This command downloads and executes a remote script. Review the [script source](scripts/online-installer.ps1) before running in sensitive environments.
 
 ```powershell
-irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
 ```
 
-That GitHub Pages hosted bootstrap script downloads the matching `release_<version>_win-<arch>.zip` package from GitHub Releases and runs the packaged `setup.ps1` wizard.
-Maintainers should treat `scripts/online-installer.ps1` as the canonical source entrypoint for that hosted installer flow.
+That repository-hosted online installer downloads the matching `release_<version>_win-<arch>.zip` package from GitHub Releases and runs the packaged `setup.ps1` wizard.
+Maintainers should treat `scripts/online-installer.ps1` as the canonical source entrypoint for that installer flow.
 
 If you want a single-command, non-interactive setup for a specific client and architecture, use:
 
 ```powershell
-& ([scriptblock]::Create((irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1))) -Architecture x64 -Clients claude-code -NonInteractive -Force
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Architecture x64 -Client claude-code -Force
 ```
 
 Manual fallback:

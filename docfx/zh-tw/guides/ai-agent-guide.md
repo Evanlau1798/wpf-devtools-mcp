@@ -8,11 +8,11 @@
 2. 先呼叫 `connect()`，若目前只有一個可見的 WPF app，讓 server 自動完成連線。
 3. 若 auto-discovery 回傳多個候選，再呼叫 `get_processes(windowFilter)`，之後用 `connect(processId)` 明確指定目標。
 4. 先用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 建立場景理解，再決定是否需要完整 tree。
-5. 只有在需要明確健康檢查或 reconnect 驗證時，才呼叫 `ping`。
-6. 當 scene-level 摘要仍不足時，再瀏覽 tree 取得穩定的 `elementId`。
-7. 執行聚焦式診斷工具，並優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`。
-8. 只有在必要時，才進行受控互動或 mutation。
-9. 每次互動或 mutation 後，都先看該工具回應建議的 follow-up；若目前 session 有 active snapshot，通常第一步應是 `get_state_diff`。
+5. 當 scene-level 摘要仍不足時，再瀏覽 tree 取得穩定的 `elementId`。
+6. 執行聚焦式診斷工具，並優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`。
+7. 只有在必要時，才進行受控互動或 mutation。
+8. 每次互動或 mutation 後，都先看該工具回應建議的 follow-up；若目前 session 有 active snapshot，通常第一步應是 `get_state_diff`。
+9. 只有在需要明確健康檢查或 reconnect 驗證時，才呼叫 `ping`。
 
 ## 最佳實務
 
@@ -89,6 +89,8 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 `nextSteps` 是相容舊版 client 的欄位；新的 client 應以 `navigation.recommended` 為主，再把 `alternatives` 視為人工判斷時的備選路徑。
 
+如果你已經知道下一步是什麼，可在該次工具呼叫傳入 `navigation=false`，省略 `nextSteps` 與 `navigation`，以減少 token 消耗。
+
 ### 6. 先用 scene-level 聚合，再考慮 screenshot 或大型 tree
 
 目前最有效率的 agent 流程，通常先從這些工具開始：
@@ -100,34 +102,40 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 只有在需要精確結構時，才改用 tree 類工具，而不是一開始就展開整棵 visual tree。
 
+### 7. 預設優先使用 compact diagnostics
+
+- `get_binding_errors` 預設採用 `compact=true`；除非你真的需要完整逐筆 message，否則維持預設值。
+- 如果你已經知道可疑的 binding path 或 property，請先用 `get_affected_elements`，再決定是否要做大範圍 recursive binding inspection。
+- 如果你需要明確讀出 buffered `BindingError`、`DpChange` 或 validation event，不要只依賴機會式 piggyback，請改用 `drain_events`。
+
+### 8. 有序 mutation 請明確使用 orchestration
+
+若工作流需要多個有順序的 live mutation，請優先使用 `batch_mutate`，而不是在單一 reasoning step 中臨時拼接多個 destructive 呼叫。這樣能保留每一步的結果，也更容易用 `get_state_diff`、`drain_events` 或其他聚焦工具驗證。
+
 ## 容易成功的提示模式
 
 ### 先看 tree 的提示詞
 
 ```text
-連線到 WPF 測試應用程式，先檢查 visual tree 找出主要表單控制項，再在不做任何修改的前提下摘要頂層結構。
 先用 `connect()` 連線到 WPF 測試應用程式，呼叫 `get_ui_summary(depthMode: "semantic")` 建立語義上下文，只有在摘要不足時才展開 visual tree。
 ```
 
 ### Binding triage 提示詞
 
 ```text
-連線到目標 WPF 應用程式，檢查 binding errors，說明哪些元素失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
-先用 `connect()` 連線到目標 WPF 應用程式，檢查 binding errors，對失敗元素呼叫 `get_element_snapshot`，說明哪些 bindings 失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
+先用 `connect()` 連線到目標 WPF 應用程式，以 compact 預設檢查 binding errors，再用 `get_affected_elements` 或 `get_element_snapshot` 檢查失敗 path，說明哪些 bindings 失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
 ```
 
 ### 安全互動提示詞
 
 ```text
-在目前 visual tree 中找到 Save 按鈕，先確認其 binding 與 command metadata，再點擊它並回報發生了什麼變化。
-先用 `connect()` 連線，對目標表單呼叫 `get_form_summary` 或 `get_interaction_readiness`，再找到 Save 按鈕、確認 command metadata、點擊並回報 `get_state_diff` 結果。
+先用 `connect()` 連線，對目標表單呼叫 `get_form_summary` 或 `get_interaction_readiness`，再找到 Save 按鈕、確認 command metadata、點擊、視需要排空 buffered runtime event，最後回報 `get_state_diff` 結果。
 ```
 
 ### 可回復 mutation 提示詞
 
 ```text
-先建立 state snapshot，找到目標控制項後只做一次 UI mutation，驗證結果，最後在結束前還原 snapshot。
-先用 `connect()` 連線並建立 state snapshot，找到目標控制項後只做一次 UI mutation，使用 `get_state_diff` 驗證結果，最後在結束前還原 snapshot。
+先用 `connect()` 連線並建立 state snapshot，找到目標控制項後執行一次 UI mutation，或用 `batch_mutate` 做有順序的 mutation 序列，再用 `get_state_diff` 驗證結果，最後在結束前還原 snapshot。
 ```
 
 ## 常見反模式
@@ -150,6 +158,7 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 5. 一次只做一個 mutation 或 interaction
 6. 先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`
 7. 若目前 session 有 active snapshot，優先呼叫 `get_state_diff`
-8. 其餘情況再用其他聚焦 verification tool 補強
+8. 若目前 session 有 buffered runtime event，呼叫 `drain_events`
+9. 其餘情況再用其他聚焦 verification tool 補強
 
 這能讓失敗點更容易定位，也讓 agent trace 更值得信任。

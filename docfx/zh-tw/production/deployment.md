@@ -4,25 +4,47 @@
 
 這個 server 通常會以本機 Windows companion process 的形式部署，並與目標 WPF 應用程式並存。
 
+## 正式腳本來源
+
+installer 與 packaging 行為定義在 `scripts/`，而不是文件站台本身：
+
+- [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- [scripts/release/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Publish-Release.ps1)
+- [scripts/release/Install-WpfDevTools.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Install-WpfDevTools.ps1)
+
 ## 建議安裝模式
 
-### GitHub Pages bootstrap installer
+### 公開 release package
 
-公開的最快路徑是使用 GitHub Pages 提供的靜態 bootstrap script：
+1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載符合架構的 `release_<version>_win-<arch>.zip`。
+2. 解壓縮套件。
+3. 執行 `setup.ps1 -Force`。
+
+### 腳本驅動安裝
+
+請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)，再選擇遠端或本機執行。
+
+遠端範例：
 
 ```powershell
-irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
+irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
 ```
 
-這個腳本會從 GitHub Releases 下載符合架構的 `WpfDevTools-win-<arch>.zip`，再執行 package 內的 `setup.ps1` installer。
+範例：
 
-### 離線或先審查再安裝
+```powershell
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+```
 
-如果你不想使用 `irm | iex`，可以手動下載 release zip、先審查內容、解壓後再本機執行 `setup.ps1 -Force`。
+本機範例：
 
-## `irm | iex` 是選項，不是信任邊界
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+```
 
-`irm | iex` 路徑可以提供最快安裝，但它只是 optional 選項，不應該是唯一信任模型。它也不是 SmartScreen bypass；SmartScreen reputation 與 code signing 仍然是不同層級的議題。
+## 遠端腳本執行是可選的
+
+任何遠端 `irm | iex` 流程都只是可選方案。請先審查 repo 內的原始碼，並把 `scripts/` 視為唯一的權威實作。
 
 ## Release layout 很重要
 
@@ -44,4 +66,4 @@ MCP client 應直接啟動安裝後的 `WpfDevTools.Mcp.Server.exe`，例如：
 - 保持 `inspectors` 與 `bootstrapper` 目錄與安裝後的 server 內容相鄰。
 - 對 release inspector binaries 進行簽章。
 - 在硬化環境中設定 authentication 與 TLS。
-- 在 repository 外，從已安裝路徑實際驗證 `get_processes`、`connect` 與 `ping`。
+- 在 repository 外，從已安裝路徑實際驗證 `get_processes`、`connect`，以及一個 scene-level 呼叫，例如 `get_ui_summary`。

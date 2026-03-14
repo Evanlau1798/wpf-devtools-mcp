@@ -10,11 +10,14 @@
 - `get_focus_state`
 - `focus_element`
 - `capture_state_snapshot`
+- `batch_mutate`
 - `restore_state_snapshot`
 
 當流程和鍵盤輸入、預設按鈕、tab 導覽或多視窗切換有關時，`get_focus_state` 與 `focus_element` 會很重要。
 
 當你要做可能需要回復的 UI mutation 時，建議先用 `capture_state_snapshot`，結束後再視需要呼叫 `restore_state_snapshot`。
+
+當你需要在單一工具呼叫中執行有順序的多個 live mutation 時，請使用 `batch_mutate`。它比在同一個 agent step 中臨時拼接多個 destructive 呼叫更安全，因為 server 會明確驗證並按順序執行每個操作。
 
 互動類工具的回應現在也會帶出 `nextSteps` 與 `navigation`。當回應已提供 follow-up guidance 時，請優先遵循它，而不是回到固定的手工驗證清單。
 
@@ -23,10 +26,13 @@
 - `trace_routed_events`
 - `get_event_handlers`
 - `fire_routed_event`
+- `drain_events`
 
 `fire_routed_event` 對 route 分析很有用，但它不是所有真實使用者輸入的通用替代品。
 
-若你先用 `trace_routed_events(mode: "start")` 建立 trace session，再做互動，後續通常應先呼叫 `trace_routed_events(mode: "get")` 讀回事件資料。
+若你先用 `trace_routed_events(mode: "start")` 建立 trace session，再做互動，後續通常應先呼叫 `drain_events` 明確讀回 buffered event records。`trace_routed_events(mode: "get")` 仍可用來讀取 trace session，但當 session 內也可能存在 binding、dependency property 或 validation event 時，`drain_events` 是較建議的 shared-buffer read path。
+
+部分互動與診斷回應也可能 piggyback 精簡版 `pendingEvents`。若你需要完整且顯式的 event read step，而不是機會式 piggyback，請改用 `drain_events`。
 
 ## Layout
 
@@ -55,9 +61,9 @@
 1. 先檢查。
 2. 在改變 UI 狀態前先呼叫 `capture_state_snapshot`。
 3. 若流程受焦點影響，先用 `get_focus_state` 與 `focus_element` 確認目標。
-4. 做一次互動。
+4. 做一次互動，或在需要有順序 mutation 時使用 `batch_mutate`。
 5. 先依工具回應中的 `navigation.recommended` 或 `nextSteps` 驗證。
 6. 若目前 session 有 active snapshot，通常應先呼叫 `get_state_diff`。
-7. 若目前 session 有 active routed-event trace，通常應先呼叫 `trace_routed_events(mode: "get")`。
+7. 若目前 session 有 buffered runtime event，通常應先呼叫 `drain_events`。
 8. 若需要回復或保持 app 不變，呼叫 `restore_state_snapshot`。
-9. 避免在單一步驟中疊很多 mutation。
+9. 除非 `batch_mutate` 是刻意選擇的 orchestration tool，否則避免在單一步驟中疊很多彼此獨立的 mutation。

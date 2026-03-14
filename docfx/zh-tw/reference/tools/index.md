@@ -22,11 +22,11 @@
 
 1. `connect()` 使用預設 auto-discovery 路徑
 2. `get_active_process`
-3. 只有需要明確健康檢查時再呼叫 `ping`
-4. 先做 scene 或 tree discovery
-5. 再做 diagnostics
-6. 最後進行 interaction 或 mutation
-7. 用 verification 收尾
+3. `get_ui_summary` 或 `get_element_snapshot`
+4. 聚焦式 diagnostics
+5. interaction 或 mutation
+6. verification
+7. 只有需要明確健康檢查時才呼叫 `ping`
 
 只有在下列情況才優先使用 `get_processes(windowFilter)`：
 
@@ -43,28 +43,37 @@
 | Binding diagnostics | `get_binding_errors` | 先找最有行動價值的 binding 問題 |
 | Dependency properties | `get_dp_value_source` | 理解 precedence 與 effective value |
 | Style and template | `get_applied_styles` | 說明 inherited 或 implicit 的外觀來源 |
-| Routed events | `get_event_handlers` | 追查 event route 與 handler |
-| Interaction | `click_element` | 在定位正確 element 後觸發行為 |
+| Routed events | `get_event_handlers` | 在 trace 或 fire 之前先追查 event route 與 handler |
+| Interaction | `click_element` | 在定位並驗證正確 element 後觸發行為 |
 | Layout | `get_layout_info` | 檢查 bounds、desired size 與 layout state |
 | MVVM | `get_viewmodel` | 檢查 view 背後的資料與 commands |
 | Performance | `get_render_stats` | 作為效能初步診斷入口 |
-| Scene diagnostics | `get_element_snapshot` | 把常見多步驟檢查收斂成單一 scene summary |
+| Scene diagnostics | `get_ui_summary` | 在使用 tree-heavy inspection 前先取得語意化上下文 |
 
 近期值得優先熟悉的功能：
 
 - `select_active_process` 與 `get_active_process`：支援省略 `processId` 的明確 process selection
 - `get_focus_state` 與 `focus_element`：支援 focus-sensitive keyboard 與多視窗流程
-- `capture_state_snapshot`、`wait_for_dp_change`、`restore_state_snapshot`：支援 mutation-safe 驗證與 rollback
+- `capture_state_snapshot`、`batch_mutate`、`wait_for_dp_change`、`restore_state_snapshot`：支援 mutation-safe 驗證與 rollback
+- `drain_events`：用於對 shared runtime event buffer 做 deterministic read
 - `find_elements`：支援 `exact` 與不分大小寫的 `contains` 搜尋
+- `get_affected_elements`：在大範圍 `get_bindings(recursive: true)` 之前，先做低成本的 best-effort candidate scan
 - `get_state_diff`、`get_element_snapshot`、`diagnose_visibility`、`get_interaction_readiness`：提供 scene-level diagnostics，降低對 screenshot 的依賴
 - `get_ui_summary` 與 `get_form_summary`：在深入檢查前先取得語意化摘要
 
 ## Navigation 模型
 
-- 每個工具回應都保留 `nextSteps`，作為舊版 client 的 compatibility field。
+- 大多數工具回應都保留 `nextSteps`，作為舊版 client 的 compatibility field。
 - v3 另外加入 `navigation` envelope，包含 `recommended`、`alternatives`、`prefetchTools`、`contextRefs`。
-- `nextSteps` 由 `navigation.recommended` 推導，兩種表示法保持同步。
+- 只要回應包含 navigation，`nextSteps` 就會由 `navigation.recommended` 推導，兩種表示法保持同步。
+- 若 client 已經知道下一步，且希望縮小回應大小，可在單次呼叫上傳入 `navigation=false`。
 - `prefetchTools` 只是 advisory hint，內容只包含 tool name，供 capable client 做 progressive schema loading。
 - `contextRefs` 是 descriptive JSON only，不是 executable handle，也不是隱藏的 server-side orchestration token。
+
+## 回應形狀補充
+
+- 支援 structured content 的 client 應以 `structuredContent` 作為正式 payload。
+- `content[0].text` 是精簡的文字 fallback，不再是完整 JSON 的重複傳輸。
+- 若 session 內已存在 buffered runtime event，部分 diagnostic 工具也可能在回應中 piggyback `pendingEvents`。若你需要明確且 deterministic 的 event read step，請改用 `drain_events`。
 
 需要更深入的語意與使用注意事項時，請再查看各分類頁面。

@@ -12,6 +12,7 @@
 
 ## 何時該用哪個
 
+- 若你只需要 scene 上下文或單一元素 triage，先用 `get_ui_summary` 或 `get_element_snapshot`，再決定是否展開 tree。
 - 需要看實際 render 出來的結構時，用 **visual tree**
 - 需要看內容關係與 XAML 語意結構時，用 **logical tree**
 - 需要快速用 type、name、automation id 或屬性值找元素時，用 **find_elements**

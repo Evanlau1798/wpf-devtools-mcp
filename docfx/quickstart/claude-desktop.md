@@ -1,16 +1,16 @@
 # Claude Desktop Setup
 
-Claude Desktop uses a static JSON file, so the cleanest setup is to copy the generated JSON from the installer output.
+Claude Desktop uses a static JSON file, so the cleanest setup is to copy the generated JSON from the installed package output.
 
 ## 1. Install WPF DevTools
 
-```powershell
-irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
-```
+Preferred public path:
 
-> Security note: Review the hosted installer script before using `irm | iex` in sensitive environments.
+1. Download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
+2. Extract the package.
+3. Run `setup.ps1 -Force`.
 
-If you do not want `irm | iex`, download the release zip manually, inspect it, and run `setup.ps1 -Force` locally before copying the generated JSON.
+If you prefer a script-first setup, review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) and run it locally.
 
 After installation, the default executable path is:
 
@@ -38,11 +38,12 @@ Copy the installed path into your local `claude_desktop_config.json` if you need
 ## 3. First prompt
 
 ```text
-Use the WPF DevTools MCP server to connect to the running WPF app, auto-discover the target if there is only one visible candidate, and summarize the visual tree root.
+Use the WPF DevTools MCP server to connect to the running WPF app, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
 ## Notes
 
 - Start with `connect()` in the common case. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates.
+- Prefer scene-level verification before visual-tree expansion.
 - Keep mutation tools for later in the workflow.
 - Reinstall or re-register after switching between `x64`, `x86`, and `arm64` targets.

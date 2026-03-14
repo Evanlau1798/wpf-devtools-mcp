@@ -4,13 +4,13 @@ Cursor 與 VS Code 最適合直接套用 installer 產生的 JSON 設定。
 
 ## 1. 安裝 WPF DevTools
 
-```powershell
-irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
-```
+建議的公開安裝路徑：
 
-> 安全提醒：在敏感環境執行 `irm | iex` 前，請先審查這個 hosted installer script 的內容。
+1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`。
+2. 解壓縮套件。
+3. 執行 `setup.ps1 -Force`。
 
-如果你不想使用 `irm | iex`，請手動下載 release zip、先檢查內容，再於本機執行 `setup.ps1 -Force`，之後再複製產生的 JSON。
+如果你偏好腳本驅動安裝，請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 再於本機執行。
 
 安裝後的預設 executable 路徑是：
 
@@ -40,9 +40,11 @@ installer 會輸出 `client-registration\cursor-vscode.json`，格式如下：
 1. 請 client 先呼叫 `tools/list`。
 2. 執行 `connect()`。
 3. 若 auto-discovery 回傳多個候選，執行 `get_processes(windowFilter)` 並重新執行 `connect(processId)`。
-4. 執行 `get_visual_tree`。
+4. 執行 `get_ui_summary(depthMode: "semantic")`。
+5. 只有在仍需要更深層結構時才使用 `get_element_snapshot` 或 `get_visual_tree`。
 
 ## 注意事項
 
 - 若切換架構，請重新註冊已安裝的 executable。
 - 避免讓編輯器外層 wrapper 把額外訊息寫入 `stdout`。
+- 在 editor-driven workflow 中，先用 scene-level 摘要，再展開 tree。

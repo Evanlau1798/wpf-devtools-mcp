@@ -17,8 +17,9 @@ public class HandlerRoutingTests
         var handler = new BindingHandlers(new BindingAnalyzer(new ElementFinder()), new ElementFinder());
         var methods = handler.GetSupportedMethods().ToList();
 
-        methods.Should().HaveCount(6);
+        methods.Should().HaveCount(7);
         methods.Should().Contain("get_bindings");
+        methods.Should().Contain("get_affected_elements");
         methods.Should().Contain("get_binding_mismatches");
         methods.Should().Contain("get_binding_errors");
         methods.Should().Contain("get_datacontext_chain");

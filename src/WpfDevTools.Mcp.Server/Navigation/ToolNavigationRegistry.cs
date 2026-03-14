@@ -11,6 +11,7 @@ public sealed class ToolNavigationRegistry
     public ToolNavigationRegistry()
     {
         BindingNavigationRules.Register(this);
+        AffectedElementNavigationRules.Register(this);
         EventNavigationRules.Register(this);
         SceneDiagnosticNavigationRules.Register(this);
         ActionNavigationRules.Register(this);

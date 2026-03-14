@@ -252,4 +252,38 @@ public sealed class ToolNavigationPlannerTests : IDisposable
         contextRef.TryGetProperty("serverHandle", out _).Should().BeFalse();
         contextRef.GetProperty("type").GetString().Should().Be("mutation-session");
     }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithAffectedElementsResult_ShouldRecommendBindingVerification()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                confidence = "best-effort",
+                matchStrategy = "simple-path-match",
+                requiresVerification = true,
+                affectedCount = 1,
+                affectedElements = new[]
+                {
+                    new
+                    {
+                        elementId = "NameTextBox_1",
+                        elementType = "TextBox",
+                        elementName = "NameTextBox",
+                        propertyName = "Text",
+                        bindingPath = "Name"
+                    }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "RootPanel_1"), ("propertyName", "Name"), ("recursive", true)),
+            CancellationToken.None,
+            toolName: "get_affected_elements");
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        navigation.GetProperty("recommended")[0].GetProperty("tool").GetString().Should().Be("get_bindings");
+        navigation.GetProperty("recommended")[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("RootPanel_1");
+        navigation.GetProperty("recommended")[0].GetProperty("params").GetProperty("recursive").GetBoolean().Should().BeTrue();
+        navigation.GetProperty("alternatives")[0].GetProperty("tool").GetString().Should().Be("get_element_snapshot");
+    }
 }

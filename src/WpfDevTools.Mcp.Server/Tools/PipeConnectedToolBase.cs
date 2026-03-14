@@ -234,6 +234,11 @@ public abstract class PipeConnectedToolBase
             payload[property.Name] = property.Value.Clone();
         }
 
+        if (detailMode == MutationDetailMode.Minimal)
+        {
+            return JsonSerializer.SerializeToElement(TrimMinimalMutationPayload(payload));
+        }
+
         if (detailMode == MutationDetailMode.Compact)
         {
             if (usedFallback)
@@ -251,6 +256,41 @@ public abstract class PipeConnectedToolBase
         payload["notes"] = notes;
 
         return JsonSerializer.SerializeToElement(payload);
+    }
+
+    private static Dictionary<string, object?> TrimMinimalMutationPayload(Dictionary<string, object?> payload)
+    {
+        if (!payload.TryGetValue("success", out var success))
+        {
+            return payload;
+        }
+
+        var minimal = new Dictionary<string, object?>
+        {
+            ["success"] = success
+        };
+
+        if (payload.TryGetValue("propertyName", out var propertyName))
+        {
+            minimal["propertyName"] = propertyName;
+        }
+
+        if (payload.TryGetValue("newValue", out var newValue))
+        {
+            minimal["newValue"] = newValue;
+        }
+
+        if (payload.TryGetValue("hadLocalValue", out var hadLocalValue))
+        {
+            minimal["hadLocalValue"] = hadLocalValue;
+        }
+
+        if (minimal.Count > 1)
+        {
+            return minimal;
+        }
+
+        return payload;
     }
 
     private static object CreateInspectorError(InspectorError error)

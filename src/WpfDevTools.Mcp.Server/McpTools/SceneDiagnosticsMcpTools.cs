@@ -65,6 +65,7 @@ public static class SceneDiagnosticsMcpTools
         SceneMetadata +
         "[Scene] Gather element identity, selected DependencyProperty values, bindings, validation errors, style summary, layout summary, and DataContext type in one call.\n\n" +
         "USE WHEN: Before falling back to screenshots, or when you need one element-centric snapshot instead of multiple diagnostic calls.\n" +
+        "PROPERTY PROBES: The default snapshot includes a stable baseline property set. Provide `includeProperties` to append extra DependencyProperty probes such as `IsChecked` or `SelectedIndex` without replacing the defaults.\n" +
         "DO NOT USE: As a full-tree replacement; use get_visual_tree/get_logical_tree for broad structural inspection.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
@@ -90,11 +91,13 @@ public static class SceneDiagnosticsMcpTools
         SessionManager sessionManager,
         [Description("Runtime element ID to inspect.")] string elementId,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional extra DependencyProperty names to append after the default snapshot property probes. Duplicates are ignored and defaults are always kept.")] string[]? includeProperties = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("includeProperties", includeProperties));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetElementSnapshotTool>(

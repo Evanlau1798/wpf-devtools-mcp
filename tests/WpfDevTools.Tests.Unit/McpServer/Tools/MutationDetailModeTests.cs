@@ -50,6 +50,17 @@ public class MutationDetailModeTests
     }
 
     [Fact]
+    public void Parse_WhenMinimalSpecified_ShouldReturnMinimalMode()
+    {
+        var arguments = ToJsonElement(new { detail = "minimal" });
+
+        var (mode, error) = MutationDetailModeParser.Parse(arguments);
+
+        mode.Should().Be(MutationDetailMode.Minimal);
+        error.Should().BeNull();
+    }
+
+    [Fact]
     public void Parse_WhenInvalidValueProvided_ShouldReturnStructuredError()
     {
         var arguments = ToJsonElement(new { detail = "full" });

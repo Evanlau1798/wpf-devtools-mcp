@@ -228,6 +228,84 @@ public class MutationToolMetadataTests
     }
 
     [Fact]
+    public void SetDpValue_WithDetailMinimal_ShouldKeepOnlySuccessPropertyNameAndNewValue()
+    {
+        var result = MutationMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                propertyName = "Width",
+                oldValue = 50,
+                newValue = 100,
+                requestedValue = 100,
+                baseValueSource = "LocalValue",
+                valueType = "Double"
+            },
+            new
+            {
+                elementId = "Button_1",
+                propertyName = "Width",
+                value = 100
+            },
+            ToJsonElement(new { detail = "minimal" }),
+            "Runtime-only mutation. Capture oldValue/newValue if you need manual restore after verification.");
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("propertyName").GetString().Should().Be("Width");
+        json.GetProperty("newValue").GetInt32().Should().Be(100);
+        json.TryGetProperty("oldValue", out _).Should().BeFalse();
+        json.TryGetProperty("requestedValue", out _).Should().BeFalse();
+        json.TryGetProperty("baseValueSource", out _).Should().BeFalse();
+        json.TryGetProperty("valueType", out _).Should().BeFalse();
+        json.TryGetProperty("requestedInput", out _).Should().BeFalse();
+        json.TryGetProperty("effectiveInput", out _).Should().BeFalse();
+        json.TryGetProperty("observedEffect", out _).Should().BeFalse();
+        json.TryGetProperty("notes", out _).Should().BeFalse();
+        json.TryGetProperty("usedFallback", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ModifyViewModel_WithDetailMinimal_ShouldKeepOnlySuccessPropertyNameAndNewValue()
+    {
+        var result = MutationMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                propertyName = "Name",
+                oldValue = "Alice",
+                newValue = "Bob",
+                propertyType = "System.String",
+                canWrite = true,
+                requestedValueType = "System.String",
+                convertedValueType = "System.String"
+            },
+            new
+            {
+                elementId = "NameTextBox",
+                propertyName = "Name",
+                value = "Bob"
+            },
+            ToJsonElement(new { detail = "minimal" }),
+            "Runtime-only ViewModel mutation. UI refresh still depends on INotifyPropertyChanged and any binding-side validation.");
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("propertyName").GetString().Should().Be("Name");
+        json.GetProperty("newValue").GetString().Should().Be("Bob");
+        json.TryGetProperty("oldValue", out _).Should().BeFalse();
+        json.TryGetProperty("propertyType", out _).Should().BeFalse();
+        json.TryGetProperty("canWrite", out _).Should().BeFalse();
+        json.TryGetProperty("requestedValueType", out _).Should().BeFalse();
+        json.TryGetProperty("convertedValueType", out _).Should().BeFalse();
+        json.TryGetProperty("requestedInput", out _).Should().BeFalse();
+        json.TryGetProperty("effectiveInput", out _).Should().BeFalse();
+        json.TryGetProperty("observedEffect", out _).Should().BeFalse();
+        json.TryGetProperty("notes", out _).Should().BeFalse();
+        json.TryGetProperty("usedFallback", out _).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task SetDpValueTool_WithInvalidDetail_ShouldReturnStructuredError()
     {
         var sessionManager = new SessionManager();

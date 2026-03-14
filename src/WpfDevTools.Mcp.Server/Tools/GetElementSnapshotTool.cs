@@ -20,6 +20,7 @@ public sealed class GetElementSnapshotTool(SessionManager sessionManager) : Pipe
             return CreateMissingParamError("elementId");
         }
 
+        var includeProperties = ParseStringArrayParam(arguments, "includeProperties");
         var identity = await GetIdentityAsync(processId, elementId, cancellationToken).ConfigureAwait(false);
         if (identity.error != null)
         {
@@ -56,7 +57,7 @@ public sealed class GetElementSnapshotTool(SessionManager sessionManager) : Pipe
             return layout.error;
         }
 
-        var properties = await GetPropertySnapshotAsync(processId, elementId, cancellationToken).ConfigureAwait(false);
+        var properties = await GetPropertySnapshotAsync(processId, elementId, includeProperties, cancellationToken).ConfigureAwait(false);
         var bindingsPayload = GetRequiredPayload(bindings.payload);
         var validationPayload = GetRequiredPayload(validation.payload);
         var stylesPayload = GetRequiredPayload(styles.payload);
@@ -130,10 +131,11 @@ public sealed class GetElementSnapshotTool(SessionManager sessionManager) : Pipe
     private async Task<Dictionary<string, object?>> GetPropertySnapshotAsync(
         int processId,
         string elementId,
+        string[]? includeProperties,
         CancellationToken cancellationToken)
     {
         var properties = new Dictionary<string, object?>(StringComparer.Ordinal);
-        foreach (var propertyName in SnapshotPropertyNames)
+        foreach (var propertyName in BuildSnapshotPropertyNames(includeProperties))
         {
             var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
                 processId,
@@ -159,6 +161,41 @@ public sealed class GetElementSnapshotTool(SessionManager sessionManager) : Pipe
         }
 
         return properties;
+    }
+
+    private static IReadOnlyList<string> BuildSnapshotPropertyNames(string[]? includeProperties)
+    {
+        var ordered = new List<string>(SnapshotPropertyNames.Length + (includeProperties?.Length ?? 0));
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var propertyName in SnapshotPropertyNames)
+        {
+            if (seen.Add(propertyName))
+            {
+                ordered.Add(propertyName);
+            }
+        }
+
+        if (includeProperties == null)
+        {
+            return ordered;
+        }
+
+        foreach (var propertyName in includeProperties)
+        {
+            if (string.IsNullOrWhiteSpace(propertyName))
+            {
+                continue;
+            }
+
+            var normalized = propertyName.Trim();
+            if (seen.Add(normalized))
+            {
+                ordered.Add(normalized);
+            }
+        }
+
+        return ordered;
     }
 
     private async Task<(JsonElement? payload, object? error)> GetInspectorPayloadAsync(

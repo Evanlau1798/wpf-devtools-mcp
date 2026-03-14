@@ -32,6 +32,7 @@ public class BindingHandlers : IRequestHandler
         return new[]
         {
             "get_bindings",
+            "get_affected_elements",
             "get_binding_mismatches",
             "get_binding_errors",
             "get_datacontext_chain",
@@ -53,6 +54,7 @@ public class BindingHandlers : IRequestHandler
         return method switch
         {
             "get_bindings" => await HandleGetBindingsAsync(@params, cancellationToken).ConfigureAwait(false),
+            "get_affected_elements" => await HandleGetAffectedElementsAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_binding_mismatches" => await HandleGetBindingMismatchesAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_binding_errors" => await HandleGetBindingErrorsAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_datacontext_chain" => await HandleGetDataContextChainAsync(@params, cancellationToken).ConfigureAwait(false),
@@ -70,6 +72,17 @@ public class BindingHandlers : IRequestHandler
 
         return await Task.Run(() =>
             _bindingAnalyzer.GetBindings(elementId, recursive, statusFilter), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<object> HandleGetAffectedElementsAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var propertyName = ParameterHelpers.GetStringParam(@params, "propertyName");
+        var viewModelType = ParameterHelpers.GetStringParam(@params, "viewModelType");
+        var recursive = ParameterHelpers.GetBoolParam(@params, "recursive") ?? true;
+
+        return await Task.Run(() =>
+            _bindingAnalyzer.GetAffectedElements(propertyName ?? string.Empty, viewModelType, elementId, recursive), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetBindingMismatchesAsync(JsonElement? @params, CancellationToken cancellationToken)

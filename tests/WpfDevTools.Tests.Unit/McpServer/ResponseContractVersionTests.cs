@@ -26,6 +26,7 @@ public sealed class ResponseContractVersionTests
         content.Should().Contain("typeName -> viewModelType");
         content.Should().Contain("avgRenderTime -> averageFrameTime");
         content.Should().Contain("detail=compact");
+        content.Should().Contain("detail=minimal");
         content.Should().Contain("detail=verbose");
         content.Should().Contain("standard");
         content.Should().Contain("nextSteps");
@@ -44,6 +45,7 @@ public sealed class ResponseContractVersionTests
         ServerInstructions.Value.Should().Contain(ResponseContractVersion.Current);
         ServerInstructions.Value.Should().Contain("Compatibility aliases");
         ServerInstructions.Value.Should().Contain("detail=compact");
+        ServerInstructions.Value.Should().Contain("detail=minimal");
         ServerInstructions.Value.Should().Contain("detail=verbose");
         ServerInstructions.Value.Should().Contain("standard");
         ServerInstructions.Value.Should().Contain("nextSteps");

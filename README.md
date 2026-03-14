@@ -172,7 +172,7 @@ Security deployment guidance lives in `SECURITY.md`.
 
 ## Tool Categories
 
-The server ships 60 MCP tools across 11 categories. Use MCP tool discovery for full schemas.
+The server ships 61 MCP tools across 11 categories. Use MCP tool discovery for full schemas.
 
 <details>
 <summary>Tool category overview</summary>
@@ -181,7 +181,7 @@ The server ships 60 MCP tools across 11 categories. Use MCP tool discovery for f
 |----------|-------|-------------|
 | Process Management | 5 | `connect`, `get_processes`, `ping`, `get_active_process`, `select_active_process` |
 | Tree & XAML | 8 | `get_visual_tree`, `get_logical_tree`, `compare_trees`, `serialize_to_xaml`, `get_namescope`, `get_template_tree`, `get_windows`, `find_elements` |
-| Binding Diagnostics | 6 | `get_bindings`, `get_binding_errors`, `get_binding_value_chain`, `get_binding_mismatches`, `get_datacontext_chain`, `force_binding_update` |
+| Binding Diagnostics | 7 | `get_bindings`, `get_affected_elements`, `get_binding_errors`, `get_binding_value_chain`, `get_binding_mismatches`, `get_datacontext_chain`, `force_binding_update` |
 | DependencyProperty | 6 | `get_dp_value_source`, `get_dp_metadata`, `set_dp_value`, `clear_dp_value`, `watch_dp_changes`, `wait_for_dp_change` |
 | Style/Template | 4 | `get_applied_styles`, `get_triggers`, `get_resource_chain`, `override_style_setter` |
 | RoutedEvent | 3 | `trace_routed_events`, `get_event_handlers`, `fire_routed_event` |

@@ -6,7 +6,7 @@ using WpfDevTools.Mcp.Server.Tools;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
-/// MCP SDK wrapper for Binding Diagnostics tools (5 tools).
+/// MCP SDK wrapper for Binding Diagnostics tools (6 tools).
 /// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
 /// </summary>
 [McpServerToolType]
@@ -111,6 +111,58 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
+    [McpServerTool(Name = "get_affected_elements", Title = "Find Best-Effort Affected Elements", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to cheaply narrow down which WPF elements may be affected by a ViewModel property change before doing a full binding-tree verification pass.\n\n" +
+        BindingMetadata + "[Binding] Scan a runtime element or subtree and return candidate elements whose simple binding path exactly matches the supplied property name.\n\n" +
+        "USE WHEN: An agent needs a fast candidate list before deciding whether to pay for get_bindings(recursive=true).\n" +
+        "BEST-EFFORT: This v1 tool only matches simple single-binding paths. It does not claim exact impact analysis for nested paths, MultiBinding semantics, ElementName, or RelativeSource.\n" +
+        "VERIFICATION: Successful responses include explicit uncertainty metadata and should usually be followed by get_bindings for precise confirmation.\n\n" +
+        RuntimeNavigationGuidance +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  propertyName: string,\n" +
+        "  viewModelType: string|null,\n" +
+        "  confidence: 'best-effort',\n" +
+        "  matchStrategy: 'simple-path-match',\n" +
+        "  requiresVerification: boolean,\n" +
+        "  affectedCount: integer,\n" +
+        "  affectedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status }]\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"propertyName required\" -> provide the ViewModel property name you want to match\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"element not found\" -> verify elementId from get_visual_tree or find_elements\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345, propertyName: \"Name\" }\n" +
+        "- { processId: 12345, elementId: \"ProfilePanel\", propertyName: \"IsEnabled\", recursive: true }\n" +
+        "- { processId: 12345, propertyName: \"Name\", viewModelType: \"CustomerViewModel\" }")]
+    public static Task<CallToolResult> GetAffectedElements(
+        SessionManager sessionManager,
+        [Description("ViewModel property name to match against simple binding paths, such as Name or IsEnabled.")] string propertyName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional root element ID that scopes the search. Omit to scan from the root window.")] string? elementId = null,
+        [Description("Optional coarse DataContext type filter. This narrows candidate elements but does not prove exact binding ownership.")] string? viewModelType = null,
+        [Description("When true, scan descendants under the chosen root. Default true for subtree impact analysis.")] bool recursive = true,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId),
+            ("propertyName", propertyName),
+            ("viewModelType", viewModelType),
+            ("recursive", recursive));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<GetAffectedElementsTool>(
+                nameof(GetAffectedElementsTool),
+                () => new GetAffectedElementsTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken,
+            toolName: "get_affected_elements");
+    }
+
     [McpServerTool(Name = "get_binding_errors", Title = "Diagnose WPF Binding Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to diagnose WPF binding failures behind blank, stale, or incorrect UI data.\n\n" +
@@ -118,7 +170,7 @@ public static class BindingMcpTools
         "FIRST tool to use when debugging data display issues.\n\n" +
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
         "DO NOT USE: Before calling connect() - errors are only captured after injection; for validation rule errors use get_validation_errors.\n" +
-        "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics. Use `compact=true` to omit the verbose free-form message while preserving structured correlation fields.\n\n" +
+        "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics. Compact mode is enabled by default to omit the verbose free-form message while preserving structured correlation fields; set `compact=false` when the full message text is required.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -154,7 +206,7 @@ public static class BindingMcpTools
         [Description("Optional connected WPF process ID whose captured binding errors should be returned. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional maximum number of errors to return after filtering. Omit to return the full captured list.")] int? maxErrors = null,
         [Description("Optional ISO-8601 timestamp filter. Only errors at or after this instant are returned.")] string? sinceTimestamp = null,
-        [Description("When true, omit the verbose free-form message field and keep only the structured correlation fields for token-efficient triage.")] bool compact = false,
+        [Description("When true, omit the verbose free-form message field and keep only the structured correlation fields for token-efficient triage. Defaults to true; set false when the full binding trace message is required.")] bool compact = true,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

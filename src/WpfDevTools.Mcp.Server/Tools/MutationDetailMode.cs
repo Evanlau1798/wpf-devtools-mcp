@@ -7,7 +7,8 @@ namespace WpfDevTools.Mcp.Server.Tools;
 public enum MutationDetailMode
 {
     Standard,
-    Compact
+    Compact,
+    Minimal
 }
 
 public static class MutationDetailModeParser
@@ -25,11 +26,12 @@ public static class MutationDetailModeParser
             "verbose" => (MutationDetailMode.Standard, null),
             "standard" => (MutationDetailMode.Standard, null),
             "compact" => (MutationDetailMode.Compact, null),
+            "minimal" => (MutationDetailMode.Minimal, null),
             _ => (MutationDetailMode.Compact, new ToolErrorPayload
             {
-                Error = "detail must be 'compact', 'verbose', or legacy alias 'standard'",
+                Error = "detail must be 'compact', 'minimal', 'verbose', or legacy alias 'standard'",
                 ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
-                Hint = "Use detail='compact' for the default trimmed response, detail='verbose' for full additive metadata, or detail='standard' as a compatibility alias."
+                Hint = "Use detail='compact' for the default trimmed response, detail='minimal' for success-only mutation confirmation, detail='verbose' for full additive metadata, or detail='standard' as a compatibility alias."
             })
         };
     }

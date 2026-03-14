@@ -43,4 +43,40 @@ public sealed class ElementSnapshotE2eTests
         result.TryGetProperty("layout", out _).Should().BeTrue();
         result.TryGetProperty("properties", out _).Should().BeTrue();
     }
+
+    [Fact]
+    public async Task GetElementSnapshot_WithIncludeProperties_ShouldAppendRequestedProperty()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var findResult = await _fixture.Client.CallToolAsync(
+            "find_elements",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementName = "EnabledCheckBox"
+            });
+        var runtimeElementId = findResult.GetProperty("results")[0].GetProperty("elementId").GetString();
+
+        var defaultSnapshot = await _fixture.Client.CallToolAsync(
+            "get_element_snapshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = runtimeElementId
+            });
+        var extendedSnapshot = await _fixture.Client.CallToolAsync(
+            "get_element_snapshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = runtimeElementId,
+                includeProperties = new[] { "IsChecked" }
+            });
+
+        defaultSnapshot.GetProperty("success").GetBoolean().Should().BeTrue();
+        extendedSnapshot.GetProperty("success").GetBoolean().Should().BeTrue();
+        defaultSnapshot.GetProperty("properties").TryGetProperty("IsChecked", out _).Should().BeFalse();
+        extendedSnapshot.GetProperty("properties").GetProperty("IsChecked").GetProperty("currentValue").GetString().Should().NotBeNull();
+    }
 }

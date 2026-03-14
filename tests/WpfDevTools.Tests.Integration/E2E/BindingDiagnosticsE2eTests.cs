@@ -190,4 +190,28 @@ public sealed class BindingDiagnosticsE2eTests
             _output.WriteLine($"Commands found: {string.Join(", ", commandNames)}");
         }
     }
+
+    [Fact]
+    public async Task GetAffectedElements_ShouldReturnBestEffortCandidatesForSimpleBindingPaths()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_affected_elements",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "Name"
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("confidence").GetString().Should().Be("best-effort");
+        result.GetProperty("matchStrategy").GetString().Should().Be("simple-path-match");
+        result.GetProperty("requiresVerification").GetBoolean().Should().BeTrue();
+        result.GetProperty("affectedCount").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("affectedElements").EnumerateArray()
+            .Select(item => item.GetProperty("elementName").GetString())
+            .Should().Contain("NameTextBox");
+        result.GetProperty("navigation").GetProperty("recommended")[0].GetProperty("tool").GetString().Should().Be("get_bindings");
+    }
 }

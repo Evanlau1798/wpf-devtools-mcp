@@ -109,7 +109,7 @@ public static class ServerInstructions
         - Prefer slash commands from MCP prompts when you want a predefined workflow entry point
         - Prefer @resource lookups when you need capability summaries, workflow references, or known limitations before acting
         - Check IsEnabled with get_dp_value_source before click_element to avoid errors
-        - Use get_binding_errors as first diagnostic step for data display issues
+        - Use get_binding_errors as first diagnostic step for data display issues; its default response is compact, so pass compact=false only when the full human-readable binding trace text is required
         - Treat returned runtime navigation as session-aware when you have already captured a snapshot or started a routed-event trace in the same connected process
         - In STDIO transport, prefer polling workflows over push-style watcher/event streaming expectations
         - Avoid calling performance tools (get_render_stats, measure_element_render_time) in loops
@@ -158,7 +158,9 @@ public static class ServerInstructions
         - get_validation_errors: recursively aggregates errors from ALL visual descendants (max depth: 50, max errors: 200). Each error includes elementType/elementName to identify the source.
         - set_dp_value / modify_viewmodel: JSON string values with surrounding double-quotes are auto-stripped (e.g., "\"hello\"" becomes "hello").
         - binding/data-context/validation diagnostics expose normalized diagnosticKind/sourceKind fields for cross-tool correlation.
+        - get_binding_errors defaults to compact output at the MCP contract layer while preserving server-side follow-up guidance; use compact=false when you need the original verbose message text.
         - mutation and interaction tools default to detail=compact when you want trimmed additive normalization metadata while preserving the same core semantics.
+        - use detail=minimal when a mutation workflow only needs success/property/newValue confirmation.
         - use detail=verbose when you need requested/effective input plus observedEffect metadata; legacy detail=standard remains accepted as a compatibility alias.
 
         === RESPONSE CONTRACT VERSION ===

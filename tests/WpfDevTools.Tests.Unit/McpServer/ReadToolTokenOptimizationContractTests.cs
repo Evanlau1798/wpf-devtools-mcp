@@ -44,6 +44,12 @@ public class ReadToolTokenOptimizationContractTests
             "sinceTimestamp",
             typeof(string),
             null);
+        AssertOptionalParameter(
+            typeof(BindingMcpTools),
+            nameof(BindingMcpTools.GetBindingErrors),
+            "compact",
+            typeof(bool),
+            true);
     }
 
     [Fact]
@@ -66,6 +72,17 @@ public class ReadToolTokenOptimizationContractTests
             "compact",
             typeof(bool),
             false);
+    }
+
+    [Fact]
+    public void GetElementSnapshot_ShouldExposeOptionalIncludePropertiesFilter()
+    {
+        AssertOptionalParameter(
+            typeof(SceneDiagnosticsMcpTools),
+            nameof(SceneDiagnosticsMcpTools.GetElementSnapshot),
+            "includeProperties",
+            typeof(string[]),
+            null);
     }
 
     private static void AssertOptionalParameter(

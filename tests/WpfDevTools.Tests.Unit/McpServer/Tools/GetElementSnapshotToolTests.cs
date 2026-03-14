@@ -151,6 +151,61 @@ public sealed class GetElementSnapshotToolTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithIncludeProperties_ShouldAppendUniquePropertyProbesAfterDefaults()
+    {
+        const int processId = 51032;
+        var observedPropertyNames = new List<string>();
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            new[]
+            {
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    tree = new
+                    {
+                        elementId = "EnabledCheckBox_1",
+                        type = "CheckBox",
+                        name = "EnabledCheckBox",
+                        childCount = 0
+                    }
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    chain = new[]
+                    {
+                        new { dataContextType = "TestViewModel" }
+                    }
+                }),
+                JsonSerializer.Serialize(new { success = true, bindings = Array.Empty<object>() }),
+                JsonSerializer.Serialize(new { success = true, errorCount = 0, errors = Array.Empty<object>() }),
+                JsonSerializer.Serialize(new { success = true, hasStyle = false, styleCount = 0, styles = Array.Empty<object>() }),
+                JsonSerializer.Serialize(new { success = true, actualWidth = 120.0, actualHeight = 24.0 }),
+                JsonSerializer.Serialize(new { success = false, error = "DependencyProperty 'Text' not found", errorCode = "PropertyNotFound", hint = "Verify the propertyName is valid for the target element type." }),
+                JsonSerializer.Serialize(new { success = false, error = "DependencyProperty 'Content' not found", errorCode = "PropertyNotFound", hint = "Verify the propertyName is valid for the target element type." }),
+                JsonSerializer.Serialize(new { success = true, propertyName = "Visibility", currentValue = "Visible", baseValueSource = "Default" }),
+                JsonSerializer.Serialize(new { success = true, propertyName = "IsEnabled", currentValue = "True", baseValueSource = "Default" }),
+                JsonSerializer.Serialize(new { success = true, propertyName = "Opacity", currentValue = "1", baseValueSource = "Default" }),
+                JsonSerializer.Serialize(new { success = true, propertyName = "IsChecked", currentValue = "True", baseValueSource = "LocalValue" })
+            },
+            observedPropertyNames: observedPropertyNames);
+
+        var tool = new GetElementSnapshotTool(connected.SessionManager);
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "EnabledCheckBox_1",
+            includeProperties = new[] { "IsChecked", "Text", "IsChecked" }
+        }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("properties").TryGetProperty("IsChecked", out var isChecked).Should().BeTrue();
+        isChecked.GetProperty("currentValue").GetString().Should().Be("True");
+        observedPropertyNames.Should().Equal("Text", "Content", "Visibility", "IsEnabled", "Opacity", "IsChecked");
+    }
+
+    [Fact]
     public async Task GetElementSnapshot_Navigation_ShouldRouteBindingAndValidationFollowUps()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
@@ -182,7 +237,8 @@ public sealed class GetElementSnapshotToolTests : IDisposable
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(
         int processId,
         IReadOnlyList<string> resultJsonSequence,
-        List<string>? observedMethods = null)
+        List<string>? observedMethods = null,
+        List<string>? observedPropertyNames = null)
     {
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
         var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
@@ -204,6 +260,13 @@ public sealed class GetElementSnapshotToolTests : IDisposable
                         throw new InvalidOperationException("Expected a valid InspectorRequest payload.");
                     }
                     observedMethods?.Add(request.Method);
+                    if (request.Method == "get_dp_value_source"
+                        && request.Params.HasValue
+                        && request.Params.Value.TryGetProperty("propertyName", out var propertyName)
+                        && propertyName.ValueKind == JsonValueKind.String)
+                    {
+                        observedPropertyNames?.Add(propertyName.GetString()!);
+                    }
                     var response = new InspectorResponse
                     {
                         Id = request.Id,

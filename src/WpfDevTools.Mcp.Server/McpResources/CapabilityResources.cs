@@ -49,7 +49,9 @@ public static class CapabilityResources
           - `avgRenderTime -> averageFrameTime`
           - `count -> totalCount`
           - `renderTimeMs -> renderTime`
+        - `get_binding_errors` defaults to compact output; pass `compact=false` when the full free-form binding trace message is required.
         - Mutation and interaction tools default to `detail=compact` when clients want to drop additive normalization metadata without changing core semantics.
+        - Use `detail=minimal` when mutation flows only need success/property/newValue confirmation.
         - Use `detail=verbose` when clients need requested/effective input plus observedEffect metadata; legacy `detail=standard` remains accepted as a compatibility alias.
 
         ## Transport notes
@@ -88,7 +90,7 @@ public static class CapabilityResources
         7. `get_validation_errors` when validation may block updates
 
         Cross-tool semantics:
-        - `get_binding_errors` reports failures captured by WPF binding tracing.
+        - `get_binding_errors` reports failures captured by WPF binding tracing and returns compact payloads by default.
         - `get_binding_value_chain` explains how one binding resolved.
         - `get_datacontext_chain` explains inherited source context.
         - `get_validation_errors` explains rule-based invalid state on the element subtree.

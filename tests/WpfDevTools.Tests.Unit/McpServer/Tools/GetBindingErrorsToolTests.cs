@@ -1,10 +1,14 @@
-using Xunit;
-using FluentAssertions;
+using System.IO.Pipes;
+using System.Reflection;
 using System.Text.Json;
+using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Serialization;
 using static WpfDevTools.Tests.Unit.TestHelpers;
+using Xunit;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
@@ -19,14 +23,11 @@ public sealed class GetBindingErrorsToolTests : IDisposable
     [Fact]
     public async Task Execute_WithoutConnection_ShouldReturnError()
     {
-        // Arrange
         var tool = new GetBindingErrorsTool(new SessionManager());
         var parameters = new { processId = 12345 };
 
-        // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -36,14 +37,11 @@ public sealed class GetBindingErrorsToolTests : IDisposable
     [Fact]
     public async Task Execute_WithMissingProcessId_ShouldReturnError()
     {
-        // Arrange
         var tool = new GetBindingErrorsTool(new SessionManager());
         var parameters = new { };
 
-        // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert
         result.Should().NotBeNull();
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -53,17 +51,74 @@ public sealed class GetBindingErrorsToolTests : IDisposable
     [Fact]
     public async Task Execute_WithValidParameters_ShouldReturnPlaceholder()
     {
-        // Arrange
         var sessionManager = new SessionManager();
         sessionManager.AddSession(12345);
         var tool = new GetBindingErrorsTool(sessionManager);
         var parameters = new { processId = 12345 };
 
-        // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
 
-        // Assert
         result.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Execute_ShouldRequestVerboseInspectorPayload_WhenCallerOmitsCompact()
+    {
+        const int processId = 51041;
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        using var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        JsonElement? observedParams = null;
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+            request.Should().NotBeNull();
+            observedParams = request!.Params;
+
+            var response = new InspectorResponse
+            {
+                Id = request.Id,
+                CorrelationId = request.CorrelationId,
+                Result = JsonSerializer.SerializeToElement(new
+                {
+                    success = true,
+                    errorCount = 1,
+                    errors = new[]
+                    {
+                        new
+                        {
+                            message = "BindingExpression path error: 'MissingName' property not found on object.",
+                            eventType = "PathError",
+                            elementId = "TextBox_4",
+                            propertyName = "Text",
+                            bindingPath = "MissingName"
+                        }
+                    }
+                })
+            };
+
+            await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+        });
+
+        using var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+        var tool = new GetBindingErrorsTool(sessionManager);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new { processId }),
+            CancellationToken.None));
+
+        await serverTask;
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        observedParams.Should().NotBeNull();
+        observedParams!.Value.TryGetProperty("compact", out var compact).Should().BeTrue();
+        compact.GetBoolean().Should().BeFalse("server-side navigation still needs the verbose inspector payload before trimming");
     }
 
     [Fact]
@@ -191,5 +246,17 @@ public sealed class GetBindingErrorsToolTests : IDisposable
         nextSteps[0].GetProperty("tool").GetString().Should().Be("get_datacontext_chain");
         result.StructuredContent!.Value.GetProperty("errors")[0].TryGetProperty("message", out _).Should().BeFalse();
         navigation.GetProperty("alternatives")[0].GetProperty("tool").GetString().Should().Be("get_bindings");
+    }
+
+    private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
+    {
+        var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
+        var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
+        if (pipeClients!.TryGetValue(processId, out var existingClient))
+        {
+            existingClient.Dispose();
+        }
+
+        pipeClients[processId] = replacement;
     }
 }

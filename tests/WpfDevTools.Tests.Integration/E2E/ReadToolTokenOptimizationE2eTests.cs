@@ -64,25 +64,31 @@ public class ReadToolTokenOptimizationE2eTests
     }
 
     [Fact]
-    public async Task GetBindingErrors_WithCompactTrue_ShouldReducePayloadSize()
+    public async Task GetBindingErrors_ShouldDefaultToCompactPayload()
     {
-        var verbose = await _fixture.Client.CallToolAsync(
+        var compactByDefault = await _fixture.Client.CallToolAsync(
             "get_binding_errors",
             new
             {
                 maxErrors = 1
             });
-        var compact = await _fixture.Client.CallToolAsync(
+        var verbose = await _fixture.Client.CallToolAsync(
             "get_binding_errors",
             new
             {
                 maxErrors = 1,
-                compact = true
+                compact = false
             });
 
+        compactByDefault.GetProperty("success").GetBoolean().Should().BeTrue();
         verbose.GetProperty("success").GetBoolean().Should().BeTrue();
-        compact.GetProperty("success").GetBoolean().Should().BeTrue();
-        compact.GetRawText().Length.Should().BeLessThan(verbose.GetRawText().Length);
+        if (compactByDefault.GetProperty("errorCount").GetInt32() > 0)
+        {
+            compactByDefault.GetProperty("errors")[0].TryGetProperty("message", out _).Should().BeFalse();
+            verbose.GetProperty("errors")[0].TryGetProperty("message", out _).Should().BeTrue();
+        }
+
+        compactByDefault.GetRawText().Length.Should().BeLessThan(verbose.GetRawText().Length);
     }
 
     [Fact]

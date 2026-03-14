@@ -159,6 +159,7 @@ public static class CapabilityResources
         - Use `get_windows` first when dialogs, popups, or tool windows are present.
         - Re-check `get_windows` after focus or visibility changes.
         - Prefer explicit window `elementId` targeting for tree inspection, screenshots, and interactions.
+        - `focus_element` and `simulate_keyboard` require the target to be attached to the active rendered visual tree; controls inside inactive tabs must be activated before focus-sensitive actions.
 
         This avoids accidental inspection of the wrong root when secondary windows are active.
         """;

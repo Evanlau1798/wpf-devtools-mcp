@@ -41,23 +41,62 @@ public sealed class InteractionFocusContractTests
     {
         var finder = new ElementFinder();
         var analyzer = new InteractionAnalyzer(finder);
-        var window = new Window();
+        var window = new Window { Width = 240, Height = 180 };
         var first = new TextBox();
         var second = new TextBox();
         var panel = new StackPanel();
         panel.Children.Add(first);
         panel.Children.Add(second);
         window.Content = panel;
+        window.Show();
 
-        FocusManager.SetFocusedElement(window, first);
-        var secondId = finder.GenerateElementId(second);
-        var windowId = finder.GenerateElementId(window);
+        try
+        {
+            FocusManager.SetFocusedElement(window, first);
+            var secondId = finder.GenerateElementId(second);
+            var windowId = finder.GenerateElementId(window);
 
-        var focusResult = JsonSerializer.SerializeToElement(analyzer.FocusElement(secondId));
-        var stateResult = JsonSerializer.SerializeToElement(analyzer.GetFocusState(windowId));
+            var focusResult = JsonSerializer.SerializeToElement(analyzer.FocusElement(secondId));
+            var stateResult = JsonSerializer.SerializeToElement(analyzer.GetFocusState(windowId));
 
-        focusResult.GetProperty("success").GetBoolean().Should().BeTrue();
-        focusResult.GetProperty("focused").GetBoolean().Should().BeTrue();
-        stateResult.GetProperty("focusedElementId").GetString().Should().Be(secondId);
+            focusResult.GetProperty("success").GetBoolean().Should().BeTrue();
+            focusResult.GetProperty("focused").GetBoolean().Should().BeTrue();
+            stateResult.GetProperty("focusedElementId").GetString().Should().Be(secondId);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void FocusElement_OnInactiveTabContent_ShouldReturnElementNotLoaded()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 320, Height = 240 };
+        var firstTextBox = new TextBox { Text = "Active" };
+        var secondTextBox = new TextBox { Text = "Inactive" };
+        var tabControl = new TabControl();
+        tabControl.Items.Add(new TabItem { Header = "One", Content = firstTextBox });
+        tabControl.Items.Add(new TabItem { Header = "Two", Content = secondTextBox });
+        tabControl.SelectedIndex = 0;
+        window.Content = tabControl;
+        window.Show();
+
+        try
+        {
+            var secondId = finder.GenerateElementId(secondTextBox);
+
+            var focusResult = JsonSerializer.SerializeToElement(analyzer.FocusElement(secondId));
+
+            focusResult.GetProperty("success").GetBoolean().Should().BeFalse();
+            focusResult.GetProperty("errorCode").GetString().Should().Be("ElementNotLoaded");
+            focusResult.GetProperty("hint").GetString().Should().Contain("inactive TabItem");
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 }

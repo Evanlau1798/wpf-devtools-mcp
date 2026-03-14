@@ -56,22 +56,42 @@ public sealed partial class InteractionAnalyzer
             }
 
             var window = ResolveFocusWindow(element);
-            if (window != null)
+            if (element is UIElement uiElement)
+            {
+                var readinessError = GetKeyboardInteractionError(uiElement, requireFocusable: true);
+                if (readinessError != null)
+                {
+                    return readinessError;
+                }
+
+                if (window != null)
+                {
+                    FocusManager.SetFocusedElement(window, inputElement);
+                }
+
+                uiElement.Focus();
+                Keyboard.Focus(uiElement);
+            }
+            else if (window != null)
             {
                 FocusManager.SetFocusedElement(window, inputElement);
             }
 
-            if (element is UIElement uiElement)
+            var keyboardFocused = ReferenceEquals(Keyboard.FocusedElement, element);
+            var logicalFocused = window != null && ReferenceEquals(FocusManager.GetFocusedElement(window), inputElement);
+            if (!keyboardFocused && !logicalFocused)
             {
-                uiElement.Focus();
-                Keyboard.Focus(uiElement);
+                return ToolErrorFactory.OperationFailed(
+                    "focus element",
+                    new InvalidOperationException("Element did not accept focus."),
+                    "Ensure the target is visible, enabled, focusable, and in the active tab or window before retrying.");
             }
 
             return new
             {
                 success = true,
                 focused = true,
-                focusKind = window != null ? "Logical" : "Keyboard",
+                focusKind = keyboardFocused ? "Keyboard" : "Logical",
                 focusedElementId = element is DependencyObject depObj ? _elementFinder.GenerateElementId(depObj) : null
             };
         });

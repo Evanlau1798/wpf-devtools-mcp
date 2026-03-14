@@ -47,30 +47,55 @@ public sealed partial class InteractionAnalyzer
                         "Set eventType to 'KeyDown' or 'KeyUp' when calling simulate_keyboard.");
                 }
 
+                var readinessError = GetKeyboardInteractionError(uiElement, requireFocusable: false);
+                if (readinessError != null)
+                {
+                    return readinessError;
+                }
+
+                EnsureElementFocused(uiElement);
+                var focusedElementIdBefore = GetFocusedElementId();
                 var presentationSource = PresentationSource.FromVisual(uiElement);
                 if (presentationSource == null)
                 {
-                    return ToolErrorFactory.ElementNotLoaded(
-                        "Element is not connected to a presentation source",
-                        "Ensure the element is attached to a rendered visual tree before calling simulate_keyboard. If it is inside an inactive TabItem, activate that tab first and then retry.");
+                    return CreateDetachedVisualTreeError();
                 }
 
                 if (routedEvent == Keyboard.KeyDownEvent &&
                     element is TextBox textBox &&
                     InteractionKeyboardHelper.TryApplyTextBoxEdit(textBox, parsedKey))
                 {
-                    return CreateKeyboardResult(element, key, eventType, appliedDirectEdit: true);
+                    var focusedElementIdAfter = GetFocusedElementId();
+                    var focusChanged = !string.Equals(
+                        focusedElementIdBefore,
+                        focusedElementIdAfter,
+                        StringComparison.Ordinal);
+                    return CreateKeyboardResult(
+                        element,
+                        key,
+                        eventType,
+                        appliedDirectEdit: true,
+                        focusChanged: focusChanged,
+                        semanticEffectObserved: true,
+                        focusedElementIdBefore: focusedElementIdBefore,
+                        focusedElementIdAfter: focusedElementIdAfter);
                 }
 
                 if (routedEvent == Keyboard.KeyDownEvent &&
                     InteractionKeyboardHelper.TryApplySpecialControlAction(uiElement, parsedKey))
                 {
+                    var focusedElementIdAfter = GetFocusedElementId();
+                    var focusChanged = !string.Equals(
+                        focusedElementIdBefore,
+                        focusedElementIdAfter,
+                        StringComparison.Ordinal);
                     return CreateKeyboardResult(element, key, eventType,
-                        appliedDirectEdit: true, semanticEffectObserved: true);
+                        appliedDirectEdit: true,
+                        focusChanged: focusChanged,
+                        semanticEffectObserved: true,
+                        focusedElementIdBefore: focusedElementIdBefore,
+                        focusedElementIdAfter: focusedElementIdAfter);
                 }
-
-                EnsureElementFocused(uiElement);
-                var focusedElementIdBefore = GetFocusedElementId();
 
                 InteractionKeyboardHelper.RaisePreviewEvent(uiElement, presentationSource, parsedKey, routedEvent);
                 uiElement.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, presentationSource, 0, parsedKey)
@@ -80,7 +105,12 @@ public sealed partial class InteractionAnalyzer
 
                 if (routedEvent == Keyboard.KeyDownEvent && parsedKey == Key.Tab)
                 {
-                    var focusChanged = InteractionKeyboardHelper.TryMoveFocus(uiElement, parsedKey);
+                    InteractionKeyboardHelper.TryMoveFocus(uiElement, parsedKey);
+                    var focusedElementIdAfter = GetFocusedElementId();
+                    var focusChanged = !string.Equals(
+                        focusedElementIdBefore,
+                        focusedElementIdAfter,
+                        StringComparison.Ordinal);
                     return CreateKeyboardResult(
                         element,
                         key,
@@ -88,10 +118,22 @@ public sealed partial class InteractionAnalyzer
                         focusChanged: focusChanged,
                         semanticEffectObserved: focusChanged,
                         focusedElementIdBefore: focusedElementIdBefore,
-                        focusedElementIdAfter: GetFocusedElementId());
+                        focusedElementIdAfter: focusedElementIdAfter);
                 }
 
-                return CreateKeyboardResult(element, key, eventType);
+                var focusedElementIdAfterDefault = GetFocusedElementId();
+                var focusChangedDefault = !string.Equals(
+                    focusedElementIdBefore,
+                    focusedElementIdAfterDefault,
+                    StringComparison.Ordinal);
+                return CreateKeyboardResult(
+                    element,
+                    key,
+                    eventType,
+                    focusChanged: focusChangedDefault,
+                    semanticEffectObserved: focusChangedDefault,
+                    focusedElementIdBefore: focusedElementIdBefore,
+                    focusedElementIdAfter: focusedElementIdAfterDefault);
             }
             catch (Exception ex)
             {

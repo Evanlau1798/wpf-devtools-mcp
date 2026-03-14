@@ -117,6 +117,7 @@ public static class ServerInstructions
         - When debugging, start broad (get_binding_errors) then narrow (get_bindings on specific element)
         - For MVVM apps, inspect ViewModel first (get_viewmodel, get_commands) before modifying
         - If get_dp_value_source reports isExpression=true, treat set_dp_value as a temporary override that replaces the existing expression until the control is rebound by app logic
+        - focus_element and simulate_keyboard require the target to be attached to the active rendered visual tree; activate inactive tabs before focus-sensitive actions
         - Remember: all destructive changes are runtime-only and NOT persisted to XAML
 
         === DESTRUCTIVE TOOLS (modify running app - changes NOT persisted to XAML) ===

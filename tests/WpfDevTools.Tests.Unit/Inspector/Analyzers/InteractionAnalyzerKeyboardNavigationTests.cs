@@ -85,4 +85,80 @@ public sealed class InteractionAnalyzerKeyboardNavigationTests
             window.Close();
         }
     }
+
+    [StaFact]
+    public void SimulateKeyboard_OnTextBoxDirectEdit_ShouldReportSemanticEffect()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 240, Height = 180 };
+        var textBox = new TextBox();
+        window.Content = textBox;
+        window.Show();
+
+        try
+        {
+            var textBoxId = finder.GenerateElementId(textBox);
+            textBox.Focus();
+            Keyboard.Focus(textBox);
+
+            var result = JsonSerializer.SerializeToElement(
+                analyzer.SimulateKeyboard(textBoxId, "A", "KeyDown"));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("appliedDirectEdit").GetBoolean().Should().BeTrue();
+            result.GetProperty("semanticEffectObserved").GetBoolean().Should().BeTrue();
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void SimulateKeyboard_WhenKeyHandlerMovesFocus_ShouldReportFocusChange()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 240, Height = 180 };
+        var panel = new StackPanel();
+        var firstTextBox = new TextBox { Text = "First" };
+        var secondTextBox = new TextBox { Text = "Second" };
+        firstTextBox.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Enter)
+            {
+                return;
+            }
+
+            secondTextBox.Focus();
+            Keyboard.Focus(secondTextBox);
+            e.Handled = true;
+        };
+        panel.Children.Add(firstTextBox);
+        panel.Children.Add(secondTextBox);
+        window.Content = panel;
+        window.Show();
+
+        try
+        {
+            var firstId = finder.GenerateElementId(firstTextBox);
+            var secondId = finder.GenerateElementId(secondTextBox);
+            firstTextBox.Focus();
+            Keyboard.Focus(firstTextBox);
+
+            var result = JsonSerializer.SerializeToElement(
+                analyzer.SimulateKeyboard(firstId, "Enter", "KeyDown"));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("focusChanged").GetBoolean().Should().BeTrue();
+            result.GetProperty("semanticEffectObserved").GetBoolean().Should().BeTrue();
+            result.GetProperty("focusedElementIdBefore").GetString().Should().Be(firstId);
+            result.GetProperty("focusedElementIdAfter").GetString().Should().Be(secondId);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 }

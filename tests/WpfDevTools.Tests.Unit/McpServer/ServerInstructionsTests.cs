@@ -61,6 +61,7 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("COMMON WORKFLOWS");
         ServerInstructions.Value.Should().Contain("Debug Binding Error");
         ServerInstructions.Value.Should().Contain("get_ui_summary");
+        ServerInstructions.Value.Should().Contain("summaryOnly=true");
         ServerInstructions.Value.Should().Contain("get_element_snapshot");
         ServerInstructions.Value.Should().Contain("get_form_summary");
         ServerInstructions.Value.Should().Contain("get_state_diff");

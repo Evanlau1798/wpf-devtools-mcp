@@ -99,7 +99,7 @@ public static class MvvmMcpTools
         "USE WHEN: Testing command logic; simulating button clicks via command.\n" +
         "DO NOT USE: When CanExecute is false (will fail); check with get_commands first.\n\n" +
         "WARNING: This triggers real application logic (saves data, navigates, etc.).\n\n" +
-        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core command result.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core command result. Use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -122,7 +122,7 @@ public static class MvvmMcpTools
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose DataContext provides the command. Omit for the root window.")] string? elementId = null,
         [Description("Optional command parameter serialized as a string.")] string? parameter = null,
-        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
+        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -200,7 +200,7 @@ public static class MvvmMcpTools
         "USE WHEN: Testing UI updates with different ViewModel values; debugging binding issues.\n" +
         "DO NOT USE: For permanent changes (not persisted); when INotifyPropertyChanged is missing (UI won't update).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
-        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core mutation result.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core mutation result. Use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -223,7 +223,7 @@ public static class MvvmMcpTools
         [Description("New property value encoded as raw JSON.")] JsonElement value,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose DataContext owns the property. Omit for the root window.")] string? elementId = null,
-        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
+        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

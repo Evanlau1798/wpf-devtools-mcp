@@ -38,6 +38,11 @@ internal static class SceneSummaryElementHelpers
 
     internal static bool IsCommandControl(DependencyObject element) => element is ButtonBase;
 
+    internal static bool ShouldIncludeFormSummaryElement(FrameworkElement element, bool includeFramework)
+    {
+        return includeFramework || !IsFrameworkNoiseFormElement(element);
+    }
+
     internal static IEnumerable<DependencyObject> GetVisualChildren(DependencyObject element)
     {
         if (element is not Visual and not System.Windows.Media.Media3D.Visual3D)
@@ -296,6 +301,52 @@ internal static class SceneSummaryElementHelpers
         }
 
         return null;
+    }
+
+    private static bool IsFrameworkNoiseFormElement(FrameworkElement element)
+    {
+        if (!IsKnownFrameworkNoiseFormType(element))
+        {
+            return false;
+        }
+
+        return !HasMeaningfulFormSignal(element);
+    }
+
+    private static bool IsKnownFrameworkNoiseFormType(FrameworkElement element)
+    {
+        return element is RepeatButton
+            || element.GetType().Name is "DataGridRowHeader" or "DataGridColumnHeader";
+    }
+
+    private static bool HasMeaningfulFormSignal(FrameworkElement element)
+    {
+        var elementName = GetElementName(element);
+        if (!string.IsNullOrWhiteSpace(elementName)
+            && !elementName.StartsWith("PART_", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if ((element.TemplatedParent == null && !string.IsNullOrWhiteSpace(TryGetNearbyLabel(element)))
+            || !string.IsNullOrWhiteSpace(TryGetBindingPath(element))
+            || Validation.GetHasError(element))
+        {
+            return true;
+        }
+
+        return HasMeaningfulDisplayText(GetDisplayText(element));
+    }
+
+    private static bool HasMeaningfulDisplayText(string? displayText)
+    {
+        if (string.IsNullOrWhiteSpace(displayText))
+        {
+            return false;
+        }
+
+        var trimmedText = displayText.Trim();
+        return !trimmedText.StartsWith("System.", StringComparison.Ordinal);
     }
 
     private static string? TryExtractLabelText(FrameworkElement element)

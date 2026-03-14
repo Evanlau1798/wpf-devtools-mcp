@@ -74,7 +74,7 @@ public static class ServerInstructions
         - Runtime metadata is returned as structured JSON; use structured fields over text scraping when possible
 
         === TOOL SELECTION GUIDE ===
-        - Need quick scene context first? -> get_ui_summary (semantic default), get_element_snapshot, or get_form_summary
+        - Need quick scene context first? -> get_ui_summary (semantic default; use summaryOnly=true when you only need summaryText), get_element_snapshot, or get_form_summary
         - Need exact element lookup first? -> find_elements, then get_visual_tree/get_logical_tree for local structure
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
         - Binding active but data looks wrong? -> get_binding_mismatches (path, type, nullability analysis)
@@ -103,7 +103,7 @@ public static class ServerInstructions
         - Do not call get_processes before connect() as a default habit; treat it as a disambiguation or filtering tool
         - Store processId in conversation context after successful connect()
         - Prefer get_ui_summary/get_element_snapshot/get_form_summary before tree-heavy inspection
-        - Prefer get_ui_summary for initial context unless you already have a narrow element-centric question
+        - Prefer get_ui_summary(summaryOnly=true, depthMode='semantic') for initial scene orientation unless you already have a narrow element-centric question
         - Use depth=2-3 for initial tree exploration; increase only if needed
         - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
         - Prefer slash commands from MCP prompts when you want a predefined workflow entry point
@@ -158,7 +158,8 @@ public static class ServerInstructions
         - get_validation_errors: recursively aggregates errors from ALL visual descendants (max depth: 50, max errors: 200). Each error includes elementType/elementName to identify the source.
         - set_dp_value / modify_viewmodel: JSON string values with surrounding double-quotes are auto-stripped (e.g., "\"hello\"" becomes "hello").
         - binding/data-context/validation diagnostics expose normalized diagnosticKind/sourceKind fields for cross-tool correlation.
-        - mutation and interaction tools accept detail=compact when you want to trim additive normalization metadata but keep the same core semantics.
+        - mutation and interaction tools default to detail=compact when you want trimmed additive normalization metadata while preserving the same core semantics.
+        - use detail=verbose when you need requested/effective input plus observedEffect metadata; legacy detail=standard remains accepted as a compatibility alias.
 
         === RESPONSE CONTRACT VERSION ===
         - Current response contract version: {{ResponseContractVersion.Current}}

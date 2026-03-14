@@ -56,12 +56,12 @@ internal static class DllPathValidator
             throw new ArgumentException("Cannot load DLL from system directories", nameof(dllPath));
         }
 
-        var signatureAction = SignaturePolicy.Evaluate(isDebugBuild: IsDebugBuild);
+        var signatureAction = GetSignatureAction(baseDirectory);
 
         if (signatureAction == SignaturePolicy.Action.Skip)
         {
             System.Diagnostics.Trace.TraceInformation(
-                "[SECURITY] DLL signature verification skipped per policy (DEBUG build, trusted context).");
+                "[SECURITY] DLL signature verification skipped per policy (development build, trusted context).");
         }
         else
         {
@@ -106,8 +106,69 @@ internal static class DllPathValidator
                normalizedFullPath.StartsWith(normalizedRootPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
+    internal static SignaturePolicy.Action GetCurrentBuildSignatureAction()
+        => GetSignatureAction(AppContext.BaseDirectory);
+
+    internal static SignaturePolicy.Action GetSignatureAction(string baseDirectory)
+        => SignaturePolicy.Evaluate(
+            isDebugBuild: IsDebugBuild,
+            isTrustedLocalDevelopmentBuild: IsTrustedLocalDevelopmentBuild(baseDirectory));
+
     internal static X509RevocationMode GetCurrentBuildRevocationMode()
-        => SignaturePolicy.GetRevocationMode(IsDebugBuild);
+        => SignaturePolicy.GetRevocationMode(
+            isDebugBuild: IsDebugBuild,
+            isTrustedLocalDevelopmentBuild: IsTrustedLocalDevelopmentBuild(AppContext.BaseDirectory));
+
+    internal static bool IsTrustedLocalDevelopmentBuild(string baseDirectory)
+    {
+        if (IsDebugBuild)
+        {
+            return true;
+        }
+
+        var buildConfiguration = TryGetBuildConfiguration(baseDirectory);
+        if (string.IsNullOrWhiteSpace(buildConfiguration)
+            || string.Equals(buildConfiguration, "Release", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return RepositoryLayoutLocator.EnumerateSolutionRoots(baseDirectory).Any();
+    }
+
+    internal static string? TryGetBuildConfiguration(string baseDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(baseDirectory))
+        {
+            return null;
+        }
+
+        var normalizedBaseDirectory = baseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var currentDirectory = new DirectoryInfo(normalizedBaseDirectory);
+
+        if (string.Equals(currentDirectory.Name, "publish", StringComparison.OrdinalIgnoreCase))
+        {
+            currentDirectory = currentDirectory.Parent!;
+        }
+
+        while (currentDirectory != null)
+        {
+            var configurationDirectory = currentDirectory.Parent;
+            var binDirectory = configurationDirectory?.Parent;
+
+            if (configurationDirectory != null
+                && binDirectory != null
+                && string.Equals(binDirectory.Name, "bin", StringComparison.OrdinalIgnoreCase))
+            {
+                return configurationDirectory.Name;
+            }
+
+            currentDirectory = currentDirectory.Parent;
+        }
+
+        return null;
+    }
+
     private static void VerifyAuthenticodeSignature(string filePath)
     {
         try

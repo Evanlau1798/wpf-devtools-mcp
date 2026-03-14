@@ -17,18 +17,19 @@ public static class MutationDetailModeParser
         var detail = ParameterParser.ParseStringParam(arguments, "detail");
         if (string.IsNullOrWhiteSpace(detail))
         {
-            return (MutationDetailMode.Standard, null);
+            return (MutationDetailMode.Compact, null);
         }
 
         return detail.Trim().ToLowerInvariant() switch
         {
+            "verbose" => (MutationDetailMode.Standard, null),
             "standard" => (MutationDetailMode.Standard, null),
             "compact" => (MutationDetailMode.Compact, null),
-            _ => (MutationDetailMode.Standard, new ToolErrorPayload
+            _ => (MutationDetailMode.Compact, new ToolErrorPayload
             {
-                Error = "detail must be either 'standard' or 'compact'",
+                Error = "detail must be 'compact', 'verbose', or legacy alias 'standard'",
                 ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
-                Hint = "Use detail='standard' for full metadata or detail='compact' for a trimmed response."
+                Hint = "Use detail='compact' for the default trimmed response, detail='verbose' for full additive metadata, or detail='standard' as a compatibility alias."
             })
         };
     }

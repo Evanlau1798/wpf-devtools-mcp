@@ -160,4 +160,36 @@ public sealed class GetBindingErrorsToolTests : IDisposable
 
         result.StructuredContent!.Value.GetProperty("nextSteps").GetArrayLength().Should().Be(0);
     }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithCompactResponse_ShouldTrimMessageAfterNavigationPlanning()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                errorCount = 1,
+                errors = new[]
+                {
+                    new
+                    {
+                        message = "BindingExpression path error: 'MissingName' property not found on object.",
+                        eventType = "Error",
+                        elementId = "TextBox_3",
+                        propertyName = "Text",
+                        bindingPath = "MissingName"
+                    }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("compact", true)),
+            CancellationToken.None,
+            toolName: "get_binding_errors");
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_datacontext_chain");
+        result.StructuredContent!.Value.GetProperty("errors")[0].TryGetProperty("message", out _).Should().BeFalse();
+        navigation.GetProperty("alternatives")[0].GetProperty("tool").GetString().Should().Be("get_bindings");
+    }
 }

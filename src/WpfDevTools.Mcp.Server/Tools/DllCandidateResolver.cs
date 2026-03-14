@@ -14,10 +14,10 @@ internal static class DllCandidateResolver
         yield return Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net48", "WpfDevTools.Inspector.dll"));
 
+        var configurations = GetPreferredBuildConfigurations(serverDir);
         foreach (var solutionRoot in RepositoryLayoutLocator.EnumerateSolutionRoots(serverDir))
         {
             var inspectorBinRoot = Path.Combine(solutionRoot, "src", "WpfDevTools.Inspector", "bin");
-            var configurations = new[] { "Debug", "Release" };
             var frameworks = new[] { "net8.0-windows", "net48" };
 
             foreach (var configuration in configurations)
@@ -43,10 +43,10 @@ internal static class DllCandidateResolver
         yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "x86", "WpfDevTools.Bootstrapper.x86.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "arm64", "WpfDevTools.Bootstrapper.arm64.dll"));
 
+        var configurations = GetPreferredBuildConfigurations(serverDir);
         foreach (var solutionRoot in RepositoryLayoutLocator.EnumerateSolutionRoots(serverDir))
         {
             var artifactsRoot = Path.Combine(solutionRoot, "artifacts", "bootstrapper");
-            var configurations = new[] { "Debug", "Release" };
             var platforms = new[] { ("x64", "x64"), ("Win32", "x86"), ("ARM64", "arm64") };
 
             foreach (var configuration in configurations)
@@ -64,5 +64,36 @@ internal static class DllCandidateResolver
     public static string? GetSolutionRoot(string startDirectory)
     {
         return RepositoryLayoutLocator.EnumerateSolutionRoots(startDirectory).FirstOrDefault();
+    }
+
+    internal static IReadOnlyList<string> GetPreferredBuildConfigurations(string serverDir)
+    {
+        var currentConfiguration = TryGetBuildConfiguration(serverDir);
+        return new[] { currentConfiguration, "Debug", "Release" }
+            .Where(configuration => !string.IsNullOrWhiteSpace(configuration))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray()!;
+    }
+
+    private static string? TryGetBuildConfiguration(string serverDir)
+    {
+        if (string.IsNullOrWhiteSpace(serverDir))
+        {
+            return null;
+        }
+
+        var normalizedServerDirectory = serverDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var targetFrameworkDirectory = new DirectoryInfo(normalizedServerDirectory);
+        var configurationDirectory = targetFrameworkDirectory.Parent;
+        var binDirectory = configurationDirectory?.Parent;
+
+        if (configurationDirectory == null
+            || binDirectory == null
+            || !string.Equals(binDirectory.Name, "bin", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return configurationDirectory.Name;
     }
 }

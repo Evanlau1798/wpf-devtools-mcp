@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
@@ -159,5 +160,61 @@ public sealed class FormSummaryAnalyzerTests
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("inputs")[0].GetProperty("label").GetString().Should().Be("Account Details");
+    }
+
+    [StaFact]
+    public void GetFormSummary_ShouldFilterFrameworkNoiseByDefault()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new FormSummaryAnalyzer(finder);
+        var form = new StackPanel
+        {
+            Name = "NoiseForm",
+            Children =
+            {
+                new TextBox { Name = "NameBox", Text = "Edge" },
+                new Button { Name = "SaveButton", Content = "Save", IsEnabled = true },
+                new RepeatButton { Name = "PART_LineUpButton" },
+                new RepeatButton()
+            }
+        };
+        var elementId = finder.GenerateElementId(form);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("commands")
+            .EnumerateArray()
+            .Select(command => command.GetProperty("elementType").GetString())
+            .Should()
+            .NotContain("RepeatButton");
+    }
+
+    [StaFact]
+    public void GetFormSummary_WithIncludeFrameworkTrue_ShouldPreserveFrameworkNoise()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new FormSummaryAnalyzer(finder);
+        var form = new StackPanel
+        {
+            Name = "NoiseForm",
+            Children =
+            {
+                new TextBox { Name = "NameBox", Text = "Edge" },
+                new Button { Name = "SaveButton", Content = "Save", IsEnabled = true },
+                new RepeatButton { Name = "PART_LineUpButton" },
+                new RepeatButton()
+            }
+        };
+        var elementId = finder.GenerateElementId(form);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId, includeFramework: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("commands")
+            .EnumerateArray()
+            .Select(command => command.GetProperty("elementType").GetString())
+            .Should()
+            .Contain("RepeatButton");
     }
 }

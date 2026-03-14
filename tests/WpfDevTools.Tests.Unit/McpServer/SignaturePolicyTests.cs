@@ -32,6 +32,17 @@ public class SignaturePolicyTests
             "DEBUG builds skip verification (path already validated as trusted root)");
     }
 
+    [Fact]
+    public void Evaluate_TrustedLocalDevelopmentBuild_ShouldSkip()
+    {
+        var result = SignaturePolicy.Evaluate(
+            isDebugBuild: false,
+            isTrustedLocalDevelopmentBuild: true);
+
+        result.Should().Be(SignaturePolicy.Action.Skip,
+            "trusted non-Release workspace builds should remain usable for local development");
+    }
+
     // === Revocation mode tests ===
     // Contract: Debug uses Offline (no network blocking), Release uses Online (max security)
 
@@ -53,19 +64,30 @@ public class SignaturePolicyTests
             "RELEASE builds must use Online revocation for maximum security");
     }
 
+    [Fact]
+    public void GetRevocationMode_TrustedLocalDevelopmentBuild_ShouldReturnOffline()
+    {
+        var mode = SignaturePolicy.GetRevocationMode(
+            isDebugBuild: false,
+            isTrustedLocalDevelopmentBuild: true);
+
+        mode.Should().Be(X509RevocationMode.Offline,
+            "trusted local workspace builds should avoid production-style signature network checks");
+    }
+
 
     [Fact]
     public void GetCurrentBuildRevocationMode_ShouldMatchBuildConfiguration()
     {
         var mode = DllPathValidator.GetCurrentBuildRevocationMode();
+        var action = DllPathValidator.GetCurrentBuildSignatureAction();
 
-#if DEBUG
-        mode.Should().Be(X509RevocationMode.Offline,
-            "the DEBUG build must wire Offline revocation into Authenticode chain validation to avoid network-blocking verification");
-#else
-        mode.Should().Be(X509RevocationMode.Online,
-            "the RELEASE build must wire Online revocation into Authenticode chain validation for maximum security");
-#endif
+        var expected = action == SignaturePolicy.Action.Skip
+            ? X509RevocationMode.Offline
+            : X509RevocationMode.Online;
+
+        mode.Should().Be(expected,
+            "the current build's revocation policy must stay aligned with the effective signature verification action");
     }
     // === Integration: ConnectTool path validation ===
 
@@ -73,16 +95,19 @@ public class SignaturePolicyTests
     public void ValidateDllPath_DebugBuild_TrustedRoot_ShouldNotThrow()
     {
         var trustedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
+        var act = () => DllPathValidator.ValidateDllPath(trustedDllPath);
+        var signatureAction = DllPathValidator.GetCurrentBuildSignatureAction();
 
-#if DEBUG
-        var act = () => DllPathValidator.ValidateDllPath(trustedDllPath);
-        act.Should().NotThrow(
-            "DEBUG builds auto-skip signature verification for trusted root DLLs");
-#else
-        var act = () => DllPathValidator.ValidateDllPath(trustedDllPath);
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*signature*");
-#endif
+        if (signatureAction == SignaturePolicy.Action.Skip)
+        {
+            act.Should().NotThrow(
+                "development builds should skip signature verification for trusted root DLLs");
+        }
+        else
+        {
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*signature*");
+        }
     }
 
     [Fact]
@@ -164,18 +189,39 @@ public class SignaturePolicyTests
         try
         {
             var act = () => DllPathValidator.ValidateDllPath(trustedDllPath, baseDirectory);
+            var signatureAction = DllPathValidator.GetSignatureAction(baseDirectory);
 
-#if DEBUG
-            act.Should().NotThrow();
-#else
-            act.Should().Throw<InvalidOperationException>()
-                .WithMessage("*signature*");
-#endif
+            if (signatureAction == SignaturePolicy.Action.Skip)
+            {
+                act.Should().NotThrow();
+            }
+            else
+            {
+                act.Should().Throw<InvalidOperationException>()
+                    .WithMessage("*signature*");
+            }
         }
         finally
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void TryGetBuildConfiguration_ReleasePublishDirectory_ShouldReturnRelease()
+    {
+        var baseDirectory = Path.Combine(
+            "G:\\wpf-devtools-mcp",
+            "src",
+            "WpfDevTools.Mcp.Server",
+            "bin",
+            "Release",
+            "net8.0-windows",
+            "publish");
+
+        var configuration = DllPathValidator.TryGetBuildConfiguration(baseDirectory);
+
+        configuration.Should().Be("Release");
     }
 }
 

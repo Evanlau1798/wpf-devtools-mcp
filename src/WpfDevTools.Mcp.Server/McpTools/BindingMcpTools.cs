@@ -118,7 +118,7 @@ public static class BindingMcpTools
         "FIRST tool to use when debugging data display issues.\n\n" +
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
         "DO NOT USE: Before calling connect() - errors are only captured after injection; for validation rule errors use get_validation_errors.\n" +
-        "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics.\n\n" +
+        "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics. Use `compact=true` to omit the verbose free-form message while preserving structured correlation fields.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -154,12 +154,14 @@ public static class BindingMcpTools
         [Description("Optional connected WPF process ID whose captured binding errors should be returned. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional maximum number of errors to return after filtering. Omit to return the full captured list.")] int? maxErrors = null,
         [Description("Optional ISO-8601 timestamp filter. Only errors at or after this instant are returned.")] string? sinceTimestamp = null,
+        [Description("When true, omit the verbose free-form message field and keep only the structured correlation fields for token-efficient triage.")] bool compact = false,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("maxErrors", maxErrors),
-            ("sinceTimestamp", sinceTimestamp));
+            ("sinceTimestamp", sinceTimestamp),
+            ("compact", compact));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetBindingErrorsTool>("GetBindingErrorsTool", () => new GetBindingErrorsTool(sessionManager)).ExecuteAsync(a, ct),

@@ -92,7 +92,7 @@ public sealed class SceneDiagnosticsContractTests : IDisposable
     }
 
     [Fact]
-    public void GetUiSummary_ShouldExposeOptionalElementIdDepthAndDepthMode()
+    public void GetUiSummary_ShouldExposeOptionalElementIdDepthDepthModeAndSummaryOnly()
     {
         var method = typeof(SceneDiagnosticsMcpTools).GetMethod(nameof(SceneDiagnosticsMcpTools.GetUiSummary));
 
@@ -117,10 +117,15 @@ public sealed class SceneDiagnosticsContractTests : IDisposable
         depthMode.ParameterType.Should().Be(typeof(string));
         depthMode.HasDefaultValue.Should().BeTrue();
         depthMode.DefaultValue.Should().BeNull();
+
+        var summaryOnly = method.GetParameters().Single(parameter => parameter.Name == "summaryOnly");
+        summaryOnly.ParameterType.Should().Be(typeof(bool));
+        summaryOnly.HasDefaultValue.Should().BeTrue();
+        summaryOnly.DefaultValue.Should().Be(false);
     }
 
     [Fact]
-    public void GetFormSummary_ShouldExposeOptionalElementIdAndProcessId()
+    public void GetFormSummary_ShouldExposeOptionalElementIdProcessIdAndIncludeFramework()
     {
         var method = typeof(SceneDiagnosticsMcpTools).GetMethod(nameof(SceneDiagnosticsMcpTools.GetFormSummary));
 
@@ -135,6 +140,11 @@ public sealed class SceneDiagnosticsContractTests : IDisposable
         processId.ParameterType.Should().Be(typeof(int?));
         processId.HasDefaultValue.Should().BeTrue();
         processId.DefaultValue.Should().BeNull();
+
+        var includeFramework = method.GetParameters().Single(parameter => parameter.Name == "includeFramework");
+        includeFramework.ParameterType.Should().Be(typeof(bool));
+        includeFramework.HasDefaultValue.Should().BeTrue();
+        includeFramework.DefaultValue.Should().Be(false);
     }
 
     [Fact]
@@ -202,6 +212,25 @@ public sealed class SceneDiagnosticsContractTests : IDisposable
         nextSteps[0].GetProperty("tool").GetString().Should().Be("set_dp_value");
         nextSteps[0].GetProperty("params").GetProperty("propertyName").GetString().Should().Be("Opacity");
         nextSteps[0].GetProperty("params").GetProperty("value").GetDouble().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithRenderTransformOffscreenRootCause_ShouldNotSuggestMutationNavigation()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                elementId = "Button_1",
+                isUserVisible = false,
+                rootCause = "Element Button_1 is outside the visible viewport after applying its RenderTransform."
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Button_1")),
+            CancellationToken.None,
+            toolName: "diagnose_visibility");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(0);
     }
 
     [Fact]

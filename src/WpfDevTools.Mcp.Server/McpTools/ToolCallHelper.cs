@@ -93,6 +93,7 @@ public static class ToolCallHelper
             var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
             var navigation = _navigationPlanner.PlanEnvelope(toolName, jsonElement, args, navigationState);
             jsonElement = EnsureNavigation(jsonElement, navigation);
+            jsonElement = ApplyToolSpecificContracts(toolName, args, jsonElement);
             var isError = IsToolResultError(jsonElement);
 
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, !isError);
@@ -292,6 +293,113 @@ public static class ToolCallHelper
         return document.RootElement.Clone();
     }
 
+    private static JsonElement ApplyToolSpecificContracts(
+        string toolName,
+        JsonElement? args,
+        JsonElement element)
+    {
+        if (string.Equals(toolName, "get_ui_summary", StringComparison.Ordinal)
+            && TryGetBool(args, "summaryOnly"))
+        {
+            return RemoveTopLevelProperties(element, "nodes");
+        }
+
+        if (string.Equals(toolName, "get_binding_errors", StringComparison.Ordinal)
+            && TryGetBool(args, "compact"))
+        {
+            return RemovePropertyFromArrayItems(element, "errors", "message");
+        }
+
+        return element;
+    }
+
+    private static JsonElement RemoveTopLevelProperties(JsonElement element, params string[] propertyNames)
+    {
+        if (element.ValueKind != JsonValueKind.Object || propertyNames.Length == 0)
+        {
+            return element;
+        }
+
+        var propertiesToRemove = new HashSet<string>(propertyNames, StringComparer.Ordinal);
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartObject();
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (propertiesToRemove.Contains(property.Name))
+            {
+                continue;
+            }
+
+            property.WriteTo(writer);
+        }
+
+        writer.WriteEndObject();
+        writer.Flush();
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
+    }
+
+    private static JsonElement RemovePropertyFromArrayItems(
+        JsonElement element,
+        string arrayPropertyName,
+        string propertyToRemove)
+    {
+        if (element.ValueKind != JsonValueKind.Object
+            || !element.TryGetProperty(arrayPropertyName, out var arrayProperty)
+            || arrayProperty.ValueKind != JsonValueKind.Array)
+        {
+            return element;
+        }
+
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartObject();
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (!property.NameEquals(arrayPropertyName))
+            {
+                property.WriteTo(writer);
+                continue;
+            }
+
+            writer.WritePropertyName(property.Name);
+            writer.WriteStartArray();
+            foreach (var item in arrayProperty.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object)
+                {
+                    item.WriteTo(writer);
+                    continue;
+                }
+
+                writer.WriteStartObject();
+                foreach (var itemProperty in item.EnumerateObject())
+                {
+                    if (itemProperty.NameEquals(propertyToRemove))
+                    {
+                        continue;
+                    }
+
+                    itemProperty.WriteTo(writer);
+                }
+
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+        }
+
+        writer.WriteEndObject();
+        writer.Flush();
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
+    }
+
     private static int? TryGetProcessId(JsonElement? args)
     {
         if (args is not { } candidate
@@ -304,6 +412,15 @@ public static class ToolCallHelper
         }
 
         return processId;
+    }
+
+    private static bool TryGetBool(JsonElement? args, string propertyName)
+    {
+        return args is { } candidate
+            && candidate.ValueKind == JsonValueKind.Object
+            && candidate.TryGetProperty(propertyName, out var property)
+            && property.ValueKind is JsonValueKind.True or JsonValueKind.False
+            && property.GetBoolean();
     }
 }
 

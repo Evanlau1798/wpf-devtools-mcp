@@ -196,7 +196,7 @@ public static class SceneDiagnosticsMcpTools
         "Use this tool to get a token-efficient semantic summary of a WPF window or subtree without relying on screenshots.\n\n" +
         SceneMetadata +
         "[Scene] Traverse a WPF runtime subtree, suppress layout-only wrappers, and return a compact semantic overview of user-facing controls.\n\n" +
-        "USE WHEN: You need fast screen context for an unfamiliar area before drilling into a specific element. For agent workflows, prefer depthMode='semantic' so layout-only wrapper levels do not consume the depth budget.\n" +
+        "USE WHEN: You need fast screen context for an unfamiliar area before drilling into a specific element. For agent workflows, prefer depthMode='semantic' so layout-only wrapper levels do not consume the depth budget, and prefer summaryOnly=true when you only need summaryText without the node table.\n" +
         "DO NOT USE: As a replacement for full tree inspection when exact structure matters.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
@@ -208,27 +208,30 @@ public static class SceneDiagnosticsMcpTools
         "  depth: number,\n" +
         "  semanticNodeCount: number,\n" +
         "  summaryText: string,\n" +
-        "  nodes: []\n" +
+        "  nodes: [] // omitted entirely when summaryOnly=true\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree, or omit it to summarize the root window\n" +
         "- \"not connected\" -> reconnect before requesting a semantic UI summary\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, depthMode: \"semantic\" }\n" +
-        "- { elementId: \"BasicControlsStackPanel_4\", depth: 4, depthMode: \"semantic\" }")]
+        "- { elementId: \"BasicControlsStackPanel_4\", depth: 4, depthMode: \"semantic\" }\n" +
+        "- { processId: 12345, depthMode: \"semantic\", summaryOnly: true }")]
     public static Task<CallToolResult> GetUiSummary(
         SessionManager sessionManager,
         [Description("Optional runtime element ID to scope the semantic summary. Omit to summarize the root window.")] string? elementId = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional maximum visual depth to summarize. Omit to use the default semantic summary depth budget.")] int? depth = null,
         [Description("Optional depth accounting mode: 'semantic' (default) skips layout-only wrapper levels when budgeting depth, while 'visual' counts every traversed level.")] string? depthMode = null,
+        [Description("Set true to return only the semantic summary metadata and omit the nodes array for a lighter response.")] bool summaryOnly = false,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
             ("depth", depth),
-            ("depthMode", depthMode));
+            ("depthMode", depthMode),
+            ("summaryOnly", summaryOnly));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetUiSummaryTool>(
@@ -244,7 +247,7 @@ public static class SceneDiagnosticsMcpTools
         "Use this tool to summarize the current state of a WPF form subtree in one call.\n\n" +
         SceneMetadata +
         "[Scene] Aggregate common input controls, nearby labels, current values, validation errors, command readiness, and overall form submittability.\n\n" +
-        "USE WHEN: You want a single triage call for form-style layouts before validating or clicking Save/Submit.\n" +
+        "USE WHEN: You want a single triage call for form-style layouts before validating or clicking Save/Submit. By default, framework-internal template controls such as RepeatButton or DataGrid headers are filtered out unless you explicitly set includeFramework=true.\n" +
         "DO NOT USE: For arbitrary non-form regions with no input or action controls.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
@@ -260,16 +263,19 @@ public static class SceneDiagnosticsMcpTools
         "- \"not connected\" -> reconnect before requesting a form summary\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"BasicControlsStackPanel_4\" }\n" +
-        "- { elementId: \"ProfileForm_2\" }")]
+        "- { elementId: \"ProfileForm_2\" }\n" +
+        "- { processId: 12345, includeFramework: true }")]
     public static Task<CallToolResult> GetFormSummary(
         SessionManager sessionManager,
         [Description("Optional runtime element ID to scope the form summary. Omit to use the root window.")] string? elementId = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Set true to keep framework-internal template controls such as RepeatButton or DataGrid header elements in the form summary. Default false keeps the response user-signal focused.")] bool includeFramework = false,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("includeFramework", includeFramework));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetFormSummaryTool>(

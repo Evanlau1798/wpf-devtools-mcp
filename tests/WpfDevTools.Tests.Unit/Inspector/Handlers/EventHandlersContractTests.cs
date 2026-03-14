@@ -84,6 +84,29 @@ public sealed class EventHandlersContractTests : IDisposable
         nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
     }
 
+    [Fact]
+    public async Task GetEventHandlers_WithIncompleteClickInspection_ShouldRecommendCommandFallback()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                elementId = "SaveButton",
+                eventName = "Click",
+                handlerCount = 0,
+                mayBeIncomplete = true,
+                handlers = Array.Empty<object>()
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            toolName: "get_event_handlers");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_commands");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+    }
+
     private sealed class TestRelayCommand : System.Windows.Input.ICommand
     {
         private readonly Action _execute;

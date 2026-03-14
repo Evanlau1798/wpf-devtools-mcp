@@ -196,6 +196,62 @@ public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
         }
     }
 
+    // Task 4 scope boundary: this detects transformed bounds that are entirely outside the
+    // visible root viewport. It is not a complete semantic model for every transform family
+    // or occlusion case.
+    private static bool IsRenderTransformOffscreen(FrameworkElement element)
+    {
+        if (element.RenderTransform is not { } renderTransform || renderTransform.Value.IsIdentity)
+        {
+            return false;
+        }
+
+        if (!TryGetVisibleViewportRoot(element, out var viewportRoot))
+        {
+            return false;
+        }
+
+        var elementBounds = GetContentBounds(element);
+        if (elementBounds.IsEmpty)
+        {
+            return false;
+        }
+
+        var viewportBounds = new Rect(new Point(0, 0), viewportRoot.RenderSize);
+        if (viewportBounds.IsEmpty)
+        {
+            return false;
+        }
+
+        try
+        {
+            var transformedBounds = element.TransformToAncestor(viewportRoot).TransformBounds(elementBounds);
+            return !transformedBounds.IntersectsWith(viewportBounds);
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetVisibleViewportRoot(FrameworkElement element, out UIElement viewportRoot)
+    {
+        if (Window.GetWindow(element)?.Content is UIElement contentRoot)
+        {
+            viewportRoot = contentRoot;
+            return true;
+        }
+
+        if (Window.GetWindow(element) is UIElement window)
+        {
+            viewportRoot = window;
+            return true;
+        }
+
+        viewportRoot = null!;
+        return false;
+    }
+
     private static (double left, double top, double right, double bottom)
         GetSelfOverflowAmounts(UIElement element, Geometry? clip, bool clipToBounds)
     {

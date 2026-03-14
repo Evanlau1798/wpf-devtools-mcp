@@ -17,7 +17,7 @@ public sealed class InteractionToolMetadataTests : IDisposable
     }
 
     [Fact]
-    public void ExecuteCommand_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    public void ExecuteCommand_WhenDetailOmitted_ShouldReturnCompactCoreFields()
     {
         var result = InteractionMetadataProbe.Apply(
             new
@@ -37,6 +37,37 @@ public sealed class InteractionToolMetadataTests : IDisposable
             "Triggers real application logic. Confirm the observedEffect before assuming navigation, save, or side effects completed.");
 
         var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("commandName").GetString().Should().Be("SaveCommand");
+        json.GetProperty("executed").GetBoolean().Should().BeTrue();
+        json.TryGetProperty("requestedInput", out _).Should().BeFalse();
+        json.TryGetProperty("effectiveInput", out _).Should().BeFalse();
+        json.TryGetProperty("observedEffect", out _).Should().BeFalse();
+        json.TryGetProperty("notes", out _).Should().BeFalse();
+        json.TryGetProperty("usedFallback", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ExecuteCommand_WithDetailVerbose_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    {
+        var result = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                commandName = "SaveCommand",
+                executed = true,
+                canExecute = true
+            },
+            new
+            {
+                elementId = "SaveButton",
+                commandName = "SaveCommand",
+                parameter = "Document-1"
+            },
+            ToJsonElement(new { detail = "verbose" }),
+            "Triggers real application logic. Confirm the observedEffect before assuming navigation, save, or side effects completed.");
+
+        var json = JsonSerializer.SerializeToElement(result);
         json.GetProperty("requestedInput").GetProperty("commandName").GetString().Should().Be("SaveCommand");
         json.GetProperty("effectiveInput").GetProperty("parameter").GetString().Should().Be("Document-1");
         json.GetProperty("observedEffect").GetProperty("executed").GetBoolean().Should().BeTrue();
@@ -45,7 +76,7 @@ public sealed class InteractionToolMetadataTests : IDisposable
     }
 
     [Fact]
-    public void ClickElement_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    public void ClickElement_WithDetailVerbose_ShouldIncludeRequestedInputAndObservedEffectMetadata()
     {
         var result = InteractionMetadataProbe.Apply(
             new
@@ -57,7 +88,7 @@ public sealed class InteractionToolMetadataTests : IDisposable
             {
                 elementId = "SaveButton"
             },
-            null,
+            ToJsonElement(new { detail = "verbose" }),
             "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.");
 
         var json = JsonSerializer.SerializeToElement(result);
@@ -68,7 +99,7 @@ public sealed class InteractionToolMetadataTests : IDisposable
     }
 
     [Fact]
-    public void FireRoutedEvent_ShouldIncludeRequestedInputAndFallbackMetadata()
+    public void FireRoutedEvent_WithDetailVerbose_ShouldIncludeRequestedInputAndFallbackMetadata()
     {
         var result = InteractionMetadataProbe.Apply(
             new
@@ -83,7 +114,7 @@ public sealed class InteractionToolMetadataTests : IDisposable
                 elementId = "SaveButton",
                 eventName = "Click"
             },
-            null,
+            ToJsonElement(new { detail = "verbose" }),
             "Routed-event execution may use the ButtonBase OnClick path when applicable. Inspect usedFallback and observedEffect before assuming the event path used.",
             usedFallback: true);
 
@@ -95,7 +126,7 @@ public sealed class InteractionToolMetadataTests : IDisposable
     }
 
     [Fact]
-    public void ModifyViewModel_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    public void ModifyViewModel_WithDetailVerbose_ShouldIncludeRequestedInputAndObservedEffectMetadata()
     {
         var result = InteractionMetadataProbe.Apply(
             new
@@ -111,7 +142,7 @@ public sealed class InteractionToolMetadataTests : IDisposable
                 propertyName = "Name",
                 value = "Bob"
             },
-            null,
+            ToJsonElement(new { detail = "verbose" }),
             "Runtime-only ViewModel mutation. UI refresh still depends on INotifyPropertyChanged and any binding-side validation.");
 
         var json = JsonSerializer.SerializeToElement(result);
@@ -145,6 +176,41 @@ public sealed class InteractionToolMetadataTests : IDisposable
         json.TryGetProperty("observedEffect", out _).Should().BeFalse();
         json.TryGetProperty("notes", out _).Should().BeFalse();
         json.TryGetProperty("usedFallback", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ClickElement_CompactPayload_ShouldBeLessThanFortyPercentOfVerbosePayload()
+    {
+        var verbose = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                clicked = true
+            },
+            new
+            {
+                elementId = "SaveButton"
+            },
+            ToJsonElement(new { detail = "verbose" }),
+            "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.");
+
+        var compact = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                clicked = true
+            },
+            new
+            {
+                elementId = "SaveButton"
+            },
+            null,
+            "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.");
+
+        var verboseJson = JsonSerializer.Serialize(verbose);
+        var compactJson = JsonSerializer.Serialize(compact);
+
+        compactJson.Length.Should().BeLessThan((int)(verboseJson.Length * 0.4));
     }
 
     [Fact]
@@ -188,7 +254,7 @@ public sealed class InteractionToolMetadataTests : IDisposable
         {
             processId = 51007,
             elementId = "SaveButton",
-            detail = "verbose"
+            detail = "full"
         }), CancellationToken.None);
 
         var json = JsonSerializer.SerializeToElement(result);

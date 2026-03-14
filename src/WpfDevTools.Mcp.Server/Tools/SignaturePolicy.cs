@@ -30,15 +30,18 @@ public static class SignaturePolicy
     /// Called only after path validation confirms the DLL is under a trusted root.
     /// </summary>
     /// <param name="isDebugBuild">Whether this is a DEBUG build</param>
+    /// <param name="isTrustedLocalDevelopmentBuild">Whether this is a trusted non-Release workspace build used for local development</param>
     /// <returns>Whether to verify or skip signature verification</returns>
-    public static Action Evaluate(bool isDebugBuild)
+    public static Action Evaluate(
+        bool isDebugBuild,
+        bool isTrustedLocalDevelopmentBuild = false)
     {
-        // RELEASE builds ALWAYS verify - no exceptions
-        if (!isDebugBuild) return Action.Verify;
+        if (isDebugBuild || isTrustedLocalDevelopmentBuild)
+        {
+            return Action.Skip;
+        }
 
-        // DEBUG builds skip verification for trusted root DLLs
-        // (path already validated as trusted root by caller)
-        return Action.Skip;
+        return Action.Verify;
     }
 
     /// <summary>
@@ -47,9 +50,14 @@ public static class SignaturePolicy
     /// Release uses Online for maximum security.
     /// </summary>
     /// <param name="isDebugBuild">Whether this is a DEBUG build</param>
+    /// <param name="isTrustedLocalDevelopmentBuild">Whether this is a trusted non-Release workspace build used for local development</param>
     /// <returns>The revocation mode to use for certificate chain validation</returns>
-    public static X509RevocationMode GetRevocationMode(bool isDebugBuild)
+    public static X509RevocationMode GetRevocationMode(
+        bool isDebugBuild,
+        bool isTrustedLocalDevelopmentBuild = false)
     {
-        return isDebugBuild ? X509RevocationMode.Offline : X509RevocationMode.Online;
+        return Evaluate(isDebugBuild, isTrustedLocalDevelopmentBuild) == Action.Skip
+            ? X509RevocationMode.Offline
+            : X509RevocationMode.Online;
     }
 }

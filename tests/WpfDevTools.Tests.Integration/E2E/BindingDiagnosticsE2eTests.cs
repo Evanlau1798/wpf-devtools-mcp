@@ -74,6 +74,31 @@ public sealed class BindingDiagnosticsE2eTests
     }
 
     [Fact]
+    public async Task GetBindingErrors_WithCompactTrue_ShouldOmitVerboseMessageField()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_binding_errors",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                maxErrors = 1,
+                compact = true
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        var errors = result.GetProperty("errors");
+        errors.GetArrayLength().Should().Be(1);
+
+        var error = errors[0];
+        error.TryGetProperty("message", out _).Should().BeFalse();
+        error.GetProperty("diagnosticKind").GetString().Should().Be("BindingError");
+        error.TryGetProperty("eventType", out _).Should().BeTrue();
+        error.TryGetProperty("sourceId", out _).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetBindings_OnRootWindow_ShouldReturnBindingInfo()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);

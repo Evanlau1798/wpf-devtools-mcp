@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -155,20 +156,28 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
         string projectDir, string projectName, string framework, string exeName)
     {
         var solutionDir = FindSolutionRoot();
-        var candidates = new[]
-        {
-            Path.Combine(solutionDir, projectDir, projectName, "bin", "Debug", framework, exeName),
-            Path.Combine(solutionDir, projectDir, projectName, "bin", "Release", framework, exeName)
-        };
+        var candidates = GetPreferredBuildConfigurations(AppContext.BaseDirectory)
+            .Select(configuration => Path.Combine(solutionDir, projectDir, projectName, "bin", configuration, framework, exeName))
+            .ToArray();
 
-        foreach (var path in candidates)
-        {
-            if (File.Exists(path))
-                return path;
-        }
-
-        return null;
+        return SelectPreferredExecutable(candidates);
     }
+
+    internal static IReadOnlyList<string> GetPreferredBuildConfigurations(string appBaseDirectory)
+    {
+        var currentConfiguration = TryGetBuildConfiguration(appBaseDirectory);
+
+        return new[] { currentConfiguration, "Debug", "Release" }
+            .Where(configuration => !string.IsNullOrWhiteSpace(configuration))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray()!;
+    }
+
+    internal static string? SelectPreferredExecutable(params string[] candidates)
+    {
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
     private static string FindSolutionRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
@@ -180,5 +189,17 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
         }
 
         throw new InvalidOperationException("Solution root not found");
+    }
+
+    private static string? TryGetBuildConfiguration(string appBaseDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(appBaseDirectory))
+        {
+            return null;
+        }
+
+        var baseDir = appBaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var targetFrameworkDir = new DirectoryInfo(baseDir);
+        return targetFrameworkDir.Parent?.Name;
     }
 }

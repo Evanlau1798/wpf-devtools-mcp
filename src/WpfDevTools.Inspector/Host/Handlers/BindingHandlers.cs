@@ -87,9 +87,10 @@ public class BindingHandlers : IRequestHandler
         var clearAfterRead = ParameterHelpers.GetBoolParam(@params, "clearAfterRead") ?? false;
         var maxErrors = ParameterHelpers.GetIntParam(@params, "maxErrors");
         var sinceTimestamp = ParameterHelpers.GetStringParam(@params, "sinceTimestamp");
+        var compact = ParameterHelpers.GetBoolParam(@params, "compact") ?? false;
 
         return await Task.Run(() =>
-            _bindingAnalyzer.GetBindingErrors(maxErrors, sinceTimestamp, clearAfterRead), cancellationToken).ConfigureAwait(false);
+            _bindingAnalyzer.GetBindingErrors(maxErrors, sinceTimestamp, clearAfterRead, compact), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetDataContextChainAsync(JsonElement? @params, CancellationToken cancellationToken)

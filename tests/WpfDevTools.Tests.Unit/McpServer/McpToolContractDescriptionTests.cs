@@ -48,6 +48,7 @@ public sealed class McpToolContractDescriptionTests
     [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetValidationErrors), "logical and visual descendants")]
     [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors), "validation rule errors")]
     [InlineData(typeof(StyleMcpTools), nameof(StyleMcpTools.GetAppliedStyles), "localResourceReferences")]
+    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetUiSummary), "summaryOnly")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "canConnectFromCurrentServer")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "connectionWarning")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "suggestedAction")]
@@ -96,6 +97,25 @@ public sealed class McpToolContractDescriptionTests
             description.Should().NotContain("\"nextSteps\"");
             description.Should().NotContain("nextSteps: [");
         }
+    }
+
+    [Theory]
+    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.SetDpValue))]
+    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.ClearDpValue))]
+    [InlineData(typeof(StyleMcpTools), nameof(StyleMcpTools.OverrideStyleSetter))]
+    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.ExecuteCommand))]
+    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.ModifyViewModel))]
+    [InlineData(typeof(InteractionMcpTools), nameof(InteractionMcpTools.ClickElement))]
+    [InlineData(typeof(EventMcpTools), nameof(EventMcpTools.FireRoutedEvent))]
+    public void MutationAndInteractionToolDescriptions_ShouldPreferVerboseAndCompactWording(Type toolType, string methodName)
+    {
+        var description = GetDescription(toolType, methodName);
+
+        description.Should().Contain("detail");
+        description.Should().Contain("compact");
+        description.Should().Contain("verbose");
+        description.Should().Contain("standard",
+            "the legacy detail keyword should remain documented as a compatibility alias during the transition");
     }
 
     private static string GetDescription(Type toolType, string methodName)

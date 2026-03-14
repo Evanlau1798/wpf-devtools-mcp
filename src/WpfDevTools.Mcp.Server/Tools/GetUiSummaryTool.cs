@@ -22,11 +22,14 @@ public sealed class GetUiSummaryTool(SessionManager sessionManager) : PipeConnec
         var elementId = ParameterParser.ParseStringParam(arguments, "elementId");
         var depth = ParameterParser.ParseIntParam(arguments, "depth");
         var depthMode = ParameterParser.ParseStringParam(arguments, "depthMode");
+        var summaryOnly = ParameterParser.ParseBoolParam(arguments, "summaryOnly");
 
         return await SendInspectorRequestAsync(
             processId,
             "get_ui_summary",
-            new { elementId, depth, depthMode },
+            // Keep full semantic nodes in the pipe payload so server-side navigation
+            // can inspect them before summaryOnly trimming is applied to the client response.
+            new { elementId, depth, depthMode, summaryOnly = false },
             cancellationToken).ConfigureAwait(false);
     }
 }

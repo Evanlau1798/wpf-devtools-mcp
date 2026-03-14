@@ -201,8 +201,18 @@ public sealed class McpStdioClient : IDisposable
                 $"MCP error: {error.GetRawText()}");
         }
 
-        if (response.TryGetProperty("result", out var result) &&
-            result.TryGetProperty("content", out var content) &&
+        if (!response.TryGetProperty("result", out var result))
+        {
+            return response;
+        }
+
+        if (result.TryGetProperty("structuredContent", out var structuredContent) &&
+            structuredContent.ValueKind is not JsonValueKind.Undefined and not JsonValueKind.Null)
+        {
+            return structuredContent;
+        }
+
+        if (result.TryGetProperty("content", out var content) &&
             content.ValueKind == JsonValueKind.Array &&
             content.GetArrayLength() > 0)
         {

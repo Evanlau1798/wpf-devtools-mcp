@@ -41,7 +41,7 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
     {
         var (processId, parameters, error) = _paramExtractor(_sessionManager, arguments);
         if (error != null) return error;
-        var detailMode = MutationDetailMode.Standard;
+        var detailMode = MutationDetailMode.Compact;
         if (_successMetadataAugmenter != null)
         {
             var (parsedMode, detailError) = ParseMutationDetailMode(arguments);

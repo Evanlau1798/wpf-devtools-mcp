@@ -31,8 +31,14 @@ public sealed class GetBindingErrorsTool : PipeConnectedToolBase
             && sinceProperty.ValueKind == JsonValueKind.String
             ? sinceProperty.GetString()
             : null;
+        var compact = arguments.HasValue && arguments.Value.TryGetProperty("compact", out var compactProperty)
+            && compactProperty.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? compactProperty.GetBoolean()
+            : (bool?)null;
 
         return await SendInspectorRequestAsync(processId, "get_binding_errors",
-            new { maxErrors, sinceTimestamp }, cancellationToken);
+            // Keep full binding messages in the pipe payload so navigation can classify
+            // trace-only errors before compact trimming is applied to the client response.
+            new { maxErrors, sinceTimestamp, compact = false }, cancellationToken);
     }
 }

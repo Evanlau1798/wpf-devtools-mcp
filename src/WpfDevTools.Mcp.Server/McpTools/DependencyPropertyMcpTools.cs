@@ -115,7 +115,7 @@ public static class DependencyPropertyMcpTools
         "USE WHEN: Testing UI behavior with different property values; debugging layout/styling issues.\n" +
         "DO NOT USE: For permanent changes (changes are NOT persisted to XAML).\n\n" +
         "WARNING: This modifies the running app. Changes are lost on app restart.\n\n" +
-        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core mutation result.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core mutation result. Use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
@@ -138,7 +138,7 @@ public static class DependencyPropertyMcpTools
         [Description("New property value encoded as raw JSON.")] JsonElement value,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
-        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
+        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -164,7 +164,7 @@ public static class DependencyPropertyMcpTools
         "USE WHEN: Removing overrides applied by set_dp_value; testing default/inherited behavior.\n" +
         "DO NOT USE: On properties without local values (has no effect).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
-        "DETAIL MODE: Optional `detail` controls additive metadata. Use `standard` (default) for requested/effective input + observedEffect, or `compact` to keep only the core mutation result.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core mutation result. Use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -181,7 +181,7 @@ public static class DependencyPropertyMcpTools
         [Description("DependencyProperty name whose local value should be cleared.")] string propertyName,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
-        [Description("Optional metadata detail mode: 'standard' (default) or 'compact'.")] string? detail = null,
+        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

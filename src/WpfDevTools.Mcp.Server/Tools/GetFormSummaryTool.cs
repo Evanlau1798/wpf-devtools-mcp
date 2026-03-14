@@ -20,11 +20,12 @@ public sealed class GetFormSummaryTool(SessionManager sessionManager) : PipeConn
         }
 
         var elementId = ParameterParser.ParseStringParam(arguments, "elementId");
+        var includeFramework = ParameterParser.ParseBoolParam(arguments, "includeFramework");
 
         return await SendInspectorRequestAsync(
             processId,
             "get_form_summary",
-            new { elementId },
+            new { elementId, includeFramework },
             cancellationToken).ConfigureAwait(false);
     }
 }

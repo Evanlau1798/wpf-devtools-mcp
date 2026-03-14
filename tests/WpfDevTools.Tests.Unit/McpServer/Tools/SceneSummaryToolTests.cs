@@ -103,6 +103,71 @@ public sealed class SceneSummaryToolTests : IDisposable
     }
 
     [Fact]
+    public async Task GetUiSummaryTool_WithSummaryOnly_ShouldRequestFullInspectorPayloadAndReturnTrimmedResponse()
+    {
+        const int processId = 60213;
+        const string pipeName = "WpfDevTools_Test_SceneSummaryOnly";
+        using var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        var requestCompletion = new TaskCompletionSource<InspectorRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            try
+            {
+                var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+                requestCompletion.TrySetResult(request!);
+
+                var response = new InspectorResponse
+                {
+                    Id = request!.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"rootElementId":"Window_1","semanticNodeCount":1,"summaryText":"- Button SaveButton [disabled]","nodes":[{"elementId":"Button_1","elementType":"Button","annotations":["disabled"]}]}""")
+                };
+
+                await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        try
+        {
+            var result = await ToolCallHelper.ExecuteAndWrapAsync(
+                (args, ct) => new GetUiSummaryTool(sessionManager).ExecuteAsync(args, ct),
+                ToolCallHelper.BuildJsonArgs(("processId", processId), ("summaryOnly", true)),
+                CancellationToken.None,
+                toolName: "get_ui_summary");
+
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("success").GetBoolean().Should().BeTrue();
+            payload.TryGetProperty("nodes", out _).Should().BeFalse();
+            payload.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_interaction_readiness");
+            var request = await requestCompletion.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            request.Params.Should().NotBeNull();
+            request.Params!.Value.TryGetProperty("summaryOnly", out var summaryOnly).Should().BeTrue();
+            summaryOnly.GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            sessionManager.Dispose();
+            server.Dispose();
+            await serverTask;
+        }
+    }
+
+    [Fact]
     public async Task GetFormSummaryTool_ShouldPassThroughStructuredSummaryPayload()
     {
         const int processId = 60211;
@@ -185,6 +250,30 @@ public sealed class SceneSummaryToolTests : IDisposable
             toolName: "get_ui_summary");
 
         result.StructuredContent!.Value.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_binding_errors");
+    }
+
+    [Fact]
+    public async Task GetUiSummary_WithSummaryOnly_ShouldStripNodesAfterNavigationPlanning()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                rootElementId = "Window_1",
+                summaryText = "- Button SaveButton [disabled]",
+                nodes = new[]
+                {
+                    new { elementId = "Button_1", elementType = "Button", annotations = new[] { "disabled" } }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("summaryOnly", true)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        var payload = result.StructuredContent!.Value;
+        payload.TryGetProperty("nodes", out _).Should().BeFalse();
+        payload.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_interaction_readiness");
+        payload.GetProperty("navigation").GetProperty("recommended")[0].GetProperty("tool").GetString().Should().Be("get_interaction_readiness");
     }
 
     private static async Task<ConnectedSceneSummarySession> CreateConnectedSessionAsync(int processId, string responseJson)

@@ -64,6 +64,28 @@ public class ReadToolTokenOptimizationE2eTests
     }
 
     [Fact]
+    public async Task GetBindingErrors_WithCompactTrue_ShouldReducePayloadSize()
+    {
+        var verbose = await _fixture.Client.CallToolAsync(
+            "get_binding_errors",
+            new
+            {
+                maxErrors = 1
+            });
+        var compact = await _fixture.Client.CallToolAsync(
+            "get_binding_errors",
+            new
+            {
+                maxErrors = 1,
+                compact = true
+            });
+
+        verbose.GetProperty("success").GetBoolean().Should().BeTrue();
+        compact.GetProperty("success").GetBoolean().Should().BeTrue();
+        compact.GetRawText().Length.Should().BeLessThan(verbose.GetRawText().Length);
+    }
+
+    [Fact]
     public async Task GetBindings_WithStatusFilterActive_ShouldReturnOnlyActiveStatuses()
     {
         var result = await _fixture.Client.CallToolAsync(

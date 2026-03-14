@@ -23,7 +23,11 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Build a semantic UI summary for the root window or a scoped subtree.
     /// </summary>
-    public object GetUiSummary(string? elementId = null, int? depth = null, string? depthMode = null)
+    public object GetUiSummary(
+        string? elementId = null,
+        int? depth = null,
+        string? depthMode = null,
+        bool summaryOnly = false)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -60,18 +64,30 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
 
             Traverse(root, currentDepth: 0, maxDepth, traversalDepthMode, nodes, summary, visited);
 
-            return new
-            {
-                success = true,
-                rootElementId,
-                rootElementType = rootType,
-                rootElementName = rootName,
-                depth = maxDepth,
-                depthMode = SceneTraversalDepthModes.ToContractValue(traversalDepthMode),
-                semanticNodeCount = nodes.Count,
-                summaryText = summary.ToString().TrimEnd(),
-                nodes
-            };
+            return summaryOnly
+                ? new
+                {
+                    success = true,
+                    rootElementId,
+                    rootElementType = rootType,
+                    rootElementName = rootName,
+                    depth = maxDepth,
+                    depthMode = SceneTraversalDepthModes.ToContractValue(traversalDepthMode),
+                    semanticNodeCount = nodes.Count,
+                    summaryText = summary.ToString().TrimEnd()
+                }
+                : new
+                {
+                    success = true,
+                    rootElementId,
+                    rootElementType = rootType,
+                    rootElementName = rootName,
+                    depth = maxDepth,
+                    depthMode = SceneTraversalDepthModes.ToContractValue(traversalDepthMode),
+                    semanticNodeCount = nodes.Count,
+                    summaryText = summary.ToString().TrimEnd(),
+                    nodes
+                };
         });
     }
 

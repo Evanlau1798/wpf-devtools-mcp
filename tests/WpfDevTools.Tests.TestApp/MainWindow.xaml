@@ -333,46 +333,75 @@
 
             <!-- Tab 6: Layout &amp; Transforms -->
             <TabItem x:Name="LayoutTransformsTab" Header="Layout &amp; Transforms">
-                <ScrollViewer>
-                    <StackPanel Margin="10">
-                        <TextBlock Text="Hidden By Ancestor" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <StackPanel x:Name="HiddenByAncestorPanel" Visibility="Collapsed" Margin="5">
-                            <TextBlock x:Name="HiddenByAncestorText" Text="You should not see me"/>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0"
+                            Width="240"
+                            Height="80"
+                            Margin="10,10,10,0"
+                            BorderBrush="DarkGray"
+                            BorderThickness="1"
+                            ClipToBounds="False">
+                        <Grid>
+                            <TextBlock Text="RenderTransform Off-Screen" FontWeight="Bold" Margin="8,6,8,0" VerticalAlignment="Top"/>
+                            <Button x:Name="OffscreenTranslatedButtonSample"
+                                    Width="150"
+                                    Margin="8,28,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Content="Translated Off-Screen">
+                                <Button.RenderTransform>
+                                    <TranslateTransform X="1200"/>
+                                </Button.RenderTransform>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel Margin="10">
+                            <TextBlock Text="Hidden By Ancestor" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <StackPanel x:Name="HiddenByAncestorPanel" Visibility="Collapsed" Margin="5">
+                                <TextBlock x:Name="HiddenByAncestorText" Text="You should not see me"/>
+                            </StackPanel>
+
+                            <Separator Margin="0,20,0,20"/>
+
+                            <TextBlock Text="Clipping" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <Border x:Name="ClippingBorderSample" Width="150" Height="50" BorderBrush="Black" BorderThickness="1" ClipToBounds="True" Margin="5">
+                                <TextBlock x:Name="ClippingTextSample" Text="This text is very long and will be clipped by the border because ClipToBounds is True"
+                                          TextWrapping="Wrap"/>
+                            </Border>
+
+                            <Separator Margin="0,20,0,20"/>
+
+                            <TextBlock Text="Render Transform" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <Button x:Name="RotatedButtonSample" Content="Rotated Button" Margin="5">
+                                <Button.RenderTransform>
+                                    <RotateTransform Angle="15"/>
+                                </Button.RenderTransform>
+                            </Button>
+
+                            <Button x:Name="ScaledButtonSample" Content="Scaled Button" Margin="5">
+                                <Button.RenderTransform>
+                                    <ScaleTransform ScaleX="1.2" ScaleY="1.2"/>
+                                </Button.RenderTransform>
+                            </Button>
+
+                            <Separator Margin="0,20,0,20"/>
+
+                            <TextBlock Text="Layout Transform" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <Button x:Name="LayoutRotatedButtonSample" Content="Layout Rotated" Margin="5">
+                                <Button.LayoutTransform>
+                                    <RotateTransform Angle="45"/>
+                                </Button.LayoutTransform>
+                            </Button>
                         </StackPanel>
-
-                        <Separator Margin="0,20,0,20"/>
-
-                        <TextBlock Text="Clipping" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Border x:Name="ClippingBorderSample" Width="150" Height="50" BorderBrush="Black" BorderThickness="1" ClipToBounds="True" Margin="5">
-                            <TextBlock x:Name="ClippingTextSample" Text="This text is very long and will be clipped by the border because ClipToBounds is True"
-                                      TextWrapping="Wrap"/>
-                        </Border>
-
-                        <Separator Margin="0,20,0,20"/>
-
-                        <TextBlock Text="Render Transform" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Button x:Name="RotatedButtonSample" Content="Rotated Button" Margin="5">
-                            <Button.RenderTransform>
-                                <RotateTransform Angle="15"/>
-                            </Button.RenderTransform>
-                        </Button>
-
-                        <Button x:Name="ScaledButtonSample" Content="Scaled Button" Margin="5">
-                            <Button.RenderTransform>
-                                <ScaleTransform ScaleX="1.2" ScaleY="1.2"/>
-                            </Button.RenderTransform>
-                        </Button>
-
-                        <Separator Margin="0,20,0,20"/>
-
-                        <TextBlock Text="Layout Transform" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Button x:Name="LayoutRotatedButtonSample" Content="Layout Rotated" Margin="5">
-                            <Button.LayoutTransform>
-                                <RotateTransform Angle="45"/>
-                            </Button.LayoutTransform>
-                        </Button>
-                    </StackPanel>
-                </ScrollViewer>
+                    </ScrollViewer>
+                </Grid>
             </TabItem>
 
             <!-- Tab 7: Drag &amp; Drop -->

@@ -215,7 +215,7 @@ public abstract class PipeConnectedToolBase
         object requestedInput,
         string notes,
         bool usedFallback = false,
-        MutationDetailMode detailMode = MutationDetailMode.Standard)
+        MutationDetailMode detailMode = MutationDetailMode.Compact)
     {
         var element = result is JsonElement jsonElement
             ? jsonElement

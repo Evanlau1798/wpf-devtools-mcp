@@ -49,7 +49,8 @@ public static class CapabilityResources
           - `avgRenderTime -> averageFrameTime`
           - `count -> totalCount`
           - `renderTimeMs -> renderTime`
-        - Mutation and interaction tools support `detail=compact` when clients want to drop additive normalization metadata without changing core semantics.
+        - Mutation and interaction tools default to `detail=compact` when clients want to drop additive normalization metadata without changing core semantics.
+        - Use `detail=verbose` when clients need requested/effective input plus observedEffect metadata; legacy `detail=standard` remains accepted as a compatibility alias.
 
         ## Transport notes
 

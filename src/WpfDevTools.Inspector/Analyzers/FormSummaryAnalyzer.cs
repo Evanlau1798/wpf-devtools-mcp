@@ -24,7 +24,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Build a structured form summary for the root window or a scoped subtree.
     /// </summary>
-    public object GetFormSummary(string? elementId = null)
+    public object GetFormSummary(string? elementId = null, bool includeFramework = false)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -53,7 +53,11 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                     continue;
                 }
 
-                if (SceneSummaryElementHelpers.IsInputControl(frameworkElement))
+                var includeElement = SceneSummaryElementHelpers.ShouldIncludeFormSummaryElement(
+                    frameworkElement,
+                    includeFramework);
+
+                if (includeElement && SceneSummaryElementHelpers.IsInputControl(frameworkElement))
                 {
                     var inputSummary = CreateInputSummary(frameworkElement);
                     inputs.Add(inputSummary.Payload);
@@ -65,7 +69,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                     validationErrorCount += inputSummary.ValidationErrorCount;
                 }
 
-                if (frameworkElement is ButtonBase button)
+                if (includeElement && frameworkElement is ButtonBase button)
                 {
                     var commandSummary = CreateCommandSummary(button);
                     commands.Add(commandSummary.Payload);

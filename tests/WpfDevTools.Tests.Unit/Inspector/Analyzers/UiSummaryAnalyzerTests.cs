@@ -286,4 +286,29 @@ public sealed class UiSummaryAnalyzerTests
         summaryText.Should().NotContain("EmptyTemplateText");
         summaryText.Should().NotContain("WhitespaceTemplateText");
     }
+
+    [StaFact]
+    public void GetUiSummary_WithSummaryOnly_ShouldOmitNodesAndPreserveSemanticSummary()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel
+        {
+            Name = "SummaryRoot",
+            Children =
+            {
+                new TextBox { Name = "NameBox", Text = "Ada" },
+                new Button { Name = "SaveButton", Content = "Save" }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 2, summaryOnly: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("semanticNodeCount").GetInt32().Should().Be(2);
+        result.GetProperty("summaryText").GetString().Should().Contain("NameBox");
+        result.GetProperty("summaryText").GetString().Should().Contain("SaveButton");
+        result.TryGetProperty("nodes", out _).Should().BeFalse();
+    }
 }

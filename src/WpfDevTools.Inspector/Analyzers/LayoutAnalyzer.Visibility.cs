@@ -8,7 +8,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed partial class LayoutAnalyzer
 {
     /// <summary>
-    /// Diagnose why a runtime element is or is not user-visible by checking self/ancestor visibility, opacity, clipping, and layout size.
+    /// Diagnose why a runtime element is or is not user-visible by checking self/ancestor visibility, opacity, clipping, layout size, and off-screen RenderTransform displacement.
     /// </summary>
     public object DiagnoseVisibility(string? elementId)
     {
@@ -39,6 +39,13 @@ public sealed partial class LayoutAnalyzer
             var hasSize = frameworkElement.ActualWidth > 0 && frameworkElement.ActualHeight > 0;
             checks.Add(CreateVisibilityCheck("layoutSize", hasSize ? "positive" : "zero", hasSize, "ActualWidth/ActualHeight"));
 
+            var isRenderTransformOffscreen = IsRenderTransformOffscreen(frameworkElement);
+            checks.Add(CreateVisibilityCheck(
+                "renderTransformViewport",
+                isRenderTransformOffscreen ? "outside-viewport" : "inside-viewport",
+                !isRenderTransformOffscreen,
+                "RenderTransform-adjusted viewport bounds"));
+
             var overflow = MaxOverflow(
                 GetSelfOverflowAmounts(frameworkElement, frameworkElement.Clip, frameworkElement.ClipToBounds),
                 GetAncestorOverflowAmounts(frameworkElement));
@@ -57,6 +64,7 @@ public sealed partial class LayoutAnalyzer
                 selfVisibility,
                 frameworkElement.Opacity,
                 hasSize,
+                isRenderTransformOffscreen,
                 isClipped,
                 ancestors);
 
@@ -77,6 +85,7 @@ public sealed partial class LayoutAnalyzer
         string selfVisibility,
         double selfOpacity,
         bool hasSize,
+        bool isRenderTransformOffscreen,
         bool isClipped,
         IReadOnlyList<AncestorVisibilityState> ancestors)
     {
@@ -104,6 +113,13 @@ public sealed partial class LayoutAnalyzer
             return (false,
                 $"Ancestor {ancestorOpacityBlocker.displayName} has Opacity={ancestorOpacityBlocker.opacity}.",
                 $"Increase {ancestorOpacityBlocker.displayName} Opacity above 0.");
+        }
+
+        if (isRenderTransformOffscreen)
+        {
+            return (false,
+                $"Element {elementId} is outside the visible viewport after applying its RenderTransform.",
+                $"Review the RenderTransform offsets for {elementId} and move it back inside the visible viewport.");
         }
 
         if (isClipped)

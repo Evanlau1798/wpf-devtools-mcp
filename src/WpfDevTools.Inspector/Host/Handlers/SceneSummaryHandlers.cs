@@ -35,9 +35,11 @@ public sealed class SceneSummaryHandlers : IRequestHandler
             "get_ui_summary" => _uiSummaryAnalyzer.GetUiSummary(
                 ParameterHelpers.GetStringParam(@params, "elementId"),
                 ParameterHelpers.GetIntParam(@params, "depth"),
-                ParameterHelpers.GetStringParam(@params, "depthMode")),
+                ParameterHelpers.GetStringParam(@params, "depthMode"),
+                ParameterHelpers.GetBoolParam(@params, "summaryOnly") ?? false),
             "get_form_summary" => _formSummaryAnalyzer.GetFormSummary(
-                ParameterHelpers.GetStringParam(@params, "elementId")),
+                ParameterHelpers.GetStringParam(@params, "elementId"),
+                ParameterHelpers.GetBoolParam(@params, "includeFramework") ?? false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }

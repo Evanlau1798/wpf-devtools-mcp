@@ -113,16 +113,19 @@ public class ConnectToolTests : IDisposable
     public void ValidateDllPath_WithUnsignedDllInTrustedRoot_ShouldNotThrowInDebug()
     {
         var unsignedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
+        var act = () => DllPathValidator.ValidateDllPath(unsignedDllPath);
+        var signatureAction = DllPathValidator.GetCurrentBuildSignatureAction();
 
-#if DEBUG
-        var act = () => DllPathValidator.ValidateDllPath(unsignedDllPath);
-        act.Should().NotThrow(
-            "DEBUG builds should auto-skip signature verification for DLLs in trusted roots");
-#else
-        var act = () => DllPathValidator.ValidateDllPath(unsignedDllPath);
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*signature*");
-#endif
+        if (signatureAction == SignaturePolicy.Action.Skip)
+        {
+            act.Should().NotThrow(
+                "development builds should auto-skip signature verification for DLLs in trusted roots");
+        }
+        else
+        {
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*signature*");
+        }
     }
 
     [Theory]
@@ -157,12 +160,17 @@ public class ConnectToolTests : IDisposable
         try
         {
             var act = () => DllPathValidator.ValidateDllPath(trustedDllPath);
-#if DEBUG
-            act.Should().NotThrow();
-#else
-            act.Should().Throw<InvalidOperationException>()
-                .WithMessage("*signature*");
-#endif
+            var signatureAction = DllPathValidator.GetCurrentBuildSignatureAction();
+
+            if (signatureAction == SignaturePolicy.Action.Skip)
+            {
+                act.Should().NotThrow();
+            }
+            else
+            {
+                act.Should().Throw<InvalidOperationException>()
+                    .WithMessage("*signature*");
+            }
         }
         finally
         {

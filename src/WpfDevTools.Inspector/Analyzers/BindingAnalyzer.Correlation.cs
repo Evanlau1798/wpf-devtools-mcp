@@ -11,11 +11,30 @@ public sealed partial class BindingAnalyzer
 
     private object BuildBindingErrorPayload(
         BindingErrorInfo error,
-        IReadOnlyList<BindingErrorInfo> liveErrors)
+        IReadOnlyList<BindingErrorInfo> liveErrors,
+        bool compact)
     {
         var correlatedError = error.ElementId != null
             ? error
             : CorrelateTraceError(error, liveErrors);
+
+        if (compact)
+        {
+            return new
+            {
+                diagnosticKind = "BindingError",
+                sourceKind = correlatedError.Origin,
+                severity = "Error",
+                timestamp = correlatedError.Timestamp.ToString("O"),
+                eventType = correlatedError.EventType,
+                sourceId = correlatedError.SourceId,
+                elementId = correlatedError.ElementId,
+                suggestedElementId = correlatedError.SuggestedElementId,
+                matchConfidence = correlatedError.MatchConfidence,
+                propertyName = correlatedError.PropertyName,
+                bindingPath = correlatedError.BindingPath
+            };
+        }
 
         return new
         {

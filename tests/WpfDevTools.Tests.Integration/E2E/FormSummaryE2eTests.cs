@@ -94,6 +94,41 @@ public sealed class FormSummaryE2eTests
         result.GetProperty("summary").GetProperty("totalInputs").GetInt32().Should().Be(inputIds.Length);
     }
 
+    [Fact]
+    public async Task GetFormSummary_OnRootScope_ShouldFilterFrameworkNoiseByDefault()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var defaultResult = await _fixture.Client.CallToolAsync(
+            "get_form_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId
+            });
+        var includeFrameworkResult = await _fixture.Client.CallToolAsync(
+            "get_form_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                includeFramework = true
+            });
+
+        defaultResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        includeFrameworkResult.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        defaultResult.GetProperty("commands")
+            .EnumerateArray()
+            .Select(command => command.GetProperty("elementType").GetString())
+            .Should()
+            .NotContain("RepeatButton");
+
+        includeFrameworkResult.GetProperty("commands")
+            .EnumerateArray()
+            .Select(command => command.GetProperty("elementType").GetString())
+            .Should()
+            .Contain("RepeatButton");
+    }
+
     private async Task ResetFormAsync()
     {
         await _fixture.Client.CallToolAsync("modify_viewmodel", new

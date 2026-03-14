@@ -86,6 +86,28 @@ public sealed class UiSummaryE2eTests
         semanticResult.GetProperty("depthMode").GetString().Should().Be("semantic");
     }
 
+    [Fact]
+    public async Task GetUiSummary_WithSummaryOnly_ShouldOmitNodesAndKeepSemanticSignal()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var rootId = await FindElementIdAsync("BasicControlsStackPanel");
+        var result = await _fixture.Client.CallToolAsync(
+            "get_ui_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = rootId,
+                depth = 4,
+                summaryOnly = true
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("summaryText").GetString().Should().Contain("NameTextBox");
+        result.GetProperty("summaryText").GetString().Should().Contain("SaveButton");
+        result.TryGetProperty("nodes", out _).Should().BeFalse();
+    }
+
     private async Task<string?> FindElementIdAsync(string elementName)
     {
         var result = await _fixture.Client.CallToolAsync(

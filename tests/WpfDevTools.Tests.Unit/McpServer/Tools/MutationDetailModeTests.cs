@@ -8,11 +8,11 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 public class MutationDetailModeTests
 {
     [Fact]
-    public void Parse_WhenArgumentMissing_ShouldDefaultToStandard()
+    public void Parse_WhenArgumentMissing_ShouldDefaultToCompact()
     {
         var (mode, error) = MutationDetailModeParser.Parse(null);
 
-        mode.Should().Be(MutationDetailMode.Standard);
+        mode.Should().Be(MutationDetailMode.Compact);
         error.Should().BeNull();
     }
 
@@ -28,9 +28,31 @@ public class MutationDetailModeTests
     }
 
     [Fact]
-    public void Parse_WhenInvalidValueProvided_ShouldReturnStructuredError()
+    public void Parse_WhenVerboseSpecified_ShouldReturnFullDetailMode()
     {
         var arguments = ToJsonElement(new { detail = "verbose" });
+
+        var (mode, error) = MutationDetailModeParser.Parse(arguments);
+
+        mode.Should().Be(MutationDetailMode.Standard);
+        error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Parse_WhenStandardSpecified_ShouldRemainVerboseAlias()
+    {
+        var arguments = ToJsonElement(new { detail = "standard" });
+
+        var (mode, error) = MutationDetailModeParser.Parse(arguments);
+
+        mode.Should().Be(MutationDetailMode.Standard);
+        error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Parse_WhenInvalidValueProvided_ShouldReturnStructuredError()
+    {
+        var arguments = ToJsonElement(new { detail = "full" });
 
         var (_, error) = MutationDetailModeParser.Parse(arguments);
 

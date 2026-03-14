@@ -100,4 +100,43 @@ public class DllCandidateResolverTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void EnumerateInspectorCandidates_ShouldPreferCurrentBuildConfigurationBeforeDebug()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var solutionRoot = Path.Combine(root, "repo");
+        var serverDir = Path.Combine(solutionRoot, "src", "WpfDevTools.Mcp.Server", "bin", "Task2", "net8.0");
+        Directory.CreateDirectory(serverDir);
+        File.WriteAllText(Path.Combine(solutionRoot, "WpfDevTools.sln"), string.Empty);
+
+        try
+        {
+            var candidates = DllCandidateResolver.EnumerateInspectorCandidates(serverDir).ToArray();
+            var task2Candidate = Path.GetFullPath(Path.Combine(
+                solutionRoot,
+                "src",
+                "WpfDevTools.Inspector",
+                "bin",
+                "Task2",
+                "net8.0-windows",
+                "WpfDevTools.Inspector.dll"));
+            var debugCandidate = Path.GetFullPath(Path.Combine(
+                solutionRoot,
+                "src",
+                "WpfDevTools.Inspector",
+                "bin",
+                "Debug",
+                "net8.0-windows",
+                "WpfDevTools.Inspector.dll"));
+
+            Array.IndexOf(candidates, task2Candidate).Should().BeGreaterThanOrEqualTo(0);
+            Array.IndexOf(candidates, debugCandidate).Should().BeGreaterThanOrEqualTo(0);
+            Array.IndexOf(candidates, task2Candidate).Should().BeLessThan(Array.IndexOf(candidates, debugCandidate));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

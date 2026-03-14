@@ -40,6 +40,20 @@ public sealed class VisibilityDiagnosisE2eTests
         result.GetProperty("rootCause").GetString().Should().MatchRegex("(?i)clip");
     }
 
+    [Fact]
+    public async Task DiagnoseVisibility_ShouldReportOffscreenRenderTransformBlocker()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        await SelectLayoutTransformsTabAsync();
+        var result = await DiagnoseVisibilityAsync("OffscreenTranslatedButtonSample");
+
+        Assert.True(result.GetProperty("success").GetBoolean(), result.GetRawText());
+        result.GetProperty("isUserVisible").GetBoolean().Should().BeFalse();
+        result.GetProperty("rootCause").GetString().Should().Contain("RenderTransform");
+        result.GetProperty("suggestedFix").GetString().Should().Contain("RenderTransform");
+    }
+
     private async Task SelectLayoutTransformsTabAsync()
     {
         await SelectLayoutTransformsTabAsync(retryElementLookup: true);

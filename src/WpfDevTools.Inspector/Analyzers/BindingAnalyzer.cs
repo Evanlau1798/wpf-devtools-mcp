@@ -63,8 +63,9 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     /// <param name="maxErrors">Optional maximum number of binding errors to return after filtering.</param>
     /// <param name="sinceTimestamp">Optional ISO-8601 timestamp filter.</param>
     /// <param name="clearAfterRead">If true, clears error list after reading</param>
+    /// <param name="compact">If true, omit the verbose free-form message while preserving structured correlation fields.</param>
     /// <returns>Result object containing success status, error count, and list of binding errors</returns>
-    public object GetBindingErrors(int? maxErrors = null, string? sinceTimestamp = null, bool clearAfterRead = false)
+    public object GetBindingErrors(int? maxErrors = null, string? sinceTimestamp = null, bool clearAfterRead = false, bool compact = false)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -120,7 +121,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             {
                 success = true,
                 errorCount = filteredErrors.Count,
-                errors = filteredErrors.Select(e => BuildBindingErrorPayload(e, liveErrors)).ToList()
+                errors = filteredErrors.Select(e => BuildBindingErrorPayload(e, liveErrors, compact)).ToList()
             };
 
             if (clearAfterRead)

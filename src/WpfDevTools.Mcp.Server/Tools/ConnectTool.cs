@@ -1,10 +1,11 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
-using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.Enums;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -17,7 +18,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// but ConnectTool must inject the Inspector DLL and create the session before any pipe
 /// communication is possible.
 /// </summary>
-public sealed class ConnectTool
+public sealed partial class ConnectTool
 {
     private readonly IProcessInjector _injector;
     private readonly SessionManager _sessionManager;
@@ -25,6 +26,7 @@ public sealed class ConnectTool
     private readonly Action<string> _dllPathValidator;
     private readonly Func<bool> _isCurrentProcessElevated;
     private readonly Func<int, long> _workingSetResolver;
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<object>> _inflightConnects = new();
 
     /// <summary>
     /// Create ConnectTool with dependency injection
@@ -71,13 +73,17 @@ public sealed class ConnectTool
                     errorCode = "InvalidArgument"
                 };
             }
+
             processId = parsedPid;
             explicitProcessSelection = true;
         }
 
-        var selectionStrategyValue = arguments.HasValue && arguments.Value.TryGetProperty("selectionStrategy", out var strategyProp)
-            ? strategyProp.GetString()
-            : null;
+        var selectionStrategyError = TryGetOptionalString(arguments, "selectionStrategy", out var selectionStrategyValue);
+        if (selectionStrategyError != null)
+        {
+            return selectionStrategyError;
+        }
+
         if (!ProcessDiscoverySelectionStrategies.TryParse(selectionStrategyValue, out var selectionStrategy))
         {
             return new
@@ -89,9 +95,12 @@ public sealed class ConnectTool
             };
         }
 
-        var windowFilterValue = arguments.HasValue && arguments.Value.TryGetProperty("windowFilter", out var windowFilterProp)
-            ? windowFilterProp.GetString()
-            : null;
+        var windowFilterError = TryGetOptionalString(arguments, "windowFilter", out var windowFilterValue);
+        if (windowFilterError != null)
+        {
+            return windowFilterError;
+        }
+
         if (!ProcessWindowFilters.TryParse(windowFilterValue, out var windowFilter))
         {
             return new
@@ -136,9 +145,26 @@ public sealed class ConnectTool
             };
         }
 
+        return await RunSingleFlightAsync(
+            processId.Value,
+            () => ExecuteForProcessAsync(
+                processId.Value,
+                explicitProcessSelection,
+                selectionStrategy,
+                autoDiscoveryResolution,
+                cancellationToken)).ConfigureAwait(false);
+    }
+
+    private async Task<object> ExecuteForProcessAsync(
+        int processId,
+        bool explicitProcessSelection,
+        ProcessDiscoverySelectionStrategy selectionStrategy,
+        AutoDiscoveryResolution? autoDiscoveryResolution,
+        CancellationToken cancellationToken)
+    {
         var connectStopwatch = Stopwatch.StartNew();
 
-        var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId.Value);
+        var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId);
         if (!rateLimitStatus.Allowed)
         {
             return RateLimitResponseFactory.Create(
@@ -146,36 +172,31 @@ public sealed class ConnectTool
                 "Rate limit exceeded for connect operations. Please slow down your requests.");
         }
 
-        if (_sessionManager.HasSession(processId.Value))
+        if (_sessionManager.HasSession(processId))
         {
-            var existingPipeClient = _sessionManager.GetPipeClient(processId.Value);
+            var existingPipeClient = _sessionManager.GetPipeClient(processId);
             if (existingPipeClient?.IsConnected == true)
             {
-                _sessionManager.SetActiveProcess(processId.Value);
-                return new
-                {
-                    success = true,
-                    message = "Already connected to process",
-                    processId = processId.Value
-                };
+                _sessionManager.SetActiveProcess(processId);
+                return new { success = true, message = "Already connected to process", processId };
             }
 
-            _sessionManager.RemoveSession(processId.Value);
+            _sessionManager.RemoveSession(processId);
         }
 
-        var processInfo = _processDetector.GetProcessInfo(processId.Value);
+        var processInfo = _processDetector.GetProcessInfo(processId);
         if (processInfo == null)
         {
             return new
             {
                 success = false,
-                error = $"Could not detect process info for {processId.Value}",
+                error = $"Could not detect process info for {processId}",
                 errorCode = "ProcessNotFound"
             };
         }
 
         var access = ProcessConnectionAccessEvaluator.Evaluate(
-            processId.Value,
+            processId,
             processInfo.IsElevated,
             _isCurrentProcessElevated());
         if (access.RequiresElevationToConnect)
@@ -192,13 +213,13 @@ public sealed class ConnectTool
             };
         }
 
-        var validationError = _injector.ValidateTarget(processId.Value);
+        var validationError = _injector.ValidateTarget(processId);
         if (validationError != InjectionError.None)
         {
             return new
             {
                 success = false,
-                error = GetErrorMessage(validationError, processId.Value, processInfo),
+                error = GetErrorMessage(validationError, processId, processInfo),
                 errorCode = validationError.ToString(),
                 targetIsElevated = processInfo.IsElevated,
                 requiresElevationToConnect = access.RequiresElevationToConnect,
@@ -206,13 +227,16 @@ public sealed class ConnectTool
             };
         }
 
-        var inspectorCandidates = DllCandidateResolver.EnumerateInspectorCandidates(
-            AppContext.BaseDirectory).Where(File.Exists).ToArray();
-        var bootstrapperCandidates = DllCandidateResolver.EnumerateBootstrapperCandidates(
-            AppContext.BaseDirectory).Where(File.Exists).ToArray();
-
+        var inspectorCandidates = DllCandidateResolver.EnumerateInspectorCandidates(AppContext.BaseDirectory)
+            .Where(File.Exists)
+            .ToArray();
+        var bootstrapperCandidates = DllCandidateResolver.EnumerateBootstrapperCandidates(AppContext.BaseDirectory)
+            .Where(File.Exists)
+            .ToArray();
         var injectionRequest = InjectionPlanFactory.CreateRequest(
-            processInfo, inspectorCandidates, bootstrapperCandidates);
+            processInfo,
+            inspectorCandidates,
+            bootstrapperCandidates);
 
         if (injectionRequest == null)
         {
@@ -237,7 +261,7 @@ public sealed class ConnectTool
                 return new
                 {
                     success = false,
-                    error = GetErrorMessage(InjectionError.AccessDenied, processId.Value, processInfo),
+                    error = GetErrorMessage(InjectionError.AccessDenied, processId, processInfo),
                     errorCode = InjectionError.AccessDenied.ToString(),
                     targetIsElevated = processInfo.IsElevated,
                     requiresElevationToConnect = access.RequiresElevationToConnect,
@@ -261,13 +285,13 @@ public sealed class ConnectTool
             };
         }
 
-        _sessionManager.AddSession(processId.Value);
+        _sessionManager.AddSession(processId);
         try
         {
-            var pipeClient = _sessionManager.GetPipeClient(processId.Value);
+            var pipeClient = _sessionManager.GetPipeClient(processId);
             if (pipeClient == null)
             {
-                _sessionManager.RemoveSession(processId.Value);
+                _sessionManager.RemoveSession(processId);
                 return new
                 {
                     success = false,
@@ -281,7 +305,7 @@ public sealed class ConnectTool
                 TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds));
             if (remainingPipeConnectTimeout <= TimeSpan.Zero)
             {
-                _sessionManager.RemoveSession(processId.Value);
+                _sessionManager.RemoveSession(processId);
                 return new
                 {
                     success = false,
@@ -296,7 +320,7 @@ public sealed class ConnectTool
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!connected)
             {
-                _sessionManager.RemoveSession(processId.Value);
+                _sessionManager.RemoveSession(processId);
                 return new
                 {
                     success = false,
@@ -306,15 +330,15 @@ public sealed class ConnectTool
                 };
             }
 
-            _sessionManager.SetActiveProcess(processId.Value);
-
-            if (!explicitProcessSelection && autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
+            _sessionManager.SetActiveProcess(processId);
+            if (!explicitProcessSelection &&
+                autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
             {
                 return new
                 {
                     success = true,
                     message = "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.",
-                    processId = processId.Value,
+                    processId,
                     processName = candidate.ProcessName,
                     windowTitle = candidate.WindowTitle,
                     autoDiscovered = true,
@@ -331,170 +355,88 @@ public sealed class ConnectTool
             {
                 success = true,
                 message = "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.",
-                processId = processId.Value
+                processId
             };
         }
         catch (Exception ex)
         {
             Trace.TraceWarning(
                 "ConnectTool cleanup triggered for process {0} after pipe handshake failure: {1}: {2}",
-                processId.Value,
+                processId,
                 ex.GetType().Name,
                 ex.Message);
-            _sessionManager.RemoveSession(processId.Value);
+            _sessionManager.RemoveSession(processId);
             throw;
         }
     }
 
-    private static string GetErrorMessage(InjectionError error, int processId, WpfProcessInfo? processInfo)
+    private static object? TryGetOptionalString(
+        JsonElement? arguments,
+        string propertyName,
+        out string? value)
     {
-        return error switch
+        value = null;
+        if (!arguments.HasValue || !arguments.Value.TryGetProperty(propertyName, out var property))
         {
-            InjectionError.ProcessNotFound => $"Process {processId} not found or has exited",
-            InjectionError.NotWpfApplication => $"Process {processId} is not a WPF application",
-            InjectionError.AccessDenied when processInfo?.IsElevated == true =>
-                $"Access denied to process {processId} because the target is elevated. Restart the MCP server as administrator to connect or control this WPF process.",
-            InjectionError.AccessDenied => $"Access denied to process {processId}. Try running as administrator.",
-            InjectionError.ArchitectureMismatch => $"Architecture mismatch for process {processId}. Ensure the MCP server architecture matches the target process (both x64 or both x86).",
-            _ => $"Validation failed: {error}"
-        };
-    }
+            return null;
+        }
 
-    internal static TimeSpan GetRemainingPipeConnectTimeout(
-        TimeSpan elapsed,
-        TimeSpan totalTimeout)
-    {
-        var remaining = totalTimeout - elapsed;
-        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
-    }
+        if (property.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
 
-    internal static void ValidateDllPath(string dllPath)
-        => DllPathValidator.ValidateDllPath(dllPath);
-
-    private AutoDiscoveryResolution TryResolveAutoDiscoveredProcess(
-        ProcessDiscoverySelectionStrategy selectionStrategy,
-        ProcessWindowFilter windowFilter)
-    {
-        var currentProcessIsElevated = _isCurrentProcessElevated();
-        var candidates = _processDetector
-            .GetAllWpfProcesses(windowFilter)
-            .Select(process =>
+        if (property.ValueKind != JsonValueKind.String)
+        {
+            return new
             {
-                var access = ProcessConnectionAccessEvaluator.Evaluate(
-                    process.ProcessId,
-                    process.IsElevated,
-                    currentProcessIsElevated);
-                return new ProcessDiscoveryCandidateSummary(
-                    process.ProcessId,
-                    process.ProcessName,
-                    process.WindowTitle,
-                    _workingSetResolver(process.ProcessId),
-                    process.IsElevated,
-                    access.RequiresElevationToConnect,
-                    access.CanConnectFromCurrentServer,
-                    access.ConnectionWarning);
-            })
-            .OrderByDescending(candidate => candidate.WorkingSetBytes)
-            .ThenBy(candidate => candidate.ProcessId)
-            .ToArray();
-
-        if (candidates.Length == 0)
-        {
-            return new AutoDiscoveryResolution(
-                null,
-                new
-                {
-                    success = false,
-                    error = "No running WPF processes were found for the requested window filter. Start the target app or call get_processes() to confirm availability.",
-                    errorCode = "NoWpfProcessesFound",
-                    hint = "Launch the WPF app first, retry connect(windowFilter='all') to include background targets, or call get_processes() for manual discovery."
-                },
-                0,
-                candidates,
-                null,
-                false);
+                success = false,
+                error = $"{propertyName} must be a string when provided",
+                errorCode = "InvalidArgument",
+                hint = $"Provide {propertyName} as a JSON string value."
+            };
         }
 
-        if (candidates.Length == 1)
-        {
-            return new AutoDiscoveryResolution(
-                candidates[0].ProcessId,
-                null,
-                1,
-                candidates,
-                candidates[0],
-                false);
-        }
-
-        if (selectionStrategy != ProcessDiscoverySelectionStrategy.LargestWorkingSet)
-        {
-            return new AutoDiscoveryResolution(
-                null,
-                new
-                {
-                    success = false,
-                    error = "Multiple WPF processes found; specify processId or use selectionStrategy='largest_working_set'.",
-                    errorCode = "MultipleWpfProcessesFound",
-                    candidateCount = candidates.Length,
-                    processes = candidates.Select(ToContractCandidate).ToArray(),
-                    hint = "Call connect(processId) for a specific target, or retry connect(selectionStrategy='largest_working_set') if the largest process is acceptable."
-                },
-                candidates.Length,
-                candidates,
-                null,
-                false);
-        }
-
-        return new AutoDiscoveryResolution(
-            candidates[0].ProcessId,
-            null,
-            candidates.Length,
-            candidates,
-            candidates[0],
-            true);
+        value = property.GetString();
+        return null;
     }
 
-    private static object ToContractCandidate(ProcessDiscoveryCandidateSummary candidate)
+    private Task<object> RunSingleFlightAsync(int processId, Func<Task<object>> operationFactory)
     {
-        return new
+        ArgumentNullException.ThrowIfNull(operationFactory);
+
+        while (true)
         {
-            processId = candidate.ProcessId,
-            processName = candidate.ProcessName,
-            windowTitle = candidate.WindowTitle,
-            workingSetBytes = candidate.WorkingSetBytes,
-            isElevated = candidate.IsElevated,
-            requiresElevationToConnect = candidate.RequiresElevationToConnect,
-            canConnectFromCurrentServer = candidate.CanConnectFromCurrentServer,
-            connectionWarning = candidate.ConnectionWarning
-        };
+            if (_inflightConnects.TryGetValue(processId, out var existingOperation))
+            {
+                return existingOperation.Task;
+            }
+
+            var taskSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (_inflightConnects.TryAdd(processId, taskSource))
+            {
+                _ = Task.Run(() => CompleteSingleFlightAsync(processId, taskSource, operationFactory));
+                return taskSource.Task;
+            }
+        }
     }
 
-    private static long ResolveWorkingSetBytes(int processId)
+    private async Task CompleteSingleFlightAsync(
+        int processId,
+        TaskCompletionSource<object> taskSource,
+        Func<Task<object>> operationFactory)
     {
         try
         {
-            using var process = Process.GetProcessById(processId);
-            return process.WorkingSet64;
+            taskSource.SetResult(await operationFactory().ConfigureAwait(false));
         }
-        catch (ArgumentException)
+        catch (Exception ex)
         {
-            return 0;
+            taskSource.SetException(ex);
         }
-        catch (InvalidOperationException)
+        finally
         {
-            return 0;
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            return 0;
+            _inflightConnects.TryRemove(new KeyValuePair<int, TaskCompletionSource<object>>(processId, taskSource));
         }
     }
-
-    private sealed record AutoDiscoveryResolution(
-        int? ProcessId,
-        object? ErrorResult,
-        int CandidateCount,
-        IReadOnlyList<ProcessDiscoveryCandidateSummary> Candidates,
-        ProcessDiscoveryCandidateSummary? SelectedCandidate,
-        bool AutoSelected);
 }

@@ -8,6 +8,10 @@ Claude Desktop uses a static JSON file, so the cleanest setup is to copy the gen
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+> Security note: Review the hosted installer script before using `irm | iex` in sensitive environments.
+
+If you do not want `irm | iex`, download the release zip manually, inspect it, and run `setup.ps1 -Force` locally before copying the generated JSON.
+
 After installation, the default executable path is:
 
 ```text

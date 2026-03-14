@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class LayoutMcpTools
 {
     private const string LayoutMetadata = "CATEGORY: Layout | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_layout_info", Title = "Inspect WPF Layout Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_layout_info", Title = "Inspect WPF Layout Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to inspect WPF layout measurements and runtime positioning for an element.\n\n" +
         LayoutMetadata + "[Layout] Get layout information of a WPF element. Returns: actualWidth, actualHeight, " +
@@ -55,7 +55,7 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_clipping_info", Title = "Inspect WPF Clipping Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_clipping_info", Title = "Inspect WPF Clipping Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to inspect WPF clipping and overflow when rendered content appears cut off.\n\n" +
         LayoutMetadata + "[Layout] Get clipping information of a WPF element. Returns whether the element " +
@@ -91,7 +91,7 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "highlight_element", Title = "Highlight WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "highlight_element", Title = "Highlight WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to highlight a WPF element so runtime inspection targets stay unambiguous.\n\n" +
         LayoutMetadata + "[Layout] Visually highlight an element with a colored border overlay. " +
@@ -134,7 +134,7 @@ public static class LayoutMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "invalidate_layout", Title = "Invalidate WPF Layout", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "invalidate_layout", Title = "Invalidate WPF Layout", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to invalidate WPF layout when runtime measurements need to be recomputed immediately.\n\n" +
         LayoutMetadata + "[Layout] Force layout invalidation on a WPF element, causing it to re-measure " +

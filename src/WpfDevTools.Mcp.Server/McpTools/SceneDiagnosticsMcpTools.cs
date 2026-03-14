@@ -11,7 +11,7 @@ public static class SceneDiagnosticsMcpTools
     private const string SceneMetadata = "CATEGORY: Scene Diagnostics | SAFETY: These tools aggregate existing runtime diagnostics to reduce multi-call analysis flows.\n\n";
     private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `navigation.recommended` plus compatibility field `nextSteps`; prefer `navigation.recommended` when present instead of ad hoc tool guessing.\n\n";
 
-    [McpServerTool(Name = "get_state_diff", Title = "Inspect WPF Runtime State Diff", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_state_diff", Title = "Inspect WPF Runtime State Diff", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to compare a previously captured WPF runtime state snapshot with the current runtime state.\n\n" +
         SceneMetadata +
@@ -59,7 +59,7 @@ public static class SceneDiagnosticsMcpTools
             toolName: "get_state_diff");
     }
 
-    [McpServerTool(Name = "get_element_snapshot", Title = "Inspect WPF Element Snapshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_element_snapshot", Title = "Inspect WPF Element Snapshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to aggregate the most common WPF diagnostics for a single runtime element into one token-efficient snapshot.\n\n" +
         SceneMetadata +
@@ -105,7 +105,7 @@ public static class SceneDiagnosticsMcpTools
             toolName: "get_element_snapshot");
     }
 
-    [McpServerTool(Name = "diagnose_visibility", Title = "Diagnose WPF Element Visibility", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "diagnose_visibility", Title = "Diagnose WPF Element Visibility", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to explain why a WPF runtime element is or is not user-visible without relying on screenshots.\n\n" +
         SceneMetadata +
@@ -147,7 +147,7 @@ public static class SceneDiagnosticsMcpTools
             toolName: "diagnose_visibility");
     }
 
-    [McpServerTool(Name = "get_interaction_readiness", Title = "Inspect WPF Interaction Readiness", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_interaction_readiness", Title = "Inspect WPF Interaction Readiness", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to determine whether a WPF runtime element is currently ready for interaction.\n\n" +
         SceneMetadata +
@@ -191,7 +191,7 @@ public static class SceneDiagnosticsMcpTools
             toolName: "get_interaction_readiness");
     }
 
-    [McpServerTool(Name = "get_ui_summary", Title = "Summarize WPF UI Semantics", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_ui_summary", Title = "Summarize WPF UI Semantics", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to get a token-efficient semantic summary of a WPF window or subtree without relying on screenshots.\n\n" +
         SceneMetadata +
@@ -239,7 +239,7 @@ public static class SceneDiagnosticsMcpTools
             toolName: "get_ui_summary");
     }
 
-    [McpServerTool(Name = "get_form_summary", Title = "Summarize WPF Form State", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_form_summary", Title = "Summarize WPF Form State", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to summarize the current state of a WPF form subtree in one call.\n\n" +
         SceneMetadata +

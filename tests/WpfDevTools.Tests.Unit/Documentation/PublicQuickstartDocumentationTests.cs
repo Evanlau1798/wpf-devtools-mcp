@@ -110,6 +110,12 @@ public sealed class PublicQuickstartDocumentationTests
                 $"{file} should reference the GitHub Pages hosted one-command installer");
             content.Should().Contain("irm",
                 $"{file} should explain the one-command bootstrap path");
+            content.Should().MatchRegex(
+                "(Security note|安全提醒|`irm \\| iex` is optional|`irm \\| iex` 是選項)",
+                $"{file} should warn that the remote bootstrap path is optional and needs review in sensitive environments");
+            content.Should().MatchRegex(
+                "(If you do not want `irm \\| iex`|如果你不想使用 `irm \\| iex`|download the release zip manually|手動下載 release zip|setup\\.ps1)",
+                $"{file} should document a reviewed local fallback alongside the one-command installer");
         }
     }
 

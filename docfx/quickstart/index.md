@@ -24,6 +24,8 @@ Fastest path:
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+> Security note: Review the hosted installer script before using `irm | iex` in sensitive environments.
+
 That command fetches the static bootstrap script from GitHub Pages. The script then downloads the matching `WpfDevTools-win-<arch>.zip` release asset and runs the packaged `setup.ps1` wizard.
 The corresponding source entrypoint for maintainers lives in `scripts/online-installer.ps1`.
 

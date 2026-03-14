@@ -16,6 +16,10 @@ Fastest path:
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+> Security note: Review the hosted installer script before using `irm | iex` in sensitive environments.
+
+If you do not want `irm | iex`, download the release zip manually, inspect it, and run `setup.ps1 -Force` locally before registering Codex.
+
 One-command Codex-focused setup:
 
 ```powershell

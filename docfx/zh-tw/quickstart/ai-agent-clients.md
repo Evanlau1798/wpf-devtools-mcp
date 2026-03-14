@@ -8,7 +8,11 @@
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+> 安全提醒：在敏感環境執行 `irm | iex` 前，請先審查這個 hosted installer script 的內容。
+
 維護者對應的來源入口腳本位於 `scripts/online-installer.ps1`。
+
+如果你不想使用 `irm | iex`，請先手動下載 release zip、檢查內容，再於本機執行 `setup.ps1 -Force`，之後再註冊已安裝的 executable。
 
 若要指定架構並一次產生多個 client 的設定，可使用：
 

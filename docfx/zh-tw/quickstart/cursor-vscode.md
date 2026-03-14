@@ -8,6 +8,10 @@ Cursor 與 VS Code 最適合直接套用 installer 產生的 JSON 設定。
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+> 安全提醒：在敏感環境執行 `irm | iex` 前，請先審查這個 hosted installer script 的內容。
+
+如果你不想使用 `irm | iex`，請手動下載 release zip、先檢查內容，再於本機執行 `setup.ps1 -Force`，之後再複製產生的 JSON。
+
 安裝後的預設 executable 路徑是：
 
 ```text

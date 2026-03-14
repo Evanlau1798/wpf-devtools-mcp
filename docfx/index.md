@@ -12,7 +12,11 @@ For most users, the fastest supported setup path is the GitHub Pages bootstrap i
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+> Security note: Review the hosted installer script before using `irm | iex` in sensitive environments.
+
 That script downloads the matching `WpfDevTools-win-<arch>.zip` asset from GitHub Releases and runs the packaged `setup.ps1` wizard.
+
+If you do not want `irm | iex`, download the release zip manually, inspect it, and run `setup.ps1 -Force` locally.
 
 If you want a deterministic non-interactive install, use:
 

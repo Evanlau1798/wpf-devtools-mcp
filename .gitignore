@@ -4,6 +4,7 @@ obj/
 *.user
 *.suo
 *.cache
+release/
 
 #docs
 docs/

@@ -113,6 +113,21 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WithNonStringSelectionStrategy_ShouldReturnInvalidArgument()
+    {
+        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp")));
+
+        var result = await tool.ExecuteAsync(
+            JsonSerializer.SerializeToElement(new { selectionStrategy = 1 }),
+            CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("selectionStrategy");
+    }
+
+    [Fact]
     public async Task Execute_WithoutWindowFilter_ShouldDefaultAutoDiscoveryToVisible()
     {
         var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp"));
@@ -145,6 +160,21 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
 
         var result = await tool.ExecuteAsync(
             ToJsonElement(new { windowFilter = "bad-filter" }),
+            CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("windowFilter");
+    }
+
+    [Fact]
+    public async Task Execute_WithNonStringWindowFilter_ShouldReturnInvalidArgument()
+    {
+        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp")));
+
+        var result = await tool.ExecuteAsync(
+            JsonSerializer.SerializeToElement(new { windowFilter = true }),
             CancellationToken.None);
 
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));

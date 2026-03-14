@@ -39,12 +39,17 @@ public sealed class GetProcessesTool
     {
         try
         {
-            string? nameFilter = null;
-            string? windowFilterValue = null;
-            if (arguments.HasValue && arguments.Value.TryGetProperty("nameFilter", out var filterProp))
-                nameFilter = filterProp.GetString();
-            if (arguments.HasValue && arguments.Value.TryGetProperty("windowFilter", out var windowFilterProp))
-                windowFilterValue = windowFilterProp.GetString();
+            var nameFilterError = TryGetOptionalString(arguments, "nameFilter", out var nameFilter);
+            if (nameFilterError != null)
+            {
+                return Task.FromResult(nameFilterError);
+            }
+
+            var windowFilterError = TryGetOptionalString(arguments, "windowFilter", out var windowFilterValue);
+            if (windowFilterError != null)
+            {
+                return Task.FromResult(windowFilterError);
+            }
 
             if (!ProcessWindowFilters.TryParse(windowFilterValue, out var windowFilter))
             {
@@ -108,5 +113,36 @@ public sealed class GetProcessesTool
                 Hint = "Retry get_processes, or inspect local process permissions and server logs if enumeration keeps failing."
             });
         }
+    }
+
+    private static object? TryGetOptionalString(
+        JsonElement? arguments,
+        string propertyName,
+        out string? value)
+    {
+        value = null;
+        if (!arguments.HasValue || !arguments.Value.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (property.ValueKind != JsonValueKind.String)
+        {
+            return new
+            {
+                success = false,
+                error = $"{propertyName} must be a string when provided",
+                errorCode = "InvalidArgument",
+                hint = $"Provide {propertyName} as a JSON string value."
+            };
+        }
+
+        value = property.GetString();
+        return null;
     }
 }

@@ -24,6 +24,8 @@
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+> 安全提醒：在敏感環境執行 `irm | iex` 前，請先審查這個 hosted installer script 的內容。
+
 維護者對應的來源入口腳本位於 `scripts/online-installer.ps1`。
 
 這個指令會從 GitHub Pages 取得靜態 bootstrap script。之後該腳本會下載符合架構的 `WpfDevTools-win-<arch>.zip` release asset，並執行 package 內的 `setup.ps1`。

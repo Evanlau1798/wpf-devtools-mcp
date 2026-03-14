@@ -15,7 +15,7 @@ public class ClaudeToolSearchMetadataTests
         {
             ["get_processes"] = (
                 "List Inspectable WPF Processes",
-                ["running WPF application", "discover available WPF targets"]),
+                ["resolve target ambiguity after connect()", "explicitly need process metadata before connecting"]),
             ["connect"] = (
                 "Connect To Running WPF Process",
                 ["connect to a running WPF process", "before any inspection tool"]),

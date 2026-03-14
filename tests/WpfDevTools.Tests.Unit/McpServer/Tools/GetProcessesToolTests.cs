@@ -157,6 +157,38 @@ public class GetProcessesToolTests
     }
 
     [Fact]
+    public async Task Execute_WithNonStringNameFilter_ShouldReturnValidationError()
+    {
+        var detector = new FakeProcessDetector();
+        var tool = new GetProcessesTool(detector, () => false);
+
+        var result = await tool.ExecuteAsync(
+            JsonSerializer.SerializeToElement(new { nameFilter = 123 }),
+            CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("nameFilter");
+    }
+
+    [Fact]
+    public async Task Execute_WithNonStringWindowFilter_ShouldReturnValidationError()
+    {
+        var detector = new FakeProcessDetector();
+        var tool = new GetProcessesTool(detector, () => false);
+
+        var result = await tool.ExecuteAsync(
+            JsonSerializer.SerializeToElement(new { windowFilter = true }),
+            CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("windowFilter");
+    }
+
+    [Fact]
     public async Task Execute_WhenDetectorThrows_ShouldReturnStructuredErrorContract()
     {
         var tool = new GetProcessesTool(new ThrowingProcessDetector(), () => false);

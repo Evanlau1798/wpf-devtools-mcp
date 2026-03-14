@@ -8,7 +8,11 @@ Install WPF DevTools first, then register the installed executable with your pre
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+> Security note: Review the hosted installer script before using `irm | iex` in sensitive environments.
+
 The corresponding source entrypoint for maintainers lives in `scripts/online-installer.ps1`.
+
+If you do not want `irm | iex`, download the release zip manually, inspect it, and run `setup.ps1 -Force` locally before registering the installed executable.
 
 Advanced non-interactive example:
 

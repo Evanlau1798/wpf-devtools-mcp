@@ -16,6 +16,10 @@ npm install -g @openai/codex
 irm https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1 | iex
 ```
 
+> 安全提醒：在敏感環境執行 `irm | iex` 前，請先審查這個 hosted installer script 的內容。
+
+如果你不想使用 `irm | iex`，請手動下載 release zip、先檢查內容，再於本機執行 `setup.ps1 -Force`，之後再註冊 Codex。
+
 若要直接產生 Codex CLI 註冊內容，可使用：
 
 ```powershell

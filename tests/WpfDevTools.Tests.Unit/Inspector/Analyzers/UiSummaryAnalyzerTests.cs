@@ -311,4 +311,26 @@ public sealed class UiSummaryAnalyzerTests
         result.GetProperty("summaryText").GetString().Should().Contain("SaveButton");
         result.TryGetProperty("nodes", out _).Should().BeFalse();
     }
+
+    [StaFact]
+    public void GetUiSummary_ShouldOmitFrameworkObjectDisplayTextNoise()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel
+        {
+            Children =
+            {
+                new Button { Content = new StackPanel() },
+                new TextBlock { Name = "StatusText", Text = "Ready" }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 2));
+        var summaryText = result.GetProperty("summaryText").GetString();
+
+        summaryText.Should().Contain("StatusText");
+        summaryText.Should().NotContain("System.Windows");
+    }
 }

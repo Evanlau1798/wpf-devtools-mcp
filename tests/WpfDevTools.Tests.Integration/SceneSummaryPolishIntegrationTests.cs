@@ -70,4 +70,30 @@ public sealed class SceneSummaryPolishIntegrationTests
 
         result.GetProperty("inputs")[0].GetProperty("label").GetString().Should().Be("Credentials");
     }
+
+    [Fact]
+    public void GetUiSummary_ShouldSkipFrameworkStyleDisplayTextNoise()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var finder = new ElementFinder();
+            var analyzer = new UiSummaryAnalyzer(finder);
+            var root = new StackPanel
+            {
+                Children =
+                {
+                    new Button { Content = new StackPanel() },
+                    new TextBlock { Name = "ActualStatusText", Text = "Ready" }
+                }
+            };
+
+            Application.Current.MainWindow.Content = root;
+            var elementId = finder.GenerateElementId(root);
+            return JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 2));
+        });
+
+        var summaryText = result.GetProperty("summaryText").GetString();
+        summaryText.Should().Contain("ActualStatusText");
+        summaryText.Should().NotContain("System.Windows");
+    }
 }

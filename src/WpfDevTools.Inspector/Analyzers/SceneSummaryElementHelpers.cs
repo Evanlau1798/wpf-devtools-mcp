@@ -131,14 +131,14 @@ internal static class SceneSummaryElementHelpers
     {
         return element switch
         {
-            Window window => window.Title,
-            TextBlock textBlock => textBlock.Text,
-            TextBox textBox => textBox.Text,
+            Window window => NormalizeDisplayText(window.Title),
+            TextBlock textBlock => NormalizeDisplayText(textBlock.Text),
+            TextBox textBox => NormalizeDisplayText(textBox.Text),
             PasswordBox passwordBox => string.IsNullOrEmpty(passwordBox.Password) ? string.Empty : "[password]",
-            HeaderedContentControl headeredContentControl => headeredContentControl.Header?.ToString(),
-            HeaderedItemsControl headeredItemsControl => headeredItemsControl.Header?.ToString(),
-            ContentControl contentControl => contentControl.Content?.ToString(),
-            ComboBox comboBox => comboBox.Text,
+            HeaderedContentControl headeredContentControl => NormalizeDisplayObject(headeredContentControl.Header),
+            HeaderedItemsControl headeredItemsControl => NormalizeDisplayObject(headeredItemsControl.Header),
+            ContentControl contentControl => NormalizeDisplayObject(contentControl.Content),
+            ComboBox comboBox => NormalizeDisplayText(comboBox.Text),
             _ => null
         };
     }
@@ -384,17 +384,50 @@ internal static class SceneSummaryElementHelpers
         object? currentValue,
         IReadOnlyList<string> annotations)
     {
-        if (kind != "text")
+        if (element is Window)
         {
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(text))
+        if (annotations.Count > 0 || currentValue != null)
         {
             return false;
         }
 
-        return currentValue == null && annotations.Count == 0;
+        if (kind == "text")
+        {
+            return !HasMeaningfulDisplayText(text);
+        }
+
+        if (HasMeaningfulDisplayText(text))
+        {
+            return false;
+        }
+
+        var elementName = GetElementName(element);
+        return string.IsNullOrWhiteSpace(elementName)
+            || elementName.StartsWith("PART_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? NormalizeDisplayObject(object? value)
+    {
+        return value switch
+        {
+            null => null,
+            string text => NormalizeDisplayText(text),
+            FrameworkElement => null,
+            _ => NormalizeDisplayText(value.ToString())
+        };
+    }
+
+    private static string? NormalizeDisplayText(string? text)
+    {
+        if (!HasMeaningfulDisplayText(text))
+        {
+            return null;
+        }
+
+        return text!.Trim();
     }
 
     private static string? TryGetAncestorHeaderLabel(FrameworkElement element)

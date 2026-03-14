@@ -138,12 +138,12 @@ public class McpToolAttributeTests
     }
 
     [Fact]
-    public void AllTools_ShouldExposeStructuredContentMetadata_ForSchemaDiscovery()
+    public void AllTools_ShouldAvoidStructuredContentMetadata_ForClaudeCodeCompatibility()
     {
         foreach (var (_, _, attr) in AllTools)
         {
-            attr.UseStructuredContent.Should().BeTrue(
-                $"tool '{attr.Name}' should publish output schema metadata so MCP clients can discover its structured content contract");
+            attr.UseStructuredContent.Should().BeFalse(
+                $"tool '{attr.Name}' should avoid SDK-generated structured content output schema because Claude Code rejects it during tools/list validation");
         }
     }
 
@@ -334,7 +334,7 @@ public class McpToolAttributeTests
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.GetProcesses), "List Inspectable WPF Processes")]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Connect), "Connect To Running WPF Process")]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Ping), "Ping WPF Inspector Session")]
-    public void ProcessTools_ShouldAdvertiseFriendlyTitlesAndStructuredContentSchema(Type toolType, string methodName, string expectedTitle)
+    public void ProcessTools_ShouldAdvertiseFriendlyTitlesWithoutClaudeIncompatibleStructuredContentSchema(Type toolType, string methodName, string expectedTitle)
     {
         var method = toolType.GetMethod(methodName);
         method.Should().NotBeNull();
@@ -343,7 +343,7 @@ public class McpToolAttributeTests
         attr.Should().NotBeNull();
         attr!.Title.Should().Be(expectedTitle,
             "AI-facing clients should receive a stable human-friendly tool title");
-        attr.UseStructuredContent.Should().BeTrue(
-            "process tools should advertise structured-output schema for MCP tool discovery");
+        attr.UseStructuredContent.Should().BeFalse(
+            "process tools should avoid SDK-generated structured-output schema until Claude Code accepts it");
     }
 }

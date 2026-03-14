@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class TreeMcpTools
 {
     private const string TreeMetadata = "CATEGORY: Tree | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    [McpServerTool(Name = "get_visual_tree", Title = "Inspect WPF Visual Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_visual_tree", Title = "Inspect WPF Visual Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect the runtime visual tree of a running WPF window or element.\n\n" +
         TreeMetadata + "[Tree] Get the Visual Tree (rendering structure) of a WPF element. " +
@@ -62,7 +62,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_logical_tree", Title = "Inspect WPF Logical Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_logical_tree", Title = "Inspect WPF Logical Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect the WPF logical tree when you need runtime XAML structure rather than render-only details.\n\n" +
         TreeMetadata + "[Tree] Get the Logical Tree (semantic/XAML structure) of a WPF element. " +
@@ -109,7 +109,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "serialize_to_xaml", Title = "Serialize WPF Element To Xaml", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "serialize_to_xaml", Title = "Serialize WPF Element To Xaml", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to serialize a live WPF element into XAML for runtime inspection and comparison.\n\n" +
         TreeMetadata + "[Tree] Serialize a WPF element to its XAML representation. " +
@@ -143,7 +143,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_namescope", Title = "Inspect WPF NameScope", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_namescope", Title = "Inspect WPF NameScope", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect a WPF namescope and discover runtime named elements, including inactive tabs.\n\n" +
         TreeMetadata + "[Tree] Get the XAML NameScope of a WPF element. " +
@@ -177,7 +177,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_template_tree", Title = "Inspect WPF Template Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_template_tree", Title = "Inspect WPF Template Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect the WPF template tree of a runtime control and understand generated parts.\n\n" +
         TreeMetadata + "[Tree] Get the template Visual Tree of a templated WPF control (Button, ListBox, etc.). " +
@@ -213,7 +213,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_windows", Title = "List WPF Windows", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "get_windows", Title = "List WPF Windows", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect secondary windows and list WPF windows before targeting a specific runtime root.\n\n" +
         TreeMetadata + "[Tree] Enumerate all open windows in the connected WPF application. " +
@@ -248,7 +248,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "find_elements", Title = "Find WPF Elements", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "find_elements", Title = "Find WPF Elements", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to search a running WPF tree for matching runtime elements without expanding the full visual tree first.\n\n" +
         TreeMetadata + "[Tree] Search visual and logical descendants from the chosen root using exact or contains filters. " +
@@ -309,7 +309,7 @@ public static class TreeMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "compare_trees", Title = "Compare WPF Visual And Logical Trees", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "compare_trees", Title = "Compare WPF Visual And Logical Trees", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to compare WPF visual and logical trees when runtime structure does not match XAML structure.\n\n" +
         TreeMetadata + "[Tree] Compare Visual and Logical trees to identify structural differences. " +

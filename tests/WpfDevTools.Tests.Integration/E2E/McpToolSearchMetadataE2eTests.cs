@@ -26,7 +26,7 @@ public sealed class McpToolSearchMetadataE2eTests
     }
 
     [Fact]
-    public async Task ToolsList_ShouldExposeStructuredContentOutputSchema()
+    public async Task ToolsList_ShouldNotExposeClaudeIncompatibleStructuredContentOutputSchema()
     {
         var serverExe = FindServerExecutable();
         using var client = new McpStdioClient();
@@ -38,9 +38,16 @@ public sealed class McpToolSearchMetadataE2eTests
 
         foreach (var tool in tools.EnumerateArray())
         {
-            tool.TryGetProperty("outputSchema", out var outputSchema).Should().BeTrue(
-                $"tool '{tool.GetProperty("name").GetString()}' should advertise output schema for structured content discovery");
-            outputSchema.ValueKind.Should().Be(JsonValueKind.Object);
+            tool.TryGetProperty("outputSchema", out var outputSchema).Should().BeFalse(
+                $"tool '{tool.GetProperty("name").GetString()}' should not advertise Claude-incompatible structured content output schema");
+
+            if (tool.TryGetProperty("outputSchema", out outputSchema) &&
+                outputSchema.ValueKind == JsonValueKind.Object &&
+                outputSchema.TryGetProperty("properties", out var properties))
+            {
+                properties.TryGetProperty("structuredContent", out _).Should().BeFalse(
+                    $"tool '{tool.GetProperty("name").GetString()}' should not include outputSchema.properties.structuredContent because Claude rejects it during tools/list validation");
+            }
         }
     }
 

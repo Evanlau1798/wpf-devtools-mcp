@@ -12,6 +12,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 public abstract class PipeConnectedToolBase
 {
     private const int DefaultPiggybackMaxEvents = 25;
+    private static readonly TimeSpan PiggybackTimeout = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
     /// Session manager for tracking connected processes
@@ -169,11 +170,27 @@ public abstract class PipeConnectedToolBase
     /// Send a request to the Inspector DLL via Named Pipe
     /// </summary>
     protected async Task<object> SendInspectorRequestAsync(
-        int processId, string method, object? parameters, CancellationToken ct)
+        int processId,
+        string method,
+        object? parameters,
+        CancellationToken ct,
+        bool piggybackPendingEvents = true)
     {
         var result = await SendInspectorRequestCoreAsync(processId, method, parameters, ct).ConfigureAwait(false);
+        if (!piggybackPendingEvents)
+        {
+            return result;
+        }
+
         return await TryPiggybackPendingEventsAsync(processId, method, result, ct).ConfigureAwait(false);
     }
+
+    protected Task<object> SendInspectorRequestWithoutPiggybackAsync(
+        int processId,
+        string method,
+        object? parameters,
+        CancellationToken ct) =>
+        SendInspectorRequestAsync(processId, method, parameters, ct, piggybackPendingEvents: false);
 
     private async Task<object> SendInspectorRequestCoreAsync(
         int processId,
@@ -240,11 +257,27 @@ public abstract class PipeConnectedToolBase
             return result;
         }
 
-        var drainResult = await SendInspectorRequestCoreAsync(
-            processId,
-            "drain_events",
-            new { maxEvents = DefaultPiggybackMaxEvents },
-            ct).ConfigureAwait(false);
+        if (ct.IsCancellationRequested)
+        {
+            return result;
+        }
+
+        object drainResult;
+        using var piggybackCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        piggybackCts.CancelAfter(PiggybackTimeout);
+        try
+        {
+            drainResult = await SendInspectorRequestCoreAsync(
+                processId,
+                "drain_events",
+                new { maxEvents = DefaultPiggybackMaxEvents },
+                piggybackCts.Token).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            return result;
+        }
+
         var drainPayload = ToJsonElement(drainResult);
         if (!IsSuccessfulPayload(drainPayload))
         {

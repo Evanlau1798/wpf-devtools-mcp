@@ -162,6 +162,20 @@ public sealed class ElementFinder : IDisposable
         }
     }
 
+    internal IReadOnlyList<DependencyObject> GetTrackedElements()
+    {
+        var elements = new List<DependencyObject>();
+        foreach (var weakRef in _elementCache.Values)
+        {
+            if (weakRef.TryGetTarget(out var element))
+            {
+                elements.Add(element);
+            }
+        }
+
+        return elements;
+    }
+
     /// <summary>
     /// Find element by ID in the Visual Tree
     /// </summary>

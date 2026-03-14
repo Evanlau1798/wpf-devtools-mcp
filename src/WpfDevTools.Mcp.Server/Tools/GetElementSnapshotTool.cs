@@ -137,7 +137,7 @@ public sealed class GetElementSnapshotTool(SessionManager sessionManager) : Pipe
         var properties = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var propertyName in BuildSnapshotPropertyNames(includeProperties))
         {
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
                 processId,
                 "get_dp_value_source",
                 new { elementId, propertyName },
@@ -204,7 +204,7 @@ public sealed class GetElementSnapshotTool(SessionManager sessionManager) : Pipe
         object parameters,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             method,
             parameters,

@@ -86,7 +86,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                 ? new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName, value = snapshot.LocalValue }
                 : new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName };
             var method = snapshot.HadLocalValue ? "set_dp_value" : "clear_dp_value";
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
                 processId,
                 method,
                 parameters,
@@ -138,7 +138,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                 continue;
             }
 
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
                 processId,
                 "modify_viewmodel",
                 new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName, value = snapshot.Value },
@@ -161,7 +161,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         StoredViewModelPropertySnapshot snapshot,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "get_viewmodel",
             new { elementId = snapshot.ElementId },
@@ -199,7 +199,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             return false;
         }
 
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "focus_element",
             new { elementId = snapshot.FocusedElementId },

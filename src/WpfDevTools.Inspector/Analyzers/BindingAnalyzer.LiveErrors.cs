@@ -10,18 +10,38 @@ public sealed partial class BindingAnalyzer
     private IReadOnlyList<BindingErrorInfo> GetLiveBindingErrors()
     {
         var rootElement = ResolveElement(elementId: null);
-        if (rootElement == null)
+        var errors = new List<BindingErrorInfo>();
+        var scannedElements = new HashSet<string>(StringComparer.Ordinal);
+
+        if (rootElement != null)
         {
-            return Array.Empty<BindingErrorInfo>();
+            CollectLiveBindingErrorsFromScope(rootElement, errors, scannedElements);
+            return errors;
         }
 
-        var errors = new List<BindingErrorInfo>();
-        foreach (var element in DependencyObjectTraversal.EnumerateDescendantsAndSelf(rootElement))
+        foreach (var trackedElement in _elementFinder.GetTrackedElements())
         {
+            CollectLiveBindingErrorsFromScope(trackedElement, errors, scannedElements);
+        }
+
+        return errors.Count == 0 ? Array.Empty<BindingErrorInfo>() : errors;
+    }
+
+    private void CollectLiveBindingErrorsFromScope(
+        DependencyObject scope,
+        List<BindingErrorInfo> errors,
+        HashSet<string> scannedElements)
+    {
+        foreach (var element in DependencyObjectTraversal.EnumerateDescendantsAndSelf(scope))
+        {
+            var elementId = _elementFinder.GenerateElementId(element);
+            if (!scannedElements.Add(elementId))
+            {
+                continue;
+            }
+
             CollectLocalBindingErrors(element, errors);
         }
-
-        return errors;
     }
 
     private void CollectLocalBindingErrors(

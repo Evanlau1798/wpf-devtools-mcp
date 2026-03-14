@@ -35,10 +35,10 @@ public sealed class RequestDispatcher : IDisposable
 
         // Initialize analyzers
         var visualTreeAnalyzer = new VisualTreeAnalyzer(elementFinder);
-        var bindingAnalyzer = new BindingAnalyzer(elementFinder);
+        var bindingAnalyzer = new BindingAnalyzer(elementFinder, watchEventBuffer);
         var logicalTreeAnalyzer = new LogicalTreeAnalyzer(elementFinder);
         var elementSearchAnalyzer = new ElementSearchAnalyzer(elementFinder);
-        var mvvmAnalyzer = new MvvmAnalyzer(elementFinder);
+        var mvvmAnalyzer = new MvvmAnalyzer(elementFinder, watchEventBuffer);
         var dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(elementFinder, watchEventBuffer);
         var layoutAnalyzer = new LayoutAnalyzer(elementFinder);
         var interactionAnalyzer = new InteractionAnalyzer(elementFinder);

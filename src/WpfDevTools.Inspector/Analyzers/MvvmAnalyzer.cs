@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -17,7 +18,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// - Property blacklist prevents modification of sensitive properties using regex patterns
 /// - All modifications are logged for audit purposes
 /// </summary>
-public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
+public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -34,8 +35,17 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     /// <param name="elementFinder">The element finder used to resolve elements by ID or as the root element.</param>
     public MvvmAnalyzer(ElementFinder elementFinder)
+        : this(elementFinder, null)
+    {
+    }
+
+    internal MvvmAnalyzer(
+        ElementFinder elementFinder,
+        WatchEventBuffer? watchEventBuffer)
     {
         _elementFinder = elementFinder;
+        _watchEventBuffer = watchEventBuffer;
+        _validationChangeTracker = new ValidationChangeTracker(elementFinder);
     }
 
     /// <summary>
@@ -354,6 +364,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
             try
             {
+                var validationScope = _elementFinder.GetRootElement() ?? fe;
+                var validationBefore = CaptureValidationSnapshot(validationScope);
+
                 // Get property info
                 var propertyInfo = viewModel.GetType().GetProperty(propertyName);
                 if (propertyInfo == null)
@@ -444,6 +457,9 @@ public sealed class MvvmAnalyzer : DispatcherAnalyzerBase
 
                 // Set new value
                 propertyInfo.SetValue(viewModel, convertedValue);
+                var validationScopeElementId = _elementFinder.GenerateElementId(validationScope);
+                var validationAfter = CaptureValidationSnapshot(validationScope);
+                EnqueueValidationTransition(validationScopeElementId, validationBefore, validationAfter);
 
                 // SECURITY: Log property modification for audit
                 AuditLogger.LogSecurityEvent("PropertyModification",

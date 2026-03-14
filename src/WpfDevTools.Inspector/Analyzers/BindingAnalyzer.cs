@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Data;
+using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -11,7 +12,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
-    internal BindingAnalyzer() : this(new ElementFinder())
+    internal BindingAnalyzer() : this(new ElementFinder(), null)
     {
     }
 
@@ -20,8 +21,17 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public BindingAnalyzer(ElementFinder elementFinder)
+        : this(elementFinder, null)
+    {
+    }
+
+    internal BindingAnalyzer(
+        ElementFinder elementFinder,
+        WatchEventBuffer? watchEventBuffer)
     {
         _elementFinder = elementFinder;
+        _watchEventBuffer = watchEventBuffer;
+        ConfigureBindingEventBridge();
     }
 
     /// <summary>
@@ -101,6 +111,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             }
 
             var filteredErrors = FilterOutValidationErrors(errors);
+            EnqueueBindingErrors(filteredErrors);
             if (sinceUtc.HasValue)
             {
                 filteredErrors = filteredErrors

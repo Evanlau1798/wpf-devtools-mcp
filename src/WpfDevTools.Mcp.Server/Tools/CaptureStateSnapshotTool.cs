@@ -27,7 +27,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         var dependencyProperties = new List<StoredDependencyPropertySnapshot>();
         foreach (var propertyName in propertyNames)
         {
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
                 processId,
                 "get_dp_value_source",
                 new { elementId, propertyName },
@@ -50,7 +50,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         var viewModelProperties = new List<StoredViewModelPropertySnapshot>();
         if (viewModelPropertyNames.Count > 0)
         {
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
                 processId,
                 "get_viewmodel",
                 new { elementId },
@@ -98,7 +98,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         StoredFocusSnapshot? focus = null;
         if (includeFocus)
         {
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
                 processId,
                 "get_focus_state",
                 new { elementId },
@@ -250,7 +250,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         int processId,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "get_binding_errors",
             new { },
@@ -279,7 +279,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         string? elementId,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "get_validation_errors",
             new { elementId },

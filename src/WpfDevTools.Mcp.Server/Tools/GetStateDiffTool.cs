@@ -144,7 +144,7 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
         var states = new List<CurrentDependencyPropertyState>();
         foreach (var property in snapshot.DependencyProperties)
         {
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
                 processId,
                 "get_dp_value_source",
                 new { elementId = property.ElementId, propertyName = property.PropertyName },
@@ -175,7 +175,7 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
             return (Array.Empty<CurrentViewModelPropertyState>(), null);
         }
 
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "get_viewmodel",
             new
@@ -205,7 +205,7 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
         int processId,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "get_binding_errors",
             new { },
@@ -224,7 +224,7 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
         string? elementId,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "get_validation_errors",
             new { elementId },
@@ -248,7 +248,7 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
             return (null, null);
         }
 
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "get_focus_state",
             new { elementId = snapshot.ElementId },

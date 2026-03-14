@@ -9,6 +9,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class BindingErrorTraceListener : TraceListener
 {
+    private static Action<BindingErrorInfo>? _watchEventSink;
     private static Lazy<BindingErrorTraceListener> _instance =
         new Lazy<BindingErrorTraceListener>(() => new BindingErrorTraceListener(),
             LazyThreadSafetyMode.ExecutionAndPublication);
@@ -143,10 +144,17 @@ public sealed class BindingErrorTraceListener : TraceListener
         Interlocked.Exchange(ref _errorCount, 0);
     }
 
+    internal static void SetWatchEventSink(Action<BindingErrorInfo>? sink)
+    {
+        _watchEventSink = sink;
+    }
+
     private void EnqueueError(BindingErrorInfo error)
     {
         _errors.Enqueue(error);
         Interlocked.Increment(ref _errorCount);
+        var sink = _watchEventSink;
+        sink?.Invoke(error);
 
         // Trim oldest errors when exceeding capacity
         while (_errors.Count > MaxErrors && _errors.TryDequeue(out _))
@@ -161,6 +169,7 @@ public sealed class BindingErrorTraceListener : TraceListener
     /// </summary>
     internal static void ResetInstance()
     {
+        _watchEventSink = null;
         // Uninstall the old instance first
         if (_instance.IsValueCreated)
         {

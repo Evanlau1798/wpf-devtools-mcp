@@ -320,10 +320,11 @@ public class HandlerRoutingTests
         var handler = new EventHandlers(new EventAnalyzer(new ElementFinder()));
         var methods = handler.GetSupportedMethods().ToList();
 
-        methods.Should().HaveCount(3);
+        methods.Should().HaveCount(4);
         methods.Should().Contain("trace_routed_events");
         methods.Should().Contain("get_event_handlers");
         methods.Should().Contain("fire_routed_event");
+        methods.Should().Contain("drain_events");
     }
 
     // ---- InteractionHandlers ----

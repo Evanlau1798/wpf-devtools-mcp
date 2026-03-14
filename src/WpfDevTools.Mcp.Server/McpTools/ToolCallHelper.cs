@@ -11,7 +11,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 /// Helper for bridging MCP SDK tool methods to existing tool ExecuteAsync implementations.
 /// Converts typed parameters to JsonElement and wraps results as CallToolResult.
 /// </summary>
-public static class ToolCallHelper
+public static partial class ToolCallHelper
 {
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
     private static MetricsCollector? _metrics;
@@ -105,11 +105,7 @@ public static class ToolCallHelper
 
             return new CallToolResult()
             {
-                Content = [new TextContentBlock()
-                {
-                    Text = jsonElement.GetRawText(),
-                    Annotations = isError ? ErrorAnnotations : null
-                }],
+                Content = [CreateTextContentBlock(jsonElement, isError)],
                 StructuredContent = jsonElement,
                 IsError = isError
             };
@@ -136,11 +132,7 @@ public static class ToolCallHelper
 
             return new CallToolResult()
             {
-                Content = [new TextContentBlock()
-                {
-                    Text = timeoutPayload.GetRawText(),
-                    Annotations = ErrorAnnotations
-                }],
+                Content = [CreateTextContentBlock(timeoutPayload, isError: true)],
                 StructuredContent = timeoutPayload,
                 IsError = true
             };
@@ -167,11 +159,7 @@ public static class ToolCallHelper
 
             return new CallToolResult()
             {
-                Content = [new TextContentBlock()
-                {
-                    Text = exceptionPayload.GetRawText(),
-                    Annotations = ErrorAnnotations
-                }],
+                Content = [CreateTextContentBlock(exceptionPayload, isError: true)],
                 StructuredContent = exceptionPayload,
                 IsError = true
             };

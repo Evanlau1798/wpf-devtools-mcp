@@ -134,7 +134,7 @@ public class StructuredContentTests
     }
 
     [Fact]
-    public async Task ExecuteAndWrapAsync_StructuredContentAndTextContent_ShouldBeConsistent()
+    public async Task ExecuteAndWrapAsync_StructuredContentAndTextContent_ShouldUseCompactFallbackSummary()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
             (args, ct) => Task.FromResult<object>(new { success = true, data = "hello" }),
@@ -146,6 +146,7 @@ public class StructuredContentTests
         var structured = result.StructuredContent!.Value;
 
         textJson.GetProperty("success").GetBoolean().Should().Be(structured.GetProperty("success").GetBoolean());
-        textJson.GetProperty("data").GetString().Should().Be(structured.GetProperty("data").GetString());
+        textJson.GetProperty("hasStructuredContent").GetBoolean().Should().BeTrue();
+        textJson.TryGetProperty("data", out _).Should().BeFalse();
     }
 }

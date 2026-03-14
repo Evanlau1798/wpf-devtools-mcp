@@ -118,6 +118,8 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("navigation.recommended");
         ServerInstructions.Value.Should().Contain("compatibility field");
         ServerInstructions.Value.Should().Contain("descriptive JSON");
+        ServerInstructions.Value.Should().Contain("already know the next step");
+        ServerInstructions.Value.Should().Contain("pass navigation=false");
         ServerInstructions.Value.Should().NotContain("use it as the preferred follow-up navigation field",
             "nextSteps should remain a compatibility field rather than the preferred navigation surface");
     }

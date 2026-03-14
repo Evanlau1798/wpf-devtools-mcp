@@ -255,8 +255,10 @@ public class ToolCallHelperTests
 
         var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
         textContent.Should().NotBeNull();
-        textContent!.Text.Should().Contain("\"success\"");
-        textContent.Text.Should().Contain("\"count\"");
+        var textPayload = JsonSerializer.Deserialize<JsonElement>(textContent!.Text);
+        textPayload.GetProperty("success").GetBoolean().Should().BeTrue();
+        textPayload.GetProperty("hasStructuredContent").GetBoolean().Should().BeTrue();
+        textPayload.TryGetProperty("count", out _).Should().BeFalse();
     }
 
     [Fact]
@@ -365,7 +367,8 @@ public class ToolCallHelperTests
         result.Should().NotBeNull();
         result.IsError.Should().BeFalse();
         var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
-        textContent!.Text.Should().Contain("\"success\"");
+        textContent!.Text.Should().Contain("\"hasStructuredContent\":true");
+        textContent.Text.Should().NotContain("Item_9999");
     }
 
     [Fact]
@@ -397,12 +400,9 @@ public class ToolCallHelperTests
             null,
             CancellationToken.None);
 
-        // Assert: Should properly escape special characters
+        // Assert: Structured content should preserve the original string even when text content is compacted
         result.Should().NotBeNull();
-        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
-        textContent!.Text.Should().Contain("\\n");
-        textContent.Text.Should().Contain("\\t");
-        textContent.Text.Should().Contain("\\\"");
+        result.StructuredContent!.Value.GetProperty("message").GetString().Should().Be("Line1\nLine2\tTabbed\"Quoted\\");
     }
 
     [Fact]

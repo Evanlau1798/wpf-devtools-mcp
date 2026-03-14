@@ -254,5 +254,5 @@ MIT. DLL injection code includes Snoop-based components under Ms-PL attribution.
 - STDIO transport: in use
 - HTTP transport: planned
 - Tool metadata: maintained in code
-- Structured content: `StructuredContent` is populated on all tool results, and error results include `Annotations`.
+- Structured content: `StructuredContent` is populated on all tool results; object/array `Content.Text` is a compact fallback summary when structured payload is present, and error results include `Annotations`.
 - README tool catalog: intentionally minimized to prevent schema drift

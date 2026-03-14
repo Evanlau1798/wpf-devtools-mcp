@@ -111,6 +111,7 @@ public static class ServerInstructions
         - Check IsEnabled with get_dp_value_source before click_element to avoid errors
         - Use get_binding_errors as first diagnostic step for data display issues; its default response is compact, so pass compact=false only when the full human-readable binding trace text is required
         - Treat returned runtime navigation as session-aware when you have already captured a snapshot or started a routed-event trace in the same connected process
+        - When you already know the next step and do not need server guidance, pass navigation=false to omit navigation and compatibility nextSteps on that specific call
         - In STDIO transport, prefer polling workflows over push-style watcher/event streaming expectations
         - Avoid calling performance tools (get_render_stats, measure_element_render_time) in loops
         - When debugging, start broad (get_binding_errors) then narrow (get_bindings on specific element)

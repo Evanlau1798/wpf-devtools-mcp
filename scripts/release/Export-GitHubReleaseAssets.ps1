@@ -21,7 +21,7 @@ function Get-ReleaseAssets {
         throw "Input root does not exist: $Root"
     }
 
-    return @(Get-ChildItem -Path $Root -Filter 'WpfDevTools*.zip' -File -Recurse | Sort-Object Name)
+    return @(Get-ChildItem -Path $Root -Filter 'release_*.zip' -File -Recurse | Sort-Object Name)
 }
 
 function New-UploadScriptContent {
@@ -57,7 +57,7 @@ if (Test-Path $stagingRoot) {
 New-Item -ItemType Directory -Force -Path $stagingRoot | Out-Null
 $assets = Get-ReleaseAssets -Root $inputRootFullPath
 if ($assets.Count -eq 0) {
-    throw "No WpfDevTools release archives were found under: $inputRootFullPath"
+    throw "No release_*.zip archives were found under: $inputRootFullPath"
 }
 
 $copiedAssets = New-Object System.Collections.Generic.List[psobject]

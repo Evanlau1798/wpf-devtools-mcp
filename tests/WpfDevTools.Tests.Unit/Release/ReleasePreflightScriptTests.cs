@@ -85,7 +85,7 @@ public sealed class ReleasePreflightScriptTests
                 ")",
                 $"Set-Content -Path '{publishLog.Replace("'", "''")}' -Value ($Architectures -join ',') -Encoding UTF8",
                 "foreach ($architecture in $Architectures) {",
-                "    Set-Content -Path (Join-Path $OutputRoot ('WpfDevTools-win-' + $architecture + '.zip')) -Value $architecture -Encoding UTF8",
+                "    Set-Content -Path (Join-Path $OutputRoot ('release_1.2.3_win-' + $architecture + '.zip')) -Value $architecture -Encoding UTF8",
                 "}"
             ]);
             File.WriteAllText(fakePublishScript, fakePublishContent);

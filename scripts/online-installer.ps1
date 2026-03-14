@@ -94,13 +94,21 @@ try {
         PackagePath = $extractRoot
         InstallRoot = $InstallRoot
         Force = $Force
-        Quiet = -not $OutputJson
+        Quiet = $OutputJson
     }
 
     $arguments.RegisterClaudeCode = $Client -eq 'claude-code'
     $arguments.RegisterCodex = $Client -eq 'codex-cli'
 
     & $installerScript @arguments
+
+    $installManifestPath = Join-Path (Join-Path (Resolve-Path $InstallRoot).Path $Architecture) 'install-manifest.json'
+    $installManifest = if (Test-Path $installManifestPath) {
+        Get-Content -Path $installManifestPath -Raw | ConvertFrom-Json
+    }
+    else {
+        $null
+    }
 
     if ($OutputJson) {
         [ordered]@{
@@ -110,6 +118,7 @@ try {
             packageAssetName = $assetName
             downloadUri = $downloadUri
             installRoot = (Resolve-Path $InstallRoot).Path
+            installedExecutable = [string]$installManifest.executable
             selectedClients = @(Get-SelectedClientList -SelectedClient $Client)
         } | ConvertTo-Json -Depth 6
     }

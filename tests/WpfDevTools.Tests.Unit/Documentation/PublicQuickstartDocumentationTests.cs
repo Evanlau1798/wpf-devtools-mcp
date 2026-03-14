@@ -6,6 +6,7 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public sealed class PublicQuickstartDocumentationTests
 {
     private static readonly string RepoRoot = ResolveRepoRoot();
+    private const string RepoUrl = "https://github.com/Evanlau1798/wpf-devtools-mcp";
 
     [Fact]
     public void PublicQuickstartPages_ShouldUseInstalledExecutableExamples()
@@ -40,6 +41,7 @@ public sealed class PublicQuickstartDocumentationTests
         deployment.Should().Contain("irm | iex");
         deployment.Should().Contain("optional");
         deployment.Should().Contain("release layout");
+        deployment.Should().Contain("scripts/online-installer.ps1");
         toc.Should().Contain("production/release-layout.md");
         troubleshooting.Should().Contain("architecture mismatch");
         troubleshooting.Should().Contain("missing runtime");
@@ -69,8 +71,9 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("https://github.com/Evanlau1798/wpf-devtools-mcp");
+            content.Should().Contain(RepoUrl);
             content.Should().NotContain("<OWNER>/<REPO>");
+            content.Should().NotContain("https://evanlau1798.github.io/wpf-devtools-mcp");
         }
     }
 
@@ -79,12 +82,12 @@ public sealed class PublicQuickstartDocumentationTests
     {
         var content = File.ReadAllText(GetRepoFilePath("docfx/quickstart/index.md"));
 
-        content.Should().Contain("included `install.ps1`");
+        content.Should().Contain("setup.ps1");
         content.Should().NotContain("releases/latest/download/install.ps1");
     }
 
     [Fact]
-    public void PublicDocs_ShouldDocumentGitHubPagesOneCommandInstaller()
+    public void PublicDocs_ShouldDocumentCanonicalRepositoryInstallSources()
     {
         var files = new[]
         {
@@ -106,16 +109,34 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("https://evanlau1798.github.io/wpf-devtools-mcp/install.ps1",
-                $"{file} should reference the GitHub Pages hosted one-command installer");
+            content.Should().Contain(RepoUrl,
+                $"{file} should reference the canonical repository URL");
+            content.Should().NotContain("https://evanlau1798.github.io/wpf-devtools-mcp",
+                $"{file} should not point readers at GitHub Pages as the install source");
+            content.Should().Contain("scripts/online-installer.ps1",
+                $"{file} should point readers at the canonical script source in the repository");
+        }
+    }
+
+    [Fact]
+    public void InstallerFacingDocs_ShouldExplainRemoteAndLocalInstallFallbacks()
+    {
+        var files = new[]
+        {
+            "README.md",
+            "docfx/quickstart/index.md",
+            "docfx/production/deployment.md",
+            "docfx/zh-tw/quickstart/index.md",
+            "docfx/zh-tw/production/deployment.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
             content.Should().Contain("irm",
                 $"{file} should explain the one-command bootstrap path");
-            content.Should().MatchRegex(
-                "(Security note|安全提醒|`irm \\| iex` is optional|`irm \\| iex` 是選項)",
-                $"{file} should warn that the remote bootstrap path is optional and needs review in sensitive environments");
-            content.Should().MatchRegex(
-                "(If you do not want `irm \\| iex`|如果你不想使用 `irm \\| iex`|download the release zip manually|手動下載 release zip|setup\\.ps1)",
-                $"{file} should document a reviewed local fallback alongside the one-command installer");
+            content.Should().Contain("setup.ps1",
+                $"{file} should document the reviewed package installer fallback");
         }
     }
 
@@ -151,18 +172,19 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("release_{version}_win-x64.zip");
+            content.Should().Contain("release_<version>_win-x64.zip");
             content.Should().Contain("setup.ps1");
             content.Should().Contain("install.ps1");
         }
     }
 
     [Fact]
-    public void DocfxConfig_ShouldPublishBootstrapInstallerAtSiteRoot()
+    public void DocfxConfig_ShouldNotPublishScriptsFromDocumentationSite()
     {
         var content = File.ReadAllText(GetRepoFilePath("docfx/docfx.json"));
 
-        content.Should().Contain("install.ps1");
+        content.Should().NotContain("install.ps1");
+        content.Should().NotContain("scripts/");
     }
 
     private static string GetRepoFilePath(string relativePath)

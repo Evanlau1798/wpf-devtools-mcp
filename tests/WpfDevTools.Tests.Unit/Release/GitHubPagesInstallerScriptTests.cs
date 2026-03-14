@@ -8,7 +8,7 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class GitHubPagesInstallerScriptTests
 {
     [Fact]
-    public void GitHubPagesInstaller_ShouldInstallFromLocalArchiveViaPackageSetup()
+    public void OnlineInstallerScript_ShouldInstallFromLocalArchiveViaPackageSetup()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -23,12 +23,12 @@ public sealed class GitHubPagesInstallerScriptTests
             Directory.CreateDirectory(userProfile);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("docfx/install.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 new[]
                 {
                     "-PackageArchivePath", archivePath,
                     "-InstallRoot", installRoot,
-                    "-Clients", "none",
+                    "-Client", "other",
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"
@@ -54,18 +54,19 @@ public sealed class GitHubPagesInstallerScriptTests
     }
 
     [Fact]
-    public void GitHubPagesInstaller_ShouldDefaultToHostArchitectureWhenArchitectureIsOmitted()
+    public void OnlineInstallerScript_ShouldUseRequestedArchitectureForPackageMetadata()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
-        {
+            {
             var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "arm64");
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("docfx/install.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 new[]
                 {
                     "-PackageArchivePath", archivePath,
-                    "-Clients", "none",
+                    "-Architecture", "arm64",
+                    "-Client", "other",
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"
@@ -91,7 +92,7 @@ public sealed class GitHubPagesInstallerScriptTests
     }
 
     [Fact]
-    public void GitHubPagesInstaller_ShouldSurfaceDevelopmentChannelMetadata()
+    public void OnlineInstallerScript_ShouldSurfaceReleaseArchiveMetadata()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -113,16 +114,17 @@ public sealed class GitHubPagesInstallerScriptTests
             File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
             File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Uninstall-WpfDevTools.ps1"), Path.Combine(packageDir, "uninstall.ps1"), overwrite: true);
 
-            var archivePath = Path.Combine(tempRoot, "WpfDevTools-dev-win-x64.zip");
+            var archivePath = Path.Combine(tempRoot, "release_1.2.3_win-x64.zip");
             ZipFile.CreateFromDirectory(packageDir, archivePath);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("docfx/install.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 new[]
                 {
                     "-PackageArchivePath", archivePath,
-                    "-Channel", "dev",
-                    "-Clients", "none",
+                    "-Version", "1.2.3",
+                    "-Architecture", "x64",
+                    "-Client", "other",
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"
@@ -137,9 +139,10 @@ public sealed class GitHubPagesInstallerScriptTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
-            json.RootElement.GetProperty("channel").GetString().Should().Be("dev");
-            json.RootElement.GetProperty("buildConfiguration").GetString().Should().Be("Debug");
-            json.RootElement.GetProperty("packageAssetName").GetString().Should().Be("WpfDevTools-dev-win-x64.zip");
+            json.RootElement.GetProperty("version").GetString().Should().Be("1.2.3");
+            json.RootElement.GetProperty("architecture").GetString().Should().Be("x64");
+            json.RootElement.GetProperty("packageAssetName").GetString().Should().Be("release_1.2.3_win-x64.zip");
+            json.RootElement.GetProperty("downloadUri").GetString().Should().Contain("github.com/Evanlau1798/wpf-devtools-mcp/releases/download/1.2.3/release_1.2.3_win-x64.zip");
         }
         finally
         {

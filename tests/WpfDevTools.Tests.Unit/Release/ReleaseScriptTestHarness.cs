@@ -66,7 +66,7 @@ internal static class ReleaseScriptTestHarness
         File.Copy(GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
         File.Copy(GetRepoFilePath("scripts/release/Uninstall-WpfDevTools.ps1"), Path.Combine(packageDir, "uninstall.ps1"), overwrite: true);
 
-        var archivePath = Path.Combine(tempRoot, $"WpfDevTools-win-{architecture}.zip");
+        var archivePath = Path.Combine(tempRoot, $"release_1.2.3_win-{architecture}.zip");
         if (File.Exists(archivePath))
         {
             File.Delete(archivePath);

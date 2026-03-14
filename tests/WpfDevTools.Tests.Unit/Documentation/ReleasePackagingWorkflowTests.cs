@@ -25,7 +25,7 @@ public class ReleasePackagingWorkflowTests
 
         content.Should().Contain("architecture: [x64, x86, arm64]",
             "release packaging coverage should include ARM64 artifacts as a first-class target");
-        content.Should().Contain("WpfDevTools-win-arm64",
+        content.Should().Contain("release_*_win-${{ matrix.architecture }}",
             "ARM64 release packaging should validate the expected output folder contract");
     }
 
@@ -50,14 +50,14 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
-    public void CiWorkflow_ShouldSmokeTestGitHubPagesBootstrapInstaller()
+    public void CiWorkflow_ShouldSmokeTestCanonicalOnlineInstaller()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
 
-        content.Should().Contain("docfx/install.ps1",
-            "CI should execute the static GitHub Pages bootstrap installer against a packaged archive");
-        content.Should().Contain("WpfDevTools-win-arm64.zip",
-            "bootstrap smoke coverage should validate the zip asset contract across architectures");
+        content.Should().Contain("scripts/online-installer.ps1",
+            "CI should execute the canonical online installer against a packaged archive");
+        content.Should().Contain("release_*_win-${{ matrix.architecture }}.zip",
+            "online installer smoke coverage should validate the zip asset contract across architectures");
     }
 
     private static string GetRepoFilePath(string relativePath)

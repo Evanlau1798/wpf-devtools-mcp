@@ -227,6 +227,7 @@ public class McpToolAttributeTests
     [Theory]
     [InlineData("capture_state_snapshot")]
     [InlineData("restore_state_snapshot")]
+    [InlineData("batch_mutate")]
     public void StateTools_ShouldExist(string toolName)
     {
         AllTools.Should().Contain(t => t.Attr.Name == toolName);
@@ -302,6 +303,7 @@ public class McpToolAttributeTests
     [InlineData("scroll_to_element")]
     [InlineData("highlight_element")]
     [InlineData("restore_state_snapshot")]
+    [InlineData("batch_mutate")]
     public void DestructiveTools_ShouldBeMarkedDestructive(string toolName)
     {
         var tool = AllTools.First(t => t.Attr.Name == toolName);

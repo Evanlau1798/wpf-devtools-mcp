@@ -7,6 +7,22 @@ namespace WpfDevTools.Mcp.Server.Tools;
 
 public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnectedToolBase(sessionManager)
 {
+    internal Task<object> ExecuteAsync(
+        int processId,
+        string snapshotId,
+        string? trigger,
+        CancellationToken cancellationToken)
+    {
+        return ExecuteAsync(
+            JsonSerializer.SerializeToElement(new
+            {
+                processId,
+                snapshotId,
+                trigger
+            }),
+            cancellationToken);
+    }
+
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);

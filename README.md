@@ -172,7 +172,7 @@ Security deployment guidance lives in `SECURITY.md`.
 
 ## Tool Categories
 
-The server ships 62 MCP tools across 11 categories. Use MCP tool discovery for full schemas.
+The server ships 63 MCP tools across 11 categories. Use MCP tool discovery for full schemas.
 
 <details>
 <summary>Tool category overview</summary>
@@ -189,7 +189,7 @@ The server ships 62 MCP tools across 11 categories. Use MCP tool discovery for f
 | Layout | 4 | `get_layout_info`, `get_clipping_info`, `highlight_element`, `invalidate_layout` |
 | MVVM | 5 | `get_viewmodel`, `get_commands`, `execute_command`, `modify_viewmodel`, `get_validation_errors` |
 | Performance | 4 | `get_render_stats`, `find_binding_leaks`, `measure_element_render_time`, `get_visual_count` |
-| State & Scene Diagnostics | 8 | `capture_state_snapshot`, `restore_state_snapshot`, `get_state_diff`, `get_element_snapshot`, `diagnose_visibility`, `get_interaction_readiness`, `get_ui_summary`, `get_form_summary` |
+| State & Scene Diagnostics | 9 | `capture_state_snapshot`, `restore_state_snapshot`, `batch_mutate`, `get_state_diff`, `get_element_snapshot`, `diagnose_visibility`, `get_interaction_readiness`, `get_ui_summary`, `get_form_summary` |
 
 </details>
 

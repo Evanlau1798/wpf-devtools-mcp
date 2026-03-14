@@ -129,6 +129,42 @@ public sealed class FormSummaryE2eTests
             .Contain("RepeatButton");
     }
 
+    [Fact]
+    public async Task BatchMutate_ShouldMakeBasicControlsFormSubmittableAfterSequentialMutations()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        await ResetFormAsync();
+
+        var batch = await _fixture.Client.CallToolAsync(
+            "batch_mutate",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                mutations = new object[]
+                {
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Batch User" } },
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Age", value = 28 } }
+                }
+            });
+
+        batch.GetProperty("success").GetBoolean().Should().BeTrue();
+        batch.GetProperty("executedMutationCount").GetInt32().Should().Be(2);
+
+        var formId = await FindElementIdAsync("BasicControlsStackPanel");
+        var result = await _fixture.Client.CallToolAsync(
+            "get_form_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = formId
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("summary").GetProperty("isSubmittable").GetBoolean().Should().BeTrue();
+        result.GetProperty("summary").GetProperty("errorCount").GetInt32().Should().Be(0);
+    }
+
     private async Task ResetFormAsync()
     {
         await _fixture.Client.CallToolAsync("modify_viewmodel", new

@@ -41,6 +41,20 @@ public sealed partial class SessionManager
         return _navigationStateStore.TryGetState(processId, out state);
     }
 
+    internal bool TryGetActiveSnapshotId(int processId, out string? snapshotId)
+    {
+        ThrowIfDisposed();
+        if (_navigationStateStore.TryGetState(processId, out var state)
+            && !string.IsNullOrWhiteSpace(state?.ActiveSnapshotId))
+        {
+            snapshotId = state.ActiveSnapshotId;
+            return true;
+        }
+
+        snapshotId = null;
+        return false;
+    }
+
     private void EnsureSessionExists(int processId)
     {
         lock (_lock)

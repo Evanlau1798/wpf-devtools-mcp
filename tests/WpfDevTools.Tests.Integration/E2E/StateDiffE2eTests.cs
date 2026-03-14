@@ -89,4 +89,44 @@ public sealed class StateDiffE2eTests
         navigation.GetProperty("contextRefs")[0].GetProperty("snapshotId").GetString().Should().NotBeNullOrWhiteSpace();
         navigation.GetProperty("recommended").ValueKind.Should().Be(JsonValueKind.Array);
     }
+
+    [Fact]
+    public async Task BatchMutate_WithSnapshotAndDiff_ShouldReturnSequentialMutationResultsAndStateDiff()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var findResult = await _fixture.Client.CallToolAsync(
+            "find_elements",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementName = "NameTextBox"
+            });
+        var runtimeElementId = findResult.GetProperty("results")[0].GetProperty("elementId").GetString();
+
+        var batchResult = await _fixture.Client.CallToolAsync(
+            "batch_mutate",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                captureSnapshot = new
+                {
+                    elementId = runtimeElementId,
+                    propertyNames = new[] { "Text" },
+                    viewModelPropertyNames = new[] { "Name", "Age" }
+                },
+                includeDiff = true,
+                mutations = new object[]
+                {
+                    new { tool = "modify_viewmodel", args = new { elementId = runtimeElementId, propertyName = "Name", value = "Batch State Diff" } },
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Age", value = 34 } }
+                }
+            });
+
+        batchResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        batchResult.GetProperty("mutationCount").GetInt32().Should().Be(2);
+        batchResult.GetProperty("executedMutationCount").GetInt32().Should().Be(2);
+        batchResult.GetProperty("stateDiff").GetProperty("success").GetBoolean().Should().BeTrue();
+        batchResult.GetProperty("stateDiff").GetProperty("viewModelChanges").GetArrayLength().Should().BeGreaterThan(0);
+    }
 }

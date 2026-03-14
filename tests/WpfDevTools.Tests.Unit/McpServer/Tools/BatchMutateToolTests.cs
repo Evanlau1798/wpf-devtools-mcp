@@ -1,0 +1,162 @@
+using System.Text.Json;
+using FluentAssertions;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.Tools;
+using static WpfDevTools.Tests.Unit.TestHelpers;
+
+namespace WpfDevTools.Tests.Unit.McpServer.Tools;
+
+public sealed class BatchMutateToolTests
+{
+    [Fact]
+    public async Task ExecuteAsync_WithSnapshotAndDiff_ShouldExecuteMutationsSequentiallyAndReturnPerMutationResults()
+    {
+        var executedTools = new List<string>();
+        var tool = new BatchMutateTool(
+            new SessionManager(),
+            (toolName, args, _) =>
+            {
+                executedTools.Add(toolName);
+                return Task.FromResult<object>(new
+                {
+                    success = true,
+                    tool = toolName,
+                    propertyName = args.GetProperty("propertyName").GetString(),
+                    newValue = args.GetProperty("value").ToString()
+                });
+            },
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_batch_1"
+            }),
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_batch_1",
+                trigger = "batch_mutate",
+                propertyChanges = new[] { new { propertyName = "Text" } },
+                viewModelChanges = new[] { new { propertyName = "Name" }, new { propertyName = "Age" } },
+                newBindingErrors = Array.Empty<object>(),
+                resolvedBindingErrors = Array.Empty<object>(),
+                validationChanges = Array.Empty<object>(),
+                focusChange = (object?)null
+            }));
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId = 12345,
+                captureSnapshot = new
+                {
+                    propertyNames = new[] { "Text" },
+                    viewModelPropertyNames = new[] { "Name", "Age" }
+                },
+                includeDiff = true,
+                mutations = new object[]
+                {
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Batch User" } },
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Age", value = 31 } }
+                }
+            }),
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("snapshotId").GetString().Should().Be("snapshot_batch_1");
+        result.GetProperty("mutationCount").GetInt32().Should().Be(2);
+        result.GetProperty("executedMutationCount").GetInt32().Should().Be(2);
+        result.GetProperty("successfulMutationCount").GetInt32().Should().Be(2);
+        result.GetProperty("failedMutationCount").GetInt32().Should().Be(0);
+        result.GetProperty("skippedMutationCount").GetInt32().Should().Be(0);
+        result.GetProperty("stateDiff").GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("stateDiff").GetProperty("viewModelChanges").GetArrayLength().Should().Be(2);
+        result.GetProperty("mutations")[0].GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("mutations")[1].GetProperty("success").GetBoolean().Should().BeTrue();
+        executedTools.Should().Equal("modify_viewmodel", "modify_viewmodel");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenMutationFails_ShouldStopRemainingMutationsAndReturnRollbackGuidance()
+    {
+        var executedTools = new List<string>();
+        var tool = new BatchMutateTool(
+            new SessionManager(),
+            (toolName, args, _) =>
+            {
+                executedTools.Add(toolName);
+                var propertyName = args.GetProperty("propertyName").GetString();
+                return Task.FromResult<object>(propertyName switch
+                {
+                    "Name" => new { success = true, propertyName, newValue = "Updated" },
+                    "Age" => new { success = false, error = "Setter failed.", errorCode = "OperationFailed" },
+                    _ => throw new InvalidOperationException("Skipped mutation should not execute")
+                });
+            },
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_batch_rollback"
+            }),
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_batch_rollback",
+                trigger = "batch_mutate",
+                propertyChanges = Array.Empty<object>(),
+                viewModelChanges = Array.Empty<object>(),
+                newBindingErrors = Array.Empty<object>(),
+                resolvedBindingErrors = Array.Empty<object>(),
+                validationChanges = Array.Empty<object>(),
+                focusChange = (object?)null
+            }));
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId = 12345,
+                captureSnapshot = new
+                {
+                    viewModelPropertyNames = new[] { "Name", "Age", "Title" }
+                },
+                mutations = new object[]
+                {
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Updated" } },
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Age", value = 32 } },
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Title", value = "Skipped" } }
+                }
+            }),
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("executedMutationCount").GetInt32().Should().Be(2);
+        result.GetProperty("successfulMutationCount").GetInt32().Should().Be(1);
+        result.GetProperty("failedMutationCount").GetInt32().Should().Be(1);
+        result.GetProperty("skippedMutationCount").GetInt32().Should().Be(1);
+        result.GetProperty("mutations")[2].GetProperty("skipped").GetBoolean().Should().BeTrue();
+        result.GetProperty("rollback").GetProperty("available").GetBoolean().Should().BeTrue();
+        result.GetProperty("rollback").GetProperty("tool").GetString().Should().Be("restore_state_snapshot");
+        result.GetProperty("rollback").GetProperty("params").GetProperty("snapshotId").GetString().Should().Be("snapshot_batch_rollback");
+        executedTools.Should().Equal("modify_viewmodel", "modify_viewmodel");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithIncludeDiffWithoutCaptureSnapshot_ShouldReturnStructuredError()
+    {
+        var tool = new BatchMutateTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId = 12345,
+                includeDiff = true,
+                mutations = new object[]
+                {
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Batch User" } }
+                }
+            }),
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("error").GetString().Should().Contain("captureSnapshot");
+    }
+}

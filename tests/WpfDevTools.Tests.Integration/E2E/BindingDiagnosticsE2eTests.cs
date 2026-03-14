@@ -74,6 +74,24 @@ public sealed class BindingDiagnosticsE2eTests
     }
 
     [Fact]
+    public async Task GetBindingErrors_WithNavigationFalse_ShouldOmitNavigationEnvelopeAndNextSteps()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_binding_errors",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                navigation = false
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.TryGetProperty("navigation", out _).Should().BeFalse();
+        result.TryGetProperty("nextSteps", out _).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task GetBindingErrors_WithCompactTrue_ShouldOmitVerboseMessageField()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);

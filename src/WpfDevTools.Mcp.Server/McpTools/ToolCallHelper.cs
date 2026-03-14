@@ -79,6 +79,7 @@ public static class ToolCallHelper
         [System.Runtime.CompilerServices.CallerMemberName] string toolName = "unknown")
     {
         var effectiveTimeoutSeconds = timeoutSeconds ?? McpServerConfiguration.DefaultToolTimeoutSeconds;
+        var includeNavigation = ShouldIncludeNavigation(args);
 
         // CRITICAL FIX: Enforce timeout on all tool executions
         // Prevents server hang if target process is frozen or unresponsive
@@ -91,8 +92,11 @@ public static class ToolCallHelper
             var result = await execute(args, cts.Token).ConfigureAwait(false);
             sw.Stop();
             var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
-            var navigation = _navigationPlanner.PlanEnvelope(toolName, jsonElement, args, navigationState);
-            jsonElement = EnsureNavigation(jsonElement, navigation);
+            if (includeNavigation)
+            {
+                var navigation = _navigationPlanner.PlanEnvelope(toolName, jsonElement, args, navigationState);
+                jsonElement = EnsureNavigation(jsonElement, navigation);
+            }
             jsonElement = ApplyToolSpecificContracts(toolName, args, jsonElement);
             var isError = IsToolResultError(jsonElement);
 
@@ -124,6 +128,10 @@ public static class ToolCallHelper
                 timeoutSeconds = effectiveTimeoutSeconds,
                 suggestedAction = "Check target responsiveness, then retry the tool or reconnect if the session may be stale."
             }, SerializerOptions), ToolNavigationEnvelope.Empty);
+            if (!includeNavigation)
+            {
+                timeoutPayload = RemoveTopLevelProperties(timeoutPayload, "nextSteps", "navigation");
+            }
 
             return new CallToolResult()
             {
@@ -151,6 +159,10 @@ public static class ToolCallHelper
                 error = sanitizedMessage,
                 errorCode
             }, SerializerOptions), ToolNavigationEnvelope.Empty);
+            if (!includeNavigation)
+            {
+                exceptionPayload = RemoveTopLevelProperties(exceptionPayload, "nextSteps", "navigation");
+            }
 
             return new CallToolResult()
             {
@@ -412,6 +424,14 @@ public static class ToolCallHelper
         }
 
         return processId;
+    }
+
+    private static bool ShouldIncludeNavigation(JsonElement? args)
+    {
+        return args is not { } candidate
+            || candidate.ValueKind != JsonValueKind.Object
+            || !candidate.TryGetProperty("navigation", out var property)
+            || property.ValueKind != JsonValueKind.False;
     }
 
     private static bool TryGetBool(JsonElement? args, string propertyName)

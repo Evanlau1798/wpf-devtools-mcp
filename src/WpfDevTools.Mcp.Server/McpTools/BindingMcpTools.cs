@@ -207,13 +207,15 @@ public static class BindingMcpTools
         [Description("Optional maximum number of errors to return after filtering. Omit to return the full captured list.")] int? maxErrors = null,
         [Description("Optional ISO-8601 timestamp filter. Only errors at or after this instant are returned.")] string? sinceTimestamp = null,
         [Description("When true, omit the verbose free-form message field and keep only the structured correlation fields for token-efficient triage. Defaults to true; set false when the full binding trace message is required.")] bool compact = true,
+        [Description("Optional response contract control. Set navigation=false as an explicit opt-out when you want this call to omit both navigation and compatibility nextSteps.")] bool? navigation = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("maxErrors", maxErrors),
             ("sinceTimestamp", sinceTimestamp),
-            ("compact", compact));
+            ("compact", compact),
+            ("navigation", navigation));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetBindingErrorsTool>("GetBindingErrorsTool", () => new GetBindingErrorsTool(sessionManager)).ExecuteAsync(a, ct),

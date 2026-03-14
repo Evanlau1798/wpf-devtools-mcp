@@ -170,6 +170,7 @@ public static class ServerInstructions
         - v2 `nextSteps` entries may also include optional `preconditions`, `expectedOutcome`, `workflowId`, and `prefetchTools` fields.
         - v3 `navigation` includes `recommended`, `alternatives`, `prefetchTools`, and descriptive `contextRefs` entries.
         - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` for clients that ignore the richer envelope.
+        - Clients may use `navigation=false` as an explicit opt-out to omit both `navigation` and compatibility `nextSteps` on that specific call.
         - These optional fields are session-aware hints for capable clients; older clients can ignore them safely.
         - `workflowId` and `expectedOutcome` are advisory only and describe short verification loops, not executable server-side orchestration.
         - `prefetchTools` is advisory only and contains tool names, not parameters or hidden commands.

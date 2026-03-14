@@ -9,7 +9,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// <summary>
 /// Base class for MCP tools that communicate with Inspector via Named Pipes
 /// </summary>
-public abstract class PipeConnectedToolBase
+public abstract partial class PipeConnectedToolBase
 {
     private const int DefaultPiggybackMaxEvents = 25;
     private static readonly TimeSpan PiggybackTimeout = TimeSpan.FromMilliseconds(250);
@@ -458,7 +458,7 @@ public abstract class PipeConnectedToolBase
         if (drainPayload.TryGetProperty("pendingEvents", out var pendingEvents))
         {
             writer.WritePropertyName("pendingEvents");
-            pendingEvents.WriteTo(writer);
+            WritePiggybackPendingEvents(writer, pendingEvents);
         }
 
         writer.WriteEndObject();

@@ -98,10 +98,11 @@ public sealed class InteractionE2eTests
 
         mutation.GetProperty("success").GetBoolean().Should().BeTrue();
         mutation.GetProperty("pendingEventCount").GetInt32().Should().BeGreaterThan(0);
-        mutation.GetProperty("pendingEvents").EnumerateArray().Should().Contain(item =>
+        var pendingDpEvent = mutation.GetProperty("pendingEvents").EnumerateArray().Single(item =>
             item.GetProperty("eventType").GetString() == "DpChange"
             && item.GetProperty("elementId").GetString() == buttonElementId
             && item.GetProperty("propertyName").GetString() == "Width");
+        pendingDpEvent.TryGetProperty("sourceKey", out _).Should().BeFalse();
 
         var cleanup = await _fixture.Client.CallToolAsync(
             "clear_dp_value",

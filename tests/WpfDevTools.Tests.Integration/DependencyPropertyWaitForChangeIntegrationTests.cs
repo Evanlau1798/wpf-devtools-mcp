@@ -45,6 +45,9 @@ public sealed class DependencyPropertyWaitForChangeIntegrationTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("changed").GetBoolean().Should().BeTrue();
         result.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+        result.GetProperty("observedChange").GetBoolean().Should().BeTrue();
+        result.GetProperty("matchedExpectedValueAtStart").GetBoolean().Should().BeFalse();
+        result.GetProperty("completionReason").GetString().Should().Be("ValueChanged");
         result.GetProperty("initialValue").GetString().Should().Be("100");
         result.GetProperty("currentValue").GetString().Should().Be("200");
     }
@@ -83,6 +86,9 @@ public sealed class DependencyPropertyWaitForChangeIntegrationTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("changed").GetBoolean().Should().BeTrue();
         result.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+        result.GetProperty("observedChange").GetBoolean().Should().BeTrue();
+        result.GetProperty("matchedExpectedValueAtStart").GetBoolean().Should().BeFalse();
+        result.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
         result.GetProperty("currentValue").GetString().Should().Be("300");
     }
 }

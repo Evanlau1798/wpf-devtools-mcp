@@ -44,6 +44,24 @@ public sealed partial class DependencyPropertyAnalyzer
             return initialSnapshot.Error;
         }
 
+        var matchedExpectedValueAtStart = expectedValue.HasValue &&
+            JsonValueMatchesFormatted(expectedValue.Value, initialSnapshot.FormattedValue);
+        if (matchedExpectedValueAtStart)
+        {
+            return BuildWaitResult(
+                changed: false,
+                timedOut: false,
+                propertyName,
+                elementId,
+                initialSnapshot,
+                initialSnapshot,
+                elapsedMs: 0,
+                pollCount: 0,
+                observedChange: false,
+                matchedExpectedValueAtStart: true,
+                completionReason: "ExpectedValueAlreadySatisfied");
+        }
+
         var stopwatch = Stopwatch.StartNew();
         var pollCount = 0;
         while (stopwatch.ElapsedMilliseconds < effectiveTimeoutMs)
@@ -68,7 +86,10 @@ public sealed partial class DependencyPropertyAnalyzer
                     initialSnapshot,
                     currentSnapshot,
                     stopwatch.ElapsedMilliseconds,
-                    pollCount);
+                    pollCount,
+                    observedChange: HasObservedChange(initialSnapshot, currentSnapshot),
+                    matchedExpectedValueAtStart: false,
+                    completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
             }
         }
 
@@ -86,7 +107,10 @@ public sealed partial class DependencyPropertyAnalyzer
             initialSnapshot,
             finalSnapshot,
             stopwatch.ElapsedMilliseconds,
-            pollCount);
+            pollCount,
+            observedChange: HasObservedChange(initialSnapshot, finalSnapshot),
+            matchedExpectedValueAtStart: false,
+            completionReason: "TimedOut");
     }
 
     private static bool HasReachedTarget(DpSnapshot initialSnapshot, DpSnapshot currentSnapshot, JsonElement? expectedValue)
@@ -96,6 +120,12 @@ public sealed partial class DependencyPropertyAnalyzer
             return JsonValueMatchesFormatted(expectedValue.Value, currentSnapshot.FormattedValue);
         }
 
+        return !string.Equals(initialSnapshot.FormattedValue, currentSnapshot.FormattedValue, StringComparison.Ordinal) ||
+               !string.Equals(initialSnapshot.BaseValueSource, currentSnapshot.BaseValueSource, StringComparison.Ordinal);
+    }
+
+    private static bool HasObservedChange(DpSnapshot initialSnapshot, DpSnapshot currentSnapshot)
+    {
         return !string.Equals(initialSnapshot.FormattedValue, currentSnapshot.FormattedValue, StringComparison.Ordinal) ||
                !string.Equals(initialSnapshot.BaseValueSource, currentSnapshot.BaseValueSource, StringComparison.Ordinal);
     }
@@ -155,16 +185,23 @@ public sealed partial class DependencyPropertyAnalyzer
         DpSnapshot initialSnapshot,
         DpSnapshot currentSnapshot,
         long elapsedMs,
-        int pollCount)
+        int pollCount,
+        bool observedChange,
+        bool matchedExpectedValueAtStart,
+        string completionReason)
     {
         return new
         {
             success = true,
             changed,
             timedOut,
+            observedChange,
+            matchedExpectedValueAtStart,
+            completionReason,
             elementId,
             propertyName,
             initialValue = initialSnapshot.FormattedValue,
+            initialBaseValueSource = initialSnapshot.BaseValueSource,
             currentValue = currentSnapshot.FormattedValue,
             baseValueSource = currentSnapshot.BaseValueSource,
             elapsedMs,

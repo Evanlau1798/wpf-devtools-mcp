@@ -44,4 +44,27 @@ public sealed class DependencyPropertyWaitForChangeTests
         intervalResult.GetProperty("success").GetBoolean().Should().BeFalse();
         intervalResult.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
     }
+
+    [StaFact]
+    public void WaitForChange_WhenExpectedValueAlreadyMatches_ShouldReturnImmediatelyWithoutChange()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var button = new Button { Width = 100 };
+        var elementId = finder.GenerateElementId(button);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.WaitForChange(
+                "Width",
+                elementId,
+                timeoutMs: 500,
+                pollIntervalMs: 50,
+                expectedValue: JsonSerializer.SerializeToElement(100.0)));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("changed").GetBoolean().Should().BeFalse();
+        result.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+        result.GetProperty("matchedExpectedValueAtStart").GetBoolean().Should().BeTrue();
+        result.GetProperty("completionReason").GetString().Should().Be("ExpectedValueAlreadySatisfied");
+    }
 }

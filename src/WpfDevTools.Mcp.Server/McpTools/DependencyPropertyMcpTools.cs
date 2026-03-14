@@ -248,9 +248,13 @@ public static class DependencyPropertyMcpTools
         "  success: boolean,\n" +
         "  changed: boolean,\n" +
         "  timedOut: boolean,\n" +
+        "  observedChange: boolean,\n" +
+        "  matchedExpectedValueAtStart: boolean,\n" +
+        "  completionReason: 'ExpectedValueAlreadySatisfied'|'ExpectedValueReached'|'ValueChanged'|'TimedOut',\n" +
         "  elementId: string|null,\n" +
         "  propertyName: string,\n" +
         "  initialValue,\n" +
+        "  initialBaseValueSource,\n" +
         "  currentValue,\n" +
         "  baseValueSource,\n" +
         "  elapsedMs: number,\n" +

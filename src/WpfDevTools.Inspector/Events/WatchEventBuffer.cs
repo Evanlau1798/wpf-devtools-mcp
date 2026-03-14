@@ -78,7 +78,11 @@ internal sealed class WatchEventBuffer
         }
     }
 
-    public IReadOnlyList<WatchEventRecord> Drain(int maxEvents = int.MaxValue)
+    public IReadOnlyList<WatchEventRecord> Drain(
+        int maxEvents = int.MaxValue,
+        IReadOnlyCollection<string>? eventTypes = null,
+        string? elementId = null,
+        DateTimeOffset? sinceTimestamp = null)
     {
         if (maxEvents <= 0)
         {
@@ -88,15 +92,35 @@ internal sealed class WatchEventBuffer
         lock (_lock)
         {
             var drained = new List<WatchEventRecord>(Math.Min(maxEvents, _events.Count));
+            var eventTypeSet = eventTypes is { Count: > 0 }
+                ? new HashSet<string>(eventTypes, StringComparer.Ordinal)
+                : null;
+            var node = _events.First;
 
-            while (drained.Count < maxEvents && _events.First is { } node)
+            while (drained.Count < maxEvents && node is not null)
             {
-                _events.RemoveFirst();
-                RemoveDedupIndex(node.Value);
-                drained.Add(node.Value);
+                var next = node.Next;
+                if (MatchesFilters(node.Value, eventTypeSet, elementId, sinceTimestamp))
+                {
+                    _events.Remove(node);
+                    RemoveDedupIndex(node.Value);
+                    drained.Add(node.Value);
+                }
+
+                node = next;
             }
 
             return drained;
+        }
+    }
+
+    public int ConsumeDroppedCount()
+    {
+        lock (_lock)
+        {
+            var droppedCount = _droppedCount;
+            _droppedCount = 0;
+            return droppedCount;
         }
     }
 
@@ -119,5 +143,30 @@ internal sealed class WatchEventBuffer
         {
             _dedupIndex.Remove(dedupKey);
         }
+    }
+
+    private static bool MatchesFilters(
+        WatchEventRecord record,
+        HashSet<string>? eventTypes,
+        string? elementId,
+        DateTimeOffset? sinceTimestamp)
+    {
+        if (eventTypes != null && !eventTypes.Contains(record.EventType))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(elementId)
+            && !string.Equals(record.ElementId, elementId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (sinceTimestamp is { } cutoff && record.TimestampUtc < cutoff)
+        {
+            return false;
+        }
+
+        return true;
     }
 }

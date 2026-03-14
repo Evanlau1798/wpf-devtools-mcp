@@ -1,0 +1,57 @@
+using System.ComponentModel;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.Tools;
+
+namespace WpfDevTools.Mcp.Server.McpTools;
+
+[McpServerToolType]
+public static class EventDrainMcpTools
+{
+    private const string EventMetadata = "CATEGORY: Event | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+
+    [McpServerTool(Name = "drain_events", Title = "Drain Pending Runtime Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to explicitly drain pending runtime watch events that were buffered by prior DependencyProperty or routed-event activity.\n\n" +
+        EventMetadata + "[Event] Return and clear buffered runtime events from the current Inspector session. " +
+        "Use it when you want deterministic event consumption instead of waiting for piggyback on a later tool response.\n\n" +
+        "USE WHEN: You have active DP watches or routed-event traces and need an explicit read step; you want to filter buffered events by type, element, or time window.\n" +
+        "DO NOT USE: As a long-running subscription. This drains a bounded in-memory buffer.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  pendingEventCount: number,\n" +
+        "  droppedEventCount: number,\n" +
+        "  pendingEvents?: [{ eventType, elementId, propertyName?, eventName?, timestampUtc }]\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"maxEvents\" invalid -> provide a positive integer when filtering the drain size\n" +
+        "- \"sinceTimestamp\" invalid -> provide an ISO-8601 timestamp\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345 }\n" +
+        "- { processId: 12345, maxEvents: 10, eventTypes: [\"DpChange\"] }\n" +
+        "- { processId: 12345, elementId: \"SaveButton\", sinceTimestamp: \"2026-03-14T10:00:00.0000000Z\" }")]
+    public static Task<CallToolResult> DrainEvents(
+        SessionManager sessionManager,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional maximum number of buffered events to return. Omit to use the server default.")] int? maxEvents = null,
+        [Description("Optional event-type filter, such as DpChange or RoutedEvent.")] string[]? eventTypes = null,
+        [Description("Optional element ID filter. Only matching buffered events will be returned.")] string? elementId = null,
+        [Description("Optional ISO-8601 lower-bound timestamp. Only buffered events at or after this time will be returned.")] string? sinceTimestamp = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("maxEvents", maxEvents),
+            ("eventTypes", eventTypes),
+            ("elementId", elementId),
+            ("sinceTimestamp", sinceTimestamp));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<DrainEventsTool>("DrainEventsTool", () => new DrainEventsTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken,
+            toolName: "drain_events");
+    }
+}

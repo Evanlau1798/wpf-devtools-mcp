@@ -205,6 +205,7 @@ public class McpToolAttributeTests
     [InlineData("trace_routed_events")]
     [InlineData("get_event_handlers")]
     [InlineData("fire_routed_event")]
+    [InlineData("drain_events")]
     public void EventTools_ShouldExist(string toolName)
     {
         AllTools.Should().Contain(t => t.Attr.Name == toolName);
@@ -271,6 +272,7 @@ public class McpToolAttributeTests
     [InlineData("get_dp_value_source")]
     [InlineData("get_applied_styles")]
     [InlineData("get_event_handlers")]
+    [InlineData("drain_events")]
     [InlineData("element_screenshot")]
     [InlineData("get_focus_state")]
     [InlineData("get_layout_info")]

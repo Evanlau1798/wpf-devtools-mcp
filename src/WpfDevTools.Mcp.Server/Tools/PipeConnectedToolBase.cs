@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.ErrorHandling;
@@ -10,6 +11,8 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public abstract class PipeConnectedToolBase
 {
+    private const int DefaultPiggybackMaxEvents = 25;
+
     /// <summary>
     /// Session manager for tracking connected processes
     /// </summary>
@@ -168,6 +171,16 @@ public abstract class PipeConnectedToolBase
     protected async Task<object> SendInspectorRequestAsync(
         int processId, string method, object? parameters, CancellationToken ct)
     {
+        var result = await SendInspectorRequestCoreAsync(processId, method, parameters, ct).ConfigureAwait(false);
+        return await TryPiggybackPendingEventsAsync(processId, method, result, ct).ConfigureAwait(false);
+    }
+
+    private async Task<object> SendInspectorRequestCoreAsync(
+        int processId,
+        string method,
+        object? parameters,
+        CancellationToken ct)
+    {
         // Get pipe client atomically - avoids TOCTOU race between HasSession and GetPipeClient
         var client = _sessionManager.GetPipeClient(processId);
         if (client == null)
@@ -208,6 +221,44 @@ public abstract class PipeConnectedToolBase
         return response.Result.HasValue
             ? (object)response.Result.Value
             : new { success = true };
+    }
+
+    private async Task<object> TryPiggybackPendingEventsAsync(
+        int processId,
+        string method,
+        object result,
+        CancellationToken ct)
+    {
+        if (string.Equals(method, "drain_events", StringComparison.Ordinal))
+        {
+            return result;
+        }
+
+        var payload = ToJsonElement(result);
+        if (!IsSuccessfulPayload(payload))
+        {
+            return result;
+        }
+
+        var drainResult = await SendInspectorRequestCoreAsync(
+            processId,
+            "drain_events",
+            new { maxEvents = DefaultPiggybackMaxEvents },
+            ct).ConfigureAwait(false);
+        var drainPayload = ToJsonElement(drainResult);
+        if (!IsSuccessfulPayload(drainPayload))
+        {
+            return result;
+        }
+
+        var pendingEventCount = GetIntProperty(drainPayload, "pendingEventCount");
+        var droppedEventCount = GetIntProperty(drainPayload, "droppedEventCount");
+        if (pendingEventCount <= 0 && droppedEventCount <= 0)
+        {
+            return result;
+        }
+
+        return MergePendingEvents(payload, drainPayload);
     }
 
     protected static object AddSuccessMetadata(
@@ -318,4 +369,69 @@ public abstract class PipeConnectedToolBase
         "EventNotFound" => "Use a valid eventName for the target control type.",
         _ => null
     };
+
+    private static bool IsSuccessfulPayload(JsonElement payload) =>
+        payload.ValueKind == JsonValueKind.Object
+        && payload.TryGetProperty("success", out var success)
+        && success.ValueKind == JsonValueKind.True;
+
+    private static JsonElement ToJsonElement(object payload) =>
+        payload is JsonElement element
+            ? element.Clone()
+            : JsonSerializer.SerializeToElement(payload);
+
+    private static int GetIntProperty(JsonElement payload, string propertyName) =>
+        payload.TryGetProperty(propertyName, out var property)
+        && property.ValueKind == JsonValueKind.Number
+        && property.TryGetInt32(out var value)
+            ? value
+            : 0;
+
+    private static object MergePendingEvents(JsonElement primaryPayload, JsonElement drainPayload)
+    {
+        if (primaryPayload.ValueKind != JsonValueKind.Object)
+        {
+            return primaryPayload;
+        }
+
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartObject();
+
+        foreach (var property in primaryPayload.EnumerateObject())
+        {
+            if (property.NameEquals("pendingEvents")
+                || property.NameEquals("pendingEventCount")
+                || property.NameEquals("droppedEventCount"))
+            {
+                continue;
+            }
+
+            property.WriteTo(writer);
+        }
+
+        if (drainPayload.TryGetProperty("pendingEventCount", out var pendingEventCount))
+        {
+            writer.WritePropertyName("pendingEventCount");
+            pendingEventCount.WriteTo(writer);
+        }
+
+        if (drainPayload.TryGetProperty("droppedEventCount", out var droppedEventCount))
+        {
+            writer.WritePropertyName("droppedEventCount");
+            droppedEventCount.WriteTo(writer);
+        }
+
+        if (drainPayload.TryGetProperty("pendingEvents", out var pendingEvents))
+        {
+            writer.WritePropertyName("pendingEvents");
+            pendingEvents.WriteTo(writer);
+        }
+
+        writer.WriteEndObject();
+        writer.Flush();
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
+    }
 }

@@ -98,6 +98,7 @@ public static class ToolCallHelper
                 jsonElement = EnsureNavigation(jsonElement, navigation);
             }
             jsonElement = ApplyToolSpecificContracts(toolName, args, jsonElement);
+            jsonElement = NormalizePendingEventsContract(jsonElement);
             var isError = IsToolResultError(jsonElement);
 
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, !isError);
@@ -323,6 +324,19 @@ public static class ToolCallHelper
         }
 
         return element;
+    }
+
+    private static JsonElement NormalizePendingEventsContract(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object
+            || !element.TryGetProperty("pendingEvents", out var pendingEvents)
+            || pendingEvents.ValueKind != JsonValueKind.Array
+            || pendingEvents.GetArrayLength() > 0)
+        {
+            return element;
+        }
+
+        return RemoveTopLevelProperties(element, "pendingEvents");
     }
 
     private static JsonElement RemoveTopLevelProperties(JsonElement element, params string[] propertyNames)

@@ -69,6 +69,52 @@ public sealed class InteractionE2eTests
     }
 
     [Fact]
+    public async Task SetDpValue_AfterWatchRegistration_ShouldPiggybackPendingDpEvents()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var buttonElementId = await E2eTestHelpers.FindElementByTypeAsync(
+            _fixture.Client, _fixture.TestAppProcessId, "Button");
+
+        var watch = await _fixture.Client.CallToolAsync(
+            "watch_dp_changes",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = buttonElementId,
+                propertyName = "Width"
+            });
+        watch.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var mutation = await _fixture.Client.CallToolAsync(
+            "set_dp_value",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = buttonElementId,
+                propertyName = "Width",
+                value = 222
+            });
+
+        mutation.GetProperty("success").GetBoolean().Should().BeTrue();
+        mutation.GetProperty("pendingEventCount").GetInt32().Should().BeGreaterThan(0);
+        mutation.GetProperty("pendingEvents").EnumerateArray().Should().Contain(item =>
+            item.GetProperty("eventType").GetString() == "DpChange"
+            && item.GetProperty("elementId").GetString() == buttonElementId
+            && item.GetProperty("propertyName").GetString() == "Width");
+
+        var cleanup = await _fixture.Client.CallToolAsync(
+            "clear_dp_value",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = buttonElementId,
+                propertyName = "Width"
+            });
+        cleanup.GetProperty("success").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ClickElement_AfterSnapshotCapture_ShouldExposeMutationSessionContextRef()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);

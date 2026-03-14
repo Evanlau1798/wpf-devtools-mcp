@@ -29,7 +29,8 @@ public class EventHandlers : IRequestHandler
         {
             "trace_routed_events",
             "get_event_handlers",
-            "fire_routed_event"
+            "fire_routed_event",
+            "drain_events"
         };
     }
 
@@ -48,6 +49,7 @@ public class EventHandlers : IRequestHandler
             "trace_routed_events" => await HandleTraceRoutedEventsAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_event_handlers" => await HandleGetEventHandlersAsync(@params, cancellationToken).ConfigureAwait(false),
             "fire_routed_event" => await HandleFireRoutedEventAsync(@params, cancellationToken).ConfigureAwait(false),
+            "drain_events" => await HandleDrainEventsAsync(@params, cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException($"Unsupported method: {method}")
         };
     }
@@ -137,6 +139,23 @@ public class EventHandlers : IRequestHandler
             cancellationToken).ConfigureAwait(false);
     }
 
+    private async Task<object> HandleDrainEventsAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var maxEvents = ParameterHelpers.GetIntParam(@params, "maxEvents");
+        if (maxEvents is <= 0)
+        {
+            throw new ArgumentException("Invalid parameter: maxEvents must be a positive integer when provided");
+        }
+
+        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var eventTypes = ParameterHelpers.GetStringArrayParam(@params, "eventTypes");
+        var sinceTimestamp = ParseSinceTimestamp(@params);
+
+        return await Task.Run(
+            () => _eventAnalyzer.DrainEvents(maxEvents, eventTypes, elementId, sinceTimestamp),
+            cancellationToken).ConfigureAwait(false);
+    }
+
     private static string NormalizeTraceMode(string? mode)
     {
         if (string.IsNullOrWhiteSpace(mode))
@@ -196,5 +215,21 @@ public class EventHandlers : IRequestHandler
         }
 
         return traceResult;
+    }
+
+    private static DateTimeOffset? ParseSinceTimestamp(JsonElement? @params)
+    {
+        var sinceTimestamp = ParameterHelpers.GetStringParam(@params, "sinceTimestamp");
+        if (sinceTimestamp is null)
+        {
+            return null;
+        }
+
+        if (!DateTimeOffset.TryParse(sinceTimestamp, out var parsed))
+        {
+            throw new ArgumentException("Invalid parameter: sinceTimestamp must be a valid ISO-8601 timestamp");
+        }
+
+        return parsed;
     }
 }

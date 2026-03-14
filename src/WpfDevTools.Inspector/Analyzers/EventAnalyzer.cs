@@ -130,6 +130,38 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
         }
     }
 
+    internal object DrainEvents(
+        int? maxEvents = null,
+        string[]? eventTypes = null,
+        string? elementId = null,
+        DateTimeOffset? sinceTimestamp = null)
+    {
+        var drainedEvents = _watchEventBuffer?.Drain(
+            maxEvents ?? 50,
+            eventTypes,
+            elementId,
+            sinceTimestamp) ?? Array.Empty<WatchEventRecord>();
+        var droppedEventCount = _watchEventBuffer?.ConsumeDroppedCount() ?? 0;
+
+        if (drainedEvents.Count == 0)
+        {
+            return new
+            {
+                success = true,
+                pendingEventCount = 0,
+                droppedEventCount
+            };
+        }
+
+        return new
+        {
+            success = true,
+            pendingEventCount = drainedEvents.Count,
+            droppedEventCount,
+            pendingEvents = drainedEvents.Select(CreatePendingEventContract).ToArray()
+        };
+    }
+
     /// <summary>
     /// Fire a routed event
     /// </summary>
@@ -382,4 +414,21 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
 
         return new RoutedEventArgs(routedEvent, sourceElement);
     }
+
+    private static object CreatePendingEventContract(WatchEventRecord record) => new
+    {
+        eventType = record.EventType,
+        timestampUtc = record.TimestampUtc,
+        sourceKey = record.SourceKey,
+        elementId = record.ElementId,
+        propertyName = record.PropertyName,
+        eventName = record.EventName,
+        newValue = record.NewValue,
+        valueType = record.ValueType,
+        senderType = record.SenderType,
+        senderName = record.SenderName,
+        routingStrategy = record.RoutingStrategy,
+        handled = record.Handled,
+        originalSourceType = record.OriginalSourceType
+    };
 }

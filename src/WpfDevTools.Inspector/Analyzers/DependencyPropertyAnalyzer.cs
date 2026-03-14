@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Windows;
 using System.ComponentModel;
+using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -22,6 +23,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
+    private readonly WatchEventBuffer? _watchEventBuffer;
 
     // Static state for global property change tracking
     // Thread-safe via ConcurrentDictionary/ConcurrentQueue
@@ -49,8 +51,16 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public DependencyPropertyAnalyzer(ElementFinder elementFinder)
+        : this(elementFinder, null)
+    {
+    }
+
+    internal DependencyPropertyAnalyzer(
+        ElementFinder elementFinder,
+        WatchEventBuffer? watchEventBuffer)
     {
         _elementFinder = elementFinder;
+        _watchEventBuffer = watchEventBuffer;
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -49,6 +50,7 @@ public sealed partial class DependencyPropertyAnalyzer
                 if (descriptor != null)
                 {
                     var weakElement = new WeakReference<DependencyObject>(depObj);
+                    var resolvedElementId = elementId ?? _elementFinder.GenerateElementId(depObj);
                     EventHandler handler = (_, _) =>
                     {
                         if (!weakElement.TryGetTarget(out var trackedElement))
@@ -65,6 +67,20 @@ public sealed partial class DependencyPropertyAnalyzer
                             newValue = newValue?.ToString(),
                             valueType = newValue?.GetType().Name
                         });
+                        _watchEventBuffer?.Enqueue(new WatchEventRecord(
+                            EventType: "DpChange",
+                            TimestampUtc: DateTimeOffset.UtcNow,
+                            SourceKey: $"dp:{resolvedElementId}:{propertyName}",
+                            ElementId: resolvedElementId,
+                            PropertyName: propertyName,
+                            EventName: null,
+                            NewValue: newValue?.ToString(),
+                            ValueType: newValue?.GetType().Name,
+                            SenderType: null,
+                            SenderName: null,
+                            RoutingStrategy: null,
+                            Handled: null,
+                            OriginalSourceType: null));
 
                         var count = Interlocked.Increment(ref _changeLogCount);
                         while (count > MaxChangeLogEntries)

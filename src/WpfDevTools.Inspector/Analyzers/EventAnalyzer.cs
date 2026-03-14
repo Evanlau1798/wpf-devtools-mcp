@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -12,6 +13,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
+    private readonly WatchEventBuffer? _watchEventBuffer;
     private static readonly object _lock = new object();
     private static readonly List<object> _eventTrace = new List<object>();
     private const int MaxEventTraceEntries = 10000;
@@ -30,8 +32,16 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public EventAnalyzer(ElementFinder elementFinder)
+        : this(elementFinder, null)
+    {
+    }
+
+    internal EventAnalyzer(
+        ElementFinder elementFinder,
+        WatchEventBuffer? watchEventBuffer)
     {
         _elementFinder = elementFinder;
+        _watchEventBuffer = watchEventBuffer;
     }
 
     /// <summary>
@@ -80,7 +90,8 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
             }
 
             // Build handler and register on multiple points for robustness
-            var handler = CreateTraceHandler(eventName);
+            var traceElementId = elementId ?? _elementFinder.GenerateElementId(uiElement);
+            var handler = CreateTraceHandler(traceElementId);
             var registrations = RegisterTraceHandlers(uiElement, routedEvent, handler, eventName);
 
             lock (_lock)
@@ -184,7 +195,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    private static RoutedEventHandler CreateTraceHandler(string eventName)
+    private RoutedEventHandler CreateTraceHandler(string tracedElementId)
     {
         return (sender, e) =>
         {
@@ -193,16 +204,35 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
                 _handlerInvocationCount++;
                 if (_isTracing)
                 {
+                    var senderType = sender?.GetType().Name;
+                    var senderName = (sender as FrameworkElement)?.Name;
+                    var routingStrategy = e.RoutedEvent.RoutingStrategy.ToString();
+                    var originalSourceType = (e.OriginalSource as FrameworkElement)?.GetType().Name;
+
                     _eventTrace.Add(new
                     {
                         timestamp = DateTime.UtcNow,
-                        sender = sender?.GetType().Name,
-                        senderName = (sender as FrameworkElement)?.Name,
+                        sender = senderType,
+                        senderName,
                         eventName = e.RoutedEvent.Name,
-                        routingStrategy = e.RoutedEvent.RoutingStrategy.ToString(),
+                        routingStrategy,
                         handled = e.Handled,
-                        originalSource = (e.OriginalSource as FrameworkElement)?.GetType().Name
+                        originalSource = originalSourceType
                     });
+                    _watchEventBuffer?.Enqueue(new WatchEventRecord(
+                        EventType: "RoutedEvent",
+                        TimestampUtc: DateTimeOffset.UtcNow,
+                        SourceKey: $"event:{tracedElementId}:{e.RoutedEvent.Name}:{_handlerInvocationCount}",
+                        ElementId: tracedElementId,
+                        PropertyName: null,
+                        EventName: e.RoutedEvent.Name,
+                        NewValue: null,
+                        ValueType: null,
+                        SenderType: senderType,
+                        SenderName: senderName,
+                        RoutingStrategy: routingStrategy,
+                        Handled: e.Handled,
+                        OriginalSourceType: originalSourceType));
 
                     // Trim oldest entries if over limit
                     if (_eventTrace.Count > MaxEventTraceEntries)

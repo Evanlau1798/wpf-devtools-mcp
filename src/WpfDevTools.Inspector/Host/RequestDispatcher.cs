@@ -3,6 +3,7 @@ using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Utilities;
 using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Inspector.Host.Handlers;
 
@@ -30,6 +31,7 @@ public sealed class RequestDispatcher : IDisposable
         _elementFinder = new ElementFinder();
         var elementFinder = _elementFinder;
         var xamlSerializer = new XamlSerializer();
+        var watchEventBuffer = new WatchEventBuffer();
 
         // Initialize analyzers
         var visualTreeAnalyzer = new VisualTreeAnalyzer(elementFinder);
@@ -37,11 +39,11 @@ public sealed class RequestDispatcher : IDisposable
         var logicalTreeAnalyzer = new LogicalTreeAnalyzer(elementFinder);
         var elementSearchAnalyzer = new ElementSearchAnalyzer(elementFinder);
         var mvvmAnalyzer = new MvvmAnalyzer(elementFinder);
-        var dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(elementFinder);
+        var dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(elementFinder, watchEventBuffer);
         var layoutAnalyzer = new LayoutAnalyzer(elementFinder);
         var interactionAnalyzer = new InteractionAnalyzer(elementFinder);
         var styleAnalyzer = new StyleAnalyzer(elementFinder);
-        var eventAnalyzer = new EventAnalyzer(elementFinder);
+        var eventAnalyzer = new EventAnalyzer(elementFinder, watchEventBuffer);
         var performanceAnalyzer = new PerformanceAnalyzer(elementFinder);
         var uiSummaryAnalyzer = new UiSummaryAnalyzer(elementFinder);
         var formSummaryAnalyzer = new FormSummaryAnalyzer(elementFinder);

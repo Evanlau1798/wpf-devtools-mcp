@@ -322,8 +322,9 @@ internal static class SceneSummaryElementHelpers
     private static bool HasMeaningfulFormSignal(FrameworkElement element)
     {
         var elementName = GetElementName(element);
-        if (!string.IsNullOrWhiteSpace(elementName)
-            && !elementName.StartsWith("PART_", StringComparison.OrdinalIgnoreCase))
+        if (elementName is string candidateName
+            && !string.IsNullOrWhiteSpace(candidateName)
+            && !candidateName.StartsWith("PART_", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -340,12 +341,17 @@ internal static class SceneSummaryElementHelpers
 
     private static bool HasMeaningfulDisplayText(string? displayText)
     {
-        if (string.IsNullOrWhiteSpace(displayText))
+        if (displayText is null)
         {
             return false;
         }
 
         var trimmedText = displayText.Trim();
+        if (trimmedText.Length == 0)
+        {
+            return false;
+        }
+
         return !trimmedText.StartsWith("System.", StringComparison.Ordinal);
     }
 

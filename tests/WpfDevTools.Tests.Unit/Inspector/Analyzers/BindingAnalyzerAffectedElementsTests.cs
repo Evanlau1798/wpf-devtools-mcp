@@ -25,32 +25,8 @@ public sealed class BindingAnalyzerAffectedElementsTests
         nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name"));
         var matchingElementId = finder.GenerateElementId(nameTextBox);
 
-        var nestedPathText = new TextBlock
-        {
-            Name = "NestedPathText",
-            DataContext = new NestedViewModel()
-        };
-        nestedPathText.SetBinding(TextBlock.TextProperty, new Binding("User.Name"));
-
-        var multiBindingText = new TextBlock
-        {
-            Name = "FullNameText",
-            DataContext = matchingViewModel
-        };
-        multiBindingText.SetBinding(TextBlock.TextProperty, new MultiBinding
-        {
-            Converter = new TestConcatMultiConverter(),
-            Bindings =
-            {
-                new Binding("Name"),
-                new Binding("Surname")
-            }
-        });
-
         var root = new StackPanel();
         root.Children.Add(nameTextBox);
-        root.Children.Add(nestedPathText);
-        root.Children.Add(multiBindingText);
         var rootId = finder.GenerateElementId(root);
 
         var result = JsonSerializer.SerializeToElement(analyzer.GetAffectedElements("Name", null, rootId, recursive: true));
@@ -67,6 +43,70 @@ public sealed class BindingAnalyzerAffectedElementsTests
         affected.GetProperty("elementName").GetString().Should().Be("NameTextBox");
         affected.GetProperty("bindingPath").GetString().Should().Be("Name");
         affected.GetProperty("currentValue").GetString().Should().Be("Alice");
+    }
+
+    [StaFact]
+    public void GetAffectedElements_ShouldMatchNestedPathTerminalSegmentsWithHigherConfidence()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var nestedPathText = new TextBlock
+        {
+            Name = "NestedPathText",
+            DataContext = new NestedViewModel()
+        };
+        nestedPathText.SetBinding(TextBlock.TextProperty, new Binding("User.Name"));
+
+        var root = new StackPanel();
+        root.Children.Add(nestedPathText);
+        var rootId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetAffectedElements("Name", null, rootId, recursive: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("confidence").GetString().Should().Be("high");
+        result.GetProperty("matchStrategy").GetString().Should().Be("terminal-path-match");
+        result.GetProperty("affectedCount").GetInt32().Should().Be(1);
+        result.GetProperty("affectedElements")[0].GetProperty("elementName").GetString().Should().Be("NestedPathText");
+        result.GetProperty("affectedElements")[0].GetProperty("bindingPath").GetString().Should().Be("User.Name");
+        result.GetProperty("affectedElements")[0].GetProperty("matchConfidence").GetString().Should().Be("high");
+    }
+
+    [StaFact]
+    public void GetAffectedElements_ShouldMatchMultiBindingChildPathsWithHigherConfidence()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var multiBindingText = new TextBlock
+        {
+            Name = "FullNameText",
+            DataContext = new MatchingViewModel()
+        };
+        multiBindingText.SetBinding(TextBlock.TextProperty, new MultiBinding
+        {
+            Converter = new TestConcatMultiConverter(),
+            Bindings =
+            {
+                new Binding("Name"),
+                new Binding("Surname")
+            }
+        });
+
+        var root = new StackPanel();
+        root.Children.Add(multiBindingText);
+        var rootId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetAffectedElements("Surname", null, rootId, recursive: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("confidence").GetString().Should().Be("high");
+        result.GetProperty("matchStrategy").GetString().Should().Be("multibinding-child-path-match");
+        result.GetProperty("affectedCount").GetInt32().Should().Be(1);
+        result.GetProperty("affectedElements")[0].GetProperty("elementName").GetString().Should().Be("FullNameText");
+        result.GetProperty("affectedElements")[0].GetProperty("bindingPath").GetString().Should().Be("Surname");
+        result.GetProperty("affectedElements")[0].GetProperty("matchConfidence").GetString().Should().Be("high");
     }
 
     [StaFact]

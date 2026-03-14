@@ -232,4 +232,46 @@ public sealed class BindingDiagnosticsE2eTests
             .Should().Contain("NameTextBox");
         result.GetProperty("navigation").GetProperty("recommended")[0].GetProperty("tool").GetString().Should().Be("get_bindings");
     }
+
+    [Fact]
+    public async Task GetAffectedElements_ShouldReturnHighConfidenceCandidatesForNestedBindingPaths()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_affected_elements",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "Property"
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("confidence").GetString().Should().Be("high");
+        result.GetProperty("matchStrategy").GetString().Should().Be("terminal-path-match");
+        result.GetProperty("affectedElements").EnumerateArray()
+            .Select(item => item.GetProperty("elementName").GetString())
+            .Should().Contain("ErrorTextBox2");
+    }
+
+    [Fact]
+    public async Task GetAffectedElements_ShouldReturnHighConfidenceCandidatesForMultiBindingChildPaths()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_affected_elements",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "FirstName"
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("confidence").GetString().Should().Be("high");
+        result.GetProperty("matchStrategy").GetString().Should().Be("multibinding-child-path-match");
+        result.GetProperty("affectedElements").EnumerateArray()
+            .Select(item => item.GetProperty("elementName").GetString())
+            .Should().Contain("MultiBindingTextBlock");
+    }
 }

@@ -5,8 +5,14 @@ namespace WpfDevTools.Inspector.Analyzers;
 
 public sealed partial class BindingAnalyzer
 {
+    private sealed record AffectedElementMatch(
+        object Payload,
+        string Confidence,
+        string MatchStrategy,
+        int MatchRank);
+
     /// <summary>
-    /// Return a best-effort list of elements whose simple binding path exactly matches the supplied ViewModel property name.
+    /// Return a best-effort list of elements whose binding paths deterministically match the supplied ViewModel property name.
     /// </summary>
     /// <param name="propertyName">ViewModel property name to match against simple binding paths.</param>
     /// <param name="viewModelType">Optional coarse DataContext type filter.</param>
@@ -34,7 +40,7 @@ public sealed partial class BindingAnalyzer
                 return ToolErrorFactory.ElementNotFound(elementId);
             }
 
-            var affectedElements = new List<object>();
+            var matches = new List<AffectedElementMatch>();
             if (recursive)
             {
                 var visited = new HashSet<DependencyObject>();
@@ -43,26 +49,27 @@ public sealed partial class BindingAnalyzer
                     propertyName.Trim(),
                     viewModelType,
                     visited,
-                    affectedElements);
+                    matches);
             }
             else
             {
-                affectedElements.AddRange(GetAffectedElementsForSingleElement(
+                matches.AddRange(GetAffectedElementsForSingleElement(
                     element,
                     propertyName.Trim(),
                     viewModelType));
             }
 
+            var summary = SummarizeMatches(matches);
             return new
             {
                 success = true,
                 propertyName = propertyName.Trim(),
                 viewModelType,
-                confidence = "best-effort",
-                matchStrategy = "simple-path-match",
+                confidence = summary.Confidence,
+                matchStrategy = summary.MatchStrategy,
                 requiresVerification = true,
-                affectedCount = affectedElements.Count,
-                affectedElements
+                affectedCount = matches.Count,
+                affectedElements = matches.Select(match => match.Payload).ToList()
             };
         });
     }
@@ -72,7 +79,7 @@ public sealed partial class BindingAnalyzer
         string propertyName,
         string? viewModelType,
         HashSet<DependencyObject> visited,
-        List<object> affectedElements)
+        List<AffectedElementMatch> affectedElements)
     {
         if (!visited.Add(element))
         {
@@ -86,12 +93,12 @@ public sealed partial class BindingAnalyzer
         }
     }
 
-    private List<object> GetAffectedElementsForSingleElement(
+    private List<AffectedElementMatch> GetAffectedElementsForSingleElement(
         DependencyObject element,
         string propertyName,
         string? viewModelType)
     {
-        var results = new List<object>();
+        var results = new List<AffectedElementMatch>();
         var dataContextType = GetElementDataContextType(element);
 
         if (!MatchesViewModelType(dataContextType, viewModelType))
@@ -101,42 +108,184 @@ public sealed partial class BindingAnalyzer
 
         foreach (var binding in GetDependencyPropertiesWithBindings(element).OfType<Dictionary<string, object?>>())
         {
-            if (!IsSimplePathMatch(binding, propertyName))
+            var match = TryMatchBinding(binding, propertyName);
+            if (match == null)
             {
                 continue;
             }
 
-            results.Add(new
-            {
-                elementId = _elementFinder.GenerateElementId(element),
-                elementType = element.GetType().Name,
-                elementName = GetElementName(element),
-                dataContextType,
-                propertyName = binding.TryGetValue("propertyName", out var targetProperty) ? targetProperty?.ToString() : null,
-                bindingPath = binding.TryGetValue("path", out var path) ? path?.ToString() : null,
-                currentValue = binding.TryGetValue("currentValue", out var currentValue) ? currentValue?.ToString() : null,
-                status = binding.TryGetValue("status", out var status) ? status?.ToString() : null
-            });
+            results.Add(new AffectedElementMatch(
+                Payload: new
+                {
+                    elementId = _elementFinder.GenerateElementId(element),
+                    elementType = element.GetType().Name,
+                    elementName = GetElementName(element),
+                    dataContextType,
+                    propertyName = binding.TryGetValue("propertyName", out var targetProperty) ? targetProperty?.ToString() : null,
+                    bindingPath = match.BindingPath,
+                    currentValue = binding.TryGetValue("currentValue", out var currentValue) ? currentValue?.ToString() : null,
+                    status = binding.TryGetValue("status", out var status) ? status?.ToString() : null,
+                    matchConfidence = match.Confidence
+                },
+                Confidence: match.Confidence,
+                MatchStrategy: match.MatchStrategy,
+                MatchRank: match.MatchRank));
         }
 
         return results;
     }
 
-    private static bool IsSimplePathMatch(Dictionary<string, object?> binding, string propertyName)
+    private static (string Confidence, string MatchStrategy) SummarizeMatches(List<AffectedElementMatch> matches)
     {
-        if (!binding.TryGetValue("bindingType", out var bindingType)
-            || !string.Equals(bindingType?.ToString(), "Binding", StringComparison.Ordinal))
+        if (matches.Count == 0)
         {
-            return false;
+            return ("best-effort", "simple-path-match");
         }
 
-        if (!binding.TryGetValue("path", out var pathValue))
+        var strongestMatch = matches
+            .OrderByDescending(match => match.MatchRank)
+            .First();
+
+        return (strongestMatch.Confidence, strongestMatch.MatchStrategy);
+    }
+
+    private static BindingPathMatch? TryMatchBinding(Dictionary<string, object?> binding, string propertyName)
+    {
+        var bindingType = binding.TryGetValue("bindingType", out var bindingTypeValue)
+            ? bindingTypeValue?.ToString()
+            : null;
+
+        if (string.Equals(bindingType, "Binding", StringComparison.Ordinal))
         {
-            return false;
+            var path = binding.TryGetValue("path", out var pathValue)
+                ? pathValue?.ToString()
+                : null;
+
+            return TryMatchSingleBindingPath(path, propertyName);
         }
 
-        var path = pathValue?.ToString();
-        return string.Equals(path, propertyName, StringComparison.Ordinal);
+        if (!string.Equals(bindingType, "MultiBinding", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        foreach (var childPath in GetBindingPaths(binding))
+        {
+            var childPathMatch = TryClassifyPathMatch(childPath, propertyName);
+            if (childPathMatch == PathMatchKind.None)
+            {
+                continue;
+            }
+
+            return new BindingPathMatch(
+                BindingPath: childPath,
+                Confidence: "high",
+                MatchStrategy: "multibinding-child-path-match",
+                MatchRank: 3);
+        }
+
+        return null;
+    }
+
+    private static BindingPathMatch? TryMatchSingleBindingPath(string? path, string propertyName)
+    {
+        return TryClassifyPathMatch(path, propertyName) switch
+        {
+            PathMatchKind.Exact => new BindingPathMatch(
+                BindingPath: path,
+                Confidence: "best-effort",
+                MatchStrategy: "simple-path-match",
+                MatchRank: 1),
+            PathMatchKind.TerminalSegment => new BindingPathMatch(
+                BindingPath: path,
+                Confidence: "high",
+                MatchStrategy: "terminal-path-match",
+                MatchRank: 2),
+            _ => null
+        };
+    }
+
+    private static PathMatchKind TryClassifyPathMatch(string? path, string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return PathMatchKind.None;
+        }
+
+        if (string.Equals(path, propertyName, StringComparison.Ordinal))
+        {
+            return PathMatchKind.Exact;
+        }
+
+        var terminalSegment = GetTerminalPathSegment(path);
+        if (terminalSegment == null)
+        {
+            return PathMatchKind.None;
+        }
+
+        return string.Equals(terminalSegment, propertyName, StringComparison.Ordinal)
+            ? PathMatchKind.TerminalSegment
+            : PathMatchKind.None;
+    }
+
+    private static string? GetTerminalPathSegment(string path)
+    {
+        var segments = path
+            .Split(['.', '/'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(CleanPathSegment)
+            .Where(segment => !string.IsNullOrWhiteSpace(segment))
+            .ToArray();
+
+        return segments.Length == 0 ? null : segments[^1];
+    }
+
+    private static string? CleanPathSegment(string segment)
+    {
+        var bracketIndex = segment.IndexOf('[');
+        if (bracketIndex >= 0)
+        {
+            segment = segment[..bracketIndex];
+        }
+
+        if (segment.StartsWith('(') && segment.EndsWith(')') && segment.Length > 2)
+        {
+            segment = segment[1..^1];
+        }
+
+        return segment.Trim();
+    }
+
+    private static IReadOnlyList<string> GetBindingPaths(Dictionary<string, object?> binding)
+    {
+        if (!binding.TryGetValue("bindingPaths", out var bindingPathsValue) || bindingPathsValue == null)
+        {
+            return Array.Empty<string>();
+        }
+
+        return bindingPathsValue switch
+        {
+            string[] paths => paths.Where(path => !string.IsNullOrWhiteSpace(path)).ToArray(),
+            IEnumerable<string> paths => paths.Where(path => !string.IsNullOrWhiteSpace(path)).ToArray(),
+            IEnumerable<object?> rawPaths => rawPaths
+                .Select(path => path?.ToString())
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Cast<string>()
+                .ToArray(),
+            _ => Array.Empty<string>()
+        };
+    }
+
+    private sealed record BindingPathMatch(
+        string? BindingPath,
+        string Confidence,
+        string MatchStrategy,
+        int MatchRank);
+
+    private enum PathMatchKind
+    {
+        None,
+        Exact,
+        TerminalSegment
     }
 
     private static string? GetElementDataContextType(DependencyObject element)

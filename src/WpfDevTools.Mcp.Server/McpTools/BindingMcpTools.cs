@@ -114,9 +114,10 @@ public static class BindingMcpTools
     [McpServerTool(Name = "get_affected_elements", Title = "Find Best-Effort Affected Elements", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to cheaply narrow down which WPF elements may be affected by a ViewModel property change before doing a full binding-tree verification pass.\n\n" +
-        BindingMetadata + "[Binding] Scan a runtime element or subtree and return candidate elements whose simple binding path exactly matches the supplied property name.\n\n" +
+        BindingMetadata + "[Binding] Scan a runtime element or subtree and return candidate elements whose binding declaration deterministically matches the supplied property name.\n\n" +
         "USE WHEN: An agent needs a fast candidate list before deciding whether to pay for get_bindings(recursive=true).\n" +
-        "BEST-EFFORT: This v1 tool only matches simple single-binding paths. It does not claim exact impact analysis for nested paths, MultiBinding semantics, ElementName, or RelativeSource.\n" +
+        "MATCHING: Exact simple binding-path matches remain best-effort. Nested terminal segments such as `Item.SubItem.Name` and explicit `MultiBinding` child paths can return higher confidence when the declaration itself proves the relationship.\n" +
+        "LIMITS: This tool still does not claim exact impact analysis for ElementName, RelativeSource, or other non-DataContext source models.\n" +
         "VERIFICATION: Successful responses include explicit uncertainty metadata and should usually be followed by get_bindings for precise confirmation.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
@@ -124,11 +125,11 @@ public static class BindingMcpTools
         "  success: boolean,\n" +
         "  propertyName: string,\n" +
         "  viewModelType: string|null,\n" +
-        "  confidence: 'best-effort',\n" +
-        "  matchStrategy: 'simple-path-match',\n" +
+        "  confidence: 'best-effort'|'high',\n" +
+        "  matchStrategy: 'simple-path-match'|'terminal-path-match'|'multibinding-child-path-match',\n" +
         "  requiresVerification: boolean,\n" +
         "  affectedCount: integer,\n" +
-        "  affectedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status }]\n" +
+        "  affectedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status, matchConfidence }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"propertyName required\" -> provide the ViewModel property name you want to match\n" +

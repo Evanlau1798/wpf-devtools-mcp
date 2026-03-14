@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Data;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -10,6 +11,27 @@ public sealed partial class BindingAnalyzer
         string Confidence,
         string MatchStrategy,
         int MatchRank);
+
+    private sealed record AffectedElementScanResult(
+        IReadOnlyList<AffectedElementMatch> Matches,
+        IReadOnlyList<object> UnsupportedElements);
+
+    private sealed record AffectedBindingCandidate(
+        Dictionary<string, object?> Payload,
+        BindingExpressionBase BindingExpression);
+
+    private sealed record BindingPathMatch(
+        string? BindingPath,
+        string Confidence,
+        string MatchStrategy,
+        int MatchRank);
+
+    private enum PathMatchKind
+    {
+        None,
+        Exact,
+        TerminalSegment
+    }
 
     /// <summary>
     /// Return a best-effort list of elements whose binding paths deterministically match the supplied ViewModel property name.
@@ -41,6 +63,7 @@ public sealed partial class BindingAnalyzer
             }
 
             var matches = new List<AffectedElementMatch>();
+            var unsupportedElements = new List<object>();
             if (recursive)
             {
                 var visited = new HashSet<DependencyObject>();
@@ -49,17 +72,20 @@ public sealed partial class BindingAnalyzer
                     propertyName.Trim(),
                     viewModelType,
                     visited,
-                    matches);
+                    matches,
+                    unsupportedElements);
             }
             else
             {
-                matches.AddRange(GetAffectedElementsForSingleElement(
+                var scanResult = GetAffectedElementsForSingleElement(
                     element,
                     propertyName.Trim(),
-                    viewModelType));
+                    viewModelType);
+                matches.AddRange(scanResult.Matches);
+                unsupportedElements.AddRange(scanResult.UnsupportedElements);
             }
 
-            var summary = SummarizeMatches(matches);
+            var summary = SummarizeMatches(matches, unsupportedElements.Count);
             return new
             {
                 success = true,
@@ -69,7 +95,9 @@ public sealed partial class BindingAnalyzer
                 matchStrategy = summary.MatchStrategy,
                 requiresVerification = true,
                 affectedCount = matches.Count,
-                affectedElements = matches.Select(match => match.Payload).ToList()
+                unsupportedCount = unsupportedElements.Count,
+                affectedElements = matches.Select(match => match.Payload).ToList(),
+                unsupportedElements
             };
         });
     }
@@ -79,74 +107,120 @@ public sealed partial class BindingAnalyzer
         string propertyName,
         string? viewModelType,
         HashSet<DependencyObject> visited,
-        List<AffectedElementMatch> affectedElements)
+        List<AffectedElementMatch> affectedElements,
+        List<object> unsupportedElements)
     {
         if (!visited.Add(element))
         {
             return;
         }
 
-        affectedElements.AddRange(GetAffectedElementsForSingleElement(element, propertyName, viewModelType));
+        var scanResult = GetAffectedElementsForSingleElement(element, propertyName, viewModelType);
+        affectedElements.AddRange(scanResult.Matches);
+        unsupportedElements.AddRange(scanResult.UnsupportedElements);
+
         foreach (var child in DependencyObjectTraversal.EnumerateChildren(element))
         {
-            CollectAffectedElementsRecursive(child, propertyName, viewModelType, visited, affectedElements);
+            CollectAffectedElementsRecursive(
+                child,
+                propertyName,
+                viewModelType,
+                visited,
+                affectedElements,
+                unsupportedElements);
         }
     }
 
-    private List<AffectedElementMatch> GetAffectedElementsForSingleElement(
+    private AffectedElementScanResult GetAffectedElementsForSingleElement(
         DependencyObject element,
         string propertyName,
         string? viewModelType)
     {
-        var results = new List<AffectedElementMatch>();
+        var matches = new List<AffectedElementMatch>();
+        var unsupportedElements = new List<object>();
         var dataContextType = GetElementDataContextType(element);
 
         if (!MatchesViewModelType(dataContextType, viewModelType))
         {
-            return results;
+            return new AffectedElementScanResult(matches, unsupportedElements);
         }
 
-        foreach (var binding in GetDependencyPropertiesWithBindings(element).OfType<Dictionary<string, object?>>())
+        foreach (var candidate in GetAffectedElementBindings(element))
         {
-            var match = TryMatchBinding(binding, propertyName);
-            if (match == null)
+            var pathMatch = TryMatchBinding(candidate.Payload, propertyName);
+            if (pathMatch == null)
             {
                 continue;
             }
 
-            results.Add(new AffectedElementMatch(
-                Payload: new
-                {
-                    elementId = _elementFinder.GenerateElementId(element),
-                    elementType = element.GetType().Name,
-                    elementName = GetElementName(element),
+            var sourceAnalysis = AnalyzeBindingSource(element, candidate.BindingExpression);
+            if (!sourceAnalysis.IsSupported)
+            {
+                unsupportedElements.Add(BuildUnsupportedElementPayload(
+                    element,
                     dataContextType,
-                    propertyName = binding.TryGetValue("propertyName", out var targetProperty) ? targetProperty?.ToString() : null,
-                    bindingPath = match.BindingPath,
-                    currentValue = binding.TryGetValue("currentValue", out var currentValue) ? currentValue?.ToString() : null,
-                    status = binding.TryGetValue("status", out var status) ? status?.ToString() : null,
-                    matchConfidence = match.Confidence
-                },
-                Confidence: match.Confidence,
-                MatchStrategy: match.MatchStrategy,
-                MatchRank: match.MatchRank));
+                    candidate.Payload,
+                    pathMatch,
+                    sourceAnalysis));
+                continue;
+            }
+
+            matches.Add(new AffectedElementMatch(
+                Payload: BuildAffectedElementPayload(
+                    element,
+                    dataContextType,
+                    candidate.Payload,
+                    pathMatch,
+                    sourceAnalysis),
+                Confidence: pathMatch.Confidence,
+                MatchStrategy: pathMatch.MatchStrategy,
+                MatchRank: pathMatch.MatchRank));
         }
 
-        return results;
+        return new AffectedElementScanResult(matches, unsupportedElements);
     }
 
-    private static (string Confidence, string MatchStrategy) SummarizeMatches(List<AffectedElementMatch> matches)
+    private static (string Confidence, string MatchStrategy) SummarizeMatches(
+        List<AffectedElementMatch> matches,
+        int unsupportedCount)
     {
-        if (matches.Count == 0)
+        if (matches.Count > 0)
         {
-            return ("best-effort", "simple-path-match");
+            var strongestMatch = matches
+                .OrderByDescending(match => match.MatchRank)
+                .First();
+
+            return (strongestMatch.Confidence, strongestMatch.MatchStrategy);
         }
 
-        var strongestMatch = matches
-            .OrderByDescending(match => match.MatchRank)
-            .First();
+        return unsupportedCount > 0
+            ? ("low", "source-excluded")
+            : ("best-effort", "simple-path-match");
+    }
 
-        return (strongestMatch.Confidence, strongestMatch.MatchStrategy);
+    private static IEnumerable<AffectedBindingCandidate> GetAffectedElementBindings(DependencyObject element)
+    {
+        var seenProperties = new HashSet<string>();
+        var enumerator = element.GetLocalValueEnumerator();
+        while (enumerator.MoveNext())
+        {
+            var entry = enumerator.Current;
+            var dp = entry.Property;
+            if (dp == null || !seenProperties.Add(dp.Name))
+            {
+                continue;
+            }
+
+            var bindingExpression = BindingOperations.GetBindingExpressionBase(element, dp);
+            if (bindingExpression == null)
+            {
+                continue;
+            }
+
+            yield return new AffectedBindingCandidate(
+                BuildBindingPayload(element, dp, bindingExpression),
+                bindingExpression);
+        }
     }
 
     private static BindingPathMatch? TryMatchBinding(Dictionary<string, object?> binding, string propertyName)
@@ -217,7 +291,7 @@ public sealed partial class BindingAnalyzer
             return PathMatchKind.Exact;
         }
 
-        var terminalSegment = GetTerminalPathSegment(path);
+        var terminalSegment = GetTerminalPathSegment(path!);
         if (terminalSegment == null)
         {
             return PathMatchKind.None;
@@ -231,12 +305,12 @@ public sealed partial class BindingAnalyzer
     private static string? GetTerminalPathSegment(string path)
     {
         var segments = path
-            .Split(['.', '/'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Split(new[] { '.', '/' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(CleanPathSegment)
             .Where(segment => !string.IsNullOrWhiteSpace(segment))
             .ToArray();
 
-        return segments.Length == 0 ? null : segments[^1];
+        return segments.Length == 0 ? null : segments[segments.Length - 1];
     }
 
     private static string? CleanPathSegment(string segment)
@@ -244,12 +318,12 @@ public sealed partial class BindingAnalyzer
         var bracketIndex = segment.IndexOf('[');
         if (bracketIndex >= 0)
         {
-            segment = segment[..bracketIndex];
+            segment = segment.Substring(0, bracketIndex);
         }
 
-        if (segment.StartsWith('(') && segment.EndsWith(')') && segment.Length > 2)
+        if (segment.Length > 2 && segment[0] == '(' && segment[segment.Length - 1] == ')')
         {
-            segment = segment[1..^1];
+            segment = segment.Substring(1, segment.Length - 2);
         }
 
         return segment.Trim();
@@ -275,17 +349,49 @@ public sealed partial class BindingAnalyzer
         };
     }
 
-    private sealed record BindingPathMatch(
-        string? BindingPath,
-        string Confidence,
-        string MatchStrategy,
-        int MatchRank);
-
-    private enum PathMatchKind
+    private object BuildAffectedElementPayload(
+        DependencyObject element,
+        string? dataContextType,
+        Dictionary<string, object?> binding,
+        BindingPathMatch match,
+        BindingSourceAnalysis sourceAnalysis)
     {
-        None,
-        Exact,
-        TerminalSegment
+        return new
+        {
+            elementId = _elementFinder.GenerateElementId(element),
+            elementType = element.GetType().Name,
+            elementName = GetElementName(element),
+            dataContextType,
+            propertyName = binding.TryGetValue("propertyName", out var targetProperty) ? targetProperty?.ToString() : null,
+            bindingPath = match.BindingPath,
+            currentValue = binding.TryGetValue("currentValue", out var currentValue) ? currentValue?.ToString() : null,
+            status = binding.TryGetValue("status", out var status) ? status?.ToString() : null,
+            matchConfidence = match.Confidence,
+            sourceClassification = sourceAnalysis.SourceClassification
+        };
+    }
+
+    private object BuildUnsupportedElementPayload(
+        DependencyObject element,
+        string? dataContextType,
+        Dictionary<string, object?> binding,
+        BindingPathMatch match,
+        BindingSourceAnalysis sourceAnalysis)
+    {
+        return new
+        {
+            elementId = _elementFinder.GenerateElementId(element),
+            elementType = element.GetType().Name,
+            elementName = GetElementName(element),
+            dataContextType,
+            propertyName = binding.TryGetValue("propertyName", out var targetProperty) ? targetProperty?.ToString() : null,
+            bindingPath = match.BindingPath,
+            currentValue = binding.TryGetValue("currentValue", out var currentValue) ? currentValue?.ToString() : null,
+            status = binding.TryGetValue("status", out var status) ? status?.ToString() : null,
+            matchConfidence = "low",
+            sourceClassification = sourceAnalysis.SourceClassification,
+            unsupportedReason = sourceAnalysis.UnsupportedReason
+        };
     }
 
     private static string? GetElementDataContextType(DependencyObject element)

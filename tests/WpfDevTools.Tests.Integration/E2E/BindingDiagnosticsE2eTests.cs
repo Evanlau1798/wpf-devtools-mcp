@@ -274,4 +274,29 @@ public sealed class BindingDiagnosticsE2eTests
             .Select(item => item.GetProperty("elementName").GetString())
             .Should().Contain("MultiBindingTextBlock");
     }
+
+    [Fact]
+    public async Task GetAffectedElements_ShouldClassifyInheritedDataContextAndUnsupportedNullContextCases()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_affected_elements",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "Name"
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var inheritedMatch = result.GetProperty("affectedElements").EnumerateArray()
+            .Single(item => item.GetProperty("elementName").GetString() == "NameTextBox");
+        inheritedMatch.GetProperty("sourceClassification").GetString().Should().Be("InheritedDataContext");
+
+        result.GetProperty("unsupportedCount").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("unsupportedElements").EnumerateArray()
+            .Single(item => item.GetProperty("elementName").GetString() == "ErrorTextBox3")
+            .GetProperty("unsupportedReason").GetString().Should().NotBeNullOrWhiteSpace();
+    }
 }

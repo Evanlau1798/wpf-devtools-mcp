@@ -117,7 +117,7 @@ public static class BindingMcpTools
         BindingMetadata + "[Binding] Scan a runtime element or subtree and return candidate elements whose binding declaration deterministically matches the supplied property name.\n\n" +
         "USE WHEN: An agent needs a fast candidate list before deciding whether to pay for get_bindings(recursive=true).\n" +
         "MATCHING: Exact simple binding-path matches remain best-effort. Nested terminal segments such as `Item.SubItem.Name` and explicit `MultiBinding` child paths can return higher confidence when the declaration itself proves the relationship.\n" +
-        "LIMITS: This tool still does not claim exact impact analysis for ElementName, RelativeSource, or other non-DataContext source models.\n" +
+        "SOURCE MODEL: Bindings that can be proven to stay on the element's local or inherited DataContext chain remain in `affectedElements`. ElementName, RelativeSource, explicit Source, or missing-DataContext cases are surfaced separately through `unsupportedElements` instead of being guessed as ViewModel impact.\n" +
         "VERIFICATION: Successful responses include explicit uncertainty metadata and should usually be followed by get_bindings for precise confirmation.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
@@ -125,11 +125,13 @@ public static class BindingMcpTools
         "  success: boolean,\n" +
         "  propertyName: string,\n" +
         "  viewModelType: string|null,\n" +
-        "  confidence: 'best-effort'|'high',\n" +
-        "  matchStrategy: 'simple-path-match'|'terminal-path-match'|'multibinding-child-path-match',\n" +
+        "  confidence: 'low'|'best-effort'|'high',\n" +
+        "  matchStrategy: 'simple-path-match'|'terminal-path-match'|'multibinding-child-path-match'|'source-excluded',\n" +
         "  requiresVerification: boolean,\n" +
         "  affectedCount: integer,\n" +
-        "  affectedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status, matchConfidence }]\n" +
+        "  unsupportedCount: integer,\n" +
+        "  affectedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status, matchConfidence, sourceClassification }],\n" +
+        "  unsupportedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status, matchConfidence, sourceClassification, unsupportedReason }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"propertyName required\" -> provide the ViewModel property name you want to match\n" +

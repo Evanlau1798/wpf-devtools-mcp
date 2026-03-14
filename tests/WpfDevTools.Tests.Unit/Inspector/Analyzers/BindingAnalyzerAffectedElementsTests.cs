@@ -110,6 +110,106 @@ public sealed class BindingAnalyzerAffectedElementsTests
     }
 
     [StaFact]
+    public void GetAffectedElements_ShouldClassifyInheritedDataContextMatches()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+
+        var root = new StackPanel
+        {
+            DataContext = new MatchingViewModel()
+        };
+
+        var child = new TextBox
+        {
+            Name = "InheritedNameTextBox"
+        };
+        child.SetBinding(TextBox.TextProperty, new Binding("Name"));
+        root.Children.Add(child);
+        var rootId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetAffectedElements("Name", null, rootId, recursive: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("affectedCount").GetInt32().Should().Be(1);
+        result.GetProperty("unsupportedCount").GetInt32().Should().Be(0);
+        result.GetProperty("affectedElements")[0].GetProperty("elementName").GetString().Should().Be("InheritedNameTextBox");
+        result.GetProperty("affectedElements")[0].GetProperty("sourceClassification").GetString().Should().Be("InheritedDataContext");
+    }
+
+    [StaFact]
+    public void GetAffectedElements_ShouldExcludeElementNameBindingsWithUnsupportedReason()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+
+        var checkBox = new CheckBox
+        {
+            Name = "SourceCheckBox",
+            IsChecked = true
+        };
+        var target = new TextBlock
+        {
+            Name = "ElementNameTarget"
+        };
+        target.SetBinding(TextBlock.TextProperty, new Binding("IsChecked")
+        {
+            ElementName = "SourceCheckBox"
+        });
+
+        var root = new StackPanel();
+        root.Children.Add(checkBox);
+        root.Children.Add(target);
+        var rootId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetAffectedElements("IsChecked", null, rootId, recursive: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("confidence").GetString().Should().Be("low");
+        result.GetProperty("matchStrategy").GetString().Should().Be("source-excluded");
+        result.GetProperty("affectedCount").GetInt32().Should().Be(0);
+        result.GetProperty("unsupportedCount").GetInt32().Should().Be(1);
+        result.GetProperty("unsupportedElements")[0].GetProperty("elementName").GetString().Should().Be("ElementNameTarget");
+        result.GetProperty("unsupportedElements")[0].GetProperty("sourceClassification").GetString().Should().Be("ElementName");
+        result.GetProperty("unsupportedElements")[0].GetProperty("unsupportedReason").GetString().Should().Contain("ElementName");
+    }
+
+    [StaFact]
+    public void GetAffectedElements_ShouldExcludeRelativeSourceBindingsWithUnsupportedReason()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+
+        var selfBoundTextBox = new TextBox
+        {
+            Name = "SelfBoundTextBox",
+            Tag = "Local tag"
+        };
+        selfBoundTextBox.SetBinding(TextBox.TextProperty, new Binding("Tag")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.Self)
+        });
+
+        var root = new StackPanel();
+        root.Children.Add(selfBoundTextBox);
+        var rootId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetAffectedElements("Tag", null, rootId, recursive: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("confidence").GetString().Should().Be("low");
+        result.GetProperty("matchStrategy").GetString().Should().Be("source-excluded");
+        result.GetProperty("affectedCount").GetInt32().Should().Be(0);
+        result.GetProperty("unsupportedCount").GetInt32().Should().Be(1);
+        result.GetProperty("unsupportedElements")[0].GetProperty("elementName").GetString().Should().Be("SelfBoundTextBox");
+        result.GetProperty("unsupportedElements")[0].GetProperty("sourceClassification").GetString().Should().Be("RelativeSource");
+        result.GetProperty("unsupportedElements")[0].GetProperty("unsupportedReason").GetString().Should().Contain("RelativeSource");
+    }
+
+    [StaFact]
     public void GetAffectedElements_WithViewModelType_ShouldApplyCoarseFilter()
     {
         var finder = new ElementFinder();

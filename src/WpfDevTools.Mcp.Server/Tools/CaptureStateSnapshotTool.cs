@@ -38,13 +38,18 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
                 return CreateStepFailure("get_dp_value_source", propertyName, response);
             }
 
+            var isExpression = GetOptionalBool(response, "isExpression");
+            var canRestore = !isExpression;
             dependencyProperties.Add(new StoredDependencyPropertySnapshot(
                 elementId,
                 propertyName,
                 response.GetProperty("hadLocalValue").GetBoolean(),
                 GetOptionalString(response, "localValue"),
                 GetOptionalString(response, "currentValue"),
-                GetOptionalString(response, "baseValueSource")));
+                GetOptionalString(response, "baseValueSource"),
+                isExpression,
+                canRestore,
+                GetDependencyPropertySkipReason(propertyName, isExpression)));
         }
 
         var viewModelProperties = new List<StoredViewModelPropertySnapshot>();
@@ -145,6 +150,8 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             snapshotSummary = new
             {
                 dependencyPropertyCount = dependencyProperties.Count,
+                restorableDependencyPropertyCount = dependencyProperties.Count(snapshot => snapshot.CanRestore),
+                skippedDependencyPropertyCount = dependencyProperties.Count(snapshot => !snapshot.CanRestore),
                 viewModelPropertyCount = viewModelProperties.Count,
                 capturedFocus = focus != null
             }
@@ -175,6 +182,9 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         element.TryGetProperty(propertyName, out var property) && property.ValueKind != JsonValueKind.Null
             ? property.ToString()
             : null;
+
+    private static bool GetOptionalBool(JsonElement element, string propertyName) =>
+        element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.True;
 
     private static bool IsRestorableViewModelValue(string? propertyType, string? propertyValue)
     {
@@ -215,6 +225,16 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         }
 
         return null;
+    }
+
+    private static string? GetDependencyPropertySkipReason(string propertyName, bool isExpression)
+    {
+        if (!isExpression)
+        {
+            return null;
+        }
+
+        return $"Property '{propertyName}' is expression-backed and cannot be deterministically restored after a local mutation replaces the expression.";
     }
 
     private static ToolErrorPayload CreateStepFailure(string method, string? propertyName, JsonElement response)

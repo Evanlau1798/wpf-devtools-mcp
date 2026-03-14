@@ -19,7 +19,10 @@ internal sealed record StoredDependencyPropertySnapshot(
     bool HadLocalValue,
     string? LocalValue,
     string? CurrentValue,
-    string? BaseValueSource);
+    string? BaseValueSource,
+    bool IsExpression = false,
+    bool CanRestore = true,
+    string? SkipReason = null);
 
 internal sealed record StoredViewModelPropertySnapshot(
     string? ElementId,

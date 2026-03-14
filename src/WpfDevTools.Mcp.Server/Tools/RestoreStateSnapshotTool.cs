@@ -33,7 +33,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         }
 
         var warnings = new List<string>();
-        var restoredDependencyProperties = await RestoreDependencyPropertiesAsync(
+        var (restoredDependencyProperties, skippedDependencyProperties) = await RestoreDependencyPropertiesAsync(
             processId,
             snapshot.DependencyProperties,
             warnings,
@@ -65,6 +65,8 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         {
             success = warnings.Count == 0,
             restoredDependencyPropertyCount = restoredDependencyProperties,
+            skippedDependencyPropertyCount = skippedDependencyProperties.Count,
+            skippedDependencyProperties,
             restoredViewModelPropertyCount = restoredViewModelProperties,
             skippedViewModelPropertyCount = skippedViewModelProperties.Count,
             skippedViewModelProperties,
@@ -73,15 +75,40 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         };
     }
 
-    private async Task<int> RestoreDependencyPropertiesAsync(
+    private async Task<(int restoredCount, List<object> skippedProperties)> RestoreDependencyPropertiesAsync(
         int processId,
         IReadOnlyList<StoredDependencyPropertySnapshot> snapshots,
         List<string> warnings,
         CancellationToken cancellationToken)
     {
         var restored = 0;
+        var skipped = new List<object>();
         foreach (var snapshot in snapshots)
         {
+            if (!snapshot.CanRestore)
+            {
+                var verification = await VerifySkippedDependencyPropertyAsync(
+                    processId,
+                    snapshot,
+                    cancellationToken).ConfigureAwait(false);
+                skipped.Add(new
+                {
+                    propertyName = snapshot.PropertyName,
+                    reason = snapshot.SkipReason ?? $"Property '{snapshot.PropertyName}' cannot be deterministically restored.",
+                    restoreDisposition = ClassifyDependencyPropertyRestoreDisposition(snapshot),
+                    verified = verification.verified,
+                    expectedValue = snapshot.CurrentValue,
+                    currentValue = verification.currentValue
+                });
+
+                if (!verification.verified)
+                {
+                    warnings.Add($"DependencyProperty restore verification failed for '{snapshot.PropertyName}'.");
+                }
+
+                continue;
+            }
+
             object parameters = snapshot.HadLocalValue
                 ? new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName, value = snapshot.LocalValue }
                 : new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName };
@@ -101,7 +128,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             warnings.Add($"DependencyProperty restore failed for '{snapshot.PropertyName}'.");
         }
 
-        return restored;
+        return (restored, skipped);
     }
 
     private async Task<(int restoredCount, List<object> skippedProperties)> RestoreViewModelPropertiesAsync(
@@ -214,6 +241,30 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         return false;
     }
 
+    private async Task<(bool verified, string? currentValue)> VerifySkippedDependencyPropertyAsync(
+        int processId,
+        StoredDependencyPropertySnapshot snapshot,
+        CancellationToken cancellationToken)
+    {
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+            processId,
+            "get_dp_value_source",
+            new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName },
+            cancellationToken).ConfigureAwait(false));
+
+        if (!IsSuccess(response))
+        {
+            return (false, null);
+        }
+
+        var currentValue = GetOptionalString(response, "currentValue");
+        var currentIsExpression = response.TryGetProperty("isExpression", out var isExpressionProperty) &&
+            isExpressionProperty.ValueKind == JsonValueKind.True;
+        var verified = string.Equals(currentValue, snapshot.CurrentValue, StringComparison.Ordinal) &&
+            currentIsExpression == snapshot.IsExpression;
+        return (verified, currentValue);
+    }
+
     private static bool IsSuccess(JsonElement response) =>
         response.TryGetProperty("success", out var successProperty) && successProperty.GetBoolean();
 
@@ -230,5 +281,15 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         }
 
         return "SkippedReadOnly";
+    }
+
+    private static string ClassifyDependencyPropertyRestoreDisposition(StoredDependencyPropertySnapshot snapshot)
+    {
+        if (snapshot.IsExpression)
+        {
+            return "SkippedExpression";
+        }
+
+        return "SkippedUnsupported";
     }
 }

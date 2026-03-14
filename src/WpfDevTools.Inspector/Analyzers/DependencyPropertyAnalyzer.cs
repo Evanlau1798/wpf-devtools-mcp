@@ -244,6 +244,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                     hadLocalValueBefore,
                     previousLocalValue = hadLocalValueBefore ? FormatResponseValue(localValueBefore) : null,
                     previousBaseValueSource = previousValueSource.BaseValueSource.ToString(),
+                    replacedExpression = previousValueSource.IsExpression,
                     baseValueSource = valueSource.BaseValueSource.ToString(),
                     valueType = newValue?.GetType().Name
                 };

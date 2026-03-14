@@ -34,7 +34,7 @@ public static class StateMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose state should be captured. Omit for the root window.")] string? elementId = null,
-        [Description("Optional DependencyProperty names to capture as restorable local-value state.")] string[]? propertyNames = null,
+        [Description("Optional DependencyProperty names to capture as restorable local-value state. Expression-backed properties are captured for verification but marked as skipped during restore.")] string[]? propertyNames = null,
         [Description("Optional ViewModel property names to capture from the current DataContext.")] string[]? viewModelPropertyNames = null,
         [Description("When true, also capture the current logical/keyboard focus snapshot.")] bool includeFocus = false,
         [Description("Optional human-friendly label for the snapshot.")] string? snapshotName = null,
@@ -67,6 +67,8 @@ public static class StateMcpTools
         "{\n" +
         "  success: boolean,\n" +
         "  restoredDependencyPropertyCount: number,\n" +
+        "  skippedDependencyPropertyCount: number,\n" +
+        "  skippedDependencyProperties: [{ propertyName, reason, restoreDisposition, verified: boolean, expectedValue, currentValue }],\n" +
         "  restoredViewModelPropertyCount: number,\n" +
         "  skippedViewModelPropertyCount: number,\n" +
         "  skippedViewModelProperties: [{ propertyName, reason, verified: boolean, expectedValue, currentValue }],\n" +

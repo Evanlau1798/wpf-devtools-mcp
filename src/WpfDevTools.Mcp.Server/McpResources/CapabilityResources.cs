@@ -209,7 +209,8 @@ public static class CapabilityResources
         - Changes are process-local and reset on app restart.
         - Snapshot/restore is session-scoped, not durable persistence.
         - `capture_state_snapshot` can capture DependencyProperty local values, scalar ViewModel values, and focus state.
-        - `restore_state_snapshot` can replay those captured values in the same connected session.
+        - Expression-backed DependencyProperties are captured for verification, but `restore_state_snapshot` reports them as skipped instead of pretending it can reconstruct the original expression.
+        - `restore_state_snapshot` can replay captured local-value DependencyProperties, scalar ViewModel values, and focus state in the same connected session.
         - Prefer minimal mutations and capture a snapshot before a debugging sequence when rollback matters.
 
         Use this guidance in demos, troubleshooting, and regression flows to avoid cross-test contamination.

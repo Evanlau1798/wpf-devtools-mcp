@@ -21,6 +21,10 @@ public sealed class McpStdioClient : IDisposable
     private Process? _serverProcess;
     private int _nextId;
     private readonly ConcurrentQueue<string> _stderrLines = new();
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<JsonElement>> _pendingResponses = new();
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly CancellationTokenSource _readerCts = new();
+    private Task? _readerTask;
 
     public bool IsRunning => _serverProcess != null && !_serverProcess.HasExited;
 
@@ -55,6 +59,7 @@ public sealed class McpStdioClient : IDisposable
             if (e.Data != null) _stderrLines.Enqueue(e.Data);
         };
         _serverProcess.BeginErrorReadLine();
+        _readerTask = Task.Run(() => RunReadLoopAsync(_readerCts.Token), _readerCts.Token);
 
         // Brief wait for server process to spawn and initialize STDIO transport
         await Task.Delay(200, ct);
@@ -108,32 +113,40 @@ public sealed class McpStdioClient : IDisposable
         string method, object? parameters, int timeoutMs, CancellationToken ct)
     {
         var id = Interlocked.Increment(ref _nextId);
+        var responseTcs = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_pendingResponses.TryAdd(id, responseTcs))
+        {
+            throw new InvalidOperationException($"Duplicate MCP request id allocation: {id}");
+        }
 
         var payload = parameters != null
             ? (object)new { jsonrpc = "2.0", id, method, @params = parameters }
             : new { jsonrpc = "2.0", id, method };
 
-        await SendJsonLineAsync(payload);
+        try
+        {
+            await SendJsonLineAsync(payload);
+        }
+        catch
+        {
+            _pendingResponses.TryRemove(id, out _);
+            throw;
+        }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeoutMs);
 
         try
         {
-            while (!cts.IsCancellationRequested)
+            var completed = await Task.WhenAny(responseTcs.Task, Task.Delay(Timeout.Infinite, cts.Token));
+            if (completed == responseTcs.Task)
             {
-                var message = await ReadJsonLineAsync(cts.Token);
-
-                if (message.TryGetProperty("id", out var responseId) &&
-                    responseId.ValueKind == JsonValueKind.Number &&
-                    responseId.GetInt32() == id)
-                {
-                    return message;
-                }
+                return await responseTcs.Task;
             }
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested && !ct.IsCancellationRequested)
         {
+            _pendingResponses.TryRemove(id, out _);
             var serverState = _serverProcess?.HasExited == true
                 ? $"exited with code {_serverProcess.ExitCode}"
                 : "running";
@@ -143,6 +156,7 @@ public sealed class McpStdioClient : IDisposable
                 $"Server state: {serverState}. Stderr tail: {TruncateStderr(500)}");
         }
 
+        _pendingResponses.TryRemove(id, out _);
         throw new TimeoutException(
             $"Timed out waiting for response to '{method}' (id={id})");
     }
@@ -160,40 +174,59 @@ public sealed class McpStdioClient : IDisposable
         EnsureRunning();
 
         var json = JsonSerializer.Serialize(payload);
-        await _serverProcess!.StandardInput.WriteLineAsync(json);
-        await _serverProcess.StandardInput.FlushAsync();
+        await _writeLock.WaitAsync();
+        try
+        {
+            await _serverProcess!.StandardInput.WriteLineAsync(json);
+            await _serverProcess.StandardInput.FlushAsync();
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
-    /// <summary>
-    /// Read one JSON message line from stdout (NDJSON format).
-    /// Uses Task.WhenAny to make the non-cancellable ReadLineAsync respect cancellation.
-    /// </summary>
-    private async Task<JsonElement> ReadJsonLineAsync(CancellationToken ct)
+    private async Task RunReadLoopAsync(CancellationToken ct)
     {
-        EnsureRunning();
-
-        var readTask = _serverProcess!.StandardOutput.ReadLineAsync();
-        var delayTask = Task.Delay(Timeout.Infinite, ct);
-
-        var completedTask = await Task.WhenAny(readTask, delayTask);
-
-        // If readTask completed (even if ct fired simultaneously), use its result
-        // to avoid losing a message from the stream.
-        if (completedTask == readTask || readTask.IsCompleted)
+        try
         {
-            var line = await readTask;
-            if (line == null)
+            while (!ct.IsCancellationRequested)
             {
-                throw new EndOfStreamException(
-                    $"MCP server closed stdout. Server stderr: {TruncateStderr(300)}");
+                EnsureRunning();
+
+                var line = await _serverProcess!.StandardOutput.ReadLineAsync(ct);
+                if (line == null)
+                {
+                    throw new EndOfStreamException(
+                        $"MCP server closed stdout. Server stderr: {TruncateStderr(300)}");
+                }
+
+                var message = JsonSerializer.Deserialize<JsonElement>(line);
+                if (!message.TryGetProperty("id", out var responseId) ||
+                    responseId.ValueKind != JsonValueKind.Number)
+                {
+                    continue;
+                }
+
+                if (_pendingResponses.TryRemove(responseId.GetInt32(), out var pending))
+                {
+                    pending.TrySetResult(message);
+                }
             }
-
-            return JsonSerializer.Deserialize<JsonElement>(line);
         }
-
-        // Cancellation won the race - throw to caller
-        ct.ThrowIfCancellationRequested();
-        throw new OperationCanceledException(ct);
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            foreach (var pending in _pendingResponses.ToArray())
+            {
+                if (_pendingResponses.TryRemove(pending.Key, out var tcs))
+                {
+                    tcs.TrySetException(ex);
+                }
+            }
+        }
     }
 
     private static JsonElement ExtractToolResult(JsonElement response)
@@ -251,6 +284,8 @@ public sealed class McpStdioClient : IDisposable
 
     public void Dispose()
     {
+        _readerCts.Cancel();
+
         if (_serverProcess != null)
         {
             try
@@ -274,5 +309,16 @@ public sealed class McpStdioClient : IDisposable
                 _serverProcess.Dispose();
             }
         }
+
+        try
+        {
+            _readerTask?.GetAwaiter().GetResult();
+        }
+        catch
+        {
+        }
+
+        _readerCts.Dispose();
+        _writeLock.Dispose();
     }
 }

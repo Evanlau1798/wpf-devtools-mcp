@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Diagnostics;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -26,17 +27,204 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             expectedValue = expectedValueProperty.Clone();
         }
 
-        return await SendInspectorRequestAsync(
+        const int defaultTimeoutMs = 5000;
+        const int defaultPollIntervalMs = 200;
+        var effectiveTimeoutMs = timeoutMs ?? defaultTimeoutMs;
+        var effectivePollIntervalMs = pollIntervalMs ?? defaultPollIntervalMs;
+
+        if (effectiveTimeoutMs is < 1 or > 30000)
+        {
+            return CreateInvalidParamError("timeoutMs must be between 1 and 30000.");
+        }
+
+        if (effectivePollIntervalMs is < 50 or > 5000)
+        {
+            return CreateInvalidParamError("pollIntervalMs must be between 50 and 5000.");
+        }
+
+        var initialSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
+        if (initialSnapshot.Error != null)
+        {
+            return initialSnapshot.Error;
+        }
+
+        var matchedExpectedValueAtStart = expectedValue.HasValue &&
+            JsonValueMatchesFormatted(expectedValue.Value, initialSnapshot.FormattedValue);
+        if (matchedExpectedValueAtStart)
+        {
+            return BuildWaitResult(
+                changed: false,
+                timedOut: false,
+                propertyName,
+                elementId,
+                initialSnapshot,
+                initialSnapshot,
+                elapsedMs: 0,
+                pollCount: 0,
+                observedChange: false,
+                matchedExpectedValueAtStart: true,
+                completionReason: "ExpectedValueAlreadySatisfied");
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        var pollCount = 0;
+        while (stopwatch.ElapsedMilliseconds < effectiveTimeoutMs)
+        {
+            await Task.Delay(effectivePollIntervalMs, cancellationToken).ConfigureAwait(false);
+            pollCount++;
+
+            var currentSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
+            if (currentSnapshot.Error != null)
+            {
+                return currentSnapshot.Error;
+            }
+
+            if (HasReachedTarget(initialSnapshot, currentSnapshot, expectedValue))
+            {
+                return BuildWaitResult(
+                    changed: true,
+                    timedOut: false,
+                    propertyName,
+                    elementId,
+                    initialSnapshot,
+                    currentSnapshot,
+                    stopwatch.ElapsedMilliseconds,
+                    pollCount,
+                    observedChange: HasObservedChange(initialSnapshot, currentSnapshot),
+                    matchedExpectedValueAtStart: false,
+                    completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
+            }
+        }
+
+        var finalSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
+        if (finalSnapshot.Error != null)
+        {
+            return finalSnapshot.Error;
+        }
+
+        return BuildWaitResult(
+            changed: false,
+            timedOut: true,
+            propertyName,
+            elementId,
+            initialSnapshot,
+            finalSnapshot,
+            stopwatch.ElapsedMilliseconds,
+            pollCount,
+            observedChange: HasObservedChange(initialSnapshot, finalSnapshot),
+            matchedExpectedValueAtStart: false,
+            completionReason: "TimedOut");
+    }
+
+    private async Task<DpSnapshot> ReadSnapshotAsync(
+        int processId,
+        string? elementId,
+        string propertyName,
+        CancellationToken cancellationToken)
+    {
+        var result = await SendInspectorRequestWithoutPiggybackAsync(
             processId,
-            "wait_for_dp_change",
+            "get_dp_value_source",
             new
             {
                 elementId,
                 propertyName,
-                timeoutMs,
-                pollIntervalMs,
-                expectedValue
+                compact = true
             },
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+
+        var payload = result is JsonElement jsonElement
+            ? jsonElement
+            : JsonSerializer.SerializeToElement(result);
+        if (!IsSuccessfulSnapshotPayload(payload))
+        {
+            return DpSnapshot.FromError(result);
+        }
+
+        return new DpSnapshot(
+            FormattedValue: TryGetStringProperty(payload, "currentValue")
+                ?? TryGetStringProperty(payload, "effectiveValue"),
+            BaseValueSource: TryGetStringProperty(payload, "baseValueSource") ?? string.Empty);
+    }
+
+    private static bool IsSuccessfulSnapshotPayload(JsonElement payload)
+    {
+        return payload.ValueKind == JsonValueKind.Object
+            && payload.TryGetProperty("success", out var successProperty)
+            && successProperty.ValueKind == JsonValueKind.True;
+    }
+
+    private static string? TryGetStringProperty(JsonElement payload, string propertyName)
+    {
+        return payload.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : null;
+    }
+
+    private static bool HasReachedTarget(DpSnapshot initialSnapshot, DpSnapshot currentSnapshot, JsonElement? expectedValue)
+    {
+        if (expectedValue.HasValue)
+        {
+            return JsonValueMatchesFormatted(expectedValue.Value, currentSnapshot.FormattedValue);
+        }
+
+        return HasObservedChange(initialSnapshot, currentSnapshot);
+    }
+
+    private static bool HasObservedChange(DpSnapshot initialSnapshot, DpSnapshot currentSnapshot)
+    {
+        return !string.Equals(initialSnapshot.FormattedValue, currentSnapshot.FormattedValue, StringComparison.Ordinal) ||
+               !string.Equals(initialSnapshot.BaseValueSource, currentSnapshot.BaseValueSource, StringComparison.Ordinal);
+    }
+
+    private static bool JsonValueMatchesFormatted(JsonElement expectedValue, string? formattedValue)
+    {
+        return expectedValue.ValueKind switch
+        {
+            JsonValueKind.String => string.Equals(expectedValue.GetString(), formattedValue, StringComparison.Ordinal),
+            JsonValueKind.True => string.Equals("True", formattedValue, StringComparison.OrdinalIgnoreCase),
+            JsonValueKind.False => string.Equals("False", formattedValue, StringComparison.OrdinalIgnoreCase),
+            JsonValueKind.Null => formattedValue == null,
+            JsonValueKind.Number => string.Equals(expectedValue.GetRawText(), formattedValue, StringComparison.Ordinal),
+            _ => string.Equals(expectedValue.GetRawText(), formattedValue, StringComparison.Ordinal)
+        };
+    }
+
+    private static object BuildWaitResult(
+        bool changed,
+        bool timedOut,
+        string propertyName,
+        string? elementId,
+        DpSnapshot initialSnapshot,
+        DpSnapshot currentSnapshot,
+        long elapsedMs,
+        int pollCount,
+        bool observedChange,
+        bool matchedExpectedValueAtStart,
+        string completionReason)
+    {
+        return new
+        {
+            success = true,
+            changed,
+            timedOut,
+            observedChange,
+            matchedExpectedValueAtStart,
+            completionReason,
+            elementId,
+            propertyName,
+            initialValue = initialSnapshot.FormattedValue,
+            initialBaseValueSource = initialSnapshot.BaseValueSource,
+            currentValue = currentSnapshot.FormattedValue,
+            baseValueSource = currentSnapshot.BaseValueSource,
+            elapsedMs,
+            pollCount
+        };
+    }
+
+    private readonly record struct DpSnapshot(string? FormattedValue, string BaseValueSource, object? Error = null)
+    {
+        public static DpSnapshot FromError(object error) => new(null, string.Empty, error);
     }
 }

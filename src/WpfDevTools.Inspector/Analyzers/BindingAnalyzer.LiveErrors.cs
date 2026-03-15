@@ -48,15 +48,8 @@ public sealed partial class BindingAnalyzer
         DependencyObject element,
         List<BindingErrorInfo> errors)
     {
-        var enumerator = element.GetLocalValueEnumerator();
-        while (enumerator.MoveNext())
+        foreach (var property in GetCandidateDependencyProperties(element))
         {
-            var property = enumerator.Current.Property;
-            if (property == null)
-            {
-                continue;
-            }
-
             var bindingExpression = BindingOperations.GetBindingExpression(element, property);
             if (bindingExpression == null || !IsBindingError(bindingExpression))
             {

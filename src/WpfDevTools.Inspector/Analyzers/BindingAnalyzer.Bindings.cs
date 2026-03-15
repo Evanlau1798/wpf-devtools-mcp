@@ -58,21 +58,12 @@ public sealed partial class BindingAnalyzer
     private static List<object> GetDependencyPropertiesWithBindings(DependencyObject element)
     {
         var bindings = new List<object>();
-        var seenProperties = new HashSet<string>();
-
-        var enumerator = element.GetLocalValueEnumerator();
-        while (enumerator.MoveNext())
+        foreach (var dp in GetCandidateDependencyProperties(element))
         {
-            var entry = enumerator.Current;
-            var dp = entry.Property;
-
-            if (dp != null && seenProperties.Add(dp.Name))
+            var bindingExpr = BindingOperations.GetBindingExpressionBase(element, dp);
+            if (bindingExpr != null)
             {
-                var bindingExpr = BindingOperations.GetBindingExpressionBase(element, dp);
-                if (bindingExpr != null)
-                {
-                    bindings.Add(BuildBindingPayload(element, dp, bindingExpr));
-                }
+                bindings.Add(BuildBindingPayload(element, dp, bindingExpr));
             }
         }
 

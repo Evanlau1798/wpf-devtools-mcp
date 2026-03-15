@@ -132,6 +132,19 @@
                                 Background="{Binding IsEnabled}"
                                 Margin="5,0,5,10"/>
 
+                        <TextBlock Text="Dynamic Detail Context" FontWeight="Bold" Foreground="DarkOrange" Margin="5,10,5,5"/>
+                        <CheckBox x:Name="BrokenDetailContextCheckBox"
+                                  Content="Use broken detail context"
+                                  IsChecked="{Binding UseBrokenDetailContext}"
+                                  Margin="5,0,5,5"/>
+                        <ContentControl x:Name="DynamicDetailHost"
+                                        Margin="5,0,5,10"
+                                        DataContext="{Binding CurrentDetailContext}">
+                            <TextBox x:Name="DetailContextTextBox"
+                                     Text="{Binding DetailName}"
+                                     Margin="0"/>
+                        </ContentControl>
+
                         <Separator Margin="0,20,0,20"/>
 
                         <TextBlock Text="Commands" FontWeight="Bold" Margin="0,0,0,10"/>

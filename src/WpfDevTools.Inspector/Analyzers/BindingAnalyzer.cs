@@ -104,11 +104,8 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             // Ensure trace listener is installed
             BindingErrorTraceListener.Install();
 
-            IReadOnlyList<BindingErrorInfo> errors = BindingErrorTraceListener.Instance.GetErrors();
-            if (errors.Count == 0)
-            {
-                errors = liveErrors;
-            }
+            var traceErrors = BindingErrorTraceListener.Instance.GetErrors();
+            IReadOnlyList<BindingErrorInfo> errors = MergeBindingErrors(traceErrors, liveErrors);
 
             var filteredErrors = FilterOutValidationErrors(errors);
             EnqueueBindingErrors(filteredErrors);

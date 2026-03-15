@@ -15,8 +15,11 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
     private int _age;
     private bool _isEnabled = true;
     private bool _isGhostVisible;
+    private bool _useBrokenDetailContext;
     private string _lastActionMessage = "Ready";
     private readonly RelayCommand _saveCommand;
+    private readonly ValidDetailContext _validDetailContext = new("Detail ready");
+    private readonly BrokenDetailContext _brokenDetailContext = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -84,6 +87,21 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
         }
     }
 
+    public bool UseBrokenDetailContext
+    {
+        get => _useBrokenDetailContext;
+        set
+        {
+            _useBrokenDetailContext = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CurrentDetailContext));
+        }
+    }
+
+    public object CurrentDetailContext => UseBrokenDetailContext
+        ? _brokenDetailContext
+        : _validDetailContext;
+
     public bool CanSave => !string.IsNullOrWhiteSpace(Name) && Age > 0;
 
     public string LastActionMessage
@@ -143,6 +161,10 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
         }
     }
 }
+
+public sealed record ValidDetailContext(string DetailName);
+
+public sealed class BrokenDetailContext;
 
 /// <summary>
 /// Simple RelayCommand implementation

@@ -299,4 +299,48 @@ public sealed class BindingDiagnosticsE2eTests
             .Single(item => item.GetProperty("elementName").GetString() == "ErrorTextBox3")
             .GetProperty("unsupportedReason").GetString().Should().NotBeNullOrWhiteSpace();
     }
+
+    [Fact]
+    public async Task GetBindingErrors_AfterDetailContextFlip_ShouldIncludeNewBrokenBindingWithinSinceWindow()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var baseline = await _fixture.Client.CallToolAsync(
+            "get_binding_errors",
+            new { processId = _fixture.TestAppProcessId, compact = true });
+
+        baseline.GetProperty("success").GetBoolean().Should().BeTrue();
+        baseline.GetProperty("errorCount").GetInt32().Should().BeGreaterThan(0);
+
+        var sinceTimestamp = DateTimeOffset.UtcNow.ToString("O");
+
+        var mutation = await _fixture.Client.CallToolAsync(
+            "modify_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "UseBrokenDetailContext",
+                value = true,
+                navigation = false
+            });
+
+        mutation.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_binding_errors",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                sinceTimestamp,
+                compact = true,
+                navigation = false
+            });
+
+        _output.WriteLine($"Detail-context binding errors: {E2eTestHelpers.Truncate(result.GetRawText(), 500)}");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errors").EnumerateArray()
+            .Select(error => error.GetProperty("bindingPath").GetString())
+            .Should().Contain("DetailName");
+    }
 }

@@ -33,7 +33,7 @@ public static class MutationBatchMcpTools
         "- { processId: 12345, captureSnapshot: { propertyNames: [\"Text\"], viewModelPropertyNames: [\"Name\"] }, includeDiff: true, mutations: [{ tool: \"modify_viewmodel\", args: { propertyName: \"Name\", value: \"Batch User\" } }] }")]
     public static Task<CallToolResult> BatchMutate(
         SessionManager sessionManager,
-        [Description("Mutation steps encoded as raw JSON array. Each step must include tool and may include label plus args.")] JsonElement mutations,
+        [Description("Mutation steps encoded as a JSON array or a stringified JSON array for compatibility. Each step must include tool and may include label plus args.")] object? mutations = null,
         [Description("Optional capture_state_snapshot request encoded as raw JSON object. Required when includeDiff=true.")] JsonElement? captureSnapshot = null,
         [Description("Optional flag to run get_state_diff after all mutations succeed. Requires captureSnapshot.")] bool includeDiff = false,
         [Description("Optional trigger label forwarded to get_state_diff. Defaults to 'batch_mutate'.")] string? trigger = null,

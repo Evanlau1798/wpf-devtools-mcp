@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
@@ -163,6 +164,27 @@ public sealed class FormSummaryE2eTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("summary").GetProperty("isSubmittable").GetBoolean().Should().BeTrue();
         result.GetProperty("summary").GetProperty("errorCount").GetInt32().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task BatchMutate_ShouldAcceptStringifiedMutationsCompatibilityPayload()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var batch = await _fixture.Client.CallToolAsync(
+            "batch_mutate",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                mutations = JsonSerializer.Serialize(new object[]
+                {
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Compat Batch User" } }
+                })
+            });
+
+        batch.GetProperty("success").GetBoolean().Should().BeTrue(batch.GetRawText());
+        batch.GetProperty("executedMutationCount").GetInt32().Should().Be(1);
+        batch.GetProperty("mutations")[0].GetProperty("success").GetBoolean().Should().BeTrue();
     }
 
     private async Task ResetFormAsync()

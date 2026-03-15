@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         SetupCustomEvents();
         SetupBindingDiagnosticsSamples();
         SetupGeneratedDetailDiagnostics();
+        SetupWaitForChangeDiagnostics();
 
         InitializeModernTheme();
     }
@@ -207,6 +208,63 @@ public partial class MainWindow : Window
         RegisterName(detailHost.Name, detailHost);
         RegisterName(detailTab.Name, detailTab);
         MainTabControl.Items.Add(detailTab);
+    }
+
+    private void SetupWaitForChangeDiagnostics()
+    {
+        var searchProbeLabel = new TextBlock
+        {
+            Margin = new Thickness(5, 12, 5, 5),
+            Text = "Search Text Probe",
+            FontWeight = FontWeights.Bold
+        };
+
+        var searchProbeTextBox = new TextBox
+        {
+            Name = "SearchProbeTextBox",
+            Margin = new Thickness(5)
+        };
+        searchProbeTextBox.SetBinding(TextBox.TextProperty, new Binding(nameof(TestViewModel.SearchText))
+        {
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+        });
+        RegisterName(searchProbeTextBox.Name, searchProbeTextBox);
+
+        BasicControlsStackPanel.Children.Add(searchProbeLabel);
+        BasicControlsStackPanel.Children.Add(searchProbeTextBox);
+
+        var mirrorTextBox = new TextBox
+        {
+            Name = "SearchMirrorTextBox",
+            Margin = new Thickness(12)
+        };
+        mirrorTextBox.SetBinding(TextBox.TextProperty, new Binding(nameof(TestViewModel.SearchText))
+        {
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+        });
+
+        var mirrorTab = new TabItem
+        {
+            Name = "SearchMirrorTab",
+            Header = "Search Mirror",
+            Content = new StackPanel
+            {
+                Margin = new Thickness(12),
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Secondary SearchText target",
+                        FontWeight = FontWeights.Bold
+                    },
+                    mirrorTextBox
+                }
+            }
+        };
+
+        RegisterName(mirrorTextBox.Name, mirrorTextBox);
+        RegisterName(mirrorTab.Name, mirrorTab);
+        MainTabControl.Items.Add(mirrorTab);
     }
 
     private void FocusWorkflowElement_GotFocus(object sender, RoutedEventArgs e)

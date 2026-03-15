@@ -89,6 +89,42 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         waitJson.GetProperty("currentValue").GetString().Should().Be("after");
     }
 
+    [Fact]
+    public async Task Execute_WithTriggerMutation_ShouldRunMutationBeforeWaiting()
+    {
+        const int processId = 4545;
+        using var connected = await CreateConnectedSessionAsync(processId);
+        var waitTool = new WaitForDpChangeTool(connected.SessionManager);
+
+        var waitResult = await waitTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                propertyName = "Text",
+                expectedValue = JsonSerializer.SerializeToElement("after"),
+                timeoutMs = 1000,
+                pollIntervalMs = 50,
+                triggerMutation = new
+                {
+                    tool = "modify_viewmodel",
+                    args = new
+                    {
+                        propertyName = "Name",
+                        value = "after"
+                    }
+                }
+            }),
+            CancellationToken.None);
+
+        var waitJson = JsonSerializer.SerializeToElement(waitResult);
+
+        waitJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        waitJson.GetProperty("changed").GetBoolean().Should().BeTrue();
+        waitJson.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+        waitJson.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
+        connected.RequestMethods.Should().Contain("modify_viewmodel");
+    }
+
     private static async Task<ConnectedWaitSession> CreateConnectedSessionAsync(int processId)
     {
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";

@@ -26,6 +26,16 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         {
             expectedValue = expectedValueProperty.Clone();
         }
+        JsonElement? triggerMutation = null;
+        if (arguments.HasValue && arguments.Value.TryGetProperty("triggerMutation", out var triggerMutationProperty))
+        {
+            if (triggerMutationProperty.ValueKind != JsonValueKind.Object)
+            {
+                return CreateInvalidParamError("triggerMutation must be an object when provided.");
+            }
+
+            triggerMutation = triggerMutationProperty.Clone();
+        }
 
         const int defaultTimeoutMs = 5000;
         const int defaultPollIntervalMs = 200;
@@ -64,6 +74,41 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                 observedChange: false,
                 matchedExpectedValueAtStart: true,
                 completionReason: "ExpectedValueAlreadySatisfied");
+        }
+
+        if (triggerMutation.HasValue)
+        {
+            var triggerResult = await ExecuteTriggerMutationAsync(
+                processId,
+                elementId,
+                triggerMutation.Value,
+                cancellationToken).ConfigureAwait(false);
+            if (triggerResult.Error != null)
+            {
+                return triggerResult.Error;
+            }
+
+            var afterTriggerSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
+            if (afterTriggerSnapshot.Error != null)
+            {
+                return afterTriggerSnapshot.Error;
+            }
+
+            if (HasReachedTarget(initialSnapshot, afterTriggerSnapshot, expectedValue))
+            {
+                return BuildWaitResult(
+                    changed: true,
+                    timedOut: false,
+                    propertyName,
+                    elementId,
+                    initialSnapshot,
+                    afterTriggerSnapshot,
+                    elapsedMs: 0,
+                    pollCount: 0,
+                    observedChange: HasObservedChange(initialSnapshot, afterTriggerSnapshot),
+                    matchedExpectedValueAtStart: false,
+                    completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
+            }
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -163,6 +208,49 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             BaseValueSource: TryGetStringProperty(payload, "baseValueSource") ?? string.Empty);
     }
 
+    private async Task<TriggerMutationResult> ExecuteTriggerMutationAsync(
+        int processId,
+        string? elementId,
+        JsonElement triggerMutation,
+        CancellationToken cancellationToken)
+    {
+        var batchArgs = BuildTriggerBatchArgs(processId, elementId, triggerMutation);
+        var result = await new BatchMutateTool(_sessionManager)
+            .ExecuteAsync(batchArgs, cancellationToken)
+            .ConfigureAwait(false);
+        var payload = result is JsonElement jsonElement
+            ? jsonElement
+            : JsonSerializer.SerializeToElement(result);
+
+        return IsSuccessfulSnapshotPayload(payload)
+            ? TriggerMutationResult.Success
+            : new TriggerMutationResult(payload.Clone());
+    }
+
+    private static JsonElement BuildTriggerBatchArgs(int processId, string? elementId, JsonElement triggerMutation)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["processId"] = processId,
+            ["mutations"] = new[] { triggerMutation.Clone() }
+        };
+
+        var hasArgsElement = triggerMutation.TryGetProperty("args", out var argsElement);
+        if (!string.IsNullOrWhiteSpace(elementId) && !hasArgsElement)
+        {
+            payload["elementId"] = elementId;
+        }
+        else if (!string.IsNullOrWhiteSpace(elementId)
+            && hasArgsElement
+            && argsElement.ValueKind == JsonValueKind.Object
+            && !argsElement.TryGetProperty("elementId", out _))
+        {
+            payload["elementId"] = elementId;
+        }
+
+        return JsonSerializer.SerializeToElement(payload);
+    }
+
     private static bool IsSuccessfulSnapshotPayload(JsonElement payload)
     {
         return payload.ValueKind == JsonValueKind.Object
@@ -242,5 +330,10 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
     private readonly record struct DpSnapshot(string? FormattedValue, string BaseValueSource, object? Error = null)
     {
         public static DpSnapshot FromError(object error) => new(null, string.Empty, error);
+    }
+
+    private readonly record struct TriggerMutationResult(object? Error = null)
+    {
+        public static TriggerMutationResult Success => new();
     }
 }

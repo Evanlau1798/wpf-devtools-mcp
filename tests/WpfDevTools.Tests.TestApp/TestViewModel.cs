@@ -12,6 +12,7 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
     private string _firstName = "Ada";
     private string _lastName = "Lovelace";
     private string _name = "";
+    private string _searchText = "";
     private int _age;
     private bool _isEnabled = true;
     private bool _isGhostVisible;
@@ -51,6 +52,16 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
         set
         {
             _lastName = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            _searchText = value;
             OnPropertyChanged();
         }
     }

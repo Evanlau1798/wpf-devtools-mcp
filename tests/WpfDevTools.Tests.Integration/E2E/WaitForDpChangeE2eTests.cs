@@ -74,4 +74,116 @@ public sealed class WaitForDpChangeE2eTests
         waitResult.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
         waitResult.GetProperty("currentValue").GetString().Should().Be(expectedValue);
     }
+
+    [Fact]
+    public async Task WaitForDpChange_ShouldObserveLiveChangeForSharedSearchBindingTargets()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var textBoxId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            "SearchProbeTextBox");
+        textBoxId.Should().NotBeNull("TestApp should expose SearchProbeTextBox");
+
+        await _fixture.Client.CallToolAsync(
+            "modify_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "SearchText",
+                value = string.Empty,
+                navigation = false
+            });
+
+        var expectedValue = $"search-e2e-{Guid.NewGuid():N}";
+        var waitTask = _fixture.Client.CallToolAsync(
+            "wait_for_dp_change",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = textBoxId,
+                propertyName = "Text",
+                expectedValue,
+                timeoutMs = 4000,
+                pollIntervalMs = 100,
+                navigation = false
+            },
+            timeoutMs: 10000);
+
+        await Task.Delay(250);
+
+        var mutateTask = _fixture.Client.CallToolAsync(
+            "modify_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "SearchText",
+                value = expectedValue,
+                navigation = false
+            },
+            timeoutMs: 10000);
+
+        var waitResult = await waitTask;
+        var mutateResult = await mutateTask;
+
+        mutateResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        waitResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        waitResult.GetProperty("changed").GetBoolean().Should().BeTrue();
+        waitResult.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+        waitResult.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
+        waitResult.GetProperty("currentValue").GetString().Should().Be(expectedValue);
+    }
+
+    [Fact]
+    public async Task WaitForDpChange_WithTriggerMutation_ShouldObserveSearchTextChangeWithoutParallelClientRequests()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var textBoxId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            "SearchProbeTextBox");
+        textBoxId.Should().NotBeNull("TestApp should expose SearchProbeTextBox");
+
+        await _fixture.Client.CallToolAsync(
+            "modify_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "SearchText",
+                value = string.Empty,
+                navigation = false
+            });
+
+        var expectedValue = $"search-trigger-{Guid.NewGuid():N}";
+        var waitResult = await _fixture.Client.CallToolAsync(
+            "wait_for_dp_change",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = textBoxId,
+                propertyName = "Text",
+                expectedValue,
+                timeoutMs = 4000,
+                pollIntervalMs = 100,
+                triggerMutation = new
+                {
+                    tool = "modify_viewmodel",
+                    args = new
+                    {
+                        propertyName = "SearchText",
+                        value = expectedValue
+                    }
+                },
+                navigation = false
+            },
+            timeoutMs: 10000);
+
+        waitResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        waitResult.GetProperty("changed").GetBoolean().Should().BeTrue();
+        waitResult.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+        waitResult.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
+        waitResult.GetProperty("currentValue").GetString().Should().Be(expectedValue);
+    }
 }

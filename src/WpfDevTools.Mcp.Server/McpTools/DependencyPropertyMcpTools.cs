@@ -245,6 +245,7 @@ public static class DependencyPropertyMcpTools
         "USE WHEN: You need to wait for a property transition after an interaction, command, or state mutation without implementing your own polling loop.\n" +
         "DO NOT USE: As a real-time push subscription. This tool polls get_dp_value_source-style state until timeout.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value. Omit it to stop on any value change.\n\n" +
+        "SERIALIZED-CLIENT WORKFLOW: Provide `triggerMutation` using the same shape as one `batch_mutate` step when your MCP client cannot issue concurrent tool calls on the same session. The server will execute that mutation first, then wait for the property transition.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -269,7 +270,8 @@ public static class DependencyPropertyMcpTools
         "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", timeoutMs: 5000 }\n" +
         "- { processId: 12345, elementId: \"StatusText\", propertyName: \"Text\", expectedValue: \"Complete\", timeoutMs: 10000 }\n" +
-        "- { elementId: \"NameTextBox\", propertyName: \"Text\", pollIntervalMs: 100, timeoutMs: 2000 }")]
+        "- { elementId: \"NameTextBox\", propertyName: \"Text\", pollIntervalMs: 100, timeoutMs: 2000 }\n" +
+        "- { elementId: \"SearchProbeTextBox\", propertyName: \"Text\", expectedValue: \"Ready\", triggerMutation: { tool: \"modify_viewmodel\", args: { propertyName: \"SearchText\", value: \"Ready\" } } }")]
     public static Task<CallToolResult> WaitForDpChange(
         SessionManager sessionManager,
         [Description("DependencyProperty name to monitor for changes.")] string propertyName,
@@ -278,6 +280,7 @@ public static class DependencyPropertyMcpTools
         [Description("Optional timeout in milliseconds. Default: 5000.")] int? timeoutMs = null,
         [Description("Optional polling interval in milliseconds. Default: 200.")] int? pollIntervalMs = null,
         [Description("Optional expected property value. Omit to stop on any value change.")] JsonElement? expectedValue = null,
+        [Description("Optional single mutation step, using the same shape as one batch_mutate item. Use this when the client cannot send a concurrent mutation while wait_for_dp_change is running.")] object? triggerMutation = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -286,7 +289,8 @@ public static class DependencyPropertyMcpTools
             ("propertyName", propertyName),
             ("timeoutMs", timeoutMs),
             ("pollIntervalMs", pollIntervalMs),
-            ("expectedValue", expectedValue));
+            ("expectedValue", expectedValue),
+            ("triggerMutation", triggerMutation));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<WaitForDpChangeTool>("WaitForDpChangeTool", () => new WaitForDpChangeTool(sessionManager)).ExecuteAsync(a, ct),

@@ -119,7 +119,9 @@ public sealed partial class DependencyPropertyAnalyzer
         restoreToken = string.Empty;
         expressionKind = string.Empty;
 
-        var bindingBase = BindingOperations.GetBindingBase(depObj, dp);
+        var bindingBase = ResolveBindingBaseForCapture(
+            BindingOperations.GetBindingBase(depObj, dp),
+            BindingOperations.GetBindingExpressionBase(depObj, dp));
         if (bindingBase == null)
         {
             return false;
@@ -148,6 +150,18 @@ public sealed partial class DependencyPropertyAnalyzer
         _latestRollbackTokens[BuildDependencyPropertyKey(depObj, dp)] = restoreToken;
         CleanupCapturedExpressionsIfNeeded();
         return true;
+    }
+
+    internal static BindingBase? ResolveBindingBaseForCapture(
+        BindingBase? bindingBase,
+        BindingExpressionBase? bindingExpressionBase)
+    {
+        if (bindingBase != null)
+        {
+            return bindingBase;
+        }
+
+        return bindingExpressionBase?.ParentBindingBase;
     }
 
     private static bool TryRestoreCapturedExpression(

@@ -14,6 +14,7 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
     private string _name = "";
     private int _age;
     private bool _isEnabled = true;
+    private bool _isGhostVisible;
     private string _lastActionMessage = "Ready";
     private readonly RelayCommand _saveCommand;
 
@@ -69,6 +70,16 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
         set
         {
             _isEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsGhostVisible
+    {
+        get => _isGhostVisible;
+        set
+        {
+            _isGhostVisible = value;
             OnPropertyChanged();
         }
     }

@@ -266,6 +266,74 @@ public sealed class InteractionE2eTests
     }
 
     [Fact]
+    public async Task RestoreStateSnapshot_ShouldRestoreVisibilityBindingBackedDependencyProperty()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var panelElementId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client, _fixture.TestAppProcessId, "GhostPanel");
+        panelElementId.Should().NotBeNull("TestApp should expose GhostPanel through the root namescope");
+
+        var baseline = await _fixture.Client.CallToolAsync(
+            "get_dp_value_source",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = panelElementId,
+                propertyName = "Visibility"
+            });
+        baseline.GetProperty("success").GetBoolean().Should().BeTrue();
+        baseline.GetProperty("isExpression").GetBoolean().Should().BeTrue();
+        baseline.GetProperty("currentValue").GetString().Should().Be("Collapsed");
+
+        var snapshot = await _fixture.Client.CallToolAsync(
+            "capture_state_snapshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = panelElementId,
+                propertyNames = new[] { "Visibility" }
+            });
+        snapshot.GetProperty("success").GetBoolean().Should().BeTrue();
+        var snapshotId = snapshot.GetProperty("snapshotId").GetString();
+
+        var setResult = await _fixture.Client.CallToolAsync(
+            "set_dp_value",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = panelElementId,
+                propertyName = "Visibility",
+                value = "Visible"
+            });
+        setResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        setResult.GetProperty("replacedExpression").GetBoolean().Should().BeTrue();
+
+        var restoreResult = await _fixture.Client.CallToolAsync(
+            "restore_state_snapshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                snapshotId
+            });
+        restoreResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        restoreResult.GetProperty("restoredDependencyPropertyCount").GetInt32().Should().Be(1);
+        restoreResult.GetProperty("skippedDependencyPropertyCount").GetInt32().Should().Be(0);
+
+        var restored = await _fixture.Client.CallToolAsync(
+            "get_dp_value_source",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = panelElementId,
+                propertyName = "Visibility"
+            });
+        restored.GetProperty("success").GetBoolean().Should().BeTrue();
+        restored.GetProperty("isExpression").GetBoolean().Should().BeTrue();
+        restored.GetProperty("currentValue").GetString().Should().Be("Collapsed");
+    }
+
+    [Fact]
     public async Task ClickElement_AfterSnapshotCapture_ShouldExposeMutationSessionContextRef()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);

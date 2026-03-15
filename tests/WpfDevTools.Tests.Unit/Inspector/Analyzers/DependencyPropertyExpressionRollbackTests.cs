@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
@@ -68,6 +69,59 @@ public sealed class DependencyPropertyExpressionRollbackTests
         valueSourceResult.GetProperty("currentValue").GetString().Should().Be("Carol");
     }
 
+    [StaFact]
+    public void ClearValue_ShouldRestoreVisibilityBindingExpression_AfterSetValueReplacedIt()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var viewModel = new VisibilityViewModel { IsGhostVisible = false };
+        var border = new Border
+        {
+            DataContext = viewModel
+        };
+        border.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(VisibilityViewModel.IsGhostVisible))
+        {
+            Converter = new BooleanToVisibilityConverter()
+        });
+        var elementId = finder.GenerateElementId(border);
+
+        var beforeResult = JsonSerializer.SerializeToElement(analyzer.GetValueSource("Visibility", elementId));
+        var setResult = JsonSerializer.SerializeToElement(analyzer.SetValue("Visibility", "Visible", elementId));
+        var clearResult = JsonSerializer.SerializeToElement(analyzer.ClearValue("Visibility", elementId));
+        var afterResult = JsonSerializer.SerializeToElement(analyzer.GetValueSource("Visibility", elementId));
+
+        beforeResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        beforeResult.GetProperty("isExpression").GetBoolean().Should().BeTrue();
+        beforeResult.GetProperty("currentValue").GetString().Should().Be("Collapsed");
+        setResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        setResult.GetProperty("replacedExpression").GetBoolean().Should().BeTrue();
+        clearResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        clearResult.GetProperty("restoredExpression").GetBoolean().Should().BeTrue();
+        clearResult.GetProperty("expressionKind").GetString().Should().Be("Binding");
+        afterResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        afterResult.GetProperty("isExpression").GetBoolean().Should().BeTrue();
+        afterResult.GetProperty("currentValue").GetString().Should().Be("Collapsed");
+    }
+
+    [StaFact]
+    public void ResolveBindingBaseForCapture_ShouldFallbackToParentBindingBase_WhenBindingBaseUnavailable()
+    {
+        var border = new Border();
+        border.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(VisibilityViewModel.IsGhostVisible))
+        {
+            Source = new VisibilityViewModel { IsGhostVisible = false },
+            Converter = new BooleanToVisibilityConverter()
+        });
+
+        var bindingExpression = BindingOperations.GetBindingExpressionBase(border, UIElement.VisibilityProperty);
+
+        var resolvedBindingBase = DependencyPropertyAnalyzer.ResolveBindingBaseForCapture(null, bindingExpression);
+
+        resolvedBindingBase.Should().NotBeNull();
+        resolvedBindingBase.Should().BeOfType<Binding>();
+        ((Binding)resolvedBindingBase!).Path?.Path.Should().Be(nameof(VisibilityViewModel.IsGhostVisible));
+    }
+
     private sealed class SampleViewModel
     {
         public string Name { get; init; } = string.Empty;
@@ -93,5 +147,10 @@ public sealed class DependencyPropertyExpressionRollbackTests
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private sealed class VisibilityViewModel
+    {
+        public bool IsGhostVisible { get; init; }
     }
 }

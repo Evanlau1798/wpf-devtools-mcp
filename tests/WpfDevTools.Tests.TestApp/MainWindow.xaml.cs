@@ -150,6 +150,22 @@ public partial class MainWindow : Window
         });
 
         BasicControlsStackPanel.Children.Add(multiBindingTextBlock);
+
+        var ghostPanel = new Border
+        {
+            Name = "GhostPanel",
+            Margin = new Thickness(5),
+            Padding = new Thickness(6),
+            Background = Brushes.LightSteelBlue,
+            Child = new TextBlock { Text = "Ghost panel" }
+        };
+        ghostPanel.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(TestViewModel.IsGhostVisible))
+        {
+            Converter = new BooleanToVisibilityConverter()
+        });
+
+        RegisterName(ghostPanel.Name, ghostPanel);
+        BasicControlsStackPanel.Children.Add(ghostPanel);
     }
 
     private void FocusWorkflowElement_GotFocus(object sender, RoutedEventArgs e)

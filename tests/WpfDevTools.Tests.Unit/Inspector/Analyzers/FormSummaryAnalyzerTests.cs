@@ -217,4 +217,59 @@ public sealed class FormSummaryAnalyzerTests
             .Should()
             .Contain("RepeatButton");
     }
+
+    [StaFact]
+    public void GetFormSummary_WhenFallbackCommandIsReadyButValidationErrorsExist_ShouldReportNotSubmittable()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new FormSummaryAnalyzer(finder);
+        var textBox = new TextBox { Name = "NameBox" };
+        InjectValidationError(textBox, "Name is required");
+        var form = new StackPanel
+        {
+            Name = "FallbackOnlyForm",
+            Children =
+            {
+                new TextBlock { Text = "Name:" },
+                textBox,
+                new Button { Name = "ContinueButton", Content = "Continue", IsEnabled = true }
+            }
+        };
+        var window = new Window
+        {
+            Content = form
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var elementId = finder.GenerateElementId(form);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("summary").GetProperty("errorCount").GetInt32().Should().Be(1);
+            result.GetProperty("summary").GetProperty("isSubmittable").GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private static void InjectValidationError(TextBox textBox, string errorMessage)
+    {
+        var binding = new System.Windows.Data.Binding("Text")
+        {
+            Source = new { Text = "" },
+            Mode = System.Windows.Data.BindingMode.OneWay
+        };
+        textBox.SetBinding(TextBox.TextProperty, binding);
+
+        var expression = System.Windows.Data.BindingOperations.GetBindingExpression(textBox, TextBox.TextProperty);
+        Validation.MarkInvalid(
+            expression!,
+            new ValidationError(new ExceptionValidationRule(), expression!) { ErrorContent = errorMessage });
+    }
 }

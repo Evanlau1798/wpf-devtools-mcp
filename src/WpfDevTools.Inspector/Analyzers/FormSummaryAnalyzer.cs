@@ -94,7 +94,8 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                 totalInputs = inputs.Count,
                 emptyInputs = emptyInputCount,
                 errorCount = validationErrorCount,
-                isSubmittable = hasReadyPrimaryCommand || (!hasPrimaryCommand && hasReadyFallbackCommand)
+                isSubmittable = validationErrorCount == 0
+                    && (hasReadyPrimaryCommand || (!hasPrimaryCommand && hasReadyFallbackCommand))
             };
 
             return new

@@ -34,7 +34,7 @@ try
     // DI: Core services (singletons shared across all tool invocations)
     builder.Services.AddSingleton(fileLogger);
     builder.Services.AddSingleton<IRateLimiterManager>(
-        new RateLimiterManager(McpServerConfiguration.RateLimitRequestsPerMinute));
+        new RateLimiterManager(McpServerConfiguration.GetConfiguredRateLimitRequestsPerMinute()));
     builder.Services.AddSingleton<MetricsCollector>();
 
     // Security: Authentication and encryption (enabled when env vars are set)

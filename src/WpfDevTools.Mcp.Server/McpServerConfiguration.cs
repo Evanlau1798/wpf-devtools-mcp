@@ -6,6 +6,8 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public static class McpServerConfiguration
 {
+    public const string RateLimitRequestsPerMinuteEnvVar = "WPFDEVTOOLS_RATE_LIMIT_RPM";
+
     /// <summary>
     /// Default timeout for tool execution (except connect which has its own timeout).
     /// Prevents server hang if target process is frozen or unresponsive.
@@ -49,6 +51,14 @@ public static class McpServerConfiguration
     /// Prevents DoS attacks and accidental infinite loops in AI agents.
     /// </summary>
     public const int RateLimitRequestsPerMinute = 300;
+
+    public static int GetConfiguredRateLimitRequestsPerMinute()
+    {
+        var overrideValue = Environment.GetEnvironmentVariable(RateLimitRequestsPerMinuteEnvVar);
+        return int.TryParse(overrideValue, out var parsed) && parsed > 0
+            ? parsed
+            : RateLimitRequestsPerMinute;
+    }
 
     /// <summary>
     /// Named pipe connection timeout.

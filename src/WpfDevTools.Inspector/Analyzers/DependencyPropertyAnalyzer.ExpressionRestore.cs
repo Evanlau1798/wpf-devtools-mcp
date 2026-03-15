@@ -311,7 +311,9 @@ public sealed partial class DependencyPropertyAnalyzer
     private static string GetRollbackPropertyName(string propertyName)
     {
         var separatorIndex = propertyName.LastIndexOf('.');
-        return separatorIndex >= 0 ? propertyName[(separatorIndex + 1)..] : propertyName;
+        return separatorIndex >= 0
+            ? propertyName.Substring(separatorIndex + 1)
+            : propertyName;
     }
 
     private static void CleanupCapturedExpressionsIfNeeded()

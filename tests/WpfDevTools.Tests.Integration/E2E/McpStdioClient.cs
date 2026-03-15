@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
@@ -16,6 +17,7 @@ namespace WpfDevTools.Tests.Integration.E2E;
 /// </summary>
 public sealed class McpStdioClient : IDisposable
 {
+    private const string E2eRateLimitOverride = "2000";
     private Process? _serverProcess;
     private int _nextId;
     private readonly ConcurrentQueue<string> _stderrLines = new();
@@ -43,6 +45,7 @@ public sealed class McpStdioClient : IDisposable
             StandardErrorEncoding = Encoding.UTF8,
             CreateNoWindow = true
         };
+        psi.Environment[McpServerConfiguration.RateLimitRequestsPerMinuteEnvVar] = E2eRateLimitOverride;
 
         _serverProcess = Process.Start(psi)
             ?? throw new InvalidOperationException("Failed to start MCP server process");

@@ -404,9 +404,13 @@ internal static class SceneSummaryElementHelpers
             return false;
         }
 
-        var elementName = GetElementName(element);
-        return string.IsNullOrWhiteSpace(elementName)
-            || elementName.StartsWith("PART_", StringComparison.OrdinalIgnoreCase);
+        if (GetElementName(element) is not string elementName
+            || string.IsNullOrWhiteSpace(elementName))
+        {
+            return true;
+        }
+
+        return elementName.StartsWith("PART_", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? NormalizeDisplayObject(object? value)

@@ -102,6 +102,22 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             return finalSnapshot.Error;
         }
 
+        if (HasReachedTarget(initialSnapshot, finalSnapshot, expectedValue))
+        {
+            return BuildWaitResult(
+                changed: true,
+                timedOut: false,
+                propertyName,
+                elementId,
+                initialSnapshot,
+                finalSnapshot,
+                stopwatch.ElapsedMilliseconds,
+                pollCount,
+                observedChange: HasObservedChange(initialSnapshot, finalSnapshot),
+                matchedExpectedValueAtStart: false,
+                completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
+        }
+
         return BuildWaitResult(
             changed: false,
             timedOut: true,

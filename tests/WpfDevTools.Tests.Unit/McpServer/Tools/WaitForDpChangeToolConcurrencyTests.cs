@@ -62,6 +62,33 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         connected.RequestMethods.Should().NotContain("wait_for_dp_change");
     }
 
+    [Fact]
+    public async Task Execute_WhenExpectedValueAppearsOnFinalRead_ShouldReturnReachedInsteadOfTimedOut()
+    {
+        const int processId = 4343;
+        using var connected = await CreateBoundaryConnectedSessionAsync(processId);
+        var waitTool = new WaitForDpChangeTool(connected.SessionManager);
+
+        var waitResult = await waitTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                propertyName = "Text",
+                expectedValue = JsonSerializer.SerializeToElement("after"),
+                timeoutMs = 75,
+                pollIntervalMs = 50
+            }),
+            CancellationToken.None);
+
+        var waitJson = JsonSerializer.SerializeToElement(waitResult);
+
+        waitJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        waitJson.GetProperty("changed").GetBoolean().Should().BeTrue();
+        waitJson.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+        waitJson.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
+        waitJson.GetProperty("currentValue").GetString().Should().Be("after");
+    }
+
     private static async Task<ConnectedWaitSession> CreateConnectedSessionAsync(int processId)
     {
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
@@ -86,6 +113,61 @@ public sealed class WaitForDpChangeToolConcurrencyTests
                     requestMethods.Add(request.Method);
 
                     var result = await BuildResultAsync(request, state);
+                    var response = new InspectorResponse
+                    {
+                        Id = request.Id,
+                        CorrelationId = request.CorrelationId,
+                        Result = JsonSerializer.SerializeToElement(result)
+                    };
+
+                    await MessageFraming.WriteMessageAsync(
+                        server,
+                        JsonSerializer.Serialize(response),
+                        CancellationToken.None);
+                }
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        return new ConnectedWaitSession(sessionManager, server, serverTask, requestMethods);
+    }
+
+    private static async Task<ConnectedWaitSession> CreateBoundaryConnectedSessionAsync(int processId)
+    {
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var requestMethods = new List<string>();
+        var state = new BoundaryWaitServerState();
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            try
+            {
+                while (true)
+                {
+                    var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                    var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson)!;
+                    requestMethods.Add(request.Method);
+
+                    var result = BuildBoundaryResult(request, state);
                     var response = new InspectorResponse
                     {
                         Id = request.Id,
@@ -162,6 +244,26 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         }
     }
 
+    private static object BuildBoundaryResult(InspectorRequest request, BoundaryWaitServerState state)
+    {
+        switch (request.Method)
+        {
+            case "get_dp_value_source":
+                state.GetDpValueSourceCallCount++;
+                state.CurrentValue = state.GetDpValueSourceCallCount >= 4 ? "after" : "before";
+                return new
+                {
+                    success = true,
+                    propertyName = "Text",
+                    baseValueSource = "Local",
+                    currentValue = state.CurrentValue,
+                    effectiveValue = state.CurrentValue
+                };
+            default:
+                return new { success = true };
+        }
+    }
+
     private static string ExtractRequestedValue(JsonElement? @params)
     {
         if (!@params.HasValue || !@params.Value.TryGetProperty("value", out var valueProperty))
@@ -224,6 +326,12 @@ public sealed class WaitForDpChangeToolConcurrencyTests
     private sealed class WaitServerState
     {
         public string CurrentValue { get; set; } = "before";
+    }
+
+    private sealed class BoundaryWaitServerState
+    {
+        public string CurrentValue { get; set; } = "before";
+        public int GetDpValueSourceCallCount { get; set; }
     }
 
     private sealed class NoPiggybackModifyViewModelTool(SessionManager sessionManager) : PipeConnectedToolBase(sessionManager)

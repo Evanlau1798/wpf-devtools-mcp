@@ -291,6 +291,7 @@ public abstract partial class PipeConnectedToolBase
             return result;
         }
 
+        _sessionManager.SavePendingEventReplay(processId, drainPayload);
         return MergePendingEvents(payload, drainPayload);
     }
 

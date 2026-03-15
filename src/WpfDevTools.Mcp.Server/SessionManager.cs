@@ -166,6 +166,7 @@ public sealed partial class SessionManager : IDisposable
             }
 
             _stateSnapshots.Remove(processId);
+            _pendingEventReplay.Remove(processId);
             _navigationStateStore.RemoveProcess(processId);
 
             if (_activeProcessSelection?.ProcessId == processId)

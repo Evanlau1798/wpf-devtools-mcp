@@ -52,6 +52,7 @@ public sealed class InteractionE2eTests
     public async Task ClickElement_OnButton_ShouldSucceed()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
 
         var buttonElementId = await E2eTestHelpers.FindElementByTypeAsync(
             _fixture.Client, _fixture.TestAppProcessId, "Button");
@@ -73,6 +74,7 @@ public sealed class InteractionE2eTests
     public async Task SetDpValue_AfterWatchRegistration_ShouldPiggybackPendingDpEvents()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
 
         var buttonElementId = await E2eTestHelpers.FindElementByTypeAsync(
             _fixture.Client, _fixture.TestAppProcessId, "Button");
@@ -120,6 +122,7 @@ public sealed class InteractionE2eTests
     public async Task ClearDpValue_AfterSetValueOnBindingBackedProperty_ShouldRestoreCapturedBinding()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
 
         var textBoxElementId = await E2eTestHelpers.FindElementByNameAsync(
             _fixture.Client, _fixture.TestAppProcessId, "NameTextBox");
@@ -269,6 +272,7 @@ public sealed class InteractionE2eTests
     public async Task RestoreStateSnapshot_ShouldRestoreVisibilityBindingBackedDependencyProperty()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
 
         var panelElementId = await E2eTestHelpers.FindElementByNameAsync(
             _fixture.Client, _fixture.TestAppProcessId, "GhostPanel");
@@ -337,6 +341,7 @@ public sealed class InteractionE2eTests
     public async Task ClearDpValue_ShouldRestoreVisibilityBindingBackedDependencyProperty()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
 
         var panelElementId = await E2eTestHelpers.FindElementByNameAsync(
             _fixture.Client, _fixture.TestAppProcessId, "GhostPanel");
@@ -396,6 +401,7 @@ public sealed class InteractionE2eTests
     public async Task ClickElement_AfterSnapshotCapture_ShouldExposeMutationSessionContextRef()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
 
         var buttonElementId = await E2eTestHelpers.FindElementByTypeAsync(
             _fixture.Client, _fixture.TestAppProcessId, "Button");
@@ -424,6 +430,7 @@ public sealed class InteractionE2eTests
     public async Task SimulateKeyboard_OnTextBox_ShouldSucceed()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
 
         var textBoxId = await E2eTestHelpers.FindElementByTypeAsync(
             _fixture.Client, _fixture.TestAppProcessId, "TextBox");
@@ -451,6 +458,7 @@ public sealed class InteractionE2eTests
     public async Task SimulateKeyboard_OnTextBoxEnter_ShouldInvokeDefaultButtonSemanticAction()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
 
         var textBoxId = await E2eTestHelpers.FindElementByNameAsync(
             _fixture.Client,
@@ -504,6 +512,20 @@ public sealed class InteractionE2eTests
 
         _output.WriteLine($"Layout info: {E2eTestHelpers.Truncate(result.GetRawText(), 500)}");
 
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+    }
+
+    private async Task ActivateBasicControlsTabAsync()
+    {
+        var tabId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            "BasicControlsTab");
+        tabId.Should().NotBeNull("TestApp should expose BasicControlsTab through the root namescope");
+
+        var result = await _fixture.Client.CallToolAsync(
+            "click_element",
+            new { processId = _fixture.TestAppProcessId, elementId = tabId, navigation = false });
         result.GetProperty("success").GetBoolean().Should().BeTrue();
     }
 }

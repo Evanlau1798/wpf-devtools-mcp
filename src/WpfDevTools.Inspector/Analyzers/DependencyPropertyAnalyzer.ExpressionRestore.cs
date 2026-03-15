@@ -11,6 +11,7 @@ public sealed partial class DependencyPropertyAnalyzer
 {
     private static readonly ConcurrentDictionary<string, CapturedExpressionState> _capturedExpressions = new();
     private static readonly ConcurrentDictionary<string, string> _latestRollbackTokens = new();
+    private static readonly ConcurrentDictionary<string, string> _latestRollbackTokensByRequestKey = new();
 
     internal object CaptureExpressionRestore(string propertyName, string? elementId = null)
     {
@@ -21,7 +22,7 @@ public sealed partial class DependencyPropertyAnalyzer
                 return error!;
             }
 
-            if (TryCaptureBindingExpression(depObj!, dp!, out var restoreToken, out var expressionKind))
+            if (TryCaptureBindingExpression(depObj!, dp!, elementId, propertyName, out var restoreToken, out var expressionKind))
             {
                 return new
                 {
@@ -113,6 +114,8 @@ public sealed partial class DependencyPropertyAnalyzer
     private static bool TryCaptureBindingExpression(
         DependencyObject depObj,
         DependencyProperty dp,
+        string? requestElementId,
+        string requestPropertyName,
         out string restoreToken,
         out string expressionKind)
     {
@@ -147,7 +150,7 @@ public sealed partial class DependencyPropertyAnalyzer
             dp,
             clonedBinding,
             expressionKind);
-        _latestRollbackTokens[BuildDependencyPropertyKey(depObj, dp)] = restoreToken;
+        RememberLatestRollbackToken(depObj, dp, requestElementId, requestPropertyName, restoreToken);
         CleanupCapturedExpressionsIfNeeded();
         return true;
     }
@@ -230,6 +233,8 @@ public sealed partial class DependencyPropertyAnalyzer
     private static bool TryRestoreLatestCapturedExpression(
         DependencyObject depObj,
         DependencyProperty dp,
+        string? requestElementId,
+        string requestPropertyName,
         out string? expressionKind,
         out object? currentValue,
         out string? restoreError)
@@ -241,14 +246,73 @@ public sealed partial class DependencyPropertyAnalyzer
         var key = BuildDependencyPropertyKey(depObj, dp);
         if (!_latestRollbackTokens.TryGetValue(key, out var restoreToken))
         {
-            return false;
+            var requestKey = BuildRequestRollbackKey(requestElementId, requestPropertyName);
+            if (!_latestRollbackTokensByRequestKey.TryGetValue(requestKey, out restoreToken))
+            {
+                return false;
+            }
         }
 
-        return TryRestoreCapturedExpression(depObj, dp, restoreToken, consumeRollbackToken: true, out expressionKind, out currentValue, out restoreError);
+        var restored = TryRestoreCapturedExpression(
+            depObj,
+            dp,
+            restoreToken,
+            consumeRollbackToken: true,
+            out expressionKind,
+            out currentValue,
+            out restoreError);
+        if (restored)
+        {
+            ForgetLatestRollbackToken(depObj, dp, requestElementId, requestPropertyName, restoreToken);
+        }
+
+        return restored;
     }
 
     private static string BuildDependencyPropertyKey(DependencyObject depObj, DependencyProperty dp) =>
         $"{RuntimeHelpers.GetHashCode(depObj)}::{dp.OwnerType.FullName}::{dp.Name}";
+
+    private static string BuildRequestRollbackKey(string? elementId, string propertyName) =>
+        $"{elementId ?? "<root>"}::{GetRollbackPropertyName(propertyName)}";
+
+    private static void RememberLatestRollbackToken(
+        DependencyObject depObj,
+        DependencyProperty dp,
+        string? requestElementId,
+        string requestPropertyName,
+        string restoreToken)
+    {
+        _latestRollbackTokens[BuildDependencyPropertyKey(depObj, dp)] = restoreToken;
+        _latestRollbackTokensByRequestKey[BuildRequestRollbackKey(requestElementId, requestPropertyName)] = restoreToken;
+    }
+
+    private static void ForgetLatestRollbackToken(
+        DependencyObject depObj,
+        DependencyProperty dp,
+        string? requestElementId,
+        string requestPropertyName,
+        string restoreToken)
+    {
+        var objectKey = BuildDependencyPropertyKey(depObj, dp);
+        if (_latestRollbackTokens.TryGetValue(objectKey, out var latestObjectToken) &&
+            string.Equals(latestObjectToken, restoreToken, StringComparison.Ordinal))
+        {
+            _latestRollbackTokens.TryRemove(objectKey, out _);
+        }
+
+        var requestKey = BuildRequestRollbackKey(requestElementId, requestPropertyName);
+        if (_latestRollbackTokensByRequestKey.TryGetValue(requestKey, out var latestRequestToken) &&
+            string.Equals(latestRequestToken, restoreToken, StringComparison.Ordinal))
+        {
+            _latestRollbackTokensByRequestKey.TryRemove(requestKey, out _);
+        }
+    }
+
+    private static string GetRollbackPropertyName(string propertyName)
+    {
+        var separatorIndex = propertyName.LastIndexOf('.');
+        return separatorIndex >= 0 ? propertyName[(separatorIndex + 1)..] : propertyName;
+    }
 
     private static void CleanupCapturedExpressionsIfNeeded()
     {

@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Collections;
+using System.Reflection;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows;
@@ -104,6 +106,37 @@ public sealed class DependencyPropertyExpressionRollbackTests
     }
 
     [StaFact]
+    public void ClearValue_ShouldFallbackToRequestIdentity_WhenObjectKeyRollbackTokenIsUnavailable()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var viewModel = new VisibilityViewModel { IsGhostVisible = false };
+        var border = new Border
+        {
+            DataContext = viewModel
+        };
+        border.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(VisibilityViewModel.IsGhostVisible))
+        {
+            Converter = new BooleanToVisibilityConverter()
+        });
+        var elementId = finder.GenerateElementId(border);
+
+        var setResult = JsonSerializer.SerializeToElement(analyzer.SetValue("Visibility", "Visible", elementId));
+        HasLatestRequestRollbackToken(elementId, "Visibility").Should().BeTrue();
+        RemoveLatestRollbackTokenObjectKeys();
+
+        var clearResult = JsonSerializer.SerializeToElement(analyzer.ClearValue("Visibility", elementId));
+        var afterResult = JsonSerializer.SerializeToElement(analyzer.GetValueSource("Visibility", elementId));
+
+        setResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        setResult.GetProperty("capturedRollbackExpression").GetBoolean().Should().BeTrue();
+        clearResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        clearResult.GetProperty("restoredExpression").GetBoolean().Should().BeTrue();
+        afterResult.GetProperty("isExpression").GetBoolean().Should().BeTrue();
+        afterResult.GetProperty("currentValue").GetString().Should().Be("Collapsed");
+    }
+
+    [StaFact]
     public void ResolveBindingBaseForCapture_ShouldFallbackToParentBindingBase_WhenBindingBaseUnavailable()
     {
         var border = new Border();
@@ -152,5 +185,31 @@ public sealed class DependencyPropertyExpressionRollbackTests
     private sealed class VisibilityViewModel
     {
         public bool IsGhostVisible { get; init; }
+    }
+
+    private static void RemoveLatestRollbackTokenObjectKeys()
+    {
+        var field = typeof(DependencyPropertyAnalyzer).GetField(
+            "_latestRollbackTokens",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        field.Should().NotBeNull();
+
+        var dictionary = field!.GetValue(null) as IDictionary;
+        dictionary.Should().NotBeNull();
+        dictionary!.Clear();
+    }
+
+    private static bool HasLatestRequestRollbackToken(string elementId, string propertyName)
+    {
+        var field = typeof(DependencyPropertyAnalyzer).GetField(
+            "_latestRollbackTokensByRequestKey",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        field.Should().NotBeNull();
+
+        var dictionary = field!.GetValue(null) as IDictionary;
+        dictionary.Should().NotBeNull();
+
+        var key = $"{elementId}::{propertyName}";
+        return dictionary!.Contains(key);
     }
 }

@@ -226,7 +226,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 var previousValueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
                 string? expressionKind = null;
                 var capturedRollbackExpression = previousValueSource.IsExpression &&
-                    TryCaptureBindingExpression(depObj, dp, out _, out expressionKind);
+                    TryCaptureBindingExpression(depObj, dp, elementId, propertyName, out _, out expressionKind);
                 // Convert value to correct type
                 var targetType = dp.PropertyType;
                 var convertedValue = ConvertValue(value, targetType);
@@ -301,6 +301,8 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 var restoredExpression = TryRestoreLatestCapturedExpression(
                     depObj,
                     dp,
+                    elementId,
+                    propertyName,
                     out var expressionKind,
                     out var restoredValue,
                     out var restoreError);

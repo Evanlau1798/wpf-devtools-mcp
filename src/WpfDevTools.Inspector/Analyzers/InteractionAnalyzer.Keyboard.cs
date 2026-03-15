@@ -53,7 +53,6 @@ public sealed partial class InteractionAnalyzer
                     return readinessError;
                 }
 
-                EnsureElementFocused(uiElement);
                 var focusedElementIdBefore = GetFocusedElementId();
                 var presentationSource = PresentationSource.FromVisual(uiElement);
                 if (presentationSource == null)
@@ -80,6 +79,8 @@ public sealed partial class InteractionAnalyzer
                         focusedElementIdBefore: focusedElementIdBefore,
                         focusedElementIdAfter: focusedElementIdAfter);
                 }
+
+                EnsureElementFocused(uiElement);
 
                 if (routedEvent == Keyboard.KeyDownEvent &&
                     InteractionKeyboardHelper.TryApplySpecialControlAction(uiElement, parsedKey))

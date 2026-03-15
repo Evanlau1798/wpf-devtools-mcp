@@ -116,6 +116,36 @@ public sealed class InteractionAnalyzerKeyboardNavigationTests
     }
 
     [StaFact]
+    public void SimulateKeyboard_OnUnfocusedTextBoxBackspace_ShouldFocusAndDeletePreviousCharacter()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 240, Height = 180 };
+        var textBox = new TextBox { Text = "25" };
+        window.Content = textBox;
+        window.Show();
+
+        try
+        {
+            var textBoxId = finder.GenerateElementId(textBox);
+
+            var result = JsonSerializer.SerializeToElement(
+                analyzer.SimulateKeyboard(textBoxId, "Back", "KeyDown"));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("appliedDirectEdit").GetBoolean().Should().BeTrue();
+            result.GetProperty("semanticEffectObserved").GetBoolean().Should().BeTrue();
+            result.GetProperty("focusChanged").GetBoolean().Should().BeTrue();
+            textBox.Text.Should().Be("2");
+            textBox.IsKeyboardFocused.Should().BeTrue();
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
     public void SimulateKeyboard_WhenKeyHandlerMovesFocus_ShouldReportFocusChange()
     {
         var finder = new ElementFinder();

@@ -158,9 +158,9 @@ public sealed class BatchMutateTool : PipeConnectedToolBase
             return (null, CreateMissingParamError("mutations"));
         }
 
-        if (!root.TryGetProperty("mutations", out var mutationsElement) || mutationsElement.ValueKind != JsonValueKind.Array)
+        if (!TryParseMutationsElement(root, out var mutationsElement, out var mutationsError))
         {
-            return (null, CreateMissingParamError("mutations"));
+            return (null, mutationsError);
         }
 
         var mutations = new List<BatchMutationStep>();
@@ -242,6 +242,58 @@ public sealed class BatchMutateTool : PipeConnectedToolBase
             captureSnapshot,
             includeDiff,
             diffTrigger), null);
+    }
+
+    private static bool TryParseMutationsElement(
+        JsonElement root,
+        out JsonElement mutationsElement,
+        out object? error)
+    {
+        mutationsElement = default;
+        error = null;
+
+        if (!root.TryGetProperty("mutations", out var rawMutationsElement))
+        {
+            error = CreateMissingParamError("mutations");
+            return false;
+        }
+
+        if (rawMutationsElement.ValueKind == JsonValueKind.Array)
+        {
+            mutationsElement = rawMutationsElement;
+            return true;
+        }
+
+        if (rawMutationsElement.ValueKind != JsonValueKind.String)
+        {
+            error = CreateInvalidParamError("mutations must be a JSON array.");
+            return false;
+        }
+
+        var serializedMutations = rawMutationsElement.GetString();
+        if (string.IsNullOrWhiteSpace(serializedMutations))
+        {
+            error = CreateMissingParamError("mutations");
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(serializedMutations);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                error = CreateInvalidParamError("Stringified mutations payload must decode to a JSON array.");
+                return false;
+            }
+
+            mutationsElement = document.RootElement.Clone();
+            return true;
+        }
+        catch (JsonException)
+        {
+            error = CreateInvalidParamError("mutations string payload must contain valid JSON.");
+            return false;
+        }
     }
 
     private async Task<object> ExecuteMutationAsync(string toolName, JsonElement args, CancellationToken cancellationToken)

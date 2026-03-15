@@ -159,4 +159,47 @@ public sealed class BatchMutateToolTests
         result.GetProperty("success").GetBoolean().Should().BeFalse();
         result.GetProperty("error").GetString().Should().Contain("captureSnapshot");
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WithStringifiedMutationsArray_ShouldAcceptCompatibilityPayload()
+    {
+        var executedTools = new List<string>();
+        var tool = new BatchMutateTool(
+            new SessionManager(),
+            (toolName, args, _) =>
+            {
+                executedTools.Add(toolName);
+                return Task.FromResult<object>(new
+                {
+                    success = true,
+                    tool = toolName,
+                    elementId = args.GetProperty("elementId").GetString()
+                });
+            },
+            null,
+            null);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId = 12345,
+                mutations = JsonSerializer.Serialize(new object[]
+                {
+                    new
+                    {
+                        tool = "focus_element",
+                        args = new
+                        {
+                            elementId = "TextBox_24"
+                        }
+                    }
+                })
+            }),
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("executedMutationCount").GetInt32().Should().Be(1);
+        result.GetProperty("mutations")[0].GetProperty("success").GetBoolean().Should().BeTrue();
+        executedTools.Should().Equal("focus_element");
+    }
 }

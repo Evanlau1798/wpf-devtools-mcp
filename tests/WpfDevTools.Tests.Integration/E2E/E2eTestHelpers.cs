@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using FluentAssertions;
 
@@ -58,6 +59,30 @@ public static class E2eTestHelpers
         return null;
     }
 
+    public static string? SearchTreeForName(JsonElement node, string elementName)
+    {
+        if (node.TryGetProperty("name", out var name) &&
+            string.Equals(name.GetString(), elementName, StringComparison.Ordinal))
+        {
+            return node.TryGetProperty("elementId", out var id) ? id.GetString() : null;
+        }
+
+        if (node.TryGetProperty("children", out var children) &&
+            children.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var child in children.EnumerateArray())
+            {
+                var found = SearchTreeForName(child, elementName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Find an element by type name in the visual tree via MCP protocol.
     /// Unwraps the "tree" wrapper from the response before searching.
@@ -80,6 +105,38 @@ public static class E2eTestHelpers
             return null;
 
         return SearchTreeForType(tree, typeName);
+    }
+
+    public static async Task<string?> FindElementByNameAsync(
+        McpStdioClient client, int processId, string elementName)
+    {
+        var response = await client.CallToolAsync(
+            "get_namescope",
+            new { processId });
+
+        if (!response.GetProperty("success").GetBoolean() ||
+            !response.TryGetProperty("namedElements", out var namedElements))
+        {
+            return null;
+        }
+
+        var match = namedElements.EnumerateArray()
+            .FirstOrDefault(item => string.Equals(item.GetProperty("name").GetString(), elementName, StringComparison.Ordinal));
+        if (match.ValueKind != JsonValueKind.Undefined)
+        {
+            return match.GetProperty("elementId").GetString();
+        }
+
+        var treeResponse = await client.CallToolAsync(
+            "get_visual_tree",
+            new { processId, depth = 15 });
+        if (!treeResponse.GetProperty("success").GetBoolean() ||
+            !treeResponse.TryGetProperty("tree", out var tree))
+        {
+            return null;
+        }
+
+        return SearchTreeForName(tree, elementName);
     }
 
     /// <summary>

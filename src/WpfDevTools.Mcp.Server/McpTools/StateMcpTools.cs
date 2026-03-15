@@ -34,7 +34,7 @@ public static class StateMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose state should be captured. Omit for the root window.")] string? elementId = null,
-        [Description("Optional DependencyProperty names to capture as restorable local-value state. Expression-backed properties are captured for verification but marked as skipped during restore.")] string[]? propertyNames = null,
+        [Description("Optional DependencyProperty names to capture as restorable local-value state. Binding-backed expressions are captured with same-session restore handles when possible; non-Binding expressions remain skipped capability boundaries.")] string[]? propertyNames = null,
         [Description("Optional ViewModel property names to capture from the current DataContext.")] string[]? viewModelPropertyNames = null,
         [Description("When true, also capture the current logical/keyboard focus snapshot.")] bool includeFocus = false,
         [Description("Optional human-friendly label for the snapshot.")] string? snapshotName = null,
@@ -63,6 +63,7 @@ public static class StateMcpTools
         StateMetadata + "[State] Restore a previously captured in-memory runtime snapshot.\n\n" +
         "USE WHEN: Rolling back temporary DependencyProperty, ViewModel, or focus changes in the same session.\n" +
         "DO NOT USE: Across disconnected sessions or application restarts.\n\n" +
+        "EXPRESSION ROLLBACK: Binding-backed DependencyProperty expressions captured in the same session can be restored. When a two-way source property also needs to return to its baseline value, capture that ViewModel property in the same snapshot. Non-Binding expressions are still surfaced through skippedDependencyProperties with explicit reasons.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

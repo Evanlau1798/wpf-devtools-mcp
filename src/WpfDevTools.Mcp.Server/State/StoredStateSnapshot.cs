@@ -22,7 +22,9 @@ internal sealed record StoredDependencyPropertySnapshot(
     string? BaseValueSource,
     bool IsExpression = false,
     bool CanRestore = true,
-    string? SkipReason = null);
+    string? SkipReason = null,
+    string? ExpressionRestoreToken = null,
+    string? ExpressionKind = null);
 
 internal sealed record StoredViewModelPropertySnapshot(
     string? ElementId,

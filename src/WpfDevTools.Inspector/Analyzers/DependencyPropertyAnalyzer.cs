@@ -224,6 +224,9 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 var localValueBefore = depObj.ReadLocalValue(dp);
                 var hadLocalValueBefore = localValueBefore != DependencyProperty.UnsetValue;
                 var previousValueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
+                string? expressionKind = null;
+                var capturedRollbackExpression = previousValueSource.IsExpression &&
+                    TryCaptureBindingExpression(depObj, dp, out _, out expressionKind);
                 // Convert value to correct type
                 var targetType = dp.PropertyType;
                 var convertedValue = ConvertValue(value, targetType);
@@ -245,6 +248,8 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                     previousLocalValue = hadLocalValueBefore ? FormatResponseValue(localValueBefore) : null,
                     previousBaseValueSource = previousValueSource.BaseValueSource.ToString(),
                     replacedExpression = previousValueSource.IsExpression,
+                    capturedRollbackExpression,
+                    replacedExpressionKind = capturedRollbackExpression ? expressionKind : null,
                     baseValueSource = valueSource.BaseValueSource.ToString(),
                     valueType = newValue?.GetType().Name
                 };
@@ -293,8 +298,27 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
             {
                 var hadLocalValue = depObj.ReadLocalValue(dp) != DependencyProperty.UnsetValue;
                 var clearedValue = depObj.GetValue(dp);
-                depObj.ClearValue(dp);
-                var newValue = depObj.GetValue(dp);
+                var restoredExpression = TryRestoreLatestCapturedExpression(
+                    depObj,
+                    dp,
+                    out var expressionKind,
+                    out var restoredValue,
+                    out var restoreError);
+
+                if (restoreError != null)
+                {
+                    return ToolErrorFactory.OperationFailed(
+                        "restore expression-backed property",
+                        new InvalidOperationException(restoreError),
+                        "Retry the mutation within the same session before calling clear_dp_value, or query get_dp_value_source to inspect the current expression state.");
+                }
+
+                if (!restoredExpression)
+                {
+                    depObj.ClearValue(dp);
+                }
+
+                var newValue = restoredExpression ? restoredValue : depObj.GetValue(dp);
                 var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
 
                 return new
@@ -305,6 +329,8 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                     hadLocalValue,
                     clearedValue = FormatResponseValue(clearedValue),
                     newValue = FormatResponseValue(newValue),
+                    restoredExpression,
+                    expressionKind,
                     baseValueSource = valueSource.BaseValueSource.ToString(),
                     valueType = newValue?.GetType().Name
                 };

@@ -176,11 +176,13 @@ public class HandlerRoutingTests
         var handler = new DependencyPropertyHandlers(new DependencyPropertyAnalyzer(new ElementFinder()));
         var methods = handler.GetSupportedMethods().ToList();
 
-        methods.Should().HaveCount(6);
+        methods.Should().HaveCount(8);
         methods.Should().Contain("get_dp_value_source");
         methods.Should().Contain("get_dp_metadata");
         methods.Should().Contain("set_dp_value");
         methods.Should().Contain("clear_dp_value");
+        methods.Should().Contain("capture_dp_expression_restore");
+        methods.Should().Contain("restore_dp_expression");
         methods.Should().Contain("watch_dp_changes");
         methods.Should().Contain("wait_for_dp_change");
     }

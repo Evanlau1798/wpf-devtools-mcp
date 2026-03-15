@@ -115,6 +115,7 @@ public static class DependencyPropertyMcpTools
         "USE WHEN: Testing UI behavior with different property values; debugging layout/styling issues.\n" +
         "DO NOT USE: For permanent changes (changes are NOT persisted to XAML).\n\n" +
         "WARNING: This modifies the running app. Changes are lost on app restart.\n\n" +
+        "EXPRESSION ROLLBACK: If this overwrites a Binding, MultiBinding, or PriorityBinding expression, the response can report `replacedExpression=true` and `capturedRollbackExpression=true`. In the same session, clear_dp_value or restore_state_snapshot can then reapply that captured binding-backed expression. For two-way bindings where source-value rollback also matters, pair this with capture_state_snapshot(viewModelPropertyNames=...) so the source property can be restored deterministically.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep the core mutation result, use `minimal` for success/property/newValue confirmation only, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
         RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
@@ -164,12 +165,13 @@ public static class DependencyPropertyMcpTools
         "USE WHEN: Removing overrides applied by set_dp_value; testing default/inherited behavior.\n" +
         "DO NOT USE: On properties without local values (has no effect).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
+        "EXPRESSION ROLLBACK: When the current local value came from set_dp_value replacing a captured Binding, MultiBinding, or PriorityBinding, this tool re-applies that binding-backed expression in the same session instead of falling back to plain ClearValue semantics. If you also need the original two-way source value restored, capture that ViewModel property in the snapshot workflow.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep the core mutation result, use `minimal` for success/property/newValue confirmation only, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  propertyName, hadLocalValue, clearedValue, newValue,\n" +
-        "  baseValueSource, valueType\n" +
+        "  baseValueSource, valueType, restoredExpression?: boolean, expressionKind?: string\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

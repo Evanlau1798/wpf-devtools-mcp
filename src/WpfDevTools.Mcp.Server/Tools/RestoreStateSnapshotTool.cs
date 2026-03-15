@@ -85,6 +85,29 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         var skipped = new List<object>();
         foreach (var snapshot in snapshots)
         {
+            if (snapshot.IsExpression && !string.IsNullOrWhiteSpace(snapshot.ExpressionRestoreToken))
+            {
+                var restoreResponse = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+                    processId,
+                    "restore_dp_expression",
+                    new
+                    {
+                        elementId = snapshot.ElementId,
+                        propertyName = snapshot.PropertyName,
+                        restoreToken = snapshot.ExpressionRestoreToken
+                    },
+                    cancellationToken).ConfigureAwait(false));
+
+                if (IsSuccess(restoreResponse))
+                {
+                    restored++;
+                    continue;
+                }
+
+                warnings.Add($"DependencyProperty restore failed for '{snapshot.PropertyName}'.");
+                continue;
+            }
+
             if (!snapshot.CanRestore)
             {
                 var verification = await VerifySkippedDependencyPropertyAsync(

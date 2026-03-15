@@ -116,7 +116,7 @@ public static class ServerInstructions
         - Avoid calling performance tools (get_render_stats, measure_element_render_time) in loops
         - When debugging, start broad (get_binding_errors) then narrow (get_bindings on specific element)
         - For MVVM apps, inspect ViewModel first (get_viewmodel, get_commands) before modifying
-        - If get_dp_value_source reports isExpression=true, treat set_dp_value as a temporary override that replaces the existing expression until the control is rebound by app logic
+        - If get_dp_value_source reports isExpression=true, treat set_dp_value as a temporary override. Binding-backed expressions can usually be restored later in the same session with clear_dp_value or restore_state_snapshot; for two-way bindings, also snapshot the relevant ViewModel property when you need deterministic semantic rollback of the source value. Non-Binding expressions remain an explicit capability boundary
         - focus_element and simulate_keyboard require the target to be attached to the active rendered visual tree; activate inactive tabs before focus-sensitive actions
         - Remember: all destructive changes are runtime-only and NOT persisted to XAML
 
@@ -160,8 +160,9 @@ public static class ServerInstructions
         - fire_routed_event: for ButtonBase + Click event, uses OnClick() path instead of RaiseEvent(). Response includes usedOnClick: true.
         - get_validation_errors: recursively aggregates errors from ALL visual descendants (max depth: 50, max errors: 200). Each error includes elementType/elementName to identify the source.
         - set_dp_value / modify_viewmodel: JSON string values with surrounding double-quotes are auto-stripped (e.g., "\"hello\"" becomes "hello").
-        - set_dp_value reports replacedExpression=true when it overwrote an expression-backed DependencyProperty with a local value.
-        - restore_state_snapshot verifies expression-backed DependencyProperties but reports them as skipped instead of claiming it can rebuild the original expression object.
+        - set_dp_value reports replacedExpression=true when it overwrote an expression-backed DependencyProperty with a local value; capturedRollbackExpression=true means the previous Binding/MultiBinding/PriorityBinding was captured for same-session rollback.
+        - clear_dp_value may report restoredExpression=true when it reapplies a captured Binding-backed expression instead of merely clearing to default/inherited state.
+        - restore_state_snapshot can restore Binding-backed DependencyProperty expressions captured in the same session; non-Binding expressions are still reported as skipped capability boundaries.
         - binding/data-context/validation diagnostics expose normalized diagnosticKind/sourceKind fields for cross-tool correlation.
         - get_binding_errors defaults to compact output at the MCP contract layer while preserving server-side follow-up guidance; use compact=false when you need the original verbose message text.
         - mutation and interaction tools default to detail=compact when you want trimmed additive normalization metadata while preserving the same core semantics.

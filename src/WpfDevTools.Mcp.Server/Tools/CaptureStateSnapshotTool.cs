@@ -39,7 +39,14 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             }
 
             var isExpression = GetOptionalBool(response, "isExpression");
-            var canRestore = !isExpression;
+            var expressionRestore = isExpression
+                ? await TryCaptureDependencyPropertyExpressionRestoreAsync(
+                    processId,
+                    elementId,
+                    propertyName,
+                    cancellationToken).ConfigureAwait(false)
+                : (canRestore: true, skipReason: (string?)null, restoreToken: (string?)null, expressionKind: (string?)null);
+            var canRestore = !isExpression || expressionRestore.canRestore;
             dependencyProperties.Add(new StoredDependencyPropertySnapshot(
                 elementId,
                 propertyName,
@@ -49,7 +56,9 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
                 GetOptionalString(response, "baseValueSource"),
                 isExpression,
                 canRestore,
-                GetDependencyPropertySkipReason(propertyName, isExpression)));
+                canRestore ? null : expressionRestore.skipReason ?? GetDependencyPropertySkipReason(propertyName, isExpression),
+                expressionRestore.restoreToken,
+                expressionRestore.expressionKind));
         }
 
         var viewModelProperties = new List<StoredViewModelPropertySnapshot>();
@@ -235,6 +244,39 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         }
 
         return $"Property '{propertyName}' is expression-backed and cannot be deterministically restored after a local mutation replaces the expression.";
+    }
+
+    private async Task<(bool canRestore, string? skipReason, string? restoreToken, string? expressionKind)> TryCaptureDependencyPropertyExpressionRestoreAsync(
+        int processId,
+        string? elementId,
+        string propertyName,
+        CancellationToken cancellationToken)
+    {
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+            processId,
+            "capture_dp_expression_restore",
+            new { elementId, propertyName },
+            cancellationToken).ConfigureAwait(false));
+
+        if (!IsSuccess(response))
+        {
+            return (false, $"Property '{propertyName}' is expression-backed but its restore handle could not be captured for this session.", null, null);
+        }
+
+        if (!GetOptionalBool(response, "canRestore"))
+        {
+            return (
+                false,
+                GetOptionalString(response, "reason") ?? GetDependencyPropertySkipReason(propertyName, isExpression: true),
+                null,
+                GetOptionalString(response, "expressionKind"));
+        }
+
+        return (
+            true,
+            null,
+            GetOptionalString(response, "restoreToken"),
+            GetOptionalString(response, "expressionKind"));
     }
 
     private static ToolErrorPayload CreateStepFailure(string method, string? propertyName, JsonElement response)

@@ -15,7 +15,7 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 public sealed class StateSnapshotDependencyPropertySafetyTests
 {
     [Fact]
-    public async Task CaptureStateSnapshot_ShouldMarkExpressionBackedDependencyPropertyAsNonRestorable()
+    public async Task CaptureStateSnapshot_ShouldCaptureRestoreHandle_ForBindingBackedDependencyProperty()
     {
         const int processId = 51020;
         using var connected = await CreateConnectedSessionAsync(
@@ -31,6 +31,13 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
                     localValue = "{Binding Name}",
                     baseValueSource = "LocalValue",
                     isExpression = true
+                },
+                "capture_dp_expression_restore" => new
+                {
+                    success = true,
+                    canRestore = true,
+                    restoreToken = "expr_token_1",
+                    expressionKind = "Binding"
                 },
                 "get_binding_errors" => EmptyErrors(),
                 "get_validation_errors" => EmptyErrors(),
@@ -48,22 +55,50 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
         var snapshotId = result.GetProperty("snapshotId").GetString();
         connected.SessionManager.TryGetStateSnapshot(processId, snapshotId!, out var snapshot).Should().BeTrue();
         snapshot!.DependencyProperties.Should().ContainSingle();
-        snapshot.DependencyProperties[0].CanRestore.Should().BeFalse();
-        snapshot.DependencyProperties[0].SkipReason.Should().Contain("expression-backed");
-        result.GetProperty("snapshotSummary").GetProperty("restorableDependencyPropertyCount").GetInt32().Should().Be(0);
-        result.GetProperty("snapshotSummary").GetProperty("skippedDependencyPropertyCount").GetInt32().Should().Be(1);
+        snapshot.DependencyProperties[0].CanRestore.Should().BeTrue();
+        snapshot.DependencyProperties[0].ExpressionRestoreToken.Should().Be("expr_token_1");
+        snapshot.DependencyProperties[0].ExpressionKind.Should().Be("Binding");
+        snapshot.DependencyProperties[0].SkipReason.Should().BeNull();
+        result.GetProperty("snapshotSummary").GetProperty("restorableDependencyPropertyCount").GetInt32().Should().Be(1);
+        result.GetProperty("snapshotSummary").GetProperty("skippedDependencyPropertyCount").GetInt32().Should().Be(0);
+        connected.RequestMethods.Should().ContainInOrder(
+            "get_dp_value_source",
+            "capture_dp_expression_restore");
     }
 
     [Fact]
-    public async Task RestoreStateSnapshot_ShouldFailWhenExpressionBackedDependencyPropertyCanNoLongerBeVerified()
+    public async Task RestoreStateSnapshot_ShouldRestoreBindingBackedDependencyProperty_WhenRestoreHandleWasCaptured()
     {
         const int processId = 51021;
-        var getDpValueSourceCallCount = 0;
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch
             {
-                "get_dp_value_source" => BuildDpValueSourceResponse(++getDpValueSourceCallCount),
+                "get_dp_value_source" => new
+                {
+                    success = true,
+                    propertyName = "Text",
+                    currentValue = "Alice",
+                    hadLocalValue = true,
+                    localValue = "{Binding Name}",
+                    baseValueSource = "LocalValue",
+                    isExpression = true
+                },
+                "capture_dp_expression_restore" => new
+                {
+                    success = true,
+                    canRestore = true,
+                    restoreToken = "expr_token_2",
+                    expressionKind = "Binding"
+                },
+                "restore_dp_expression" => new
+                {
+                    success = true,
+                    propertyName = "Text",
+                    restoredExpression = true,
+                    expressionKind = "Binding",
+                    currentValue = "Alice"
+                },
                 "get_binding_errors" => EmptyErrors(),
                 "get_validation_errors" => EmptyErrors(),
                 _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
@@ -85,13 +120,59 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
             snapshotId
         }), CancellationToken.None));
 
-        restoreResult.GetProperty("success").GetBoolean().Should().BeFalse();
-        restoreResult.GetProperty("restoredDependencyPropertyCount").GetInt32().Should().Be(0);
-        restoreResult.GetProperty("skippedDependencyPropertyCount").GetInt32().Should().Be(1);
-        restoreResult.GetProperty("skippedDependencyProperties")[0].GetProperty("propertyName").GetString().Should().Be("Text");
-        restoreResult.GetProperty("skippedDependencyProperties")[0].GetProperty("restoreDisposition").GetString().Should().Be("SkippedExpression");
-        restoreResult.GetProperty("skippedDependencyProperties")[0].GetProperty("verified").GetBoolean().Should().BeFalse();
-        restoreResult.GetProperty("warnings")[0].GetString().Should().Contain("Text");
+        restoreResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        restoreResult.GetProperty("restoredDependencyPropertyCount").GetInt32().Should().Be(1);
+        restoreResult.GetProperty("skippedDependencyPropertyCount").GetInt32().Should().Be(0);
+        restoreResult.GetProperty("warnings").GetArrayLength().Should().Be(0);
+        connected.RequestMethods.Should().ContainInOrder(
+            "get_dp_value_source",
+            "capture_dp_expression_restore",
+            "restore_dp_expression");
+    }
+
+    [Fact]
+    public async Task CaptureStateSnapshot_ShouldKeepNonBindingExpressionAsSkippedCapabilityBoundary()
+    {
+        const int processId = 51022;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "get_dp_value_source" => (object)new
+                {
+                    success = true,
+                    propertyName = "Visibility",
+                    currentValue = "Collapsed",
+                    hadLocalValue = true,
+                    localValue = "{DynamicResource HiddenVisibility}",
+                    baseValueSource = "LocalValue",
+                    isExpression = true
+                },
+                "capture_dp_expression_restore" => new
+                {
+                    success = true,
+                    canRestore = false,
+                    reason = "Property 'Visibility' uses an expression that is not restorable through BindingOperations.SetBinding in the current session."
+                },
+                "get_binding_errors" => EmptyErrors(),
+                "get_validation_errors" => EmptyErrors(),
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+
+        var tool = new CaptureStateSnapshotTool(connected.SessionManager);
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "GhostPanel",
+            propertyNames = new[] { "Visibility" }
+        }), CancellationToken.None));
+
+        var snapshotId = result.GetProperty("snapshotId").GetString();
+        connected.SessionManager.TryGetStateSnapshot(processId, snapshotId!, out var snapshot).Should().BeTrue();
+        snapshot!.DependencyProperties[0].CanRestore.Should().BeFalse();
+        snapshot.DependencyProperties[0].ExpressionRestoreToken.Should().BeNull();
+        snapshot.DependencyProperties[0].SkipReason.Should().Contain("not restorable");
+        result.GetProperty("snapshotSummary").GetProperty("skippedDependencyPropertyCount").GetInt32().Should().Be(1);
     }
 
     private static object EmptyErrors() => new
@@ -99,30 +180,6 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
         success = true,
         errorCount = 0,
         errors = Array.Empty<object>()
-    };
-
-    private static object BuildDpValueSourceResponse(int callCount) => callCount switch
-    {
-        1 => new
-        {
-            success = true,
-            propertyName = "Text",
-            currentValue = "Alice",
-            hadLocalValue = true,
-            localValue = "{Binding Name}",
-            baseValueSource = "LocalValue",
-            isExpression = true
-        },
-        _ => new
-        {
-            success = true,
-            propertyName = "Text",
-            currentValue = "Bob",
-            hadLocalValue = true,
-            localValue = "Bob",
-            baseValueSource = "LocalValue",
-            isExpression = false
-        }
     };
 
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(

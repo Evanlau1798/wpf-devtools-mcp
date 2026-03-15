@@ -12,6 +12,7 @@ using Xunit.Abstractions;
 
 namespace WpfDevTools.Tests.Integration;
 
+[Collection("LiveBootstrapIntegration")]
 public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 {
     private readonly ITestOutputHelper _output;

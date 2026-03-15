@@ -99,10 +99,11 @@ public sealed partial class InteractionAnalyzer
                 }
 
                 InteractionKeyboardHelper.RaisePreviewEvent(uiElement, presentationSource, parsedKey, routedEvent);
-                uiElement.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, presentationSource, 0, parsedKey)
+                var keyEventArgs = new KeyEventArgs(Keyboard.PrimaryDevice, presentationSource, 0, parsedKey)
                 {
                     RoutedEvent = routedEvent
-                });
+                };
+                uiElement.RaiseEvent(keyEventArgs);
 
                 if (routedEvent == Keyboard.KeyDownEvent && parsedKey == Key.Tab)
                 {
@@ -118,6 +119,27 @@ public sealed partial class InteractionAnalyzer
                         eventType,
                         focusChanged: focusChanged,
                         semanticEffectObserved: focusChanged,
+                        focusedElementIdBefore: focusedElementIdBefore,
+                        focusedElementIdAfter: focusedElementIdAfter);
+                }
+
+                if (routedEvent == Keyboard.KeyDownEvent
+                    && parsedKey == Key.Enter
+                    && uiElement is TextBox
+                    && !keyEventArgs.Handled
+                    && InteractionKeyboardHelper.TryInvokeWindowDefaultButton(uiElement))
+                {
+                    var focusedElementIdAfter = GetFocusedElementId();
+                    var focusChanged = !string.Equals(
+                        focusedElementIdBefore,
+                        focusedElementIdAfter,
+                        StringComparison.Ordinal);
+                    return CreateKeyboardResult(
+                        element,
+                        key,
+                        eventType,
+                        focusChanged: focusChanged,
+                        semanticEffectObserved: true,
                         focusedElementIdBefore: focusedElementIdBefore,
                         focusedElementIdAfter: focusedElementIdAfter);
                 }

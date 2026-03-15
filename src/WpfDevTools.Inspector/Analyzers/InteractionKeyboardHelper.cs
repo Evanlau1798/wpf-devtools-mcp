@@ -54,6 +54,32 @@ internal static class InteractionKeyboardHelper
         return false;
     }
 
+    internal static bool TryInvokeWindowDefaultButton(UIElement uiElement)
+    {
+        if (uiElement is TextBox textBox && textBox.AcceptsReturn)
+        {
+            return false;
+        }
+
+        var window = Window.GetWindow(uiElement);
+        if (window == null)
+        {
+            return false;
+        }
+
+        var defaultButton = DependencyObjectTraversal
+            .EnumerateDescendantsAndSelf(window)
+            .OfType<Button>()
+            .FirstOrDefault(button => button.IsDefault && button.IsEnabled);
+        if (defaultButton == null)
+        {
+            return false;
+        }
+
+        ButtonBaseClickHelper.InvokeOnClick(defaultButton);
+        return true;
+    }
+
     internal static bool TryMoveFocus(UIElement uiElement, Key key)
     {
         if (key != Key.Tab)

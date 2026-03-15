@@ -191,4 +191,39 @@ public sealed class InteractionAnalyzerKeyboardNavigationTests
             window.Close();
         }
     }
+
+    [StaFact]
+    public void SimulateKeyboard_OnTextBoxEnter_ShouldInvokeWindowDefaultButton()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 240, Height = 180 };
+        var panel = new StackPanel();
+        var textBox = new TextBox { Text = "Ready" };
+        var clicked = false;
+        var button = new Button { Content = "Save", IsDefault = true };
+        button.Click += (_, _) => clicked = true;
+        panel.Children.Add(textBox);
+        panel.Children.Add(button);
+        window.Content = panel;
+        window.Show();
+
+        try
+        {
+            var textBoxId = finder.GenerateElementId(textBox);
+            textBox.Focus();
+            Keyboard.Focus(textBox);
+
+            var result = JsonSerializer.SerializeToElement(
+                analyzer.SimulateKeyboard(textBoxId, "Enter", "KeyDown"));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("semanticEffectObserved").GetBoolean().Should().BeTrue();
+            clicked.Should().BeTrue("Enter on a TextBox should trigger the window default button when one is present");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 }

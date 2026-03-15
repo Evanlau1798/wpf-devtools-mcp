@@ -448,6 +448,52 @@ public sealed class InteractionE2eTests
     }
 
     [Fact]
+    public async Task SimulateKeyboard_OnTextBoxEnter_ShouldInvokeDefaultButtonSemanticAction()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var textBoxId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            "FocusNextTextBox");
+        textBoxId.Should().NotBeNull("TestApp should expose FocusNextTextBox through the root namescope");
+
+        var focusResult = await _fixture.Client.CallToolAsync(
+            "focus_element",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = textBoxId
+            });
+        focusResult.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var result = await _fixture.Client.CallToolAsync(
+            "simulate_keyboard",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = textBoxId,
+                key = "Enter",
+                eventType = "KeyDown"
+            });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("semanticEffectObserved").GetBoolean().Should().BeTrue();
+
+        var viewModel = await _fixture.Client.CallToolAsync(
+            "get_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyNames = new[] { "LastActionMessage" }
+            });
+        viewModel.GetProperty("success").GetBoolean().Should().BeTrue();
+        viewModel.GetProperty("properties").EnumerateArray()
+            .Single(property => property.GetProperty("name").GetString() == "LastActionMessage")
+            .GetProperty("value").GetString().Should().Be("Focus action invoked");
+    }
+
+    [Fact]
     public async Task GetLayoutInfo_ShouldReturnElementDimensions()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);

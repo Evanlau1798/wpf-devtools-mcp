@@ -343,4 +343,143 @@ public sealed class BindingDiagnosticsE2eTests
             .Select(error => error.GetProperty("bindingPath").GetString())
             .Should().Contain("DetailName");
     }
+
+    [Fact]
+    public async Task GetBindings_OnGeneratedDetailText_ShouldReportTemplateGeneratedBindingAfterTabActivation()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        await ActivateDetailDiagnosticsTabAsync();
+
+        var generatedTextId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            "GeneratedDetailText1");
+        generatedTextId.Should().NotBeNull("Detail diagnostics tab should materialize the generated text block");
+
+        var chain = await _fixture.Client.CallToolAsync(
+            "get_binding_value_chain",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = generatedTextId,
+                propertyName = "Text",
+                navigation = false
+            });
+        chain.GetProperty("success").GetBoolean().Should().BeTrue();
+        chain.GetProperty("hasBinding").GetBoolean().Should().BeTrue();
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_bindings",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = generatedTextId,
+                navigation = false
+            });
+
+        _output.WriteLine($"Generated detail get_bindings: {E2eTestHelpers.Truncate(result.GetRawText(), 500)}");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("bindings").EnumerateArray()
+            .Select(binding => binding.GetProperty("path").GetString())
+            .Should().Contain("Nested.DetailText");
+    }
+
+    [Fact]
+    public async Task GetBindingErrors_AfterGeneratedDetailContextFlip_ShouldIncludeBrokenGeneratedBindings()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var sinceTimestamp = DateTimeOffset.UtcNow.ToString("O");
+
+        var mutation = await _fixture.Client.CallToolAsync(
+            "modify_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "UseBrokenDetailContext",
+                value = true,
+                navigation = false
+            });
+        mutation.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        await ActivateDetailDiagnosticsTabAsync();
+
+        var generatedText1Id = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            "GeneratedDetailText1");
+        var generatedText2Id = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            "GeneratedDetailText2");
+
+        generatedText1Id.Should().NotBeNull();
+        generatedText2Id.Should().NotBeNull();
+
+        await AssertGeneratedBindingUnresolvedAsync(generatedText1Id!, "Nested.DetailText");
+        await AssertGeneratedBindingUnresolvedAsync(generatedText2Id!, "Nested.DetailSecondary");
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_binding_errors",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                compact = true,
+                sinceTimestamp,
+                navigation = false
+            });
+
+        _output.WriteLine($"Generated detail binding errors: {E2eTestHelpers.Truncate(result.GetRawText(), 500)}");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errors").EnumerateArray()
+            .Select(error => error.GetProperty("bindingPath").GetString())
+            .Should().Contain(new[] { "Nested.DetailText", "Nested.DetailSecondary" });
+    }
+
+    private async Task ActivateDetailDiagnosticsTabAsync()
+    {
+        var tabId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            "DetailDiagnosticsTab");
+        tabId.Should().NotBeNull("Detail diagnostics tab should exist in TestApp");
+
+        var clickResult = await _fixture.Client.CallToolAsync(
+            "click_element",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = tabId,
+                navigation = false
+            });
+        clickResult.GetProperty("success").GetBoolean().Should().BeTrue();
+    }
+
+    private async Task AssertGeneratedBindingUnresolvedAsync(string elementId, string expectedPath)
+    {
+        var chain = await _fixture.Client.CallToolAsync(
+            "get_binding_value_chain",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId,
+                propertyName = "Text",
+                navigation = false
+            });
+
+        chain.GetProperty("success").GetBoolean().Should().BeTrue();
+        chain.GetProperty("hasBinding").GetBoolean().Should().BeTrue();
+        chain.GetProperty("chain").EnumerateArray()
+            .Any(step =>
+                step.TryGetProperty("resolutionState", out var state) &&
+                state.GetString() == "Unresolved")
+            .Should().BeTrue();
+        chain.GetProperty("chain").EnumerateArray()
+            .Where(step => step.TryGetProperty("path", out _))
+            .Select(step => step.GetProperty("path").GetString())
+            .Should().Contain(expectedPath);
+    }
 }

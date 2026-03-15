@@ -37,6 +37,7 @@ public partial class MainWindow : Window
 
         SetupCustomEvents();
         SetupBindingDiagnosticsSamples();
+        SetupGeneratedDetailDiagnostics();
 
         InitializeModernTheme();
     }
@@ -166,6 +167,46 @@ public partial class MainWindow : Window
 
         RegisterName(ghostPanel.Name, ghostPanel);
         BasicControlsStackPanel.Children.Add(ghostPanel);
+    }
+
+    private void SetupGeneratedDetailDiagnostics()
+    {
+        var generatedTextFactory1 = new FrameworkElementFactory(typeof(TextBlock));
+        generatedTextFactory1.SetValue(FrameworkElement.NameProperty, "GeneratedDetailText1");
+        generatedTextFactory1.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 0, 6));
+        generatedTextFactory1.SetBinding(TextBlock.TextProperty, new Binding("Nested.DetailText"));
+
+        var generatedTextFactory2 = new FrameworkElementFactory(typeof(TextBlock));
+        generatedTextFactory2.SetValue(FrameworkElement.NameProperty, "GeneratedDetailText2");
+        generatedTextFactory2.SetBinding(TextBlock.TextProperty, new Binding("Nested.DetailSecondary"));
+
+        var stackPanelFactory = new FrameworkElementFactory(typeof(StackPanel));
+        stackPanelFactory.AppendChild(generatedTextFactory1);
+        stackPanelFactory.AppendChild(generatedTextFactory2);
+
+        var detailTemplate = new DataTemplate
+        {
+            VisualTree = stackPanelFactory
+        };
+
+        var detailHost = new ContentControl
+        {
+            Name = "GeneratedDetailHost",
+            Margin = new Thickness(12),
+            ContentTemplate = detailTemplate
+        };
+        detailHost.SetBinding(ContentControl.ContentProperty, new Binding(nameof(TestViewModel.CurrentDetailContext)));
+
+        var detailTab = new TabItem
+        {
+            Name = "DetailDiagnosticsTab",
+            Header = "Detail Diagnostics",
+            Content = detailHost
+        };
+
+        RegisterName(detailHost.Name, detailHost);
+        RegisterName(detailTab.Name, detailTab);
+        MainTabControl.Items.Add(detailTab);
     }
 
     private void FocusWorkflowElement_GotFocus(object sender, RoutedEventArgs e)

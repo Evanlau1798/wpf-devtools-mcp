@@ -162,9 +162,22 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
     }
 }
 
-public sealed record ValidDetailContext(string DetailName);
+public sealed class ValidDetailContext
+{
+    public ValidDetailContext(string detailName)
+    {
+        DetailName = detailName;
+        Nested = new ValidNestedDetail($"{detailName} nested", $"{detailName} secondary");
+    }
+
+    public string DetailName { get; set; }
+
+    public ValidNestedDetail Nested { get; }
+}
 
 public sealed class BrokenDetailContext;
+
+public sealed record ValidNestedDetail(string DetailText, string DetailSecondary);
 
 /// <summary>
 /// Simple RelayCommand implementation

@@ -148,7 +148,7 @@ public sealed partial class DependencyPropertyAnalyzer
                 "Choose a WPF DependencyObject target from get_visual_tree or find_elements before waiting for dependency property changes."));
         }
 
-        return InvokeOnDispatcher(depObj.Dispatcher, () =>
+        return InvokeSnapshotRead(depObj, settleBindings: true, () =>
         {
             var dp = FindDependencyProperty(depObj, propertyName);
             if (dp == null)

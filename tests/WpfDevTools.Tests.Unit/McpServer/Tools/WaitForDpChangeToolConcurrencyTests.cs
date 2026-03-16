@@ -125,6 +125,52 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         connected.RequestMethods.Should().Contain("modify_viewmodel");
     }
 
+    [Fact]
+    public async Task Execute_ShouldRequestBindingSettlementBeforePollingSnapshot()
+    {
+        const int processId = 4646;
+        using var connected = await CreateBindingSettlementSessionAsync(processId);
+
+        var waitTool = new WaitForDpChangeTool(connected.SessionManager);
+        var mutateTool = new NoPiggybackModifyViewModelTool(connected.SessionManager);
+
+        var waitTask = waitTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                propertyName = "Text",
+                expectedValue = JsonSerializer.SerializeToElement("after"),
+                timeoutMs = 1000,
+                pollIntervalMs = 50
+            }),
+            CancellationToken.None);
+
+        await Task.Delay(120);
+
+        var mutateResult = await mutateTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                propertyName = "SearchText",
+                value = JsonSerializer.SerializeToElement("after")
+            }),
+            CancellationToken.None);
+
+        var waitResult = await waitTask;
+
+        var mutateJson = JsonSerializer.SerializeToElement(mutateResult);
+        var waitJson = JsonSerializer.SerializeToElement(waitResult);
+
+        mutateJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        waitJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        waitJson.GetProperty("changed").GetBoolean().Should().BeTrue();
+        waitJson.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+        waitJson.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
+        connected.RequestPayloads.Should().Contain(payload =>
+            payload.method == "get_dp_value_source" &&
+            payload.settleBindings);
+    }
+
     private static async Task<ConnectedWaitSession> CreateConnectedSessionAsync(int processId)
     {
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
@@ -235,6 +281,63 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         return new ConnectedWaitSession(sessionManager, server, serverTask, requestMethods);
     }
 
+    private static async Task<ConnectedWaitSession> CreateBindingSettlementSessionAsync(int processId)
+    {
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var requestMethods = new List<string>();
+        var requestPayloads = new List<(string method, bool settleBindings)>();
+        var state = new BindingSettlementServerState();
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            try
+            {
+                while (true)
+                {
+                    var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                    var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson)!;
+                    requestMethods.Add(request.Method);
+                    requestPayloads.Add((request.Method, HasSettleBindingsFlag(request.Params)));
+
+                    var result = BuildBindingSettlementResult(request, state);
+                    var response = new InspectorResponse
+                    {
+                        Id = request.Id,
+                        CorrelationId = request.CorrelationId,
+                        Result = JsonSerializer.SerializeToElement(result)
+                    };
+
+                    await MessageFraming.WriteMessageAsync(
+                        server,
+                        JsonSerializer.Serialize(response),
+                        CancellationToken.None);
+                }
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        return new ConnectedWaitSession(sessionManager, server, serverTask, requestMethods, requestPayloads);
+    }
+
     private static async Task<object> BuildResultAsync(InspectorRequest request, WaitServerState state)
     {
         switch (request.Method)
@@ -300,6 +403,51 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         }
     }
 
+    private static object BuildBindingSettlementResult(InspectorRequest request, BindingSettlementServerState state)
+    {
+        switch (request.Method)
+        {
+            case "get_dp_value_source":
+                var settleBindings = HasSettleBindingsFlag(request.Params);
+                var currentValue = settleBindings && state.PendingValue is not null
+                    ? state.PendingValue
+                    : state.VisibleValue;
+
+                if (settleBindings && state.PendingValue is not null)
+                {
+                    state.VisibleValue = state.PendingValue;
+                    state.PendingValue = null;
+                }
+
+                return new
+                {
+                    success = true,
+                    propertyName = "Text",
+                    baseValueSource = "Local",
+                    currentValue,
+                    effectiveValue = currentValue
+                };
+            case "modify_viewmodel":
+                state.PendingValue = ExtractRequestedValue(request.Params);
+                return new
+                {
+                    success = true,
+                    propertyName = "SearchText",
+                    oldValue = state.VisibleValue,
+                    newValue = state.PendingValue
+                };
+            default:
+                return new { success = true };
+        }
+    }
+
+    private static bool HasSettleBindingsFlag(JsonElement? @params)
+    {
+        return @params.HasValue
+            && @params.Value.TryGetProperty("settleBindings", out var settleBindings)
+            && settleBindings.ValueKind == JsonValueKind.True;
+    }
+
     private static string ExtractRequestedValue(JsonElement? @params)
     {
         if (!@params.HasValue || !@params.Value.TryGetProperty("value", out var valueProperty))
@@ -329,10 +477,13 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         SessionManager sessionManager,
         NamedPipeServerStream server,
         Task serverTask,
-        List<string> requestMethods) : IDisposable
+        List<string> requestMethods,
+        List<(string method, bool settleBindings)>? requestPayloads = null) : IDisposable
     {
         public SessionManager SessionManager { get; } = sessionManager;
         public IReadOnlyList<string> RequestMethods { get; } = requestMethods;
+        public IReadOnlyList<(string method, bool settleBindings)> RequestPayloads { get; } =
+            requestPayloads ?? [];
 
         public void Dispose()
         {
@@ -362,6 +513,12 @@ public sealed class WaitForDpChangeToolConcurrencyTests
     private sealed class WaitServerState
     {
         public string CurrentValue { get; set; } = "before";
+    }
+
+    private sealed class BindingSettlementServerState
+    {
+        public string VisibleValue { get; set; } = "before";
+        public string? PendingValue { get; set; }
     }
 
     private sealed class BoundaryWaitServerState

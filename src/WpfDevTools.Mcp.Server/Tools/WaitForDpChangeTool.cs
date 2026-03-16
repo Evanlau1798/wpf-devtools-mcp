@@ -190,7 +190,8 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             {
                 elementId,
                 propertyName,
-                compact = true
+                compact = true,
+                settleBindings = true
             },
             cancellationToken).ConfigureAwait(false);
 

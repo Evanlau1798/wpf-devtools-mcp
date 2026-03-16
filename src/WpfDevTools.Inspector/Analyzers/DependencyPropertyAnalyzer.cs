@@ -66,34 +66,32 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Get value source for a DependencyProperty
     /// </summary>
-    public object GetValueSource(string propertyName, string? elementId = null, bool compact = false)
+    public object GetValueSource(string propertyName, string? elementId = null, bool compact = false, bool settleBindings = false)
     {
-        return InvokeOnUIThread<object>(() =>
+        var element = elementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
+
+        if (element == null)
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            return ToolErrorFactory.ElementNotFound(elementId);
+        }
 
-            if (element == null)
-            {
-                return ToolErrorFactory.ElementNotFound(elementId);
-            }
+        if (element is not DependencyObject depObj)
+        {
+            return ToolErrorFactory.InvalidArgument(
+                "Element is not a DependencyObject",
+                "Choose a WPF DependencyObject target from get_visual_tree or find_elements before inspecting dependency properties.");
+        }
 
-            if (element is not DependencyObject depObj)
-            {
-                return ToolErrorFactory.InvalidArgument(
-                    "Element is not a DependencyObject",
-                    "Choose a WPF DependencyObject target from get_visual_tree or find_elements before inspecting dependency properties.");
-            }
-
-            // Find DependencyProperty by name
+        return InvokeSnapshotRead(depObj, settleBindings, () =>
+        {
             var dp = FindDependencyProperty(depObj, propertyName);
             if (dp == null)
             {
                 return ToolErrorFactory.PropertyNotFound(propertyName, depObj.GetType().Name);
             }
 
-            // Get value source
             var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
             var effectiveValue = depObj.GetValue(dp);
             var localValue = depObj.ReadLocalValue(dp);
@@ -105,7 +103,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             if (compact)
             {
-                return new
+                return (object)new
                 {
                     success = true,
                     propertyName = propertyName,

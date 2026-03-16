@@ -89,13 +89,16 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                 }
             }
 
+            var validationSubmittable = validationErrorCount == 0;
+            var interactionSubmittable = hasReadyPrimaryCommand || (!hasPrimaryCommand && hasReadyFallbackCommand);
             var summary = new
             {
                 totalInputs = inputs.Count,
                 emptyInputs = emptyInputCount,
                 errorCount = validationErrorCount,
-                isSubmittable = validationErrorCount == 0
-                    && (hasReadyPrimaryCommand || (!hasPrimaryCommand && hasReadyFallbackCommand))
+                validationSubmittable,
+                interactionSubmittable,
+                isSubmittable = validationSubmittable && interactionSubmittable
             };
 
             return new

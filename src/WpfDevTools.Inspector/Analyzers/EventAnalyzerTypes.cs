@@ -17,16 +17,26 @@ internal sealed class ActiveTraceSession
 {
     public ActiveTraceSession(
         List<HandlerRegistration> registrations,
-        CancellationTokenSource tokenSource)
+        CancellationTokenSource tokenSource,
+        TraceSessionMetadata metadata)
     {
         Registrations = registrations;
         TokenSource = tokenSource;
+        Metadata = metadata;
     }
 
     public List<HandlerRegistration> Registrations { get; }
 
     public CancellationTokenSource TokenSource { get; }
+
+    public TraceSessionMetadata Metadata { get; }
 }
+
+internal sealed record TraceSessionMetadata(
+    string EventName,
+    string ElementId,
+    DateTimeOffset StartedAtUtc,
+    int EffectiveDurationMs);
 
 /// <summary>
 /// Utility methods for discovering and resolving WPF RoutedEvents by name.

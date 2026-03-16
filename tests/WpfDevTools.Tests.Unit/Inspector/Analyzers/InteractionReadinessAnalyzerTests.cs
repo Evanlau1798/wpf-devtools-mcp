@@ -85,5 +85,9 @@ public sealed class InteractionReadinessAnalyzerTests
         result.GetProperty("blockers").EnumerateArray()
             .Select(item => item.GetProperty("reason").GetString())
             .Should().Contain("ElementInInactiveTab");
+        result.TryGetProperty("activationPath", out var activationPath).Should().BeTrue(result.GetRawText());
+        activationPath.GetString().Should().Contain("Inactive");
+        result.TryGetProperty("activationTarget", out var activationTarget).Should().BeTrue(result.GetRawText());
+        activationTarget.GetProperty("tabItemElementId").GetString().Should().NotBeNullOrWhiteSpace();
     }
 }

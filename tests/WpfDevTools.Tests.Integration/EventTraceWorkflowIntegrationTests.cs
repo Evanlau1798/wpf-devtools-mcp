@@ -153,4 +153,55 @@ public class EventTraceWorkflowIntegrationTests
 
         await Task.Delay(requestedDuration + 50);
     }
+
+    [Fact]
+    public async Task TraceRoutedEvents_WithNoInteractionUntilWindowEnds_ShouldReturnEventNotRaisedDiagnostics()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var handler = new EventHandlers(analyzer);
+        string elementId = string.Empty;
+
+        _fixture.RunOnUIThread(() =>
+        {
+            var button = new Button { Content = "Trace Me" };
+            var panel = new StackPanel();
+            panel.Children.Add(button);
+
+            var window = Application.Current.MainWindow;
+            window.Content = panel;
+            window.Show();
+            window.Activate();
+            panel.Measure(new Size(400, 200));
+            panel.Arrange(new Rect(0, 0, 400, 200));
+            panel.UpdateLayout();
+
+            elementId = finder.GenerateElementId(button);
+        });
+
+        var startResult = await handler.HandleAsync(
+            "trace_routed_events",
+            JsonSerializer.SerializeToElement(new
+            {
+                elementId,
+                eventName = "Click",
+                duration = 120,
+                mode = "start",
+                allowShortStartDuration = true
+            }),
+            CancellationToken.None);
+
+        JsonSerializer.SerializeToElement(startResult).GetProperty("success").GetBoolean().Should().BeTrue();
+        await Task.Delay(220);
+
+        var getResult = await handler.HandleAsync(
+            "trace_routed_events",
+            JsonSerializer.SerializeToElement(new { mode = "get" }),
+            CancellationToken.None);
+        var payload = JsonSerializer.SerializeToElement(getResult);
+
+        payload.GetProperty("success").GetBoolean().Should().BeTrue(payload.GetRawText());
+        payload.GetProperty("eventCount").GetInt32().Should().Be(0);
+        payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("eventNotRaised");
+    }
 }

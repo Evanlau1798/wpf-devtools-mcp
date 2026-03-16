@@ -81,11 +81,16 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
             {
                 if (_frameTimes.Count == 0)
                 {
+                    var (warmupConfidence, warmupGuidance) = PerformanceConfidencePolicy.EvaluateRenderStats(sampleCount: 0, isWarmedUp: false);
                     return new
                     {
                         success = true,
                         message = "Monitoring started, waiting for frame data...",
                         isWarmedUp = false,
+                        confidence = warmupConfidence,
+                        minimumRecommendedSampleCount = PerformanceConfidencePolicy.MinRenderSampleCount,
+                        minimumRecommendedMonitoringDurationMs = PerformanceConfidencePolicy.MinRenderMonitoringDurationMs,
+                        sampleGuidance = warmupGuidance,
                         sampleCount = 0,
                         sampleWindowSize = MaxFrameSamples,
                         frameRate = 0.0,
@@ -104,11 +109,16 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                 var avgFrameTime = frameTimesArray.Average();
                 var frameRate = avgFrameTime > 0 ? 1000.0 / avgFrameTime : 0.0;
                 var monitoringDuration = (DateTime.UtcNow - _monitoringStartTime).TotalSeconds;
+                var (statsConfidence, statsGuidance) = PerformanceConfidencePolicy.EvaluateRenderStats(_frameTimes.Count, isWarmedUp: true);
 
                 return new
                 {
                     success = true,
                     isWarmedUp = true,
+                    confidence = statsConfidence,
+                    minimumRecommendedSampleCount = PerformanceConfidencePolicy.MinRenderSampleCount,
+                    minimumRecommendedMonitoringDurationMs = PerformanceConfidencePolicy.MinRenderMonitoringDurationMs,
+                    sampleGuidance = statsGuidance,
                     sampleCount = _frameTimes.Count,
                     sampleWindowSize = MaxFrameSamples,
                     frameRate = Math.Round(frameRate, 2),
@@ -186,6 +196,9 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                 renderTimeMs = Math.Round(sw.Elapsed.TotalMilliseconds, 2),
                 renderTime = Math.Round(sw.Elapsed.TotalMilliseconds, 2),
                 message = "Approximate render time (includes layout update)",
+                confidence = "low",
+                recommendedSampleCount = PerformanceConfidencePolicy.RecommendedRenderMeasurementSamples,
+                sampleGuidance = $"Single-shot timing is noisy; run {PerformanceConfidencePolicy.RecommendedRenderMeasurementSamples}+ samples and compare median/p95.",
                 elementType = element.GetType().Name
             };
         });
@@ -194,8 +207,15 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Find binding leaks
     /// </summary>
-    public object FindBindingLeaks(int threshold = 100)
+    public object FindBindingLeaks(int threshold = 100, int? samplingDurationMs = null)
     {
+        var effectiveSamplingDurationMs = Math.Max(0, samplingDurationMs ?? 0);
+
+        if (effectiveSamplingDurationMs > 0)
+        {
+            Thread.Sleep(Math.Min(effectiveSamplingDurationMs, 15000));
+        }
+
         // Only force GC when off the UI thread to avoid blocking rendering
         if (Application.Current?.Dispatcher.CheckAccess() != true)
         {
@@ -249,6 +269,9 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                         };
                     })
                     .ToList();
+                var (confidence, guidance) = PerformanceConfidencePolicy.EvaluateBindingLeakSampling(
+                    effectiveSamplingDurationMs,
+                    _bindingReferences.Count);
 
                 return new
                 {
@@ -260,6 +283,10 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                     hasLeaks,
                     potentialLeaks,
                     suspects,
+                    confidence,
+                    samplingDurationMs = effectiveSamplingDurationMs,
+                    minimumRecommendedSamplingDurationMs = PerformanceConfidencePolicy.MinBindingLeakSamplingDurationMs,
+                    sampleGuidance = guidance,
                     message = hasLeaks
                         ? $"Potential memory leak detected: {aliveBindings.Count} bindings alive (threshold: {threshold})"
                         : $"No binding leaks detected ({aliveBindings.Count} bindings alive, threshold: {threshold})",

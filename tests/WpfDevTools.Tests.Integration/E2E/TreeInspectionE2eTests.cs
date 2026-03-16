@@ -91,6 +91,24 @@ public sealed class TreeInspectionE2eTests
     }
 
     [Fact]
+    public async Task GetVisualTree_WithDepthZero_ShouldProvideDepthSufficiencyHint()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_visual_tree",
+            new { processId = _fixture.TestAppProcessId, depth = 0 });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.TryGetProperty("depthSufficiencyHint", out var hint).Should().BeTrue();
+        hint.GetProperty("reasonCode").GetString().Should().Be("depthLimitReached");
+
+        var currentDepth = hint.GetProperty("currentDepth").GetInt32();
+        var recommendedDepth = hint.GetProperty("recommendedDepth").GetInt32();
+        recommendedDepth.Should().BeGreaterThan(currentDepth);
+    }
+
+    [Fact]
     public async Task GetWindows_ShouldReturnAtLeastMainWindow()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);

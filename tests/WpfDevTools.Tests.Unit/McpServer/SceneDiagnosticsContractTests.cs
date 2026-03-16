@@ -245,11 +245,23 @@ public sealed class SceneDiagnosticsContractTests : IDisposable
                 {
                     new { elementId = "SaveButton", blockers = new[] { "CommandCannotExecute" } }
                 },
-                summary = new { totalInputs = 2, emptyInputs = 1, errorCount = 1, isSubmittable = false }
+                summary = new
+                {
+                    totalInputs = 2,
+                    emptyInputs = 1,
+                    errorCount = 1,
+                    validationSubmittable = false,
+                    interactionSubmittable = false,
+                    isSubmittable = false
+                }
             }),
             ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Form_1")),
             CancellationToken.None,
             toolName: "get_form_summary");
+
+        var summary = result.StructuredContent!.Value.GetProperty("summary");
+        summary.GetProperty("validationSubmittable").GetBoolean().Should().BeFalse();
+        summary.GetProperty("interactionSubmittable").GetBoolean().Should().BeFalse();
 
         var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
         nextSteps.GetArrayLength().Should().Be(1);

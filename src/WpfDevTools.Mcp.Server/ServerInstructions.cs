@@ -173,7 +173,7 @@ public static class ServerInstructions
         - Current response contract version: {{ResponseContractVersion.Current}}
         - Every tool response includes the additive `navigation` envelope; prefer `navigation.recommended` as the preferred follow-up surface when present instead of ad hoc tool guessing.
         - Every tool response also includes compatibility `nextSteps`; expect `nextSteps: []` when the server has no deterministic runtime guidance.
-        - v2 `nextSteps` entries may also include optional `preconditions`, `expectedOutcome`, `workflowId`, and `prefetchTools` fields.
+        - v2 `nextSteps` entries may also include optional `preconditions`, `expectedOutcome`, `workflowId`, `prefetchTools`, `whyNow`, and `confidence` fields.
         - v3 `navigation` includes `recommended`, `alternatives`, `prefetchTools`, and descriptive `contextRefs` entries.
         - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` for clients that ignore the richer envelope.
         - Clients may use `navigation=false` as an explicit opt-out to omit both `navigation` and compatibility `nextSteps` on that specific call.

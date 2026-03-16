@@ -63,9 +63,10 @@ public class PerformanceHandlers : IRequestHandler
     private async Task<object> HandleFindBindingLeaksAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         var threshold = ParameterHelpers.GetIntParam(@params, "threshold") ?? InspectorConstants.Defaults.BindingLeakThreshold;
+        var samplingDurationMs = ParameterHelpers.GetIntParam(@params, "samplingDurationMs");
 
         return await Task.Run(() =>
-            _performanceAnalyzer.FindBindingLeaks(threshold), cancellationToken).ConfigureAwait(false);
+            _performanceAnalyzer.FindBindingLeaks(threshold, samplingDurationMs), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleMeasureElementRenderTimeAsync(JsonElement? @params, CancellationToken cancellationToken)

@@ -57,13 +57,18 @@ public class EventHandlers : IRequestHandler
     private async Task<object> HandleTraceRoutedEventsAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         var mode = NormalizeTraceMode(ParameterHelpers.GetStringParam(@params, "mode"));
+        var eventName = ParameterHelpers.GetStringParam(@params, "eventName");
         if (mode == "get")
         {
-            return CreateTraceSnapshotResult(mode, _eventAnalyzer.GetEventTrace());
+            var traceResult = _eventAnalyzer.GetEventTrace();
+            var diagnostics = BuildZeroEventDiagnostics(
+                traceResult,
+                _eventAnalyzer.GetLatestTraceMetadata(),
+                eventName);
+            return CreateTraceSnapshotResult(mode, traceResult, diagnostics: diagnostics);
         }
 
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
-        var eventName = ParameterHelpers.GetStringParam(@params, "eventName");
         var duration = ParameterHelpers.GetIntParam(@params, "duration") ?? InspectorConstants.Defaults.EventTraceDuration;
         var allowShortStartDuration = ParameterHelpers.GetBoolParam(@params, "allowShortStartDuration") ?? false;
 
@@ -186,7 +191,8 @@ public class EventHandlers : IRequestHandler
         string mode,
         object traceResult,
         string? eventName = null,
-        int? duration = null)
+        int? duration = null,
+        object? diagnostics = null)
     {
         var tracePayload = JsonSerializer.SerializeToElement(traceResult);
         if (tracePayload.TryGetProperty("success", out var traceSuccess) && traceSuccess.GetBoolean())
@@ -219,11 +225,83 @@ public class EventHandlers : IRequestHandler
                 isTracing,
                 eventCount,
                 events,
-                handlerInvocationCount
+                handlerInvocationCount,
+                diagnostics
             };
         }
 
         return traceResult;
+    }
+
+    private static object? BuildZeroEventDiagnostics(
+        object traceResult,
+        TraceSessionMetadata? traceMetadata,
+        string? requestedEventName)
+    {
+        var tracePayload = JsonSerializer.SerializeToElement(traceResult);
+        if (!tracePayload.TryGetProperty("success", out var successProperty) || !successProperty.GetBoolean())
+        {
+            return null;
+        }
+
+        var eventCount = tracePayload.TryGetProperty("eventCount", out var eventCountProperty)
+            ? eventCountProperty.GetInt32()
+            : 0;
+        if (eventCount > 0)
+        {
+            return null;
+        }
+
+        var isTracing = tracePayload.TryGetProperty("isTracing", out var isTracingProperty)
+            && isTracingProperty.GetBoolean();
+
+        if (!string.IsNullOrWhiteSpace(requestedEventName)
+            && traceMetadata is not null
+            && !string.Equals(requestedEventName, traceMetadata.EventName, StringComparison.OrdinalIgnoreCase))
+        {
+            return new
+            {
+                reasonCode = "filterMismatch",
+                message = $"Requested event '{requestedEventName}' does not match active trace event '{traceMetadata.EventName}'.",
+                requestedEventName,
+                activeEventName = traceMetadata.EventName,
+                suggestedAction = "Use the same eventName as the active trace session, or restart tracing with the new eventName."
+            };
+        }
+
+        if (isTracing)
+        {
+            var elapsedMs = traceMetadata is null
+                ? 0
+                : Math.Max(
+                    0,
+                    (int)Math.Round((DateTimeOffset.UtcNow - traceMetadata.StartedAtUtc).TotalMilliseconds));
+            var effectiveDurationMs = traceMetadata?.EffectiveDurationMs ?? 0;
+            var remainingWindowMs = effectiveDurationMs > 0
+                ? Math.Max(0, effectiveDurationMs - elapsedMs)
+                : 0;
+
+            return new
+            {
+                reasonCode = "captureWindowTooShort",
+                message = "Tracing is still active and no events have been captured yet.",
+                activeEventName = traceMetadata?.EventName,
+                elapsedMs,
+                effectiveDurationMs,
+                remainingWindowMs,
+                suggestedAction = "Trigger the interaction while tracing remains active, then call trace_routed_events(mode='get') again."
+            };
+        }
+
+        return new
+        {
+            reasonCode = "eventNotRaised",
+            message = "Trace window ended without captured routed events.",
+            activeEventName = traceMetadata?.EventName,
+            suggestedAction = traceMetadata is null
+                ? "Start tracing with trace_routed_events(mode='start', eventName=...) before retrieving results."
+                : "Restart tracing and trigger the target interaction inside the capture window before calling mode='get'."
+        };
     }
 
     private static DateTimeOffset? ParseSinceTimestamp(JsonElement? @params)

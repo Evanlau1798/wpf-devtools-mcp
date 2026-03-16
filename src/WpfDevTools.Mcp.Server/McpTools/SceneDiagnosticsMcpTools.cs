@@ -259,7 +259,7 @@ public static class SceneDiagnosticsMcpTools
         "  formScope: string,\n" +
         "  inputs: [],\n" +
         "  commands: [],\n" +
-        "  summary: { totalInputs, emptyInputs, errorCount, isSubmittable }\n" +
+        "  summary: { totalInputs, emptyInputs, errorCount, validationSubmittable, interactionSubmittable, isSubmittable }\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree, or omit it to summarize the root window form state\n" +

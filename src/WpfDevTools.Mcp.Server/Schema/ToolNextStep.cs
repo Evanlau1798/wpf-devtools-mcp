@@ -11,4 +11,6 @@ public sealed record ToolNextStep(
     IReadOnlyList<string>? Preconditions = null,
     string? ExpectedOutcome = null,
     string? WorkflowId = null,
-    IReadOnlyList<string>? PrefetchTools = null);
+    IReadOnlyList<string>? PrefetchTools = null,
+    string? WhyNow = null,
+    string? Confidence = null);

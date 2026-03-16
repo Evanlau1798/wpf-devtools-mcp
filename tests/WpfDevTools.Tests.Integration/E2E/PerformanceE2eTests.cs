@@ -45,6 +45,10 @@ public sealed class PerformanceE2eTests
             "render stats should include visualCount field");
         result.TryGetProperty("isWarmedUp", out _).Should().BeTrue(
             "render stats should expose warm-up state explicitly");
+        result.TryGetProperty("confidence", out _).Should().BeTrue(
+            "render stats should include confidence for sample quality");
+        result.TryGetProperty("sampleGuidance", out _).Should().BeTrue(
+            "render stats should include sample guidance");
     }
 
     [Fact]
@@ -96,6 +100,10 @@ public sealed class PerformanceE2eTests
             "leak report should include totalTracked count");
         result.TryGetProperty("suspects", out _).Should().BeTrue(
             "leak report should include contract-facing suspects array");
+        result.TryGetProperty("confidence", out _).Should().BeTrue(
+            "leak report should include confidence for sampling quality");
+        result.TryGetProperty("minimumRecommendedSamplingDurationMs", out _).Should().BeTrue(
+            "leak report should include minimum recommended sampling duration");
     }
 
     [Fact]

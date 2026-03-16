@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Host.Handlers;
 using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Mcp.Server.McpTools;
 using Xunit;
@@ -105,6 +106,42 @@ public sealed class EventHandlersContractTests : IDisposable
         nextSteps.GetArrayLength().Should().Be(1);
         nextSteps[0].GetProperty("tool").GetString().Should().Be("get_commands");
         nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+    }
+
+    [StaFact]
+    public async Task TraceRoutedEvents_GetMode_ZeroEventPayload_ShouldIncludeStableDiagnosticsReasonCode()
+    {
+        var finder = new ElementFinder();
+        var handler = new EventHandlers(new EventAnalyzer(finder));
+        var button = new System.Windows.Controls.Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var startResult = await handler.HandleAsync(
+            "trace_routed_events",
+            JsonSerializer.SerializeToElement(new
+            {
+                mode = "start",
+                elementId,
+                eventName = "Click",
+                duration = 100,
+                allowShortStartDuration = true
+            }),
+            CancellationToken.None);
+        JsonSerializer.SerializeToElement(startResult).GetProperty("success").GetBoolean().Should().BeTrue();
+
+        await Task.Delay(180);
+
+        var getResult = await handler.HandleAsync(
+            "trace_routed_events",
+            JsonSerializer.SerializeToElement(new { mode = "get" }),
+            CancellationToken.None);
+        var payload = JsonSerializer.SerializeToElement(getResult);
+
+        payload.GetProperty("success").GetBoolean().Should().BeTrue();
+        payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().BeOneOf(
+            "captureWindowTooShort",
+            "eventNotRaised",
+            "filterMismatch");
     }
 
     private sealed class TestRelayCommand : System.Windows.Input.ICommand

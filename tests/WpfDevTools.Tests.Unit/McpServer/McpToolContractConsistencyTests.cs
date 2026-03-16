@@ -84,6 +84,7 @@ public class McpToolContractConsistencyTests
         description.Description.Should().Contain("omittedNodeCount");
         description.Description.Should().Contain("truncated");
         description.Description.Should().Contain("appliedOptions");
+        description.Description.Should().Contain("depthSufficiencyHint");
     }
 
     [Fact]
@@ -103,6 +104,8 @@ public class McpToolContractConsistencyTests
         typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.ExpectedOutcome))!.PropertyType.Should().Be(typeof(string));
         typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.WorkflowId))!.PropertyType.Should().Be(typeof(string));
         typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.PrefetchTools))!.PropertyType.Should().Be(typeof(IReadOnlyList<string>));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.WhyNow))!.PropertyType.Should().Be(typeof(string));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.Confidence))!.PropertyType.Should().Be(typeof(string));
     }
 
     [Fact]
@@ -129,6 +132,17 @@ public class McpToolContractConsistencyTests
         parameter.HasDefaultValue.Should().BeTrue();
         parameter.DefaultValue.Should().BeNull();
     }
+
+    [Fact]
+    public void FindBindingLeaks_ShouldExposeOptionalSamplingDurationMs()
+    {
+        var parameter = GetParameter(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.FindBindingLeaks), "samplingDurationMs");
+
+        parameter.ParameterType.Should().Be(typeof(int?));
+        parameter.HasDefaultValue.Should().BeTrue();
+        parameter.DefaultValue.Should().BeNull();
+    }
+
     [Fact]
     public void FireRoutedEvent_ShouldExposeOptionalEventArgs()
     {

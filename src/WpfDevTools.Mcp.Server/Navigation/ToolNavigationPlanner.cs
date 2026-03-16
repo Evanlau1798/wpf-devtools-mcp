@@ -64,7 +64,37 @@ public sealed class ToolNavigationPlanner(ToolNavigationRegistry registry)
         steps
             .Where(step => !string.Equals(step.Tool, toolName, StringComparison.Ordinal))
             .Where(step => excluded is null || !excluded.Any(existing => existing.Tool == step.Tool && existing.Params.GetRawText() == step.Params.GetRawText()))
+            .Select(step => step with
+            {
+                WhyNow = string.IsNullOrWhiteSpace(step.WhyNow) ? step.Reason : step.WhyNow,
+                Confidence = NormalizeConfidence(step.Confidence, step.Priority)
+            })
             .OrderBy(step => step.Priority)
             .Take(3)
             .ToArray();
+
+    private static string NormalizeConfidence(string? confidence, int priority)
+    {
+        if (string.Equals(confidence, "high", StringComparison.OrdinalIgnoreCase))
+        {
+            return "high";
+        }
+
+        if (string.Equals(confidence, "medium", StringComparison.OrdinalIgnoreCase))
+        {
+            return "medium";
+        }
+
+        if (string.Equals(confidence, "low", StringComparison.OrdinalIgnoreCase))
+        {
+            return "low";
+        }
+
+        return priority switch
+        {
+            <= 1 => "high",
+            2 => "medium",
+            _ => "low"
+        };
+    }
 }

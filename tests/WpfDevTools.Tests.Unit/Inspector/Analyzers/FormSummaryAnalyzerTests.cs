@@ -31,6 +31,8 @@ public sealed class FormSummaryAnalyzerTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("summary").GetProperty("totalInputs").GetInt32().Should().Be(2);
         result.GetProperty("summary").GetProperty("emptyInputs").GetInt32().Should().Be(2);
+        result.GetProperty("summary").GetProperty("validationSubmittable").GetBoolean().Should().BeTrue();
+        result.GetProperty("summary").GetProperty("interactionSubmittable").GetBoolean().Should().BeFalse();
         result.GetProperty("summary").GetProperty("isSubmittable").GetBoolean().Should().BeFalse();
         result.GetProperty("inputs")[0].GetProperty("label").GetString().Should().Be("Name");
     }
@@ -250,6 +252,8 @@ public sealed class FormSummaryAnalyzerTests
 
             result.GetProperty("success").GetBoolean().Should().BeTrue();
             result.GetProperty("summary").GetProperty("errorCount").GetInt32().Should().Be(1);
+            result.GetProperty("summary").GetProperty("validationSubmittable").GetBoolean().Should().BeFalse();
+            result.GetProperty("summary").GetProperty("interactionSubmittable").GetBoolean().Should().BeTrue();
             result.GetProperty("summary").GetProperty("isSubmittable").GetBoolean().Should().BeFalse();
         }
         finally

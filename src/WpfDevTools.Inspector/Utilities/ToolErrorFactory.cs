@@ -76,10 +76,11 @@ public static class ToolErrorFactory
     /// <summary>
     /// Create an element-not-loaded error payload.
     /// </summary>
-    public static ToolErrorPayload ElementNotLoaded(string message, string? hint = null) => Create(
+    public static ToolErrorPayload ElementNotLoaded(string message, string? hint = null, object? errorData = null) => Create(
         ToolErrorCode.ElementNotLoaded,
         message,
-        hint ?? "The element may not be loaded yet. Activate its parent window or tab and retry.");
+        hint ?? "The element may not be loaded yet. Activate its parent window or tab and retry.",
+        errorData);
 
     /// <summary>
     /// Create a structured runtime-failure payload for operations that failed after input validation.

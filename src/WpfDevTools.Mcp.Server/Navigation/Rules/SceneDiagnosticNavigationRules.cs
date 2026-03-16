@@ -99,6 +99,16 @@ internal static class SceneDiagnosticNavigationRules
                     ("elementId", elementId)));
             }
 
+            if (string.Equals(reason, "ElementInInactiveTab", StringComparison.Ordinal)
+                && TryGetNestedString(context.Payload, "activationTarget", "tabItemElementId", out var tabItemElementId))
+            {
+                AddUnique(steps, CreateAction(
+                    "click_element",
+                    1,
+                    "Activate the containing TabItem before retrying interaction on this element.",
+                    ("elementId", tabItemElementId)));
+            }
+
             if (reason.Contains("Visibility", StringComparison.OrdinalIgnoreCase))
             {
                 AddUnique(steps, CreateDiagnostic(
@@ -263,6 +273,29 @@ internal static class SceneDiagnosticNavigationRules
         if (element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String)
         {
             var candidate = property.GetString();
+            if (!string.IsNullOrWhiteSpace(candidate))
+            {
+                value = candidate;
+                return true;
+            }
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    private static bool TryGetNestedString(
+        JsonElement element,
+        string objectPropertyName,
+        string nestedPropertyName,
+        out string value)
+    {
+        if (element.TryGetProperty(objectPropertyName, out var objectProperty)
+            && objectProperty.ValueKind == JsonValueKind.Object
+            && objectProperty.TryGetProperty(nestedPropertyName, out var nestedProperty)
+            && nestedProperty.ValueKind == JsonValueKind.String)
+        {
+            var candidate = nestedProperty.GetString();
             if (!string.IsNullOrWhiteSpace(candidate))
             {
                 value = candidate;

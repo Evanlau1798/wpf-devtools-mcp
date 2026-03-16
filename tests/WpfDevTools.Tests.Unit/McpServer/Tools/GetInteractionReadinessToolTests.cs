@@ -93,6 +93,37 @@ public sealed class GetInteractionReadinessToolTests : IDisposable
         nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Button_2");
     }
 
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithInactiveTabBlockerAndActivationTarget_ShouldSuggestClickingTabItemFirst()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                elementId = "Button_3",
+                interactionType = "Click",
+                isReady = false,
+                blockers = new[]
+                {
+                    new { reason = "ElementInInactiveTab" }
+                },
+                activationPath = "MainTabControl -> DetailsTab",
+                activationTarget = new
+                {
+                    tabItemElementId = "TabItem_Details",
+                    tabItemName = "DetailsTab"
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Button_3")),
+            CancellationToken.None,
+            toolName: "get_interaction_readiness");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("click_element");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("TabItem_Details");
+    }
+
     private static async Task<ConnectedReadinessSession> CreateConnectedSessionAsync(int processId, string responseJson)
     {
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";

@@ -63,6 +63,9 @@ public sealed class InactiveTabSemanticsIntegrationTests
         result.GetProperty("success").GetBoolean().Should().BeFalse();
         result.GetProperty("errorCode").GetString().Should().Be("ElementNotLoaded");
         result.GetProperty("hint").GetString().Should().Contain("TabItem");
+        result.TryGetProperty("errorData", out var errorData).Should().BeTrue(result.GetRawText());
+        errorData.GetProperty("activationPath").GetString().Should().Contain("Inactive");
+        errorData.GetProperty("recommended").GetProperty("tool").GetString().Should().Be("click_element");
     }
 
     [Fact]
@@ -85,6 +88,31 @@ public sealed class InactiveTabSemanticsIntegrationTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("layoutState").GetString().Should().Be("NotRendered");
         result.GetProperty("notRenderedReason").GetString().Should().Be("ElementInInactiveTab");
+    }
+
+    [Fact]
+    public void GetInteractionReadiness_OnInactiveTabContent_ShouldExposeActivationPath()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var finder = new ElementFinder();
+            var analyzer = new InteractionAnalyzer(finder);
+            var tabControl = CreateTabbedWindowContent(out _, out var inactiveInput);
+
+            Application.Current.MainWindow.Content = tabControl;
+            Application.Current.MainWindow.Show();
+            Application.Current.MainWindow.UpdateLayout();
+
+            var elementId = finder.GenerateElementId(inactiveInput);
+            return JsonSerializer.SerializeToElement(analyzer.GetInteractionReadiness(elementId, "Click"));
+        });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("isReady").GetBoolean().Should().BeFalse();
+        result.TryGetProperty("activationPath", out var activationPath).Should().BeTrue(result.GetRawText());
+        activationPath.GetString().Should().Contain("Inactive");
+        result.TryGetProperty("activationTarget", out var activationTarget).Should().BeTrue(result.GetRawText());
+        activationTarget.GetProperty("tabItemElementId").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     private static TabControl CreateTabbedWindowContent(out Button activeButton, out TextBox inactiveInput)

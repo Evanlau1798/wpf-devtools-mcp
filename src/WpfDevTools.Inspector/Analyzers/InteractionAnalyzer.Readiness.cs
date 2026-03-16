@@ -32,6 +32,7 @@ public sealed partial class InteractionAnalyzer
 
             var normalizedInteractionType = string.IsNullOrWhiteSpace(interactionType) ? "Click" : interactionType!;
             var blockers = new List<object>();
+            InactiveTabActivationGuidance? activationGuidance = null;
 
             if (!frameworkElement.IsEnabled)
             {
@@ -59,7 +60,14 @@ public sealed partial class InteractionAnalyzer
                 var message = reason == "ElementInInactiveTab"
                     ? "Element belongs to an inactive TabItem and has not been rendered into the active visual tree yet."
                     : "Element has zero ActualWidth or ActualHeight.";
-                blockers.Add(CreateBlocker(reason, message));
+                if (reason == "ElementInInactiveTab")
+                {
+                    activationGuidance = InactiveTabActivationGuidanceBuilder.TryBuild(
+                        frameworkElement,
+                        dependencyObject => _elementFinder.GenerateElementId(dependencyObject));
+                }
+
+                blockers.Add(CreateBlocker(reason, message, activationGuidance));
             }
 
             if (frameworkElement is ButtonBase button && button.Command is ICommand command)
@@ -78,6 +86,14 @@ public sealed partial class InteractionAnalyzer
                 interactionType = normalizedInteractionType,
                 isReady = blockers.Count == 0,
                 blockers,
+                activationPath = activationGuidance?.ActivationPath,
+                activationTarget = activationGuidance is null
+                    ? null
+                    : new
+                    {
+                        tabItemElementId = activationGuidance.TabItemElementId,
+                        tabItemName = activationGuidance.TabItemName
+                    },
                 elementState = new
                 {
                     isEnabled = frameworkElement.IsEnabled,
@@ -90,9 +106,21 @@ public sealed partial class InteractionAnalyzer
         });
     }
 
-    private static object CreateBlocker(string reason, string message) => new
-    {
-        reason,
-        message
-    };
+    private static object CreateBlocker(
+        string reason,
+        string message,
+        InactiveTabActivationGuidance? activationGuidance = null) =>
+        activationGuidance is null
+            ? new
+            {
+                reason,
+                message
+            }
+            : new
+            {
+                reason,
+                message,
+                activationPath = activationGuidance.ActivationPath,
+                tabItemElementId = activationGuidance.TabItemElementId
+            };
 }

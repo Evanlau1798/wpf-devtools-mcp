@@ -57,7 +57,7 @@ public sealed partial class InteractionAnalyzer
                 var presentationSource = PresentationSource.FromVisual(uiElement);
                 if (presentationSource == null)
                 {
-                    return CreateDetachedVisualTreeError();
+                    return CreateDetachedVisualTreeError(uiElement);
                 }
 
                 if (routedEvent == Keyboard.KeyDownEvent &&

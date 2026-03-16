@@ -202,4 +202,61 @@ public sealed class BatchMutateToolTests
         result.GetProperty("mutations")[0].GetProperty("success").GetBoolean().Should().BeTrue();
         executedTools.Should().Equal("focus_element");
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WithStringifiedCaptureSnapshotObject_ShouldAcceptCompatibilityPayload()
+    {
+        var executedTools = new List<string>();
+        var tool = new BatchMutateTool(
+            new SessionManager(),
+            (toolName, args, _) =>
+            {
+                executedTools.Add(toolName);
+                return Task.FromResult<object>(new
+                {
+                    success = true,
+                    tool = toolName,
+                    propertyName = args.GetProperty("propertyName").GetString(),
+                    newValue = args.GetProperty("value").ToString()
+                });
+            },
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_batch_compat"
+            }),
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_batch_compat",
+                trigger = "batch_mutate",
+                propertyChanges = new[] { new { propertyName = "Text" } },
+                viewModelChanges = Array.Empty<object>(),
+                newBindingErrors = Array.Empty<object>(),
+                resolvedBindingErrors = Array.Empty<object>(),
+                validationChanges = Array.Empty<object>(),
+                focusChange = (object?)null
+            }));
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId = 12345,
+                captureSnapshot = JsonSerializer.Serialize(new
+                {
+                    propertyNames = new[] { "Text" }
+                }),
+                includeDiff = true,
+                mutations = new object[]
+                {
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Batch User" } }
+                }
+            }),
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("snapshotId").GetString().Should().Be("snapshot_batch_compat");
+        result.GetProperty("stateDiff").GetProperty("success").GetBoolean().Should().BeTrue();
+        executedTools.Should().Equal("modify_viewmodel");
+    }
 }

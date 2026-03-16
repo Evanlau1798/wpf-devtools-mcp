@@ -218,14 +218,19 @@ public sealed class BatchMutateTool : PipeConnectedToolBase
 
         var includeDiff = ParseBoolParam(arguments, "includeDiff") ?? false;
         BatchMutationSnapshot? captureSnapshot = null;
-        if (root.TryGetProperty("captureSnapshot", out var captureSnapshotElement))
+        if (!JsonCompatibilityPayloadParser.TryParseOptionalObjectProperty(
+                root,
+                "captureSnapshot",
+                out var captureSnapshotElement,
+                out var hasCaptureSnapshot,
+                out var captureSnapshotError))
         {
-            if (captureSnapshotElement.ValueKind != JsonValueKind.Object)
-            {
-                return (null, CreateInvalidParamError("captureSnapshot must be an object when provided."));
-            }
+            return (null, CreateInvalidParamError(captureSnapshotError!));
+        }
 
-            captureSnapshot = new BatchMutationSnapshot(captureSnapshotElement.Clone());
+        if (hasCaptureSnapshot)
+        {
+            captureSnapshot = new BatchMutationSnapshot(captureSnapshotElement);
         }
 
         if (includeDiff && captureSnapshot is null)

@@ -187,6 +187,33 @@ public sealed class FormSummaryE2eTests
         batch.GetProperty("mutations")[0].GetProperty("success").GetBoolean().Should().BeTrue();
     }
 
+    [Fact]
+    public async Task BatchMutate_ShouldAcceptStringifiedCaptureSnapshotCompatibilityPayload()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var batch = await _fixture.Client.CallToolAsync(
+            "batch_mutate",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                captureSnapshot = JsonSerializer.Serialize(new
+                {
+                    viewModelPropertyNames = new[] { "Name" }
+                }),
+                includeDiff = true,
+                mutations = new object[]
+                {
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Compat Snapshot User" } }
+                }
+            });
+
+        batch.GetProperty("success").GetBoolean().Should().BeTrue(batch.GetRawText());
+        batch.GetProperty("snapshotId").GetString().Should().NotBeNullOrWhiteSpace();
+        batch.GetProperty("stateDiff").GetProperty("success").GetBoolean().Should().BeTrue();
+        batch.GetProperty("executedMutationCount").GetInt32().Should().Be(1);
+    }
+
     private async Task ResetFormAsync()
     {
         await _fixture.Client.CallToolAsync("modify_viewmodel", new

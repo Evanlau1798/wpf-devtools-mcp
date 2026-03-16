@@ -34,7 +34,7 @@ public static class MutationBatchMcpTools
     public static Task<CallToolResult> BatchMutate(
         SessionManager sessionManager,
         [Description("Mutation steps encoded as a JSON array or a stringified JSON array for compatibility. Each step must include tool and may include label plus args.")] object? mutations = null,
-        [Description("Optional capture_state_snapshot request encoded as raw JSON object. Required when includeDiff=true.")] JsonElement? captureSnapshot = null,
+        [Description("Optional capture_state_snapshot request encoded as a raw JSON object or a stringified JSON object for compatibility. Required when includeDiff=true.")] object? captureSnapshot = null,
         [Description("Optional flag to run get_state_diff after all mutations succeed. Requires captureSnapshot.")] bool includeDiff = false,
         [Description("Optional trigger label forwarded to get_state_diff. Defaults to 'batch_mutate'.")] string? trigger = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,

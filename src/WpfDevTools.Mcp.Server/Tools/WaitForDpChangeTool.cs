@@ -27,14 +27,22 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             expectedValue = expectedValueProperty.Clone();
         }
         JsonElement? triggerMutation = null;
-        if (arguments.HasValue && arguments.Value.TryGetProperty("triggerMutation", out var triggerMutationProperty))
+        var parsedTriggerMutation = default(JsonElement);
+        var hasTriggerMutation = false;
+        if (arguments.HasValue
+            && !JsonCompatibilityPayloadParser.TryParseOptionalObjectProperty(
+                arguments.Value,
+                "triggerMutation",
+                out parsedTriggerMutation,
+                out hasTriggerMutation,
+                out var triggerMutationError))
         {
-            if (triggerMutationProperty.ValueKind != JsonValueKind.Object)
-            {
-                return CreateInvalidParamError("triggerMutation must be an object when provided.");
-            }
+            return CreateInvalidParamError(triggerMutationError!);
+        }
 
-            triggerMutation = triggerMutationProperty.Clone();
+        if (arguments.HasValue && hasTriggerMutation)
+        {
+            triggerMutation = parsedTriggerMutation;
         }
 
         const int defaultTimeoutMs = 5000;

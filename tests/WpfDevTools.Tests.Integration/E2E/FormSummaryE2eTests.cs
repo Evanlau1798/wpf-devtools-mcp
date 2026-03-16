@@ -33,6 +33,8 @@ public sealed class FormSummaryE2eTests
         result.GetProperty("summary").GetProperty("totalInputs").GetInt32().Should().BeGreaterThanOrEqualTo(2);
         result.GetProperty("summary").GetProperty("isSubmittable").GetBoolean().Should().BeFalse();
         result.GetProperty("summary").GetProperty("errorCount").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("summary").TryGetProperty("validationSubmittable", out _).Should().BeTrue();
+        result.GetProperty("summary").TryGetProperty("interactionSubmittable", out _).Should().BeTrue();
     }
 
     [Fact]
@@ -63,6 +65,8 @@ public sealed class FormSummaryE2eTests
             });
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("summary").GetProperty("validationSubmittable").GetBoolean().Should().BeTrue();
+        result.GetProperty("summary").GetProperty("interactionSubmittable").GetBoolean().Should().BeTrue();
         result.GetProperty("summary").GetProperty("isSubmittable").GetBoolean().Should().BeTrue();
         result.GetProperty("summary").GetProperty("errorCount").GetInt32().Should().Be(0);
     }
@@ -162,6 +166,8 @@ public sealed class FormSummaryE2eTests
             });
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("summary").GetProperty("validationSubmittable").GetBoolean().Should().BeTrue();
+        result.GetProperty("summary").GetProperty("interactionSubmittable").GetBoolean().Should().BeTrue();
         result.GetProperty("summary").GetProperty("isSubmittable").GetBoolean().Should().BeTrue();
         result.GetProperty("summary").GetProperty("errorCount").GetInt32().Should().Be(0);
     }

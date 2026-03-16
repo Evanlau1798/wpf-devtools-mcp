@@ -456,6 +456,9 @@ public abstract partial class PipeConnectedToolBase
             droppedEventCount.WriteTo(writer);
         }
 
+        writer.WriteString("pendingEventsOrigin", "piggybackSharedBuffer");
+        writer.WriteBoolean("pendingEventsMayIncludePriorContext", true);
+
         if (drainPayload.TryGetProperty("pendingEvents", out var pendingEvents))
         {
             writer.WritePropertyName("pendingEvents");

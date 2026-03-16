@@ -65,6 +65,8 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         connected.RequestMethods.Should().Equal("get_binding_errors", "drain_events");
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("pendingEventCount").GetInt32().Should().Be(1);
+        result.GetProperty("pendingEventsOrigin").GetString().Should().Be("piggybackSharedBuffer");
+        result.GetProperty("pendingEventsMayIncludePriorContext").GetBoolean().Should().BeTrue();
 
         var pendingEvent = result.GetProperty("pendingEvents")[0];
         pendingEvent.GetProperty("eventType").GetString().Should().Be("BindingError");
@@ -115,6 +117,8 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         connected.RequestMethods.Should().Equal("get_binding_errors", "drain_events");
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("pendingEventCount").GetInt32().Should().Be(1);
+        result.GetProperty("pendingEventsOrigin").GetString().Should().Be("piggybackSharedBuffer");
+        result.GetProperty("pendingEventsMayIncludePriorContext").GetBoolean().Should().BeTrue();
 
         var pendingEvent = result.GetProperty("pendingEvents")[0];
         pendingEvent.GetProperty("eventType").GetString().Should().Be("DpChange");

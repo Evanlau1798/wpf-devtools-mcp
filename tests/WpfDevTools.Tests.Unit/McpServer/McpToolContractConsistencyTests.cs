@@ -104,6 +104,8 @@ public class McpToolContractConsistencyTests
         typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.ExpectedOutcome))!.PropertyType.Should().Be(typeof(string));
         typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.WorkflowId))!.PropertyType.Should().Be(typeof(string));
         typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.PrefetchTools))!.PropertyType.Should().Be(typeof(IReadOnlyList<string>));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.WhyNow))!.PropertyType.Should().Be(typeof(string));
+        typeof(ToolNextStep).GetProperty(nameof(ToolNextStep.Confidence))!.PropertyType.Should().Be(typeof(string));
     }
 
     [Fact]

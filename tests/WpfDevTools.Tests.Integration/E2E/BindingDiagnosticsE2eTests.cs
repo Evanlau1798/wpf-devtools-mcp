@@ -71,6 +71,13 @@ public sealed class BindingDiagnosticsE2eTests
         contextRefs[0].TryGetProperty("diagnosis", out _).Should().BeTrue();
         result.TryGetProperty("nextSteps", out var nextSteps).Should().BeTrue();
         nextSteps.ValueKind.Should().Be(JsonValueKind.Array);
+        if (nextSteps.GetArrayLength() > 0)
+        {
+            nextSteps[0].TryGetProperty("whyNow", out var whyNow).Should().BeTrue();
+            whyNow.GetString().Should().NotBeNullOrWhiteSpace();
+            nextSteps[0].TryGetProperty("confidence", out var confidence).Should().BeTrue();
+            confidence.GetString().Should().NotBeNullOrWhiteSpace();
+        }
     }
 
     [Fact]

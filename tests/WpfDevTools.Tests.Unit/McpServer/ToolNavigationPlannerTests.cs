@@ -46,6 +46,10 @@ public sealed class ToolNavigationPlannerTests : IDisposable
         var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
         nextSteps.GetArrayLength().Should().Be(1);
         nextSteps[0].GetProperty("tool").GetString().Should().Be("get_bindings");
+        nextSteps[0].TryGetProperty("whyNow", out var whyNow).Should().BeTrue();
+        whyNow.GetString().Should().NotBeNullOrWhiteSpace();
+        nextSteps[0].TryGetProperty("confidence", out var confidence).Should().BeTrue();
+        confidence.GetString().Should().Be("high");
         capturedContext.Should().NotBeNull();
         capturedContext!.ToolName.Should().Be("known_tool");
         capturedContext.Payload.GetProperty("errorCount").GetInt32().Should().Be(1);

@@ -139,6 +139,27 @@ public static class E2eTestHelpers
         return SearchTreeForName(tree, elementName);
     }
 
+    public static async Task<string?> WaitForElementByNameAsync(
+        McpStdioClient client,
+        int processId,
+        string elementName,
+        int attempts = 10,
+        int delayMs = 100)
+    {
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            var elementId = await FindElementByNameAsync(client, processId, elementName);
+            if (!string.IsNullOrWhiteSpace(elementId))
+            {
+                return elementId;
+            }
+
+            await Task.Delay(delayMs);
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Truncate a string for safe inclusion in log/error messages.
     /// </summary>

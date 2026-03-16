@@ -18,31 +18,32 @@ public sealed class PendingEventsPiggybackE2eTests
     public async Task SetDpValue_WithPiggybackedPendingEvents_ShouldAnnotateSharedBufferCarryover()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
 
-        var buttonElementId = await E2eTestHelpers.FindElementByTypeAsync(
+        var textBoxElementId = await E2eTestHelpers.WaitForElementByNameAsync(
             _fixture.Client,
             _fixture.TestAppProcessId,
-            "Button");
-        buttonElementId.Should().NotBeNull("TestApp should contain a button for width watch coverage");
+            "NameTextBox");
+        textBoxElementId.Should().NotBeNull("TestApp should expose NameTextBox through the root namescope");
 
         var watch = await _fixture.Client.CallToolAsync(
-            "watch_dp_changes",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                elementId = buttonElementId,
-                propertyName = "Width"
+                "watch_dp_changes",
+                new
+                {
+                    processId = _fixture.TestAppProcessId,
+                elementId = textBoxElementId,
+                propertyName = "Text"
             });
         watch.GetProperty("success").GetBoolean().Should().BeTrue();
 
         var mutation = await _fixture.Client.CallToolAsync(
-            "set_dp_value",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                elementId = buttonElementId,
-                propertyName = "Width",
-                value = 222
+                "set_dp_value",
+                new
+                {
+                    processId = _fixture.TestAppProcessId,
+                elementId = textBoxElementId,
+                propertyName = "Text",
+                value = "piggyback-e2e"
             });
 
         mutation.GetProperty("success").GetBoolean().Should().BeTrue();
@@ -52,18 +53,38 @@ public sealed class PendingEventsPiggybackE2eTests
 
         var pendingDpEvent = mutation.GetProperty("pendingEvents").EnumerateArray().Single(item =>
             item.GetProperty("eventType").GetString() == "DpChange"
-            && item.GetProperty("elementId").GetString() == buttonElementId
-            && item.GetProperty("propertyName").GetString() == "Width");
+            && item.GetProperty("elementId").GetString() == textBoxElementId
+            && item.GetProperty("propertyName").GetString() == "Text");
         pendingDpEvent.TryGetProperty("sourceKey", out _).Should().BeFalse();
 
         var cleanup = await _fixture.Client.CallToolAsync(
-            "clear_dp_value",
+                "clear_dp_value",
+                new
+                {
+                    processId = _fixture.TestAppProcessId,
+                elementId = textBoxElementId,
+                propertyName = "Text"
+            });
+        cleanup.GetProperty("success").GetBoolean().Should().BeTrue();
+    }
+
+    private async Task ActivateBasicControlsTabAsync()
+    {
+        var tabId = await E2eTestHelpers.WaitForElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            "BasicControlsTab");
+        tabId.Should().NotBeNull("TestApp should expose BasicControlsTab through the root namescope");
+
+        var clickResult = await _fixture.Client.CallToolAsync(
+            "click_element",
             new
             {
                 processId = _fixture.TestAppProcessId,
-                elementId = buttonElementId,
-                propertyName = "Width"
+                elementId = tabId,
+                navigation = false
             });
-        cleanup.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        clickResult.GetProperty("success").GetBoolean().Should().BeTrue();
     }
 }

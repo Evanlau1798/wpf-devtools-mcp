@@ -406,11 +406,11 @@ public sealed class BindingDiagnosticsE2eTests
 
         await ActivateDetailDiagnosticsTabAsync();
 
-        var generatedText1Id = await E2eTestHelpers.FindElementByNameAsync(
+        var generatedText1Id = await E2eTestHelpers.WaitForElementByNameAsync(
             _fixture.Client,
             _fixture.TestAppProcessId,
             "GeneratedDetailText1");
-        var generatedText2Id = await E2eTestHelpers.FindElementByNameAsync(
+        var generatedText2Id = await E2eTestHelpers.WaitForElementByNameAsync(
             _fixture.Client,
             _fixture.TestAppProcessId,
             "GeneratedDetailText2");

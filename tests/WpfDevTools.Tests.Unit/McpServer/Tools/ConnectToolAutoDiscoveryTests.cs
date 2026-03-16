@@ -12,6 +12,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("ProcessDiscovery")]
 public sealed class ConnectToolAutoDiscoveryTests : IDisposable
 {
     private string? _dummyBootstrapperPath;

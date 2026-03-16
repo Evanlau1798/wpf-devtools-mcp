@@ -11,6 +11,7 @@ using WpfDevTools.Shared.Enums;
 
 namespace WpfDevTools.Tests.Integration;
 
+[Collection("LiveBootstrapIntegration")]
 public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
 {
     private string? _dummyBootstrapperPath;

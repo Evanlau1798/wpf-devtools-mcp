@@ -25,6 +25,10 @@ public static class PerformanceMcpTools
         "{\n" +
         "  success: boolean,\n" +
         "  isWarmedUp: boolean,\n" +
+        "  confidence: 'low'|'medium'|'high',\n" +
+        "  minimumRecommendedSampleCount: number,\n" +
+        "  minimumRecommendedMonitoringDurationMs: number,\n" +
+        "  sampleGuidance: string,\n" +
         "  sampleCount: number,\n" +
         "  sampleWindowSize: number,\n" +
         "  frameRate: number,\n" +
@@ -64,6 +68,10 @@ public static class PerformanceMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  confidence: 'low'|'medium'|'high',\n" +
+        "  samplingDurationMs: number,\n" +
+        "  minimumRecommendedSamplingDurationMs: number,\n" +
+        "  sampleGuidance: string,\n" +
         "  totalTracked: number,\n" +
         "  aliveBindings: number,\n" +
         "  deadBindings: number,\n" +
@@ -74,21 +82,25 @@ public static class PerformanceMcpTools
         "  }],\n" +
         "  potentialLeaks: [{ type, hashCode, toString }]\n" +
         "}\n\n" +
-        "Empty suspects array means no leak candidates crossed the threshold. potentialLeaks retains raw diagnostic samples for backward compatibility.\n\n" +
+        "Empty suspects array means no leak candidates crossed the threshold. potentialLeaks retains raw diagnostic samples for backward compatibility. " +
+        "Use samplingDurationMs>=3000 for higher-confidence leak diagnostics.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
-        "- { processId: 12345, threshold: 50 }")]
+        "- { processId: 12345, threshold: 50 }\n" +
+        "- { processId: 12345, threshold: 50, samplingDurationMs: 3000 }")]
     public static Task<CallToolResult> FindBindingLeaks(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional minimum live-binding count that should be flagged as suspicious.")] int? threshold = null,
+        [Description("Optional sampling duration in milliseconds before evaluating leak signals. Recommended: >=3000 for higher-confidence output.")] int? samplingDurationMs = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("threshold", threshold));
+            ("threshold", threshold),
+            ("samplingDurationMs", samplingDurationMs));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<FindBindingLeaksTool>("FindBindingLeaksTool", () => new FindBindingLeaksTool(sessionManager)).ExecuteAsync(a, ct),
@@ -108,6 +120,9 @@ public static class PerformanceMcpTools
         "{\n" +
         "  success: boolean,\n" +
         "  renderTimeMs: number,\n" +
+        "  confidence: 'low',\n" +
+        "  recommendedSampleCount: number,\n" +
+        "  sampleGuidance: string,\n" +
         "  elementId\n" +
         "}\n\n" +
         "ERRORS:\n" +

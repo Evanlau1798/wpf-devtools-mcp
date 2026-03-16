@@ -130,6 +130,17 @@ public class McpToolContractConsistencyTests
         parameter.HasDefaultValue.Should().BeTrue();
         parameter.DefaultValue.Should().BeNull();
     }
+
+    [Fact]
+    public void FindBindingLeaks_ShouldExposeOptionalSamplingDurationMs()
+    {
+        var parameter = GetParameter(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.FindBindingLeaks), "samplingDurationMs");
+
+        parameter.ParameterType.Should().Be(typeof(int?));
+        parameter.HasDefaultValue.Should().BeTrue();
+        parameter.DefaultValue.Should().BeNull();
+    }
+
     [Fact]
     public void FireRoutedEvent_ShouldExposeOptionalEventArgs()
     {

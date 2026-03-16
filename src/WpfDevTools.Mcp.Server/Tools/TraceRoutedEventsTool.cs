@@ -26,6 +26,7 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
 
         var eventName = ParseStringParam(arguments, "eventName");
         var duration = ParseIntParam(arguments, "duration");
+        var allowShortStartDuration = ParseBoolParam(arguments, "allowShortStartDuration") ?? false;
 
         if (mode != "get" && string.IsNullOrEmpty(eventName))
         {
@@ -35,7 +36,7 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         var response = await SendInspectorRequestAsync(
             processId,
             "trace_routed_events",
-            new { elementId, eventName, duration, mode },
+            new { elementId, eventName, duration, mode, allowShortStartDuration },
             cancellationToken);
 
         SynchronizeTraceNavigationState(processId, elementId, eventName, mode, response);

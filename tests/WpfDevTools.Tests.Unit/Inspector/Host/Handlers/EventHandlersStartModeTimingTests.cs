@@ -88,4 +88,33 @@ public class EventHandlersStartModeTimingTests
         payload.GetProperty("effectiveDuration").GetInt32().Should().Be(requestedDuration,
             "When requested duration exceeds minimum, effective should equal requested");
     }
+
+    [StaFact]
+    public async Task StartMode_WithShortDurationOverride_ShouldHonorRequestedDuration()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var handler = new EventHandlers(analyzer);
+
+        var button = new System.Windows.Controls.Button();
+        var elementId = finder.GenerateElementId(button);
+
+        var requestedDuration = 1200;
+        var @params = JsonSerializer.SerializeToElement(new
+        {
+            mode = "start",
+            elementId,
+            eventName = "Click",
+            duration = requestedDuration,
+            allowShortStartDuration = true
+        });
+
+        var result = await handler.HandleAsync("trace_routed_events", @params, CancellationToken.None);
+        var payload = JsonSerializer.SerializeToElement(result);
+
+        payload.GetProperty("success").GetBoolean().Should().BeTrue();
+        payload.GetProperty("requestedDuration").GetInt32().Should().Be(requestedDuration);
+        payload.GetProperty("effectiveDuration").GetInt32().Should().Be(requestedDuration);
+        payload.GetProperty("shortDurationOverrideUsed").GetBoolean().Should().BeTrue();
+    }
 }

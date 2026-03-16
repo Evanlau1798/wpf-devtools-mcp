@@ -133,7 +133,43 @@ public class TraceRoutedEventsToolTests
         state!.ActiveTrace.Should().BeNull();
     }
 
-    private static async Task<ConnectedTraceSession> CreateConnectedSessionAsync(int processId, string responseJson)
+    [Fact]
+    public async Task Execute_WithShortStartOverride_ShouldForwardCompatibilityFlag()
+    {
+        const int processId = 22003;
+        JsonElement? capturedParams = null;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            """{"success":true,"mode":"start","eventName":"Click","isTracing":true,"effectiveDuration":1200,"shortDurationOverrideUsed":true}""",
+            request =>
+            {
+                if (request.Method == "trace_routed_events")
+                {
+                    capturedParams = request.Params;
+                }
+            });
+        var tool = new TraceRoutedEventsTool(connected.SessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            eventName = "Click",
+            mode = "start",
+            duration = 1200,
+            allowShortStartDuration = true
+        }), CancellationToken.None);
+
+        JsonSerializer.SerializeToElement(result).GetProperty("success").GetBoolean().Should().BeTrue();
+        capturedParams.HasValue.Should().BeTrue();
+        capturedParams!.Value.TryGetProperty("allowShortStartDuration", out var forwardedFlag)
+            .Should().BeTrue(capturedParams.Value.GetRawText());
+        forwardedFlag.GetBoolean().Should().BeTrue();
+    }
+
+    private static async Task<ConnectedTraceSession> CreateConnectedSessionAsync(
+        int processId,
+        string responseJson,
+        Action<InspectorRequest>? inspectRequest = null)
     {
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
         var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
@@ -148,6 +184,7 @@ public class TraceRoutedEventsToolTests
                     var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
                     var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
                     request.Should().NotBeNull();
+                    inspectRequest?.Invoke(request!);
 
                     var response = new InspectorResponse
                     {

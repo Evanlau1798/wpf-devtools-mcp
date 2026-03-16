@@ -65,10 +65,16 @@ public class EventHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
         var eventName = ParameterHelpers.GetStringParam(@params, "eventName");
         var duration = ParameterHelpers.GetIntParam(@params, "duration") ?? InspectorConstants.Defaults.EventTraceDuration;
+        var allowShortStartDuration = ParameterHelpers.GetBoolParam(@params, "allowShortStartDuration") ?? false;
 
-        // For "start" mode, enforce minimum duration to ensure AI agent has time for IPC round-trips
+        var shortDurationOverrideUsed = mode == "start"
+            && allowShortStartDuration
+            && duration < InspectorConstants.Defaults.StartModeMinDuration;
+
         var effectiveDuration = mode == "start"
-            ? Math.Max(duration, InspectorConstants.Defaults.StartModeMinDuration)
+            ? shortDurationOverrideUsed
+                ? duration
+                : Math.Max(duration, InspectorConstants.Defaults.StartModeMinDuration)
             : duration;
 
         if (string.IsNullOrEmpty(eventName))
@@ -95,8 +101,11 @@ public class EventHandlers : IRequestHandler
                 eventName,
                 requestedDuration = duration,
                 effectiveDuration,
+                shortDurationOverrideUsed,
                 isTracing = true,
-                message = duration != effectiveDuration
+                message = shortDurationOverrideUsed
+                    ? $"Started tracing '{eventName}' for {effectiveDuration}ms using explicit short-duration override"
+                    : duration != effectiveDuration
                     ? $"Started tracing '{eventName}' for {effectiveDuration}ms (requested {duration}ms, enforced minimum {InspectorConstants.Defaults.StartModeMinDuration}ms for AI agent round-trips)"
                     : startPayload.TryGetProperty("message", out var messageProperty)
                         ? messageProperty.GetString()

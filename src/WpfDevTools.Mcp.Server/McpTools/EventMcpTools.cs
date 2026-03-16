@@ -31,8 +31,8 @@ public static class EventMcpTools
         "- capture mode:\n" +
         "  { success, mode: \"capture\", eventName, duration, isTracing, eventCount, events, handlerInvocationCount }\n" +
         "- start mode:\n" +
-        "  { success, mode: \"start\", eventName, requestedDuration, effectiveDuration, isTracing, message }\n" +
-        "  NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced for AI agent IPC round-trips)\n" +
+        "  { success, mode: \"start\", eventName, requestedDuration, effectiveDuration, shortDurationOverrideUsed, isTracing, message }\n" +
+        "  NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced by default for AI agent IPC round-trips). Set `allowShortStartDuration=true` to opt into a shorter explicit window.\n" +
         "- get mode:\n" +
         "  { success, mode: \"get\", isTracing, eventCount, events, handlerInvocationCount }\n\n" +
         "TIP: For AI-driven automation, prefer `mode=\"start\"` + `click_element`/`fire_routed_event` + `mode=\"get\"` so the capture window is not blocked by the current request.\n\n" +
@@ -44,6 +44,7 @@ public static class EventMcpTools
         "EXAMPLES:\n" +
         "- { processId: 12345, eventName: \"MouseDown\", durationMs: 500 }\n" +
         "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", mode: \"start\", durationMs: 1000 }\n" +
+        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", mode: \"start\", durationMs: 1000, allowShortStartDuration: true }\n" +
         "- { processId: 12345, mode: \"get\" }")]
     public static Task<CallToolResult> TraceRoutedEvents(
         SessionManager sessionManager,
@@ -52,6 +53,7 @@ public static class EventMcpTools
         [Description("Optional element ID to scope the event trace. Omit for the root window.")] string? elementId = null,
         [Description("Optional capture window in milliseconds (default: 5000). Use smaller values (250-2000) for interactive STDIO sessions.")] int? durationMs = null,
         [Description("Optional tracing mode: `capture` (default), `start`, or `get`. Use `start` + `get` for AI-friendly non-blocking workflows.")] string? mode = null,
+        [Description("Optional opt-in override for start mode. When true, short requested durations are honored instead of being raised to the default 30s minimum.")] bool allowShortStartDuration = false,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -59,7 +61,8 @@ public static class EventMcpTools
             ("elementId", elementId),
             ("eventName", eventName),
             ("duration", durationMs),
-            ("mode", mode));
+            ("mode", mode),
+            ("allowShortStartDuration", allowShortStartDuration));
 
         var timeoutSeconds = Math.Max(
             McpServerConfiguration.DefaultToolTimeoutSeconds,

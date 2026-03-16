@@ -84,6 +84,7 @@ public class McpToolContractConsistencyTests
         description.Description.Should().Contain("omittedNodeCount");
         description.Description.Should().Contain("truncated");
         description.Description.Should().Contain("appliedOptions");
+        description.Description.Should().Contain("depthSufficiencyHint");
     }
 
     [Fact]

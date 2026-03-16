@@ -16,6 +16,7 @@ public sealed class TreeMcpToolDocumentationTests
         content.Should().Contain("truncated");
         content.Should().Contain("appliedOptions");
         content.Should().Contain("maxChildrenPerNode");
+        content.Should().Contain("depthSufficiencyHint");
     }
 
     private static string GetRepoFilePath(string relativePath)

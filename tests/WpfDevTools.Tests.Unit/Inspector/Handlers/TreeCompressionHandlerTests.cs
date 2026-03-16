@@ -88,6 +88,50 @@ public class TreeCompressionHandlerTests
         json.GetProperty("truncated").GetBoolean().Should().BeTrue();
     }
 
+    [StaFact]
+    public async Task GetVisualTree_WithDepthLimit_ShouldReportDepthSufficiencyHint()
+    {
+        var finder = new ElementFinder();
+        var root = new StackPanel();
+        var nested = new StackPanel();
+        nested.Children.Add(new Button { Name = "Leaf" });
+        root.Children.Add(nested);
+        var elementId = finder.GenerateElementId(root);
+        var handler = CreateHandler(finder);
+        var parameters = ToJsonElement(new { elementId, depth = 0 });
+
+        var result = await handler.HandleAsync("get_visual_tree", parameters, CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        var hint = json.GetProperty("depthSufficiencyHint");
+        hint.GetProperty("isSufficient").GetBoolean().Should().BeFalse();
+        hint.GetProperty("reasonCode").GetString().Should().Be("depthLimitReached");
+        hint.GetProperty("currentDepth").GetInt32().Should().Be(0);
+        hint.GetProperty("recommendedDepth").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    [StaFact]
+    public async Task GetLogicalTree_WithDepthLimit_ShouldReportDepthSufficiencyHint()
+    {
+        var finder = new ElementFinder();
+        var root = new StackPanel();
+        var nested = new StackPanel();
+        nested.Children.Add(new Button { Name = "Leaf" });
+        root.Children.Add(nested);
+        var elementId = finder.GenerateElementId(root);
+        var handler = CreateHandler(finder);
+        var parameters = ToJsonElement(new { elementId, depth = 0 });
+
+        var result = await handler.HandleAsync("get_logical_tree", parameters, CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        var hint = json.GetProperty("depthSufficiencyHint");
+        hint.GetProperty("isSufficient").GetBoolean().Should().BeFalse();
+        hint.GetProperty("reasonCode").GetString().Should().Be("depthLimitReached");
+        hint.GetProperty("currentDepth").GetInt32().Should().Be(0);
+        hint.GetProperty("recommendedDepth").GetInt32().Should().BeGreaterThan(0);
+    }
+
     private static TreeHandlers CreateHandler(ElementFinder finder)
     {
         return new TreeHandlers(

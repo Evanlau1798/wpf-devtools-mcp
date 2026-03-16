@@ -52,17 +52,19 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
             var budget = new TreeTraversalBudget(options.MaxNodes);
             budget.TryTakeNode();
+            var depthHintTracker = new TreeDepthSufficiencyTracker(options.MaxDepth);
 
             if (options.SummaryOnly)
             {
                 var nodes = new List<object?[]>();
-                CollectSummary(resolvedRoot, parentId: null, options, currentDepth: 0, budget, nodes);
+                CollectSummary(resolvedRoot, parentId: null, options, currentDepth: 0, budget, nodes, depthHintTracker);
                 return new
                 {
                     success = true,
                     format = "flat-summary-v1",
                     columns = SummaryColumns,
                     nodes,
+                    depthSufficiencyHint = depthHintTracker.BuildHint(),
                     returnedNodeCount = budget.ReturnedNodeCount,
                     omittedNodeCount = budget.OmittedNodeCount,
                     truncated = budget.Truncated,
@@ -70,11 +72,12 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
                 };
             }
 
-            var tree = BuildTreeNode(resolvedRoot, options, currentDepth: 0, budget);
+            var tree = BuildTreeNode(resolvedRoot, options, currentDepth: 0, budget, depthHintTracker);
             return new
             {
                 success = true,
                 tree,
+                depthSufficiencyHint = depthHintTracker.BuildHint(),
                 returnedNodeCount = budget.ReturnedNodeCount,
                 omittedNodeCount = budget.OmittedNodeCount,
                 truncated = budget.Truncated,
@@ -251,7 +254,8 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
             var budget = new TreeTraversalBudget(maxNodes: null);
             budget.TryTakeNode();
             var options = TreeTraversalOptions.Create(maxDepth, compact: null, summaryOnly: null, maxNodes: null, maxChildrenPerNode: null);
-            var tree = BuildTreeNode(templateRoot, options, currentDepth: 0, budget);
+            var depthHintTracker = new TreeDepthSufficiencyTracker(options.MaxDepth);
+            var tree = BuildTreeNode(templateRoot, options, currentDepth: 0, budget, depthHintTracker);
             return new { success = true, tree };
         });
     }
@@ -260,12 +264,23 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         DependencyObject element,
         TreeTraversalOptions options,
         int currentDepth,
-        TreeTraversalBudget budget)
+        TreeTraversalBudget budget,
+        TreeDepthSufficiencyTracker depthHintTracker)
     {
         var childCount = VisualTreeHelper.GetChildrenCount(element);
         var node = CreateNodeMap(element, childCount, options.Compact);
 
-        if (currentDepth >= options.MaxDepth || childCount == 0)
+        if (currentDepth >= options.MaxDepth)
+        {
+            if (childCount > 0)
+            {
+                depthHintTracker.MarkDepthLimitedBranch();
+            }
+
+            return node;
+        }
+
+        if (childCount == 0)
         {
             return node;
         }
@@ -296,7 +311,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
                 break;
             }
 
-            children.Add(BuildTreeNode(child, options, currentDepth + 1, budget));
+            children.Add(BuildTreeNode(child, options, currentDepth + 1, budget, depthHintTracker));
         }
 
         if (children.Count > 0)
@@ -322,7 +337,8 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         TreeTraversalOptions options,
         int currentDepth,
         TreeTraversalBudget budget,
-        List<object?[]> nodes)
+        List<object?[]> nodes,
+        TreeDepthSufficiencyTracker depthHintTracker)
     {
         var elementId = _elementFinder.GenerateElementId(element);
         var childCount = VisualTreeHelper.GetChildrenCount(element);
@@ -337,7 +353,17 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
             parentId
         });
 
-        if (currentDepth >= options.MaxDepth || childCount == 0)
+        if (currentDepth >= options.MaxDepth)
+        {
+            if (childCount > 0)
+            {
+                depthHintTracker.MarkDepthLimitedBranch();
+            }
+
+            return;
+        }
+
+        if (childCount == 0)
         {
             return;
         }
@@ -364,7 +390,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
                 break;
             }
 
-            CollectSummary(child, elementId, options, currentDepth + 1, budget, nodes);
+            CollectSummary(child, elementId, options, currentDepth + 1, budget, nodes, depthHintTracker);
         }
     }
 

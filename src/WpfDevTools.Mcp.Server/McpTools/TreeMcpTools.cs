@@ -24,11 +24,12 @@ public static class TreeMcpTools
         "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table, maxNodes caps total returned nodes, maxChildrenPerNode caps fan-out per level.\n\n" +
         "RESPONSE FORMAT:\n" +
         "Nested mode:\n" +
-        "{ success, tree, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "{ success, tree, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
         "- tree: { elementId, type, name?, childCount, children?, omittedChildCount? }\n" +
         "Summary mode (summaryOnly=true):\n" +
-        "{ success, format: \"flat-summary-v1\", columns, nodes, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "{ success, format: \"flat-summary-v1\", columns, nodes, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
         "- columns: [elementId, type, name, childCount, depth, parentId]\n\n" +
+        "- depthSufficiencyHint: { isSufficient, reasonCode, currentDepth, recommendedDepth, suggestion } when deeper traversal is likely required\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId from previous get_visual_tree call\n\n" +
@@ -72,11 +73,12 @@ public static class TreeMcpTools
         "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table, maxNodes caps total returned nodes, maxChildrenPerNode caps fan-out per level.\n\n" +
         "RESPONSE FORMAT:\n" +
         "Nested mode:\n" +
-        "{ success, tree, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "{ success, tree, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
         "- tree: { elementId, type, name?, childCount, children?, omittedChildCount? }\n" +
         "Summary mode (summaryOnly=true):\n" +
-        "{ success, format: \"flat-summary-v1\", columns, nodes, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "{ success, format: \"flat-summary-v1\", columns, nodes, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
         "- columns: [elementId, type, name, childCount, depth, parentId]\n\n" +
+        "- depthSufficiencyHint: { isSufficient, reasonCode, currentDepth, recommendedDepth, suggestion } when deeper traversal is likely required\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId is valid\n\n" +

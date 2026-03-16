@@ -20,6 +20,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
     private static bool _isTracing = false;
     private static CancellationTokenSource? _tracingCts = null;
     private static ActiveTraceSession? _activeTraceSession = null;
+    private static TraceSessionMetadata? _lastTraceMetadata = null;
     private static int _handlerInvocationCount = 0;
 
     // Reflection support for GetEventHandlers
@@ -91,12 +92,18 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
 
             // Build handler and register on multiple points for robustness
             var traceElementId = elementId ?? _elementFinder.GenerateElementId(uiElement);
+            var traceMetadata = new TraceSessionMetadata(
+                eventName,
+                traceElementId,
+                DateTimeOffset.UtcNow,
+                cappedDuration);
             var handler = CreateTraceHandler(traceElementId);
             var registrations = RegisterTraceHandlers(uiElement, routedEvent, handler, eventName);
 
             lock (_lock)
             {
-                _activeTraceSession = new ActiveTraceSession(registrations, localCts);
+                _lastTraceMetadata = traceMetadata;
+                _activeTraceSession = new ActiveTraceSession(registrations, localCts, traceMetadata);
             }
 
             ScheduleAutoStop(localCts, cappedDuration);
@@ -127,6 +134,14 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
                 events = _eventTrace.ToList(),
                 handlerInvocationCount = _handlerInvocationCount
             };
+        }
+    }
+
+    internal TraceSessionMetadata? GetLatestTraceMetadata()
+    {
+        lock (_lock)
+        {
+            return _lastTraceMetadata;
         }
     }
 

@@ -16,6 +16,8 @@
 - x86 target -> x86 package
 - arm64 target -> arm64 package
 
+也請確認目前使用的 server、bootstrapper 與 inspector sidecar 都來自同一組相符 bitness 的 package/build。
+
 ## missing runtime
 
 如果 server 啟動後立刻結束，請確認對應發行包所需的 .NET runtime 已安裝。

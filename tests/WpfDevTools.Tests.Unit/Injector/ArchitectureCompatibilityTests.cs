@@ -91,9 +91,9 @@ public class ArchitectureCompatibilityTests
     // === Error message tests ===
 
     [Fact]
-    public void ErrorMessage_InjectorBitnessMismatch_AnyCpuDll_ShouldBlameServer()
+    public void ErrorMessage_InjectorBitnessMismatch_WithNeutralDllHint_ShouldBlameServer()
     {
-        // x64 server targeting x86 process with AnyCPU DLL:
+        // x64 server targeting x86 process with a DLL that is not identified as the mismatching component:
         // message must blame server/injector bitness, NOT the DLL
         var message = ProcessInjector.GetArchitectureErrorMessage(
             processArch: ProcessArchitecture.X86,
@@ -101,9 +101,10 @@ public class ArchitectureCompatibilityTests
             isInjector64Bit: true);
 
         message.Should().Contain("server", "message must mention the MCP server as the root cause");
-        message.Should().Contain("AnyCPU", "message must clarify that the AnyCPU DLL is not the problem");
+        message.Should().Contain("did not report a conflicting architecture",
+            "message should explain why the mismatch is attributed to the host bitness instead of the DLL");
         message.Should().NotContain("Inspector DLL is Unknown",
-            "must NOT display raw 'Unknown' enum value for AnyCPU DLLs");
+            "must NOT display raw 'Unknown' enum value for neutral or undetectable DLLs");
     }
 
     [Fact]

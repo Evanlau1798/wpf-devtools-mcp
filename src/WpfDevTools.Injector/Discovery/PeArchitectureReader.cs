@@ -3,8 +3,8 @@ using WpfDevTools.Shared.Enums;
 namespace WpfDevTools.Injector.Discovery;
 
 /// <summary>
-/// Reads PE headers to determine DLL architecture, with managed AnyCPU detection.
-/// Returns ProcessArchitecture.Unknown for AnyCPU assemblies (compatible with any arch).
+/// Reads PE headers to determine DLL architecture, including neutral managed-assembly detection.
+/// Returns ProcessArchitecture.Unknown when the file is neutral/undetectable or cannot be parsed safely.
 /// </summary>
 public static class PeArchitectureReader
 {
@@ -22,8 +22,8 @@ public static class PeArchitectureReader
 
     /// <summary>
     /// Detect DLL architecture from PE headers.
-    /// For managed AnyCPU assemblies (ILONLY without 32BITREQUIRED), returns Unknown
-    /// to indicate compatibility with any architecture.
+    /// For neutral managed assemblies encoded as IL-only I386 without 32BITREQUIRED,
+    /// returns Unknown instead of claiming a conflicting native architecture.
     /// </summary>
     public static ProcessArchitecture Detect(string dllPath)
     {
@@ -62,7 +62,7 @@ public static class PeArchitectureReader
                 _ => ProcessArchitecture.Unknown
             };
 
-            // For I386, check if it's actually a managed AnyCPU assembly
+            // For I386, check if it's actually a neutral managed assembly
             if (machine == MachineI386)
             {
                 if (IsManagedAnyCpu(reader, stream, peOffset))
@@ -82,7 +82,7 @@ public static class PeArchitectureReader
     }
 
     /// <summary>
-    /// Check if PE file is a managed AnyCPU assembly by examining CLR metadata.
+    /// Check if the PE file is a neutral managed assembly by examining CLR metadata.
     /// Assumes reader is positioned after machine type in COFF header.
     /// </summary>
     private static bool IsManagedAnyCpu(BinaryReader reader, FileStream stream, int peOffset)
@@ -155,7 +155,7 @@ public static class PeArchitectureReader
             stream.Seek(clrFileOffset + 16, SeekOrigin.Begin);
             var corFlags = reader.ReadUInt32();
 
-            // AnyCPU: ILONLY is set, 32BITREQUIRED is NOT set
+            // Neutral managed assembly: ILONLY is set, 32BITREQUIRED is NOT set
             var isIlOnly = (corFlags & CorFlagsIlOnly) != 0;
             var is32BitRequired = (corFlags & CorFlags32BitRequired) != 0;
 

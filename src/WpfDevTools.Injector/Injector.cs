@@ -248,7 +248,7 @@ public class ProcessInjector : IProcessInjector
     /// Extracted as a pure static function for testability.
     /// </summary>
     /// <param name="processArch">Target process architecture</param>
-    /// <param name="dllArch">DLL architecture (Unknown = AnyCPU or undetectable)</param>
+    /// <param name="dllArch">DLL architecture (Unknown = neutral or undetectable)</param>
     /// <param name="isInjector64Bit">Whether the injector process is 64-bit</param>
     /// <returns>InjectionError.None if compatible, ArchitectureMismatch otherwise</returns>
     public static InjectionError CheckArchitectureCompatibility(
@@ -263,7 +263,7 @@ public class ProcessInjector : IProcessInjector
         }
 
         // Always check injector vs target (CreateRemoteThread requires same bitness)
-        // This guardrail must NOT be skipped even when DLL is AnyCPU
+        // This guardrail must NOT be skipped even when the DLL itself is not the conflicting component
         var injectorArch = isInjector64Bit ? ProcessArchitecture.X64 : ProcessArchitecture.X86;
         if (processArch != ProcessArchitecture.Unknown && processArch != injectorArch)
         {
@@ -283,7 +283,7 @@ public class ProcessInjector : IProcessInjector
             return InjectionError.ProcessNotFound;
         }
 
-        // Get DLL architecture using PE header reader with AnyCPU detection
+        // Get DLL architecture using PE header reader and neutral managed-assembly detection
         dllArch = PeArchitectureReader.Detect(dllPath);
 
         return CheckArchitectureCompatibility(
@@ -310,7 +310,7 @@ public class ProcessInjector : IProcessInjector
     /// so that users (and AI agents) can take the correct recovery action.
     /// </summary>
     /// <param name="processArch">Target process architecture</param>
-    /// <param name="dllArch">DLL architecture (Unknown = AnyCPU)</param>
+    /// <param name="dllArch">DLL architecture (Unknown = neutral or undetectable)</param>
     /// <param name="isInjector64Bit">Whether the injector/server process is 64-bit</param>
     /// <returns>Actionable error message identifying the root cause</returns>
     public static string GetArchitectureErrorMessage(
@@ -331,7 +331,7 @@ public class ProcessInjector : IProcessInjector
         return $"Architecture mismatch: target process is {processArch}, " +
                $"but the current MCP server/injector is {injectorArch}. " +
                (dllArch == ProcessArchitecture.Unknown
-                   ? "The AnyCPU Inspector DLL is not the problem; restart the MCP server with matching bitness."
+                   ? "The Inspector DLL did not report a conflicting architecture; restart the MCP server with matching bitness."
                    : "Restart the MCP server with matching bitness.");
     }
 

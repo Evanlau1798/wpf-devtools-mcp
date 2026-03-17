@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Runtime.InteropServices;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Shared.Enums;
 
@@ -11,10 +12,8 @@ namespace WpfDevTools.Tests.Unit.Injector;
 public class PeArchitectureReaderTests
 {
     [Fact]
-    public void Detect_WithAnyCpuManagedDll_ShouldReturnUnknown()
+    public void Detect_WithInspectorDllFromCurrentPlatformBuild_ShouldMatchCurrentProcessArchitecture()
     {
-        // The Inspector DLL is built as AnyCPU - it should be detected as
-        // Unknown (compatible with any architecture), NOT as X86
         var inspectorDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
 
         if (!File.Exists(inspectorDllPath))
@@ -25,9 +24,8 @@ public class PeArchitectureReaderTests
 
         var result = PeArchitectureReader.Detect(inspectorDllPath);
 
-        // AnyCPU managed assemblies should return Unknown (compatible with any arch)
-        result.Should().Be(ProcessArchitecture.Unknown,
-            "AnyCPU managed assemblies should be detected as compatible with any architecture");
+        result.Should().Be(GetExpectedCurrentArchitecture(),
+            "platform-specific build outputs should report the actual PE architecture that will be injected");
     }
 
     [Fact]
@@ -73,9 +71,8 @@ public class PeArchitectureReaderTests
     }
 
     [Fact]
-    public void Detect_WithSharedProjectDll_ShouldReturnUnknown()
+    public void Detect_WithSharedProjectDllFromCurrentPlatformBuild_ShouldMatchCurrentProcessArchitecture()
     {
-        // WpfDevTools.Shared.dll is also AnyCPU
         var sharedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Shared.dll");
 
         if (!File.Exists(sharedDllPath))
@@ -85,8 +82,8 @@ public class PeArchitectureReaderTests
 
         var result = PeArchitectureReader.Detect(sharedDllPath);
 
-        result.Should().Be(ProcessArchitecture.Unknown,
-            "Shared library (AnyCPU) should be compatible with any architecture");
+        result.Should().Be(GetExpectedCurrentArchitecture(),
+            "platform-specific shared outputs should report the actual PE architecture");
     }
 
     [Fact]
@@ -96,4 +93,12 @@ public class PeArchitectureReaderTests
 
         result.Should().Be(ProcessArchitecture.Unknown);
     }
+
+    private static ProcessArchitecture GetExpectedCurrentArchitecture() => RuntimeInformation.ProcessArchitecture switch
+    {
+        Architecture.X86 => ProcessArchitecture.X86,
+        Architecture.X64 => ProcessArchitecture.X64,
+        Architecture.Arm64 => ProcessArchitecture.ARM64,
+        _ => ProcessArchitecture.Unknown
+    };
 }

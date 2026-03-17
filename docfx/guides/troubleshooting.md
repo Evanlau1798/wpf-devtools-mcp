@@ -16,7 +16,7 @@ The most common fix is to switch to a package whose server and bootstrapper bitn
 - x86 target -> x86 package
 - arm64 target -> arm64 package
 
-AnyCPU inspector binaries do not remove the injector/server bitness requirement.
+The installed server, bootstrapper, and inspector sidecar still need to come from the package/build that matches the target bitness.
 
 ## missing runtime
 

@@ -194,7 +194,7 @@ public static class ServerInstructions
         - "Access denied" (errorCode: AccessDenied) -> restart MCP server as administrator
         - elevated target processes may be discoverable but still require the MCP server itself to run as administrator before connect/click/mutation tools can succeed
         - "Not a WPF application" -> use get_processes to find correct processId
-        - "Architecture mismatch" -> MCP server and target process must have matching architectures (both x64 or both x86). AnyCPU Inspector DLLs are auto-detected and compatible with any platform, but the injection mechanism still requires matching bitness between server and target
+        - "Architecture mismatch" -> MCP server and target process must have matching architectures (both x64 or both x86). Use a package/build whose server, bootstrapper, and Inspector sidecar all match the target bitness
         - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
         - "timeout" -> process may be frozen; try ping() to verify connection
         - "element not found" -> verify elementId from get_visual_tree/get_logical_tree

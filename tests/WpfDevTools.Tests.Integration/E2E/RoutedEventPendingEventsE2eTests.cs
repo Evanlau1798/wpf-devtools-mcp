@@ -51,9 +51,11 @@ public sealed class RoutedEventPendingEventsE2eTests
 
         drain.GetProperty("success").GetBoolean().Should().BeTrue(drain.GetRawText());
         drain.GetProperty("pendingEventCount").GetInt32().Should().BeGreaterThan(0, drain.GetRawText());
-        var routedEvent = drain.GetProperty("pendingEvents").EnumerateArray().Single(item =>
-            item.GetProperty("eventType").GetString() == "RoutedEvent"
-            && item.GetProperty("elementId").GetString() == buttonId);
+        var routedEvent = drain.GetProperty("pendingEvents").EnumerateArray()
+            .First(item =>
+                item.GetProperty("eventType").GetString() == "RoutedEvent"
+                && item.GetProperty("elementId").GetString() == buttonId
+                && item.GetProperty("senderType").GetString() == "Button");
         routedEvent.GetProperty("eventName").GetString().Should().Be("Click");
     }
 
@@ -91,9 +93,11 @@ public sealed class RoutedEventPendingEventsE2eTests
 
         drain.GetProperty("success").GetBoolean().Should().BeTrue(drain.GetRawText());
         drain.GetProperty("pendingEventCount").GetInt32().Should().BeGreaterThan(0, drain.GetRawText());
-        var routedEvent = drain.GetProperty("pendingEvents").EnumerateArray().Single(item =>
-            item.GetProperty("eventType").GetString() == "RoutedEvent"
-            && item.GetProperty("elementId").GetString() == borderId);
+        var routedEvent = drain.GetProperty("pendingEvents").EnumerateArray()
+            .First(item =>
+                item.GetProperty("eventType").GetString() == "RoutedEvent"
+                && item.GetProperty("elementId").GetString() == borderId
+                && item.GetProperty("senderType").GetString() == "Border");
         routedEvent.GetProperty("eventName").GetString().Should().Be("MouseDown");
     }
 

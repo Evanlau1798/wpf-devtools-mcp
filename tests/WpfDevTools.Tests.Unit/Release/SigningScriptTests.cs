@@ -22,7 +22,7 @@ public sealed class SigningScriptTests
             File.WriteAllText(certificatePath, "not-a-real-pfx");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/Sign-Binaries.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/Sign-Binaries.ps1"),
                 new[]
                 {
                     "-CertificatePath", certificatePath,

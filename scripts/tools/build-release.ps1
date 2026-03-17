@@ -5,7 +5,7 @@ param(
     [ValidateSet('x64', 'x86', 'arm64')]
     [string[]]$Architectures = @('x64', 'x86', 'arm64'),
 
-    [string]$OutputRoot = (Join-Path $PSScriptRoot '..\release'),
+    [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\release'),
 
     [switch]$SkipBuild
 )

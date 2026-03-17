@@ -18,7 +18,7 @@ public sealed class OnlineInstallerIntegrationTests
             var installRoot = Path.Combine(tempRoot, "install-root");
 
             var packageResult = ReleasePackagingTestHarness.RunPowerShellScript(
-                ReleasePackagingTestHarness.GetRepoFilePath("scripts/build-release.ps1"),
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
                 new[] { "-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot, "-SkipBuild" });
             packageResult.ExitCode.Should().Be(0, packageResult.Stderr);
 

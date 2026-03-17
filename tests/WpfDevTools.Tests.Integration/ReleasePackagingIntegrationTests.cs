@@ -17,7 +17,7 @@ public sealed class ReleasePackagingIntegrationTests
         {
             var outputRoot = Path.Combine(tempRoot, "release-output");
             var result = ReleasePackagingTestHarness.RunPowerShellScript(
-                ReleasePackagingTestHarness.GetRepoFilePath("scripts/build-release.ps1"),
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
                 new[] { "-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot, "-SkipBuild" });
 
             result.ExitCode.Should().Be(0, result.Stderr);
@@ -48,7 +48,7 @@ public sealed class ReleasePackagingIntegrationTests
             var outputRoot = Path.Combine(tempRoot, "release-output");
             var escapedOutputRoot = outputRoot.Replace("'", "''");
             var command = "& '" +
-                ReleasePackagingTestHarness.GetRepoFilePath("scripts/build-release.ps1").Replace("'", "''") +
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1").Replace("'", "''") +
                 "' -Configuration Debug -Architectures @('x64','x86') -OutputRoot '" + escapedOutputRoot + "'";
             var result = ReleasePackagingTestHarness.RunPowerShellCommand(command);
 
@@ -78,7 +78,7 @@ public sealed class ReleasePackagingIntegrationTests
             var fakeMsbuild = ReleasePackagingTestHarness.CreateFakeCommand(tempRoot, "fake-msbuild", fakeMsbuildLog, "exit /b 1");
 
             var result = ReleasePackagingTestHarness.RunPowerShellScript(
-                ReleasePackagingTestHarness.GetRepoFilePath("scripts/release/Publish-Release.ps1"),
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/release/Publish-Release.ps1"),
                 new[] { "-Configuration", "Debug", "-Architectures", "arm64", "-OutputRoot", outputRoot },
                 new Dictionary<string, string?>
                 {

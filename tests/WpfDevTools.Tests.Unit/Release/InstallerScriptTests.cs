@@ -29,7 +29,7 @@ public sealed class InstallerScriptTests
                 }));
 
             var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"),
+                GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"),
                 new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
 
             result.ExitCode.Should().Be(0, result.Stderr);
@@ -61,7 +61,7 @@ public sealed class InstallerScriptTests
             File.WriteAllText(Path.Combine(installBase, "install-manifest.json"), "{}");
 
             var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/release/Uninstall-WpfDevTools.ps1"),
+                GetRepoFilePath("scripts/tools/release/Uninstall-WpfDevTools.ps1"),
                 new[] { "-InstallRoot", Path.Combine(tempRoot, "install-root"), "-Architecture", "x64" });
 
             result.ExitCode.Should().Be(0, result.Stderr);
@@ -93,7 +93,7 @@ public sealed class InstallerScriptTests
                 }));
 
             var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"),
+                GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"),
                 new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
 
             result.ExitCode.Should().NotBe(0);
@@ -126,7 +126,7 @@ public sealed class InstallerScriptTests
                 }));
 
             var packageLocalScript = Path.Combine(packageDir, "install.ps1");
-            File.Copy(GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"), packageLocalScript, overwrite: true);
+            File.Copy(GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), packageLocalScript, overwrite: true);
 
             var result = RunPowerShellScript(
                 packageLocalScript,
@@ -164,7 +164,7 @@ public sealed class InstallerScriptTests
                 }));
 
             var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"),
+                GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"),
                 new[] { "-PackagePath", packageDir, "-InstallRoot", relativeInstallRoot, "-Force" });
 
             result.ExitCode.Should().Be(0, result.Stderr);
@@ -206,7 +206,7 @@ public sealed class InstallerScriptTests
                 }));
 
             var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"),
+                GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"),
                 new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
 
             result.ExitCode.Should().Be(0, result.Stderr);

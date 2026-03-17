@@ -29,7 +29,7 @@ public sealed class SetupWizardScriptTests
             File.WriteAllText(Path.Combine(localAppData, "Programs", "Cursor", "Cursor.exe"), "stub");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"),
                 new[] { "-DetectOnly", "-OutputJson" },
                 new Dictionary<string, string?>
                 {
@@ -65,7 +65,7 @@ public sealed class SetupWizardScriptTests
             ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "claude", claudeLog);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"),
                 new[]
                 {
                     "-PackagePath", packageDir,
@@ -119,7 +119,7 @@ public sealed class SetupWizardScriptTests
             File.WriteAllText(Path.Combine(localAppData, "Programs", "Cursor", "Cursor.exe"), "stub");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"),
                 new[]
                 {
                     "-PackagePath", packageDir,
@@ -166,7 +166,7 @@ public sealed class SetupWizardScriptTests
             File.WriteAllText(cursorConfigPath, "{\"servers\":{\"existing\":{\"command\":\"old.exe\",\"args\":[]}}}");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"),
                 new[]
                 {
                     "-PackagePath", packageDir,
@@ -205,8 +205,8 @@ public sealed class SetupWizardScriptTests
             Directory.CreateDirectory(appData);
             Directory.CreateDirectory(localAppData);
             Directory.CreateDirectory(userProfile);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 Path.Combine(packageDir, "setup.ps1"),

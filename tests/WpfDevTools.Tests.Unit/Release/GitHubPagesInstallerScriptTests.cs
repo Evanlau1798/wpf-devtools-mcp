@@ -110,9 +110,9 @@ public sealed class GitHubPagesInstallerScriptTests
                     buildConfiguration = "Debug",
                     signaturePolicy = "DebugTrustedRootSkip"
                 }));
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Uninstall-WpfDevTools.ps1"), Path.Combine(packageDir, "uninstall.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Uninstall-WpfDevTools.ps1"), Path.Combine(packageDir, "uninstall.ps1"), overwrite: true);
 
             var archivePath = Path.Combine(tempRoot, "release_1.2.3_win-x64.zip");
             ZipFile.CreateFromDirectory(packageDir, archivePath);

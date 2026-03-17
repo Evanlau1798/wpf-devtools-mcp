@@ -62,9 +62,9 @@ internal static class ReleaseScriptTestHarness
     public static string CreatePackageArchive(string tempRoot, string architecture = "x64")
     {
         var packageDir = CreatePackageDirectory(tempRoot, architecture);
-        File.Copy(GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
-        File.Copy(GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
-        File.Copy(GetRepoFilePath("scripts/release/Uninstall-WpfDevTools.ps1"), Path.Combine(packageDir, "uninstall.ps1"), overwrite: true);
+        File.Copy(GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
+        File.Copy(GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
+        File.Copy(GetRepoFilePath("scripts/tools/release/Uninstall-WpfDevTools.ps1"), Path.Combine(packageDir, "uninstall.ps1"), overwrite: true);
 
         var archivePath = Path.Combine(tempRoot, $"release_1.2.3_win-{architecture}.zip");
         if (File.Exists(archivePath))

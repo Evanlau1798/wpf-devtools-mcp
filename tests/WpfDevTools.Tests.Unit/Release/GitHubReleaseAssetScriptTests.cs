@@ -20,7 +20,7 @@ public sealed class GitHubReleaseAssetScriptTests
             File.WriteAllText(Path.Combine(inputRoot, "ignore.txt"), "not-an-asset");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Export-GitHubReleaseAssets.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Export-GitHubReleaseAssets.ps1"),
                 new[]
                 {
                     "-InputRoot", inputRoot,
@@ -61,7 +61,7 @@ public sealed class GitHubReleaseAssetScriptTests
             File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3-dev.1_win-x64.zip"), "dev-asset");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Export-GitHubReleaseAssets.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Export-GitHubReleaseAssets.ps1"),
                 new[]
                 {
                     "-InputRoot", inputRoot,

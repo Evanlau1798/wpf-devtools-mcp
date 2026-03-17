@@ -60,7 +60,7 @@ public class EventHandlers : IRequestHandler
         var eventName = ParameterHelpers.GetStringParam(@params, "eventName");
         if (mode == "get")
         {
-            var traceResult = _eventAnalyzer.GetEventTrace();
+            var traceResult = _eventAnalyzer.GetEventTrace(eventName);
             var diagnostics = BuildZeroEventDiagnostics(
                 traceResult,
                 _eventAnalyzer.GetLatestTraceMetadata(),
@@ -119,7 +119,7 @@ public class EventHandlers : IRequestHandler
         }
 
         await Task.Delay(effectiveDuration, cancellationToken).ConfigureAwait(false);
-        return CreateTraceSnapshotResult("capture", _eventAnalyzer.GetEventTrace(), eventName, effectiveDuration);
+        return CreateTraceSnapshotResult("capture", _eventAnalyzer.GetEventTrace(eventName), eventName, effectiveDuration);
     }
 
     private async Task<object> HandleGetEventHandlersAsync(JsonElement? @params, CancellationToken cancellationToken)

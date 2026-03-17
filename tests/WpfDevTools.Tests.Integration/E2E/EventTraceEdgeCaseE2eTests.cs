@@ -37,7 +37,8 @@ public sealed class EventTraceEdgeCaseE2eTests
                 elementId = buttonId,
                 eventName = "Click",
                 mode = "start",
-                duration = 2000
+                duration = 2000,
+                allowShortStartDuration = true
             });
         start.GetProperty("success").GetBoolean().Should().BeTrue(start.GetRawText());
 
@@ -85,7 +86,8 @@ public sealed class EventTraceEdgeCaseE2eTests
                 elementId = borderId,
                 eventName = "MouseDown",
                 mode = "start",
-                duration = 2000
+                duration = 2000,
+                allowShortStartDuration = true
             });
         start.GetProperty("success").GetBoolean().Should().BeTrue(start.GetRawText());
 

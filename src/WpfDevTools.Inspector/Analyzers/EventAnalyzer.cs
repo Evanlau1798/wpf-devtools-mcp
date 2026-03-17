@@ -124,16 +124,17 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Get event trace data
     /// </summary>
-    public object GetEventTrace()
+    public object GetEventTrace(string? requestedEventName = null)
     {
         lock (_lock)
         {
+            var events = GetTraceSnapshotEvents(requestedEventName);
             return new
             {
                 success = true,
                 isTracing = _isTracing,
-                eventCount = _eventTrace.Count,
-                events = _eventTrace.ToList(),
+                eventCount = events.Count,
+                events,
                 handlerInvocationCount = _handlerInvocationCount
             };
         }

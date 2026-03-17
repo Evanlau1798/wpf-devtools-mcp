@@ -24,14 +24,14 @@ public sealed class ReleasePackagingIntegrationTests
             var archivePath = Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Single();
             var extractRoot = ReleasePackagingTestHarness.ExtractArchive(archivePath, tempRoot);
 
-            File.Exists(Path.Combine(extractRoot, "install.bat")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "install.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "manifest.json")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "WpfDevTools.Mcp.Server.exe")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "manifest.json")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
 
-            using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(extractRoot, "manifest.json")));
+            using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(extractRoot, "bin", "manifest.json")));
             manifest.RootElement.GetProperty("entryExecutable").GetString()
-                .Should().Be("bin/WpfDevTools.Mcp.Server.exe");
+                .Should().Be("bin/wpf-devtools-x64.exe");
         }
         finally
         {

@@ -2,7 +2,6 @@ param(
     [ValidateSet('Release')]
     [string]$Configuration = 'Release',
 
-    [ValidateSet('x64', 'x86', 'arm64')]
     [string[]]$Architectures = @('x64', 'x86', 'arm64'),
 
     [string]$VersionTag,
@@ -17,6 +16,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$supportedArchitectures = @('x64', 'x86', 'arm64')
 
 function Write-StepMessage {
     param([Parameter(Mandatory)] [string]$Message)
@@ -48,6 +48,34 @@ function Invoke-Step {
     }
 }
 
+function Resolve-ArchitectureList {
+    param([string[]]$InputArchitectures)
+
+    $resolvedArchitectures = New-Object System.Collections.Generic.List[string]
+    foreach ($entry in $InputArchitectures) {
+        foreach ($candidate in ($entry -split ',')) {
+            $normalized = $candidate.Trim().ToLowerInvariant()
+            if ([string]::IsNullOrWhiteSpace($normalized)) {
+                continue
+            }
+
+            if ($supportedArchitectures -notcontains $normalized) {
+                throw "Unsupported architecture: $normalized. Supported values: $($supportedArchitectures -join ', ')"
+            }
+
+            if (-not $resolvedArchitectures.Contains($normalized)) {
+                $resolvedArchitectures.Add($normalized)
+            }
+        }
+    }
+
+    if ($resolvedArchitectures.Count -eq 0) {
+        throw 'At least one architecture must be specified.'
+    }
+
+    return @($resolvedArchitectures)
+}
+
 function Resolve-ScriptPath {
     param(
         [Parameter(Mandatory)] [string]$DefaultRelativePath,
@@ -67,6 +95,7 @@ function Resolve-ScriptPath {
     return [System.IO.Path]::GetFullPath($candidatePath)
 }
 
+$resolvedArchitectures = Resolve-ArchitectureList -InputArchitectures $Architectures
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $outputRootPath = if ([System.IO.Path]::IsPathRooted($OutputRoot)) { $OutputRoot } else { Join-Path $repoRoot $OutputRoot }
 $outputRootFullPath = [System.IO.Path]::GetFullPath($outputRootPath)
@@ -84,7 +113,7 @@ if (-not (Test-Path $exportScript)) {
 }
 
 $steps = New-Object System.Collections.ArrayList
-$architecturesLiteral = "@('" + ($Architectures -join "', '") + "')"
+$architecturesLiteral = "@('" + ($resolvedArchitectures -join "', '") + "')"
 if (-not $SkipBuild) {
     $null = $steps.Add("dotnet build WpfDevTools.sln -c $Configuration -m:1 -nodeReuse:false -p:BuildInParallel=false")
 }
@@ -100,7 +129,7 @@ if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
 
 $result = [pscustomobject]@{
     configuration = $Configuration
-    architectures = $Architectures
+    architectures = $resolvedArchitectures
     versionTag = $VersionTag
     versionTagProvided = -not [string]::IsNullOrWhiteSpace($VersionTag)
     outputRoot = $outputRootFullPath
@@ -136,13 +165,13 @@ if (-not $SkipTest) {
     Invoke-Step -FilePath 'dotnet' -Arguments @('test', 'tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj', '-c', $Configuration, '--no-build')
 }
 
-Write-StepMessage -Message "$publishScript -Configuration $Configuration -Architectures $($Architectures -join ',') -OutputRoot $packageOutputRoot"
+Write-StepMessage -Message "$publishScript -Configuration $Configuration -Architectures $($resolvedArchitectures -join ',') -OutputRoot $packageOutputRoot"
 if ($OutputJson) {
-    & $publishScript -Configuration $Configuration -Architectures $Architectures -OutputRoot $packageOutputRoot 2>&1 6>&1 |
+    & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot 2>&1 6>&1 |
         ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
 }
 else {
-    & $publishScript -Configuration $Configuration -Architectures $Architectures -OutputRoot $packageOutputRoot
+    & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot
 }
 
 if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {

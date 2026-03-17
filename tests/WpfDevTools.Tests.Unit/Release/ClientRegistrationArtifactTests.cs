@@ -27,6 +27,10 @@ public sealed class ClientRegistrationArtifactTests
             File.ReadAllText(Path.Combine(registrationDir, "other.mcpServers.json"))
                 .Should().Contain("wpf-devtools-x64.exe")
                 .And.Contain("\"mcpServers\"");
+            File.ReadAllText(Path.Combine(registrationDir, "claude-code.txt"))
+                .Should().Contain("claude mcp remove wpf-devtools");
+            File.ReadAllText(Path.Combine(registrationDir, "codex-cli.txt"))
+                .Should().Contain("codex mcp remove wpf-devtools");
         }
         finally
         {

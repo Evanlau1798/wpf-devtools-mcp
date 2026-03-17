@@ -2,7 +2,6 @@ param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
 
-    [ValidateSet('x64', 'x86', 'arm64')]
     [string[]]$Architectures = @('x64'),
 
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release'),
@@ -11,6 +10,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$supportedArchitectures = @('x64', 'x86', 'arm64')
 
 function Invoke-Step {
     param(
@@ -81,6 +81,34 @@ function Copy-DirectoryContents {
     Copy-Item -Path (Join-Path $Source '*') -Destination $Destination -Recurse -Force
 }
 
+function Resolve-ArchitectureList {
+    param([string[]]$InputArchitectures)
+
+    $resolvedArchitectures = New-Object System.Collections.Generic.List[string]
+    foreach ($entry in $InputArchitectures) {
+        foreach ($candidate in ($entry -split ',')) {
+            $normalized = $candidate.Trim().ToLowerInvariant()
+            if ([string]::IsNullOrWhiteSpace($normalized)) {
+                continue
+            }
+
+            if ($supportedArchitectures -notcontains $normalized) {
+                throw "Unsupported architecture: $normalized. Supported values: $($supportedArchitectures -join ', ')"
+            }
+
+            if (-not $resolvedArchitectures.Contains($normalized)) {
+                $resolvedArchitectures.Add($normalized)
+            }
+        }
+    }
+
+    if ($resolvedArchitectures.Count -eq 0) {
+        throw 'At least one architecture must be specified.'
+    }
+
+    return @($resolvedArchitectures)
+}
+
 function Resolve-ServerOutputSource {
     param(
         [Parameter(Mandatory)] [string]$RepositoryRoot,
@@ -147,6 +175,74 @@ function Resolve-MSBuildPath {
     throw 'MSBuild.exe was not found. Install Visual Studio Build Tools or add MSBuild.exe to PATH.'
 }
 
+function Get-VisualStudioInstallationRoot {
+    param([Parameter(Mandatory)] [string]$ResolvedMsBuildPath)
+
+    $msbuildDirectory = Split-Path -Parent $ResolvedMsBuildPath
+    if ([string]::IsNullOrWhiteSpace($msbuildDirectory)) {
+        return $null
+    }
+
+    $currentDirectory = Split-Path -Parent $msbuildDirectory
+    if ([string]::IsNullOrWhiteSpace($currentDirectory) -or
+        (Split-Path $currentDirectory -Leaf) -ne 'Current') {
+        return $null
+    }
+
+    $msbuildRoot = Split-Path -Parent $currentDirectory
+    if ([string]::IsNullOrWhiteSpace($msbuildRoot) -or
+        (Split-Path $msbuildRoot -Leaf) -ne 'MSBuild') {
+        return $null
+    }
+
+    return Split-Path -Parent $msbuildRoot
+}
+
+function Test-Arm64ToolchainInstalled {
+    param([Parameter(Mandatory)] [string]$ResolvedMsBuildPath)
+
+    $visualStudioRoot = Get-VisualStudioInstallationRoot -ResolvedMsBuildPath $ResolvedMsBuildPath
+    if ([string]::IsNullOrWhiteSpace($visualStudioRoot)) {
+        return $true
+    }
+
+    $msvcRoot = Join-Path $visualStudioRoot 'VC\Tools\MSVC'
+    if (-not (Test-Path $msvcRoot)) {
+        return $false
+    }
+
+    $toolDirectories = Get-ChildItem -Path $msvcRoot -Directory -ErrorAction SilentlyContinue
+    foreach ($toolDirectory in $toolDirectories) {
+        $compilerCandidates = @(
+            (Join-Path $toolDirectory.FullName 'bin\Hostx64\arm64\cl.exe'),
+            (Join-Path $toolDirectory.FullName 'bin\Hostx86\arm64\cl.exe')
+        )
+
+        foreach ($compilerCandidate in $compilerCandidates) {
+            if (Test-Path $compilerCandidate) {
+                return $true
+            }
+        }
+    }
+
+    return $false
+}
+
+function Assert-ArchitectureToolchainAvailable {
+    param(
+        [Parameter(Mandatory)] [string[]]$ResolvedArchitectures,
+        [Parameter(Mandatory)] [string]$ResolvedMsBuildPath
+    )
+
+    if ($ResolvedArchitectures -notcontains 'arm64') {
+        return
+    }
+
+    if (-not (Test-Arm64ToolchainInstalled -ResolvedMsBuildPath $ResolvedMsBuildPath)) {
+        throw 'ARM64 bootstrapper build requires the Visual Studio v143 ARM64 C++ toolchain. Install component Microsoft.VisualStudio.Component.VC.Tools.ARM64 and rerun scripts/tools/build-release.ps1.'
+    }
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj'
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
@@ -164,7 +260,9 @@ if ([string]::IsNullOrWhiteSpace($version)) {
     $version = '0.0.0-dev'
 }
 
-foreach ($architecture in $Architectures) {
+$resolvedArchitectures = Resolve-ArchitectureList -InputArchitectures $Architectures
+Assert-ArchitectureToolchainAvailable -ResolvedArchitectures $resolvedArchitectures -ResolvedMsBuildPath $msbuildPath
+foreach ($architecture in $resolvedArchitectures) {
     $runtimeId = Get-RuntimeId -Architecture $architecture
     $bootstrapperPlatform = Get-BootstrapperPlatform -Architecture $architecture
     $channel = Get-PackageChannel -BuildConfiguration $Configuration

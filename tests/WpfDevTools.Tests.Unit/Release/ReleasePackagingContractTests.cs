@@ -119,6 +119,53 @@ public sealed class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void BuildReleaseScript_ShouldNormalizeCommaSeparatedArchitectureInput()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var scriptRoot = Path.Combine(tempRoot, "scripts");
+            Directory.CreateDirectory(scriptRoot);
+
+            var copiedBuildScript = Path.Combine(scriptRoot, "build-release.ps1");
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"), copiedBuildScript, overwrite: true);
+
+            var publishLog = Path.Combine(tempRoot, "publish-architectures.json");
+            var fakePublishScript = Path.Combine(tempRoot, "fake-publish.ps1");
+            File.WriteAllText(
+                fakePublishScript,
+                string.Join(Environment.NewLine,
+                [
+                    "param(",
+                    "    [string]$Configuration,",
+                    "    [string[]]$Architectures,",
+                    "    [string]$OutputRoot,",
+                    "    [switch]$SkipBuild",
+                    ")",
+                    ("@{ Architectures = $Architectures } | ConvertTo-Json -Depth 3 | " +
+                     $"Set-Content -Path '{publishLog.Replace("'", "''")}' -Encoding UTF8")
+                ]));
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                copiedBuildScript,
+                new[] { "-Architectures", "x64,x86,arm64", "-SkipBuild" },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT"] = fakePublishScript
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var document = JsonDocument.Parse(File.ReadAllText(publishLog));
+            document.RootElement.GetProperty("Architectures").EnumerateArray().Select(x => x.GetString())
+                .Should().Equal("x64", "x86", "arm64");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void InstallBatchTemplate_ShouldExistAsPackageEntryPoint()
     {
         var batchTemplatePath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/run-template.bat");
@@ -180,6 +227,35 @@ public sealed class ReleasePackagingContractTests
             result.ExitCode.Should().Be(0, result.Stderr);
             File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"))
                 .Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PublishReleaseScript_ShouldFailFastWhenArm64ToolchainIsUnavailable()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var fakeVsRoot = Path.Combine(tempRoot, "vs", "MSBuild", "Current", "Bin");
+            Directory.CreateDirectory(fakeVsRoot);
+            var fakeMsbuildPath = Path.Combine(fakeVsRoot, "MSBuild.exe");
+            File.WriteAllText(fakeMsbuildPath, "stub");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Publish-Release.ps1"),
+                new[] { "-Configuration", "Debug", "-Architectures", "arm64", "-SkipBuild", "-OutputRoot", Path.Combine(tempRoot, "release-output") },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuildPath
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("ARM64 bootstrapper build requires");
+            result.Stderr.Should().Contain("Microsoft.VisualStudio.Component.VC.Tools.ARM64");
         }
         finally
         {

@@ -153,10 +153,16 @@ $claudeCodeCommand
 
 Project-scoped alternative:
 $claudeCodeProjectCommand
+
+Uninstall:
+claude mcp remove wpf-devtools
 "@
 
     Write-RegistrationArtifact -Path (Join-Path $registrationDir 'codex-cli.txt') -Content @"
 $codexCommand
+
+Uninstall:
+codex mcp remove wpf-devtools
 "@
 
     $claudeDesktop = [ordered]@{

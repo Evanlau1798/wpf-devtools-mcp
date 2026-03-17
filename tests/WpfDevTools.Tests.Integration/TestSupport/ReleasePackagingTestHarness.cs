@@ -87,6 +87,59 @@ internal static class ReleasePackagingTestHarness
         return (process.ExitCode, stdout, stderr);
     }
 
+    public static (int ExitCode, string Stdout, string Stderr) RunPowerShellCommand(
+        string command,
+        IReadOnlyDictionary<string, string?>? environmentOverrides = null)
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WorkingDirectory = GetRepoFilePath(".")
+        };
+
+        process.StartInfo.ArgumentList.Add("-NoProfile");
+        process.StartInfo.ArgumentList.Add("-ExecutionPolicy");
+        process.StartInfo.ArgumentList.Add("Bypass");
+        process.StartInfo.ArgumentList.Add("-Command");
+        process.StartInfo.ArgumentList.Add(command);
+
+        if (environmentOverrides is not null)
+        {
+            foreach (var pair in environmentOverrides)
+            {
+                process.StartInfo.Environment[pair.Key] = pair.Value ?? string.Empty;
+            }
+        }
+
+        process.Start();
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        return (process.ExitCode, stdout, stderr);
+    }
+
+    public static string CreateFakeCommand(
+        string directory,
+        string commandName,
+        string logPath,
+        string trailingCommand = "exit /b 0")
+    {
+        Directory.CreateDirectory(directory);
+        var scriptPath = Path.Combine(directory, commandName + ".cmd");
+        File.WriteAllText(
+            scriptPath,
+            "@echo off" + Environment.NewLine +
+            $"echo %*>>\"{logPath}\"" + Environment.NewLine +
+            trailingCommand + Environment.NewLine);
+
+        return scriptPath;
+    }
+
     public static string ExtractArchive(string archivePath, string tempRoot)
     {
         var extractRoot = Path.Combine(tempRoot, "extracted");

@@ -127,6 +127,95 @@ public sealed class TraceRoutedEventsToolReplayTests
         traceResult.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("captureWindowTooShort");
     }
 
+    [Fact]
+    public async Task Execute_GetMode_AfterFireRoutedEventMouseDown_ShouldMergeReplayFromRealToolSequence()
+    {
+        const int processId = 43123;
+        using var connected = await ConnectedTraceReplaySession.CreateAsync(
+            processId,
+            """{"success":true,"mode":"start","eventName":"MouseDown","isTracing":true,"effectiveDuration":2500}""",
+            """{"success":true,"pendingEventCount":0,"droppedEventCount":0}""",
+            """{"success":true,"message":"Event 'MouseDown' fired successfully","eventName":"MouseDown"}""",
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                pendingEventCount = 1,
+                droppedEventCount = 0,
+                pendingEvents = new[]
+                {
+                    new
+                    {
+                        eventType = "RoutedEvent",
+                        elementId = "Border_47",
+                        eventName = "MouseDown",
+                        senderType = "Border",
+                        senderName = "RoutedProbeBorder",
+                        routingStrategy = "Bubble",
+                        handled = false,
+                        originalSourceType = "Border",
+                        timestampUtc = DateTimeOffset.UtcNow
+                    }
+                }
+            }),
+            """{"success":true,"mode":"get","isTracing":true,"eventCount":0,"events":[],"handlerInvocationCount":0}""",
+            """{"success":true,"pendingEventCount":0,"droppedEventCount":0}""",
+            """{"success":true,"pendingEventCount":0,"droppedEventCount":0}""");
+
+        var traceTool = new TraceRoutedEventsTool(connected.SessionManager);
+        var fireTool = new FireRoutedEventTool(connected.SessionManager);
+        var drainTool = new DrainEventsTool(connected.SessionManager);
+
+        var startResult = JsonSerializer.SerializeToElement(await traceTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                elementId = "Border_47",
+                eventName = "MouseDown",
+                mode = "start",
+                duration = 2500,
+                allowShortStartDuration = true
+            }),
+            CancellationToken.None));
+        startResult.GetProperty("success").GetBoolean().Should().BeTrue(startResult.GetRawText());
+
+        var fireResult = JsonSerializer.SerializeToElement(await fireTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                elementId = "Border_47",
+                eventName = "MouseDown"
+            }),
+            CancellationToken.None));
+        fireResult.GetProperty("success").GetBoolean().Should().BeTrue(fireResult.GetRawText());
+        fireResult.GetProperty("pendingEventCount").GetInt32().Should().Be(1, fireResult.GetRawText());
+
+        connected.SessionManager.TryGetNavigationState(processId, out var state).Should().BeTrue();
+        state!.ActiveTrace.Should().NotBeNull();
+        state.ActiveTrace!.EventName.Should().Be("MouseDown");
+        state.ActiveTrace.ElementId.Should().Be("Border_47");
+
+        connected.SessionManager.TryPeekPendingEventReplay(processId, out var replayPayload).Should().BeTrue();
+        replayPayload.GetProperty("pendingEventCount").GetInt32().Should().Be(1);
+        replayPayload.GetProperty("pendingEvents")[0].GetProperty("eventName").GetString().Should().Be("MouseDown");
+        replayPayload.GetProperty("pendingEvents")[0].GetProperty("elementId").GetString().Should().Be("Border_47");
+
+        var traceResult = JsonSerializer.SerializeToElement(await traceTool.ExecuteAsync(
+            ToJsonElement(new { processId, mode = "get" }),
+            CancellationToken.None));
+        var drainResult = JsonSerializer.SerializeToElement(await drainTool.ExecuteAsync(
+            ToJsonElement(new { processId, eventTypes = new[] { "RoutedEvent" } }),
+            CancellationToken.None));
+
+        traceResult.GetProperty("success").GetBoolean().Should().BeTrue(traceResult.GetRawText());
+        traceResult.GetProperty("eventCount").GetInt32().Should().Be(1, traceResult.GetRawText());
+        traceResult.GetProperty("events")[0].GetProperty("eventName").GetString().Should().Be("MouseDown");
+        traceResult.GetProperty("events")[0].GetProperty("sender").GetString().Should().Be("Border");
+
+        drainResult.GetProperty("success").GetBoolean().Should().BeTrue(drainResult.GetRawText());
+        drainResult.GetProperty("pendingEventCount").GetInt32().Should().Be(1, drainResult.GetRawText());
+        drainResult.GetProperty("pendingEvents")[0].GetProperty("eventName").GetString().Should().Be("MouseDown");
+    }
+
     private sealed class ConnectedTraceReplaySession(
         SessionManager sessionManager,
         NamedPipeServerStream server,

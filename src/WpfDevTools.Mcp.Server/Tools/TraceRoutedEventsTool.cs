@@ -120,12 +120,12 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             || GetEventCount(payload) > 0
             || !_sessionManager.TryGetNavigationState(processId, out var navigationState)
             || navigationState?.ActiveTrace is null
-            || !_sessionManager.TryPeekPendingEventReplay(processId, out var replayPayload))
+            || !_sessionManager.TryPeekPendingEventReplayMetadata(processId, out var replayPayload, out var replaySavedAtUtc))
         {
             return response;
         }
 
-        var replayEvents = GetMatchingReplayEvents(replayPayload, navigationState.ActiveTrace);
+        var replayEvents = GetMatchingReplayEvents(replayPayload, navigationState.ActiveTrace, replaySavedAtUtc);
         if (replayEvents.Count == 0)
         {
             return response;
@@ -172,7 +172,8 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
 
     private static List<JsonElement> GetMatchingReplayEvents(
         JsonElement replayPayload,
-        ActiveTraceNavigationState activeTrace)
+        ActiveTraceNavigationState activeTrace,
+        DateTimeOffset replaySavedAtUtc)
     {
         if (!replayPayload.TryGetProperty("pendingEvents", out var pendingEvents)
             || pendingEvents.ValueKind != JsonValueKind.Array)
@@ -185,7 +186,7 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             : DateTimeOffset.MaxValue;
 
         return pendingEvents.EnumerateArray()
-            .Where(pendingEvent => MatchesActiveTrace(pendingEvent, activeTrace, windowEndUtc))
+            .Where(pendingEvent => MatchesActiveTrace(pendingEvent, activeTrace, replaySavedAtUtc, windowEndUtc))
             .Select(pendingEvent => pendingEvent.Clone())
             .ToList();
     }
@@ -193,6 +194,7 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
     private static bool MatchesActiveTrace(
         JsonElement pendingEvent,
         ActiveTraceNavigationState activeTrace,
+        DateTimeOffset replaySavedAtUtc,
         DateTimeOffset windowEndUtc)
     {
         if (!pendingEvent.TryGetProperty("eventType", out var eventType)
@@ -217,16 +219,27 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             return false;
         }
 
-        if (!pendingEvent.TryGetProperty("timestampUtc", out var timestampProperty)
-            || timestampProperty.ValueKind != JsonValueKind.String
-            || !DateTimeOffset.TryParse(timestampProperty.GetString(), out var timestamp))
+        if (!IsWithinTraceWindow(replaySavedAtUtc, activeTrace.StartedAtUtc, windowEndUtc))
         {
             return false;
         }
 
-        return timestamp >= activeTrace.StartedAtUtc
-            && timestamp <= windowEndUtc;
+        if (!pendingEvent.TryGetProperty("timestampUtc", out var timestampProperty)
+            || timestampProperty.ValueKind != JsonValueKind.String
+            || !DateTimeOffset.TryParse(timestampProperty.GetString(), out var timestamp))
+        {
+            return true;
+        }
+
+        return IsWithinTraceWindow(timestamp, activeTrace.StartedAtUtc, windowEndUtc)
+            || IsWithinTraceWindow(replaySavedAtUtc, activeTrace.StartedAtUtc, windowEndUtc);
     }
+
+    private static bool IsWithinTraceWindow(
+        DateTimeOffset candidate,
+        DateTimeOffset windowStartUtc,
+        DateTimeOffset windowEndUtc) =>
+        candidate >= windowStartUtc && candidate <= windowEndUtc;
 
     private static void WriteReplayTraceEvent(Utf8JsonWriter writer, JsonElement pendingEvent)
     {

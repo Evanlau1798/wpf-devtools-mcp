@@ -4,14 +4,16 @@ namespace WpfDevTools.Mcp.Server;
 
 public sealed partial class SessionManager
 {
-    private readonly Dictionary<int, JsonElement> _pendingEventReplay = new();
+    private readonly Dictionary<int, PendingEventReplaySnapshot> _pendingEventReplay = new();
 
     internal void SavePendingEventReplay(int processId, JsonElement drainPayload)
     {
         ThrowIfDisposed();
         lock (_lock)
         {
-            _pendingEventReplay[processId] = drainPayload.Clone();
+            _pendingEventReplay[processId] = new PendingEventReplaySnapshot(
+                drainPayload.Clone(),
+                DateTimeOffset.UtcNow);
         }
     }
 
@@ -20,10 +22,10 @@ public sealed partial class SessionManager
         ThrowIfDisposed();
         lock (_lock)
         {
-            if (_pendingEventReplay.TryGetValue(processId, out var payload))
+            if (_pendingEventReplay.TryGetValue(processId, out var snapshot))
             {
                 _pendingEventReplay.Remove(processId);
-                drainPayload = payload.Clone();
+                drainPayload = snapshot.Payload.Clone();
                 return true;
             }
         }
@@ -37,9 +39,9 @@ public sealed partial class SessionManager
         ThrowIfDisposed();
         lock (_lock)
         {
-            if (_pendingEventReplay.TryGetValue(processId, out var payload))
+            if (_pendingEventReplay.TryGetValue(processId, out var snapshot))
             {
-                drainPayload = payload.Clone();
+                drainPayload = snapshot.Payload.Clone();
                 return true;
             }
         }
@@ -47,4 +49,27 @@ public sealed partial class SessionManager
         drainPayload = default;
         return false;
     }
+
+    internal bool TryPeekPendingEventReplayMetadata(
+        int processId,
+        out JsonElement drainPayload,
+        out DateTimeOffset savedAtUtc)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (_pendingEventReplay.TryGetValue(processId, out var snapshot))
+            {
+                drainPayload = snapshot.Payload.Clone();
+                savedAtUtc = snapshot.SavedAtUtc;
+                return true;
+            }
+        }
+
+        drainPayload = default;
+        savedAtUtc = default;
+        return false;
+    }
+
+    private sealed record PendingEventReplaySnapshot(JsonElement Payload, DateTimeOffset SavedAtUtc);
 }

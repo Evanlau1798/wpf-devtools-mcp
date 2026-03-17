@@ -23,11 +23,6 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
     private static TraceSessionMetadata? _lastTraceMetadata = null;
     private static int _handlerInvocationCount = 0;
 
-    // Reflection support for GetEventHandlers
-    private const string EVENT_HANDLERS_STORE_MEMBER = "EventHandlersStore";
-    private static bool? _reflectionSupported = null;
-    private static readonly object _reflectionLock = new object();
-
     /// <summary>
     /// Create a new EventAnalyzer instance
     /// </summary>

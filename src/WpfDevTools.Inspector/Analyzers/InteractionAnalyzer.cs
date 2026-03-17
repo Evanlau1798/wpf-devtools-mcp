@@ -202,6 +202,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                 var originalTargetText = targetElement is TextBox targetTextBox
                     ? targetTextBox.Text
                     : null;
+                var targetHandlerHints = CreateTargetHandlerHints(targetUI);
 
                 // Create drag data
                 var data = InteractionDragDropHelper.CreateDataObject(sourceElement, dataFormat);
@@ -235,6 +236,17 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                 dragEnterArgs.RoutedEvent = DragDrop.DragEnterEvent;
                 targetUI.RaiseEvent(dragEnterArgs);
 
+                var dragOverArgs = (DragEventArgs)constructor.Invoke(new object[]
+                {
+                    data,
+                    DragDropKeyStates.None,
+                    DragDropEffects.Copy,
+                    targetUI,
+                    new Point(0, 0)
+                });
+                dragOverArgs.RoutedEvent = DragDrop.DragOverEvent;
+                targetUI.RaiseEvent(dragOverArgs);
+
                 // Simulate drop
                 var dropArgs = (DragEventArgs)constructor.Invoke(new object[]
                 {
@@ -259,7 +271,8 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                     message = "Drag and drop simulated successfully",
                     sourceType = sourceElement.GetType().Name,
                     targetType = targetElement.GetType().Name,
-                    dataFormat
+                    dataFormat,
+                    targetHandlerHints
                 };
             }
             catch (Exception ex)
@@ -270,6 +283,36 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                     "Verify both elements still exist and support drag/drop semantics before retrying.");
             }
         });
+    }
+
+    private static object CreateTargetHandlerHints(UIElement targetElement)
+    {
+        var targetAllowsDrop = targetElement.AllowDrop;
+        if (!RoutedEventHandlerInspectionHelper.IsReflectionSupported())
+        {
+            return new
+            {
+                targetAllowsDrop,
+                hasDropHandler = (bool?)null,
+                hasDragOverHandler = (bool?)null,
+                hasAnyDropOrDragOverHandler = (bool?)null,
+                inspectionSupported = false,
+                mayBeIncomplete = true
+            };
+        }
+
+        var dropHandlerCount = RoutedEventHandlerInspectionHelper.GetHandlerInfos(targetElement, DragDrop.DropEvent).Count;
+        var dragOverHandlerCount = RoutedEventHandlerInspectionHelper.GetHandlerInfos(targetElement, DragDrop.DragOverEvent).Count;
+
+        return new
+        {
+            targetAllowsDrop,
+            hasDropHandler = dropHandlerCount > 0,
+            hasDragOverHandler = dragOverHandlerCount > 0,
+            hasAnyDropOrDragOverHandler = dropHandlerCount > 0 || dragOverHandlerCount > 0,
+            inspectionSupported = true,
+            mayBeIncomplete = true
+        };
     }
 
 }

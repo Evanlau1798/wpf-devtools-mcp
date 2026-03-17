@@ -150,7 +150,14 @@ public static class InteractionMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  dropped: boolean\n" +
+        "  targetHandlerHints: {\n" +
+        "    targetAllowsDrop: boolean,\n" +
+        "    hasDropHandler: boolean|null,\n" +
+        "    hasDragOverHandler: boolean|null,\n" +
+        "    hasAnyDropOrDragOverHandler: boolean|null,\n" +
+        "    inspectionSupported: boolean,\n" +
+        "    mayBeIncomplete: boolean\n" +
+        "  }\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

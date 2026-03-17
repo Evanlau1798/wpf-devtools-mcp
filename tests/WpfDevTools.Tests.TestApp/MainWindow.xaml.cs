@@ -110,6 +110,19 @@ public partial class MainWindow : Window
             e.Handled = true;
         };
 
+        DropTargetTextBox.DragOver += (s, e) =>
+        {
+            if (e.Data.GetDataPresent(DataFormats.Text))
+            {
+                e.Effects = DragDropEffects.Copy;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        };
+
         DropTargetTextBox.Drop += (s, e) =>
         {
             if (e.Data.GetDataPresent(DataFormats.Text))

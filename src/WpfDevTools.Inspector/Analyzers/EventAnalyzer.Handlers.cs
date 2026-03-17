@@ -20,7 +20,7 @@ public sealed partial class EventAnalyzer
                     "Provide a routed event name such as Click, MouseDown, or PreviewMouseDown.");
             }
 
-            if (!IsReflectionSupported())
+            if (!RoutedEventHandlerInspectionHelper.IsReflectionSupported())
             {
                 return ToolErrorFactory.OperationFailed(
                     "get event handlers",
@@ -53,19 +53,27 @@ public sealed partial class EventAnalyzer
 
             try
             {
-                var handlers = GetHandlerInfoList(uiElement, routedEvent);
+                var handlers = RoutedEventHandlerInspectionHelper.GetHandlerInfos(uiElement, routedEvent)
+                    .Select(handler => new
+                    {
+                        handlerType = handler.HandlerType,
+                        targetType = handler.TargetType,
+                        methodName = handler.MethodName,
+                        isClassHandler = handler.InvokeHandledEventsToo
+                    })
+                    .ToArray();
 
                 return new
                 {
                     success = true,
                     eventName,
-                    handlerCount = handlers.Count,
+                    handlerCount = handlers.Length,
                     handlers,
                     reflectionSupported = true,
                     mayBeIncomplete = true,
-                    message = handlers.Count == 0
+                    message = handlers.Length == 0
                         ? "No handlers found. Reflection does not see class handlers, commands, template triggers, or inaccessible internals."
-                        : $"Found {handlers.Count} handler(s)"
+                        : $"Found {handlers.Length} handler(s)"
                 };
             }
             catch (Exception ex)
@@ -78,88 +86,4 @@ public sealed partial class EventAnalyzer
         });
     }
 
-    private static List<object> GetHandlerInfoList(UIElement uiElement, RoutedEvent routedEvent)
-    {
-        var handlers = new List<object>();
-        var eventHandlersStore = GetEventHandlersStore(uiElement);
-
-        if (eventHandlersStore == null)
-        {
-            return handlers;
-        }
-
-        var getRoutedEventHandlersMethod = eventHandlersStore.GetType().GetMethod(
-            "GetRoutedEventHandlers",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-
-        if (getRoutedEventHandlersMethod == null)
-        {
-            return handlers;
-        }
-
-        var routedEventHandlers = getRoutedEventHandlersMethod.Invoke(
-            eventHandlersStore,
-            new object[] { routedEvent }) as RoutedEventHandlerInfo[];
-
-        if (routedEventHandlers == null)
-        {
-            return handlers;
-        }
-
-        foreach (var handlerInfo in routedEventHandlers)
-        {
-            var handler = handlerInfo.Handler;
-            handlers.Add(new
-            {
-                handlerType = handler.GetType().Name,
-                targetType = handler.Target?.GetType().Name,
-                methodName = handler.Method.Name,
-                isClassHandler = handlerInfo.InvokeHandledEventsToo
-            });
-        }
-
-        return handlers;
-    }
-
-    private static bool IsReflectionSupported()
-    {
-        lock (_reflectionLock)
-        {
-            if (_reflectionSupported.HasValue)
-            {
-                return _reflectionSupported.Value;
-            }
-
-            _reflectionSupported = GetEventHandlersStoreMember() != null;
-            return _reflectionSupported.Value;
-        }
-    }
-
-    private static object? GetEventHandlersStore(UIElement element)
-    {
-        var member = GetEventHandlersStoreMember();
-
-        return member switch
-        {
-            System.Reflection.FieldInfo field => field.GetValue(element),
-            System.Reflection.PropertyInfo property => property.GetValue(element),
-            _ => null
-        };
-    }
-
-    private static System.Reflection.MemberInfo? GetEventHandlersStoreMember()
-    {
-        var field = typeof(UIElement).GetField(
-            EVENT_HANDLERS_STORE_MEMBER,
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-
-        if (field != null)
-        {
-            return field;
-        }
-
-        return typeof(UIElement).GetProperty(
-            EVENT_HANDLERS_STORE_MEMBER,
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-    }
 }

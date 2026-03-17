@@ -82,4 +82,26 @@ public class WpfProcessDetectorWindowHeuristicsTests
         WpfProcessDetector.MatchesWindowFilter(foregroundWindow, ProcessWindowFilter.Foreground).Should().BeTrue();
         WpfProcessDetector.MatchesWindowFilter(backgroundWindow, ProcessWindowFilter.Foreground).Should().BeFalse();
     }
+
+    [Fact]
+    public void SelectWindowTitles_WhenMainWindowTitleAndVisibleWindowDiffer_ShouldPreferMainWindowTitle()
+    {
+        var titles = WpfProcessDetector.SelectWindowTitles(
+            mainWindowTitle: "63-Tool Edge Case Workbench",
+            enumeratedWindowTitle: "Runtime Notes");
+
+        titles.WindowTitle.Should().Be("63-Tool Edge Case Workbench");
+        titles.SecondaryWindowTitle.Should().Be("Runtime Notes");
+    }
+
+    [Fact]
+    public void SelectWindowTitles_WhenMainWindowTitleMissing_ShouldFallbackToEnumeratedWindowTitle()
+    {
+        var titles = WpfProcessDetector.SelectWindowTitles(
+            mainWindowTitle: null,
+            enumeratedWindowTitle: "Runtime Notes");
+
+        titles.WindowTitle.Should().Be("Runtime Notes");
+        titles.SecondaryWindowTitle.Should().BeNull();
+    }
 }

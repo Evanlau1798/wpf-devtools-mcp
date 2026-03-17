@@ -81,6 +81,7 @@ public sealed class GetProcessesTool
                     processId = p.ProcessId,
                     processName = p.ProcessName,
                     windowTitle = p.WindowTitle,
+                    secondaryWindowTitle = p.SecondaryWindowTitle,
                     architecture = p.Architecture.ToString(),
                     dotNetVersion = p.DotNetVersion,
                     runtime = p.Runtime.ToString(),

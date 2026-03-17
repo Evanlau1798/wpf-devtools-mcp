@@ -61,7 +61,7 @@ public class GetProcessesToolTests
     public async Task Execute_ShouldReturnProcessInfo()
     {
         // Arrange
-        var tool = new GetProcessesTool(new FakeProcessDetector([CreateProcessInfo(42, "TestApp")]), () => false);
+        var tool = new GetProcessesTool(new FakeProcessDetector([CreateProcessInfo(42, "TestApp", secondaryWindowTitle: "Runtime Notes")]), () => false);
         var parameters = new { };
 
         // Act
@@ -78,6 +78,7 @@ public class GetProcessesToolTests
             firstProcess.TryGetProperty("processId", out _).Should().BeTrue();
             firstProcess.TryGetProperty("processName", out _).Should().BeTrue();
             firstProcess.TryGetProperty("windowTitle", out _).Should().BeTrue();
+            firstProcess.TryGetProperty("secondaryWindowTitle", out _).Should().BeTrue();
             firstProcess.TryGetProperty("architecture", out _).Should().BeTrue();
         }
     }
@@ -230,12 +231,17 @@ public class GetProcessesToolTests
             => throw new InvalidOperationException("simulated enumeration failure");
     }
 
-    private static WpfProcessInfo CreateProcessInfo(int processId, string processName, bool isElevated = false)
+    private static WpfProcessInfo CreateProcessInfo(
+        int processId,
+        string processName,
+        bool isElevated = false,
+        string? secondaryWindowTitle = null)
         => new()
         {
             ProcessId = processId,
             ProcessName = processName,
             WindowTitle = processName + " Window",
+            SecondaryWindowTitle = secondaryWindowTitle,
             Architecture = ProcessArchitecture.X64,
             DotNetVersion = ".NET Core/5+",
             Runtime = TargetRuntime.NetCore,

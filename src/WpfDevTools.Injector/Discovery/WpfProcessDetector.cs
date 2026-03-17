@@ -157,12 +157,14 @@ public class WpfProcessDetector
             ? DetectDotNetVersionFromModuleNames(moduleNames)
             : null;
         var isElevated = ProcessElevationDetector.TryIsProcessElevated(processId, out var elevated) && elevated;
+        var titles = SelectWindowTitles(process.MainWindowTitle, window?.Title);
 
         return new WpfProcessInfo
         {
             ProcessId = processId,
             ProcessName = process.ProcessName,
-            WindowTitle = GetMainWindowTitle(process, window),
+            WindowTitle = titles.WindowTitle,
+            SecondaryWindowTitle = titles.SecondaryWindowTitle,
             Architecture = architecture,
             DotNetVersion = dotNetVersion,
             Runtime = runtime,
@@ -187,6 +189,27 @@ public class WpfProcessDetector
         }
 
         return index;
+    }
+
+    internal static (string? WindowTitle, string? SecondaryWindowTitle) SelectWindowTitles(
+        string? mainWindowTitle,
+        string? enumeratedWindowTitle)
+    {
+        var preferredTitle = NormalizeWindowTitle(mainWindowTitle) ?? NormalizeWindowTitle(enumeratedWindowTitle);
+        var visibleSecondaryTitle = NormalizeWindowTitle(enumeratedWindowTitle);
+
+        if (preferredTitle == null)
+        {
+            return (null, null);
+        }
+
+        if (visibleSecondaryTitle == null
+            || string.Equals(preferredTitle, visibleSecondaryTitle, StringComparison.Ordinal))
+        {
+            return (preferredTitle, null);
+        }
+
+        return (preferredTitle, visibleSecondaryTitle);
     }
 
     internal static bool ShouldInspectModules(TopLevelWindowSnapshot? window)
@@ -455,27 +478,6 @@ public class WpfProcessDetector
         return null;
     }
 
-    private string? GetMainWindowTitle(Process process, TopLevelWindowSnapshot? window)
-    {
-        try
-        {
-            var windowTitle = window?.Title;
-            if (!string.IsNullOrWhiteSpace(windowTitle))
-            {
-                return windowTitle;
-            }
-
-            return string.IsNullOrWhiteSpace(process.MainWindowTitle)
-                ? null
-                : process.MainWindowTitle;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to get window title: {ex.Message}");
-            return null;
-        }
-    }
-
     private string? GetExecutablePath(Process process)
     {
         try
@@ -516,5 +518,10 @@ public class WpfProcessDetector
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
+
+    private static string? NormalizeWindowTitle(string? title) =>
+        string.IsNullOrWhiteSpace(title)
+            ? null
+            : title.Trim();
 }
 

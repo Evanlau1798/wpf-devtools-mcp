@@ -23,6 +23,11 @@ public sealed class WpfProcessInfo
     public string? WindowTitle { get; init; }
 
     /// <summary>
+    /// Best visible secondary window title when it differs from the preferred main window title.
+    /// </summary>
+    public string? SecondaryWindowTitle { get; init; }
+
+    /// <summary>
     /// Process architecture
     /// </summary>
     public required ProcessArchitecture Architecture { get; init; }

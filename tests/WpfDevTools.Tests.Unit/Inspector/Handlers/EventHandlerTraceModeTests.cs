@@ -132,4 +132,39 @@ public sealed class EventHandlerTraceModeTests
         payload.GetProperty("eventCount").GetInt32().Should().Be(0);
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("eventNotRaised");
     }
+
+    [StaFact]
+    public async Task TraceRoutedEvents_GetMode_WithZeroEvents_ShouldExposeRegistrationDiagnostics()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(finder);
+        var handler = new EventHandlers(analyzer);
+        var button = new System.Windows.Controls.Button { Name = "TraceDiagnosticsButton" };
+        var elementId = finder.GenerateElementId(button);
+
+        var startParams = JsonSerializer.SerializeToElement(new
+        {
+            mode = "start",
+            elementId,
+            eventName = "Click",
+            duration = 120,
+            allowShortStartDuration = true
+        });
+
+        var startResult = await handler.HandleAsync("trace_routed_events", startParams, CancellationToken.None);
+        JsonSerializer.SerializeToElement(startResult).GetProperty("success").GetBoolean().Should().BeTrue();
+
+        await Task.Delay(220);
+
+        var getResult = await handler.HandleAsync(
+            "trace_routed_events",
+            JsonSerializer.SerializeToElement(new { mode = "get" }),
+            CancellationToken.None);
+
+        var payload = JsonSerializer.SerializeToElement(getResult);
+        payload.GetProperty("success").GetBoolean().Should().BeTrue();
+        payload.GetProperty("diagnostics").GetProperty("registrationCount").GetInt32().Should().BeGreaterThan(0);
+        payload.GetProperty("diagnostics").GetProperty("resolvedElementId").GetString().Should().Be(elementId);
+        payload.GetProperty("diagnostics").GetProperty("resolvedElementType").GetString().Should().Be("Button");
+    }
 }

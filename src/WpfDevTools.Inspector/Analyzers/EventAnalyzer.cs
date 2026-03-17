@@ -92,13 +92,15 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
 
             // Build handler and register on multiple points for robustness
             var traceElementId = elementId ?? _elementFinder.GenerateElementId(uiElement);
+            var handler = CreateTraceHandler(traceElementId);
+            var registrations = RegisterTraceHandlers(uiElement, routedEvent, handler, eventName);
             var traceMetadata = new TraceSessionMetadata(
                 eventName,
                 traceElementId,
                 DateTimeOffset.UtcNow,
-                cappedDuration);
-            var handler = CreateTraceHandler(traceElementId);
-            var registrations = RegisterTraceHandlers(uiElement, routedEvent, handler, eventName);
+                cappedDuration,
+                registrations.Count,
+                uiElement.GetType().Name);
 
             lock (_lock)
             {

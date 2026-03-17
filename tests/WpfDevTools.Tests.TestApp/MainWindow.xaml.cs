@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         SetupBindingDiagnosticsSamples();
         SetupGeneratedDetailDiagnostics();
         SetupWaitForChangeDiagnostics();
+        InitializeEventTraceLab();
 
         InitializeModernTheme();
     }

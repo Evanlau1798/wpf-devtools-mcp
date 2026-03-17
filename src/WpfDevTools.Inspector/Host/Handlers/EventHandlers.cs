@@ -286,6 +286,9 @@ public class EventHandlers : IRequestHandler
                 reasonCode = "captureWindowTooShort",
                 message = "Tracing is still active and no events have been captured yet.",
                 activeEventName = traceMetadata?.EventName,
+                registrationCount = traceMetadata?.RegistrationCount ?? 0,
+                resolvedElementId = traceMetadata?.ElementId,
+                resolvedElementType = traceMetadata?.ResolvedElementType,
                 elapsedMs,
                 effectiveDurationMs,
                 remainingWindowMs,
@@ -298,6 +301,9 @@ public class EventHandlers : IRequestHandler
             reasonCode = "eventNotRaised",
             message = "Trace window ended without captured routed events.",
             activeEventName = traceMetadata?.EventName,
+            registrationCount = traceMetadata?.RegistrationCount ?? 0,
+            resolvedElementId = traceMetadata?.ElementId,
+            resolvedElementType = traceMetadata?.ResolvedElementType,
             suggestedAction = traceMetadata is null
                 ? "Start tracing with trace_routed_events(mode='start', eventName=...) before retrieving results."
                 : "Restart tracing and trigger the target interaction inside the capture window before calling mode='get'."

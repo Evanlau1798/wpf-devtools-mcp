@@ -36,7 +36,9 @@ internal sealed record TraceSessionMetadata(
     string EventName,
     string ElementId,
     DateTimeOffset StartedAtUtc,
-    int EffectiveDurationMs);
+    int EffectiveDurationMs,
+    int RegistrationCount,
+    string ResolvedElementType);
 
 /// <summary>
 /// Utility methods for discovering and resolving WPF RoutedEvents by name.

@@ -90,6 +90,64 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
         traceGet.GetProperty("eventCount").GetInt32().Should().BeGreaterThan(0, traceGet.GetRawText());
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task TraceRoutedEvents_AfterBootstrapInjection_ShouldCaptureGoldenSampleEventTraceLabClick()
+    {
+        BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
+            "the live bootstrap smoke test requires native bootstrapper artifacts; build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
+
+        _testApp = StartTestApp();
+        var sessionManager = new SessionManager();
+        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector());
+        var getNamescopeTool = new GenericPipeTool(sessionManager, "get_namescope");
+        var clickTool = new ClickElementTool(sessionManager);
+        var traceTool = new TraceRoutedEventsTool(sessionManager);
+
+        var connectResult = await ExecuteToolAsync(connectTool, new { processId = _testApp.Id });
+        connectResult.GetProperty("success").GetBoolean().Should().BeTrue(connectResult.GetRawText());
+
+        var namescope = await ExecuteToolAsync(
+            getNamescopeTool,
+            new { processId = _testApp.Id });
+
+        var tabId = GetNamedElementId(namescope, "EventTraceLabTab");
+        tabId.Should().NotBeNullOrEmpty(namescope.GetRawText());
+
+        var clickTabResult = await ExecuteToolAsync(
+            clickTool,
+            new { processId = _testApp.Id, elementId = tabId });
+        clickTabResult.GetProperty("success").GetBoolean().Should().BeTrue(clickTabResult.GetRawText());
+
+        await Task.Delay(250);
+
+        namescope = await ExecuteToolAsync(
+            getNamescopeTool,
+            new { processId = _testApp.Id });
+
+        var buttonId = GetNamedElementId(namescope, "EventStormButton");
+        buttonId.Should().NotBeNullOrEmpty(namescope.GetRawText());
+
+        var traceStart = await ExecuteToolAsync(
+            traceTool,
+            new { processId = _testApp.Id, elementId = buttonId, eventName = "Click", mode = "start", duration = 2000 });
+        traceStart.GetProperty("success").GetBoolean().Should().BeTrue(traceStart.GetRawText());
+
+        var clickButton = await ExecuteToolAsync(
+            clickTool,
+            new { processId = _testApp.Id, elementId = buttonId });
+        clickButton.GetProperty("success").GetBoolean().Should().BeTrue(clickButton.GetRawText());
+
+        await Task.Delay(150);
+
+        var traceGet = await ExecuteToolAsync(
+            traceTool,
+            new { processId = _testApp.Id, mode = "get" });
+
+        traceGet.GetProperty("success").GetBoolean().Should().BeTrue(traceGet.GetRawText());
+        traceGet.GetProperty("eventCount").GetInt32().Should().BeGreaterThan(0, traceGet.GetRawText());
+    }
+
     private async Task<JsonElement> ExecuteToolAsync(object tool, object args)
     {
         var method = tool.GetType().GetMethod("ExecuteAsync");

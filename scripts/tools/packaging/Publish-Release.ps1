@@ -153,6 +153,30 @@ function Remove-PathIfExists {
     }
 }
 
+function Invoke-ArchiveCreation {
+    param(
+        [Parameter(Mandatory)] [string]$PackageDirectory,
+        [Parameter(Mandatory)] [string]$ArchivePath
+    )
+
+    $retryDelayMilliseconds = 250
+    $maxAttempts = 5
+
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        try {
+            Compress-Archive -Path (Join-Path $PackageDirectory '*') -DestinationPath $ArchivePath -Force
+            return
+        }
+        catch {
+            if ($attempt -eq $maxAttempts) {
+                throw
+            }
+
+            Start-Sleep -Milliseconds $retryDelayMilliseconds
+        }
+    }
+}
+
 function Resolve-MSBuildPath {
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH)) {
         return $env:WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH
@@ -353,7 +377,7 @@ foreach ($architecture in $resolvedArchitectures) {
         }
 
         $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $binDir 'manifest.json') -Encoding UTF8
-        Compress-Archive -Path (Join-Path $packageDir '*') -DestinationPath $packageArchivePath -Force
+        Invoke-ArchiveCreation -PackageDirectory $packageDir -ArchivePath $packageArchivePath
         Write-Host "Created package: $packageDir"
         Write-Host "Created archive: $packageArchivePath"
     }

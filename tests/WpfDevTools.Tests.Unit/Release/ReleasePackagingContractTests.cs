@@ -201,6 +201,20 @@ public sealed class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void PublishReleaseScript_ShouldRetryArchiveCreationWhenTransientFileLocksOccur()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+
+        content.Should().Contain("Invoke-ArchiveCreation",
+            "release packaging should centralize archive creation so transient packaging locks can be handled consistently");
+        content.Should().Contain("Compress-Archive",
+            "the publisher still needs to emit GitHub release zip assets");
+        content.Should().Contain("Start-Sleep",
+            "transient file-lock failures during archive creation should be retried instead of aborting the release immediately");
+    }
+
+    [Fact]
     public void InstallScript_ShouldInstallServerExecutableFromBinDirectory()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

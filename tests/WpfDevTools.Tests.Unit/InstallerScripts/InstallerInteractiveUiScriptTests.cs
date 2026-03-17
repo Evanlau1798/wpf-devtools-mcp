@@ -41,6 +41,8 @@ public sealed class InstallerInteractiveUiScriptTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("WPF DEVTOOLS MCP");
+            result.Stdout.Should().Contain("<Binding Path=\"{Binding}\" />");
+            result.Stdout.Should().Contain("<DependencyProperty/>");
             result.Stdout.Should().Contain("Open docs homepage");
             File.ReadAllText(browserLog).Should().Contain(DocsHomepageUrl);
             File.ReadAllText(Path.Combine(userProfile, ".mcp.json")).Should().Contain("wpf-devtools");
@@ -84,7 +86,8 @@ public sealed class InstallerInteractiveUiScriptTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("WPF DEVTOOLS MCP");
-            result.Stdout.Should().Contain("VisualTree");
+            result.Stdout.Should().Contain("<StackPanel>");
+            result.Stdout.Should().Contain("<VisualTree/>");
             result.Stdout.Should().Contain("Open docs homepage");
             File.ReadAllText(browserLog).Should().Contain(DocsHomepageUrl);
             File.ReadAllText(Path.Combine(userProfile, ".mcp.json")).Should().Contain("wpf-devtools");

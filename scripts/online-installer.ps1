@@ -45,13 +45,22 @@ function Write-InstallerBanner {
         return
     }
 
+    $border = '+==================================================================+'
     Write-InstallerHostMessage ''
-    Write-InstallerHostMessage '+------------------------------------------------------------------+'
+    Write-InstallerHostMessage $border
     Write-InstallerHostMessage '|                       WPF DEVTOOLS MCP                           |'
-    Write-InstallerHostMessage '|          [Window] [Grid] [Binding] [VisualTree] [Command]       |'
-    Write-InstallerHostMessage '+------------------------------------------------------------------+'
+    Write-InstallerHostMessage '|  __      __ _____  ______   ______          _           _        |'
+    Write-InstallerHostMessage '|  \\ \\    / // ____||  ____| |  ____|        | |         | |       |'
+    Write-InstallerHostMessage '|   \\ \\  / /| |     | |__    | |__    _ __   | |_   ___  | |       |'
+    Write-InstallerHostMessage '|    \\ \\/ / | |     |  __|   |  __|  | ''_ \\  | __| / _ \\ | |       |'
+    Write-InstallerHostMessage '|     \\  /  | |____ | |      | |____ | | | | | |_ | (_) || |       |'
+    Write-InstallerHostMessage '|      \\/    \\_____||_|      |______||_| |_|  \\__| \\___/ |_|       |'
+    Write-InstallerHostMessage $border
+    Write-InstallerHostMessage '|  <Window>  <Grid>  <StackPanel>  <VisualTree/>                  |'
+    Write-InstallerHostMessage '|  <Binding Path="{Binding}" />  <DependencyProperty/>            |'
+    Write-InstallerHostMessage $border
     Write-InstallerHostMessage ("| " + $Subtitle.PadRight(64) + ' |')
-    Write-InstallerHostMessage '+------------------------------------------------------------------+'
+    Write-InstallerHostMessage $border
     Write-InstallerHostMessage ''
 }
 
@@ -93,10 +102,12 @@ function Read-MenuSelection {
         throw "Default menu option not found: $DefaultKey"
     }
 
-    Write-InstallerHostMessage "+- $Title"
+    Write-InstallerHostMessage '+------------------------------------------------------------------+'
+    Write-InstallerHostMessage ("| " + $Title.PadRight(64) + ' |')
+    Write-InstallerHostMessage '+------------------------------------------------------------------+'
     foreach ($option in $Options) {
         $marker = if ($option.Key -eq $DefaultKey) { '*' } else { ' ' }
-        Write-InstallerHostMessage ("| {0} {1}. {2}  {3}" -f $marker, $option.Key, $option.Label, $option.Description)
+        Write-InstallerHostMessage ("| {0} [{1}] {2} :: {3}" -f $marker, $option.Key, $option.Label, $option.Description)
     }
     Write-InstallerHostMessage '+------------------------------------------------------------------'
 
@@ -421,7 +432,9 @@ try {
     if (-not $NonInteractive -and -not $OutputJson) {
         Write-InstallerHostMessage ''
         Write-InstallerHostMessage 'Installation complete.'
-        Write-InstallerHostMessage '+- Next action'
+        Write-InstallerHostMessage '+------------------------------------------------------------------+'
+        Write-InstallerHostMessage '| Quick actions                                                    |'
+        Write-InstallerHostMessage '+------------------------------------------------------------------+'
         Write-InstallerHostMessage '| 1. Open docs homepage'
         Write-InstallerHostMessage '| 2. Exit'
         Write-InstallerHostMessage '+------------------------------------------------------------------'

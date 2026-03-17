@@ -39,13 +39,22 @@ function Write-InstallerBanner {
         return
     }
 
+    $border = '+==================================================================+'
     Write-SetupMessage ''
-    Write-SetupMessage '+------------------------------------------------------------------+'
+    Write-SetupMessage $border
     Write-SetupMessage '|                       WPF DEVTOOLS MCP                           |'
-    Write-SetupMessage '|          [Window] [Grid] [Binding] [VisualTree] [Command]       |'
-    Write-SetupMessage '+------------------------------------------------------------------+'
+    Write-SetupMessage '|  __      __ _____  ______   ______          _           _        |'
+    Write-SetupMessage '|  \\ \\    / // ____||  ____| |  ____|        | |         | |       |'
+    Write-SetupMessage '|   \\ \\  / /| |     | |__    | |__    _ __   | |_   ___  | |       |'
+    Write-SetupMessage '|    \\ \\/ / | |     |  __|   |  __|  | ''_ \\  | __| / _ \\ | |       |'
+    Write-SetupMessage '|     \\  /  | |____ | |      | |____ | | | | | |_ | (_) || |       |'
+    Write-SetupMessage '|      \\/    \\_____||_|      |______||_| |_|  \\__| \\___/ |_|       |'
+    Write-SetupMessage $border
+    Write-SetupMessage '|  <Window>  <Grid>  <StackPanel>  <VisualTree/>                  |'
+    Write-SetupMessage '|  <Binding Path="{Binding}" />  <DependencyProperty/>            |'
+    Write-SetupMessage $border
     Write-SetupMessage ("| " + $Subtitle.PadRight(64) + ' |')
-    Write-SetupMessage '+------------------------------------------------------------------+'
+    Write-SetupMessage $border
     Write-SetupMessage ''
 }
 
@@ -81,10 +90,12 @@ function Read-MenuSelection {
         throw "Default menu option not found: $DefaultKey"
     }
 
-    Write-SetupMessage "+- $Title"
+    Write-SetupMessage '+------------------------------------------------------------------+'
+    Write-SetupMessage ("| " + $Title.PadRight(64) + ' |')
+    Write-SetupMessage '+------------------------------------------------------------------+'
     foreach ($option in $Options) {
         $marker = if ($option.Key -eq $DefaultKey) { '*' } else { ' ' }
-        Write-SetupMessage ("| {0} {1}. {2}  {3}" -f $marker, $option.Key, $option.Label, $option.Description)
+        Write-SetupMessage ("| {0} [{1}] {2} :: {3}" -f $marker, $option.Key, $option.Label, $option.Description)
     }
     Write-SetupMessage '+------------------------------------------------------------------'
 
@@ -657,7 +668,9 @@ else {
 
     if (-not $NonInteractive) {
         Write-SetupMessage ''
-        Write-SetupMessage '+- Next action'
+        Write-SetupMessage '+------------------------------------------------------------------+'
+        Write-SetupMessage '| Quick actions                                                    |'
+        Write-SetupMessage '+------------------------------------------------------------------+'
         Write-SetupMessage '| 1. Open docs homepage'
         Write-SetupMessage '| 2. Exit'
         Write-SetupMessage '+------------------------------------------------------------------'

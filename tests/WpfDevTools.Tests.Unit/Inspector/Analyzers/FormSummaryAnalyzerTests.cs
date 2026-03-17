@@ -90,6 +90,49 @@ public sealed class FormSummaryAnalyzerTests
     }
 
     [StaFact]
+    public void GetFormSummary_WhenScopedToInactiveTabContent_ShouldExposeInactiveTabScopeMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new FormSummaryAnalyzer(finder);
+        var detailsForm = new StackPanel
+        {
+            Name = "DetailsForm",
+            Children =
+            {
+                new TextBlock { Text = "Email:" },
+                new TextBox { Name = "EmailBox", Text = string.Empty },
+                new Button { Name = "SubmitButton", Content = "Submit", IsEnabled = true }
+            }
+        };
+        var tabs = new TabControl
+        {
+            Name = "WizardTabs",
+            Items =
+            {
+                new TabItem
+                {
+                    Header = "Step1",
+                    Content = new TextBlock { Text = "Welcome" }
+                },
+                new TabItem
+                {
+                    Header = "Step2",
+                    Content = detailsForm
+                }
+            },
+            SelectedIndex = 0
+        };
+        finder.GenerateElementId(tabs);
+        var formElementId = finder.GenerateElementId(detailsForm);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(formElementId));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("scopeVisibility").GetString().Should().Be("InactiveTab");
+        result.GetProperty("isCurrentlyVisible").GetBoolean().Should().BeFalse();
+    }
+
+    [StaFact]
     public void GetFormSummary_WhenRootContainsTemplatedTabs_ShouldNotDuplicateInputs()
     {
         var finder = new ElementFinder();

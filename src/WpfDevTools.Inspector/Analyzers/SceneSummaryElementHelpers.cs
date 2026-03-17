@@ -238,6 +238,24 @@ internal static class SceneSummaryElementHelpers
         return false;
     }
 
+    internal static (string ScopeVisibility, bool IsCurrentlyVisible) GetScopeVisibilityMetadata(DependencyObject element)
+    {
+        for (var current = element; current != null; current = GetParent(current))
+        {
+            if (current is TabItem tabItem && !tabItem.IsSelected)
+            {
+                return ("InactiveTab", false);
+            }
+
+            if (current is UIElement uiElement && uiElement.Visibility != Visibility.Visible)
+            {
+                return (uiElement.Visibility.ToString(), false);
+            }
+        }
+
+        return ("Visible", true);
+    }
+
     internal static bool IsPrimaryCommand(ButtonBase button)
     {
         var candidate = $"{button.Name} {button.Content}".Trim();

@@ -137,6 +137,44 @@ public sealed class UiSummaryAnalyzerTests
     }
 
     [StaFact]
+    public void GetUiSummary_WhenScopedToInactiveTabContent_ShouldExposeInactiveTabScopeMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var hiddenTabBox = new TextBox
+        {
+            Name = "HiddenTabBox",
+            Text = "Hidden"
+        };
+        var tabs = new TabControl
+        {
+            Name = "MainTabs",
+            Items =
+            {
+                new TabItem
+                {
+                    Header = "Visible",
+                    Content = new TextBlock { Text = "Ready" }
+                },
+                new TabItem
+                {
+                    Header = "Hidden",
+                    Content = hiddenTabBox
+                }
+            },
+            SelectedIndex = 0
+        };
+        finder.GenerateElementId(tabs);
+        var hiddenElementId = finder.GenerateElementId(hiddenTabBox);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(hiddenElementId, depth: 1));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("scopeVisibility").GetString().Should().Be("InactiveTab");
+        result.GetProperty("isCurrentlyVisible").GetBoolean().Should().BeFalse();
+    }
+
+    [StaFact]
     public void GetUiSummary_WhenRootContainsTemplatedTabs_ShouldNotDuplicateSemanticNodes()
     {
         var finder = new ElementFinder();

@@ -58,6 +58,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             var rootElementId = _elementFinder.GenerateElementId(root);
             var rootType = root.GetType().Name;
             var rootName = SceneSummaryElementHelpers.GetElementName(root);
+            var (scopeVisibility, isCurrentlyVisible) = SceneSummaryElementHelpers.GetScopeVisibilityMetadata(root);
             var nodes = new List<object>();
             var summary = new StringBuilder();
             var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
@@ -73,6 +74,8 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                     rootElementName = rootName,
                     depth = maxDepth,
                     depthMode = SceneTraversalDepthModes.ToContractValue(traversalDepthMode),
+                    scopeVisibility,
+                    isCurrentlyVisible,
                     semanticNodeCount = nodes.Count,
                     summaryText = summary.ToString().TrimEnd()
                 }
@@ -84,6 +87,8 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                     rootElementName = rootName,
                     depth = maxDepth,
                     depthMode = SceneTraversalDepthModes.ToContractValue(traversalDepthMode),
+                    scopeVisibility,
+                    isCurrentlyVisible,
                     semanticNodeCount = nodes.Count,
                     summaryText = summary.ToString().TrimEnd(),
                     nodes

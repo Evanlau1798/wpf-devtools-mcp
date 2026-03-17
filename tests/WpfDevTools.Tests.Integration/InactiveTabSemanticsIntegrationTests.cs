@@ -44,6 +44,28 @@ public sealed class InactiveTabSemanticsIntegrationTests
     }
 
     [Fact]
+    public void GetUiSummary_OnInactiveTabContent_ShouldExposeInactiveTabScopeMetadata()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var finder = new ElementFinder();
+            var analyzer = new UiSummaryAnalyzer(finder);
+            var tabControl = CreateTabbedWindowContent(out _, out var inactiveInput);
+
+            Application.Current.MainWindow.Content = tabControl;
+            Application.Current.MainWindow.Show();
+            Application.Current.MainWindow.UpdateLayout();
+
+            var elementId = finder.GenerateElementId(inactiveInput);
+            return JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 1));
+        });
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("scopeVisibility").GetString().Should().Be("InactiveTab");
+        result.GetProperty("isCurrentlyVisible").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
     public void SimulateKeyboard_OnInactiveTabElement_ShouldReturnTabActivationHint()
     {
         var result = _fixture.RunOnUIThread(() =>

@@ -37,6 +37,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                 return ToolErrorFactory.ElementNotFound(elementId);
             }
 
+            var (scopeVisibility, isCurrentlyVisible) = SceneSummaryElementHelpers.GetScopeVisibilityMetadata(root);
             var inputs = new List<object>();
             var commands = new List<object>();
             var emptyInputCount = 0;
@@ -105,6 +106,8 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
             {
                 success = true,
                 formScope = _elementFinder.GenerateElementId(root),
+                scopeVisibility,
+                isCurrentlyVisible,
                 inputs,
                 commands,
                 summary

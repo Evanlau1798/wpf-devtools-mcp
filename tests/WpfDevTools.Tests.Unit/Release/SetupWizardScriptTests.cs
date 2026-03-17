@@ -42,7 +42,7 @@ public sealed class SetupWizardScriptTests
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
             var detectedClients = json.RootElement.GetProperty("detectedClients").EnumerateArray().Select(x => x.GetString()).ToArray();
-            detectedClients.Should().BeEquivalentTo(new[] { "claude-code", "claude-desktop", "codex", "cursor" });
+            detectedClients.Should().BeEquivalentTo(new[] { "claude-code", "claude-desktop", "codex", "cursor", "visual-studio" });
         }
         finally
         {

@@ -16,7 +16,7 @@ public sealed class ClientRegistrationArtifactTests
             var installRoot = Path.Combine(tempRoot, "install-root");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Install-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"),
                 new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
 
             result.ExitCode.Should().Be(0, result.Stderr);
@@ -35,33 +35,41 @@ public sealed class ClientRegistrationArtifactTests
     }
 
     [Fact]
-    public void SetupScript_ShouldAcceptArtifactOnlyClientsWithoutExternalRegistration()
+    public void SetupScript_ShouldAcceptVisualStudioAsAFileBasedRegistrationTarget()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
             var packageDir = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"),
                 new[]
                 {
                     "-PackagePath", packageDir,
                     "-InstallRoot", installRoot,
-                    "-Clients", "github-copilot-vscode,other",
+                    "-Clients", "visual-studio",
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"
+                },
+                new Dictionary<string, string?>
+                {
+                    ["USERPROFILE"] = userProfile
                 });
 
             result.ExitCode.Should().Be(0, result.Stderr);
 
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("selectedClients").EnumerateArray().Select(x => x.GetString())
-                .Should().BeEquivalentTo(new[] { "github-copilot-vscode", "other" });
+                .Should().BeEquivalentTo(new[] { "visual-studio" });
             json.RootElement.GetProperty("registrations").EnumerateArray().Select(x => x.GetProperty("mode").GetString())
-                .Should().OnlyContain(mode => mode == "artifact-only");
+                .Should().OnlyContain(mode => mode == "json-file");
+            File.ReadAllText(Path.Combine(userProfile, ".mcp.json"))
+                .Should().Contain("\"servers\"")
+                .And.Contain("WpfDevTools.Mcp.Server.exe");
         }
         finally
         {

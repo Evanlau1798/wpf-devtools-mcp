@@ -15,14 +15,14 @@ public sealed class OnlineInstallerContractTests
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldDefaultToLatestVersionAndX64ClaudeCode()
+    public void OnlineInstallerScript_ShouldDefaultToLatestVersionAndInteractiveClientSelection()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
         content.Should().Contain("[string]$Version = 'latest'");
-        content.Should().Contain("[string]$Architecture = 'x64'");
-        content.Should().Contain("[string]$Client = 'claude-code'");
+        content.Should().Contain("[switch]$NonInteractive");
+        content.Should().Contain("Read-Host");
     }
 
     [Fact]
@@ -35,11 +35,8 @@ public sealed class OnlineInstallerContractTests
         content.Should().Contain("'x86'");
         content.Should().Contain("'arm64'");
         content.Should().Contain("'claude-code'");
-        content.Should().Contain("'codex-cli'");
-        content.Should().Contain("'claude-desktop'");
-        content.Should().Contain("'cursor-vscode'");
-        content.Should().Contain("'github-copilot-vscode'");
-        content.Should().Contain("'other'");
+        content.Should().Contain("'codex'");
+        content.Should().Contain("'visual-studio'");
     }
 
     [Fact]
@@ -51,5 +48,6 @@ public sealed class OnlineInstallerContractTests
         content.Should().Contain("release_{0}_win-{1}.zip");
         content.Should().Contain("releases/latest/download");
         content.Should().Contain("releases/download/");
+        content.Should().Contain("api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases");
     }
 }

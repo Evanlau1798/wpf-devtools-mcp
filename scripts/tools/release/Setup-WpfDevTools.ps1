@@ -4,6 +4,7 @@ param(
     [string[]]$Clients,
     [string]$ClaudeDesktopConfigPath,
     [string]$CursorConfigPath,
+    [string]$VisualStudioConfigPath,
     [switch]$NonInteractive,
     [switch]$DetectOnly,
     [switch]$Force,
@@ -12,7 +13,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $script:IsJsonOutput = $OutputJson.IsPresent
-$script:KnownClients = @('claude-code', 'claude-desktop', 'codex', 'cursor', 'github-copilot-vscode', 'other')
+$script:KnownClients = @('claude-code', 'claude-desktop', 'codex', 'cursor', 'visual-studio', 'github-copilot-vscode', 'other')
 
 function Write-SetupMessage {
     param([Parameter(Mandatory)] [string]$Message)
@@ -82,6 +83,16 @@ function Resolve-CursorConfigPath {
     return (Get-CursorConfigCandidates | Select-Object -First 1)
 }
 
+function Resolve-VisualStudioConfigPath {
+    param([string]$OverridePath)
+
+    if (-not [string]::IsNullOrWhiteSpace($OverridePath)) {
+        return $OverridePath
+    }
+
+    return (Join-Path $env:USERPROFILE '.mcp.json')
+}
+
 function Resolve-InstallScriptPath {
     $packageLocalScript = Join-Path $PSScriptRoot 'install.ps1'
     if (Test-Path $packageLocalScript) {
@@ -123,6 +134,27 @@ function Test-ClientDetected {
             return $false
         }
         'github-copilot-vscode' {
+            return $false
+        }
+        'visual-studio' {
+            $globalConfig = Resolve-VisualStudioConfigPath
+            if (Test-Path $globalConfig) {
+                return $true
+            }
+
+            $devenvRoots = @(
+                (Join-Path ${env:ProgramFiles} 'Microsoft Visual Studio'),
+                (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio')
+            ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path $_) }
+
+            foreach ($root in $devenvRoots) {
+                $devenv = Get-ChildItem -Path $root -Recurse -Filter devenv.exe -ErrorAction SilentlyContinue |
+                    Select-Object -First 1
+                if ($null -ne $devenv) {
+                    return $true
+                }
+            }
+
             return $false
         }
         'other' {
@@ -225,6 +257,7 @@ function New-ConfigRoot {
     }
 
     $servers['wpf-devtools'] = [ordered]@{
+        type = 'stdio'
         command = $InstalledExecutable
         args = @()
     }
@@ -409,6 +442,9 @@ foreach ($client in $selectedClients) {
         }
         'cursor' {
             $registrations += Set-JsonConfigRegistration -Client $client -CollectionName 'servers' -ConfigPath (Resolve-CursorConfigPath -OverridePath $CursorConfigPath) -InstalledExecutable $installedExecutable
+        }
+        'visual-studio' {
+            $registrations += Set-JsonConfigRegistration -Client $client -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath -OverridePath $VisualStudioConfigPath) -InstalledExecutable $installedExecutable
         }
         'github-copilot-vscode' {
             $registrations += [ordered]@{

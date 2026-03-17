@@ -24,6 +24,7 @@ public sealed class DependencyPropertyRestoreMetadataTests
         result.GetProperty("currentValue").GetString().Should().Be("120");
         result.GetProperty("hadLocalValue").GetBoolean().Should().BeTrue();
         result.GetProperty("localValue").GetString().Should().Be("120");
+        result.GetProperty("localValueKind").GetString().Should().Be("ManualOverride");
     }
 
     [StaFact]
@@ -58,6 +59,26 @@ public sealed class DependencyPropertyRestoreMetadataTests
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("replacedExpression").GetBoolean().Should().BeTrue();
+    }
+
+    [StaFact]
+    public void GetValueSource_OnExpressionBackedProperty_ShouldReportExpressionLocalValueKind()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var textBox = new TextBox();
+        BindingOperations.SetBinding(textBox, TextBox.TextProperty, new Binding(nameof(SampleViewModel.Name))
+        {
+            Source = new SampleViewModel { Name = "Alice" }
+        });
+        var elementId = finder.GenerateElementId(textBox);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetValueSource("Text", elementId));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("baseValueSource").GetString().Should().Be("LocalValue");
+        result.GetProperty("isExpression").GetBoolean().Should().BeTrue();
+        result.GetProperty("localValueKind").GetString().Should().Be("Expression");
     }
 
     private sealed class SampleViewModel

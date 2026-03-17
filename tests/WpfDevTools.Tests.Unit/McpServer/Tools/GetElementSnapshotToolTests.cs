@@ -82,7 +82,7 @@ public sealed class GetElementSnapshotToolTests : IDisposable
                     horizontalAlignment = "Stretch",
                     verticalAlignment = "Top"
                 }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "Text", currentValue = "Alice", baseValueSource = "LocalValue" }),
+                JsonSerializer.Serialize(new { success = true, propertyName = "Text", currentValue = "Alice", baseValueSource = "LocalValue", isExpression = true, localValueKind = "Expression" }),
                 JsonSerializer.Serialize(new { success = false, error = "DependencyProperty 'Content' not found", errorCode = "PropertyNotFound", hint = "Verify the propertyName is valid for the target element type." }),
                 JsonSerializer.Serialize(new { success = true, propertyName = "Visibility", currentValue = "Visible", baseValueSource = "Default" }),
                 JsonSerializer.Serialize(new { success = true, propertyName = "IsEnabled", currentValue = "True", baseValueSource = "Default" }),
@@ -105,6 +105,8 @@ public sealed class GetElementSnapshotToolTests : IDisposable
         result.GetProperty("bindings").GetArrayLength().Should().Be(1);
         result.GetProperty("validationErrors").GetArrayLength().Should().Be(1);
         result.GetProperty("properties").GetProperty("Text").GetProperty("currentValue").GetString().Should().Be("Alice");
+        result.GetProperty("properties").GetProperty("Text").GetProperty("isExpression").GetBoolean().Should().BeTrue();
+        result.GetProperty("properties").GetProperty("Text").GetProperty("localValueKind").GetString().Should().Be("Expression");
         observedMethods.Should().BeEquivalentTo(
             [
                 "get_visual_tree",
@@ -187,7 +189,7 @@ public sealed class GetElementSnapshotToolTests : IDisposable
                 JsonSerializer.Serialize(new { success = true, propertyName = "Visibility", currentValue = "Visible", baseValueSource = "Default" }),
                 JsonSerializer.Serialize(new { success = true, propertyName = "IsEnabled", currentValue = "True", baseValueSource = "Default" }),
                 JsonSerializer.Serialize(new { success = true, propertyName = "Opacity", currentValue = "1", baseValueSource = "Default" }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "IsChecked", currentValue = "True", baseValueSource = "LocalValue" })
+                JsonSerializer.Serialize(new { success = true, propertyName = "IsChecked", currentValue = "True", baseValueSource = "LocalValue", isExpression = false, localValueKind = "ManualOverride" })
             },
             observedPropertyNames: observedPropertyNames);
 
@@ -202,6 +204,7 @@ public sealed class GetElementSnapshotToolTests : IDisposable
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("properties").TryGetProperty("IsChecked", out var isChecked).Should().BeTrue();
         isChecked.GetProperty("currentValue").GetString().Should().Be("True");
+        isChecked.GetProperty("localValueKind").GetString().Should().Be("ManualOverride");
         observedPropertyNames.Should().Equal("Text", "Content", "Visibility", "IsEnabled", "Opacity", "IsChecked");
     }
 

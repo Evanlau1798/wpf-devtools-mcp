@@ -100,6 +100,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
             var baseValueSource = DependencyPropertyValueSourceNormalizer.Normalize(valueSource.BaseValueSource, hadLocalValue, valueSource.IsAnimated);
             var effectiveValueText = FormatResponseValue(effectiveValue);
+            var localValueKind = GetLocalValueKind(hadLocalValue, valueSource.IsExpression);
 
             if (compact)
             {
@@ -125,6 +126,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 currentValue = effectiveValueText,
                 effectiveValue = effectiveValueText,
                 hadLocalValue,
+                localValueKind,
                 localValue = hadLocalValue ? FormatResponseValue(localValue) : null,
                 localValueType = hadLocalValue ? localValue?.GetType().Name : null
             };
@@ -185,6 +187,18 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     }
 
     private static string? FormatMetadataValue(object? value) => FormatResponseValue(value);
+
+    private static string? GetLocalValueKind(bool hadLocalValue, bool isExpression)
+    {
+        if (!hadLocalValue)
+        {
+            return null;
+        }
+
+        return isExpression
+            ? "Expression"
+            : "ManualOverride";
+    }
 
     /// <summary>
     /// Set local value for a DependencyProperty

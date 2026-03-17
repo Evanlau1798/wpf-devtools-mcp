@@ -153,11 +153,25 @@ public sealed class GetElementSnapshotTool(SessionManager sessionManager) : Pipe
                 continue;
             }
 
-            properties[propertyName] = new
+            var propertySnapshot = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
-                currentValue = GetOptionalString(response, "currentValue"),
-                baseValueSource = GetOptionalString(response, "baseValueSource")
+                ["currentValue"] = GetOptionalString(response, "currentValue"),
+                ["baseValueSource"] = GetOptionalString(response, "baseValueSource")
             };
+
+            if (response.TryGetProperty("isExpression", out var isExpressionProperty)
+                && isExpressionProperty.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                propertySnapshot["isExpression"] = isExpressionProperty.GetBoolean();
+            }
+
+            var localValueKind = GetOptionalString(response, "localValueKind");
+            if (!string.IsNullOrWhiteSpace(localValueKind))
+            {
+                propertySnapshot["localValueKind"] = localValueKind;
+            }
+
+            properties[propertyName] = propertySnapshot;
         }
 
         return properties;

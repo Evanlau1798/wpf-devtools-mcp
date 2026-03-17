@@ -41,6 +41,7 @@ public sealed class GetDpValueSourceTool : PipeConnectedToolBase
                 "get_dp_value_source",
                 new { elementId, propertyName, compact },
                 ct),
-            cancellationToken);
+            cancellationToken,
+            BatchQueryExecutor.CombinationMode.PairwiseOrBroadcast);
     }
 }

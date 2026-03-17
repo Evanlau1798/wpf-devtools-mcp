@@ -141,24 +141,34 @@ public static class BatchQueryArgumentParser
 
 public static class BatchQueryExecutor
 {
+    public enum CombinationMode
+    {
+        CrossProduct,
+        PairwiseOrBroadcast
+    }
+
     public static async Task<object> ExecuteAsync(
         IReadOnlyList<string?> elementIds,
         IReadOnlyList<string?> propertyNames,
         Func<string?, string?, CancellationToken, Task<object>> queryAsync,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CombinationMode combinationMode = CombinationMode.CrossProduct)
     {
         var results = new List<(JsonElement element, string? elementId, string? propertyName)>();
-        foreach (var elementId in elementIds)
+        var targets = BuildTargets(elementIds, propertyNames, combinationMode);
+        if (targets.Error != null)
         {
-            foreach (var propertyName in propertyNames)
-            {
-                var result = await queryAsync(elementId, propertyName, cancellationToken).ConfigureAwait(false);
-                var element = result is JsonElement jsonElement
-                    ? jsonElement
-                    : JsonSerializer.SerializeToElement(result);
+            return targets.Error;
+        }
 
-                results.Add((element, elementId, propertyName));
-            }
+        foreach (var (elementId, propertyName) in targets.Pairs)
+        {
+            var result = await queryAsync(elementId, propertyName, cancellationToken).ConfigureAwait(false);
+            var element = result is JsonElement jsonElement
+                ? jsonElement
+                : JsonSerializer.SerializeToElement(result);
+
+            results.Add((element, elementId, propertyName));
         }
 
         if (results.Count == 1)
@@ -182,6 +192,44 @@ public static class BatchQueryExecutor
             failureCount,
             results = combinations
         });
+    }
+
+    private static (IReadOnlyList<(string? elementId, string? propertyName)> Pairs, object? Error) BuildTargets(
+        IReadOnlyList<string?> elementIds,
+        IReadOnlyList<string?> propertyNames,
+        CombinationMode combinationMode)
+    {
+        if (combinationMode == CombinationMode.CrossProduct)
+        {
+            var pairs = new List<(string? elementId, string? propertyName)>();
+            foreach (var elementId in elementIds)
+            {
+                foreach (var propertyName in propertyNames)
+                {
+                    pairs.Add((elementId, propertyName));
+                }
+            }
+
+            return (pairs, null);
+        }
+
+        if (elementIds.Count > 1 && propertyNames.Count > 1 && elementIds.Count != propertyNames.Count)
+        {
+            return (Array.Empty<(string? elementId, string? propertyName)>(), CreateInvalidArgument(
+                "When both elementIds and propertyNames contain multiple values, they must have the same length for pairwise correlation."));
+        }
+
+        if (elementIds.Count == propertyNames.Count)
+        {
+            return (elementIds.Zip(propertyNames, static (elementId, propertyName) => (elementId, propertyName)).ToArray(), null);
+        }
+
+        if (elementIds.Count == 1)
+        {
+            return (propertyNames.Select(propertyName => (elementIds[0], propertyName)).ToArray(), null);
+        }
+
+        return (elementIds.Select(elementId => (elementId, propertyNames[0])).ToArray(), null);
     }
 
     private static JsonElement AttachCorrelation(JsonElement result, string? elementId, string? propertyName)
@@ -209,4 +257,12 @@ public static class BatchQueryExecutor
 
         return JsonSerializer.SerializeToElement(payload);
     }
+
+    private static object CreateInvalidArgument(string message) =>
+        new ToolErrorPayload
+        {
+            Error = message,
+            ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
+            Hint = "Use equal-length elementIds/propertyNames for pairwise batch inspection, or provide a single elementId/propertyName to broadcast across the other batch axis."
+        };
 }

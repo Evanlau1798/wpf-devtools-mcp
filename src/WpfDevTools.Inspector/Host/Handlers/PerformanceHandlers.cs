@@ -56,17 +56,19 @@ public class PerformanceHandlers : IRequestHandler
 
     private async Task<object> HandleGetRenderStatsAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
+        var warmUp = ParameterHelpers.GetBoolParam(@params, "warmUp") ?? false;
         return await Task.Run(() =>
-            _performanceAnalyzer.GetRenderStats(), cancellationToken).ConfigureAwait(false);
+            _performanceAnalyzer.GetRenderStats(warmUp), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleFindBindingLeaksAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         var threshold = ParameterHelpers.GetIntParam(@params, "threshold") ?? InspectorConstants.Defaults.BindingLeakThreshold;
         var samplingDurationMs = ParameterHelpers.GetIntParam(@params, "samplingDurationMs");
+        var warmUp = ParameterHelpers.GetBoolParam(@params, "warmUp") ?? false;
 
         return await Task.Run(() =>
-            _performanceAnalyzer.FindBindingLeaks(threshold, samplingDurationMs), cancellationToken).ConfigureAwait(false);
+            _performanceAnalyzer.FindBindingLeaks(threshold, samplingDurationMs, warmUp), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleMeasureElementRenderTimeAsync(JsonElement? @params, CancellationToken cancellationToken)

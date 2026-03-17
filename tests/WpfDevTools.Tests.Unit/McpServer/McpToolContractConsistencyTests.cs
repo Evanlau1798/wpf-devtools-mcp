@@ -144,6 +144,26 @@ public class McpToolContractConsistencyTests
     }
 
     [Fact]
+    public void GetRenderStats_ShouldExposeOptionalWarmUp()
+    {
+        var parameter = GetParameter(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "warmUp");
+
+        parameter.ParameterType.Should().Be(typeof(bool));
+        parameter.HasDefaultValue.Should().BeTrue();
+        parameter.DefaultValue.Should().Be(false);
+    }
+
+    [Fact]
+    public void FindBindingLeaks_ShouldExposeOptionalWarmUp()
+    {
+        var parameter = GetParameter(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.FindBindingLeaks), "warmUp");
+
+        parameter.ParameterType.Should().Be(typeof(bool));
+        parameter.HasDefaultValue.Should().BeTrue();
+        parameter.DefaultValue.Should().Be(false);
+    }
+
+    [Fact]
     public void FireRoutedEvent_ShouldExposeOptionalEventArgs()
     {
         var parameter = GetParameter(typeof(EventMcpTools), nameof(EventMcpTools.FireRoutedEvent), "eventArgs");

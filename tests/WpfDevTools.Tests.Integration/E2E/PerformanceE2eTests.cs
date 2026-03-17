@@ -83,6 +83,25 @@ public sealed class PerformanceE2eTests
     }
 
     [Fact]
+    public async Task GetRenderStats_WithWarmUp_ShouldReturnFrameDataOnFirstCall()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "get_render_stats",
+            new { processId = _fixture.TestAppProcessId, warmUp = true },
+            timeoutMs: 10000);
+
+        _output.WriteLine($"Render stats (warm-up): {result.GetRawText()}");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("warmUpApplied").GetBoolean().Should().BeTrue();
+        result.GetProperty("isWarmedUp").GetBoolean().Should().BeTrue();
+        result.GetProperty("sampleCount").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("totalFrames").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
     public async Task FindBindingLeaks_ShouldReturnLeakReport()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
@@ -104,6 +123,24 @@ public sealed class PerformanceE2eTests
             "leak report should include confidence for sampling quality");
         result.TryGetProperty("minimumRecommendedSamplingDurationMs", out _).Should().BeTrue(
             "leak report should include minimum recommended sampling duration");
+    }
+
+    [Fact]
+    public async Task FindBindingLeaks_WithWarmUp_ShouldUseRecommendedSamplingWindow()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "find_binding_leaks",
+            new { processId = _fixture.TestAppProcessId, threshold = 100, warmUp = true },
+            timeoutMs: 15000);
+
+        _output.WriteLine($"Binding leaks (warm-up): {result.GetRawText()}");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("warmUpApplied").GetBoolean().Should().BeTrue();
+        result.GetProperty("samplingDurationMs").GetInt32().Should().Be(
+            result.GetProperty("minimumRecommendedSamplingDurationMs").GetInt32());
     }
 
     [Fact]

@@ -26,6 +26,7 @@ public static class PerformanceMcpTools
         "  success: boolean,\n" +
         "  isWarmedUp: boolean,\n" +
         "  confidence: 'low'|'medium'|'high',\n" +
+        "  warmUpApplied: boolean,\n" +
         "  minimumRecommendedSampleCount: number,\n" +
         "  minimumRecommendedMonitoringDurationMs: number,\n" +
         "  sampleGuidance: string,\n" +
@@ -39,18 +40,21 @@ public static class PerformanceMcpTools
         "  visualCount: number\n" +
         "}\n\n" +
         "NOTE: The first call may return zeros with a 'Monitoring started' message because the render stats " +
-        "listener needs time to collect data. Call again after 1-2 seconds to get meaningful metrics.\n\n" +
+        "listener needs time to collect data. Set warmUp=true to wait for a baseline sample window on the same call, or call again after 1-2 seconds.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }")]
+        "- { processId: 12345 }\n" +
+        "- { processId: 12345, warmUp: true }")]
     public static Task<CallToolResult> GetRenderStats(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("When true, waits for a baseline render sampling window before returning so the first call is less likely to be low-confidence.")] bool warmUp = false,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
-            ("processId", processId));
+            ("processId", processId),
+            ("warmUp", warmUp));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetRenderStatsTool>("GetRenderStatsTool", () => new GetRenderStatsTool(sessionManager)).ExecuteAsync(a, ct),
@@ -69,6 +73,7 @@ public static class PerformanceMcpTools
         "{\n" +
         "  success: boolean,\n" +
         "  confidence: 'low'|'medium'|'high',\n" +
+        "  warmUpApplied: boolean,\n" +
         "  samplingDurationMs: number,\n" +
         "  minimumRecommendedSamplingDurationMs: number,\n" +
         "  sampleGuidance: string,\n" +
@@ -83,24 +88,27 @@ public static class PerformanceMcpTools
         "  potentialLeaks: [{ type, hashCode, toString }]\n" +
         "}\n\n" +
         "Empty suspects array means no leak candidates crossed the threshold. potentialLeaks retains raw diagnostic samples for backward compatibility. " +
-        "Use samplingDurationMs>=3000 for higher-confidence leak diagnostics.\n\n" +
+        "Use samplingDurationMs>=3000 for higher-confidence leak diagnostics, or set warmUp=true to automatically use the minimum recommended sampling window when one is not supplied.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
         "- { processId: 12345, threshold: 50 }\n" +
-        "- { processId: 12345, threshold: 50, samplingDurationMs: 3000 }")]
+        "- { processId: 12345, threshold: 50, samplingDurationMs: 3000 }\n" +
+        "- { processId: 12345, threshold: 50, warmUp: true }")]
     public static Task<CallToolResult> FindBindingLeaks(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional minimum live-binding count that should be flagged as suspicious.")] int? threshold = null,
         [Description("Optional sampling duration in milliseconds before evaluating leak signals. Recommended: >=3000 for higher-confidence output.")] int? samplingDurationMs = null,
+        [Description("When true, automatically applies the minimum recommended sampling duration if samplingDurationMs is omitted or shorter than the recommendation.")] bool warmUp = false,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("threshold", threshold),
-            ("samplingDurationMs", samplingDurationMs));
+            ("samplingDurationMs", samplingDurationMs),
+            ("warmUp", warmUp));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<FindBindingLeaksTool>("FindBindingLeaksTool", () => new FindBindingLeaksTool(sessionManager)).ExecuteAsync(a, ct),

@@ -25,8 +25,9 @@ public sealed class FindBindingLeaksTool : PipeConnectedToolBase
         if (error != null) return error;
         var threshold = ParseIntParam(arguments, "threshold");
         var samplingDurationMs = ParseIntParam(arguments, "samplingDurationMs");
+        var warmUp = ParseBoolParam(arguments, "warmUp") ?? false;
 
         return await SendInspectorRequestAsync(processId, "find_binding_leaks",
-            new { threshold = threshold ?? 100, samplingDurationMs }, cancellationToken);
+            new { threshold = threshold ?? 100, samplingDurationMs, warmUp }, cancellationToken);
     }
 }

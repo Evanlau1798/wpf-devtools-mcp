@@ -27,6 +27,7 @@ public sealed class PerformanceAnalyzerContractTests
         result.TryGetProperty("sampleCount", out _).Should().BeTrue();
         result.TryGetProperty("sampleWindowSize", out _).Should().BeTrue();
         result.TryGetProperty("confidence", out _).Should().BeTrue();
+        result.TryGetProperty("warmUpApplied", out _).Should().BeTrue();
         result.TryGetProperty("minimumRecommendedSampleCount", out _).Should().BeTrue();
         result.TryGetProperty("minimumRecommendedMonitoringDurationMs", out _).Should().BeTrue();
         result.TryGetProperty("sampleGuidance", out _).Should().BeTrue();
@@ -45,6 +46,7 @@ public sealed class PerformanceAnalyzerContractTests
         result.TryGetProperty("suspects", out var suspects).Should().BeTrue();
         suspects.ValueKind.Should().Be(JsonValueKind.Array);
         result.TryGetProperty("confidence", out _).Should().BeTrue();
+        result.TryGetProperty("warmUpApplied", out _).Should().BeTrue();
         result.TryGetProperty("samplingDurationMs", out _).Should().BeTrue();
         result.TryGetProperty("minimumRecommendedSamplingDurationMs", out _).Should().BeTrue();
         result.TryGetProperty("sampleGuidance", out _).Should().BeTrue();

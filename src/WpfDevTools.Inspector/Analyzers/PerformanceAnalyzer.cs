@@ -18,7 +18,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 ///
 /// Thread Safety: All static state is protected by locks (_lock, _bindingLock)
 /// </summary>
-public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
+public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
 
@@ -60,19 +60,11 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Get render statistics
     /// </summary>
-    public object GetRenderStats()
+    public object GetRenderStats(bool warmUp = false)
     {
         // Start monitoring on UI thread
         InvokeOnUIThread(() => EnsureMonitoringStarted());
-
-        // Brief warm-up: allow rendering events to populate frame data.
-        // This runs on a non-UI thread so the dispatcher can process
-        // CompositionTarget.Rendering callbacks that write frame data.
-        var warmupStart = DateTime.UtcNow;
-        while (_frameTimes.Count == 0 && (DateTime.UtcNow - warmupStart).TotalMilliseconds < 250)
-        {
-            Thread.Sleep(20);
-        }
+        WaitForRenderWarmUp(warmUp);
 
         // Read stats on UI thread
         return InvokeOnUIThread<object>(() =>
@@ -88,6 +80,7 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                         message = "Monitoring started, waiting for frame data...",
                         isWarmedUp = false,
                         confidence = warmupConfidence,
+                        warmUpApplied = warmUp,
                         minimumRecommendedSampleCount = PerformanceConfidencePolicy.MinRenderSampleCount,
                         minimumRecommendedMonitoringDurationMs = PerformanceConfidencePolicy.MinRenderMonitoringDurationMs,
                         sampleGuidance = warmupGuidance,
@@ -116,6 +109,7 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                     success = true,
                     isWarmedUp = true,
                     confidence = statsConfidence,
+                    warmUpApplied = warmUp,
                     minimumRecommendedSampleCount = PerformanceConfidencePolicy.MinRenderSampleCount,
                     minimumRecommendedMonitoringDurationMs = PerformanceConfidencePolicy.MinRenderMonitoringDurationMs,
                     sampleGuidance = statsGuidance,
@@ -207,9 +201,9 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Find binding leaks
     /// </summary>
-    public object FindBindingLeaks(int threshold = 100, int? samplingDurationMs = null)
+    public object FindBindingLeaks(int threshold = 100, int? samplingDurationMs = null, bool warmUp = false)
     {
-        var effectiveSamplingDurationMs = Math.Max(0, samplingDurationMs ?? 0);
+        var effectiveSamplingDurationMs = GetEffectiveBindingLeakSamplingDuration(samplingDurationMs, warmUp);
 
         if (effectiveSamplingDurationMs > 0)
         {
@@ -284,6 +278,7 @@ public sealed class PerformanceAnalyzer : DispatcherAnalyzerBase
                     potentialLeaks,
                     suspects,
                     confidence,
+                    warmUpApplied = warmUp,
                     samplingDurationMs = effectiveSamplingDurationMs,
                     minimumRecommendedSamplingDurationMs = PerformanceConfidencePolicy.MinBindingLeakSamplingDurationMs,
                     sampleGuidance = guidance,

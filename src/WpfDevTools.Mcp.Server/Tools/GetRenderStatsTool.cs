@@ -23,8 +23,9 @@ public sealed class GetRenderStatsTool : PipeConnectedToolBase
     {
         var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var warmUp = ParseBoolParam(arguments, "warmUp") ?? false;
 
         return await SendInspectorRequestAsync(processId, "get_render_stats",
-            new { }, cancellationToken);
+            new { warmUp }, cancellationToken);
     }
 }

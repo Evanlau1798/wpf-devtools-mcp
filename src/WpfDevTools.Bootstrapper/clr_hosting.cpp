@@ -2,8 +2,14 @@
 #include "exit_codes.h"
 
 #include <metahost.h>
-#include <mscoree.h>
-#pragma comment(lib, "mscoree.lib")
+
+namespace
+{
+    using ClrCreateInstanceFn = HRESULT(STDAPICALLTYPE*)(
+        REFCLSID clsid,
+        REFIID iid,
+        LPVOID* ppInterface);
+}
 
 DWORD HostNetFramework(const wchar_t* inspectorDllPath, const wchar_t* parameters)
 {
@@ -18,9 +24,19 @@ DWORD HostNetFramework(const wchar_t* inspectorDllPath, const wchar_t* parameter
     ICLRMetaHost* pMetaHost = nullptr;
     ICLRRuntimeInfo* pRuntimeInfo = nullptr;
     ICLRRuntimeHost* pRuntimeHost = nullptr;
+    HMODULE mscoreeModule = nullptr;
     DWORD result = ExitCodes::ClrHostingFailed;
+    HRESULT hr = E_FAIL;
+    auto clrCreateInstance = static_cast<ClrCreateInstanceFn>(nullptr);
 
-    HRESULT hr = CLRCreateInstance(
+    mscoreeModule = LoadLibraryW(L"mscoree.dll");
+    if (mscoreeModule == nullptr) goto cleanup;
+
+    clrCreateInstance = reinterpret_cast<ClrCreateInstanceFn>(
+        GetProcAddress(mscoreeModule, "CLRCreateInstance"));
+    if (clrCreateInstance == nullptr) goto cleanup;
+
+    hr = clrCreateInstance(
         CLSID_CLRMetaHost, IID_ICLRMetaHost,
         reinterpret_cast<LPVOID*>(&pMetaHost));
     if (FAILED(hr)) goto cleanup;
@@ -66,5 +82,6 @@ cleanup:
     if (pRuntimeHost) pRuntimeHost->Release();
     if (pRuntimeInfo) pRuntimeInfo->Release();
     if (pMetaHost) pMetaHost->Release();
+    if (mscoreeModule) FreeLibrary(mscoreeModule);
     return result;
 }

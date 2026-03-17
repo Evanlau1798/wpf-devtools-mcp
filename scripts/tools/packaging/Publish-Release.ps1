@@ -247,10 +247,10 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj'
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
 $bootstrapperProject = Join-Path $repoRoot 'src\WpfDevTools.Bootstrapper\WpfDevTools.Bootstrapper.vcxproj'
-$installScript = Join-Path $repoRoot 'scripts\tools\release\Install-WpfDevTools.ps1'
-$installBatchTemplate = Join-Path $repoRoot 'scripts\tools\release\run-template.bat'
-$setupScript = Join-Path $repoRoot 'scripts\tools\release\Setup-WpfDevTools.ps1'
-$uninstallScript = Join-Path $repoRoot 'scripts\tools\release\Uninstall-WpfDevTools.ps1'
+$installScript = Join-Path $repoRoot 'scripts\tools\packaging\Install-WpfDevTools.ps1'
+$installBatchTemplate = Join-Path $repoRoot 'scripts\tools\packaging\run-template.bat'
+$setupScript = Join-Path $repoRoot 'scripts\tools\packaging\Setup-WpfDevTools.ps1'
+$uninstallScript = Join-Path $repoRoot 'scripts\tools\packaging\Uninstall-WpfDevTools.ps1'
 $outputRootFullPath = (Resolve-Path (New-Item -ItemType Directory -Force -Path $OutputRoot)).Path
 $msbuildPath = Resolve-MSBuildPath
 

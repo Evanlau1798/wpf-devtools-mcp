@@ -44,7 +44,7 @@ $resolvedArchitectures = Resolve-ArchitectureList -InputArchitectures $Architect
 
 $publishScript = $env:WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT
 if ([string]::IsNullOrWhiteSpace($publishScript)) {
-    $publishScript = Join-Path $PSScriptRoot 'release\Publish-Release.ps1'
+    $publishScript = Join-Path $PSScriptRoot 'packaging\Publish-Release.ps1'
 }
 
 if (-not (Test-Path $publishScript)) {

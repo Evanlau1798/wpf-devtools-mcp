@@ -68,6 +68,35 @@ public sealed class ReleasePackagingIntegrationTests
     }
 
     [Fact]
+    public void BuildReleaseScript_ReleaseMode_ShouldProduceX64X86AndArm64Archives()
+    {
+        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
+        try
+        {
+            var outputRoot = Path.Combine(tempRoot, "release-output");
+            var command = "& '" +
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1").Replace("'", "''") +
+                "' -Configuration Release -Architectures @('x64','x86','arm64') -OutputRoot '" +
+                outputRoot.Replace("'", "''") + "'";
+            var result = ReleasePackagingTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Should().ContainSingle();
+            Directory.GetFiles(outputRoot, "release_*_win-x86.zip").Should().ContainSingle();
+            var arm64ArchivePath = Directory.GetFiles(outputRoot, "release_*_win-arm64.zip").Should().ContainSingle().Subject;
+            var extractRoot = ReleasePackagingTestHarness.ExtractArchive(arm64ArchivePath, Path.Combine(tempRoot, "arm64-extract"));
+
+            File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-arm64.exe")).Should().BeTrue();
+        }
+        finally
+        {
+            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PublishReleaseScript_WhenBootstrapperStepFails_ShouldCleanPartialArm64PackageDirectory()
     {
         var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
@@ -78,7 +107,7 @@ public sealed class ReleasePackagingIntegrationTests
             var fakeMsbuild = ReleasePackagingTestHarness.CreateFakeCommand(tempRoot, "fake-msbuild", fakeMsbuildLog, "exit /b 1");
 
             var result = ReleasePackagingTestHarness.RunPowerShellScript(
-                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/release/Publish-Release.ps1"),
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"),
                 new[] { "-Configuration", "Debug", "-Architectures", "arm64", "-OutputRoot", outputRoot },
                 new Dictionary<string, string?>
                 {

@@ -100,7 +100,7 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 Before creating or publishing a GitHub Release, run the local no-upload preflight command:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/release/Preflight-Release.ps1 -VersionTag v0.1.0 -OutputJson
+powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Preflight-Release.ps1 -VersionTag v0.1.0 -OutputJson
 ```
 
 This validates the Release build, unit tests, package layout, and staged GitHub Release assets without uploading to GitHub.

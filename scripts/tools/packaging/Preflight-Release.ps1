@@ -101,8 +101,8 @@ $outputRootPath = if ([System.IO.Path]::IsPathRooted($OutputRoot)) { $OutputRoot
 $outputRootFullPath = [System.IO.Path]::GetFullPath($outputRootPath)
 $packageOutputRoot = Join-Path $outputRootFullPath 'packages'
 $assetOutputRoot = Join-Path $outputRootFullPath 'github-assets'
-$publishScript = Resolve-ScriptPath -DefaultRelativePath 'scripts\tools\release\Publish-Release.ps1' -OverridePath $env:WPFDEVTOOLS_PREFLIGHT_PUBLISH_SCRIPT
-$exportScript = Resolve-ScriptPath -DefaultRelativePath 'scripts\tools\release\Export-GitHubReleaseAssets.ps1' -OverridePath $env:WPFDEVTOOLS_PREFLIGHT_EXPORT_SCRIPT
+$publishScript = Resolve-ScriptPath -DefaultRelativePath 'scripts\tools\packaging\Publish-Release.ps1' -OverridePath $env:WPFDEVTOOLS_PREFLIGHT_PUBLISH_SCRIPT
+$exportScript = Resolve-ScriptPath -DefaultRelativePath 'scripts\tools\packaging\Export-GitHubReleaseAssets.ps1' -OverridePath $env:WPFDEVTOOLS_PREFLIGHT_EXPORT_SCRIPT
 
 if (-not (Test-Path $publishScript)) {
     throw "Publish script does not exist: $publishScript"

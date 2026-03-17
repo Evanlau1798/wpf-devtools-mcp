@@ -128,7 +128,7 @@ jobs:
     - name: Run release packaging smoke test
       shell: pwsh
       run: |
-        & powershell -ExecutionPolicy Bypass -File scripts/release/Publish-Release.ps1 -Architectures '${{ matrix.architecture }}'
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Publish-Release.ps1 -Architectures '${{ matrix.architecture }}'
 
     - name: Install published package smoke test
       shell: pwsh
@@ -141,7 +141,7 @@ jobs:
           throw "Could not locate packaged release directory for architecture ${{ matrix.architecture }}"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/release/Install-WpfDevTools.ps1 -PackagePath $packageDir.FullName -InstallRoot './tmp-release-install-smoke' -Force
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Install-WpfDevTools.ps1 -PackagePath $packageDir.FullName -InstallRoot './tmp-release-install-smoke' -Force
 
     - name: Online installer smoke test
       shell: pwsh
@@ -159,12 +159,12 @@ jobs:
     - name: Uninstall published package smoke test
       shell: pwsh
       run: |
-        & powershell -ExecutionPolicy Bypass -File scripts/release/Uninstall-WpfDevTools.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}'
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Uninstall-WpfDevTools.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}'
 
     - name: Uninstall online installer smoke test
       shell: pwsh
       run: |
-        & powershell -ExecutionPolicy Bypass -File scripts/release/Uninstall-WpfDevTools.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}'
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Uninstall-WpfDevTools.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}'
   code-coverage:
     runs-on: windows-latest
 

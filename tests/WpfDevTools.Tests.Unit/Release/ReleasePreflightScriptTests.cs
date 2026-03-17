@@ -14,7 +14,7 @@ public sealed class ReleasePreflightScriptTests
         {
             var outputRoot = Path.Combine(tempRoot, "preflight-output");
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Preflight-Release.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Preflight-Release.ps1"),
                 new[]
                 {
                     "-VersionTag", "v1.2.3",
@@ -45,7 +45,7 @@ public sealed class ReleasePreflightScriptTests
         {
             var outputRoot = Path.Combine(tempRoot, "preflight-output");
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Preflight-Release.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Preflight-Release.ps1"),
                 new[]
                 {
                     "-OutputRoot", outputRoot,
@@ -107,7 +107,7 @@ public sealed class ReleasePreflightScriptTests
             File.WriteAllText(fakeExportScript, fakeExportContent);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Preflight-Release.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Preflight-Release.ps1"),
                 new[]
                 {
                     "-VersionTag", "v1.2.3",

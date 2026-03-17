@@ -61,7 +61,7 @@ jobs:
       - name: Build release packages
         shell: pwsh
         run: |
-          ./scripts/release/Publish-Release.ps1 `
+          ./scripts/tools/packaging/Publish-Release.ps1 `
             -Configuration Release `
             -Architectures @('x64', 'x86', 'arm64') `
             -OutputRoot '${{ env.RELEASE_OUTPUT_ROOT }}'
@@ -69,7 +69,7 @@ jobs:
       - name: Stage GitHub Release assets
         shell: pwsh
         run: |
-          ./scripts/release/Export-GitHubReleaseAssets.ps1 `
+          ./scripts/tools/packaging/Export-GitHubReleaseAssets.ps1 `
             -InputRoot '${{ env.RELEASE_OUTPUT_ROOT }}' `
             -OutputRoot '${{ env.RELEASE_STAGING_ROOT }}' `
             -Tag '${{ steps.release-metadata.outputs.tag }}' `

@@ -33,16 +33,20 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup>
+    <PreferredPlatformToolset Condition="'$(PreferredPlatformToolset)' == '' and Exists('$(VCTargetsPath)\Platforms\Win32\PlatformToolsets\v145\Toolset.props')">v145</PreferredPlatformToolset>
+    <PreferredPlatformToolset Condition="'$(PreferredPlatformToolset)' == ''">v143</PreferredPlatformToolset>
+  </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Debug'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset Condition="'$(PlatformToolset)' == ''">$(PreferredPlatformToolset)</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Release'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset Condition="'$(PlatformToolset)' == ''">$(PreferredPlatformToolset)</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
@@ -52,6 +56,10 @@
     <OutDir>$(RepoRootDir)artifacts\bootstrapper\$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
     <NetHostAssetsDir>$(RepoRootDir)artifacts\dotnet-host\$(Platform)\native</NetHostAssetsDir>
+    <NetFxSdkLibraryDir Condition="'$(NetFxSdkLibraryDir)' == '' and '$(NETFXKitsDir)' != '' and '$(Platform)'=='Win32'">$(NETFXKitsDir)Lib\um\x86</NetFxSdkLibraryDir>
+    <NetFxSdkLibraryDir Condition="'$(NetFxSdkLibraryDir)' == '' and '$(NETFXKitsDir)' != '' and '$(Platform)'=='x64'">$(NETFXKitsDir)Lib\um\x64</NetFxSdkLibraryDir>
+    <NetFxSdkLibraryDir Condition="'$(NetFxSdkLibraryDir)' == '' and '$(NETFXKitsDir)' != '' and '$(Platform)'=='ARM64' and Exists('$(NETFXKitsDir)Lib\um\arm64\mscoree.lib')">$(NETFXKitsDir)Lib\um\arm64</NetFxSdkLibraryDir>
+    <NetFxSdkLibraryDir Condition="'$(NetFxSdkLibraryDir)' == '' and '$(NETFXKitsDir)' != '' and '$(Platform)'=='ARM64'">$(NETFXKitsDir)Lib\um\arm</NetFxSdkLibraryDir>
     <TargetName Condition="'$(Platform)'=='Win32'">WpfDevTools.Bootstrapper.x86</TargetName>
     <TargetName Condition="'$(Platform)'=='x64'">WpfDevTools.Bootstrapper.x64</TargetName>
     <TargetName Condition="'$(Platform)'=='ARM64'">WpfDevTools.Bootstrapper.arm64</TargetName>
@@ -69,7 +77,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ModuleDefinitionFile>exports.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(NetHostAssetsDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(NetHostAssetsDir);$(NetFxSdkLibraryDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libnethost.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>

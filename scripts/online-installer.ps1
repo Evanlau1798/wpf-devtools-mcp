@@ -312,7 +312,7 @@ function Resolve-InstallerScriptPath {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
-        $repoInstaller = Join-Path $PSScriptRoot 'tools\release\Setup-WpfDevTools.ps1'
+        $repoInstaller = Join-Path $PSScriptRoot 'tools\packaging\Setup-WpfDevTools.ps1'
         if (Test-Path $repoInstaller) {
             return $repoInstaller
         }

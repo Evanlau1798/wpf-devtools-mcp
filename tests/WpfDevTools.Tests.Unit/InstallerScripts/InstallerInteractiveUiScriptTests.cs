@@ -65,7 +65,7 @@ public sealed class InstallerInteractiveUiScriptTests
             var userProfile = Path.Combine(tempRoot, "UserProfile");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"),
                 new[]
                 {
                     "-PackagePath", packageDir,
@@ -108,7 +108,7 @@ public sealed class InstallerInteractiveUiScriptTests
             var browserCommand = ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "open-docs", browserLog);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"),
                 new[]
                 {
                     "-PackagePath", packageDir,

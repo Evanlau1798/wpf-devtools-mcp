@@ -23,7 +23,7 @@ public sealed class ReleasePackagingContractTests
 
         var content = File.ReadAllText(scriptPath);
 
-        content.Should().Contain("release\\Publish-Release.ps1",
+        content.Should().Contain("packaging\\Publish-Release.ps1",
             "the public packaging entrypoint should reuse the existing release publishing logic");
         content.Should().Contain("release",
             "the packaging entrypoint should target the release output area by default");
@@ -168,7 +168,7 @@ public sealed class ReleasePackagingContractTests
     [Fact]
     public void InstallBatchTemplate_ShouldExistAsPackageEntryPoint()
     {
-        var batchTemplatePath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/run-template.bat");
+        var batchTemplatePath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/run-template.bat");
 
         File.Exists(batchTemplatePath).Should().BeTrue(
             "downloaded release packages should expose a batch entrypoint for users who cannot execute .ps1 directly");
@@ -178,7 +178,7 @@ public sealed class ReleasePackagingContractTests
     public void PublishReleaseScript_ShouldCopyBatchInstallerIntoPackageRoot()
     {
         var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Publish-Release.ps1"));
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
         content.Should().Contain("run-template.bat",
             "the packaged release root should include run.bat as the offline installer entrypoint");
@@ -192,7 +192,7 @@ public sealed class ReleasePackagingContractTests
     public void PublishReleaseScript_ShouldUseVersionedReleaseArchiveNames()
     {
         var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Publish-Release.ps1"));
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
         content.Should().Contain("release_${version}_win-$architecture.zip",
             "GitHub release assets should use the new versioned naming contract");
@@ -221,7 +221,7 @@ public sealed class ReleasePackagingContractTests
                 }));
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"),
                 new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
 
             result.ExitCode.Should().Be(0, result.Stderr);
@@ -246,7 +246,7 @@ public sealed class ReleasePackagingContractTests
             File.WriteAllText(fakeMsbuildPath, "stub");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Publish-Release.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"),
                 new[] { "-Configuration", "Debug", "-Architectures", "arm64", "-SkipBuild", "-OutputRoot", Path.Combine(tempRoot, "release-output") },
                 new Dictionary<string, string?>
                 {

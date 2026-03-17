@@ -32,7 +32,7 @@ public class ReleasePackagingWorkflowTests
     [Fact]
     public void PublishReleaseScript_ShouldBundleInteractiveSetupWizard()
     {
-        var content = File.ReadAllText(GetRepoFilePath("scripts/release/Publish-Release.ps1"));
+        var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
         content.Should().Contain("Setup-WpfDevTools.ps1",
             "the published package should include the interactive setup wizard alongside install/uninstall scripts");
@@ -41,7 +41,7 @@ public class ReleasePackagingWorkflowTests
     [Fact]
     public void PublishReleaseScript_ShouldCreateZipArchivesForStaticBootstrapInstaller()
     {
-        var content = File.ReadAllText(GetRepoFilePath("scripts/release/Publish-Release.ps1"));
+        var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
         content.Should().Contain("Compress-Archive",
             "the GitHub Pages bootstrap installer needs versioned zip assets to download per architecture");

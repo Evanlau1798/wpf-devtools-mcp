@@ -16,7 +16,7 @@ public sealed class ClientRegistrationArtifactTests
             var installRoot = Path.Combine(tempRoot, "install-root");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"),
                 new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
 
             result.ExitCode.Should().Be(0, result.Stderr);
@@ -49,7 +49,7 @@ public sealed class ClientRegistrationArtifactTests
             var userProfile = Path.Combine(tempRoot, "UserProfile");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"),
                 new[]
                 {
                     "-PackagePath", packageDir,

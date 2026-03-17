@@ -50,4 +50,15 @@ public sealed class OnlineInstallerContractTests
         content.Should().Contain("releases/download/");
         content.Should().Contain("api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases");
     }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldDocumentMenuBrandingAndDocsHomepageAction()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("WPF DEVTOOLS MCP");
+        content.Should().Contain("Open docs homepage");
+        content.Should().Contain("https://evanlau1798.github.io/wpf-devtools-mcp/index.html");
+    }
 }

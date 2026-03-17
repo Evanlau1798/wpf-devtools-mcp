@@ -14,13 +14,139 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:IsJsonOutput = $OutputJson.IsPresent
 $script:KnownClients = @('claude-code', 'claude-desktop', 'codex', 'cursor', 'visual-studio', 'github-copilot-vscode', 'other')
+$script:DocsHomepageUrl = 'https://evanlau1798.github.io/wpf-devtools-mcp/index.html'
+$script:InstallRootWasSpecified = $PSBoundParameters.ContainsKey('InstallRoot')
+$script:InstallerTestResponses = New-Object System.Collections.Generic.Queue[string]
+
+if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES)) {
+    foreach ($entry in ($env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES -split '\|\|')) {
+        $script:InstallerTestResponses.Enqueue($entry)
+    }
+}
 
 function Write-SetupMessage {
-    param([Parameter(Mandatory)] [string]$Message)
+    param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Message)
 
     if (-not $script:IsJsonOutput) {
         Write-Host $Message
     }
+}
+
+function Write-InstallerBanner {
+    param([Parameter(Mandatory)] [string]$Subtitle)
+
+    if ($script:IsJsonOutput) {
+        return
+    }
+
+    Write-SetupMessage ''
+    Write-SetupMessage '+------------------------------------------------------------------+'
+    Write-SetupMessage '|                       WPF DEVTOOLS MCP                           |'
+    Write-SetupMessage '|          [Window] [Grid] [Binding] [VisualTree] [Command]       |'
+    Write-SetupMessage '+------------------------------------------------------------------+'
+    Write-SetupMessage ("| " + $Subtitle.PadRight(64) + ' |')
+    Write-SetupMessage '+------------------------------------------------------------------+'
+    Write-SetupMessage ''
+}
+
+function Read-InstallerInput {
+    param(
+        [Parameter(Mandatory)] [string]$Prompt,
+        [string]$DefaultValue
+    )
+
+    if ($script:InstallerTestResponses.Count -gt 0) {
+        return $script:InstallerTestResponses.Dequeue()
+    }
+
+    $displayPrompt = if ([string]::IsNullOrWhiteSpace($DefaultValue)) {
+        $Prompt
+    }
+    else {
+        "$Prompt [$DefaultValue]"
+    }
+
+    return Read-Host $displayPrompt
+}
+
+function Read-MenuSelection {
+    param(
+        [Parameter(Mandatory)] [string]$Title,
+        [Parameter(Mandatory)] [object[]]$Options,
+        [Parameter(Mandatory)] [string]$DefaultKey
+    )
+
+    $defaultOption = $Options | Where-Object { $_.Key -eq $DefaultKey } | Select-Object -First 1
+    if ($null -eq $defaultOption) {
+        throw "Default menu option not found: $DefaultKey"
+    }
+
+    Write-SetupMessage "+- $Title"
+    foreach ($option in $Options) {
+        $marker = if ($option.Key -eq $DefaultKey) { '*' } else { ' ' }
+        Write-SetupMessage ("| {0} {1}. {2}  {3}" -f $marker, $option.Key, $option.Label, $option.Description)
+    }
+    Write-SetupMessage '+------------------------------------------------------------------'
+
+    $selection = Read-InstallerInput -Prompt 'Select an option' -DefaultValue $defaultOption.Key
+    if ([string]::IsNullOrWhiteSpace($selection)) {
+        return $defaultOption.Value
+    }
+
+    $resolved = $Options | Where-Object { $_.Key -eq $selection.Trim() } | Select-Object -First 1
+    if ($null -eq $resolved) {
+        throw "Unsupported selection '$selection'."
+    }
+
+    return $resolved.Value
+}
+
+function Read-Confirmation {
+    param([Parameter(Mandatory)] [string]$Prompt)
+
+    $selection = Read-InstallerInput -Prompt $Prompt -DefaultValue 'Y'
+    if ([string]::IsNullOrWhiteSpace($selection)) {
+        return $true
+    }
+
+    return -not $selection.Trim().ToLowerInvariant().StartsWith('n')
+}
+
+function Get-InteractiveClientOptions {
+    return @(
+        [pscustomobject]@{ Key = '1'; Value = 'claude-code'; Label = 'Claude Code'; Description = 'Register with claude mcp add' }
+        [pscustomobject]@{ Key = '2'; Value = 'codex'; Label = 'Codex'; Description = 'Register with codex mcp add' }
+        [pscustomobject]@{ Key = '3'; Value = 'visual-studio'; Label = 'Visual Studio'; Description = 'Write %USERPROFILE%\\.mcp.json' }
+        [pscustomobject]@{ Key = '4'; Value = 'claude-desktop'; Label = 'Claude Desktop'; Description = 'Update claude_desktop_config.json' }
+        [pscustomobject]@{ Key = '5'; Value = 'cursor'; Label = 'Cursor / VS Code'; Description = 'Write cursor MCP JSON config' }
+        [pscustomobject]@{ Key = '6'; Value = 'other'; Label = 'Artifacts only'; Description = 'Install package and emit registration templates only' }
+        [pscustomobject]@{ Key = '7'; Value = 'none'; Label = 'No registration'; Description = 'Install binaries only' }
+    )
+}
+
+function Get-InteractiveDefaultClientKey {
+    param([string[]]$DetectedClients)
+
+    if ($DetectedClients -contains 'claude-code') { return '1' }
+    if ($DetectedClients -contains 'codex') { return '2' }
+    if ($DetectedClients -contains 'visual-studio') { return '3' }
+    if ($DetectedClients -contains 'claude-desktop') { return '4' }
+    if ($DetectedClients -contains 'cursor') { return '5' }
+    return '6'
+}
+
+function Invoke-DocsHomepage {
+    if ($script:IsJsonOutput -or $NonInteractive) {
+        return
+    }
+
+    $browserCommand = $env:WPFDEVTOOLS_INSTALLER_OPEN_BROWSER_COMMAND
+    if (-not [string]::IsNullOrWhiteSpace($browserCommand)) {
+        & $browserCommand $script:DocsHomepageUrl
+        return
+    }
+
+    Start-Process $script:DocsHomepageUrl | Out-Null
 }
 
 function Resolve-PackageDirectory {
@@ -371,35 +497,31 @@ function Read-InteractiveSelections {
         [string]$CurrentInstallRoot
     )
 
-    Write-SetupMessage 'Detected clients:'
-    foreach ($client in $script:KnownClients) {
-        $status = if ($DetectedClients -contains $client) { 'detected' } else { 'not detected' }
-        Write-SetupMessage "  - $client [$status]"
-    }
+    Write-InstallerBanner -Subtitle 'Offline installer'
+    Write-SetupMessage ("Detected clients: " + ($(if ($DetectedClients.Count -gt 0) { $DetectedClients -join ', ' } else { 'none' })))
 
-    $installPrompt = Read-Host "Install root [$CurrentInstallRoot]"
-    $resolvedInstallRoot = if ([string]::IsNullOrWhiteSpace($installPrompt)) { $CurrentInstallRoot } else { $installPrompt }
+    $selectedClient = Read-MenuSelection `
+        -Title 'Choose installation target' `
+        -DefaultKey (Get-InteractiveDefaultClientKey -DetectedClients $DetectedClients) `
+        -Options (Get-InteractiveClientOptions)
 
-    $defaultClientSelection = if ($DetectedClients.Count -gt 0) { $DetectedClients -join ',' } else { 'none' }
-    $clientPrompt = Read-Host "Clients to register (comma-separated, all, or none) [$defaultClientSelection]"
-    if ([string]::IsNullOrWhiteSpace($clientPrompt)) {
-        $selectedClients = $DetectedClients
-    }
-    elseif ($clientPrompt.Trim().ToLowerInvariant() -eq 'none') {
-        $selectedClients = @()
+    $resolvedInstallRoot = if ($script:InstallRootWasSpecified) {
+        $CurrentInstallRoot
     }
     else {
-        $selectedClients = Expand-ClientSelection -RawClients @($clientPrompt) -DetectedClients $DetectedClients
+        $installPrompt = Read-InstallerInput -Prompt 'Install root' -DefaultValue $CurrentInstallRoot
+        if ([string]::IsNullOrWhiteSpace($installPrompt)) { $CurrentInstallRoot } else { $installPrompt.Trim() }
     }
 
-    $confirmation = Read-Host 'Proceed with installation? [Y/n]'
-    if (-not [string]::IsNullOrWhiteSpace($confirmation) -and $confirmation.Trim().ToLowerInvariant().StartsWith('n')) {
+    Write-SetupMessage "Install root: $resolvedInstallRoot"
+    Write-SetupMessage "Target client: $selectedClient"
+    if (-not (Read-Confirmation -Prompt 'Proceed with installation?')) {
         throw 'Setup cancelled by user.'
     }
 
     return [ordered]@{
         InstallRoot = $resolvedInstallRoot
-        Clients = $selectedClients
+        Clients = if ($selectedClient -eq 'none') { @() } else { @($selectedClient) }
     }
 }
 
@@ -531,5 +653,17 @@ else {
     }
     else {
         Write-SetupMessage 'No client registrations were selected.'
+    }
+
+    if (-not $NonInteractive) {
+        Write-SetupMessage ''
+        Write-SetupMessage '+- Next action'
+        Write-SetupMessage '| 1. Open docs homepage'
+        Write-SetupMessage '| 2. Exit'
+        Write-SetupMessage '+------------------------------------------------------------------'
+        $completionSelection = Read-InstallerInput -Prompt 'Select an option' -DefaultValue '2'
+        if ($completionSelection.Trim() -eq '1') {
+            Invoke-DocsHomepage
+        }
     }
 }

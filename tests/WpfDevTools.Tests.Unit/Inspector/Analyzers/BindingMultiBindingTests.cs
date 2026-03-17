@@ -39,6 +39,53 @@ public sealed class BindingMultiBindingTests
             .Should().Equal("FirstName", "LastName");
     }
 
+    [StaFact]
+    public void GetBindingValueChain_WithMultiBinding_ShouldReturnChildPathsConverterAndFinalValue()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var textBlock = new TextBlock();
+        var source = new { FirstName = "Ada", LastName = "Lovelace" };
+        textBlock.SetBinding(TextBlock.TextProperty, new MultiBinding
+        {
+            Converter = new TestConcatMultiConverter(),
+            Bindings =
+            {
+                new Binding("FirstName") { Source = source },
+                new Binding("LastName") { Source = source }
+            }
+        });
+        var elementId = finder.GenerateElementId(textBlock);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingValueChain(elementId, "Text"));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue(result.GetRawText());
+        result.GetProperty("hasBinding").GetBoolean().Should().BeTrue(result.GetRawText());
+        result.GetProperty("chain").EnumerateArray()
+            .Any(step =>
+                step.TryGetProperty("bindingType", out var bindingType)
+                && bindingType.GetString() == "MultiBinding")
+            .Should().BeTrue(result.GetRawText());
+        result.GetProperty("chain").EnumerateArray()
+            .SelectMany(step =>
+                step.TryGetProperty("bindingPaths", out var bindingPaths)
+                    ? bindingPaths.EnumerateArray().Select(item => item.GetString())
+                    : Array.Empty<string?>())
+            .Should().Contain(new[] { "FirstName", "LastName" });
+        result.GetProperty("chain").EnumerateArray()
+            .Any(step =>
+                step.TryGetProperty("converter", out var converter)
+                && converter.GetString() == nameof(TestConcatMultiConverter))
+            .Should().BeTrue(result.GetRawText());
+        result.GetProperty("chain").EnumerateArray()
+            .Any(step =>
+                step.TryGetProperty("step", out var stepName)
+                && stepName.GetString() == "FinalValue"
+                && step.TryGetProperty("value", out var value)
+                && value.GetString() == "Ada Lovelace")
+            .Should().BeTrue(result.GetRawText());
+    }
+
     private sealed class TestConcatMultiConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)

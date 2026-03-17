@@ -116,12 +116,13 @@ public sealed partial class BindingAnalyzer
             source = frameworkElement.DataContext;
         }
 
-        if (source == null || string.IsNullOrWhiteSpace(binding.Path?.Path))
+        var bindingPath = binding.Path?.Path;
+        if (source == null || string.IsNullOrWhiteSpace(bindingPath))
         {
             return source;
         }
 
-        var property = source.GetType().GetProperty(binding.Path.Path);
+        var property = source.GetType().GetProperty(bindingPath);
         return property?.GetValue(source);
     }
 

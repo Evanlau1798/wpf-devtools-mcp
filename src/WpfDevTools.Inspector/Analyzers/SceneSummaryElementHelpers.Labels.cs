@@ -199,7 +199,7 @@ internal static partial class SceneSummaryElementHelpers
         {
             if (trimmedIdentifier.EndsWith(suffix, StringComparison.Ordinal))
             {
-                trimmedIdentifier = trimmedIdentifier[..^suffix.Length];
+                trimmedIdentifier = trimmedIdentifier.Substring(0, trimmedIdentifier.Length - suffix.Length);
                 break;
             }
         }

@@ -137,6 +137,8 @@ public sealed class ReleasePackagingContractTests
             "the packaged release root should include run.bat as the offline installer entrypoint");
         content.Should().Contain("run.bat",
             "the release publisher should emit a batch installer at the package root");
+        content.Should().Contain("bin\\install.ps1",
+            "the offline entrypoint should forward into the packaged install script under bin/");
     }
 
     [Fact]
@@ -160,9 +162,9 @@ public sealed class ReleasePackagingContractTests
             var packageDir = Path.Combine(tempRoot, "package");
             var installRoot = Path.Combine(tempRoot, "install-root");
             Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
-            File.WriteAllText(Path.Combine(packageDir, "bin", "WpfDevTools.Mcp.Server.exe"), "stub");
+            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
             File.WriteAllText(
-                Path.Combine(packageDir, "manifest.json"),
+                Path.Combine(packageDir, "bin", "manifest.json"),
                 JsonSerializer.Serialize(new
                 {
                     name = "wpf-devtools",
@@ -176,7 +178,7 @@ public sealed class ReleasePackagingContractTests
                 new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "WpfDevTools.Mcp.Server.exe"))
+            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"))
                 .Should().BeTrue();
         }
         finally

@@ -44,8 +44,8 @@ public sealed class GitHubPagesInstallerScriptTests
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("installedExecutable").GetString()
-                .Should().EndWith("x64\\current\\WpfDevTools.Mcp.Server.exe");
-            File.Exists(Path.Combine(installRoot, "x64", "current", "WpfDevTools.Mcp.Server.exe")).Should().BeTrue();
+                .Should().EndWith("x64\\current\\bin\\wpf-devtools-x64.exe");
+            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
         }
         finally
         {
@@ -83,7 +83,7 @@ public sealed class GitHubPagesInstallerScriptTests
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("installedExecutable").GetString()
-                .Should().Contain("arm64\\current\\WpfDevTools.Mcp.Server.exe");
+                .Should().Contain("arm64\\current\\bin\\wpf-devtools-arm64.exe");
         }
         finally
         {
@@ -99,7 +99,7 @@ public sealed class GitHubPagesInstallerScriptTests
         {
             var packageDir = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, "x64");
             File.WriteAllText(
-                Path.Combine(packageDir, "manifest.json"),
+                Path.Combine(packageDir, "bin", "manifest.json"),
                 JsonSerializer.Serialize(new
                 {
                     name = "wpf-devtools",
@@ -110,9 +110,9 @@ public sealed class GitHubPagesInstallerScriptTests
                     buildConfiguration = "Debug",
                     signaturePolicy = "DebugTrustedRootSkip"
                 }));
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Uninstall-WpfDevTools.ps1"), Path.Combine(packageDir, "uninstall.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "bin", "install.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "bin", "internal-install.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/run-template.bat"), Path.Combine(packageDir, "run.bat"), overwrite: true);
 
             var archivePath = Path.Combine(tempRoot, "release_1.2.3_win-x64.zip");
             ZipFile.CreateFromDirectory(packageDir, archivePath);
@@ -184,7 +184,7 @@ public sealed class GitHubPagesInstallerScriptTests
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("installedExecutable").GetString()
-                .Should().EndWith("x64\\current\\WpfDevTools.Mcp.Server.exe");
+                .Should().EndWith("x64\\current\\bin\\wpf-devtools-x64.exe");
         }
         finally
         {

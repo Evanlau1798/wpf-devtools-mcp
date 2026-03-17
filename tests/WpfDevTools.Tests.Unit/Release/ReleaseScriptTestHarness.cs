@@ -44,10 +44,11 @@ internal static class ReleaseScriptTestHarness
     public static string CreatePackageDirectory(string tempRoot, string architecture = "x64")
     {
         var packageDir = Path.Combine(tempRoot, "package");
-        Directory.CreateDirectory(packageDir);
-        File.WriteAllText(Path.Combine(packageDir, "WpfDevTools.Mcp.Server.exe"), "stub");
+        var binDir = Path.Combine(packageDir, "bin");
+        Directory.CreateDirectory(binDir);
+        File.WriteAllText(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), "stub");
         File.WriteAllText(
-            Path.Combine(packageDir, "manifest.json"),
+            Path.Combine(binDir, "manifest.json"),
             JsonSerializer.Serialize(new
             {
                 name = "wpf-devtools",
@@ -62,9 +63,10 @@ internal static class ReleaseScriptTestHarness
     public static string CreatePackageArchive(string tempRoot, string architecture = "x64")
     {
         var packageDir = CreatePackageDirectory(tempRoot, architecture);
-        File.Copy(GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
-        File.Copy(GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
-        File.Copy(GetRepoFilePath("scripts/tools/release/Uninstall-WpfDevTools.ps1"), Path.Combine(packageDir, "uninstall.ps1"), overwrite: true);
+        var binDir = Path.Combine(packageDir, "bin");
+        File.Copy(GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"), Path.Combine(binDir, "install.ps1"), overwrite: true);
+        File.Copy(GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), Path.Combine(binDir, "internal-install.ps1"), overwrite: true);
+        File.Copy(GetRepoFilePath("scripts/tools/release/run-template.bat"), Path.Combine(packageDir, "run.bat"), overwrite: true);
 
         var archivePath = Path.Combine(tempRoot, $"release_1.2.3_win-{architecture}.zip");
         if (File.Exists(archivePath))

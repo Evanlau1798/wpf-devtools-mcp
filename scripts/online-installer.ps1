@@ -160,6 +160,11 @@ function Remove-PathIfExists {
 function Resolve-InstallerScriptPath {
     param([Parameter(Mandatory)] [string]$ExtractRoot)
 
+    $packageSetup = Join-Path $ExtractRoot 'bin\install.ps1'
+    if (Test-Path $packageSetup) {
+        return $packageSetup
+    }
+
     $packageSetup = Join-Path $ExtractRoot 'setup.ps1'
     if (Test-Path $packageSetup) {
         return $packageSetup

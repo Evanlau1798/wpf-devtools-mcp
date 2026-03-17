@@ -16,10 +16,10 @@ public sealed class InstallerScriptTests
         {
             var packageDir = Path.Combine(tempRoot, "package");
             var installRoot = Path.Combine(tempRoot, "install-root");
-            Directory.CreateDirectory(packageDir);
-            File.WriteAllText(Path.Combine(packageDir, "WpfDevTools.Mcp.Server.exe"), "stub");
+            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
+            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
             File.WriteAllText(
-                Path.Combine(packageDir, "manifest.json"),
+                Path.Combine(packageDir, "bin", "manifest.json"),
                 JsonSerializer.Serialize(new
                 {
                     name = "wpf-devtools",
@@ -39,10 +39,10 @@ public sealed class InstallerScriptTests
             Directory.Exists(registrationDir).Should().BeTrue();
             File.ReadAllText(Path.Combine(registrationDir, "claude-code.txt")).Should().Contain("claude mcp add");
             File.ReadAllText(Path.Combine(registrationDir, "codex-cli.txt")).Should().Contain("codex mcp add");
-            File.ReadAllText(Path.Combine(registrationDir, "claude-desktop.json")).Should().Contain("WpfDevTools.Mcp.Server.exe");
-            File.ReadAllText(Path.Combine(registrationDir, "cursor-vscode.json")).Should().Contain("WpfDevTools.Mcp.Server.exe");
+            File.ReadAllText(Path.Combine(registrationDir, "claude-desktop.json")).Should().Contain("wpf-devtools-x64.exe");
+            File.ReadAllText(Path.Combine(registrationDir, "cursor-vscode.json")).Should().Contain("wpf-devtools-x64.exe");
             File.ReadAllText(Path.Combine(registrationDir, "claude-code.project.mcp.json")).Should().Contain("\"mcpServers\"");
-            File.ReadAllText(Path.Combine(registrationDir, "claude-code.project.mcp.json")).Should().Contain("WpfDevTools.Mcp.Server.exe");
+            File.ReadAllText(Path.Combine(registrationDir, "claude-code.project.mcp.json")).Should().Contain("wpf-devtools-x64.exe");
         }
         finally
         {
@@ -81,9 +81,9 @@ public sealed class InstallerScriptTests
         {
             var packageDir = Path.Combine(tempRoot, "package");
             var installRoot = Path.Combine(tempRoot, "install-root");
-            Directory.CreateDirectory(packageDir);
+            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
             File.WriteAllText(
-                Path.Combine(packageDir, "manifest.json"),
+                Path.Combine(packageDir, "bin", "manifest.json"),
                 JsonSerializer.Serialize(new
                 {
                     name = "wpf-devtools",
@@ -97,7 +97,7 @@ public sealed class InstallerScriptTests
                 new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
 
             result.ExitCode.Should().NotBe(0);
-            result.Stderr.Should().Contain("WpfDevTools.Mcp.Server.exe");
+            result.Stderr.Should().Contain("wpf-devtools");
         }
         finally
         {
@@ -113,10 +113,10 @@ public sealed class InstallerScriptTests
         {
             var packageDir = Path.Combine(tempRoot, "package");
             var installRoot = Path.Combine(tempRoot, "install-root");
-            Directory.CreateDirectory(packageDir);
-            File.WriteAllText(Path.Combine(packageDir, "WpfDevTools.Mcp.Server.exe"), "stub");
+            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
+            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
             File.WriteAllText(
-                Path.Combine(packageDir, "manifest.json"),
+                Path.Combine(packageDir, "bin", "manifest.json"),
                 JsonSerializer.Serialize(new
                 {
                     name = "wpf-devtools",
@@ -133,7 +133,7 @@ public sealed class InstallerScriptTests
                 new[] { "-InstallRoot", installRoot, "-Force" });
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            File.Exists(Path.Combine(installRoot, "x64", "current", "WpfDevTools.Mcp.Server.exe")).Should().BeTrue();
+            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
         }
         finally
         {
@@ -151,10 +151,10 @@ public sealed class InstallerScriptTests
         try
         {
             var packageDir = Path.Combine(tempRoot, "package");
-            Directory.CreateDirectory(packageDir);
-            File.WriteAllText(Path.Combine(packageDir, "WpfDevTools.Mcp.Server.exe"), "stub");
+            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
+            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
             File.WriteAllText(
-                Path.Combine(packageDir, "manifest.json"),
+                Path.Combine(packageDir, "bin", "manifest.json"),
                 JsonSerializer.Serialize(new
                 {
                     name = "wpf-devtools",
@@ -171,9 +171,9 @@ public sealed class InstallerScriptTests
 
             var registrationDir = Path.Combine(absoluteInstallRoot, "x64", "client-registration");
             File.ReadAllText(Path.Combine(registrationDir, "claude-code.txt"))
-                .Should().Contain(Path.Combine(absoluteInstallRoot, "x64", "current", "WpfDevTools.Mcp.Server.exe"));
+                .Should().Contain(Path.Combine(absoluteInstallRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"));
             File.ReadAllText(Path.Combine(registrationDir, "claude-desktop.json"))
-                .Should().Contain(Path.Combine(absoluteInstallRoot, "x64", "current", "WpfDevTools.Mcp.Server.exe").Replace("\\", "\\\\"));
+                .Should().Contain(Path.Combine(absoluteInstallRoot, "x64", "current", "bin", "wpf-devtools-x64.exe").Replace("\\", "\\\\"));
         }
         finally
         {
@@ -190,10 +190,10 @@ public sealed class InstallerScriptTests
         {
             var packageDir = Path.Combine(tempRoot, "package");
             var installRoot = Path.Combine(tempRoot, "install-root");
-            Directory.CreateDirectory(packageDir);
-            File.WriteAllText(Path.Combine(packageDir, "WpfDevTools.Mcp.Server.exe"), "stub");
+            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
+            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
             File.WriteAllText(
-                Path.Combine(packageDir, "manifest.json"),
+                Path.Combine(packageDir, "bin", "manifest.json"),
                 JsonSerializer.Serialize(new
                 {
                     name = "wpf-devtools",

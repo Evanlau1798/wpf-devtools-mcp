@@ -22,10 +22,10 @@ public sealed class ClientRegistrationArtifactTests
             result.ExitCode.Should().Be(0, result.Stderr);
             var registrationDir = Path.Combine(installRoot, "x64", "client-registration");
             File.ReadAllText(Path.Combine(registrationDir, "github-copilot-vscode.json"))
-                .Should().Contain("WpfDevTools.Mcp.Server.exe")
+                .Should().Contain("wpf-devtools-x64.exe")
                 .And.Contain("\"servers\"");
             File.ReadAllText(Path.Combine(registrationDir, "other.mcpServers.json"))
-                .Should().Contain("WpfDevTools.Mcp.Server.exe")
+                .Should().Contain("wpf-devtools-x64.exe")
                 .And.Contain("\"mcpServers\"");
         }
         finally
@@ -69,7 +69,7 @@ public sealed class ClientRegistrationArtifactTests
                 .Should().OnlyContain(mode => mode == "json-file");
             File.ReadAllText(Path.Combine(userProfile, ".mcp.json"))
                 .Should().Contain("\"servers\"")
-                .And.Contain("WpfDevTools.Mcp.Server.exe");
+                .And.Contain("wpf-devtools-x64.exe");
         }
         finally
         {

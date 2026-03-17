@@ -37,7 +37,7 @@ public sealed class OnlineInstallerIntegrationTests
                 });
 
             installResult.ExitCode.Should().Be(0, installResult.Stderr);
-            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "WpfDevTools.Mcp.Server.exe")).Should().BeTrue();
+            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
             File.Exists(Path.Combine(installRoot, "x64", "client-registration", "other.mcpServers.json")).Should().BeTrue();
             installResult.Stdout.Should().Contain("\"packageAssetName\"");
         }

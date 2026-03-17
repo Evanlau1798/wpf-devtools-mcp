@@ -81,6 +81,26 @@ function Copy-DirectoryContents {
     Copy-Item -Path (Join-Path $Source '*') -Destination $Destination -Recurse -Force
 }
 
+function Resolve-ServerOutputSource {
+    param(
+        [Parameter(Mandatory)] [string]$RepositoryRoot,
+        [Parameter(Mandatory)] [string]$BuildConfiguration,
+        [Parameter(Mandatory)] [string]$RuntimeId,
+        [Parameter(Mandatory)] [bool]$UseExistingBuildOutput
+    )
+
+    $runtimeBuildDir = Join-Path $RepositoryRoot "src\WpfDevTools.Mcp.Server\bin\$BuildConfiguration\net8.0\$RuntimeId"
+    if (Test-Path $runtimeBuildDir) {
+        return $runtimeBuildDir
+    }
+
+    if ($UseExistingBuildOutput) {
+        throw "Expected existing server output was not found for runtime '$RuntimeId': $runtimeBuildDir"
+    }
+
+    return $null
+}
+
 function Copy-DirectoryFilesOnly {
     param(
         [Parameter(Mandatory)] [string]$Source,
@@ -127,7 +147,7 @@ function Resolve-MSBuildPath {
     throw 'MSBuild.exe was not found. Install Visual Studio Build Tools or add MSBuild.exe to PATH.'
 }
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj'
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
 $bootstrapperProject = Join-Path $repoRoot 'src\WpfDevTools.Bootstrapper\WpfDevTools.Bootstrapper.vcxproj'
@@ -153,7 +173,7 @@ foreach ($architecture in $Architectures) {
     $packageArchiveName = "release_${version}_win-$architecture.zip"
     $packageArchivePath = Join-Path $outputRootFullPath $packageArchiveName
     $binDir = Join-Path $packageDir 'bin'
-    $serverBuildDir = Join-Path $repoRoot "src\WpfDevTools.Mcp.Server\bin\$Configuration\net8.0"
+    $serverBuildSource = Resolve-ServerOutputSource -RepositoryRoot $repoRoot -BuildConfiguration $Configuration -RuntimeId $runtimeId -UseExistingBuildOutput $SkipBuild.IsPresent
 
     Remove-PathIfExists -Path $packageDir
     Remove-PathIfExists -Path $packageArchivePath
@@ -166,7 +186,7 @@ foreach ($architecture in $Architectures) {
 
     try {
         if ($SkipBuild) {
-            Copy-DirectoryContents -Source $serverBuildDir -Destination $binDir
+            Copy-DirectoryContents -Source $serverBuildSource -Destination $binDir
         }
         else {
             Invoke-Step -FilePath 'dotnet' -Arguments @(
@@ -202,13 +222,18 @@ foreach ($architecture in $Architectures) {
         $inspectorNet48BuildDir = Join-Path $repoRoot "src\WpfDevTools.Inspector\bin\$Configuration\net48"
         $bootstrapperSource = Join-Path $repoRoot "artifacts\bootstrapper\$Configuration\$bootstrapperPlatform\WpfDevTools.Bootstrapper.$architecture.dll"
 
+        $packagedExecutableName = "wpf-devtools-$architecture.exe"
+        $serverExecutablePath = Join-Path $binDir 'WpfDevTools.Mcp.Server.exe'
+        if (Test-Path $serverExecutablePath) {
+            Rename-Item -Path $serverExecutablePath -NewName $packagedExecutableName -Force
+        }
+
         Copy-DirectoryFilesOnly -Source $inspectorNet8BuildDir -Destination $inspectorNet8Dir
         Copy-DirectoryContents -Source $inspectorNet48BuildDir -Destination $inspectorNet48Dir
         Copy-Item -Path $bootstrapperSource -Destination (Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)) -Force
         Copy-Item -Path $installBatchTemplate -Destination (Join-Path $packageDir 'run.bat') -Force
-        Copy-Item -Path $installScript -Destination (Join-Path $packageDir 'install.ps1') -Force
-        Copy-Item -Path $setupScript -Destination (Join-Path $packageDir 'setup.ps1') -Force
-        Copy-Item -Path $uninstallScript -Destination (Join-Path $packageDir 'uninstall.ps1') -Force
+        Copy-Item -Path $setupScript -Destination (Join-Path $binDir 'install.ps1') -Force
+        Copy-Item -Path $installScript -Destination (Join-Path $binDir 'internal-install.ps1') -Force
 
         $manifest = [ordered]@{
             name = 'wpf-devtools'
@@ -219,11 +244,9 @@ foreach ($architecture in $Architectures) {
             buildConfiguration = $Configuration
             signaturePolicy = $signaturePolicy
             createdUtc = [DateTime]::UtcNow.ToString('o')
-            entryExecutable = 'bin/WpfDevTools.Mcp.Server.exe'
+            entryExecutable = "bin/$packagedExecutableName"
             runBatch = 'run.bat'
-            installScript = 'install.ps1'
-            setupScript = 'setup.ps1'
-            uninstallScript = 'uninstall.ps1'
+            installScript = 'bin\install.ps1'
             inspector = [ordered]@{
                 net8 = 'bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll'
                 net48 = 'bin/inspectors/net48/WpfDevTools.Inspector.dll'
@@ -231,7 +254,7 @@ foreach ($architecture in $Architectures) {
             bootstrapper = "bin/bootstrapper/$architecture/WpfDevTools.Bootstrapper.$architecture.dll"
         }
 
-        $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $packageDir 'manifest.json') -Encoding UTF8
+        $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $binDir 'manifest.json') -Encoding UTF8
         Compress-Archive -Path (Join-Path $packageDir '*') -DestinationPath $packageArchivePath -Force
         Write-Host "Created package: $packageDir"
         Write-Host "Created archive: $packageArchivePath"

@@ -86,7 +86,7 @@ public sealed class SetupWizardScriptTests
 
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("installedExecutable").GetString()
-                .Should().EndWith("x64\\current\\WpfDevTools.Mcp.Server.exe");
+                .Should().EndWith("x64\\current\\bin\\wpf-devtools-x64.exe");
             json.RootElement.GetProperty("selectedClients").EnumerateArray().Select(x => x.GetString())
                 .Should().BeEquivalentTo(new[] { "claude-code", "codex" });
             json.RootElement.GetProperty("registrations").EnumerateArray().Should().HaveCount(2);
@@ -205,11 +205,12 @@ public sealed class SetupWizardScriptTests
             Directory.CreateDirectory(appData);
             Directory.CreateDirectory(localAppData);
             Directory.CreateDirectory(userProfile);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "install.ps1"), overwrite: true);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "setup.ps1"), overwrite: true);
+            var packageBinDir = Path.Combine(packageDir, "bin");
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Install-WpfDevTools.ps1"), Path.Combine(packageBinDir, "internal-install.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/release/Setup-WpfDevTools.ps1"), Path.Combine(packageBinDir, "install.ps1"), overwrite: true);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                Path.Combine(packageDir, "setup.ps1"),
+                Path.Combine(packageBinDir, "install.ps1"),
                 new[]
                 {
                     "-InstallRoot", installRoot,
@@ -230,7 +231,7 @@ public sealed class SetupWizardScriptTests
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("selectedClients").ValueKind.Should().Be(JsonValueKind.Array);
             json.RootElement.GetProperty("selectedClients").EnumerateArray().Should().BeEmpty();
-            File.Exists(Path.Combine(installRoot, "x64", "current", "WpfDevTools.Mcp.Server.exe")).Should().BeTrue();
+            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
         }
         finally
         {

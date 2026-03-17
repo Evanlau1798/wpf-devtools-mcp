@@ -2,10 +2,10 @@
 setlocal
 
 set "SCRIPT_DIR=%~dp0"
-set "INSTALL_SCRIPT=%SCRIPT_DIR%install.ps1"
+set "INSTALL_SCRIPT=%SCRIPT_DIR%bin\install.ps1"
 
 if not exist "%INSTALL_SCRIPT%" (
-    echo install.ps1 was not found next to install.bat.
+    echo bin\install.ps1 was not found next to run.bat.
     exit /b 1
 )
 

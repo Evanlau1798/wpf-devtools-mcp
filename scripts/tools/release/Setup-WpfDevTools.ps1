@@ -31,11 +31,44 @@ function Resolve-PackageDirectory {
     }
 
     $packageRoot = (Resolve-Path $PSScriptRoot).Path
-    if (Test-Path (Join-Path $packageRoot 'manifest.json')) {
+    $currentManifest = Join-Path $packageRoot 'manifest.json'
+    $childManifest = Join-Path $packageRoot 'bin\manifest.json'
+    $packageParent = Split-Path -Parent $packageRoot
+
+    if ((Split-Path $packageRoot -Leaf) -ieq 'bin' -and
+        (Test-Path $currentManifest) -and
+        -not [string]::IsNullOrWhiteSpace($packageParent)) {
+        return $packageParent
+    }
+
+    if ((Test-Path $currentManifest) -or (Test-Path $childManifest)) {
         return $packageRoot
     }
 
+    if (-not [string]::IsNullOrWhiteSpace($packageParent) -and
+        ((Test-Path (Join-Path $packageParent 'manifest.json')) -or
+         (Test-Path (Join-Path $packageParent 'bin\manifest.json')))) {
+        return $packageParent
+    }
+
     throw 'PackagePath was not provided and manifest.json was not found next to Setup-WpfDevTools.ps1.'
+}
+
+function Resolve-PackageManifestPath {
+    param([Parameter(Mandatory)] [string]$PackageDirectory)
+
+    $manifestCandidates = @(
+        (Join-Path $PackageDirectory 'manifest.json'),
+        (Join-Path $PackageDirectory 'bin\manifest.json')
+    )
+
+    foreach ($candidate in $manifestCandidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    throw "manifest.json was not found under package path: $PackageDirectory"
 }
 
 function Resolve-AbsoluteDirectory {
@@ -94,6 +127,11 @@ function Resolve-VisualStudioConfigPath {
 }
 
 function Resolve-InstallScriptPath {
+    $packageLocalScript = Join-Path $PSScriptRoot 'internal-install.ps1'
+    if (Test-Path $packageLocalScript) {
+        return $packageLocalScript
+    }
+
     $packageLocalScript = Join-Path $PSScriptRoot 'install.ps1'
     if (Test-Path $packageLocalScript) {
         return $packageLocalScript
@@ -394,7 +432,7 @@ if (-not $NonInteractive) {
 }
 
 $packageDir = Resolve-PackageDirectory -ConfiguredPackagePath $PackagePath
-$packageManifest = Get-Content -Path (Join-Path $packageDir 'manifest.json') -Raw | ConvertFrom-Json
+$packageManifest = Get-Content -Path (Resolve-PackageManifestPath -PackageDirectory $packageDir) -Raw | ConvertFrom-Json
 $architecture = [string]$packageManifest.architecture
 if ([string]::IsNullOrWhiteSpace($architecture)) {
     throw 'manifest.json does not define architecture'
@@ -427,7 +465,9 @@ if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
 & $installScript @installArguments
 
 $resolvedInstallRootFullPath = Resolve-AbsoluteDirectory -Path $resolvedInstallRoot
-$installedExecutable = Join-Path $resolvedInstallRootFullPath "$architecture\current\WpfDevTools.Mcp.Server.exe"
+$installManifestPath = Join-Path $resolvedInstallRootFullPath "$architecture\install-manifest.json"
+$installManifest = Get-Content -Path $installManifestPath -Raw | ConvertFrom-Json
+$installedExecutable = [string]$installManifest.executable
 $registrations = @()
 foreach ($client in $selectedClients) {
     switch ($client) {

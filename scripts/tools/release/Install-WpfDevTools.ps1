@@ -60,11 +60,72 @@ function Resolve-PackageDirectory {
     }
 
     $packageRoot = (Resolve-Path $PSScriptRoot).Path
-    if (Test-Path (Join-Path $packageRoot 'manifest.json')) {
+    $currentManifest = Join-Path $packageRoot 'manifest.json'
+    $childManifest = Join-Path $packageRoot 'bin\manifest.json'
+    $packageParent = Split-Path -Parent $packageRoot
+
+    if ((Split-Path $packageRoot -Leaf) -ieq 'bin' -and
+        (Test-Path $currentManifest) -and
+        -not [string]::IsNullOrWhiteSpace($packageParent)) {
+        return $packageParent
+    }
+
+    if ((Test-Path $currentManifest) -or (Test-Path $childManifest)) {
         return $packageRoot
     }
 
+    if (-not [string]::IsNullOrWhiteSpace($packageParent) -and
+        ((Test-Path (Join-Path $packageParent 'manifest.json')) -or
+         (Test-Path (Join-Path $packageParent 'bin\manifest.json')))) {
+        return $packageParent
+    }
+
     throw 'PackagePath was not provided and manifest.json was not found next to install.ps1.'
+}
+
+function Resolve-PackageManifestPath {
+    param([Parameter(Mandatory)] [string]$PackageDirectory)
+
+    $manifestCandidates = @(
+        (Join-Path $PackageDirectory 'manifest.json'),
+        (Join-Path $PackageDirectory 'bin\manifest.json')
+    )
+
+    foreach ($candidate in $manifestCandidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    throw "manifest.json was not found under package path: $PackageDirectory"
+}
+
+function Resolve-PackageExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$PackageDirectory,
+        [Parameter(Mandatory)] [string]$Architecture
+    )
+
+    $candidates = @(
+        (Join-Path $PackageDirectory "bin\wpf-devtools-$Architecture.exe"),
+        (Join-Path $PackageDirectory "wpf-devtools-$Architecture.exe"),
+        (Join-Path $PackageDirectory 'bin\WpfDevTools.Mcp.Server.exe'),
+        (Join-Path $PackageDirectory 'WpfDevTools.Mcp.Server.exe')
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    $fallback = Get-ChildItem -Path (Join-Path $PackageDirectory 'bin') -Filter 'wpf-devtools-*.exe' -File -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -ne $fallback) {
+        return $fallback.FullName
+    }
+
+    throw "Package does not contain a wpf-devtools executable under bin\\ or package root: $PackageDirectory"
 }
 
 function Resolve-AbsoluteDirectory {
@@ -153,11 +214,7 @@ $codexCommand
 }
 
 $packageDir = Resolve-PackageDirectory -ConfiguredPackagePath $PackagePath
-$manifestPath = Join-Path $packageDir 'manifest.json'
-if (-not (Test-Path $manifestPath)) {
-    throw "manifest.json was not found under package path: $packageDir"
-}
-
+$manifestPath = Resolve-PackageManifestPath -PackageDirectory $packageDir
 $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
 $architecture = [string]$manifest.architecture
 if ([string]::IsNullOrWhiteSpace($architecture)) {
@@ -177,16 +234,7 @@ if ([string]::IsNullOrWhiteSpace($signaturePolicy)) {
     $signaturePolicy = if ($buildConfiguration -eq 'Debug') { 'DebugTrustedRootSkip' } else { 'RequireAuthenticodeSignature' }
 }
 
-$packageExecutable = Join-Path $packageDir 'bin\WpfDevTools.Mcp.Server.exe'
-if (-not (Test-Path $packageExecutable)) {
-    $legacyExecutable = Join-Path $packageDir 'WpfDevTools.Mcp.Server.exe'
-    if (Test-Path $legacyExecutable) {
-        $packageExecutable = $legacyExecutable
-    }
-    else {
-        throw "Package does not contain WpfDevTools.Mcp.Server.exe under bin\\ or package root: $packageDir"
-    }
-}
+$packageExecutable = Resolve-PackageExecutable -PackageDirectory $packageDir -Architecture $architecture
 
 $installRootFullPath = Resolve-AbsoluteDirectory -Path $InstallRoot
 $installBase = Join-Path $installRootFullPath $architecture

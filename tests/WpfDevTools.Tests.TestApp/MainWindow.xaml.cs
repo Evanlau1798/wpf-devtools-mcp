@@ -37,6 +37,7 @@ public partial class MainWindow : Window
 
         SetupCustomEvents();
         SetupBindingDiagnosticsSamples();
+        SetupFormSummaryDisambiguationSample();
         SetupGeneratedDetailDiagnostics();
         SetupWaitForChangeDiagnostics();
         InitializeEventTraceLab();
@@ -209,6 +210,27 @@ public partial class MainWindow : Window
         RegisterName(detailHost.Name, detailHost);
         RegisterName(detailTab.Name, detailTab);
         MainTabControl.Items.Add(detailTab);
+    }
+
+    private void SetupFormSummaryDisambiguationSample()
+    {
+        var fallbackGroup = new GroupBox
+        {
+            Name = "FocusLabelFallbackGroup",
+            Header = "Focus and Keyboard Testing",
+            Margin = new Thickness(5, 12, 5, 0),
+            Content = new StackPanel
+            {
+                Children =
+                {
+                    new TextBox { Name = "FocusBox1", Margin = new Thickness(5), Text = string.Empty },
+                    new TextBox { Name = "FocusBox2", Margin = new Thickness(5), Text = string.Empty },
+                    new TextBox { Name = "FocusBox3", Margin = new Thickness(5), Text = string.Empty }
+                }
+            }
+        };
+
+        BasicControlsStackPanel.Children.Add(fallbackGroup);
     }
 
     private void SetupWaitForChangeDiagnostics()

@@ -250,6 +250,38 @@ public sealed class FormSummaryE2eTests
             "Focus Workflow / Focus Next");
     }
 
+    [Fact]
+    public async Task GetFormSummary_ShouldDisambiguateSharedSectionHeadingFallbackLabels()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var formId = await FindElementIdAsync("BasicControlsStackPanel");
+        var result = await _fixture.Client.CallToolAsync(
+            "get_form_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = formId
+            });
+
+        var labels = result.GetProperty("inputs")
+            .EnumerateArray()
+            .Where(input =>
+            {
+                var elementName = input.GetProperty("elementName").GetString();
+                return elementName is "FocusBox1" or "FocusBox2" or "FocusBox3";
+            })
+            .Select(input => input.GetProperty("label").GetString())
+            .ToArray();
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        labels.Should().HaveCount(3);
+        labels.Should().OnlyHaveUniqueItems();
+        labels.Should().Contain("Focus and Keyboard Testing / Focus Box 1");
+        labels.Should().Contain("Focus and Keyboard Testing / Focus Box 2");
+        labels.Should().Contain("Focus and Keyboard Testing / Focus Box 3");
+    }
+
     private async Task ResetFormAsync()
     {
         await _fixture.Client.CallToolAsync("modify_viewmodel", new

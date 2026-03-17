@@ -136,6 +136,24 @@ public sealed class DocfxCapabilityDocumentationTests
         content.Should().Contain("get_state_diff");
     }
 
+    [Theory]
+    [InlineData("docfx/reference/tools/index.md", "structuredContent", "outputSchema", "Claude")]
+    [InlineData("docfx/zh-tw/reference/tools/index.md", "structuredContent", "outputSchema", "Claude")]
+    public void ToolOverviewPages_ShouldExplainStructuredContentCompatibilityContract(
+        string relativePath,
+        string structuredContentKeyword,
+        string outputSchemaKeyword,
+        string claudeKeyword)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(structuredContentKeyword);
+        content.Should().Contain(outputSchemaKeyword,
+            "tool overview pages should explain why tools/list omits outputSchema even though structuredContent remains canonical");
+        content.Should().Contain(claudeKeyword,
+            "tool overview pages should make the Claude compatibility tradeoff explicit for non-Claude clients");
+    }
+
     private static int CountOccurrences(string content, string value)
     {
         var count = 0;

@@ -73,6 +73,7 @@ Recent additions worth learning early:
 ## Response shape notes
 
 - Structured clients should read `structuredContent` as the canonical payload.
+- `tools/list` intentionally omits `outputSchema` even though tool results still return `structuredContent`; this preserves Claude compatibility until SDK-generated structured-output metadata is broadly accepted.
 - `content[0].text` is a compact text fallback, not a duplicate transport of the full JSON object.
 - Diagnostic tools may also piggyback `pendingEvents` when the session has buffered runtime events. Use `drain_events` when you need an explicit deterministic read of the shared event buffer.
 

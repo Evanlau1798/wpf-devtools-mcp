@@ -12,12 +12,17 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$publishScript = Join-Path $PSScriptRoot 'release\Publish-Release.ps1'
+$publishScript = $env:WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT
+if ([string]::IsNullOrWhiteSpace($publishScript)) {
+    $publishScript = Join-Path $PSScriptRoot 'release\Publish-Release.ps1'
+}
+
 if (-not (Test-Path $publishScript)) {
     throw "Publish-Release.ps1 was not found: $publishScript"
 }
 
 & $publishScript -Configuration $Configuration -Architectures $Architectures -OutputRoot $OutputRoot -SkipBuild:$SkipBuild
-if ($LASTEXITCODE -ne 0) {
-    throw "Release build failed with exit code $LASTEXITCODE"
+$publishExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+if ($publishExitCode -ne 0) {
+    throw "Release build failed with exit code $publishExitCode"
 }

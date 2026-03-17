@@ -30,6 +30,95 @@ public sealed class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void BuildReleaseScript_ShouldAllowPublishScriptOverrideForDeterministicScriptTests()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var scriptRoot = Path.Combine(tempRoot, "scripts");
+            Directory.CreateDirectory(scriptRoot);
+
+            var copiedBuildScript = Path.Combine(scriptRoot, "build-release.ps1");
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/build-release.ps1"), copiedBuildScript, overwrite: true);
+
+            var publishLog = Path.Combine(tempRoot, "publish-log.json");
+            var fakePublishScript = Path.Combine(tempRoot, "fake-publish.ps1");
+            var outputRoot = Path.Combine(tempRoot, "custom-release");
+            File.WriteAllText(
+                fakePublishScript,
+                string.Join(Environment.NewLine,
+                [
+                    "param(",
+                    "    [string]$Configuration,",
+                    "    [string[]]$Architectures,",
+                    "    [string]$OutputRoot,",
+                    "    [switch]$SkipBuild",
+                    ")",
+                    "$payload = @{",
+                    "    Configuration = $Configuration",
+                    "    Architectures = $Architectures",
+                    "    OutputRoot = $OutputRoot",
+                    "    SkipBuild = $SkipBuild.IsPresent",
+                    "} | ConvertTo-Json -Depth 3",
+                    $"Set-Content -Path '{publishLog.Replace("'", "''")}' -Value $payload -Encoding UTF8"
+                ]));
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                copiedBuildScript,
+                new[] { "-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot, "-SkipBuild" },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT"] = fakePublishScript
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            File.Exists(publishLog).Should().BeTrue("the build wrapper should honor the publish-script override for isolated script tests");
+
+            using var document = JsonDocument.Parse(File.ReadAllText(publishLog));
+            document.RootElement.GetProperty("Configuration").GetString().Should().Be("Debug");
+            document.RootElement.GetProperty("Architectures").EnumerateArray().Select(x => x.GetString()).Should().Equal("x64");
+            document.RootElement.GetProperty("OutputRoot").GetString().Should().Be(outputRoot);
+            document.RootElement.GetProperty("SkipBuild").GetBoolean().Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void BuildReleaseScript_WhenOverridePublishScriptFails_ShouldSurfacePublishExitCode()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var scriptRoot = Path.Combine(tempRoot, "scripts");
+            Directory.CreateDirectory(scriptRoot);
+
+            var copiedBuildScript = Path.Combine(scriptRoot, "build-release.ps1");
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/build-release.ps1"), copiedBuildScript, overwrite: true);
+
+            var fakePublishScript = Path.Combine(tempRoot, "failing-publish.ps1");
+            File.WriteAllText(fakePublishScript, "exit 23");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                copiedBuildScript,
+                Array.Empty<string>(),
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT"] = fakePublishScript
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("Release build failed with exit code 23");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void InstallBatchTemplate_ShouldExistAsPackageEntryPoint()
     {
         var batchTemplatePath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/release/install-template.bat");

@@ -1,11 +1,11 @@
 # Sign Binaries with Code Signing Certificate
-# This script signs all DLL and EXE files in the build output
+# This script signs WpfDevTools DLL and EXE outputs from the selected build configuration.
 
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$CertificatePath,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$Password,
 
     [string]$BuildConfiguration = "Release",
@@ -13,34 +13,71 @@ param(
     [string]$TimestampServer = "http://timestamp.digicert.com"
 )
 
+function Resolve-SignToolPath {
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_SIGNTOOL_PATH)) {
+        return $env:WPFDEVTOOLS_SIGNTOOL_PATH
+    }
+
+    $command = Get-Command "signtool.exe" -ErrorAction SilentlyContinue
+    if ($null -ne $command) {
+        return $command.Source
+    }
+
+    $kitsRoot = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin"
+    if (-not (Test-Path $kitsRoot)) {
+        return $null
+    }
+
+    $candidate = Get-ChildItem -Path $kitsRoot -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -like "*\\x64\\signtool.exe" } |
+        Sort-Object FullName -Descending |
+        Select-Object -First 1
+    return $candidate.FullName
+}
+
+function Get-BinaryRoots {
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_SIGN_BINARIES_ROOTS)) {
+        return @($env:WPFDEVTOOLS_SIGN_BINARIES_ROOTS.Split(';', [System.StringSplitOptions]::RemoveEmptyEntries))
+    }
+
+    return @(".\\src", ".\\tests")
+}
+
+function Get-BinariesToSign {
+    param([Parameter(Mandatory = $true)] [string[]]$Roots)
+
+    $binaries = @()
+    foreach ($root in $Roots) {
+        if (-not (Test-Path $root)) {
+            continue
+        }
+
+        $binaries += Get-ChildItem -Path $root -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object {
+                ($_.Extension -in @('.dll', '.exe')) -and
+                $_.FullName -like "*\bin\$BuildConfiguration\*" -and
+                $_.Name -like "WpfDevTools.*"
+            }
+    }
+
+    return @($binaries | Sort-Object FullName -Unique)
+}
+
 Write-Host "Signing binaries with code signing certificate..." -ForegroundColor Green
 
-# Check if signtool.exe is available
-$signtool = "signtool.exe"
-try {
-    & $signtool /? | Out-Null
-} catch {
+$signtool = Resolve-SignToolPath
+if ([string]::IsNullOrWhiteSpace($signtool) -or -not (Test-Path $signtool)) {
     Write-Host "ERROR: signtool.exe not found!" -ForegroundColor Red
-    Write-Host "Please install Windows SDK: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/" -ForegroundColor Yellow
+    Write-Host "Please install Windows SDK or set WPFDEVTOOLS_SIGNTOOL_PATH." -ForegroundColor Yellow
     exit 1
 }
 
-# Check if certificate file exists
 if (-not (Test-Path $CertificatePath)) {
     Write-Host "ERROR: Certificate file not found: $CertificatePath" -ForegroundColor Red
     exit 1
 }
 
-# Find all binaries to sign
-$binaries = @()
-$binaries += Get-ChildItem -Path ".\src\*\bin\$BuildConfiguration" -Include "*.dll","*.exe" -Recurse
-$binaries += Get-ChildItem -Path ".\tests\*\bin\$BuildConfiguration" -Include "*.dll","*.exe" -Recurse
-
-# Filter out third-party binaries (only sign our own)
-$binaries = $binaries | Where-Object {
-    $_.Name -like "WpfDevTools.*"
-}
-
+$binaries = Get-BinariesToSign -Roots (Get-BinaryRoots)
 if ($binaries.Count -eq 0) {
     Write-Host "No binaries found to sign. Did you build the project?" -ForegroundColor Yellow
     exit 0
@@ -54,7 +91,6 @@ $failCount = 0
 foreach ($binary in $binaries) {
     Write-Host "Signing: $($binary.FullName)" -ForegroundColor Gray
 
-    # Sign the binary
     $result = & $signtool sign `
         /f $CertificatePath `
         /p $Password `
@@ -65,10 +101,11 @@ foreach ($binary in $binaries) {
         $binary.FullName 2>&1
 
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "  ✓ Signed successfully" -ForegroundColor Green
+        Write-Host "  Signed successfully" -ForegroundColor Green
         $successCount++
-    } else {
-        Write-Host "  ✗ Failed to sign" -ForegroundColor Red
+    }
+    else {
+        Write-Host "  Failed to sign" -ForegroundColor Red
         Write-Host "  Error: $result" -ForegroundColor Red
         $failCount++
     }

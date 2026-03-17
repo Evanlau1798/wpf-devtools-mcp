@@ -149,4 +149,46 @@ public sealed class GitHubPagesInstallerScriptTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldSupportIrmStyleScriptblockExecution()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64");
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var scriptContent = File.ReadAllText(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+            var encodedScriptContent = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(scriptContent));
+            var escapedArchivePath = archivePath.Replace("'", "''");
+            var escapedInstallRoot = installRoot.Replace("'", "''");
+
+            var command = string.Join(Environment.NewLine,
+            [
+                "$scriptText = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" + encodedScriptContent + "'))",
+                "$installer = [scriptblock]::Create($scriptText)",
+                "& $installer -PackageArchivePath '" + escapedArchivePath + "' -InstallRoot '" + escapedInstallRoot + "' -Client other -NonInteractive -Force -OutputJson"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["PATH"] = string.Empty
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("installedExecutable").GetString()
+                .Should().EndWith("x64\\current\\WpfDevTools.Mcp.Server.exe");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
 }

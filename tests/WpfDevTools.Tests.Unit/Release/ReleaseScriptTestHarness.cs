@@ -131,6 +131,42 @@ internal static class ReleaseScriptTestHarness
         return (process.ExitCode, stdout, stderr);
     }
 
+    public static (int ExitCode, string Stdout, string Stderr) RunPowerShellCommand(
+        string command,
+        IReadOnlyDictionary<string, string?>? environmentOverrides = null)
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WorkingDirectory = GetRepoFilePath(".")
+        };
+
+        process.StartInfo.ArgumentList.Add("-NoProfile");
+        process.StartInfo.ArgumentList.Add("-ExecutionPolicy");
+        process.StartInfo.ArgumentList.Add("Bypass");
+        process.StartInfo.ArgumentList.Add("-Command");
+        process.StartInfo.ArgumentList.Add(command);
+
+        if (environmentOverrides is not null)
+        {
+            foreach (var pair in environmentOverrides)
+            {
+                process.StartInfo.Environment[pair.Key] = pair.Value ?? string.Empty;
+            }
+        }
+
+        process.Start();
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        return (process.ExitCode, stdout, stderr);
+    }
+
     public static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
 

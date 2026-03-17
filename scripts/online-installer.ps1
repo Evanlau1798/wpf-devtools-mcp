@@ -70,17 +70,30 @@ function Remove-PathIfExists {
     }
 }
 
+function Resolve-InstallerScriptPath {
+    param([Parameter(Mandatory)] [string]$ExtractRoot)
+
+    $packageInstaller = Join-Path $ExtractRoot 'install.ps1'
+    if (Test-Path $packageInstaller) {
+        return $packageInstaller
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+        $repoInstaller = Join-Path $PSScriptRoot 'release\Install-WpfDevTools.ps1'
+        if (Test-Path $repoInstaller) {
+            return $repoInstaller
+        }
+    }
+
+    throw "Install-WpfDevTools.ps1 was not found in extracted package or relative to scripts/online-installer.ps1. ExtractRoot: $ExtractRoot"
+}
+
 $workingRootPath = Resolve-AbsoluteDirectory -Path $WorkingRoot
 $assetName = Get-ReleaseAssetName -ResolvedVersion $Version -ResolvedArchitecture $Architecture
 $downloadUri = Get-ReleaseDownloadUri -ResolvedVersion $Version -ResolvedArchitecture $Architecture
 $archivePath = if ([string]::IsNullOrWhiteSpace($PackageArchivePath)) { Join-Path $workingRootPath $assetName } else { (Resolve-Path $PackageArchivePath).Path }
 $sessionRoot = Join-Path $workingRootPath ([Guid]::NewGuid().ToString('N'))
 $extractRoot = Join-Path $sessionRoot 'package'
-$installerScript = Join-Path $PSScriptRoot 'release\Install-WpfDevTools.ps1'
-
-if (-not (Test-Path $installerScript)) {
-    throw "Install-WpfDevTools.ps1 was not found relative to scripts/online-installer.ps1: $installerScript"
-}
 
 try {
     if ([string]::IsNullOrWhiteSpace($PackageArchivePath)) {
@@ -89,6 +102,7 @@ try {
 
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
     Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
+    $installerScript = Resolve-InstallerScriptPath -ExtractRoot $extractRoot
 
     $arguments = @{
         PackagePath = $extractRoot

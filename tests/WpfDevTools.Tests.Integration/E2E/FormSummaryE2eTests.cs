@@ -220,6 +220,36 @@ public sealed class FormSummaryE2eTests
         batch.GetProperty("executedMutationCount").GetInt32().Should().Be(1);
     }
 
+    [Fact]
+    public async Task GetFormSummary_ShouldDisambiguateFocusWorkflowFallbackLabels()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var formId = await FindElementIdAsync("BasicControlsStackPanel");
+        var result = await _fixture.Client.CallToolAsync(
+            "get_form_summary",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = formId
+            });
+
+        var focusLabels = result.GetProperty("inputs")
+            .EnumerateArray()
+            .Where(input =>
+            {
+                var elementName = input.GetProperty("elementName").GetString();
+                return elementName is "FocusStartTextBox" or "FocusNextTextBox";
+            })
+            .Select(input => input.GetProperty("label").GetString())
+            .ToArray();
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        focusLabels.Should().Equal(
+            "Focus Workflow / Focus Start",
+            "Focus Workflow / Focus Next");
+    }
+
     private async Task ResetFormAsync()
     {
         await _fixture.Client.CallToolAsync("modify_viewmodel", new

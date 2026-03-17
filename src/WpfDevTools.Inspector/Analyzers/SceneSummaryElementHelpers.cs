@@ -6,7 +6,7 @@ using System.Windows.Media;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
-internal static class SceneSummaryElementHelpers
+internal static partial class SceneSummaryElementHelpers
 {
     internal static bool IsSemanticElement(DependencyObject element)
     {
@@ -265,41 +265,6 @@ internal static class SceneSummaryElementHelpers
             || ContainsIgnoreCase(candidate, "ok");
     }
 
-    internal static string? TryGetNearbyLabel(FrameworkElement element)
-    {
-        if (element.Parent is Grid grid)
-        {
-            var row = Grid.GetRow(element);
-            var column = Grid.GetColumn(element);
-            foreach (var child in grid.Children.OfType<FrameworkElement>())
-            {
-                if (ReferenceEquals(child, element))
-                {
-                    continue;
-                }
-
-                if (Grid.GetRow(child) == row && Grid.GetColumn(child) < column && TryExtractLabelText(child) is { } gridLabel)
-                {
-                    return gridLabel;
-                }
-            }
-        }
-
-        if (element.Parent is Panel panel)
-        {
-            var index = panel.Children.IndexOf(element);
-            for (var current = index - 1; current >= 0; current--)
-            {
-                if (panel.Children[current] is FrameworkElement sibling && TryExtractLabelText(sibling) is { } panelLabel)
-                {
-                    return panelLabel;
-                }
-            }
-        }
-
-        return TryGetAncestorHeaderLabel(element);
-    }
-
     internal static string? TryGetBindingPath(FrameworkElement element)
     {
         if (element is TextBox textBox)
@@ -373,28 +338,6 @@ internal static class SceneSummaryElementHelpers
         return !trimmedText.StartsWith("System.", StringComparison.Ordinal);
     }
 
-    private static string? TryExtractLabelText(FrameworkElement element)
-    {
-        var rawText = element switch
-        {
-            TextBlock textBlock => textBlock.Text,
-            Label label => label.Content?.ToString(),
-            HeaderedContentControl headeredContentControl => headeredContentControl.Header?.ToString(),
-            HeaderedItemsControl headeredItemsControl => headeredItemsControl.Header?.ToString(),
-            _ => null
-        };
-
-        if (string.IsNullOrWhiteSpace(rawText))
-        {
-            return null;
-        }
-
-        var trimmedText = rawText!.Trim().TrimEnd(':');
-        return string.IsNullOrWhiteSpace(trimmedText)
-            ? null
-            : trimmedText;
-    }
-
     internal static bool ShouldOmitSemanticNode(
         FrameworkElement element,
         string kind,
@@ -450,20 +393,6 @@ internal static class SceneSummaryElementHelpers
         }
 
         return text!.Trim();
-    }
-
-    private static string? TryGetAncestorHeaderLabel(FrameworkElement element)
-    {
-        for (var current = GetParent(element); current != null; current = GetParent(current))
-        {
-            if (current is FrameworkElement frameworkElement
-                && TryExtractLabelText(frameworkElement) is { } headerLabel)
-            {
-                return headerLabel;
-            }
-        }
-
-        return null;
     }
 
     private static DependencyObject? GetParent(DependencyObject element)

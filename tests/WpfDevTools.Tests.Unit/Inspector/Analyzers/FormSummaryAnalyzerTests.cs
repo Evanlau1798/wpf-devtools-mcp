@@ -208,6 +208,39 @@ public sealed class FormSummaryAnalyzerTests
     }
 
     [StaFact]
+    public void GetFormSummary_ShouldDisambiguateRepeatedSectionHeaderFallbackLabels()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new FormSummaryAnalyzer(finder);
+        var groupBox = new GroupBox
+        {
+            Header = "Focus and Keyboard Testing",
+            Content = new StackPanel
+            {
+                Children =
+                {
+                    new TextBox { Name = "FocusBox1", Text = string.Empty },
+                    new TextBox { Name = "FocusBox2", Text = string.Empty },
+                    new TextBox { Name = "FocusBox3", Text = string.Empty }
+                }
+            }
+        };
+        var elementId = finder.GenerateElementId(groupBox);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId));
+        var labels = result.GetProperty("inputs")
+            .EnumerateArray()
+            .Select(input => input.GetProperty("label").GetString())
+            .ToArray();
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        labels.Should().OnlyHaveUniqueItems();
+        labels.Should().Contain("Focus and Keyboard Testing / Focus Box 1");
+        labels.Should().Contain("Focus and Keyboard Testing / Focus Box 2");
+        labels.Should().Contain("Focus and Keyboard Testing / Focus Box 3");
+    }
+
+    [StaFact]
     public void GetFormSummary_ShouldFilterFrameworkNoiseByDefault()
     {
         var finder = new ElementFinder();

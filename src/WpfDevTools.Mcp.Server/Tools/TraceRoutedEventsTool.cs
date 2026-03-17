@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Navigation;
 
@@ -38,6 +39,9 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             "trace_routed_events",
             new { elementId, eventName, duration, mode, allowShortStartDuration },
             cancellationToken);
+        response = mode == "get"
+            ? MergePendingReplayIntoTraceResult(processId, response)
+            : response;
 
         SynchronizeTraceNavigationState(processId, elementId, eventName, mode, response);
         return response;
@@ -108,4 +112,138 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         payload.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
+
+    private object MergePendingReplayIntoTraceResult(int processId, object response)
+    {
+        var payload = JsonSerializer.SerializeToElement(response);
+        if (!IsSuccess(payload)
+            || GetEventCount(payload) > 0
+            || !_sessionManager.TryGetNavigationState(processId, out var navigationState)
+            || navigationState?.ActiveTrace is null
+            || !_sessionManager.TryPeekPendingEventReplay(processId, out var replayPayload))
+        {
+            return response;
+        }
+
+        var replayEvents = GetMatchingReplayEvents(replayPayload, navigationState.ActiveTrace);
+        if (replayEvents.Count == 0)
+        {
+            return response;
+        }
+
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartObject();
+
+        foreach (var property in payload.EnumerateObject())
+        {
+            if (property.NameEquals("eventCount")
+                || property.NameEquals("events")
+                || property.NameEquals("diagnostics"))
+            {
+                continue;
+            }
+
+            property.WriteTo(writer);
+        }
+
+        writer.WriteNumber("eventCount", replayEvents.Count);
+        writer.WritePropertyName("events");
+        writer.WriteStartArray();
+        foreach (var replayEvent in replayEvents)
+        {
+            WriteReplayTraceEvent(writer, replayEvent);
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+        writer.Flush();
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
+    }
+
+    private static int GetEventCount(JsonElement payload) =>
+        payload.TryGetProperty("eventCount", out var eventCount)
+        && eventCount.ValueKind == JsonValueKind.Number
+        && eventCount.TryGetInt32(out var count)
+            ? count
+            : 0;
+
+    private static List<JsonElement> GetMatchingReplayEvents(
+        JsonElement replayPayload,
+        ActiveTraceNavigationState activeTrace)
+    {
+        if (!replayPayload.TryGetProperty("pendingEvents", out var pendingEvents)
+            || pendingEvents.ValueKind != JsonValueKind.Array)
+        {
+            return new List<JsonElement>();
+        }
+
+        var windowEndUtc = activeTrace.EffectiveDuration > TimeSpan.Zero
+            ? activeTrace.StartedAtUtc.Add(activeTrace.EffectiveDuration)
+            : DateTimeOffset.MaxValue;
+
+        return pendingEvents.EnumerateArray()
+            .Where(pendingEvent => MatchesActiveTrace(pendingEvent, activeTrace, windowEndUtc))
+            .Select(pendingEvent => pendingEvent.Clone())
+            .ToList();
+    }
+
+    private static bool MatchesActiveTrace(
+        JsonElement pendingEvent,
+        ActiveTraceNavigationState activeTrace,
+        DateTimeOffset windowEndUtc)
+    {
+        if (!pendingEvent.TryGetProperty("eventType", out var eventType)
+            || eventType.ValueKind != JsonValueKind.String
+            || !string.Equals(eventType.GetString(), "RoutedEvent", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!pendingEvent.TryGetProperty("eventName", out var eventName)
+            || eventName.ValueKind != JsonValueKind.String
+            || !string.Equals(eventName.GetString(), activeTrace.EventName, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(activeTrace.ElementId)
+            && (!pendingEvent.TryGetProperty("elementId", out var elementId)
+                || elementId.ValueKind != JsonValueKind.String
+                || !string.Equals(elementId.GetString(), activeTrace.ElementId, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        if (!pendingEvent.TryGetProperty("timestampUtc", out var timestampProperty)
+            || timestampProperty.ValueKind != JsonValueKind.String
+            || !DateTimeOffset.TryParse(timestampProperty.GetString(), out var timestamp))
+        {
+            return false;
+        }
+
+        return timestamp >= activeTrace.StartedAtUtc
+            && timestamp <= windowEndUtc;
+    }
+
+    private static void WriteReplayTraceEvent(Utf8JsonWriter writer, JsonElement pendingEvent)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("timestamp", GetOptionalString(pendingEvent, "timestampUtc"));
+        writer.WriteString("sender", GetOptionalString(pendingEvent, "senderType"));
+        writer.WriteString("senderName", GetOptionalString(pendingEvent, "senderName"));
+        writer.WriteString("eventName", GetOptionalString(pendingEvent, "eventName"));
+        writer.WriteString("routingStrategy", GetOptionalString(pendingEvent, "routingStrategy"));
+
+        if (pendingEvent.TryGetProperty("handled", out var handled))
+        {
+            writer.WritePropertyName("handled");
+            handled.WriteTo(writer);
+        }
+
+        writer.WriteString("originalSource", GetOptionalString(pendingEvent, "originalSourceType"));
+        writer.WriteEndObject();
+    }
 }

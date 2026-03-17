@@ -31,4 +31,20 @@ public sealed partial class SessionManager
         drainPayload = default;
         return false;
     }
+
+    internal bool TryPeekPendingEventReplay(int processId, out JsonElement drainPayload)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (_pendingEventReplay.TryGetValue(processId, out var payload))
+            {
+                drainPayload = payload.Clone();
+                return true;
+            }
+        }
+
+        drainPayload = default;
+        return false;
+    }
 }

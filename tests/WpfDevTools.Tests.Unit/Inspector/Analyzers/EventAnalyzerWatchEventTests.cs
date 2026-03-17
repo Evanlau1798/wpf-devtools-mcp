@@ -35,4 +35,24 @@ public sealed class EventAnalyzerWatchEventTests
             && record.ElementId == elementId
             && record.EventName == "Click");
     }
+
+    [StaFact]
+    public void FireRoutedEvent_WhenEventIsRaised_ShouldEnqueueSharedWatchEventRecord()
+    {
+        var finder = new ElementFinder();
+        var buffer = new WatchEventBuffer(capacity: 8, new WatchEventDeduplicator());
+        var analyzer = new EventAnalyzer(finder, buffer);
+        var button = new Button { Name = "FireWatchButton" };
+        var elementId = finder.GenerateElementId(button);
+
+        var fire = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(analyzer.FireRoutedEvent(elementId, "Click", null)));
+        fire.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var events = buffer.GetSnapshot();
+        events.Should().Contain(record => record.EventType == "RoutedEvent"
+            && record.ElementId == elementId
+            && record.EventName == "Click"
+            && record.SenderType == "Button");
+    }
 }

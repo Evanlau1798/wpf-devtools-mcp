@@ -215,6 +215,12 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
                 if (IsButtonClickEvent(uiElement, eventName))
                 {
                     ButtonBaseClickHelper.InvokeOnClick((ButtonBase)uiElement);
+                    EnqueueRoutedEventRecord(
+                        elementId ?? _elementFinder.GenerateElementId(uiElement),
+                        uiElement,
+                        routedEvent,
+                        handled: null,
+                        originalSource: uiElement);
                     return new
                     {
                         success = true,
@@ -226,6 +232,12 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
 
                 var args = CreateRoutedEventArgs(routedEvent, uiElement);
                 uiElement.RaiseEvent(args);
+                EnqueueRoutedEventRecord(
+                    elementId ?? _elementFinder.GenerateElementId(uiElement),
+                    uiElement,
+                    args.RoutedEvent,
+                    args.Handled,
+                    args.OriginalSource);
 
                 return new
                 {
@@ -268,20 +280,17 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
                         handled = e.Handled,
                         originalSource = originalSourceType
                     });
-                    _watchEventBuffer?.Enqueue(new WatchEventRecord(
-                        EventType: "RoutedEvent",
-                        TimestampUtc: DateTimeOffset.UtcNow,
-                        SourceKey: $"event:{tracedElementId}:{e.RoutedEvent.Name}:{_handlerInvocationCount}",
-                        ElementId: tracedElementId,
-                        PropertyName: null,
-                        EventName: e.RoutedEvent.Name,
-                        NewValue: null,
-                        ValueType: null,
-                        SenderType: senderType,
-                        SenderName: senderName,
-                        RoutingStrategy: routingStrategy,
-                        Handled: e.Handled,
-                        OriginalSourceType: originalSourceType));
+                    EnqueueRoutedEventRecord(
+                        tracedElementId,
+                        sender as UIElement ?? (e.OriginalSource as UIElement) ?? throw new InvalidOperationException("Routed event trace expected a UIElement sender or original source."),
+                        e.RoutedEvent,
+                        e.Handled,
+                        e.OriginalSource,
+                        senderType,
+                        senderName,
+                        routingStrategy,
+                        originalSourceType,
+                        $"event:{tracedElementId}:{e.RoutedEvent.Name}:{_handlerInvocationCount}");
 
                     // Trim oldest entries if over limit
                     if (_eventTrace.Count > MaxEventTraceEntries)
@@ -430,6 +439,34 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
         }
 
         return new RoutedEventArgs(routedEvent, sourceElement);
+    }
+
+    private void EnqueueRoutedEventRecord(
+        string elementId,
+        UIElement element,
+        RoutedEvent routedEvent,
+        bool? handled,
+        object? originalSource,
+        string? senderType = null,
+        string? senderName = null,
+        string? routingStrategy = null,
+        string? originalSourceType = null,
+        string? sourceKey = null)
+    {
+        _watchEventBuffer?.Enqueue(new WatchEventRecord(
+            EventType: "RoutedEvent",
+            TimestampUtc: DateTimeOffset.UtcNow,
+            SourceKey: sourceKey ?? $"tool:routed:{elementId}:{routedEvent.Name}:{Guid.NewGuid():N}",
+            ElementId: elementId,
+            PropertyName: null,
+            EventName: routedEvent.Name,
+            NewValue: null,
+            ValueType: null,
+            SenderType: senderType ?? element.GetType().Name,
+            SenderName: senderName ?? (element as FrameworkElement)?.Name,
+            RoutingStrategy: routingStrategy ?? routedEvent.RoutingStrategy.ToString(),
+            Handled: handled,
+            OriginalSourceType: originalSourceType ?? originalSource?.GetType().Name));
     }
 
     private static object CreatePendingEventContract(WatchEventRecord record) => new

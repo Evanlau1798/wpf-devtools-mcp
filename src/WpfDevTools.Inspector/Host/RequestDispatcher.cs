@@ -41,7 +41,7 @@ public sealed class RequestDispatcher : IDisposable
         var mvvmAnalyzer = new MvvmAnalyzer(elementFinder, watchEventBuffer);
         var dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(elementFinder, watchEventBuffer);
         var layoutAnalyzer = new LayoutAnalyzer(elementFinder);
-        var interactionAnalyzer = new InteractionAnalyzer(elementFinder);
+        var interactionAnalyzer = new InteractionAnalyzer(elementFinder, watchEventBuffer);
         var styleAnalyzer = new StyleAnalyzer(elementFinder);
         var eventAnalyzer = new EventAnalyzer(elementFinder, watchEventBuffer);
         var performanceAnalyzer = new PerformanceAnalyzer(elementFinder);

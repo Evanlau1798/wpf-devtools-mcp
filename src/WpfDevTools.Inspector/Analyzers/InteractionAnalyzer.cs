@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -13,14 +14,23 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
+    private readonly WatchEventBuffer? _watchEventBuffer;
 
     /// <summary>
     /// Create a new InteractionAnalyzer instance
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public InteractionAnalyzer(ElementFinder elementFinder)
+        : this(elementFinder, null)
+    {
+    }
+
+    internal InteractionAnalyzer(
+        ElementFinder elementFinder,
+        WatchEventBuffer? watchEventBuffer)
     {
         _elementFinder = elementFinder;
+        _watchEventBuffer = watchEventBuffer;
     }
 
     /// <summary>
@@ -46,6 +56,10 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                     // OnClick() handles both RaiseEvent(ClickEvent) and Command execution.
                     // Do NOT call Command.Execute separately — it would double-execute.
                     ButtonBaseClickHelper.InvokeOnClick(button);
+                    EnqueueRoutedEventRecord(
+                        elementId ?? _elementFinder.GenerateElementId(button),
+                        button,
+                        ButtonBase.ClickEvent);
 
                     return new
                     {
@@ -78,6 +92,24 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                     "Verify the element is enabled and still attached to the current visual tree before retrying.");
             }
         });
+    }
+
+    private void EnqueueRoutedEventRecord(string elementId, UIElement element, RoutedEvent routedEvent)
+    {
+        _watchEventBuffer?.Enqueue(new WatchEventRecord(
+            EventType: "RoutedEvent",
+            TimestampUtc: DateTimeOffset.UtcNow,
+            SourceKey: $"tool:routed:{elementId}:{routedEvent.Name}:{Guid.NewGuid():N}",
+            ElementId: elementId,
+            PropertyName: null,
+            EventName: routedEvent.Name,
+            NewValue: null,
+            ValueType: null,
+            SenderType: element.GetType().Name,
+            SenderName: (element as FrameworkElement)?.Name,
+            RoutingStrategy: routedEvent.RoutingStrategy.ToString(),
+            Handled: null,
+            OriginalSourceType: element.GetType().Name));
     }
 
     /// <summary>

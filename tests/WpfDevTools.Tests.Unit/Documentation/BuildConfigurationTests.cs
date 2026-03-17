@@ -48,6 +48,6 @@ public class BuildConfigurationTests
         content.Should().Contain("-maxCpuCount:1");
     }
     private static string GetRepoFilePath(string relativePath)
-        => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
+        => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }
 

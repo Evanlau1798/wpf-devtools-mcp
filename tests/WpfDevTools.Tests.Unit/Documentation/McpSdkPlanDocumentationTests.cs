@@ -23,5 +23,5 @@ public class McpSdkPlanDocumentationTests
     }
 
     private static string GetRepoFilePath(string relativePath)
-        => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));
+        => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

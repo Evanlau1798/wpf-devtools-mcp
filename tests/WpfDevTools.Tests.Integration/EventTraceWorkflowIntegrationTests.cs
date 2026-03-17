@@ -203,5 +203,7 @@ public class EventTraceWorkflowIntegrationTests
         payload.GetProperty("success").GetBoolean().Should().BeTrue(payload.GetRawText());
         payload.GetProperty("eventCount").GetInt32().Should().Be(0);
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("eventNotRaised");
+        payload.GetProperty("diagnostics").GetProperty("windowExpiredBeforeGet").GetBoolean().Should().BeTrue();
+        payload.GetProperty("diagnostics").GetProperty("expiredByMs").GetInt32().Should().BeGreaterThan(0);
     }
 }

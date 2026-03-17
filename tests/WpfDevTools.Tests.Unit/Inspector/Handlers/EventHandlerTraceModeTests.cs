@@ -66,6 +66,7 @@ public sealed class EventHandlerTraceModeTests
         payload.GetProperty("success").GetBoolean().Should().BeTrue();
         payload.GetProperty("eventCount").GetInt32().Should().Be(0);
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("captureWindowTooShort");
+        payload.GetProperty("diagnostics").GetProperty("windowExpiredBeforeGet").GetBoolean().Should().BeFalse();
     }
 
     [StaFact]
@@ -132,6 +133,11 @@ public sealed class EventHandlerTraceModeTests
         payload.GetProperty("success").GetBoolean().Should().BeTrue();
         payload.GetProperty("eventCount").GetInt32().Should().Be(0);
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("eventNotRaised");
+        payload.GetProperty("diagnostics").GetProperty("windowExpiredBeforeGet").GetBoolean().Should().BeTrue();
+        payload.GetProperty("diagnostics").GetProperty("expiredByMs").GetInt32().Should().BeGreaterThan(0);
+        payload.GetProperty("diagnostics").GetProperty("windowEndedAtUtc").GetDateTimeOffset().Should().BeBefore(DateTimeOffset.UtcNow);
+        payload.GetProperty("diagnostics").GetProperty("getRequestedAtUtc").GetDateTimeOffset().Should().BeAfter(
+            payload.GetProperty("diagnostics").GetProperty("windowEndedAtUtc").GetDateTimeOffset());
     }
 
     [StaFact]

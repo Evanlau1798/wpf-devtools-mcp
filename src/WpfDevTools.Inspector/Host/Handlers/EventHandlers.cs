@@ -254,6 +254,14 @@ public class EventHandlers : IRequestHandler
 
         var isTracing = tracePayload.TryGetProperty("isTracing", out var isTracingProperty)
             && isTracingProperty.GetBoolean();
+        var getRequestedAtUtc = DateTimeOffset.UtcNow;
+        var windowEndedAtUtc = traceMetadata?.StartedAtUtc.AddMilliseconds(traceMetadata.EffectiveDurationMs);
+        var windowExpiredBeforeGet = !isTracing
+            && windowEndedAtUtc.HasValue
+            && getRequestedAtUtc > windowEndedAtUtc.Value;
+        var expiredByMs = windowExpiredBeforeGet
+            ? Math.Max(0, (int)Math.Round((getRequestedAtUtc - windowEndedAtUtc!.Value).TotalMilliseconds))
+            : 0;
 
         if (!string.IsNullOrWhiteSpace(requestedEventName)
             && traceMetadata is not null
@@ -265,6 +273,10 @@ public class EventHandlers : IRequestHandler
                 message = $"Requested event '{requestedEventName}' does not match active trace event '{traceMetadata.EventName}'.",
                 requestedEventName,
                 activeEventName = traceMetadata.EventName,
+                windowExpiredBeforeGet,
+                windowEndedAtUtc,
+                getRequestedAtUtc,
+                expiredByMs,
                 suggestedAction = "Use the same eventName as the active trace session, or restart tracing with the new eventName."
             };
         }
@@ -292,6 +304,10 @@ public class EventHandlers : IRequestHandler
                 elapsedMs,
                 effectiveDurationMs,
                 remainingWindowMs,
+                windowExpiredBeforeGet = false,
+                windowEndedAtUtc,
+                getRequestedAtUtc,
+                expiredByMs = 0,
                 suggestedAction = "Trigger the interaction while tracing remains active, then call trace_routed_events(mode='get') again."
             };
         }
@@ -304,6 +320,10 @@ public class EventHandlers : IRequestHandler
             registrationCount = traceMetadata?.RegistrationCount ?? 0,
             resolvedElementId = traceMetadata?.ElementId,
             resolvedElementType = traceMetadata?.ResolvedElementType,
+            windowExpiredBeforeGet,
+            windowEndedAtUtc,
+            getRequestedAtUtc,
+            expiredByMs,
             suggestedAction = traceMetadata is null
                 ? "Start tracing with trace_routed_events(mode='start', eventName=...) before retrieving results."
                 : "Restart tracing and trigger the target interaction inside the capture window before calling mode='get'."

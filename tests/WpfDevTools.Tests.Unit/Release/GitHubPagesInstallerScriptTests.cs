@@ -159,21 +159,24 @@ public sealed class GitHubPagesInstallerScriptTests
         {
             var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64");
             var installRoot = Path.Combine(tempRoot, "install-root");
-            var scriptContent = File.ReadAllText(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
-            var encodedScriptContent = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(scriptContent));
-            var escapedArchivePath = archivePath.Replace("'", "''");
-            var escapedInstallRoot = installRoot.Replace("'", "''");
+            var scriptPath = Path.Combine(tempRoot, "online-installer.ps1");
+            var wrapperPath = Path.Combine(tempRoot, "invoke-scriptblock.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                scriptPath,
+                overwrite: true);
+            File.WriteAllText(
+                wrapperPath,
+                string.Join(Environment.NewLine,
+                [
+                    "$scriptText = Get-Content -Path '" + scriptPath.Replace("'", "''") + "' -Raw",
+                    "$installer = [scriptblock]::Create($scriptText)",
+                    "& $installer -PackageArchivePath '" + archivePath.Replace("'", "''") + "' -InstallRoot '" + installRoot.Replace("'", "''") + "' -Client other -NonInteractive -Force -OutputJson"
+                ]));
 
-            var command = string.Join(Environment.NewLine,
-            [
-                "$scriptText = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" + encodedScriptContent + "'))",
-                "$installer = [scriptblock]::Create($scriptText)",
-                "& $installer -PackageArchivePath '" + escapedArchivePath + "' -InstallRoot '" + escapedInstallRoot + "' -Client other -NonInteractive -Force -OutputJson"
-            ]);
-
-            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
-                command,
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                wrapperPath,
+                Array.Empty<string>(),
                 new Dictionary<string, string?>
                 {
                     ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),

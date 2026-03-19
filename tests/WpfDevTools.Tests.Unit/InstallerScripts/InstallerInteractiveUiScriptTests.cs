@@ -6,10 +6,20 @@ namespace WpfDevTools.Tests.Unit.Release;
 
 public sealed class InstallerInteractiveUiScriptTests
 {
-    private const string DocsHomepageUrl = "https://evanlau1798.github.io/wpf-devtools-mcp/index.html";
+    [Fact]
+    public void OnlineInstallerScript_ShouldDeclareGuiArchitectureSelectorAndRootSelection()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("ComboBox");
+        content.Should().Contain("Architecture");
+        content.Should().Contain("Install root");
+        content.Should().Contain("%APPDATA%");
+    }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldRenderMenuDrivenFlow_AndOfferDocsHomepageAction()
+    public void OnlineInstallerScript_NonInteractiveJsonFlow_ShouldEmitModeStateAndAvoidBrowserActions()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -19,7 +29,6 @@ public sealed class InstallerInteractiveUiScriptTests
             var fakeBin = Path.Combine(tempRoot, "bin");
             var browserLog = Path.Combine(tempRoot, "browser.log");
             var browserCommand = ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "open-docs", browserLog);
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -27,96 +36,7 @@ public sealed class InstallerInteractiveUiScriptTests
                 {
                     "-PackageArchivePath", archivePath,
                     "-InstallRoot", installRoot,
-                    "-Force"
-                },
-                new Dictionary<string, string?>
-                {
-                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
-                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
-                    ["USERPROFILE"] = userProfile,
-                    ["PATH"] = fakeBin + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"),
-                    ["WPFDEVTOOLS_INSTALLER_TEST_RESPONSES"] = string.Join("||", "", "", "3", "", "1"),
-                    ["WPFDEVTOOLS_INSTALLER_OPEN_BROWSER_COMMAND"] = browserCommand
-                });
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("WPF DEVTOOLS MCP");
-            result.Stdout.Should().Contain("<Binding Path=\"{Binding}\" />");
-            result.Stdout.Should().Contain("<DependencyProperty/>");
-            result.Stdout.Should().Contain("Open docs homepage");
-            File.ReadAllText(browserLog).Should().Contain(DocsHomepageUrl);
-            File.ReadAllText(Path.Combine(userProfile, ".mcp.json")).Should().Contain("wpf-devtools");
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void SetupScript_ShouldRenderOfflineMenuDrivenFlow_AndOfferDocsHomepageAction()
-    {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        try
-        {
-            var packageDir = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, "x64");
-            var installRoot = Path.Combine(tempRoot, "install-root");
-            var fakeBin = Path.Combine(tempRoot, "bin");
-            var browserLog = Path.Combine(tempRoot, "browser.log");
-            var browserCommand = ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "open-docs", browserLog);
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
-
-            var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"),
-                new[]
-                {
-                    "-PackagePath", packageDir,
-                    "-InstallRoot", installRoot,
-                    "-Force"
-                },
-                new Dictionary<string, string?>
-                {
-                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
-                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
-                    ["USERPROFILE"] = userProfile,
-                    ["PATH"] = fakeBin + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"),
-                    ["WPFDEVTOOLS_INSTALLER_TEST_RESPONSES"] = string.Join("||", "3", "", "1"),
-                    ["WPFDEVTOOLS_INSTALLER_OPEN_BROWSER_COMMAND"] = browserCommand
-                });
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("WPF DEVTOOLS MCP");
-            result.Stdout.Should().Contain("<StackPanel>");
-            result.Stdout.Should().Contain("<VisualTree/>");
-            result.Stdout.Should().Contain("Open docs homepage");
-            File.ReadAllText(browserLog).Should().Contain(DocsHomepageUrl);
-            File.ReadAllText(Path.Combine(userProfile, ".mcp.json")).Should().Contain("wpf-devtools");
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void SetupScript_NonInteractiveJsonFlow_ShouldNotAttemptToOpenDocsHomepage()
-    {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        try
-        {
-            var packageDir = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, "x64");
-            var installRoot = Path.Combine(tempRoot, "install-root");
-            var fakeBin = Path.Combine(tempRoot, "bin");
-            var browserLog = Path.Combine(tempRoot, "browser.log");
-            var browserCommand = ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "open-docs", browserLog);
-
-            var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"),
-                new[]
-                {
-                    "-PackagePath", packageDir,
-                    "-InstallRoot", installRoot,
-                    "-Clients", "none",
+                    "-Client", "visual-studio",
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"
@@ -132,12 +52,27 @@ public sealed class InstallerInteractiveUiScriptTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
-            json.RootElement.GetProperty("selectedClients").EnumerateArray().Should().BeEmpty();
+            json.RootElement.GetProperty("mode").GetString().Should().NotBeNullOrWhiteSpace();
+            json.RootElement.GetProperty("statePath").GetString().Should().NotBeNullOrWhiteSpace();
+            json.RootElement.GetProperty("selectedClients").EnumerateArray().Select(x => x.GetString())
+                .Should().Contain("visual-studio");
             File.Exists(browserLog).Should().BeFalse();
         }
         finally
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldKeepCliFallbackPlainWithoutDecorativeBannerStrings()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("Read-Host");
+        content.Should().NotContain("+==================================================================+");
+        content.Should().NotContain("<VisualTree/>");
+        content.Should().NotContain("<StackPanel>");
     }
 }

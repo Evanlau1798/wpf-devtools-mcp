@@ -15,18 +15,21 @@ public sealed class OnlineInstallerContractTests
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldDefaultToLatestVersionAndInteractiveClientSelection()
+    public void OnlineInstallerScript_ShouldBeGuiFirstWhileKeepingAutomationFlags()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
-        content.Should().Contain("[string]$Version = 'latest'");
+        content.Should().Contain("Add-Type -AssemblyName PresentationFramework");
         content.Should().Contain("[switch]$NonInteractive");
-        content.Should().Contain("Read-Host");
+        content.Should().Contain("[switch]$OutputJson");
+        content.Should().Contain("Show-InstallerWindow");
+        content.Should().Contain("Read-Host",
+            "the installer still needs a plain CLI fallback when WPF cannot be used");
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldSupportKnownArchitectureAndClientSelections()
+    public void OnlineInstallerScript_ShouldSupportDistinctArchitectureAndWindowsClientSelections()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
@@ -36,7 +39,20 @@ public sealed class OnlineInstallerContractTests
         content.Should().Contain("'arm64'");
         content.Should().Contain("'claude-code'");
         content.Should().Contain("'codex'");
+        content.Should().Contain("'vscode'");
         content.Should().Contain("'visual-studio'");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldResolveOnlineOfflineModesAndPersistInstallerState()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("Resolve-InstallerMode");
+        content.Should().Contain("Resolve-InstallerStatePath");
+        content.Should().Contain("installer-state.json");
+        content.Should().Contain("Save-InstallerState");
     }
 
     [Fact]
@@ -52,13 +68,14 @@ public sealed class OnlineInstallerContractTests
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldDocumentMenuBrandingAndDocsHomepageAction()
+    public void OnlineInstallerScript_ShouldAvoidLegacyDecorativeCliBranding()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
-        content.Should().Contain("WPF DEVTOOLS MCP");
-        content.Should().Contain("Open docs homepage");
-        content.Should().Contain("https://evanlau1798.github.io/wpf-devtools-mcp/index.html");
+        content.Should().NotContain("WPF DEVTOOLS MCP");
+        content.Should().NotContain("<Binding Path=\"{Binding}\" />");
+        content.Should().NotContain("<DependencyProperty/>");
+        content.Should().NotContain("Open docs homepage");
     }
 }

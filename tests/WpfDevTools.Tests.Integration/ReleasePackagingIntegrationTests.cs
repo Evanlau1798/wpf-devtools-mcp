@@ -28,6 +28,8 @@ public sealed class ReleasePackagingIntegrationTests
             File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "manifest.json")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "internal-install.ps1")).Should().BeFalse(
+                "the simplified package should not ship a second PowerShell installer chain");
 
             using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(extractRoot, "bin", "manifest.json")));
             manifest.RootElement.GetProperty("entryExecutable").GetString()

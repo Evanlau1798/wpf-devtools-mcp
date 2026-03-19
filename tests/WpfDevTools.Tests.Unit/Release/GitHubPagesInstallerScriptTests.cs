@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Text.Json;
 using FluentAssertions;
 using Xunit;
@@ -8,7 +8,7 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class GitHubPagesInstallerScriptTests
 {
     [Fact]
-    public void OnlineInstallerScript_ShouldInstallFromLocalArchiveViaPackageSetup()
+    public void OnlineInstallerScript_ShouldInstallFromLocalArchiveWithoutLegacySetupChain()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -43,6 +43,8 @@ public sealed class GitHubPagesInstallerScriptTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("mode").GetString().Should().Be("offline");
+            json.RootElement.GetProperty("downloadSource").GetString().Should().Be("local-package");
             json.RootElement.GetProperty("installedExecutable").GetString()
                 .Should().EndWith("x64\\current\\bin\\wpf-devtools-x64.exe");
             File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
@@ -58,7 +60,7 @@ public sealed class GitHubPagesInstallerScriptTests
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
-            {
+        {
             var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "arm64");
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -92,7 +94,7 @@ public sealed class GitHubPagesInstallerScriptTests
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldSurfaceReleaseArchiveMetadata()
+    public void OnlineInstallerScript_ShouldSurfaceReleaseArchiveMetadataAndResolvedVersion()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -139,7 +141,7 @@ public sealed class GitHubPagesInstallerScriptTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
-            json.RootElement.GetProperty("version").GetString().Should().Be("1.2.3");
+            json.RootElement.GetProperty("resolvedVersion").GetString().Should().Be("1.2.3");
             json.RootElement.GetProperty("architecture").GetString().Should().Be("x64");
             json.RootElement.GetProperty("packageAssetName").GetString().Should().Be("release_1.2.3_win-x64.zip");
             json.RootElement.GetProperty("downloadUri").GetString().Should().Contain("github.com/Evanlau1798/wpf-devtools-mcp/releases/download/1.2.3/release_1.2.3_win-x64.zip");
@@ -183,6 +185,7 @@ public sealed class GitHubPagesInstallerScriptTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("mode").GetString().Should().NotBeNullOrWhiteSpace();
             json.RootElement.GetProperty("installedExecutable").GetString()
                 .Should().EndWith("x64\\current\\bin\\wpf-devtools-x64.exe");
         }

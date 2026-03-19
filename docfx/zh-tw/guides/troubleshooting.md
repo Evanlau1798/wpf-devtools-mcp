@@ -24,7 +24,7 @@
 
 ## bootstrapper resolution
 
-如果 `connect` 在找到 process 後仍失敗，請確認安裝資料夾中 `bootstrapper` 與 `inspectors` sidecar 仍與 `WpfDevTools.Mcp.Server.exe` 位於預期位置。
+如果 `connect` 在找到 process 後仍失敗，請確認安裝資料夾中 `bootstrapper` 與 `inspectors` sidecar 仍與 `wpf-devtools-x64.exe` 位於預期位置。
 
 ## elevated target 與系統管理員權限不一致
 
@@ -42,7 +42,7 @@
 
 ## project-scoped registration confusion
 
-如果 Claude Code 常常重新找不到 server，建議優先使用安裝時產生的 `client-registration/claude-code.project.mcp.json`，或改用 project-scoped 註冊命令。project-scoped 設定可降低 shell、repo 與本機 profile 狀態不一致造成的漂移。
+如果 Claude Code 常常重新找不到 server，建議優先使用安裝時產生的 `client-registration/claude-code.txt`，或改用 project-scoped 註冊命令。project-scoped 設定可降低 shell、repo 與本機 profile 狀態不一致造成的漂移。
 
 ## 不支援的封裝型態與 injection 限制
 

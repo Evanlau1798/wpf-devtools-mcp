@@ -1,4 +1,4 @@
-﻿# WpfDevTools.Inspector.Sdk
+# WpfDevTools.Inspector.Sdk
 
 `WpfDevTools.Inspector.Sdk` is the Opt-in SDK for the WPF DevTools MCP Server. It enables inspection without DLL injection.
 

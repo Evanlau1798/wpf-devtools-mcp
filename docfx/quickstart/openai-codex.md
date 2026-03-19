@@ -14,28 +14,28 @@ Preferred public path:
 
 1. Download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Extract the package.
-3. Run `setup.ps1 -Force`.
+3. Run `run.bat`.
 
 If you prefer a script-first setup, review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) and run it locally.
 
 Example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex-cli -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex -Force
 ```
 
 After installation, the default executable path is:
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 ## 3. Register the MCP server
 
-Use the generated command from `client-registration\codex-cli.txt`, or run:
+Use the generated command from `client-registration\codex.txt`, or run:
 
 ```powershell
-codex mcp add wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
+codex mcp add wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
 ```
 
 ## 4. Verify the registration

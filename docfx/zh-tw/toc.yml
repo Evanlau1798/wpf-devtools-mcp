@@ -1,4 +1,4 @@
-﻿- name: 繁體中文首頁
+- name: 繁體中文首頁
   href: index.md
 - name: 快速開始
   items:
@@ -12,7 +12,7 @@
       href: quickstart/openai-codex.md
     - name: Claude Desktop 快速開始
       href: quickstart/claude-desktop.md
-    - name: Cursor 與 VS Code 快速開始
+    - name: VS Code 與 Visual Studio 快速開始
       href: quickstart/cursor-vscode.md
 - name: 使用指南
   items:

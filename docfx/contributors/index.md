@@ -1,4 +1,4 @@
-# Contributor Guide
+﻿# Contributor Guide
 
 Thank you for considering a contribution.
 

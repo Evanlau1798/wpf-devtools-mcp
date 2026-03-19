@@ -14,28 +14,28 @@ npm install -g @openai/codex
 
 1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`。
 2. 解壓縮套件。
-3. 執行 `setup.ps1 -Force`。
+3. 執行 `run.bat`。
 
 如果你偏好腳本驅動安裝，請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 再於本機執行。
 
 範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex-cli -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex -Force
 ```
 
 安裝後的預設 executable 路徑是：
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 ## 3. 註冊 MCP server
 
-可直接使用 `client-registration\codex-cli.txt` 中的命令，或手動執行：
+可直接使用 `client-registration\codex.txt` 中的命令，或手動執行：
 
 ```powershell
-codex mcp add wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
+codex mcp add wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
 ```
 
 ## 4. 驗證註冊結果

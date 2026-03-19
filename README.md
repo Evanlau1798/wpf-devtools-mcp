@@ -43,7 +43,7 @@ Fastest path on Windows:
 irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
 ```
 
-That repository-hosted online installer downloads the matching `release_<version>_win-<arch>.zip` package from GitHub Releases and runs the packaged `setup.ps1` wizard.
+That repository-hosted online installer downloads the matching `release_<version>_win-<arch>.zip` package from GitHub Releases and runs the same GUI-first installer logic that is packaged as `bin\install.ps1`.
 Maintainers should treat `scripts/online-installer.ps1` as the canonical source entrypoint for that installer flow.
 
 If you want a single-command, non-interactive setup for a specific client and architecture, use:
@@ -56,10 +56,10 @@ Manual fallback:
 
 1. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` from Releases.
 2. Extract the archive.
-3. Run `setup.ps1 -Force` from the extracted package. Use `install.ps1` only when you want the lower-level copy/install flow without the interactive setup wizard.
+3. Run `run.bat` from the extracted package. It elevates when needed and launches the packaged `bin\install.ps1`.
 4. Register or verify the installed executable in your MCP client.
 
-The installer writes ready-to-copy registration snippets under `%LOCALAPPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.
+The installer writes ready-to-copy registration snippets under `%APPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.
 
 ### Build
 
@@ -122,7 +122,7 @@ Add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "wpf-devtools": {
-      "command": "%LOCALAPPDATA%\\WpfDevToolsMcp\\x64\\current\\WpfDevTools.Mcp.Server.exe",
+      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }
   }
@@ -137,7 +137,7 @@ Add to `.vscode/mcp.json`:
 {
   "servers": {
     "wpf-devtools": {
-      "command": "%LOCALAPPDATA%\\WpfDevToolsMcp\\x64\\current\\WpfDevTools.Mcp.Server.exe",
+      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }
   }

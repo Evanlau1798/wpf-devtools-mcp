@@ -19,14 +19,10 @@ public sealed class ReleasePackagingContractTests
     public void BuildReleaseScript_ShouldDelegateToPublishReleaseScript()
     {
         var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1");
-        File.Exists(scriptPath).Should().BeTrue();
-
         var content = File.ReadAllText(scriptPath);
 
-        content.Should().Contain("packaging\\Publish-Release.ps1",
-            "the public packaging entrypoint should reuse the existing release publishing logic");
-        content.Should().Contain("release",
-            "the packaging entrypoint should target the release output area by default");
+        content.Should().Contain("packaging\\Publish-Release.ps1");
+        content.Should().Contain("release");
     }
 
     [Fact]
@@ -46,33 +42,31 @@ public sealed class ReleasePackagingContractTests
             var outputRoot = Path.Combine(tempRoot, "custom-release");
             File.WriteAllText(
                 fakePublishScript,
-                string.Join(Environment.NewLine,
-                [
-                    "param(",
-                    "    [string]$Configuration,",
-                    "    [string[]]$Architectures,",
-                    "    [string]$OutputRoot,",
-                    "    [switch]$SkipBuild",
-                    ")",
-                    "$payload = @{",
-                    "    Configuration = $Configuration",
-                    "    Architectures = $Architectures",
-                    "    OutputRoot = $OutputRoot",
-                    "    SkipBuild = $SkipBuild.IsPresent",
-                    "} | ConvertTo-Json -Depth 3",
-                    $"Set-Content -Path '{publishLog.Replace("'", "''")}' -Value $payload -Encoding UTF8"
-                ]));
+                string.Join(
+                    Environment.NewLine,
+                    [
+                        "param(",
+                        "    [string]$Configuration,",
+                        "    [string[]]$Architectures,",
+                        "    [string]$OutputRoot,",
+                        "    [switch]$SkipBuild",
+                        ")",
+                        "$payload = @{",
+                        "    Configuration = $Configuration",
+                        "    Architectures = $Architectures",
+                        "    OutputRoot = $OutputRoot",
+                        "    SkipBuild = $SkipBuild.IsPresent",
+                        "} | ConvertTo-Json -Depth 3",
+                        $"Set-Content -Path '{publishLog.Replace("'", "''")}' -Value $payload -Encoding UTF8"
+                    ]));
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 copiedBuildScript,
-                new[] { "-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot, "-SkipBuild" },
-                new Dictionary<string, string?>
-                {
-                    ["WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT"] = fakePublishScript
-                });
+                ["-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot, "-SkipBuild"],
+                new Dictionary<string, string?> { ["WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT"] = fakePublishScript });
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            File.Exists(publishLog).Should().BeTrue("the build wrapper should honor the publish-script override for isolated script tests");
+            File.Exists(publishLog).Should().BeTrue();
 
             using var document = JsonDocument.Parse(File.ReadAllText(publishLog));
             document.RootElement.GetProperty("Configuration").GetString().Should().Be("Debug");
@@ -104,10 +98,7 @@ public sealed class ReleasePackagingContractTests
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 copiedBuildScript,
                 Array.Empty<string>(),
-                new Dictionary<string, string?>
-                {
-                    ["WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT"] = fakePublishScript
-                });
+                new Dictionary<string, string?> { ["WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT"] = fakePublishScript });
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("Release build failed with exit code 23");
@@ -134,25 +125,23 @@ public sealed class ReleasePackagingContractTests
             var fakePublishScript = Path.Combine(tempRoot, "fake-publish.ps1");
             File.WriteAllText(
                 fakePublishScript,
-                string.Join(Environment.NewLine,
-                [
-                    "param(",
-                    "    [string]$Configuration,",
-                    "    [string[]]$Architectures,",
-                    "    [string]$OutputRoot,",
-                    "    [switch]$SkipBuild",
-                    ")",
-                    ("@{ Architectures = $Architectures } | ConvertTo-Json -Depth 3 | " +
-                     $"Set-Content -Path '{publishLog.Replace("'", "''")}' -Encoding UTF8")
-                ]));
+                string.Join(
+                    Environment.NewLine,
+                    [
+                        "param(",
+                        "    [string]$Configuration,",
+                        "    [string[]]$Architectures,",
+                        "    [string]$OutputRoot,",
+                        "    [switch]$SkipBuild",
+                        ")",
+                        ("@{ Architectures = $Architectures } | ConvertTo-Json -Depth 3 | " +
+                         $"Set-Content -Path '{publishLog.Replace("'", "''")}' -Encoding UTF8")
+                    ]));
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 copiedBuildScript,
-                new[] { "-Architectures", "x64,x86,arm64", "-SkipBuild" },
-                new Dictionary<string, string?>
-                {
-                    ["WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT"] = fakePublishScript
-                });
+                ["-Architectures", "x64,x86,arm64", "-SkipBuild"],
+                new Dictionary<string, string?> { ["WPFDEVTOOLS_BUILD_RELEASE_PUBLISH_SCRIPT"] = fakePublishScript });
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var document = JsonDocument.Parse(File.ReadAllText(publishLog));
@@ -166,26 +155,31 @@ public sealed class ReleasePackagingContractTests
     }
 
     [Fact]
-    public void InstallBatchTemplate_ShouldExistAsPackageEntryPoint()
+    public void InstallBatchTemplate_ShouldBootstrapPackagedInstallerWithElevationAndExecutionPolicyBypass()
     {
         var batchTemplatePath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/run-template.bat");
+        var content = File.ReadAllText(batchTemplatePath);
 
-        File.Exists(batchTemplatePath).Should().BeTrue(
-            "downloaded release packages should expose a batch entrypoint for users who cannot execute .ps1 directly");
+        File.Exists(batchTemplatePath).Should().BeTrue();
+        content.Should().Contain("bin\\install.ps1");
+        content.Should().Contain("powershell.exe");
+        content.Should().Contain("-ExecutionPolicy Bypass");
+        content.Should().Contain("RunAs");
     }
 
     [Fact]
-    public void PublishReleaseScript_ShouldCopyBatchInstallerIntoPackageRoot()
+    public void PublishReleaseScript_ShouldCopyCanonicalInstallerAndAvoidLegacyScriptChain()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
-        content.Should().Contain("run-template.bat",
-            "the packaged release root should include run.bat as the offline installer entrypoint");
-        content.Should().Contain("run.bat",
-            "the release publisher should emit a batch installer at the package root");
-        content.Should().Contain("bin\\install.ps1",
-            "the offline entrypoint should forward into the packaged install script under bin/");
+        content.Should().Contain("run-template.bat");
+        content.Should().Contain("run.bat");
+        content.Should().Contain("scripts\\online-installer.ps1");
+        content.Should().Contain("bin\\install.ps1");
+        content.Should().NotContain("Setup-WpfDevTools.ps1");
+        content.Should().NotContain("internal-install.ps1");
+        content.Should().NotContain("Uninstall-WpfDevTools.ps1");
     }
 
     [Fact]
@@ -194,10 +188,8 @@ public sealed class ReleasePackagingContractTests
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
-        content.Should().Contain("release_${version}_win-$architecture.zip",
-            "GitHub release assets should use the new versioned naming contract");
-        content.Should().NotContain("_dev_win-",
-            "release archive names should stay stable regardless of Debug or Release packaging mode");
+        content.Should().Contain("release_${version}_win-$architecture.zip");
+        content.Should().NotContain("_dev_win-");
     }
 
     [Fact]
@@ -206,41 +198,37 @@ public sealed class ReleasePackagingContractTests
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
-        content.Should().Contain("Invoke-ArchiveCreation",
-            "release packaging should centralize archive creation so transient packaging locks can be handled consistently");
-        content.Should().Contain("Compress-Archive",
-            "the publisher still needs to emit GitHub release zip assets");
-        content.Should().Contain("Start-Sleep",
-            "transient file-lock failures during archive creation should be retried instead of aborting the release immediately");
+        content.Should().Contain("Invoke-ArchiveCreation");
+        content.Should().Contain("Compress-Archive");
+        content.Should().Contain("Start-Sleep");
     }
 
     [Fact]
-    public void InstallScript_ShouldInstallServerExecutableFromBinDirectory()
+    public void PackageLocalInstaller_ShouldInstallServerExecutableFromBinDirectory()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
-            var packageDir = Path.Combine(tempRoot, "package");
+            var packageDir = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
-            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
-            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
-            File.WriteAllText(
-                Path.Combine(packageDir, "bin", "manifest.json"),
-                JsonSerializer.Serialize(new
-                {
-                    name = "wpf-devtools",
-                    version = "1.2.3",
-                    architecture = "x64",
-                    runtimeId = "win-x64"
-                }));
+            var packageLocalScript = Path.Combine(packageDir, "bin", "install.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                packageLocalScript,
+                overwrite: true);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"),
-                new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
+                packageLocalScript,
+                ["-InstallRoot", installRoot, "-Client", "other", "-NonInteractive", "-Force", "-OutputJson"],
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
+                });
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"))
-                .Should().BeTrue();
+            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
         }
         finally
         {
@@ -261,11 +249,8 @@ public sealed class ReleasePackagingContractTests
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"),
-                new[] { "-Configuration", "Debug", "-Architectures", "arm64", "-SkipBuild", "-OutputRoot", Path.Combine(tempRoot, "release-output") },
-                new Dictionary<string, string?>
-                {
-                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuildPath
-                });
+                ["-Configuration", "Debug", "-Architectures", "arm64", "-SkipBuild", "-OutputRoot", Path.Combine(tempRoot, "release-output")],
+                new Dictionary<string, string?> { ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuildPath });
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("ARM64 bootstrapper build requires");

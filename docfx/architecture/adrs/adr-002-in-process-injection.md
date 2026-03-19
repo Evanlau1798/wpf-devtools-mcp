@@ -1,4 +1,4 @@
-# ADR-002: In-Process Injection
+﻿# ADR-002: In-Process Injection
 
 ## Status
 

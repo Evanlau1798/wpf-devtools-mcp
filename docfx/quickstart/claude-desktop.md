@@ -8,14 +8,14 @@ Preferred public path:
 
 1. Download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Extract the package.
-3. Run `setup.ps1 -Force`.
+3. Run `run.bat`.
 
 If you prefer a script-first setup, review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) and run it locally.
 
 After installation, the default executable path is:
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 ## 2. Generated JSON template
@@ -26,7 +26,7 @@ The installer writes `client-registration\claude-desktop.json`. Its structure is
 {
   "mcpServers": {
     "wpf-devtools": {
-      "command": "%LOCALAPPDATA%\\WpfDevToolsMcp\\x64\\current\\WpfDevTools.Mcp.Server.exe",
+      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }
   }

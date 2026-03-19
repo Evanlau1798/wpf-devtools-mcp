@@ -4,8 +4,7 @@
 
 ## 正式生成來源
 
-- Packaging source: [scripts/release/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Publish-Release.ps1)
-- Install source: [scripts/release/Install-WpfDevTools.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Install-WpfDevTools.ps1)
+- Packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
 - Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
 
 下列說明描述的是這些腳本的輸出結果，而不是取代這些腳本本身。
@@ -24,13 +23,11 @@
 
 ```text
 release_<version>_win-x64/
-  install.bat
-  install.ps1
-  setup.ps1
-  uninstall.ps1
-  manifest.json
+  run.bat
   bin/
-    WpfDevTools.Mcp.Server.exe
+    install.ps1
+    manifest.json
+    wpf-devtools-x64.exe
     WpfDevTools.Mcp.Server.dll
     WpfDevTools.Injector.dll
     WpfDevTools.Shared.dll
@@ -47,15 +44,11 @@ release_<version>_win-x64/
 ## 安裝後目錄結構
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\
+%APPDATA%\WpfDevToolsMcp\x64\
   current/
-    install.bat
-    install.ps1
-    setup.ps1
-    uninstall.ps1
-    manifest.json
     bin/
-      WpfDevTools.Mcp.Server.exe
+      manifest.json
+      wpf-devtools-x64.exe
       WpfDevTools.Mcp.Server.dll
       WpfDevTools.Injector.dll
       WpfDevTools.Shared.dll
@@ -63,20 +56,18 @@ release_<version>_win-x64/
       bootstrapper/
   client-registration/
     claude-code.txt
-    codex-cli.txt
-    claude-code.project.mcp.json
+    codex.txt
     claude-desktop.json
-    cursor-vscode.json
-    github-copilot-vscode.json
+    vscode.json
+    visual-studio.json
     other.mcpServers.json
   install-manifest.json
 ```
 
 ## 契約說明
 
-- MCP client 應註冊 `bin/WpfDevTools.Mcp.Server.exe`。
+- MCP client 應註冊 `bin/wpf-devtools-x64.exe`。
 - `bin/inspectors` 與 `bin/bootstrapper` 是 sidecar 目錄，必須與安裝後的 server 內容保持相對位置。
-- `install.bat` 是 package root 的使用者入口，適合不想直接執行 PowerShell 的使用者。
-- `setup.ps1` 是面向一般使用者的主要 package installer。
-- `install.ps1` 保留給較低階的 copy/install 自動化流程。
+- `run.bat` 是 package root 的使用者入口，適合不想直接執行 PowerShell 的使用者。
+- `bin/install.ps1` 是 canonical GUI-first installer 腳本在 package 內的複本。
 - `client-registration` 會在安裝時產生，並作為 AI client setup 的公開 copy-paste 來源。

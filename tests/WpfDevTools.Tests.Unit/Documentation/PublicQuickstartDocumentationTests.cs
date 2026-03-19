@@ -9,7 +9,7 @@ public sealed class PublicQuickstartDocumentationTests
     private const string RepoUrl = "https://github.com/Evanlau1798/wpf-devtools-mcp";
 
     [Fact]
-    public void PublicQuickstartPages_ShouldUseInstalledExecutableExamples()
+    public void PublicQuickstartPages_ShouldUseInstalledReleaseExecutableExamples()
     {
         var files = new[]
         {
@@ -24,22 +24,22 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("WpfDevTools.Mcp.Server.exe",
-                $"{file} should guide public users toward installed executable paths");
+            content.Should().Contain("wpf-devtools-x64.exe",
+                $"{file} should guide public users toward the packaged release executable");
             content.Should().NotContain("dotnet run --project",
                 $"{file} should not use source-tree launch commands as the primary public quickstart path");
         }
     }
 
     [Fact]
-    public void DeploymentAndTroubleshootingDocs_ShouldCoverReleaseLayoutAndPublicInstallRisks()
+    public void DeploymentAndTroubleshootingDocs_ShouldCoverOnlineInstallerAndRunBatFallback()
     {
         var deployment = File.ReadAllText(GetRepoFilePath("docfx/production/deployment.md"));
         var troubleshooting = File.ReadAllText(GetRepoFilePath("docfx/guides/troubleshooting.md"));
         var toc = File.ReadAllText(GetRepoFilePath("docfx/toc.yml"));
 
         deployment.Should().Contain("irm | iex");
-        deployment.Should().Contain("optional");
+        deployment.Should().Contain("run.bat");
         deployment.Should().Contain("release layout");
         deployment.Should().Contain("scripts/online-installer.ps1");
         toc.Should().Contain("production/release-layout.md");
@@ -49,11 +49,13 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
-    public void ReleaseLayoutPage_ShouldDescribeInstalledFolderContract()
+    public void ReleaseLayoutPage_ShouldDescribeRunBatAndBinInstallContract()
     {
         var content = File.ReadAllText(GetRepoFilePath("docfx/production/release-layout.md"));
 
-        content.Should().Contain("WpfDevTools.Mcp.Server.exe");
+        content.Should().Contain("run.bat");
+        content.Should().Contain("bin/install.ps1");
+        content.Should().Contain("wpf-devtools-x64.exe");
         content.Should().Contain("client-registration");
         content.Should().Contain("bootstrapper");
         content.Should().Contain("inspectors");
@@ -78,11 +80,12 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
-    public void PublicQuickstartPages_ShouldDocumentPackageLocalInstallerFlow()
+    public void PublicQuickstartPages_ShouldDocumentPackageLocalRunBatFlow()
     {
         var content = File.ReadAllText(GetRepoFilePath("docfx/quickstart/index.md"));
 
-        content.Should().Contain("setup.ps1");
+        content.Should().Contain("run.bat");
+        content.Should().NotContain("setup.ps1");
         content.Should().NotContain("releases/latest/download/install.ps1");
     }
 
@@ -135,7 +138,7 @@ public sealed class PublicQuickstartDocumentationTests
             var content = File.ReadAllText(GetRepoFilePath(file));
             content.Should().Contain("irm",
                 $"{file} should explain the one-command bootstrap path");
-            content.Should().Contain("setup.ps1",
+            content.Should().Contain("run.bat",
                 $"{file} should document the reviewed package installer fallback");
         }
     }
@@ -155,13 +158,12 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("scripts/online-installer.ps1",
-                $"{file} should point maintainers at the canonical online installer source entrypoint");
+            content.Should().Contain("scripts/online-installer.ps1");
         }
     }
 
     [Fact]
-    public void ReleaseLayoutDocs_ShouldDescribeZipAssetsAndSetupWizard()
+    public void ReleaseLayoutDocs_ShouldDescribeZipAssetsAndRunBatEntryPoint()
     {
         var files = new[]
         {
@@ -173,8 +175,9 @@ public sealed class PublicQuickstartDocumentationTests
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
             content.Should().Contain("release_<version>_win-x64.zip");
-            content.Should().Contain("setup.ps1");
+            content.Should().Contain("run.bat");
             content.Should().Contain("install.ps1");
+            content.Should().NotContain("setup.ps1");
         }
     }
 

@@ -7,89 +7,41 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class SetupWizardScriptTests
 {
     [Fact]
-    public void SetupScript_ShouldDetectKnownClients()
+    public void OnlineInstaller_ShouldApplyClaudeCodeRegistrationViaCliAndReportAppliedStatus()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
-            var fakeBin = Path.Combine(tempRoot, "bin");
-            var codexLog = Path.Combine(tempRoot, "codex.log");
-            var claudeLog = Path.Combine(tempRoot, "claude.log");
-            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "codex", codexLog);
-            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "claude", claudeLog);
-
-            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
-            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
-            Directory.CreateDirectory(Path.Combine(appData, "Claude"));
-            Directory.CreateDirectory(Path.Combine(appData, "Cursor", "User"));
-            Directory.CreateDirectory(Path.Combine(localAppData, "Programs", "Cursor"));
-            File.WriteAllText(Path.Combine(appData, "Claude", "claude_desktop_config.json"), "{}");
-            File.WriteAllText(Path.Combine(appData, "Cursor", "User", "mcp.json"), "{}");
-            File.WriteAllText(Path.Combine(localAppData, "Programs", "Cursor", "Cursor.exe"), "stub");
-
-            var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"),
-                new[] { "-DetectOnly", "-OutputJson" },
-                new Dictionary<string, string?>
-                {
-                    ["PATH"] = fakeBin + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"),
-                    ["APPDATA"] = appData,
-                    ["LOCALAPPDATA"] = localAppData,
-                    ["USERPROFILE"] = userProfile
-                });
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            using var json = JsonDocument.Parse(result.Stdout);
-            var detectedClients = json.RootElement.GetProperty("detectedClients").EnumerateArray().Select(x => x.GetString()).ToArray();
-            detectedClients.Should().BeEquivalentTo(new[] { "claude-code", "claude-desktop", "codex", "cursor", "visual-studio" });
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void SetupScript_ShouldRegisterCliClientsAndEmitJsonSummary()
-    {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        try
-        {
-            var packageDir = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot);
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
             var fakeBin = Path.Combine(tempRoot, "bin");
-            var codexLog = Path.Combine(tempRoot, "codex.log");
             var claudeLog = Path.Combine(tempRoot, "claude.log");
-            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "codex", codexLog);
             ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "claude", claudeLog);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 new[]
                 {
-                    "-PackagePath", packageDir,
+                    "-PackageArchivePath", archivePath,
                     "-InstallRoot", installRoot,
-                    "-Clients", "codex,claude-code",
+                    "-Client", "claude-code",
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"
                 },
-                new Dictionary<string, string?>
-                {
-                    ["PATH"] = fakeBin + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH")
-                });
+                CreateInstallerEnvironment(tempRoot, fakeBin));
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            File.ReadAllText(codexLog).Should().Contain("mcp add wpf-devtools");
-            File.ReadAllText(claudeLog).Should().Contain("mcp add --transport stdio wpf-devtools");
+            File.ReadAllText(claudeLog)
+                .Should().Contain("mcp add --transport stdio wpf-devtools")
+                .And.Contain("wpf-devtools-x64.exe");
 
             using var json = JsonDocument.Parse(result.Stdout);
-            json.RootElement.GetProperty("installedExecutable").GetString()
-                .Should().EndWith("x64\\current\\bin\\wpf-devtools-x64.exe");
             json.RootElement.GetProperty("selectedClients").EnumerateArray().Select(x => x.GetString())
-                .Should().BeEquivalentTo(new[] { "claude-code", "codex" });
-            json.RootElement.GetProperty("registrations").EnumerateArray().Should().HaveCount(2);
+                .Should().BeEquivalentTo(["claude-code"]);
+            var registration = json.RootElement.GetProperty("registrations").EnumerateArray().Single();
+            registration.GetProperty("mode").GetString().Should().Be("cli");
+            registration.GetProperty("applied").GetBoolean().Should().BeTrue();
         }
         finally
         {
@@ -98,51 +50,41 @@ public sealed class SetupWizardScriptTests
     }
 
     [Fact]
-    public void SetupScript_ShouldEmitEmptySelectedClientsArrayWhenRegistrationIsSkipped()
+    public void OnlineInstaller_ShouldApplyCodexRegistrationViaCliAndReportAppliedStatus()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
-            var packageDir = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot);
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
             var fakeBin = Path.Combine(tempRoot, "bin");
             var codexLog = Path.Combine(tempRoot, "codex.log");
-            var claudeLog = Path.Combine(tempRoot, "claude.log");
             ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "codex", codexLog);
-            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "claude", claudeLog);
-
-            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
-            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
-            Directory.CreateDirectory(Path.Combine(appData, "Cursor", "User"));
-            Directory.CreateDirectory(Path.Combine(localAppData, "Programs", "Cursor"));
-            File.WriteAllText(Path.Combine(appData, "Cursor", "User", "mcp.json"), "{}");
-            File.WriteAllText(Path.Combine(localAppData, "Programs", "Cursor", "Cursor.exe"), "stub");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 new[]
                 {
-                    "-PackagePath", packageDir,
+                    "-PackageArchivePath", archivePath,
                     "-InstallRoot", installRoot,
-                    "-Clients", "none",
+                    "-Client", "codex",
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"
                 },
-                new Dictionary<string, string?>
-                {
-                    ["PATH"] = fakeBin + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"),
-                    ["APPDATA"] = appData,
-                    ["LOCALAPPDATA"] = localAppData,
-                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
-                });
+                CreateInstallerEnvironment(tempRoot, fakeBin));
 
             result.ExitCode.Should().Be(0, result.Stderr);
+            File.ReadAllText(codexLog)
+                .Should().Contain("mcp add wpf-devtools")
+                .And.Contain("wpf-devtools-x64.exe");
+
             using var json = JsonDocument.Parse(result.Stdout);
-            json.RootElement.GetProperty("detectedClients").EnumerateArray().Should().NotBeEmpty();
-            json.RootElement.GetProperty("selectedClients").ValueKind.Should().Be(JsonValueKind.Array);
-            json.RootElement.GetProperty("selectedClients").EnumerateArray().Should().BeEmpty();
-            json.RootElement.GetProperty("registrations").EnumerateArray().Should().BeEmpty();
+            json.RootElement.GetProperty("selectedClients").EnumerateArray().Select(x => x.GetString())
+                .Should().BeEquivalentTo(["codex"]);
+            var registration = json.RootElement.GetProperty("registrations").EnumerateArray().Single();
+            registration.GetProperty("mode").GetString().Should().Be("cli");
+            registration.GetProperty("applied").GetBoolean().Should().BeTrue();
         }
         finally
         {
@@ -151,39 +93,34 @@ public sealed class SetupWizardScriptTests
     }
 
     [Fact]
-    public void SetupScript_ShouldMergeDesktopClientConfigsAndCreateBackups()
+    public void OnlineInstaller_ShouldMergeVsCodeConfigAndCreateBackup()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
-            var packageDir = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot);
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
-            var claudeConfigPath = Path.Combine(tempRoot, "config", "Claude", "claude_desktop_config.json");
-            var cursorConfigPath = Path.Combine(tempRoot, "config", "Cursor", "User", "mcp.json");
-            Directory.CreateDirectory(Path.GetDirectoryName(claudeConfigPath)!);
-            Directory.CreateDirectory(Path.GetDirectoryName(cursorConfigPath)!);
-            File.WriteAllText(claudeConfigPath, "{\"mcpServers\":{\"existing\":{\"command\":\"old.exe\",\"args\":[]}}}");
-            File.WriteAllText(cursorConfigPath, "{\"servers\":{\"existing\":{\"command\":\"old.exe\",\"args\":[]}}}");
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var configPath = Path.Combine(appData, "Code", "User", "mcp.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+            File.WriteAllText(configPath, "{\"servers\":{\"existing\":{\"command\":\"old.exe\",\"args\":[]}}}");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"),
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 new[]
                 {
-                    "-PackagePath", packageDir,
+                    "-PackageArchivePath", archivePath,
                     "-InstallRoot", installRoot,
-                    "-Clients", "claude-desktop,cursor",
-                    "-ClaudeDesktopConfigPath", claudeConfigPath,
-                    "-CursorConfigPath", cursorConfigPath,
+                    "-Client", "vscode",
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"
-                });
+                },
+                CreateInstallerEnvironment(tempRoot, null));
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            File.ReadAllText(claudeConfigPath).Should().Contain("wpf-devtools").And.Contain("existing");
-            File.ReadAllText(cursorConfigPath).Should().Contain("wpf-devtools").And.Contain("existing");
-            Directory.GetFiles(Path.GetDirectoryName(claudeConfigPath)!, "claude_desktop_config.json.bak-*" ).Should().NotBeEmpty();
-            Directory.GetFiles(Path.GetDirectoryName(cursorConfigPath)!, "mcp.json.bak-*" ).Should().NotBeEmpty();
+            File.ReadAllText(configPath).Should().Contain("existing").And.Contain("wpf-devtools");
+            Directory.GetFiles(Path.GetDirectoryName(configPath)!, "mcp.json.bak-*").Should().NotBeEmpty();
         }
         finally
         {
@@ -192,50 +129,62 @@ public sealed class SetupWizardScriptTests
     }
 
     [Fact]
-    public void SetupScript_ShouldUsePackageLocalInstallScriptWhenRunningFromPublishedPackage()
+    public void PackageLocalInstallScript_ShouldRunInOfflineModeFromReleaseFolder()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
             var packageDir = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot);
-            var installRoot = Path.Combine(tempRoot, "install-root");
-            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
-            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
-            Directory.CreateDirectory(appData);
-            Directory.CreateDirectory(localAppData);
-            Directory.CreateDirectory(userProfile);
             var packageBinDir = Path.Combine(packageDir, "bin");
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"), Path.Combine(packageBinDir, "internal-install.ps1"), overwrite: true);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"), Path.Combine(packageBinDir, "install.ps1"), overwrite: true);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                Path.Combine(packageBinDir, "install.ps1"),
+                overwrite: true);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 Path.Combine(packageBinDir, "install.ps1"),
                 new[]
                 {
                     "-InstallRoot", installRoot,
-                    "-Clients", "none",
+                    "-Client", "visual-studio",
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"
                 },
-                new Dictionary<string, string?>
-                {
-                    ["PATH"] = string.Empty,
-                    ["APPDATA"] = appData,
-                    ["LOCALAPPDATA"] = localAppData,
-                    ["USERPROFILE"] = userProfile
-                });
+                CreateInstallerEnvironment(tempRoot, null));
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            using var json = JsonDocument.Parse(result.Stdout);
-            json.RootElement.GetProperty("selectedClients").ValueKind.Should().Be(JsonValueKind.Array);
-            json.RootElement.GetProperty("selectedClients").EnumerateArray().Should().BeEmpty();
             File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
+            File.ReadAllText(Path.Combine(tempRoot, "UserProfile", ".mcp.json"))
+                .Should().Contain("\"servers\"")
+                .And.Contain("wpf-devtools-x64.exe");
+
+            using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("mode").GetString().Should().Be("offline");
+            json.RootElement.GetProperty("selectedClients").EnumerateArray().Select(x => x.GetString())
+                .Should().BeEquivalentTo(["visual-studio"]);
         }
         finally
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    private static Dictionary<string, string?> CreateInstallerEnvironment(string tempRoot, string? fakeBin)
+    {
+        var environment = new Dictionary<string, string?>
+        {
+            ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+            ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+            ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
+        };
+
+        if (!string.IsNullOrWhiteSpace(fakeBin))
+        {
+            environment["PATH"] = fakeBin + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH");
+        }
+
+        return environment;
     }
 }

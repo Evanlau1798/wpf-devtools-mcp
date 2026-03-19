@@ -1,4 +1,4 @@
-# Security Model
+﻿# Security Model
 
 This page documents the controls that are implemented in the current shipping codebase.
 

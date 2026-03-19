@@ -1,4 +1,4 @@
-# Architecture Overview
+﻿# Architecture Overview
 
 The server uses a four-layer design:
 

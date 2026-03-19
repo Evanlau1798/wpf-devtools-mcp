@@ -1,4 +1,4 @@
-# Compatibility Matrix
+﻿# Compatibility Matrix
 
 ## Runtime compatibility
 

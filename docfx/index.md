@@ -9,8 +9,8 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 - Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
 - Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
-- Release packaging source: [scripts/release/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Publish-Release.ps1)
-- Installed-layout source: [scripts/release/Install-WpfDevTools.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Install-WpfDevTools.ps1)
+- Release packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
+- Installed-layout source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
 
 `scripts/` is the canonical source of truth for installer and release behavior. This DocFX site documents those scripts; it does not define them.
 
@@ -36,7 +36,7 @@ Client-specific example:
 
 1. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Extract the package.
-3. Run `setup.ps1 -Force` from the extracted folder.
+3. Run `run.bat` from the extracted folder.
 
 ## Choose your path
 
@@ -48,7 +48,7 @@ Client-specific example:
 | Use the server from Claude Code | [Claude Code setup](quickstart/claude-code.md) |
 | Use the server from OpenAI Codex or Codex CLI | [OpenAI Codex and Codex CLI setup](quickstart/openai-codex.md) |
 | Use the server from Claude Desktop | [Claude Desktop setup](quickstart/claude-desktop.md) |
-| Use the server from Cursor or VS Code | [Cursor and VS Code setup](quickstart/cursor-vscode.md) |
+| Use the server from VS Code or Visual Studio | [VS Code and Visual Studio setup](quickstart/cursor-vscode.md) |
 | Understand agent-safe workflows and response contracts | [AI Agent Guide](guides/ai-agent-guide.md) |
 | Review deployment and package layout contracts | [Deployment Guide](production/deployment.md) |
 | Understand runtime and injection constraints | [Bootstrap and Injection](production/bootstrap-and-injection.md) |

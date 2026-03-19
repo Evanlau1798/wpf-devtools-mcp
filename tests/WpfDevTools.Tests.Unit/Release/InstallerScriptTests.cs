@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
 using System.Text.Json;
-using System.Threading;
 using FluentAssertions;
 using Xunit;
 
@@ -9,81 +7,54 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class InstallerScriptTests
 {
     [Fact]
-    public void InstallScript_ShouldCreateClientRegistrationArtifacts()
+    public void OnlineInstaller_ShouldCreateClientRegistrationArtifactsUnderInstallBase()
     {
-        var tempRoot = CreateTempDirectory();
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
-            var packageDir = Path.Combine(tempRoot, "package");
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
-            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
-            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
-            File.WriteAllText(
-                Path.Combine(packageDir, "bin", "manifest.json"),
-                JsonSerializer.Serialize(new
-                {
-                    name = "wpf-devtools",
-                    version = "1.2.3",
-                    architecture = "x64",
-                    runtimeId = "win-x64"
-                }));
 
-            var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"),
-                new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
+            var result = RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
 
             result.ExitCode.Should().Be(0, result.Stderr);
             var installBase = Path.Combine(installRoot, "x64");
             var registrationDir = Path.Combine(installBase, "client-registration");
             File.Exists(Path.Combine(installBase, "install-manifest.json")).Should().BeTrue();
             Directory.Exists(registrationDir).Should().BeTrue();
-            File.ReadAllText(Path.Combine(registrationDir, "claude-code.txt")).Should().Contain("claude mcp add");
-            File.ReadAllText(Path.Combine(registrationDir, "codex-cli.txt")).Should().Contain("codex mcp add");
-            File.ReadAllText(Path.Combine(registrationDir, "claude-desktop.json")).Should().Contain("wpf-devtools-x64.exe");
-            File.ReadAllText(Path.Combine(registrationDir, "cursor-vscode.json")).Should().Contain("wpf-devtools-x64.exe");
-            File.ReadAllText(Path.Combine(registrationDir, "claude-code.project.mcp.json")).Should().Contain("\"mcpServers\"");
-            File.ReadAllText(Path.Combine(registrationDir, "claude-code.project.mcp.json")).Should().Contain("wpf-devtools-x64.exe");
+            File.ReadAllText(Path.Combine(registrationDir, "vscode.json"))
+                .Should().Contain("\"servers\"")
+                .And.Contain("wpf-devtools-x64.exe");
+            File.ReadAllText(Path.Combine(registrationDir, "other.mcpServers.json"))
+                .Should().Contain("\"mcpServers\"")
+                .And.Contain("wpf-devtools-x64.exe");
         }
         finally
         {
-            DeleteDirectory(tempRoot);
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
 
     [Fact]
-    public void UninstallScript_ShouldRemoveInstalledArchitectureDirectory()
+    public void PackageLocalInstaller_ShouldFailWhenServerExecutableIsMissing()
     {
-        var tempRoot = CreateTempDirectory();
-        try
-        {
-            var installBase = Path.Combine(tempRoot, "install-root", "x64");
-            Directory.CreateDirectory(Path.Combine(installBase, "current"));
-            File.WriteAllText(Path.Combine(installBase, "install-manifest.json"), "{}");
-
-            var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/tools/packaging/Uninstall-WpfDevTools.ps1"),
-                new[] { "-InstallRoot", Path.Combine(tempRoot, "install-root"), "-Architecture", "x64" });
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            Directory.Exists(installBase).Should().BeFalse();
-        }
-        finally
-        {
-            DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void InstallScript_ShouldFailWhenServerExecutableIsMissing()
-    {
-        var tempRoot = CreateTempDirectory();
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
             var packageDir = Path.Combine(tempRoot, "package");
-            var installRoot = Path.Combine(tempRoot, "install-root");
-            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
+            var packageBinDir = Path.Combine(packageDir, "bin");
+            Directory.CreateDirectory(packageBinDir);
             File.WriteAllText(
-                Path.Combine(packageDir, "bin", "manifest.json"),
+                Path.Combine(packageBinDir, "manifest.json"),
                 JsonSerializer.Serialize(new
                 {
                     name = "wpf-devtools",
@@ -91,201 +62,232 @@ public sealed class InstallerScriptTests
                     architecture = "x64",
                     runtimeId = "win-x64"
                 }));
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                Path.Combine(packageBinDir, "install.ps1"),
+                overwrite: true);
 
-            var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"),
-                new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                Path.Combine(packageBinDir, "install.ps1"),
+                ["-InstallRoot", Path.Combine(tempRoot, "install-root"), "-Client", "other", "-NonInteractive", "-Force", "-OutputJson"],
+                CreateInstallerEnvironment(tempRoot));
 
             result.ExitCode.Should().NotBe(0);
-            result.Stderr.Should().Contain("wpf-devtools");
+            result.Stderr.Should().Contain("Package does not contain an executable");
         }
         finally
         {
-            DeleteDirectory(tempRoot);
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
 
     [Fact]
-    public void InstallScript_ShouldUsePackageDirectoryWhenPackagePathIsOmitted()
+    public void OnlineInstaller_ShouldWriteAbsolutePathsWhenInstallRootIsRelative()
     {
-        var tempRoot = CreateTempDirectory();
-        try
-        {
-            var packageDir = Path.Combine(tempRoot, "package");
-            var installRoot = Path.Combine(tempRoot, "install-root");
-            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
-            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
-            File.WriteAllText(
-                Path.Combine(packageDir, "bin", "manifest.json"),
-                JsonSerializer.Serialize(new
-                {
-                    name = "wpf-devtools",
-                    version = "1.2.3",
-                    architecture = "x64",
-                    runtimeId = "win-x64"
-                }));
-
-            var packageLocalScript = Path.Combine(packageDir, "install.ps1");
-            File.Copy(GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"), packageLocalScript, overwrite: true);
-
-            var result = RunPowerShellScript(
-                packageLocalScript,
-                new[] { "-InstallRoot", installRoot, "-Force" });
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
-        }
-        finally
-        {
-            DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void InstallScript_ShouldWriteAbsolutePathsWhenInstallRootIsRelative()
-    {
-        var tempRoot = CreateTempDirectory();
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         var relativeInstallRoot = Path.Combine("tmp", "relative-install", Guid.NewGuid().ToString("N"));
-        var absoluteInstallRoot = GetRepoFilePath(relativeInstallRoot);
+        var absoluteInstallRoot = ReleaseScriptTestHarness.GetRepoFilePath(relativeInstallRoot);
 
         try
         {
-            var packageDir = Path.Combine(tempRoot, "package");
-            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
-            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
-            File.WriteAllText(
-                Path.Combine(packageDir, "bin", "manifest.json"),
-                JsonSerializer.Serialize(new
-                {
-                    name = "wpf-devtools",
-                    version = "1.2.3",
-                    architecture = "x64",
-                    runtimeId = "win-x64"
-                }));
-
-            var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"),
-                new[] { "-PackagePath", packageDir, "-InstallRoot", relativeInstallRoot, "-Force" });
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var result = RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", relativeInstallRoot,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
 
             result.ExitCode.Should().Be(0, result.Stderr);
-
             var registrationDir = Path.Combine(absoluteInstallRoot, "x64", "client-registration");
-            File.ReadAllText(Path.Combine(registrationDir, "claude-code.txt"))
-                .Should().Contain(Path.Combine(absoluteInstallRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"));
-            File.ReadAllText(Path.Combine(registrationDir, "claude-desktop.json"))
-                .Should().Contain(Path.Combine(absoluteInstallRoot, "x64", "current", "bin", "wpf-devtools-x64.exe").Replace("\\", "\\\\"));
+            var expectedExecutable = Path.Combine(absoluteInstallRoot, "x64", "current", "bin", "wpf-devtools-x64.exe");
+
+            using var vscodeDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(registrationDir, "vscode.json")));
+            using var otherDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(registrationDir, "other.mcpServers.json")));
+            vscodeDocument.RootElement.GetProperty("servers").GetProperty("wpf-devtools").GetProperty("command").GetString()
+                .Should().Be(expectedExecutable);
+            otherDocument.RootElement.GetProperty("mcpServers").GetProperty("wpf-devtools").GetProperty("command").GetString()
+                .Should().Be(expectedExecutable);
         }
         finally
         {
-            DeleteDirectory(tempRoot);
-            DeleteDirectory(absoluteInstallRoot);
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+            ReleaseScriptTestHarness.DeleteDirectory(absoluteInstallRoot);
         }
     }
 
     [Fact]
-    public void InstallScript_ShouldPersistPackageMetadataForDevelopmentPackages()
+    public void OnlineInstaller_ShouldReuseExistingBinaryOnRepeatedInstallIntoSameRoot()
     {
-        var tempRoot = CreateTempDirectory();
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
-            var packageDir = Path.Combine(tempRoot, "package");
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
-            Directory.CreateDirectory(Path.Combine(packageDir, "bin"));
-            File.WriteAllText(Path.Combine(packageDir, "bin", "wpf-devtools-x64.exe"), "stub");
-            File.WriteAllText(
-                Path.Combine(packageDir, "bin", "manifest.json"),
-                JsonSerializer.Serialize(new
-                {
-                    name = "wpf-devtools",
-                    version = "1.2.3",
-                    architecture = "x64",
-                    runtimeId = "win-x64",
-                    channel = "dev",
-                    buildConfiguration = "Debug",
-                    signaturePolicy = "DebugTrustedRootSkip"
-                }));
+            var vscodeConfigPath = Path.Combine(tempRoot, "config", "Code", "User", "mcp.json");
 
-            var result = RunPowerShellScript(
-                GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"),
-                new[] { "-PackagePath", packageDir, "-InstallRoot", installRoot, "-Force" });
+            var first = RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "vscode",
+                    "-VsCodeConfigPath", vscodeConfigPath,
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]);
+            first.ExitCode.Should().Be(0, first.Stderr);
 
-            result.ExitCode.Should().Be(0, result.Stderr);
+            var second = RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "vscode",
+                    "-VsCodeConfigPath", vscodeConfigPath,
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]);
+            second.ExitCode.Should().Be(0, second.Stderr);
 
-            using var installManifest = JsonDocument.Parse(
-                File.ReadAllText(Path.Combine(installRoot, "x64", "install-manifest.json")));
-            installManifest.RootElement.GetProperty("channel").GetString().Should().Be("dev");
-            installManifest.RootElement.GetProperty("buildConfiguration").GetString().Should().Be("Debug");
-            installManifest.RootElement.GetProperty("signaturePolicy").GetString().Should().Be("DebugTrustedRootSkip");
+            using var firstJson = JsonDocument.Parse(first.Stdout);
+            using var secondJson = JsonDocument.Parse(second.Stdout);
+            secondJson.RootElement.GetProperty("reusedExistingBinary").GetBoolean().Should().BeTrue();
+            secondJson.RootElement.GetProperty("installedExecutable").GetString()
+                .Should().Be(firstJson.RootElement.GetProperty("installedExecutable").GetString());
         }
         finally
         {
-            DeleteDirectory(tempRoot);
-        }
-    }
-    private static string CreateTempDirectory()
-    {
-        var path = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return path;
-    }
-
-    private static void DeleteDirectory(string path)
-    {
-        if (!Directory.Exists(path))
-        {
-            return;
-        }
-
-        for (var attempt = 0; attempt < 10; attempt++)
-        {
-            try
-            {
-                Directory.Delete(path, recursive: true);
-                return;
-            }
-            catch (IOException) when (attempt < 9)
-            {
-                Thread.Sleep(100);
-            }
-            catch (UnauthorizedAccessException) when (attempt < 9)
-            {
-                Thread.Sleep(100);
-            }
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
 
-    private static (int ExitCode, string Stdout, string Stderr) RunPowerShellScript(string scriptPath, string[] arguments)
+    [Fact]
+    public void OnlineInstaller_Uninstall_ShouldRemoveClientRegistrationButKeepBinaryWhenAnotherClientStillUsesIt()
     {
-        using var process = new Process();
-        process.StartInfo = new ProcessStartInfo
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
         {
-            FileName = "powershell.exe",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            WorkingDirectory = GetRepoFilePath(".")
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var vscodeConfigPath = Path.Combine(tempRoot, "config", "Code", "User", "mcp.json");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+
+            RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "vscode",
+                    "-VsCodeConfigPath", vscodeConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]).ExitCode.Should().Be(0);
+
+            RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]).ExitCode.Should().Be(0);
+
+            var uninstall = RunInstaller(
+                tempRoot,
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "vscode",
+                    "-VsCodeConfigPath", vscodeConfigPath,
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]);
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
+            File.ReadAllText(vscodeConfigPath).Should().NotContain("wpf-devtools");
+            File.ReadAllText(visualStudioConfigPath).Should().Contain("wpf-devtools");
+
+            using var json = JsonDocument.Parse(uninstall.Stdout);
+            json.RootElement.GetProperty("removedInstallation").GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_Uninstall_ShouldRemoveArchitectureDirectoryWhenLastRegistrationIsRemoved()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+
+            var install = RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var uninstall = RunInstaller(
+                tempRoot,
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]);
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(visualStudioConfigPath).Should().NotContain("wpf-devtools");
+
+            using var json = JsonDocument.Parse(uninstall.Stdout);
+            json.RootElement.GetProperty("removedInstallation").GetBoolean().Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    private static (int ExitCode, string Stdout, string Stderr) RunInstaller(
+        string tempRoot,
+        IReadOnlyList<string> arguments)
+        => ReleaseScriptTestHarness.RunPowerShellScript(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+            arguments,
+            CreateInstallerEnvironment(tempRoot));
+
+    private static Dictionary<string, string?> CreateInstallerEnvironment(string tempRoot)
+        => new()
+        {
+            ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+            ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+            ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
         };
-
-        process.StartInfo.ArgumentList.Add("-NoProfile");
-        process.StartInfo.ArgumentList.Add("-ExecutionPolicy");
-        process.StartInfo.ArgumentList.Add("Bypass");
-        process.StartInfo.ArgumentList.Add("-File");
-        process.StartInfo.ArgumentList.Add(scriptPath);
-
-        foreach (var argument in arguments)
-        {
-            process.StartInfo.ArgumentList.Add(argument);
-        }
-
-        process.Start();
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-        return (process.ExitCode, stdout, stderr);
-    }
-
-    private static string GetRepoFilePath(string relativePath)
-        => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }
-

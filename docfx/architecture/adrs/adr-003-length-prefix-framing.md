@@ -1,4 +1,4 @@
-# ADR-003: Length-Prefix Framing
+﻿# ADR-003: Length-Prefix Framing
 
 ## Status
 

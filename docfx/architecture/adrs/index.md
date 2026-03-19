@@ -1,4 +1,4 @@
-# ADR Index
+﻿# ADR Index
 
 These Architecture Decision Records explain the decisions that most affect users, operators, and contributors.
 

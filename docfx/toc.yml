@@ -1,4 +1,4 @@
-﻿- name: Home
+- name: Home
   href: index.md
 - name: Traditional Chinese
   href: zh-tw/toc.yml
@@ -14,7 +14,7 @@
       href: quickstart/openai-codex.md
     - name: Claude Desktop
       href: quickstart/claude-desktop.md
-    - name: Cursor and VS Code
+    - name: VS Code and Visual Studio
       href: quickstart/cursor-vscode.md
 - name: Guides
   items:

@@ -1,4 +1,4 @@
-# ADR-001: Named Pipes for IPC
+﻿# ADR-001: Named Pipes for IPC
 
 ## Status
 

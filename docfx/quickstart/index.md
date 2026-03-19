@@ -37,7 +37,7 @@ Client-specific example:
 1. Open [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip`.
 3. Extract the archive.
-4. Run `setup.ps1 -Force` from the extracted folder.
+4. Run `run.bat` from the extracted folder.
 
 ### Local script invocation
 
@@ -52,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 After installation, the default executable path is typically:
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 ## Step 3: Register the installed executable
@@ -60,10 +60,10 @@ After installation, the default executable path is typically:
 The installer writes ready-to-copy registration artifacts under:
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\client-registration\
+%APPDATA%\WpfDevToolsMcp\x64\client-registration\
 ```
 
-If you register manually, always point your client at the installed `WpfDevTools.Mcp.Server.exe`, not a source-tree `dotnet run` command.
+If you register manually, always point your client at the installed `wpf-devtools-x64.exe`, not a source-tree `dotnet run` command.
 
 ## Step 4: Start or keep your WPF target running
 

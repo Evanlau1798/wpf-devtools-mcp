@@ -1,6 +1,6 @@
-# Cursor 與 VS Code 快速開始
+# VS Code 與 Visual Studio 快速開始
 
-Cursor 與 VS Code 最適合直接套用 installer 產生的 JSON 設定。
+VS Code 與 Visual Studio 最適合直接套用 installer 產生的 JSON 設定。
 
 ## 1. 安裝 WPF DevTools
 
@@ -8,32 +8,32 @@ Cursor 與 VS Code 最適合直接套用 installer 產生的 JSON 設定。
 
 1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`。
 2. 解壓縮套件。
-3. 執行 `setup.ps1 -Force`。
+3. 執行 `run.bat`。
 
 如果你偏好腳本驅動安裝，請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 再於本機執行。
 
 安裝後的預設 executable 路徑是：
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 ## 2. 使用 installer 產生的 JSON
 
-installer 會輸出 `client-registration\cursor-vscode.json`，格式如下：
+installer 會輸出 `client-registration\vscode.json`，格式如下：
 
 ```json
 {
   "servers": {
     "wpf-devtools": {
-      "command": "%LOCALAPPDATA%\\WpfDevToolsMcp\\x64\\current\\WpfDevTools.Mcp.Server.exe",
+      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }
   }
 }
 ```
 
-將同一段 command path 套用到 Cursor 或 `.vscode/mcp.json` 即可。
+把同一段 command path 套用到 VS Code 的 `mcp.json` 或 Visual Studio 的 `.mcp.json` 即可。
 
 ## 3. 第一個實用流程
 

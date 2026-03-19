@@ -4,8 +4,7 @@ This page documents the stable public folder contract for published release asse
 
 ## Canonical generation sources
 
-- Packaging source: [scripts/release/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Publish-Release.ps1)
-- Install source: [scripts/release/Install-WpfDevTools.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Install-WpfDevTools.ps1)
+- Packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
 - Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
 
 The documentation below describes the output of those scripts. It does not replace them.
@@ -24,13 +23,11 @@ Download them from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/re
 
 ```text
 release_<version>_win-x64/
-  install.bat
-  install.ps1
-  setup.ps1
-  uninstall.ps1
-  manifest.json
+  run.bat
   bin/
-    WpfDevTools.Mcp.Server.exe
+    install.ps1
+    manifest.json
+    wpf-devtools-x64.exe
     WpfDevTools.Mcp.Server.dll
     WpfDevTools.Injector.dll
     WpfDevTools.Shared.dll
@@ -47,15 +44,11 @@ release_<version>_win-x64/
 ## Installed layout
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\
+%APPDATA%\WpfDevToolsMcp\x64\
   current/
-    install.bat
-    install.ps1
-    setup.ps1
-    uninstall.ps1
-    manifest.json
     bin/
-      WpfDevTools.Mcp.Server.exe
+      manifest.json
+      wpf-devtools-x64.exe
       WpfDevTools.Mcp.Server.dll
       WpfDevTools.Injector.dll
       WpfDevTools.Shared.dll
@@ -63,20 +56,18 @@ release_<version>_win-x64/
       bootstrapper/
   client-registration/
     claude-code.txt
-    codex-cli.txt
-    claude-code.project.mcp.json
+    codex.txt
     claude-desktop.json
-    cursor-vscode.json
-    github-copilot-vscode.json
+    vscode.json
+    visual-studio.json
     other.mcpServers.json
   install-manifest.json
 ```
 
 ## Contract notes
 
-- MCP clients should register `bin/WpfDevTools.Mcp.Server.exe`.
+- MCP clients should register `bin/wpf-devtools-x64.exe`.
 - `bin/inspectors` and `bin/bootstrapper` are sidecar folders and must remain adjacent to the installed server content.
-- `install.bat` is the package-root entrypoint for users who do not want to invoke PowerShell directly.
-- `setup.ps1` is the primary package installer for end users.
-- `install.ps1` remains available for lower-level copy/install automation.
+- `run.bat` is the package-root entrypoint for users who do not want to invoke PowerShell directly.
+- `bin/install.ps1` is the packaged copy of the canonical GUI-first installer script.
 - `client-registration` is generated at install time and is the public copy-paste source for AI client setup.

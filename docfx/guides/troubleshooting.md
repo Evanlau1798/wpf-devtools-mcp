@@ -24,7 +24,7 @@ If the server starts and exits immediately, verify the required .NET runtime is 
 
 ## bootstrapper resolution
 
-If `connect` fails after process discovery, verify the installed folder still contains the expected `bootstrapper` and `inspectors` sidecar directories next to `WpfDevTools.Mcp.Server.exe`.
+If `connect` fails after process discovery, verify the installed folder still contains the expected `bootstrapper` and `inspectors` sidecar directories next to `wpf-devtools-x64.exe`.
 
 ## elevated target or administrator mismatch
 
@@ -42,7 +42,7 @@ If injection starts but the named pipe never becomes ready, treat it as a startu
 
 ## project-scoped registration confusion
 
-If Claude Code cannot rediscover the server reliably, prefer the generated `client-registration/claude-code.project.mcp.json` artifact or a project-scoped registration command. Project-scoped configuration reduces drift between shells, repos, and local profile state.
+If Claude Code cannot rediscover the server reliably, prefer the generated `client-registration/claude-code.txt` artifact or a project-scoped registration command. Project-scoped configuration reduces drift between shells, repos, and local profile state.
 
 ## unsupported packaging or injection limits
 

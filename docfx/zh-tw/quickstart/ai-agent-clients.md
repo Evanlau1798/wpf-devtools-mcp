@@ -24,7 +24,7 @@ irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/script
 
 1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載 `release_<version>_win-<arch>.zip`。
 2. 解壓縮套件。
-3. 執行 `setup.ps1 -Force`。
+3. 執行 `run.bat`。
 
 本機腳本範例：
 
@@ -37,13 +37,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 預設安裝路徑範例：
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 線上安裝腳本與手動 package 安裝都會在下列位置產生 client-specific registration artifact：
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\client-registration\
+%APPDATA%\WpfDevToolsMcp\x64\client-registration\
 ```
 
 ## 建議選擇
@@ -53,7 +53,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 | Claude Code | 終端機導向的 agent workflow | installer 產生的 command | [Claude Code](claude-code.md) |
 | OpenAI Codex / Codex CLI | OpenAI CLI 與 agent workflow | installer 產生的 command | [OpenAI Codex 與 Codex CLI](openai-codex.md) |
 | Claude Desktop | 桌面聊天 workflow | installer 產生的 JSON config | [Claude Desktop](claude-desktop.md) |
-| Cursor / VS Code | 編輯器導向 workflow | installer 產生的 JSON config | [Cursor 與 VS Code](cursor-vscode.md) |
+| VS Code / Visual Studio | 編輯器導向 workflow | installer 產生的 JSON config | [VS Code 與 Visual Studio](cursor-vscode.md) |
 
 ## 第一次驗證流程
 

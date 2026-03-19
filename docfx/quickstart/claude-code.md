@@ -14,7 +14,7 @@ Preferred public path:
 
 1. Download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Extract the package.
-3. Run `setup.ps1 -Force`.
+3. Run `run.bat`.
 
 If you prefer a script-first setup, review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) and run it locally.
 
@@ -27,7 +27,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 After installation, the default executable path is:
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 ## 3. Register the MCP server
@@ -35,16 +35,16 @@ After installation, the default executable path is:
 Use the generated registration command from `client-registration\claude-code.txt`, or run:
 
 ```powershell
-claude mcp add --transport stdio wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
+claude mcp add --transport stdio wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
 ```
 
 Project-scoped alternative:
 
 ```powershell
-claude mcp add --scope project --transport stdio wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
+claude mcp add --scope project --transport stdio wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
 ```
 
-The installer also writes `client-registration\claude-code.project.mcp.json`. Use that artifact when you want reproducible project-scoped setup across contributors or CI worktrees.
+The installer also writes `client-registration\claude-code.txt`. Treat that file as the reviewed command source, and add `--scope project` manually when you want project-scoped setup across contributors or CI worktrees.
 
 ## 4. Verify the registration
 
@@ -67,7 +67,7 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 ## Notes
 
 - Keep the server on Windows.
-- Do not wrap `WpfDevTools.Mcp.Server.exe` with extra stdout logging.
+- Do not wrap `wpf-devtools-x64.exe` with extra stdout logging.
 - Start with `connect()` in the common case. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you need explicit target metadata first.
 - Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.
 - If you already know the next tool and want a leaner payload, pass `navigation=false` on that specific call.

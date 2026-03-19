@@ -1,5 +1,4 @@
 using FluentAssertions;
-using System.Runtime.InteropServices;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Shared.Enums;
 
@@ -12,7 +11,7 @@ namespace WpfDevTools.Tests.Unit.Injector;
 public class PeArchitectureReaderTests
 {
     [Fact]
-    public void Detect_WithInspectorDllFromCurrentPlatformBuild_ShouldMatchCurrentProcessArchitecture()
+    public void Detect_WithInspectorDllFromTestOutput_ShouldReturnUnknownForNeutralManagedAssembly()
     {
         var inspectorDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
 
@@ -24,8 +23,8 @@ public class PeArchitectureReaderTests
 
         var result = PeArchitectureReader.Detect(inspectorDllPath);
 
-        result.Should().Be(GetExpectedCurrentArchitecture(),
-            "platform-specific build outputs should report the actual PE architecture that will be injected");
+        result.Should().Be(ProcessArchitecture.Unknown,
+            "the test output inspector assembly is a neutral IL-only managed DLL and should not be misreported as native x86");
     }
 
     [Fact]
@@ -71,7 +70,7 @@ public class PeArchitectureReaderTests
     }
 
     [Fact]
-    public void Detect_WithSharedProjectDllFromCurrentPlatformBuild_ShouldMatchCurrentProcessArchitecture()
+    public void Detect_WithSharedProjectDllFromTestOutput_ShouldReturnUnknownForNeutralManagedAssembly()
     {
         var sharedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Shared.dll");
 
@@ -82,8 +81,8 @@ public class PeArchitectureReaderTests
 
         var result = PeArchitectureReader.Detect(sharedDllPath);
 
-        result.Should().Be(GetExpectedCurrentArchitecture(),
-            "platform-specific shared outputs should report the actual PE architecture");
+        result.Should().Be(ProcessArchitecture.Unknown,
+            "the shared assembly in unit test output is also a neutral IL-only managed DLL");
     }
 
     [Fact]
@@ -93,12 +92,4 @@ public class PeArchitectureReaderTests
 
         result.Should().Be(ProcessArchitecture.Unknown);
     }
-
-    private static ProcessArchitecture GetExpectedCurrentArchitecture() => RuntimeInformation.ProcessArchitecture switch
-    {
-        Architecture.X86 => ProcessArchitecture.X86,
-        Architecture.X64 => ProcessArchitecture.X64,
-        Architecture.Arm64 => ProcessArchitecture.ARM64,
-        _ => ProcessArchitecture.Unknown
-    };
 }

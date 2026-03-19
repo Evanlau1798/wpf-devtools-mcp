@@ -14,7 +14,7 @@ irm https://claude.ai/install.ps1 | iex
 
 1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`。
 2. 解壓縮套件。
-3. 執行 `setup.ps1 -Force`。
+3. 執行 `run.bat`。
 
 如果你偏好腳本驅動安裝，請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 再於本機執行。
 
@@ -27,7 +27,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 安裝後的預設 executable 路徑是：
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 ## 3. 註冊 MCP server
@@ -35,16 +35,16 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 可直接使用 `client-registration\claude-code.txt` 中的命令，或手動執行：
 
 ```powershell
-claude mcp add --transport stdio wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
+claude mcp add --transport stdio wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
 ```
 
 若要做 project scope 註冊，可使用：
 
 ```powershell
-claude mcp add --scope project --transport stdio wpf-devtools -- "$env:LOCALAPPDATA\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe"
+claude mcp add --scope project --transport stdio wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
 ```
 
-installer 也會輸出 `client-registration\claude-code.project.mcp.json`。若你要讓團隊成員或 CI worktree 使用一致的 project scope 設定，建議優先使用這個檔案。
+installer 也會輸出 `client-registration\claude-code.txt`。把它當成已審核的命令來源；若你要 project scope，請在命令上手動加上 `--scope project`。
 
 ## 4. 驗證註冊結果
 
@@ -67,7 +67,7 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 ## 注意事項
 
 - server 必須執行在 Windows。
-- 不要在 `WpfDevTools.Mcp.Server.exe` 外層再包會污染 `stdout` 的啟動器。
+- 不要在 `wpf-devtools-x64.exe` 外層再包會污染 `stdout` 的啟動器。
 - 一般情況先從 `connect()` 開始；只有 auto-discovery 回報多個候選，或你需要先拿到 target metadata 時才用 `get_processes(windowFilter)`。
 - 在 tree-heavy inspection 前，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`。
 - 如果你已經知道下一步工具，且希望回應更精簡，可在該次呼叫傳入 `navigation=false`。

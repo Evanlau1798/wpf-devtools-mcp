@@ -97,10 +97,10 @@ public sealed class DocfxCapabilityDocumentationTests
         var english = File.ReadAllText(GetRepoFilePath("docfx/quickstart/claude-code.md"));
         var traditionalChinese = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/quickstart/claude-code.md"));
 
-        english.Should().Contain("claude-code.project.mcp.json");
+        english.Should().Contain("claude-code.txt");
         english.Should().Contain("/mcp__wpf-devtools__");
         english.Should().Contain("@wpf-devtools:");
-        traditionalChinese.Should().Contain("claude-code.project.mcp.json");
+        traditionalChinese.Should().Contain("claude-code.txt");
         traditionalChinese.Should().Contain("/mcp__wpf-devtools__");
         traditionalChinese.Should().Contain("@wpf-devtools:");
     }

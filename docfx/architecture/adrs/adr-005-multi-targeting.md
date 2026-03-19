@@ -1,4 +1,4 @@
-# ADR-005: Multi-Targeting Strategy
+﻿# ADR-005: Multi-Targeting Strategy
 
 ## Status
 

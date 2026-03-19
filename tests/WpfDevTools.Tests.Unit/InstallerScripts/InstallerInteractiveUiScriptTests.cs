@@ -7,7 +7,7 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class InstallerInteractiveUiScriptTests
 {
     [Fact]
-    public void OnlineInstallerScript_ShouldDeclareGuiArchitectureSelectorAndRootSelection()
+    public void OnlineInstallerScript_ShouldDeclareGuiArchitectureSelectorInstallRootAndSharedPages()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
@@ -15,7 +15,21 @@ public sealed class InstallerInteractiveUiScriptTests
         content.Should().Contain("ComboBox");
         content.Should().Contain("Architecture");
         content.Should().Contain("Install root");
+        content.Should().Contain("PageInstall");
+        content.Should().Contain("PageUninstall");
         content.Should().Contain("%APPDATA%");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldDeclareGuiTargetsForVsCodeAndVisualStudio()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("VS Code");
+        content.Should().Contain("Visual Studio");
+        content.Should().Contain("vscode");
+        content.Should().Contain("visual-studio");
     }
 
     [Fact]
@@ -71,8 +85,9 @@ public sealed class InstallerInteractiveUiScriptTests
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
         content.Should().Contain("Read-Host");
+        content.Should().Contain("Action (install/uninstall)");
+        content.Should().Contain("Architecture (x64/x86/arm64)");
         content.Should().NotContain("+==================================================================+");
         content.Should().NotContain("<VisualTree/>");
-        content.Should().NotContain("<StackPanel>");
     }
 }

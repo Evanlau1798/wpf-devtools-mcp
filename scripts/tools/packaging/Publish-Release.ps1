@@ -271,10 +271,8 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj'
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
 $bootstrapperProject = Join-Path $repoRoot 'src\WpfDevTools.Bootstrapper\WpfDevTools.Bootstrapper.vcxproj'
-$installScript = Join-Path $repoRoot 'scripts\tools\packaging\Install-WpfDevTools.ps1'
+$installScript = Join-Path $repoRoot 'scripts\online-installer.ps1'
 $installBatchTemplate = Join-Path $repoRoot 'scripts\tools\packaging\run-template.bat'
-$setupScript = Join-Path $repoRoot 'scripts\tools\packaging\Setup-WpfDevTools.ps1'
-$uninstallScript = Join-Path $repoRoot 'scripts\tools\packaging\Uninstall-WpfDevTools.ps1'
 $outputRootFullPath = (Resolve-Path (New-Item -ItemType Directory -Force -Path $OutputRoot)).Path
 $msbuildPath = Resolve-MSBuildPath
 
@@ -354,8 +352,7 @@ foreach ($architecture in $resolvedArchitectures) {
         Copy-DirectoryContents -Source $inspectorNet48BuildDir -Destination $inspectorNet48Dir
         Copy-Item -Path $bootstrapperSource -Destination (Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)) -Force
         Copy-Item -Path $installBatchTemplate -Destination (Join-Path $packageDir 'run.bat') -Force
-        Copy-Item -Path $setupScript -Destination (Join-Path $binDir 'install.ps1') -Force
-        Copy-Item -Path $installScript -Destination (Join-Path $binDir 'internal-install.ps1') -Force
+        Copy-Item -Path $installScript -Destination (Join-Path $binDir 'install.ps1') -Force
 
         $manifest = [ordered]@{
             name = 'wpf-devtools'

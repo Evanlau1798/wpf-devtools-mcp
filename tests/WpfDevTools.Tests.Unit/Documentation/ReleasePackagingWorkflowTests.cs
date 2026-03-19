@@ -10,12 +10,11 @@ public class ReleasePackagingWorkflowTests
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
 
-        content.Should().Contain("Publish-Release.ps1",
-            "CI should exercise the release packaging path automatically");
-        content.Should().Contain("Install-WpfDevTools.ps1",
-            "CI should smoke-test installation from a published package");
-        content.Should().Contain("Uninstall-WpfDevTools.ps1",
-            "CI should verify uninstall/cleanup as part of packaging validation");
+        content.Should().Contain("Publish-Release.ps1");
+        content.Should().Contain("bin/install.ps1");
+        content.Should().Contain("scripts/online-installer.ps1");
+        content.Should().NotContain("Install-WpfDevTools.ps1");
+        content.Should().NotContain("Uninstall-WpfDevTools.ps1");
     }
 
     [Fact]
@@ -23,19 +22,18 @@ public class ReleasePackagingWorkflowTests
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
 
-        content.Should().Contain("architecture: [x64, x86, arm64]",
-            "release packaging coverage should include ARM64 artifacts as a first-class target");
-        content.Should().Contain("release_*_win-${{ matrix.architecture }}",
-            "ARM64 release packaging should validate the expected output folder contract");
+        content.Should().Contain("architecture: [x64, x86, arm64]");
+        content.Should().Contain("release_*_win-${{ matrix.architecture }}");
     }
 
     [Fact]
-    public void PublishReleaseScript_ShouldBundleInteractiveSetupWizard()
+    public void PublishReleaseScript_ShouldBundleCanonicalInstallerScript()
     {
         var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
-        content.Should().Contain("Setup-WpfDevTools.ps1",
-            "the published package should include the interactive setup wizard alongside install/uninstall scripts");
+        content.Should().Contain("scripts\\online-installer.ps1");
+        content.Should().NotContain("Setup-WpfDevTools.ps1");
+        content.Should().NotContain("internal-install.ps1");
     }
 
     [Fact]
@@ -43,10 +41,8 @@ public class ReleasePackagingWorkflowTests
     {
         var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
-        content.Should().Contain("Compress-Archive",
-            "the GitHub Pages bootstrap installer needs versioned zip assets to download per architecture");
-        content.Should().Contain("release_${version}_win-$architecture.zip",
-            "zip asset naming should stay stable for the one-command installer");
+        content.Should().Contain("Compress-Archive");
+        content.Should().Contain("release_${version}_win-$architecture.zip");
     }
 
     [Fact]
@@ -54,10 +50,8 @@ public class ReleasePackagingWorkflowTests
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
 
-        content.Should().Contain("scripts/online-installer.ps1",
-            "CI should execute the canonical online installer against a packaged archive");
-        content.Should().Contain("release_*_win-${{ matrix.architecture }}.zip",
-            "online installer smoke coverage should validate the zip asset contract across architectures");
+        content.Should().Contain("scripts/online-installer.ps1");
+        content.Should().Contain("release_*_win-${{ matrix.architecture }}.zip");
     }
 
     private static string GetRepoFilePath(string relativePath)

@@ -9,8 +9,8 @@ This server is usually deployed as a local Windows companion process next to the
 Installer and packaging behavior are defined in `scripts/`, not in the documentation site:
 
 - [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
-- [scripts/release/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Publish-Release.ps1)
-- [scripts/release/Install-WpfDevTools.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/release/Install-WpfDevTools.ps1)
+- [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
+- [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
 
 ## Recommended install modes
 
@@ -18,7 +18,7 @@ Installer and packaging behavior are defined in `scripts/`, not in the documenta
 
 1. Download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Extract the package.
-3. Run `setup.ps1 -Force`.
+3. Run `run.bat`.
 
 ### Script-driven install
 
@@ -54,10 +54,10 @@ See [Release Layout](release-layout.md) for the exact folder contract.
 
 ## Installed executable contract
 
-The MCP client should launch the installed `WpfDevTools.Mcp.Server.exe`, for example:
+The MCP client should launch the installed `wpf-devtools-x64.exe`, for example:
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 ## Production checklist

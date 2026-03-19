@@ -37,7 +37,7 @@ irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/script
 1. 開啟 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)。
 2. 下載 `release_<version>_win-x64.zip`、`release_<version>_win-x86.zip` 或 `release_<version>_win-arm64.zip`。
 3. 解壓縮。
-4. 在解壓後的資料夾執行 `setup.ps1 -Force`。
+4. 在解壓後的資料夾執行 `run.bat`。
 
 ### 本機腳本執行
 
@@ -54,7 +54,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 安裝完成後，預設執行檔路徑通常會是：
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\current\WpfDevTools.Mcp.Server.exe
+%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
 ```
 
 ## Step 3：註冊安裝後的執行檔
@@ -62,10 +62,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 線上安裝腳本與手動 package 安裝都會在下列位置產生可直接複製的 client registration artifact：
 
 ```text
-%LOCALAPPDATA%\WpfDevToolsMcp\x64\client-registration\
+%APPDATA%\WpfDevToolsMcp\x64\client-registration\
 ```
 
-如果你要手動註冊，請一律指向已安裝的 `WpfDevTools.Mcp.Server.exe`，不要使用 source tree 的 `dotnet run`。
+如果你要手動註冊，請一律指向已安裝的 `wpf-devtools-x64.exe`，不要使用 source tree 的 `dotnet run`。
 
 ## Step 4：啟動或保持 WPF target 正在執行
 

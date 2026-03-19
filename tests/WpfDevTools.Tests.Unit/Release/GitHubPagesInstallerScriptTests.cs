@@ -112,8 +112,7 @@ public sealed class GitHubPagesInstallerScriptTests
                     buildConfiguration = "Debug",
                     signaturePolicy = "DebugTrustedRootSkip"
                 }));
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"), Path.Combine(packageDir, "bin", "install.ps1"), overwrite: true);
-            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"), Path.Combine(packageDir, "bin", "internal-install.ps1"), overwrite: true);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"), Path.Combine(packageDir, "bin", "install.ps1"), overwrite: true);
             File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/run-template.bat"), Path.Combine(packageDir, "run.bat"), overwrite: true);
 
             var archivePath = Path.Combine(tempRoot, "release_1.2.3_win-x64.zip");

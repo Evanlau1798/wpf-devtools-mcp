@@ -64,8 +64,7 @@ internal static class ReleaseScriptTestHarness
     {
         var packageDir = CreatePackageDirectory(tempRoot, architecture);
         var binDir = Path.Combine(packageDir, "bin");
-        File.Copy(GetRepoFilePath("scripts/tools/packaging/Setup-WpfDevTools.ps1"), Path.Combine(binDir, "install.ps1"), overwrite: true);
-        File.Copy(GetRepoFilePath("scripts/tools/packaging/Install-WpfDevTools.ps1"), Path.Combine(binDir, "internal-install.ps1"), overwrite: true);
+        File.Copy(GetRepoFilePath("scripts/online-installer.ps1"), Path.Combine(binDir, "install.ps1"), overwrite: true);
         File.Copy(GetRepoFilePath("scripts/tools/packaging/run-template.bat"), Path.Combine(packageDir, "run.bat"), overwrite: true);
 
         var archivePath = Path.Combine(tempRoot, $"release_1.2.3_win-{architecture}.zip");

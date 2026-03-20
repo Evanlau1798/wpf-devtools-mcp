@@ -61,6 +61,20 @@ public sealed class InstallerInteractiveUiScriptTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldDeclareAnimatedPageTransitionsAndStatusRefreshHelpers()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("function Update-AllStatus");
+        content.Should().Contain("DispatcherTimer");
+        content.Should().Contain("CubicEase");
+        content.Should().Contain("TxtInstMsg.Text");
+        content.Should().Contain("TxtUninstMsg.Text");
+        content.Should().Contain("$installed");
+    }
+
+    [Fact]
     public void OnlineInstallerScript_NonInteractiveJsonFlow_ShouldEmitModeStateAndAvoidBrowserActions()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

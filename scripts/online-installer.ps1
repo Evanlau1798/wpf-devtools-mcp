@@ -930,13 +930,111 @@ function Switch-Page {
         return
     }
 
-    if ($null -ne $From) {
-        $From.Visibility = 'Collapsed'
-        $From.Opacity = 1
-    }
+    try {
+        $ms = 280
+        $duration = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds($ms))
+        $ease = [System.Windows.Media.Animation.CubicEase]::new()
+        $ease.EasingMode = 'EaseOut'
 
-    $To.Visibility = 'Visible'
-    $To.Opacity = 1
+        if ($null -ne $From -and $From.RenderTransform -isnot [System.Windows.Media.TranslateTransform]) {
+            $From.RenderTransform = [System.Windows.Media.TranslateTransform]::new()
+        }
+        if ($To.RenderTransform -isnot [System.Windows.Media.TranslateTransform]) {
+            $To.RenderTransform = [System.Windows.Media.TranslateTransform]::new()
+        }
+
+        $To.RenderTransform.X = 400 * $Direction
+        $To.Opacity = 0
+        $To.Visibility = 'Visible'
+
+        if ($null -ne $From) {
+            $slideOut = [System.Windows.Media.Animation.DoubleAnimation]::new()
+            $slideOut.To = -200 * $Direction
+            $slideOut.Duration = $duration
+            $slideOut.EasingFunction = $ease
+
+            $fadeOut = [System.Windows.Media.Animation.DoubleAnimation]::new()
+            $fadeOut.To = 0.0
+            $fadeOut.Duration = $duration
+            $fadeOut.EasingFunction = $ease
+
+            $From.RenderTransform.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $slideOut)
+            $From.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $fadeOut)
+        }
+
+        $slideIn = [System.Windows.Media.Animation.DoubleAnimation]::new()
+        $slideIn.To = 0.0
+        $slideIn.Duration = $duration
+        $slideIn.EasingFunction = $ease
+
+        $fadeIn = [System.Windows.Media.Animation.DoubleAnimation]::new()
+        $fadeIn.To = 1.0
+        $fadeIn.Duration = $duration
+        $fadeIn.EasingFunction = $ease
+
+        $To.RenderTransform.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $slideIn)
+        $To.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $fadeIn)
+
+        if ($null -ne $From) {
+            $capturedFrom = $From
+            $timer = [System.Windows.Threading.DispatcherTimer]::new()
+            $timer.Interval = [TimeSpan]::FromMilliseconds($ms + 50)
+            $capturedTimer = $timer
+            $timer.Add_Tick({
+                    try {
+                        $capturedTimer.Stop()
+                        $capturedFrom.Visibility = 'Collapsed'
+                        $capturedFrom.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+                        $capturedFrom.RenderTransform.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $null)
+                        $capturedFrom.Opacity = 1
+                        $capturedFrom.RenderTransform.X = 0
+                    }
+                    catch {
+                    }
+                }.GetNewClosure())
+            $timer.Start()
+        }
+    }
+    catch {
+        if ($null -ne $From) {
+            $From.Visibility = 'Collapsed'
+            $From.Opacity = 1
+        }
+        $To.Visibility = 'Visible'
+        $To.Opacity = 1
+    }
+}
+
+function Update-AllStatus {
+    param(
+        [Parameter(Mandatory)] $Window,
+        [Parameter(Mandatory)] $InstalledStatus
+    )
+
+    $buttonMaps = @(
+        @{ Client = 'claude-code'; Install = 'InstallClaudeCodeButton'; Uninstall = 'UninstallClaudeCodeButton' }
+        @{ Client = 'codex'; Install = 'InstallCodexButton'; Uninstall = 'UninstallCodexButton' }
+        @{ Client = 'vscode'; Install = 'InstallVsCodeButton'; Uninstall = 'UninstallVsCodeButton' }
+        @{ Client = 'visual-studio'; Install = 'InstallVisualStudioButton'; Uninstall = 'UninstallVisualStudioButton' }
+        @{ Client = 'claude-desktop'; Install = 'InstallClaudeDesktopButton'; Uninstall = 'UninstallClaudeDesktopButton' }
+        @{ Client = 'other'; Install = 'InstallOtherButton'; Uninstall = 'UninstallOtherButton' }
+    )
+
+    foreach ($map in $buttonMaps) {
+        $installed = [bool]$InstalledStatus[$map.Client]
+        $visibility = if ($installed) { 'Visible' } else { 'Collapsed' }
+        $installButton = $Window.FindName($map.Install)
+        $uninstallButton = $Window.FindName($map.Uninstall)
+
+        if ($installButton -and $installButton.Content -is [System.Windows.Controls.Grid]) {
+            $installButton.Content.Children[1].Visibility = $visibility
+        }
+
+        if ($uninstallButton -and $uninstallButton.Content -is [System.Windows.Controls.Grid]) {
+            $uninstallButton.Content.Children[1].Visibility = $visibility
+            $uninstallButton.IsEnabled = $installed
+        }
+    }
 }
 
 function Show-InstallerWindow {
@@ -1328,6 +1426,8 @@ function Show-InstallerWindow {
         $pageMain = $window.FindName('PageMain')
         $pageInstall = $window.FindName('PageInstall')
         $pageUninstall = $window.FindName('PageUninstall')
+        $TxtInstMsg = $window.FindName('TxtInstMsg')
+        $TxtUninstMsg = $window.FindName('TxtUninstMsg')
 
         $architectureSelector.ItemsSource = @('x64', 'x86', 'arm64')
         $architectureSelector.SelectedItem = $DefaultArchitecture
@@ -1369,9 +1469,13 @@ function Show-InstallerWindow {
                 try { $window.Close() } catch {}
             })
         $window.FindName('GoInstallButton').Add_Click({
+                Update-AllStatus -Window $window -InstalledStatus $InstalledStatus
+                $TxtInstMsg.Text = ''
                 Switch-Page -From $pageMain -To $pageInstall -Direction 1
             })
         $window.FindName('GoUninstallButton').Add_Click({
+                Update-AllStatus -Window $window -InstalledStatus $InstalledStatus
+                $TxtUninstMsg.Text = ''
                 Switch-Page -From $pageMain -To $pageUninstall -Direction 1
             })
         $window.FindName('BackFromInstallButton').Add_Click({
@@ -1412,6 +1516,7 @@ function Show-InstallerWindow {
                 try {
                     $hwnd = ([System.Windows.Interop.WindowInteropHelper]::new($window)).Handle
                     [DwmMicaHelper]::Apply($hwnd)
+                    Update-AllStatus -Window $window -InstalledStatus $InstalledStatus
                 }
                 catch {
                 }

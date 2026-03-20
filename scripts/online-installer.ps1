@@ -160,6 +160,9 @@ function Get-InstallerState {
                 installRoot = [string]$property.Value.installRoot
                 mode = [string]$property.Value.mode
                 target = [string]$property.Value.target
+                resolvedVersion = [string]$property.Value.resolvedVersion
+                installedExecutable = [string]$property.Value.installedExecutable
+                lastVerifiedUtc = [string]$property.Value.lastVerifiedUtc
             }
         }
     }
@@ -797,7 +800,8 @@ function Update-InstallerStateAfterInstall {
         [Parameter(Mandatory)] [string]$ResolvedVersion,
         [Parameter(Mandatory)] [string]$InstalledExecutable,
         [Parameter(Mandatory)] [string]$SelectedClient,
-        [Parameter(Mandatory)] $Registration
+        [Parameter(Mandatory)] $Registration,
+        [Parameter(Mandatory)] [string]$LastVerifiedUtc
     )
 
     $State.lastInstallRoot = $ResolvedInstallRoot
@@ -811,7 +815,41 @@ function Update-InstallerStateAfterInstall {
         installRoot = $ResolvedInstallRoot
         mode = [string]$Registration.mode
         target = [string]$Registration.target
+        resolvedVersion = $ResolvedVersion
+        installedExecutable = $InstalledExecutable
+        lastVerifiedUtc = $LastVerifiedUtc
     }
+}
+
+function Get-AvailableInstallerUpdates {
+    param(
+        [Parameter(Mandatory)] $State,
+        [string]$LatestVersion
+    )
+
+    $updates = @()
+    if ([string]::IsNullOrWhiteSpace($LatestVersion)) {
+        return @($updates)
+    }
+
+    foreach ($property in $State.registrations.GetEnumerator()) {
+        $resolvedVersion = [string]$property.Value.resolvedVersion
+        if ([string]::IsNullOrWhiteSpace($resolvedVersion)) {
+            continue
+        }
+
+        if ($resolvedVersion -ne $LatestVersion) {
+            $updates += [ordered]@{
+                Client = [string]$property.Key
+                CurrentVersion = $resolvedVersion
+                LatestVersion = $LatestVersion
+                InstallRoot = [string]$property.Value.installRoot
+                Architecture = [string]$property.Value.architecture
+            }
+        }
+    }
+
+    return @($updates)
 }
 
 function Get-InstalledClientStatusMap {
@@ -835,6 +873,80 @@ function Get-InstalledClientStatusMap {
     }
 
     return $map
+}
+
+function Test-JsonConfigRegistrationMatchesExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$CollectionName,
+        [Parameter(Mandatory)] [string]$ConfigPath,
+        [Parameter(Mandatory)] [string]$InstalledExecutable
+    )
+
+    if (-not (Test-Path $ConfigPath)) {
+        return $false
+    }
+
+    $root = Get-ExistingConfigMap -Path $ConfigPath
+    $servers = Get-ConfigCollectionMap -Root $root -CollectionName $CollectionName
+    if (-not $servers.Contains('wpf-devtools')) {
+        return $false
+    }
+
+    return ([string]$servers['wpf-devtools'].command -eq $InstalledExecutable)
+}
+
+function Test-ArtifactRegistrationMatchesExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$ArtifactPath,
+        [Parameter(Mandatory)] [string]$InstalledExecutable
+    )
+
+    if (-not (Test-Path $ArtifactPath)) {
+        return $false
+    }
+
+    $artifact = Get-Content -Path $ArtifactPath -Raw | ConvertFrom-Json
+    $serverCollection = if ($null -ne $artifact.mcpServers) { $artifact.mcpServers } else { $artifact.servers }
+    if ($null -eq $serverCollection -or $null -eq $serverCollection.'wpf-devtools') {
+        return $false
+    }
+
+    return ([string]$serverCollection.'wpf-devtools'.command -eq $InstalledExecutable)
+}
+
+function Invoke-VerificationCommand {
+    param(
+        [Parameter(Mandatory)] [string]$Command,
+        [Parameter(Mandatory)] [string[]]$Arguments,
+        [Parameter(Mandatory)] [string]$ExpectedToken,
+        [Parameter(Mandatory)] [bool]$ExpectPresent
+    )
+
+    $resolvedCommand = Get-Command $Command -ErrorAction SilentlyContinue
+    if ($null -eq $resolvedCommand) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = "$Command is not installed."
+            ExitCode = -1
+        }
+    }
+
+    $output = (& $Command @Arguments 2>&1 | Out-String).Trim()
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = $output
+            ExitCode = $exitCode
+        }
+    }
+
+    $containsToken = if ([string]::IsNullOrWhiteSpace($output)) { $ExpectPresent } else { $output.Contains($ExpectedToken) }
+    return [ordered]@{
+        Succeeded = ($containsToken -eq $ExpectPresent)
+        Output = $output
+        ExitCode = $exitCode
+    }
 }
 
 function Read-ValidatedChoice {
@@ -1005,11 +1117,309 @@ function Switch-Page {
     }
 }
 
+function Get-InstalledClientLabel {
+    param(
+        [Parameter(Mandatory)] [string]$ClientId,
+        [Parameter(Mandatory)] $State
+    )
+
+    $clientLabel = Resolve-ClientLabel -ClientId $ClientId
+    if (-not $State.registrations.Contains($ClientId)) {
+        return $clientLabel
+    }
+
+    $resolvedVersion = [string]$State.registrations[$ClientId].resolvedVersion
+    if ([string]::IsNullOrWhiteSpace($resolvedVersion)) {
+        return "$clientLabel (Installed)"
+    }
+
+    return "$clientLabel (Installed v$resolvedVersion)"
+}
+
+function Refresh-InstalledLabels {
+    param(
+        [Parameter(Mandatory)] $Window,
+        [Parameter(Mandatory)] $State
+    )
+
+    $buttonMaps = @(
+        @{ Client = 'claude-code'; Install = 'InstallClaudeCodeButton'; Uninstall = 'UninstallClaudeCodeButton' }
+        @{ Client = 'codex'; Install = 'InstallCodexButton'; Uninstall = 'UninstallCodexButton' }
+        @{ Client = 'vscode'; Install = 'InstallVsCodeButton'; Uninstall = 'UninstallVsCodeButton' }
+        @{ Client = 'visual-studio'; Install = 'InstallVisualStudioButton'; Uninstall = 'UninstallVisualStudioButton' }
+        @{ Client = 'claude-desktop'; Install = 'InstallClaudeDesktopButton'; Uninstall = 'UninstallClaudeDesktopButton' }
+        @{ Client = 'other'; Install = 'InstallOtherButton'; Uninstall = 'UninstallOtherButton' }
+    )
+
+    foreach ($map in $buttonMaps) {
+        $label = Get-InstalledClientLabel -ClientId $map.Client -State $State
+        foreach ($buttonName in @($map.Install, $map.Uninstall)) {
+            $button = $Window.FindName($buttonName)
+            if ($button -and $button.Content -is [System.Windows.Controls.Grid]) {
+                $button.Content.Children[0].Text = $label
+            }
+        }
+    }
+}
+
+function Invoke-InstallVerification {
+    param(
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        [Parameter(Mandatory)] [string]$ResolvedVersion,
+        [Parameter(Mandatory)] [string]$InstalledExecutable,
+        [Parameter(Mandatory)] $Registration
+    )
+
+    $verificationSucceeded = $false
+    $verificationMessage = $null
+    switch ($SelectedClient) {
+        'claude-code' {
+            $verification = Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true
+            $verificationSucceeded = ($verification.Succeeded -and (Test-Path $InstalledExecutable))
+            $verificationMessage = if ($verificationSucceeded) { 'Verified with claude mcp list.' } else { "Claude verification failed: $($verification.Output)" }
+        }
+        'codex' {
+            $verification = Invoke-VerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true
+            $verificationSucceeded = ($verification.Succeeded -and (Test-Path $InstalledExecutable))
+            $verificationMessage = if ($verificationSucceeded) { 'Verified with codex mcp list.' } else { "Codex verification failed: $($verification.Output)" }
+        }
+        'vscode' {
+            $verificationSucceeded = Test-JsonConfigRegistrationMatchesExecutable -CollectionName 'servers' -ConfigPath (Resolve-VsCodeConfigPath) -InstalledExecutable $InstalledExecutable
+            $verificationMessage = if ($verificationSucceeded) { 'Verified VS Code configuration.' } else { 'VS Code verification failed.' }
+        }
+        'visual-studio' {
+            $verificationSucceeded = Test-JsonConfigRegistrationMatchesExecutable -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath) -InstalledExecutable $InstalledExecutable
+            $verificationMessage = if ($verificationSucceeded) { 'Verified Visual Studio configuration.' } else { 'Visual Studio verification failed.' }
+        }
+        'claude-desktop' {
+            $verificationSucceeded = Test-JsonConfigRegistrationMatchesExecutable -CollectionName 'mcpServers' -ConfigPath (Resolve-ClaudeDesktopConfigPath) -InstalledExecutable $InstalledExecutable
+            $verificationMessage = if ($verificationSucceeded) { 'Verified Claude Desktop configuration.' } else { 'Claude Desktop verification failed.' }
+        }
+        'other' {
+            $verificationSucceeded = Test-ArtifactRegistrationMatchesExecutable -ArtifactPath ([string]$Registration.target) -InstalledExecutable $InstalledExecutable
+            $verificationMessage = if ($verificationSucceeded) { 'Verified exported registration artifact.' } else { 'Artifact verification failed.' }
+        }
+    }
+
+    return [ordered]@{
+        Succeeded = $verificationSucceeded
+        InstalledVersion = $ResolvedVersion
+        VerificationMessage = $verificationMessage
+        LastVerifiedUtc = [DateTime]::UtcNow.ToString('o')
+    }
+}
+
+function Invoke-UninstallVerification {
+    param([Parameter(Mandatory)] [string]$SelectedClient)
+
+    $verificationSucceeded = switch ($SelectedClient) {
+        'claude-code' {
+            (Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            break
+        }
+        'codex' {
+            (Invoke-VerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            break
+        }
+        'vscode' { -not (Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath (Resolve-VsCodeConfigPath)); break }
+        'visual-studio' { -not (Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath)); break }
+        'claude-desktop' { -not (Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath (Resolve-ClaudeDesktopConfigPath)); break }
+        default { $true }
+    }
+
+    return [ordered]@{
+        Succeeded = [bool]$verificationSucceeded
+        VerificationMessage = "Verified uninstall state for $SelectedClient."
+    }
+}
+
+function Refresh-UpdateBanner {
+    param(
+        [Parameter(Mandatory)] $Window,
+        [string]$LatestVersion
+    )
+
+    $updateBanner = $Window.FindName('UpdateBanner')
+    $updateBannerText = $Window.FindName('UpdateBannerText')
+    $updateAllButton = $Window.FindName('UpdateAllButton')
+    if ([string]::IsNullOrWhiteSpace($LatestVersion)) {
+        $updateBanner.Visibility = 'Collapsed'
+        $updateBannerText.Text = ''
+        $updateAllButton.IsEnabled = $false
+        return
+    }
+    $availableUpdates = @(Get-AvailableInstallerUpdates -State (Get-InstallerState) -LatestVersion $LatestVersion)
+
+    if ($availableUpdates.Count -gt 0) {
+        $updateBanner.Visibility = 'Visible'
+        $updateBannerText.Text = "$($availableUpdates.Count) installed target(s) can be updated to v$LatestVersion."
+        $updateAllButton.IsEnabled = $true
+        return
+    }
+
+    $updateBanner.Visibility = 'Collapsed'
+    $updateBannerText.Text = ''
+    $updateAllButton.IsEnabled = $false
+}
+
+function Set-UiBusyState {
+    param(
+        [Parameter(Mandatory)] $Window,
+        [Parameter(Mandatory)] [bool]$IsBusy
+    )
+
+    foreach ($name in @(
+            'ArchitectureSelector',
+            'BrowseInstallRootButton',
+            'GenerateStandardInstallJsonButton',
+            'GoInstallButton',
+            'GoUninstallButton',
+            'BackFromInstallButton',
+            'BackFromUninstallButton',
+            'UpdateAllButton',
+            'InstallClaudeCodeButton',
+            'InstallCodexButton',
+            'InstallVsCodeButton',
+            'InstallVisualStudioButton',
+            'InstallClaudeDesktopButton',
+            'InstallOtherButton',
+            'UninstallClaudeCodeButton',
+            'UninstallCodexButton',
+            'UninstallVsCodeButton',
+            'UninstallVisualStudioButton',
+            'UninstallClaudeDesktopButton',
+            'UninstallOtherButton')) {
+        $element = $Window.FindName($name)
+        if ($null -ne $element) {
+            $element.IsEnabled = -not $IsBusy
+        }
+    }
+
+    $installRootTextBox = $Window.FindName('InstallRootTextBox')
+    if ($null -ne $installRootTextBox) {
+        $installRootTextBox.IsReadOnly = $IsBusy
+    }
+
+    try {
+        $Window.Cursor = if ($IsBusy) { [System.Windows.Input.Cursors]::Wait } else { [System.Windows.Input.Cursors]::Arrow }
+        $null = $Window.Dispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+    }
+    catch {
+    }
+}
+
+function Invoke-GuiInstallOperation {
+    param(
+        [Parameter(Mandatory)] $Window,
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        [string]$LatestVersion
+    )
+
+    $txtInstMsg = $Window.FindName('TxtInstMsg')
+    $selectedArchitecture = [string]$Window.FindName('ArchitectureSelector').SelectedItem
+    if ([string]::IsNullOrWhiteSpace($selectedArchitecture)) {
+        $selectedArchitecture = Get-SystemDefaultArchitecture
+    }
+    $selectedRoot = [string]$Window.FindName('InstallRootTextBox').Text
+    if ([string]::IsNullOrWhiteSpace($selectedRoot)) {
+        $selectedRoot = Resolve-PreferredInstallRoot
+    }
+
+    Set-UiBusyState -Window $Window -IsBusy $true
+    $txtInstMsg.Text = "Installing $(Resolve-ClientLabel -ClientId $SelectedClient)..."
+
+    try {
+        $result = Invoke-InstallerAction -ResolvedAction 'install' -ResolvedArchitecture $selectedArchitecture -ResolvedClient $SelectedClient -ResolvedInstallRoot $selectedRoot.Trim() -RequestedVersion $Version
+        $txtInstMsg.Text = "Installed $(Resolve-ClientLabel -ClientId $SelectedClient) v$($result.resolvedVersion). $($result.verificationMessage)"
+        Update-AllStatus -Window $Window -InstalledStatus (Get-InstalledClientStatusMap -State (Get-InstallerState)) -LatestVersion $LatestVersion
+        return [ordered]@{ Succeeded = $true; Result = $result }
+    }
+    catch {
+        $txtInstMsg.Text = "Installation failed: $($_.Exception.Message)"
+        return [ordered]@{ Succeeded = $false; Error = $_.Exception.Message }
+    }
+    finally {
+        Set-UiBusyState -Window $Window -IsBusy $false
+        Update-AllStatus -Window $Window -InstalledStatus (Get-InstalledClientStatusMap -State (Get-InstallerState)) -LatestVersion $LatestVersion
+    }
+}
+
+function Invoke-GuiUninstallOperation {
+    param(
+        [Parameter(Mandatory)] $Window,
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        [string]$LatestVersion
+    )
+
+    $txtUninstMsg = $Window.FindName('TxtUninstMsg')
+    $state = Get-InstallerState
+    $registration = if ($state.registrations.Contains($SelectedClient)) { $state.registrations[$SelectedClient] } else { $null }
+    $selectedArchitecture = if ($null -ne $registration) { [string]$registration.architecture } else { [string]$Window.FindName('ArchitectureSelector').SelectedItem }
+    $selectedRoot = if ($null -ne $registration) { [string]$registration.installRoot } else { [string]$Window.FindName('InstallRootTextBox').Text }
+
+    Set-UiBusyState -Window $Window -IsBusy $true
+    $txtUninstMsg.Text = "Uninstalling $(Resolve-ClientLabel -ClientId $SelectedClient)..."
+
+    try {
+        $result = Invoke-InstallerAction -ResolvedAction 'uninstall' -ResolvedArchitecture $selectedArchitecture -ResolvedClient $SelectedClient -ResolvedInstallRoot $selectedRoot -RequestedVersion $Version
+        $txtUninstMsg.Text = "Removed $(Resolve-ClientLabel -ClientId $SelectedClient). $($result.verificationMessage)"
+        Update-AllStatus -Window $Window -InstalledStatus (Get-InstalledClientStatusMap -State (Get-InstallerState)) -LatestVersion $LatestVersion
+        return [ordered]@{ Succeeded = $true; Result = $result }
+    }
+    catch {
+        $txtUninstMsg.Text = "Uninstall failed: $($_.Exception.Message)"
+        return [ordered]@{ Succeeded = $false; Error = $_.Exception.Message }
+    }
+    finally {
+        Set-UiBusyState -Window $Window -IsBusy $false
+        Update-AllStatus -Window $Window -InstalledStatus (Get-InstalledClientStatusMap -State (Get-InstallerState)) -LatestVersion $LatestVersion
+    }
+}
+
+function Invoke-UpdateAllOperation {
+    param(
+        [Parameter(Mandatory)] $Window,
+        [Parameter(Mandatory)] [string]$LatestVersion
+    )
+
+    $txtInstMsg = $Window.FindName('TxtInstMsg')
+    $updates = @(Get-AvailableInstallerUpdates -State (Get-InstallerState) -LatestVersion $LatestVersion)
+    if ($updates.Count -eq 0) {
+        $txtInstMsg.Text = 'All installed targets are already on the latest release.'
+        return [ordered]@{ Succeeded = $true; UpdatedCount = 0 }
+    }
+
+    Set-UiBusyState -Window $Window -IsBusy $true
+    $updated = 0
+    try {
+        foreach ($update in $updates) {
+            $txtInstMsg.Text = "Updating $(Resolve-ClientLabel -ClientId ([string]$update.Client)) to v$LatestVersion..."
+            $null = Invoke-InstallerAction -ResolvedAction 'install' -ResolvedArchitecture ([string]$update.Architecture) -ResolvedClient ([string]$update.Client) -ResolvedInstallRoot ([string]$update.InstallRoot) -RequestedVersion 'latest' -UseLatestRelease
+            $updated++
+        }
+        $txtInstMsg.Text = "Updated $updated target(s) to v$LatestVersion."
+        Update-AllStatus -Window $Window -InstalledStatus (Get-InstalledClientStatusMap -State (Get-InstallerState)) -LatestVersion $LatestVersion
+        return [ordered]@{ Succeeded = $true; UpdatedCount = $updated }
+    }
+    catch {
+        $txtInstMsg.Text = "Update All failed: $($_.Exception.Message)"
+        return [ordered]@{ Succeeded = $false; Error = $_.Exception.Message; UpdatedCount = $updated }
+    }
+    finally {
+        Set-UiBusyState -Window $Window -IsBusy $false
+        Update-AllStatus -Window $Window -InstalledStatus (Get-InstalledClientStatusMap -State (Get-InstallerState)) -LatestVersion $LatestVersion
+    }
+}
+
 function Update-AllStatus {
     param(
         [Parameter(Mandatory)] $Window,
-        [Parameter(Mandatory)] $InstalledStatus
+        [Parameter(Mandatory)] $InstalledStatus,
+        [string]$LatestVersion
     )
+
+    $state = Get-InstallerState
+    Refresh-InstalledLabels -Window $Window -State $state
 
     $buttonMaps = @(
         @{ Client = 'claude-code'; Install = 'InstallClaudeCodeButton'; Uninstall = 'UninstallClaudeCodeButton' }
@@ -1035,6 +1445,126 @@ function Update-AllStatus {
             $uninstallButton.IsEnabled = $installed
         }
     }
+
+    if (-not [string]::IsNullOrWhiteSpace($LatestVersion)) {
+        Refresh-UpdateBanner -Window $Window -LatestVersion $LatestVersion
+    }
+}
+
+function Invoke-InstallerAction {
+    param(
+        [Parameter(Mandatory)] [ValidateSet('install', 'uninstall')] [string]$ResolvedAction,
+        [Parameter(Mandatory)] [string]$ResolvedArchitecture,
+        [Parameter(Mandatory)] [string]$ResolvedClient,
+        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [string]$RequestedVersion,
+        [switch]$UseLatestRelease
+    )
+
+    if ($ResolvedAction -eq 'uninstall') {
+        $state = Get-InstallerState
+        $registrationRecord = if ($state.registrations.Contains($ResolvedClient)) { $state.registrations[$ResolvedClient] } else { $null }
+        if ($null -ne $registrationRecord) {
+            if ([string]::IsNullOrWhiteSpace($ResolvedArchitecture)) {
+                $ResolvedArchitecture = [string]$registrationRecord.architecture
+            }
+            if (-not $script:InstallRootWasSpecified -and [string]::IsNullOrWhiteSpace($ResolvedInstallRoot)) {
+                $ResolvedInstallRoot = [string]$registrationRecord.installRoot
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($ResolvedArchitecture)) {
+            $ResolvedArchitecture = Get-SystemDefaultArchitecture
+        }
+        if ([string]::IsNullOrWhiteSpace($ResolvedInstallRoot)) {
+            $ResolvedInstallRoot = Resolve-PreferredInstallRoot
+        }
+
+        $ResolvedInstallRoot = Resolve-AbsoluteDirectory -Path $ResolvedInstallRoot
+        $installBase = Resolve-InstallBasePath -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture
+        $installManifestPath = Join-Path $installBase 'install-manifest.json'
+        $installedExecutable = if (Test-Path $installManifestPath) { ([string](Get-Content -Path $installManifestPath -Raw | ConvertFrom-Json).executable) } else { $null }
+        $registrations = @(Invoke-ClientUnregistration -SelectedClient $ResolvedClient)
+        $remainingRegistrations = Get-RegistrationsForArchitecture -State $state -ResolvedArchitecture $ResolvedArchitecture -ResolvedInstallRoot $ResolvedInstallRoot -ExcludeClient $ResolvedClient
+        $removedInstallation = $false
+        if ($remainingRegistrations.Count -eq 0) {
+            Remove-PathIfExists -Path $installBase
+            $removedInstallation = $true
+        }
+
+        $verification = Invoke-UninstallVerification -SelectedClient $ResolvedClient
+        if (-not $verification.Succeeded) {
+            throw $verification.VerificationMessage
+        }
+
+        if ($state.registrations.Contains($ResolvedClient)) {
+            [void]$state.registrations.Remove($ResolvedClient)
+        }
+        if ($removedInstallation -and $state.architectures.Contains($ResolvedArchitecture)) {
+            [void]$state.architectures.Remove($ResolvedArchitecture)
+        }
+
+        $statePath = Save-InstallerState -State $state
+        return [ordered]@{
+            action = 'uninstall'
+            mode = 'offline'
+            downloadSource = 'none'
+            version = $RequestedVersion
+            resolvedVersion = $null
+            architecture = $ResolvedArchitecture
+            client = $ResolvedClient
+            packageAssetName = $null
+            downloadUri = $null
+            installRoot = $ResolvedInstallRoot
+            installedExecutable = $installedExecutable
+            selectedClients = @($ResolvedClient)
+            statePath = $statePath
+            removedInstallation = $removedInstallation
+            registrations = @($registrations)
+            verificationMessage = [string]$verification.VerificationMessage
+        }
+    }
+
+    $mode = if ($UseLatestRelease) { 'online' } else { Resolve-InstallerMode }
+    $session = Resolve-PackageSession -Mode $mode -ResolvedVersion $RequestedVersion -ResolvedArchitecture $ResolvedArchitecture
+    try {
+        $packageManifest = Get-Content -Path (Resolve-PackageManifestPath -PackageDirectory $session.PackageDirectory) -Raw | ConvertFrom-Json
+        $resolvedVersion = if ([string]::IsNullOrWhiteSpace([string]$packageManifest.version)) { [string]$session.ResolvedVersion } else { [string]$packageManifest.version }
+        $installResult = Install-PackagePayload -PackageDirectory $session.PackageDirectory -PackageManifest $packageManifest -ResolvedArchitecture $ResolvedArchitecture -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedVersion $resolvedVersion
+        $registrations = @(Invoke-ClientRegistration -SelectedClient $ResolvedClient -InstalledExecutable $installResult.installedExecutable -InstallBase $installResult.installBase)
+        $verification = Invoke-InstallVerification -SelectedClient $ResolvedClient -ResolvedVersion $resolvedVersion -InstalledExecutable $installResult.installedExecutable -Registration $registrations[0]
+        if (-not $verification.Succeeded) {
+            throw $verification.VerificationMessage
+        }
+
+        $state = Get-InstallerState
+        Update-InstallerStateAfterInstall -State $state -ResolvedInstallRoot $installResult.installRoot -ResolvedArchitecture $ResolvedArchitecture -ResolvedVersion ([string]$verification.InstalledVersion) -InstalledExecutable $installResult.installedExecutable -SelectedClient $ResolvedClient -Registration $registrations[0] -LastVerifiedUtc ([string]$verification.LastVerifiedUtc)
+        $statePath = Save-InstallerState -State $state
+        return [ordered]@{
+            action = 'install'
+            mode = $mode
+            downloadSource = [string]$session.DownloadSource
+            version = $RequestedVersion
+            resolvedVersion = [string]$verification.InstalledVersion
+            architecture = $ResolvedArchitecture
+            client = $ResolvedClient
+            packageAssetName = [string]$session.PackageAssetName
+            downloadUri = [string]$session.DownloadUri
+            installRoot = $installResult.installRoot
+            installedExecutable = $installResult.installedExecutable
+            selectedClients = @($ResolvedClient)
+            statePath = $statePath
+            reusedExistingBinary = [bool]$installResult.reusedExistingBinary
+            registrations = @($registrations)
+            verificationMessage = [string]$verification.VerificationMessage
+            lastVerifiedUtc = [string]$verification.LastVerifiedUtc
+        }
+    }
+    finally {
+        if ($session.CleanupSession) {
+            Remove-PathIfExists -Path $session.SessionRoot
+        }
+    }
 }
 
 function Show-InstallerWindow {
@@ -1048,13 +1578,14 @@ function Show-InstallerWindow {
     )
 
     if ($NonInteractive -or $OutputJson) {
-        return [ordered]@{ Launched = $false; Cancelled = $false; Selection = $null }
+        return [ordered]@{ Launched = $false; Cancelled = $false; Selection = $null; HandledInWindow = $false }
     }
 
     try {
         Add-Type -AssemblyName PresentationFramework
         Add-Type -AssemblyName PresentationCore
         Add-Type -AssemblyName WindowsBase
+        Add-Type -AssemblyName System.Windows.Forms
         Ensure-DwmMicaHelper
 
         $xaml = @'
@@ -1183,6 +1714,46 @@ function Show-InstallerWindow {
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="InstallRootTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Background" Value="#CC202033"/>
+            <Setter Property="Foreground" Value="#FFEDEDF2"/>
+            <Setter Property="BorderBrush" Value="#32FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="InstallRootActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#CC2B2B3F"/>
+            <Setter Property="Foreground" Value="#FFF3F4F6"/>
+            <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#E633334A"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#38FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF232338"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -1379,6 +1950,19 @@ function Show-InstallerWindow {
             <Grid x:Name="PageMain">
                 <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
                 <StackPanel VerticalAlignment="Center" Margin="48,28">
+                    <Border x:Name="UpdateBanner" Visibility="Collapsed" Margin="0,0,0,18"
+                            Background="#CC243B2B" BorderBrush="#4468D391" BorderThickness="1" CornerRadius="10"
+                            Padding="14,12">
+                        <DockPanel LastChildFill="True">
+                            <StackPanel>
+                                <TextBlock Text="Updates available" Foreground="#FFE8FFF1" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="UpdateBannerText" Margin="0,4,0,0"
+                                           Foreground="#CFEFE0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button x:Name="UpdateAllButton" DockPanel.Dock="Right" Width="96" Margin="14,0,0,0"
+                                    Style="{StaticResource InstallRootActionButtonStyle}" Content="Update All"/>
+                        </DockPanel>
+                    </Border>
                     <TextBlock Text="WPF DevTools MCP" FontSize="30" FontWeight="Bold"
                                Foreground="White" Margin="0,0,0,2"/>
                     <TextBlock Text="Model Context Protocol Server" FontSize="13"
@@ -1419,9 +2003,28 @@ function Show-InstallerWindow {
                     <Button x:Name="BackFromInstallButton" Style="{StaticResource NavBtn}" Margin="0,0,0,12" Content="Back"/>
                     <TextBlock Margin="0,0,0,4" FontSize="22" FontWeight="Bold" Foreground="White" Text="Install to"/>
                     <TextBlock Margin="0,0,0,16" FontSize="12" Foreground="#50FFFFFF" Text="Select the client that should use the release executable."/>
-                    <TextBlock Foreground="#80FFFFFF" Text="Install location" Margin="0,0,0,6"/>
-                    <TextBox x:Name="InstallRootTextBox" Margin="0,0,0,10" Height="34"
-                             Background="#FF282840" Foreground="#FFE4E4E7" BorderBrush="#22FFFFFF" BorderThickness="1"/>
+                    <Border x:Name="InstallRootPanel" Margin="0,0,0,12" Padding="14,14,14,12"
+                            Background="#CC1F1F31" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Foreground="#F5F6FB" Text="Install location" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Row="1" Margin="0,4,0,10" Foreground="#80FFFFFF"
+                                       Text="Choose where the shared MCP server executable should be stored." TextWrapping="Wrap"/>
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="InstallRootTextBox" Style="{StaticResource InstallRootTextBoxStyle}" Margin="0,0,10,0"/>
+                                <Button x:Name="BrowseInstallRootButton" Grid.Column="1" Width="92"
+                                        Style="{StaticResource InstallRootActionButtonStyle}" Content="Browse"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
                     <TextBlock x:Name="VersionHintText" Margin="0,0,0,10" Foreground="#A78BFA" TextWrapping="Wrap"/>
 
                     <Button x:Name="InstallClaudeCodeButton" Style="{StaticResource ItemBtn}">
@@ -1554,7 +2157,12 @@ function Show-InstallerWindow {
         $window = [Windows.Markup.XamlReader]::Load($xr)
 
         $architectureSelector = $window.FindName('ArchitectureSelector')
+        $updateBanner = $window.FindName('UpdateBanner')
+        $updateBannerText = $window.FindName('UpdateBannerText')
+        $updateAllButton = $window.FindName('UpdateAllButton')
+        $installRootPanel = $window.FindName('InstallRootPanel')
         $installRootTextBox = $window.FindName('InstallRootTextBox')
+        $browseInstallRootButton = $window.FindName('BrowseInstallRootButton')
         $versionHintText = $window.FindName('VersionHintText')
         $pageMain = $window.FindName('PageMain')
         $pageInstall = $window.FindName('PageInstall')
@@ -1563,36 +2171,30 @@ function Show-InstallerWindow {
         $TxtInstMsg = $window.FindName('TxtInstMsg')
         $TxtUninstMsg = $window.FindName('TxtUninstMsg')
 
+        $latestVersion = $null
+        try {
+            $latestVersion = [string](Invoke-RestMethod -Uri (Get-GitHubReleaseApiUri -ResolvedVersion 'latest') -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name
+            $latestVersion = $latestVersion.TrimStart('v')
+        }
+        catch {
+        }
+
         $architectureSelector.ItemsSource = @('x64', 'x86', 'arm64')
         $architectureSelector.SelectedItem = $DefaultArchitecture
         $installRootTextBox.Text = $DefaultInstallRoot
         $versionHintText.Text = if ([string]::IsNullOrWhiteSpace($VersionHint)) { '' } else { $VersionHint }
-
-        $selection = $null
-        $cancelled = $true
-
-        $setSelection = {
-            param([string]$ResolvedAction, [string]$ResolvedClient)
-            $selectedRoot = $installRootTextBox.Text
-            if ([string]::IsNullOrWhiteSpace($selectedRoot)) {
-                $selectedRoot = $DefaultInstallRoot
-            }
-
-            $selection = [ordered]@{
-                Action = $ResolvedAction
-                Architecture = [string]$architectureSelector.SelectedItem
-                Client = $ResolvedClient
-                InstallRoot = $selectedRoot.Trim()
-            }
-            $cancelled = $false
-            $window.Close()
-        }
+        Refresh-UpdateBanner -Window $window -LatestVersion $latestVersion
 
         $wireActionButton = {
             param([string]$Name, [string]$ResolvedAction, [string]$ResolvedClient)
             $button = $window.FindName($Name)
             $button.Add_Click({
-                    & $setSelection $ResolvedAction $ResolvedClient
+                    if ($ResolvedAction -eq 'install') {
+                        Invoke-GuiInstallOperation -Window $window -SelectedClient $ResolvedClient -LatestVersion $latestVersion | Out-Null
+                    }
+                    else {
+                        Invoke-GuiUninstallOperation -Window $window -SelectedClient $ResolvedClient -LatestVersion $latestVersion | Out-Null
+                    }
                 })
         }
 
@@ -1603,12 +2205,12 @@ function Show-InstallerWindow {
                 try { $window.Close() } catch {}
             })
         $window.FindName('GoInstallButton').Add_Click({
-                Update-AllStatus -Window $window -InstalledStatus $InstalledStatus
+                Update-AllStatus -Window $window -InstalledStatus (Get-InstalledClientStatusMap -State (Get-InstallerState)) -LatestVersion $latestVersion
                 $TxtInstMsg.Text = ''
                 Switch-Page -From $pageMain -To $pageInstall -Direction 1
             })
         $window.FindName('GoUninstallButton').Add_Click({
-                Update-AllStatus -Window $window -InstalledStatus $InstalledStatus
+                Update-AllStatus -Window $window -InstalledStatus (Get-InstalledClientStatusMap -State (Get-InstallerState)) -LatestVersion $latestVersion
                 $TxtUninstMsg.Text = ''
                 Switch-Page -From $pageMain -To $pageUninstall -Direction 1
             })
@@ -1617,6 +2219,23 @@ function Show-InstallerWindow {
             })
         $window.FindName('BackFromUninstallButton').Add_Click({
                 Switch-Page -From $pageUninstall -To $pageMain -Direction -1
+            })
+        $browseInstallRootButton.Add_Click({
+                try {
+                    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+                    $dialog.SelectedPath = $installRootTextBox.Text
+                    $dialog.Description = 'Select an install location for the shared WPF DevTools MCP server.'
+                    if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK -and
+                        -not [string]::IsNullOrWhiteSpace($dialog.SelectedPath)) {
+                        $installRootTextBox.Text = $dialog.SelectedPath
+                    }
+                }
+                catch {
+                    $TxtInstMsg.Text = "Unable to browse for install location: $($_.Exception.Message)"
+                }
+            })
+        $updateAllButton.Add_Click({
+                Invoke-UpdateAllOperation -Window $window -LatestVersion $latestVersion | Out-Null
             })
         $generateStandardInstallJsonButton.Add_Click({
                 try {
@@ -1670,7 +2289,7 @@ function Show-InstallerWindow {
                 try {
                     $hwnd = ([System.Windows.Interop.WindowInteropHelper]::new($window)).Handle
                     [DwmMicaHelper]::Apply($hwnd)
-                    Update-AllStatus -Window $window -InstalledStatus $InstalledStatus
+                    Update-AllStatus -Window $window -InstalledStatus $InstalledStatus -LatestVersion $latestVersion
                 }
                 catch {
                 }
@@ -1679,8 +2298,9 @@ function Show-InstallerWindow {
         [void]$window.ShowDialog()
         return [ordered]@{
             Launched = $true
-            Cancelled = $cancelled
-            Selection = $selection
+            Cancelled = $false
+            Selection = $null
+            HandledInWindow = $true
         }
     }
     catch {
@@ -1688,6 +2308,7 @@ function Show-InstallerWindow {
             Launched = $false
             Cancelled = $false
             Selection = $null
+            HandledInWindow = $false
         }
     }
 }
@@ -1927,6 +2548,7 @@ function Resolve-Selection {
             Cancelled = [bool]$windowResult.Cancelled
             Selection = $windowResult.Selection
             VersionHint = $versionHint
+            HandledInWindow = [bool]$windowResult.HandledInWindow
         }
     }
 
@@ -1934,6 +2556,7 @@ function Resolve-Selection {
         Cancelled = $false
         Selection = (Get-CliSelection)
         VersionHint = $versionHint
+        HandledInWindow = $false
     }
 }
 
@@ -1993,6 +2616,9 @@ $selectionContext = Resolve-Selection
 if ($selectionContext.Cancelled) {
     return
 }
+if ($selectionContext.HandledInWindow) {
+    return
+}
 
 $interactiveSelection = $selectionContext.Selection
 $resolvedAction = [string]$interactiveSelection.Action
@@ -2001,116 +2627,7 @@ $resolvedClient = [string]$interactiveSelection.Client
 $resolvedInstallRoot = [string]$interactiveSelection.InstallRoot
 $versionHint = [string]$selectionContext.VersionHint
 
-if ($resolvedAction -eq 'uninstall') {
-    $state = Get-InstallerState
-    $registrationRecord = if ($state.registrations.Contains($resolvedClient)) { $state.registrations[$resolvedClient] } else { $null }
-
-    if ($null -ne $registrationRecord) {
-        if ([string]::IsNullOrWhiteSpace($resolvedArchitecture)) {
-            $resolvedArchitecture = [string]$registrationRecord.architecture
-        }
-        if (-not $script:InstallRootWasSpecified -and [string]::IsNullOrWhiteSpace($resolvedInstallRoot)) {
-            $resolvedInstallRoot = [string]$registrationRecord.installRoot
-        }
-    }
-
-    if ([string]::IsNullOrWhiteSpace($resolvedArchitecture)) {
-        $resolvedArchitecture = Get-SystemDefaultArchitecture
-    }
-
-    if ([string]::IsNullOrWhiteSpace($resolvedInstallRoot)) {
-        $resolvedInstallRoot = Resolve-PreferredInstallRoot
-    }
-
-    $resolvedInstallRoot = Resolve-AbsoluteDirectory -Path $resolvedInstallRoot
-    $installBase = Resolve-InstallBasePath -ResolvedInstallRoot $resolvedInstallRoot -ResolvedArchitecture $resolvedArchitecture
-    $installManifestPath = Join-Path $installBase 'install-manifest.json'
-    $installedExecutable = if (Test-Path $installManifestPath) { ([string](Get-Content -Path $installManifestPath -Raw | ConvertFrom-Json).executable) } else { $null }
-
-    $registrations = @(Invoke-ClientUnregistration -SelectedClient $resolvedClient)
-
-    if ($state.registrations.Contains($resolvedClient)) {
-        [void]$state.registrations.Remove($resolvedClient)
-    }
-
-    $remainingRegistrations = Get-RegistrationsForArchitecture -State $state -ResolvedArchitecture $resolvedArchitecture -ResolvedInstallRoot $resolvedInstallRoot -ExcludeClient $resolvedClient
-    $removedInstallation = $false
-    if ($remainingRegistrations.Count -eq 0) {
-        Remove-PathIfExists -Path $installBase
-        if ($state.architectures.Contains($resolvedArchitecture)) {
-            [void]$state.architectures.Remove($resolvedArchitecture)
-        }
-        $removedInstallation = $true
-    }
-
-    $statePath = Save-InstallerState -State $state
-    $result = [ordered]@{
-        action = 'uninstall'
-        mode = 'offline'
-        downloadSource = 'none'
-        version = $Version
-        resolvedVersion = $null
-        architecture = $resolvedArchitecture
-        client = $resolvedClient
-        packageAssetName = $null
-        downloadUri = $null
-        installRoot = $resolvedInstallRoot
-        installedExecutable = $installedExecutable
-        selectedClients = @($resolvedClient)
-        statePath = $statePath
-        removedInstallation = $removedInstallation
-        registrations = @($registrations)
-    }
-}
-else {
-    $mode = Resolve-InstallerMode
-    $session = Resolve-PackageSession -Mode $mode -ResolvedVersion $Version -ResolvedArchitecture $resolvedArchitecture
-
-    try {
-        $packageManifest = Get-Content -Path (Resolve-PackageManifestPath -PackageDirectory $session.PackageDirectory) -Raw | ConvertFrom-Json
-        $resolvedVersion = if ([string]::IsNullOrWhiteSpace([string]$packageManifest.version)) { [string]$session.ResolvedVersion } else { [string]$packageManifest.version }
-        $installResult = Install-PackagePayload `
-            -PackageDirectory $session.PackageDirectory `
-            -PackageManifest $packageManifest `
-            -ResolvedArchitecture $resolvedArchitecture `
-            -ResolvedInstallRoot $resolvedInstallRoot `
-            -ResolvedVersion $resolvedVersion
-        $registrations = @(Invoke-ClientRegistration -SelectedClient $resolvedClient -InstalledExecutable $installResult.installedExecutable -InstallBase $installResult.installBase)
-        $state = Get-InstallerState
-        Update-InstallerStateAfterInstall `
-            -State $state `
-            -ResolvedInstallRoot $installResult.installRoot `
-            -ResolvedArchitecture $resolvedArchitecture `
-            -ResolvedVersion $resolvedVersion `
-            -InstalledExecutable $installResult.installedExecutable `
-            -SelectedClient $resolvedClient `
-            -Registration $registrations[0]
-        $statePath = Save-InstallerState -State $state
-
-        $result = [ordered]@{
-            action = 'install'
-            mode = $mode
-            downloadSource = [string]$session.DownloadSource
-            version = $Version
-            resolvedVersion = $resolvedVersion
-            architecture = $resolvedArchitecture
-            client = $resolvedClient
-            packageAssetName = [string]$session.PackageAssetName
-            downloadUri = [string]$session.DownloadUri
-            installRoot = $installResult.installRoot
-            installedExecutable = $installResult.installedExecutable
-            selectedClients = @($resolvedClient)
-            statePath = $statePath
-            reusedExistingBinary = [bool]$installResult.reusedExistingBinary
-            registrations = @($registrations)
-        }
-    }
-    finally {
-        if ($session.CleanupSession) {
-            Remove-PathIfExists -Path $session.SessionRoot
-        }
-    }
-}
+$result = Invoke-InstallerAction -ResolvedAction $resolvedAction -ResolvedArchitecture $resolvedArchitecture -ResolvedClient $resolvedClient -ResolvedInstallRoot $resolvedInstallRoot -RequestedVersion $Version
 
 if ($OutputJson) {
     $result | ConvertTo-Json -Depth 10

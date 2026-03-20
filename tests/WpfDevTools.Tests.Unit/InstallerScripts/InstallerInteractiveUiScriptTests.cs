@@ -91,6 +91,42 @@ public sealed class InstallerInteractiveUiScriptTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldDeclareFluentLikeInstallRootBannerAndLiveWindowOperationMarkers()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("InstallRootPanel");
+        content.Should().Contain("InstallRootTextBoxStyle");
+        content.Should().Contain("InstallRootActionButtonStyle");
+        content.Should().Contain("BrowseInstallRootButton");
+        content.Should().Contain("System.Windows.Forms.FolderBrowserDialog");
+        content.Should().Contain("UpdateBanner");
+        content.Should().Contain("UpdateBannerText");
+        content.Should().Contain("UpdateAllButton");
+        content.Should().Contain("Invoke-GuiInstallOperation");
+        content.Should().Contain("Invoke-GuiUninstallOperation");
+        content.Should().Contain("Refresh-InstalledLabels");
+        content.Should().Contain("(Installed v");
+        content.Should().Contain("Invoke-InstallVerification");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldRouteGuiOperationsThroughLiveWindowHandlersAndRefreshHelpers()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("HandledInWindow");
+        content.Should().Contain("Invoke-InstallerAction");
+        content.Should().Contain("Invoke-UpdateAllOperation");
+        content.Should().Contain("Set-UiBusyState");
+        content.Should().Contain("Refresh-UpdateBanner");
+        content.Should().Contain("Invoke-GuiInstallOperation -Window $window");
+        content.Should().Contain("Invoke-GuiUninstallOperation -Window $window");
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldDeclareAnimatedPageTransitionsAndStatusRefreshHelpers()
     {
         var content = File.ReadAllText(

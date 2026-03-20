@@ -167,6 +167,93 @@ public sealed class InstallerScriptTests
     }
 
     [Fact]
+    public void OnlineInstaller_ShouldPersistResolvedVersionExecutableAndVerificationMetadataInState()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+
+            var result = RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+
+            using var json = JsonDocument.Parse(result.Stdout);
+            var statePath = json.RootElement.GetProperty("statePath").GetString();
+            statePath.Should().NotBeNullOrWhiteSpace();
+
+            using var stateDocument = JsonDocument.Parse(File.ReadAllText(statePath!));
+            var registration = stateDocument.RootElement
+                .GetProperty("registrations")
+                .GetProperty("other");
+
+            registration.GetProperty("resolvedVersion").GetString().Should().Be("1.2.3");
+            registration.GetProperty("installedExecutable").GetString()
+                .Should().EndWith(Path.Combine("current", "bin", "wpf-devtools-x64.exe"));
+            registration.GetProperty("lastVerifiedUtc").ValueKind.Should().NotBe(JsonValueKind.Undefined);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_ShouldVerifyClaudeCodeRegistrationWithCliListBeforePersistingState()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var fakeBin = Path.Combine(tempRoot, "bin");
+            var claudeLog = Path.Combine(tempRoot, "claude.log");
+            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "claude", claudeLog);
+
+            var result = RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "claude-code",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                new Dictionary<string, string?>
+                {
+                    ["PATH"] = fakeBin + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH")
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            File.ReadAllText(claudeLog)
+                .Should().Contain("mcp add --transport stdio wpf-devtools")
+                .And.Contain("mcp list");
+
+            using var json = JsonDocument.Parse(result.Stdout);
+            using var stateDocument = JsonDocument.Parse(File.ReadAllText(json.RootElement.GetProperty("statePath").GetString()!));
+            var registration = stateDocument.RootElement
+                .GetProperty("registrations")
+                .GetProperty("claude-code");
+            registration.GetProperty("lastVerifiedUtc").GetString().Should().NotBeNullOrWhiteSpace();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_Uninstall_ShouldRemoveClientRegistrationButKeepBinaryWhenAnotherClientStillUsesIt()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -277,17 +364,32 @@ public sealed class InstallerScriptTests
 
     private static (int ExitCode, string Stdout, string Stderr) RunInstaller(
         string tempRoot,
-        IReadOnlyList<string> arguments)
+        IReadOnlyList<string> arguments,
+        IReadOnlyDictionary<string, string?>? environmentOverrides = null)
         => ReleaseScriptTestHarness.RunPowerShellScript(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
             arguments,
-            CreateInstallerEnvironment(tempRoot));
+            CreateInstallerEnvironment(tempRoot, environmentOverrides));
 
-    private static Dictionary<string, string?> CreateInstallerEnvironment(string tempRoot)
-        => new()
+    private static Dictionary<string, string?> CreateInstallerEnvironment(
+        string tempRoot,
+        IReadOnlyDictionary<string, string?>? environmentOverrides = null)
+    {
+        var environment = new Dictionary<string, string?>
         {
             ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
             ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
             ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
         };
+
+        if (environmentOverrides is not null)
+        {
+            foreach (var pair in environmentOverrides)
+            {
+                environment[pair.Key] = pair.Value;
+            }
+        }
+
+        return environment;
+    }
 }

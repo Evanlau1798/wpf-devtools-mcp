@@ -56,6 +56,8 @@ public sealed class OnlineInstallerContractTests
         content.Should().Contain("Resolve-InstallerStatePath");
         content.Should().Contain("installer-state.json");
         content.Should().Contain("Save-InstallerState");
+        content.Should().Contain("Get-AvailableInstallerUpdates");
+        content.Should().Contain("UpdateAllButton");
     }
 
     [Fact]

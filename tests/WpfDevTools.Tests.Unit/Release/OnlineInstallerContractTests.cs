@@ -24,6 +24,9 @@ public sealed class OnlineInstallerContractTests
         content.Should().Contain("[switch]$NonInteractive");
         content.Should().Contain("[switch]$OutputJson");
         content.Should().Contain("Show-InstallerWindow");
+        content.Should().Contain("WindowStyle=\"None\"");
+        content.Should().Contain("WindowChrome.WindowChrome");
+        content.Should().Contain("DwmMicaHelper");
         content.Should().Contain("Read-Host",
             "the installer still needs a plain CLI fallback when WPF cannot be used");
     }

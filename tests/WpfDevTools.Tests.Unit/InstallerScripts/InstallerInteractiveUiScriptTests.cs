@@ -7,27 +7,41 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class InstallerInteractiveUiScriptTests
 {
     [Fact]
-    public void OnlineInstallerScript_ShouldDeclareGuiArchitectureSelectorInstallRootAndSharedPages()
+    public void OnlineInstallerScript_ShouldDeclareUiTestWindowChromeThemeAndAnimatedShell()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
-        content.Should().Contain("ComboBox");
-        content.Should().Contain("Architecture");
-        content.Should().Contain("Install root");
+        content.Should().Contain("WindowStyle=\"None\"");
+        content.Should().Contain("WindowChrome.WindowChrome");
+        content.Should().Contain("Style x:Key=\"CaptionBtn\"");
+        content.Should().Contain("Style x:Key=\"CloseBtn\"");
+        content.Should().Contain("Style x:Key=\"MainBtn\"");
+        content.Should().Contain("Style x:Key=\"ItemBtn\"");
+        content.Should().Contain("Style x:Key=\"NavBtn\"");
+        content.Should().Contain("BtnMin");
+        content.Should().Contain("BtnClose");
+        content.Should().Contain("DwmMicaHelper");
+        content.Should().Contain("function Switch-Page");
+        content.Should().Contain("TranslateTransform");
+        content.Should().Contain("Opacity=\"0\"");
+        content.Should().Contain("PageMain");
         content.Should().Contain("PageInstall");
         content.Should().Contain("PageUninstall");
-        content.Should().Contain("%APPDATA%");
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldDeclareGuiTargetsForVsCodeAndVisualStudio()
+    public void OnlineInstallerScript_ShouldKeepArchitectureInstallRootAndCurrentTargetsInsideGuiShell()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
+        content.Should().Contain("ArchitectureSelector");
+        content.Should().Contain("InstallRootTextBox");
         content.Should().Contain("VS Code");
         content.Should().Contain("Visual Studio");
+        content.Should().Contain("Claude Desktop");
+        content.Should().Contain("Other");
         content.Should().Contain("vscode");
         content.Should().Contain("visual-studio");
     }

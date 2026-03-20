@@ -76,6 +76,21 @@ public sealed class InstallerInteractiveUiScriptTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldUseCleanBackLabelsAndCustomArchitectureDropdownStyling()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().NotContain("??Back");
+        content.Should().Contain("Content=\"Back\"");
+        content.Should().Contain("Style x:Key=\"ArchitectureComboBoxStyle\"");
+        content.Should().Contain("Style x:Key=\"ArchitectureComboBoxItemStyle\"");
+        content.Should().Contain("Popup");
+        content.Should().Contain("AllowsTransparency=\"True\"");
+        content.Should().Contain("MaxDropDownHeight");
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldDeclareAnimatedPageTransitionsAndStatusRefreshHelpers()
     {
         var content = File.ReadAllText(

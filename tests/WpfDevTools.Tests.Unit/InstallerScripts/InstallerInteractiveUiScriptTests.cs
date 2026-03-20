@@ -56,8 +56,23 @@ public sealed class InstallerInteractiveUiScriptTests
         content.Should().Contain("TxtInstMsg");
         content.Should().Contain("TxtUninstMsg");
         content.Should().Contain("Generate Standard Install JSON");
+        content.Should().Contain("GenerateStandardInstallJsonButton");
+        content.Should().Contain("System.Windows.Clipboard");
         content.Should().Contain("Install location");
         content.Should().Contain("HorizontalAlignment=\"Right\"");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldUseCustomUiTestStyledCompletionWindowInsteadOfSystemMessageBox()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("SummaryMessageText");
+        content.Should().Contain("OpenDocsButton");
+        content.Should().Contain("CloseSummaryButton");
+        content.Should().Contain("Open documentation homepage");
+        content.Should().NotContain("System.Windows.MessageBox");
     }
 
     [Fact]

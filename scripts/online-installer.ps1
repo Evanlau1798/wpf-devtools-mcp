@@ -1060,6 +1060,7 @@ function Show-InstallerWindow {
         $xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="WPF DevTools MCP"
         Width="640"
         Height="620"
@@ -1069,10 +1070,10 @@ function Show-InstallerWindow {
         Background="#FF1E1E2E"
         FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif"
         Foreground="#FFE4E4E7">
-    <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="40" GlassFrameThickness="0,0,0,1"
-                      ResizeBorderThickness="0"/>
-    </WindowChrome.WindowChrome>
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="40" GlassFrameThickness="0,0,0,1"
+                            ResizeBorderThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
 
     <Window.Resources>
         <Style x:Key="CaptionBtn" TargetType="Button">
@@ -1083,7 +1084,7 @@ function Show-InstallerWindow {
             <Setter Property="Height" Value="32"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="FontSize" Value="10"/>
-            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+            <Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -1230,7 +1231,7 @@ function Show-InstallerWindow {
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Border Background="#12FFFFFF" CornerRadius="6" Height="28" Margin="0,6,10,6"
                         Padding="8,0" VerticalAlignment="Center"
-                        WindowChrome.IsHitTestVisibleInChrome="True">
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
                     <DockPanel LastChildFill="True">
                         <TextBlock Text="Arch" Foreground="#80FFFFFF" Margin="0,0,8,0" VerticalAlignment="Center"/>
                         <ComboBox x:Name="ArchitectureSelector" Width="84" Background="#FF282840" Foreground="#FFE4E4E7"
@@ -1426,6 +1427,7 @@ function Show-InstallerWindow {
         $pageMain = $window.FindName('PageMain')
         $pageInstall = $window.FindName('PageInstall')
         $pageUninstall = $window.FindName('PageUninstall')
+        $generateStandardInstallJsonButton = $window.FindName('GenerateStandardInstallJsonButton')
         $TxtInstMsg = $window.FindName('TxtInstMsg')
         $TxtUninstMsg = $window.FindName('TxtUninstMsg')
 
@@ -1483,6 +1485,26 @@ function Show-InstallerWindow {
             })
         $window.FindName('BackFromUninstallButton').Add_Click({
                 Switch-Page -From $pageUninstall -To $pageMain -Direction -1
+            })
+        $generateStandardInstallJsonButton.Add_Click({
+                try {
+                    $selectedArchitecture = [string]$architectureSelector.SelectedItem
+                    if ([string]::IsNullOrWhiteSpace($selectedArchitecture)) {
+                        $selectedArchitecture = $DefaultArchitecture
+                    }
+
+                    $selectedRoot = $installRootTextBox.Text
+                    if ([string]::IsNullOrWhiteSpace($selectedRoot)) {
+                        $selectedRoot = $DefaultInstallRoot
+                    }
+
+                    $standardInstallJson = Get-StandardInstallJson -ResolvedInstallRoot $selectedRoot.Trim() -ResolvedArchitecture $selectedArchitecture
+                    [System.Windows.Clipboard]::SetText($standardInstallJson)
+                    $TxtInstMsg.Text = 'Standard install JSON copied to clipboard.'
+                }
+                catch {
+                    $TxtInstMsg.Text = "Unable to copy install JSON: $($_.Exception.Message)"
+                }
             })
 
         & $wireActionButton 'InstallClaudeCodeButton' 'install' 'claude-code'
@@ -1550,36 +1572,205 @@ function Show-OperationSummary {
 
     try {
         Add-Type -AssemblyName PresentationFramework
-        $message = if ($Result.action -eq 'install') {
+        Add-Type -AssemblyName PresentationCore
+        Add-Type -AssemblyName WindowsBase
+        Ensure-DwmMicaHelper
+
+        $isInstall = ($Result.action -eq 'install')
+        $title = if ($isInstall) { 'Installation complete' } else { 'Uninstall complete' }
+        $message = if ($isInstall) {
             "Installed for $(Resolve-ClientLabel -ClientId $Result.client).`n`nExecutable:`n$($Result.installedExecutable)"
         }
         else {
             "Uninstalled from $(Resolve-ClientLabel -ClientId $Result.client)."
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($VersionHint)) {
-            $message += "`n`n$VersionHint"
-        }
+        $xaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="WPF DevTools Installer"
+        Width="560"
+        Height="360"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        Background="#FF1E1E2E"
+        FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif"
+        Foreground="#FFE4E4E7">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="40" GlassFrameThickness="0,0,0,1"
+                            ResizeBorderThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
 
-        if ($Result.action -eq 'install') {
-            $choice = [System.Windows.MessageBox]::Show(
-                "$message`n`nOpen documentation homepage?",
-                'WPF DevTools Installer',
-                [System.Windows.MessageBoxButton]::YesNo,
-                [System.Windows.MessageBoxImage]::Information)
-            if ($choice -eq [System.Windows.MessageBoxResult]::Yes) {
-                Invoke-DocsHomepage
-            }
+    <Window.Resources>
+        <Style x:Key="CaptionBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#CCFFFFFF"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="42"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#18FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseBtn" TargetType="Button" BasedOn="{StaticResource CaptionBtn}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FFB42318"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="MainBtn" TargetType="Button">
+            <Setter Property="Background" Value="#FFF4A261"/>
+            <Setter Property="Foreground" Value="#FF1E1E2E"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Padding" Value="20,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="14">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ItemBtn" TargetType="Button">
+            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="Foreground" Value="#FFF8FAFC"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="14">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#20FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#14000000" BorderBrush="#18FFFFFF" BorderThickness="0,0,0,1">
+            <Grid>
+                <TextBlock Text="WPF DevTools Installer" Margin="18,0,0,0" VerticalAlignment="Center"
+                           FontSize="13" Foreground="#CCFFFFFF"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="SummaryCloseCaptionButton" Style="{StaticResource CloseBtn}" Content="&#xE8BB;"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="28">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="WPF DevTools MCP" FontSize="14" FontWeight="SemiBold" Foreground="#80FFFFFF"/>
+                <TextBlock x:Name="SummaryTitleText" Margin="0,12,0,0" FontSize="28" FontWeight="SemiBold"/>
+                <TextBlock x:Name="SummaryMessageText" Margin="0,16,0,0" FontSize="14" TextWrapping="Wrap"
+                           Foreground="#FFD4D4D8"/>
+                <TextBlock x:Name="SummaryVersionText" Margin="0,12,0,0" FontSize="12" TextWrapping="Wrap"
+                           Foreground="#A78BFA"/>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,26,0,0">
+                    <Button x:Name="OpenDocsButton" Style="{StaticResource ItemBtn}" Width="220" Margin="0,0,10,0">
+                        Open documentation homepage
+                    </Button>
+                    <Button x:Name="CloseSummaryButton" Style="{StaticResource MainBtn}" Width="120">
+                        Close
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
+'@
+        $processedXaml = $xaml -replace ' x:Name="(?!bd")', ' Name="'
+        $sr = [System.IO.StringReader]::new($processedXaml)
+        $xr = [System.Xml.XmlReader]::Create($sr)
+        $window = [Windows.Markup.XamlReader]::Load($xr)
+
+        $summaryTitleText = $window.FindName('SummaryTitleText')
+        $summaryMessageText = $window.FindName('SummaryMessageText')
+        $summaryVersionText = $window.FindName('SummaryVersionText')
+        $openDocsButton = $window.FindName('OpenDocsButton')
+        $closeSummaryButton = $window.FindName('CloseSummaryButton')
+        $summaryCloseCaptionButton = $window.FindName('SummaryCloseCaptionButton')
+
+        $summaryTitleText.Text = $title
+        $summaryMessageText.Text = $message
+        $summaryVersionText.Text = if ([string]::IsNullOrWhiteSpace($VersionHint)) { '' } else { $VersionHint }
+        $summaryVersionText.Visibility = if ([string]::IsNullOrWhiteSpace($VersionHint)) { 'Collapsed' } else { 'Visible' }
+        $openDocsButton.Visibility = if ($isInstall) { 'Visible' } else { 'Collapsed' }
+
+        $closeAction = {
+            try { $window.Close() } catch {}
         }
-        else {
-            [void][System.Windows.MessageBox]::Show(
-                $message,
-                'WPF DevTools Installer',
-                [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Information)
-        }
+        $summaryCloseCaptionButton.Add_Click($closeAction)
+        $closeSummaryButton.Add_Click($closeAction)
+        $openDocsButton.Add_Click({
+                try {
+                    Invoke-DocsHomepage
+                    $window.Close()
+                }
+                catch {
+                    $summaryVersionText.Text = "Unable to open documentation: $($_.Exception.Message)"
+                    $summaryVersionText.Visibility = 'Visible'
+                }
+            })
+
+        $window.Add_Loaded({
+                try {
+                    $hwnd = ([System.Windows.Interop.WindowInteropHelper]::new($window)).Handle
+                    [DwmMicaHelper]::Apply($hwnd)
+                }
+                catch {
+                }
+            })
+
+        [void]$window.ShowDialog()
     }
     catch {
+        Write-InstallerMessage $message
+        if (-not [string]::IsNullOrWhiteSpace($VersionHint)) {
+            Write-InstallerMessage $VersionHint
+        }
     }
 }
 
@@ -1621,6 +1812,27 @@ function Resolve-InstallBasePath {
     )
 
     return (Join-Path (Resolve-AbsoluteDirectory -Path $ResolvedInstallRoot) $ResolvedArchitecture)
+}
+
+function Get-StandardInstallJson {
+    param(
+        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [string]$ResolvedArchitecture
+    )
+
+    $installBase = Resolve-InstallBasePath -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture
+    $installedExecutable = Join-Path $installBase "current\\bin\\wpf-devtools-$ResolvedArchitecture.exe"
+    $serverNode = [ordered]@{
+        type = 'stdio'
+        command = $installedExecutable
+        args = @()
+    }
+
+    return ([ordered]@{
+            mcpServers = [ordered]@{
+                'wpf-devtools' = $serverNode
+            }
+        } | ConvertTo-Json -Depth 5)
 }
 
 function Get-RegistrationsForArchitecture {

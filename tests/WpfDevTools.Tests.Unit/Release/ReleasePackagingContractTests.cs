@@ -204,6 +204,18 @@ public sealed class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void PublishReleaseScript_ShouldFallbackToFrameworkBuildOutputForSkipBuildPackaging()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+
+        content.Should().Contain("Copy-ServerBuildOutput");
+        content.Should().Contain("Layout = 'framework'");
+        content.Should().Contain("WpfDevTools.Mcp.Server.exe");
+        content.Should().Contain("Join-Path $SourceInfo.Path 'runtimes'");
+    }
+
+    [Fact]
     public void PackageLocalInstaller_ShouldInstallServerExecutableFromBinDirectory()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

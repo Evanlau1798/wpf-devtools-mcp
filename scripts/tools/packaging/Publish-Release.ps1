@@ -119,14 +119,44 @@ function Resolve-ServerOutputSource {
 
     $runtimeBuildDir = Join-Path $RepositoryRoot "src\WpfDevTools.Mcp.Server\bin\$BuildConfiguration\net8.0\$RuntimeId"
     if (Test-Path $runtimeBuildDir) {
-        return $runtimeBuildDir
+        return [ordered]@{
+            Path = $runtimeBuildDir
+            Layout = 'rid-specific'
+        }
+    }
+
+    $frameworkBuildDir = Join-Path $RepositoryRoot "src\WpfDevTools.Mcp.Server\bin\$BuildConfiguration\net8.0"
+    if (Test-Path (Join-Path $frameworkBuildDir 'WpfDevTools.Mcp.Server.exe')) {
+        return [ordered]@{
+            Path = $frameworkBuildDir
+            Layout = 'framework'
+        }
     }
 
     if ($UseExistingBuildOutput) {
-        throw "Expected existing server output was not found for runtime '$RuntimeId': $runtimeBuildDir"
+        throw "Expected existing server output was not found for runtime '$RuntimeId': $runtimeBuildDir or $frameworkBuildDir"
     }
 
     return $null
+}
+
+function Copy-ServerBuildOutput {
+    param(
+        [Parameter(Mandatory)] $SourceInfo,
+        [Parameter(Mandatory)] [string]$Destination
+    )
+
+    if ($SourceInfo.Layout -eq 'rid-specific') {
+        Copy-DirectoryContents -Source $SourceInfo.Path -Destination $Destination
+        return
+    }
+
+    Copy-DirectoryFilesOnly -Source $SourceInfo.Path -Destination $Destination
+
+    $runtimesSource = Join-Path $SourceInfo.Path 'runtimes'
+    if (Test-Path $runtimesSource) {
+        Copy-DirectoryContents -Source $runtimesSource -Destination (Join-Path $Destination 'runtimes')
+    }
 }
 
 function Copy-DirectoryFilesOnly {
@@ -306,7 +336,7 @@ foreach ($architecture in $resolvedArchitectures) {
 
     try {
         if ($SkipBuild) {
-            Copy-DirectoryContents -Source $serverBuildSource -Destination $binDir
+            Copy-ServerBuildOutput -SourceInfo $serverBuildSource -Destination $binDir
         }
         else {
             Invoke-Step -FilePath 'dotnet' -Arguments @(

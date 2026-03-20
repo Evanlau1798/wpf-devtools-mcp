@@ -890,6 +890,55 @@ function Get-CliSelection {
     }
 }
 
+function Ensure-DwmMicaHelper {
+    try {
+        [DwmMicaHelper] | Out-Null
+    }
+    catch {
+        try {
+            Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class DwmMicaHelper {
+    [DllImport("dwmapi.dll", PreserveSig = true)]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, uint attr, ref int value, int size);
+
+    public static void Apply(IntPtr hwnd) {
+        int darkMode = 1;
+        DwmSetWindowAttribute(hwnd, 20, ref darkMode, 4);
+        int backdropType = 2;
+        DwmSetWindowAttribute(hwnd, 38, ref backdropType, 4);
+        int rounded = 2;
+        DwmSetWindowAttribute(hwnd, 33, ref rounded, 4);
+    }
+}
+"@ -ErrorAction SilentlyContinue
+        }
+        catch {
+        }
+    }
+}
+
+function Switch-Page {
+    param(
+        [System.Windows.UIElement]$From,
+        [System.Windows.UIElement]$To,
+        [double]$Direction
+    )
+
+    if ($null -eq $To) {
+        return
+    }
+
+    if ($null -ne $From) {
+        $From.Visibility = 'Collapsed'
+        $From.Opacity = 1
+    }
+
+    $To.Visibility = 'Visible'
+    $To.Opacity = 1
+}
+
 function Show-InstallerWindow {
     param(
         [Parameter(Mandatory)] [string]$DefaultAction,
@@ -908,116 +957,283 @@ function Show-InstallerWindow {
         Add-Type -AssemblyName PresentationFramework
         Add-Type -AssemblyName PresentationCore
         Add-Type -AssemblyName WindowsBase
+        Ensure-DwmMicaHelper
 
         $xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="WPF DevTools Installer"
+        Title="WPF DevTools MCP"
         Width="640"
-        Height="560"
+        Height="620"
         WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
         ResizeMode="CanMinimize"
-        Background="#F5F1EA"
-        FontFamily="Segoe UI"
-        Foreground="#1F2A37">
-    <Grid Margin="20">
+        Background="#FF1E1E2E"
+        FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif"
+        Foreground="#FFE4E4E7">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" GlassFrameThickness="0,0,0,1"
+                      ResizeBorderThickness="0"/>
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <Style x:Key="CaptionBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#99FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#20FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#10FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseBtn" TargetType="Button" BasedOn="{StaticResource CaptionBtn}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#E81123"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#BF0F1D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="MainBtn" TargetType="Button">
+            <Setter Property="Background" Value="#FF2D2D44"/>
+            <Setter Property="Foreground" Value="#FFE4E4E7"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Height" Value="72"/>
+            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="20,14"
+                                BorderBrush="#18FFFFFF" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF3A3A58"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#28FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF252540"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ItemBtn" TargetType="Button">
+            <Setter Property="Background" Value="#FF282840"/>
+            <Setter Property="Foreground" Value="#FFE4E4E7"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="16,10"
+                                BorderBrush="#12FFFFFF" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF353555"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#22FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF222238"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="NavBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#99FFFFFF"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="12,4">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#15FFFFFF"/>
+                                <Setter Property="Foreground" Value="#CCFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#0AFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="40"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="160"/>
-        </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0" Grid.Column="0">
-            <TextBlock FontSize="28" FontWeight="Bold" Text="WPF DevTools MCP"/>
-            <TextBlock Margin="0,6,0,0" Foreground="#52606D" Text="Installer and uninstaller for Windows AI tooling"/>
-        </StackPanel>
+        <Grid Grid.Row="0" Background="#08FFFFFF">
+            <TextBlock Text="  WPF DevTools MCP" Foreground="#60FFFFFF"
+                       VerticalAlignment="Center" Margin="12,0,0,0" FontSize="12"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Border Background="#12FFFFFF" CornerRadius="6" Height="28" Margin="0,6,10,6"
+                        Padding="8,0" VerticalAlignment="Center"
+                        WindowChrome.IsHitTestVisibleInChrome="True">
+                    <DockPanel LastChildFill="True">
+                        <TextBlock Text="Arch" Foreground="#80FFFFFF" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="ArchitectureSelector" Width="84" Background="#FF282840" Foreground="#FFE4E4E7"
+                                  BorderThickness="0"/>
+                    </DockPanel>
+                </Border>
+                <Button x:Name="BtnMin" Content="&#xE949;" Style="{StaticResource CaptionBtn}"/>
+                <Button x:Name="BtnClose" Content="&#xE8BB;" Style="{StaticResource CloseBtn}"/>
+            </StackPanel>
+        </Grid>
 
-        <StackPanel Grid.Row="0" Grid.Column="1">
-            <TextBlock Foreground="#52606D" Text="Architecture"/>
-            <ComboBox x:Name="ArchitectureSelector" Margin="0,6,0,0"/>
-        </StackPanel>
-
-        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,18,0,0">
-            <TextBlock Foreground="#52606D" Text="Install root"/>
-            <TextBox x:Name="InstallRootTextBox" Margin="0,6,0,0" Height="32"/>
-            <TextBlock x:Name="VersionHintText" Margin="0,8,0,0" Foreground="#8A6D3B" TextWrapping="Wrap"/>
-        </StackPanel>
-
-        <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,20,0,0">
+        <Grid Grid.Row="1" ClipToBounds="True">
             <Grid x:Name="PageMain">
-                <StackPanel VerticalAlignment="Center">
-                    <Border Background="#FFFFFF" CornerRadius="12" Padding="20" BorderBrush="#D8D2C7" BorderThickness="1">
+                <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
+                <StackPanel VerticalAlignment="Center" Margin="48,28">
+                    <TextBlock Text="WPF DevTools MCP" FontSize="30" FontWeight="Bold"
+                               Foreground="White" Margin="0,0,0,2"/>
+                    <TextBlock Text="Model Context Protocol Server" FontSize="13"
+                               Foreground="#60FFFFFF" Margin="0,0,0,6"/>
+                    <TextBlock Text="Installation Manager" FontSize="13"
+                               Foreground="#45FFFFFF" Margin="0,0,0,24"/>
+
+                    <Button x:Name="GoInstallButton" Style="{StaticResource MainBtn}">
                         <StackPanel>
-                            <TextBlock FontSize="20" FontWeight="SemiBold" Text="Choose what to do"/>
-                            <TextBlock Margin="0,8,0,0" Foreground="#52606D" Text="The GUI collects your selection first, then the installer runs the release-based workflow."/>
+                            <TextBlock FontSize="15" FontWeight="SemiBold">
+                                <Run Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                                <Run Text="  Install"/>
+                            </TextBlock>
+                            <TextBlock Text="Choose the target client and install the current release executable."
+                                       FontSize="11" Foreground="#60FFFFFF" Margin="0,4,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
-                    </Border>
-                    <UniformGrid Columns="2" Margin="0,18,0,0">
-                        <Button x:Name="GoInstallButton" Margin="0,0,10,0" Height="120" Background="#D9E7D2" BorderBrush="#A9C09E">
-                            <StackPanel>
-                                <TextBlock FontSize="19" FontWeight="SemiBold" Text="Install"/>
-                                <TextBlock Margin="0,8,0,0" Text="Choose the target client and install the current release executable." TextWrapping="Wrap"/>
-                            </StackPanel>
-                        </Button>
-                        <Button x:Name="GoUninstallButton" Margin="10,0,0,0" Height="120" Background="#F3D9D2" BorderBrush="#D7AAA0">
-                            <StackPanel>
-                                <TextBlock FontSize="19" FontWeight="SemiBold" Text="Uninstall"/>
-                                <TextBlock Margin="0,8,0,0" Text="Remove the MCP registration and delete the shared server when no client still uses it." TextWrapping="Wrap"/>
-                            </StackPanel>
-                        </Button>
-                    </UniformGrid>
+                    </Button>
+
+                    <Button x:Name="GoUninstallButton" Style="{StaticResource MainBtn}">
+                        <StackPanel>
+                            <TextBlock FontSize="15" FontWeight="SemiBold">
+                                <Run Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                                <Run Text="  Uninstall"/>
+                            </TextBlock>
+                            <TextBlock Text="Remove the MCP registration and delete the shared server when no client still uses it."
+                                       FontSize="11" Foreground="#60FFFFFF" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Button>
+
+                    <TextBlock x:Name="TxtVersion" Text="WPF DevTools Installer" FontSize="11"
+                               Foreground="#30FFFFFF" Margin="0,24,0,0"/>
                 </StackPanel>
             </Grid>
 
-            <Grid x:Name="PageInstall" Visibility="Collapsed">
-                <StackPanel>
-                    <Button x:Name="BackFromInstallButton" Width="110" HorizontalAlignment="Left" Content="Back"/>
-                    <TextBlock Margin="0,14,0,0" FontSize="22" FontWeight="SemiBold" Text="Install to"/>
-                    <TextBlock Margin="0,6,0,16" Foreground="#52606D" Text="Select the client that should use the release executable."/>
-                    <UniformGrid Columns="2" Rows="3">
-                        <Button x:Name="InstallClaudeCodeButton" Margin="0,0,10,10" Height="78" Content="Claude Code"/>
-                        <Button x:Name="InstallCodexButton" Margin="10,0,0,10" Height="78" Content="Codex"/>
-                        <Button x:Name="InstallVsCodeButton" Margin="0,0,10,10" Height="78" Content="VS Code"/>
-                        <Button x:Name="InstallVisualStudioButton" Margin="10,0,0,10" Height="78" Content="Visual Studio"/>
-                        <Button x:Name="InstallClaudeDesktopButton" Margin="0,0,10,10" Height="78" Content="Claude Desktop"/>
-                        <Button x:Name="InstallOtherButton" Margin="10,0,0,10" Height="78" Content="Other"/>
-                    </UniformGrid>
+            <Grid x:Name="PageInstall" Visibility="Collapsed" Opacity="0">
+                <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
+                <StackPanel Margin="48,20">
+                    <Button x:Name="BackFromInstallButton" Style="{StaticResource NavBtn}" Margin="0,0,0,12" Content="← Back"/>
+                    <TextBlock Margin="0,0,0,4" FontSize="22" FontWeight="Bold" Foreground="White" Text="Install to"/>
+                    <TextBlock Margin="0,0,0,16" FontSize="12" Foreground="#50FFFFFF" Text="Select the client that should use the release executable."/>
+                    <TextBlock Foreground="#80FFFFFF" Text="Install root" Margin="0,0,0,6"/>
+                    <TextBox x:Name="InstallRootTextBox" Margin="0,0,0,10" Height="34"
+                             Background="#FF282840" Foreground="#FFE4E4E7" BorderBrush="#22FFFFFF" BorderThickness="1"/>
+                    <TextBlock x:Name="VersionHintText" Margin="0,0,0,10" Foreground="#A78BFA" TextWrapping="Wrap"/>
+
+                    <Button x:Name="InstallClaudeCodeButton" Style="{StaticResource ItemBtn}" Content="Claude Code"/>
+                    <Button x:Name="InstallCodexButton" Style="{StaticResource ItemBtn}" Content="Codex"/>
+                    <Button x:Name="InstallVsCodeButton" Style="{StaticResource ItemBtn}" Content="VS Code"/>
+                    <Button x:Name="InstallVisualStudioButton" Style="{StaticResource ItemBtn}" Content="Visual Studio"/>
+                    <Button x:Name="InstallClaudeDesktopButton" Style="{StaticResource ItemBtn}" Content="Claude Desktop"/>
+                    <Button x:Name="InstallOtherButton" Style="{StaticResource ItemBtn}" Content="Other"/>
+
+                    <TextBlock x:Name="TxtInstMsg" Margin="0,14,0,0" FontSize="12"
+                               Foreground="#6C63FF" TextWrapping="Wrap"/>
                 </StackPanel>
             </Grid>
 
-            <Grid x:Name="PageUninstall" Visibility="Collapsed">
-                <StackPanel>
-                    <Button x:Name="BackFromUninstallButton" Width="110" HorizontalAlignment="Left" Content="Back"/>
-                    <TextBlock Margin="0,14,0,0" FontSize="22" FontWeight="SemiBold" Text="Uninstall from"/>
-                    <TextBlock Margin="0,6,0,16" Foreground="#52606D" Text="Only registered targets can be removed."/>
-                    <UniformGrid Columns="2" Rows="3">
-                        <Button x:Name="UninstallClaudeCodeButton" Margin="0,0,10,10" Height="78" Content="Claude Code"/>
-                        <Button x:Name="UninstallCodexButton" Margin="10,0,0,10" Height="78" Content="Codex"/>
-                        <Button x:Name="UninstallVsCodeButton" Margin="0,0,10,10" Height="78" Content="VS Code"/>
-                        <Button x:Name="UninstallVisualStudioButton" Margin="10,0,0,10" Height="78" Content="Visual Studio"/>
-                        <Button x:Name="UninstallClaudeDesktopButton" Margin="0,0,10,10" Height="78" Content="Claude Desktop"/>
-                        <Button x:Name="UninstallOtherButton" Margin="10,0,0,10" Height="78" Content="Other"/>
-                    </UniformGrid>
+            <Grid x:Name="PageUninstall" Visibility="Collapsed" Opacity="0">
+                <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
+                <StackPanel Margin="48,20">
+                    <Button x:Name="BackFromUninstallButton" Style="{StaticResource NavBtn}" Margin="0,0,0,12" Content="← Back"/>
+                    <TextBlock Margin="0,0,0,4" FontSize="22" FontWeight="Bold" Foreground="White" Text="Uninstall from"/>
+                    <TextBlock Margin="0,0,0,16" FontSize="12" Foreground="#50FFFFFF" Text="Only registered targets can be removed."/>
+                    <Button x:Name="UninstallClaudeCodeButton" Style="{StaticResource ItemBtn}" Content="Claude Code"/>
+                    <Button x:Name="UninstallCodexButton" Style="{StaticResource ItemBtn}" Content="Codex"/>
+                    <Button x:Name="UninstallVsCodeButton" Style="{StaticResource ItemBtn}" Content="VS Code"/>
+                    <Button x:Name="UninstallVisualStudioButton" Style="{StaticResource ItemBtn}" Content="Visual Studio"/>
+                    <Button x:Name="UninstallClaudeDesktopButton" Style="{StaticResource ItemBtn}" Content="Claude Desktop"/>
+                    <Button x:Name="UninstallOtherButton" Style="{StaticResource ItemBtn}" Content="Other"/>
+
+                    <TextBlock x:Name="TxtUninstMsg" Margin="0,14,0,0" FontSize="12"
+                               Foreground="#E85D75" TextWrapping="Wrap"/>
                 </StackPanel>
             </Grid>
         </Grid>
-
-        <TextBlock x:Name="StatusText" Grid.Row="3" Grid.ColumnSpan="2" Margin="0,18,0,0" Foreground="#52606D" TextWrapping="Wrap"/>
     </Grid>
 </Window>
 '@
-        $reader = New-Object System.Xml.XmlNodeReader ([xml]$xaml)
-        $window = [Windows.Markup.XamlReader]::Load($reader)
+        $processedXaml = $xaml -replace ' x:Name="(?!bd")', ' Name="'
+        $sr = [System.IO.StringReader]::new($processedXaml)
+        $xr = [System.Xml.XmlReader]::Create($sr)
+        $window = [Windows.Markup.XamlReader]::Load($xr)
 
         $architectureSelector = $window.FindName('ArchitectureSelector')
         $installRootTextBox = $window.FindName('InstallRootTextBox')
         $versionHintText = $window.FindName('VersionHintText')
-        $statusText = $window.FindName('StatusText')
         $pageMain = $window.FindName('PageMain')
         $pageInstall = $window.FindName('PageInstall')
         $pageUninstall = $window.FindName('PageUninstall')
@@ -1026,17 +1242,9 @@ function Show-InstallerWindow {
         $architectureSelector.SelectedItem = $DefaultArchitecture
         $installRootTextBox.Text = $DefaultInstallRoot
         $versionHintText.Text = if ([string]::IsNullOrWhiteSpace($VersionHint)) { '' } else { $VersionHint }
-        $statusText.Text = 'Select a client to continue.'
 
         $selection = $null
         $cancelled = $true
-
-        $showPage = {
-            param([string]$PageName)
-            $pageMain.Visibility = if ($PageName -eq 'main') { 'Visible' } else { 'Collapsed' }
-            $pageInstall.Visibility = if ($PageName -eq 'install') { 'Visible' } else { 'Collapsed' }
-            $pageUninstall.Visibility = if ($PageName -eq 'uninstall') { 'Visible' } else { 'Collapsed' }
-        }
 
         $setSelection = {
             param([string]$ResolvedAction, [string]$ResolvedClient)
@@ -1063,21 +1271,23 @@ function Show-InstallerWindow {
                 })
         }
 
+        $window.FindName('BtnMin').Add_Click({
+                try { $window.WindowState = 'Minimized' } catch {}
+            })
+        $window.FindName('BtnClose').Add_Click({
+                try { $window.Close() } catch {}
+            })
         $window.FindName('GoInstallButton').Add_Click({
-                & $showPage 'install'
-                $statusText.Text = 'Choose an install target.'
+                Switch-Page -From $pageMain -To $pageInstall -Direction 1
             })
         $window.FindName('GoUninstallButton').Add_Click({
-                & $showPage 'uninstall'
-                $statusText.Text = 'Choose an uninstall target.'
+                Switch-Page -From $pageMain -To $pageUninstall -Direction 1
             })
         $window.FindName('BackFromInstallButton').Add_Click({
-                & $showPage 'main'
-                $statusText.Text = 'Choose what to do.'
+                Switch-Page -From $pageInstall -To $pageMain -Direction -1
             })
         $window.FindName('BackFromUninstallButton').Add_Click({
-                & $showPage 'main'
-                $statusText.Text = 'Choose what to do.'
+                Switch-Page -From $pageUninstall -To $pageMain -Direction -1
             })
 
         & $wireActionButton 'InstallClaudeCodeButton' 'install' 'claude-code'
@@ -1106,6 +1316,15 @@ function Show-InstallerWindow {
             $uninstallButton = $window.FindName($buttonMap[$client.Id])
             $uninstallButton.IsEnabled = [bool]$InstalledStatus[$client.Id]
         }
+
+        $window.Add_Loaded({
+                try {
+                    $hwnd = ([System.Windows.Interop.WindowInteropHelper]::new($window)).Handle
+                    [DwmMicaHelper]::Apply($hwnd)
+                }
+                catch {
+                }
+            })
 
         [void]$window.ShowDialog()
         return [ordered]@{

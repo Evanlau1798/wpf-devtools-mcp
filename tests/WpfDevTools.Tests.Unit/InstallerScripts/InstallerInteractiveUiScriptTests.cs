@@ -47,6 +47,20 @@ public sealed class InstallerInteractiveUiScriptTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldDeclareUiTestPageStatusTextAndInstallerSpecificSecondaryActions()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("TxtVersion");
+        content.Should().Contain("TxtInstMsg");
+        content.Should().Contain("TxtUninstMsg");
+        content.Should().Contain("Generate Standard Install JSON");
+        content.Should().Contain("Install location");
+        content.Should().Contain("HorizontalAlignment=\"Right\"");
+    }
+
+    [Fact]
     public void OnlineInstallerScript_NonInteractiveJsonFlow_ShouldEmitModeStateAndAvoidBrowserActions()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

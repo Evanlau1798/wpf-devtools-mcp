@@ -1188,17 +1188,66 @@ function Show-InstallerWindow {
                     <Button x:Name="BackFromInstallButton" Style="{StaticResource NavBtn}" Margin="0,0,0,12" Content="← Back"/>
                     <TextBlock Margin="0,0,0,4" FontSize="22" FontWeight="Bold" Foreground="White" Text="Install to"/>
                     <TextBlock Margin="0,0,0,16" FontSize="12" Foreground="#50FFFFFF" Text="Select the client that should use the release executable."/>
-                    <TextBlock Foreground="#80FFFFFF" Text="Install root" Margin="0,0,0,6"/>
+                    <TextBlock Foreground="#80FFFFFF" Text="Install location" Margin="0,0,0,6"/>
                     <TextBox x:Name="InstallRootTextBox" Margin="0,0,0,10" Height="34"
                              Background="#FF282840" Foreground="#FFE4E4E7" BorderBrush="#22FFFFFF" BorderThickness="1"/>
                     <TextBlock x:Name="VersionHintText" Margin="0,0,0,10" Foreground="#A78BFA" TextWrapping="Wrap"/>
 
-                    <Button x:Name="InstallClaudeCodeButton" Style="{StaticResource ItemBtn}" Content="Claude Code"/>
-                    <Button x:Name="InstallCodexButton" Style="{StaticResource ItemBtn}" Content="Codex"/>
-                    <Button x:Name="InstallVsCodeButton" Style="{StaticResource ItemBtn}" Content="VS Code"/>
-                    <Button x:Name="InstallVisualStudioButton" Style="{StaticResource ItemBtn}" Content="Visual Studio"/>
-                    <Button x:Name="InstallClaudeDesktopButton" Style="{StaticResource ItemBtn}" Content="Claude Desktop"/>
-                    <Button x:Name="InstallOtherButton" Style="{StaticResource ItemBtn}" Content="Other"/>
+                    <Button x:Name="InstallClaudeCodeButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Claude Code" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="InstallCodexButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Codex" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="InstallVsCodeButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="VS Code" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="InstallVisualStudioButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Visual Studio" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="InstallClaudeDesktopButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Claude Desktop" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="InstallOtherButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Other" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+
+                    <Border Height="1" Background="#15FFFFFF" Margin="0,12"/>
+                    <Button x:Name="GenerateStandardInstallJsonButton" Style="{StaticResource ItemBtn}" Margin="0,8,0,0">
+                        <Grid>
+                            <TextBlock Text="Generate Standard Install JSON" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        </Grid>
+                    </Button>
 
                     <TextBlock x:Name="TxtInstMsg" Margin="0,14,0,0" FontSize="12"
                                Foreground="#6C63FF" TextWrapping="Wrap"/>
@@ -1211,12 +1260,54 @@ function Show-InstallerWindow {
                     <Button x:Name="BackFromUninstallButton" Style="{StaticResource NavBtn}" Margin="0,0,0,12" Content="← Back"/>
                     <TextBlock Margin="0,0,0,4" FontSize="22" FontWeight="Bold" Foreground="White" Text="Uninstall from"/>
                     <TextBlock Margin="0,0,0,16" FontSize="12" Foreground="#50FFFFFF" Text="Only registered targets can be removed."/>
-                    <Button x:Name="UninstallClaudeCodeButton" Style="{StaticResource ItemBtn}" Content="Claude Code"/>
-                    <Button x:Name="UninstallCodexButton" Style="{StaticResource ItemBtn}" Content="Codex"/>
-                    <Button x:Name="UninstallVsCodeButton" Style="{StaticResource ItemBtn}" Content="VS Code"/>
-                    <Button x:Name="UninstallVisualStudioButton" Style="{StaticResource ItemBtn}" Content="Visual Studio"/>
-                    <Button x:Name="UninstallClaudeDesktopButton" Style="{StaticResource ItemBtn}" Content="Claude Desktop"/>
-                    <Button x:Name="UninstallOtherButton" Style="{StaticResource ItemBtn}" Content="Other"/>
+                    <Button x:Name="UninstallClaudeCodeButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Claude Code" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="UninstallCodexButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Codex" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="UninstallVsCodeButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="VS Code" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="UninstallVisualStudioButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Visual Studio" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="UninstallClaudeDesktopButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Claude Desktop" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="UninstallOtherButton" Style="{StaticResource ItemBtn}">
+                        <Grid>
+                            <TextBlock Text="Other" VerticalAlignment="Center"/>
+                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
 
                     <TextBlock x:Name="TxtUninstMsg" Margin="0,14,0,0" FontSize="12"
                                Foreground="#E85D75" TextWrapping="Wrap"/>

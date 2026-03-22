@@ -15,20 +15,18 @@ public sealed class OnlineInstallerContractTests
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldBeGuiFirstWhileKeepingAutomationFlags()
+    public void OnlineInstallerScript_ShouldBeTuiFirstWhileKeepingAutomationFlags()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
-        content.Should().Contain("Add-Type -AssemblyName PresentationFramework");
+        content.Should().Contain("Start-TuiInstaller");
         content.Should().Contain("[switch]$NonInteractive");
         content.Should().Contain("[switch]$OutputJson");
-        content.Should().Contain("Show-InstallerWindow");
-        content.Should().Contain("WindowStyle=\"None\"");
-        content.Should().Contain("WindowChrome.WindowChrome");
-        content.Should().Contain("DwmMicaHelper");
+        content.Should().Contain("Render-TuiScreen");
+        content.Should().Contain("Read-TuiKey");
         content.Should().Contain("Read-Host",
-            "the installer still needs a plain CLI fallback when WPF cannot be used");
+            "the installer still needs a plain CLI fallback when the full-screen TUI cannot be used");
     }
 
     [Fact]
@@ -57,7 +55,7 @@ public sealed class OnlineInstallerContractTests
         content.Should().Contain("installer-state.json");
         content.Should().Contain("Save-InstallerState");
         content.Should().Contain("Get-AvailableInstallerUpdates");
-        content.Should().Contain("UpdateAllButton");
+        content.Should().Contain("Invoke-TuiUpdateAllOperation");
     }
 
     [Fact]
@@ -82,5 +80,6 @@ public sealed class OnlineInstallerContractTests
         content.Should().NotContain("<Binding Path=\"{Binding}\" />");
         content.Should().NotContain("<DependencyProperty/>");
         content.Should().NotContain("Open docs homepage");
+        content.Should().NotContain("WindowChrome.WindowChrome");
     }
 }

@@ -176,7 +176,9 @@ public sealed class ReleasePackagingContractTests
         content.Should().Contain("run-template.bat");
         content.Should().Contain("run.bat");
         content.Should().Contain("scripts\\online-installer.ps1");
+        content.Should().Contain("scripts\\installer");
         content.Should().Contain("bin\\install.ps1");
+        content.Should().Contain("Join-Path $binDir 'installer'");
         content.Should().NotContain("Setup-WpfDevTools.ps1");
         content.Should().NotContain("internal-install.ps1");
         content.Should().NotContain("Uninstall-WpfDevTools.ps1");

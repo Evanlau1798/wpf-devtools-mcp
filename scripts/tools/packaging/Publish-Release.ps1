@@ -383,6 +383,7 @@ foreach ($architecture in $resolvedArchitectures) {
         Copy-Item -Path $bootstrapperSource -Destination (Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)) -Force
         Copy-Item -Path $installBatchTemplate -Destination (Join-Path $packageDir 'run.bat') -Force
         Copy-Item -Path $installScript -Destination (Join-Path $binDir 'install.ps1') -Force
+        Copy-DirectoryContents -Source (Join-Path $repoRoot 'scripts\installer') -Destination (Join-Path $binDir 'installer')
 
         $manifest = [ordered]@{
             name = 'wpf-devtools'

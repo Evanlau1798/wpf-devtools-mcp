@@ -64,8 +64,23 @@ internal static class ReleaseScriptTestHarness
     {
         var packageDir = CreatePackageDirectory(tempRoot, architecture);
         var binDir = Path.Combine(packageDir, "bin");
+        var helperDir = Path.Combine(binDir, "installer");
+        Directory.CreateDirectory(helperDir);
         File.Copy(GetRepoFilePath("scripts/online-installer.ps1"), Path.Combine(binDir, "install.ps1"), overwrite: true);
         File.Copy(GetRepoFilePath("scripts/tools/packaging/run-template.bat"), Path.Combine(packageDir, "run.bat"), overwrite: true);
+        foreach (var helperName in new[]
+                 {
+                     "Tui.ScreenModel.ps1",
+                     "Tui.Renderer.ps1",
+                     "Tui.Input.ps1",
+                     "Tui.Flow.ps1"
+                 })
+        {
+            File.Copy(
+                GetRepoFilePath(Path.Combine("scripts", "installer", helperName)),
+                Path.Combine(helperDir, helperName),
+                overwrite: true);
+        }
 
         var archivePath = Path.Combine(tempRoot, $"release_1.2.3_win-{architecture}.zip");
         if (File.Exists(archivePath))

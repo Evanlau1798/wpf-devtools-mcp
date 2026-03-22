@@ -254,6 +254,36 @@ public sealed class InstallerScriptTests
     }
 
     [Fact]
+    public void OnlineInstaller_NonInteractiveAndJsonModes_ShouldNotDependOnTuiSessionState()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+
+            var result = RunInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().NotContain("HomeScreen");
+            result.Stdout.Should().NotContain("ProgressScreen");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_Uninstall_ShouldRemoveClientRegistrationButKeepBinaryWhenAnotherClientStillUsesIt()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

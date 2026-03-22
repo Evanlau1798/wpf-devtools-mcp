@@ -108,7 +108,9 @@ function Render-TuiScreenCore {
         return ($lines -join [Environment]::NewLine)
     }
 
-    try { Clear-Host } catch {}
+    if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR)) {
+        try { Clear-Host } catch {}
+    }
     foreach ($line in $lines) {
         Write-Host $line
     }

@@ -90,6 +90,7 @@ $script:TuiHelperSourcePaths = @(
     'scripts/installer/Tui.Input.ps1'
     'scripts/installer/Tui.Flow.ps1'
 )
+$script:TuiHelperDownloadBaseUri = 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/installer'
 $script:TuiScreenNames = @('HomeScreen', 'InstallScreen', 'UninstallScreen', 'ProgressScreen')
 $script:TuiUiMarkers = @('Installed v', 'Update available', 'Architecture', 'Install location', 'Update All')
 $script:TuiNavigationKeys = @(
@@ -101,12 +102,102 @@ $script:TuiNavigationKeys = @(
 )
 $script:TuiNavigationTokens = @('ConsoleKey.UpArrow', 'ConsoleKey.DownArrow', 'ConsoleKey.Enter')
 
-function Import-TuiHelpers {
-    if ($script:TuiHelpersImported) {
-        return
+function Resolve-InstallerScriptRoot {
+    if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+        return $PSScriptRoot
     }
 
-    $helperRoot = Join-Path $PSScriptRoot 'installer'
+    if (-not [string]::IsNullOrWhiteSpace($PSCommandPath)) {
+        return (Split-Path -Parent $PSCommandPath)
+    }
+
+    return $null
+}
+
+function Get-TuiHelperRuntimeRoot {
+    $runtimeRoot = Join-Path (Resolve-AbsoluteDirectory -Path $WorkingRoot) 'tui-helpers'
+    New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
+    return $runtimeRoot
+}
+
+function Get-TuiHelperOverrideDirectory {
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY)) {
+        return $env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY
+    }
+
+    return $null
+}
+
+function Ensure-TuiHelpersAvailable {
+    if (-not [string]::IsNullOrWhiteSpace($script:TuiHelperResolvedRoot)) {
+        return $script:TuiHelperResolvedRoot
+    }
+
+    $localScriptRoot = Resolve-InstallerScriptRoot
+    $candidateRoots = New-Object System.Collections.Generic.List[string]
+    if (-not [string]::IsNullOrWhiteSpace($localScriptRoot)) {
+        $candidateRoots.Add((Join-Path $localScriptRoot 'installer'))
+    }
+
+    $overrideDirectory = Get-TuiHelperOverrideDirectory
+    if (-not [string]::IsNullOrWhiteSpace($overrideDirectory)) {
+        $candidateRoots.Add($overrideDirectory)
+    }
+
+    foreach ($candidateRoot in $candidateRoots) {
+        if ([string]::IsNullOrWhiteSpace($candidateRoot)) {
+            continue
+        }
+
+        $allPresent = $true
+        foreach ($repoRelativePath in $script:TuiHelperSourcePaths) {
+            $leafName = Split-Path $repoRelativePath -Leaf
+            if (-not (Test-Path (Join-Path $candidateRoot $leafName))) {
+                $allPresent = $false
+                break
+            }
+        }
+
+        if ($allPresent) {
+            $script:TuiHelperResolvedRoot = $candidateRoot
+            return $candidateRoot
+        }
+    }
+
+    if (Resolve-InstallerMode -ne 'online') {
+        return $null
+    }
+
+    $runtimeRoot = Get-TuiHelperRuntimeRoot
+    $downloadBaseUri = if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI)) {
+        $env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI.TrimEnd('/')
+    }
+    else {
+        $script:TuiHelperDownloadBaseUri
+    }
+
+    foreach ($repoRelativePath in $script:TuiHelperSourcePaths) {
+        $leafName = Split-Path $repoRelativePath -Leaf
+        $destinationPath = Join-Path $runtimeRoot $leafName
+        if (Test-Path $destinationPath) {
+            continue
+        }
+
+        $downloadUri = "$downloadBaseUri/$leafName"
+        Invoke-WebRequest -Uri $downloadUri -OutFile $destinationPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+    }
+
+    $script:TuiHelperResolvedRoot = $runtimeRoot
+    return $runtimeRoot
+}
+
+function Import-TuiHelpers {
+    $helperRoot = Ensure-TuiHelpersAvailable
+    if ([string]::IsNullOrWhiteSpace($helperRoot)) {
+        throw 'TUI helper scripts are unavailable in the current execution context.'
+    }
+
+    $helperPaths = New-Object System.Collections.Generic.List[string]
     foreach ($repoRelativePath in $script:TuiHelperSourcePaths) {
         $leafName = Split-Path $repoRelativePath -Leaf
         $runtimePath = Join-Path $helperRoot $leafName
@@ -114,10 +205,20 @@ function Import-TuiHelpers {
             throw "TUI helper script was not found: $runtimePath"
         }
 
-        . $runtimePath
+        $helperPaths.Add($runtimePath)
     }
 
-    $script:TuiHelpersImported = $true
+    return @($helperPaths)
+}
+
+function Invoke-WithTuiHelpers {
+    param([Parameter(Mandatory)] [scriptblock]$ScriptBlock)
+
+    foreach ($helperPath in @(Import-TuiHelpers)) {
+        . $helperPath
+    }
+
+    return (. $ScriptBlock)
 }
 
 function Get-NextArchitecture {
@@ -650,14 +751,19 @@ function Get-ReleaseAssetDownloadDetails {
 }
 
 function Resolve-LocalPackageRoot {
-    $binManifestPath = Join-Path $PSScriptRoot 'manifest.json'
-    if (Test-Path $binManifestPath) {
-        return (Split-Path -Parent $PSScriptRoot)
+    $scriptRoot = Resolve-InstallerScriptRoot
+    if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
+        return $null
     }
 
-    $packageManifestPath = Join-Path $PSScriptRoot 'bin\manifest.json'
+    $binManifestPath = Join-Path $scriptRoot 'manifest.json'
+    if (Test-Path $binManifestPath) {
+        return (Split-Path -Parent $scriptRoot)
+    }
+
+    $packageManifestPath = Join-Path $scriptRoot 'bin\manifest.json'
     if (Test-Path $packageManifestPath) {
-        return $PSScriptRoot
+        return $scriptRoot
     }
 
     return $null
@@ -1149,6 +1255,10 @@ function Invoke-UninstallVerification {
 }
 
 function Get-LatestInstallerVersion {
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION)) {
+        return $env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION
+    }
+
     try {
         return [string](Invoke-RestMethod -Uri (Get-GitHubReleaseApiUri -ResolvedVersion 'latest') -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
     }
@@ -1162,27 +1272,28 @@ function Test-TuiSupport {
         return $false
     }
 
-    foreach ($repoRelativePath in $script:TuiHelperSourcePaths) {
-        $leafName = Split-Path $repoRelativePath -Leaf
-        if (-not (Test-Path (Join-Path (Join-Path $PSScriptRoot 'installer') $leafName))) {
-            return $false
-        }
+    try {
+        $null = Ensure-TuiHelpersAvailable
+    }
+    catch {
+        return $false
     }
 
-    Import-TuiHelpers
-    return (Test-TuiSupportCore)
+    if ([string]::IsNullOrWhiteSpace($script:TuiHelperResolvedRoot)) {
+        return $false
+    }
+
+    return (Invoke-WithTuiHelpers -ScriptBlock { Test-TuiSupportCore })
 }
 
 function Render-TuiScreen {
     param([Parameter(Mandatory)] $State)
 
-    Import-TuiHelpers
-    Render-TuiScreenCore -State $State
+    Invoke-WithTuiHelpers -ScriptBlock { Render-TuiScreenCore -State $State } | Out-Null
 }
 
 function Read-TuiKey {
-    Import-TuiHelpers
-    return (Read-TuiKeyCore)
+    return (Invoke-WithTuiHelpers -ScriptBlock { Read-TuiKeyCore })
 }
 
 function Update-TuiSelection {
@@ -1191,29 +1302,25 @@ function Update-TuiSelection {
         [Parameter(Mandatory)] $KeyInfo
     )
 
-    Import-TuiHelpers
-    return (Update-TuiSelectionCore -State $State -KeyInfo $KeyInfo)
+    return (Invoke-WithTuiHelpers -ScriptBlock { Update-TuiSelectionCore -State $State -KeyInfo $KeyInfo })
 }
 
 function Invoke-TuiInstallOperation {
     param([Parameter(Mandatory)] $State)
 
-    Import-TuiHelpers
-    return (Invoke-TuiInstallOperationCore -State $State)
+    return (Invoke-WithTuiHelpers -ScriptBlock { Invoke-TuiInstallOperationCore -State $State })
 }
 
 function Invoke-TuiUninstallOperation {
     param([Parameter(Mandatory)] $State)
 
-    Import-TuiHelpers
-    return (Invoke-TuiUninstallOperationCore -State $State)
+    return (Invoke-WithTuiHelpers -ScriptBlock { Invoke-TuiUninstallOperationCore -State $State })
 }
 
 function Invoke-TuiUpdateAllOperation {
     param([Parameter(Mandatory)] $State)
 
-    Import-TuiHelpers
-    return (Invoke-TuiUpdateAllOperationCore -State $State)
+    return (Invoke-WithTuiHelpers -ScriptBlock { Invoke-TuiUpdateAllOperationCore -State $State })
 }
 
 function Invoke-InstallerAction {
@@ -1343,15 +1450,14 @@ function Start-TuiInstaller {
         [string]$LatestVersion
     )
 
-    Import-TuiHelpers
-    return (Start-TuiInstallerCore `
+    return (Invoke-WithTuiHelpers -ScriptBlock { Start-TuiInstallerCore `
             -DefaultAction $DefaultAction `
             -DefaultArchitecture $DefaultArchitecture `
             -DefaultClient $DefaultClient `
             -DefaultInstallRoot $DefaultInstallRoot `
             -InstallerState $InstallerState `
             -VersionHint $VersionHint `
-            -LatestVersion $LatestVersion)
+            -LatestVersion $LatestVersion })
 }
 
 function Resolve-Selection {

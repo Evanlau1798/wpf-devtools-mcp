@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('install', 'uninstall')]
+    [ValidateSet('install', 'uninstall', 'full-uninstall')]
     [string]$Action = 'install',
 
     [string]$Version = 'latest',
@@ -1155,7 +1155,7 @@ function Get-CliSelection {
         }
     }
 
-    $resolvedAction = Read-ValidatedChoice -Prompt 'Action (install/uninstall)' -DefaultValue $defaultAction -AllowedValues @('install', 'uninstall')
+    $resolvedAction = Read-ValidatedChoice -Prompt 'Action (install/uninstall)' -DefaultValue $defaultAction -AllowedValues @('install', 'uninstall', 'full-uninstall')
     $resolvedArchitecture = Read-ValidatedChoice -Prompt 'Architecture (x64/x86/arm64)' -DefaultValue $defaultArchitecture -AllowedValues @('x64', 'x86', 'arm64')
     $resolvedClient = Read-ValidatedChoice -Prompt 'Client (claude-code/codex/vscode/visual-studio/claude-desktop/other)' -DefaultValue $defaultClient -AllowedValues @('claude-code', 'codex', 'vscode', 'visual-studio', 'claude-desktop', 'other')
     $installRootPrompt = Read-InstallerInput -Prompt 'Install root' -DefaultValue $defaultInstallRoot
@@ -1332,13 +1332,37 @@ function Invoke-TuiUpdateAllOperation {
 
 function Invoke-InstallerAction {
     param(
-        [Parameter(Mandatory)] [ValidateSet('install', 'uninstall')] [string]$ResolvedAction,
+        [Parameter(Mandatory)] [ValidateSet('install', 'uninstall', 'full-uninstall')] [string]$ResolvedAction,
         [Parameter(Mandatory)] [string]$ResolvedArchitecture,
         [Parameter(Mandatory)] [string]$ResolvedClient,
         [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
         [Parameter(Mandatory)] [string]$RequestedVersion,
         [switch]$UseLatestRelease
     )
+
+    if ($ResolvedAction -eq 'full-uninstall') {
+        $state = Get-InstallerState
+        $result = Invoke-WithTuiHelpers -ScriptBlock { Invoke-InstallerFullUninstallCore -State $state }
+        return [ordered]@{
+            action = 'full-uninstall'
+            mode = 'offline'
+            downloadSource = 'none'
+            version = $RequestedVersion
+            resolvedVersion = $null
+            architecture = 'all'
+            client = 'all'
+            packageAssetName = $null
+            downloadUri = $null
+            installRoot = $null
+            installedExecutable = $null
+            selectedClients = @()
+            statePath = [string]$result.statePath
+            removedInstallation = [bool]$result.removedInstallation
+            removedInstallations = @($result.removedInstallations)
+            registrations = @($result.registrations)
+            verificationMessage = [string]$result.verificationMessage
+        }
+    }
 
     if ($ResolvedAction -eq 'uninstall') {
         $state = Get-InstallerState

@@ -1,11 +1,11 @@
 function Get-TuiInstalledVersion {
     param(
-        [Parameter(Mandatory)] $State,
+        [Parameter(Mandatory)] $RegistrationMap,
         [Parameter(Mandatory)] [string]$ClientId
     )
 
-    if ($State.registrations.Contains($ClientId)) {
-        return [string]$State.registrations[$ClientId].resolvedVersion
+    if ($RegistrationMap.Contains($ClientId)) {
+        return [string]$RegistrationMap[$ClientId].ResolvedVersion
     }
 
     return $null
@@ -48,12 +48,12 @@ function Get-TuiClientItems {
     )
 
     $items = @()
-    $installedStatusMap = Get-InstalledClientStatusMap -State $State
+    $registrationMap = Get-DetectedInstallerRegistrationMap -State $State
     foreach ($client in Get-SupportedClients) {
         $clientId = [string]$client.Id
-        $installed = [bool]$installedStatusMap[$clientId]
+        $installed = $registrationMap.Contains($clientId)
         $available = Test-TuiClientAvailable -ClientId $clientId -State $State
-        $version = Get-TuiInstalledVersion -State $State -ClientId $clientId
+        $version = Get-TuiInstalledVersion -RegistrationMap $registrationMap -ClientId $clientId
 
         if ($Mode -eq 'install' -and -not ($available -or $installed)) {
             continue

@@ -1117,6 +1117,36 @@ function Switch-Page {
     }
 }
 
+function Request-WindowClose {
+    param([Parameter(Mandatory)] $Window)
+
+    try {
+        $targetWindow = $Window
+        $closeAction = [Action]{
+            try {
+                if ($null -ne $targetWindow) {
+                    try {
+                        $targetWindow.DialogResult = $false
+                    }
+                    catch {
+                    }
+                    $targetWindow.Close()
+                }
+            }
+            catch {
+            }
+        }.GetNewClosure()
+        $null = $Window.Dispatcher.BeginInvoke($closeAction, [System.Windows.Threading.DispatcherPriority]::Normal)
+    }
+    catch {
+        try {
+            $Window.Close()
+        }
+        catch {
+        }
+    }
+}
+
 function Get-InstalledClientLabel {
     param(
         [Parameter(Mandatory)] [string]$ClientId,
@@ -2000,151 +2030,163 @@ function Show-InstallerWindow {
             <Grid x:Name="PageInstall" Visibility="Collapsed" Opacity="0">
                 <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
                 <StackPanel Margin="48,20">
-                    <Button x:Name="BackFromInstallButton" Style="{StaticResource NavBtn}" Margin="0,0,0,12" Content="Back"/>
-                    <TextBlock Margin="0,0,0,4" FontSize="22" FontWeight="Bold" Foreground="White" Text="Install to"/>
-                    <TextBlock Margin="0,0,0,16" FontSize="12" Foreground="#50FFFFFF" Text="Select the client that should use the release executable."/>
-                    <Border x:Name="InstallRootPanel" Margin="0,0,0,12" Padding="14,14,14,12"
-                            Background="#CC1F1F31" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="10">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Foreground="#F5F6FB" Text="Install location" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Row="1" Margin="0,4,0,10" Foreground="#80FFFFFF"
-                                       Text="Choose where the shared MCP server executable should be stored." TextWrapping="Wrap"/>
-                            <Grid Grid.Row="2">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="InstallRootTextBox" Style="{StaticResource InstallRootTextBoxStyle}" Margin="0,0,10,0"/>
-                                <Button x:Name="BrowseInstallRootButton" Grid.Column="1" Width="92"
-                                        Style="{StaticResource InstallRootActionButtonStyle}" Content="Browse"/>
-                            </Grid>
-                        </Grid>
-                    </Border>
-                    <TextBlock x:Name="VersionHintText" Margin="0,0,0,10" Foreground="#A78BFA" TextWrapping="Wrap"/>
+                    <Button x:Name="BackFromInstallButton" Style="{StaticResource NavBtn}" Margin="0,0,0,12" Content="&lt;-"/>
+                    <ScrollViewer x:Name="InstallPageScrollViewer"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <TextBlock Margin="0,0,0,4" FontSize="22" FontWeight="Bold" Foreground="White" Text="Install to"/>
+                            <TextBlock Margin="0,0,0,16" FontSize="12" Foreground="#50FFFFFF" Text="Select the client that should use the release executable."/>
+                            <Border x:Name="InstallRootPanel" Margin="0,0,0,12" Padding="14,14,14,12"
+                                    Background="#CC1F1F31" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="10">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Foreground="#F5F6FB" Text="Install location" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Row="1" Margin="0,4,0,10" Foreground="#80FFFFFF"
+                                               Text="Choose where the shared MCP server executable should be stored." TextWrapping="Wrap"/>
+                                    <Grid Grid.Row="2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="InstallRootTextBox" Style="{StaticResource InstallRootTextBoxStyle}" Margin="0,0,10,0"/>
+                                        <Button x:Name="BrowseInstallRootButton" Grid.Column="1" Width="92"
+                                                Style="{StaticResource InstallRootActionButtonStyle}" Content="Browse"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                            <TextBlock x:Name="VersionHintText" Margin="0,0,0,10" Foreground="#A78BFA" TextWrapping="Wrap"/>
 
-                    <Button x:Name="InstallClaudeCodeButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Claude Code" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="InstallCodexButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Codex" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="InstallVsCodeButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="VS Code" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="InstallVisualStudioButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Visual Studio" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="InstallClaudeDesktopButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Claude Desktop" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="InstallOtherButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Other" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
+                            <Button x:Name="InstallClaudeCodeButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Claude Code" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="InstallCodexButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Codex" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="InstallVsCodeButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="VS Code" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="InstallVisualStudioButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Visual Studio" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="InstallClaudeDesktopButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Claude Desktop" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="InstallOtherButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Other" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
 
-                    <Border Height="1" Background="#15FFFFFF" Margin="0,12"/>
-                    <Button x:Name="GenerateStandardInstallJsonButton" Style="{StaticResource ItemBtn}" Margin="0,8,0,0">
-                        <Grid>
-                            <TextBlock Text="Generate Standard Install JSON" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        </Grid>
-                    </Button>
+                            <Border Height="1" Background="#15FFFFFF" Margin="0,12"/>
+                            <Button x:Name="GenerateStandardInstallJsonButton" Style="{StaticResource ItemBtn}" Margin="0,8,0,0">
+                                <Grid>
+                                    <TextBlock Text="Generate Standard Install JSON" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                </Grid>
+                            </Button>
 
-                    <TextBlock x:Name="TxtInstMsg" Margin="0,14,0,0" FontSize="12"
-                               Foreground="#6C63FF" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="TxtInstMsg" Margin="0,14,0,0" FontSize="12"
+                                       Foreground="#6C63FF" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </ScrollViewer>
                 </StackPanel>
             </Grid>
 
             <Grid x:Name="PageUninstall" Visibility="Collapsed" Opacity="0">
                 <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
                 <StackPanel Margin="48,20">
-                    <Button x:Name="BackFromUninstallButton" Style="{StaticResource NavBtn}" Margin="0,0,0,12" Content="Back"/>
-                    <TextBlock Margin="0,0,0,4" FontSize="22" FontWeight="Bold" Foreground="White" Text="Uninstall from"/>
-                    <TextBlock Margin="0,0,0,16" FontSize="12" Foreground="#50FFFFFF" Text="Only registered targets can be removed."/>
-                    <Button x:Name="UninstallClaudeCodeButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Claude Code" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="UninstallCodexButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Codex" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="UninstallVsCodeButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="VS Code" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="UninstallVisualStudioButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Visual Studio" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="UninstallClaudeDesktopButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Claude Desktop" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="UninstallOtherButton" Style="{StaticResource ItemBtn}">
-                        <Grid>
-                            <TextBlock Text="Other" VerticalAlignment="Center"/>
-                            <TextBlock Text="(Installed)" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
-                                       Visibility="Collapsed"/>
-                        </Grid>
-                    </Button>
+                    <Button x:Name="BackFromUninstallButton" Style="{StaticResource NavBtn}" Margin="0,0,0,12" Content="&lt;-"/>
+                    <ScrollViewer x:Name="UninstallPageScrollViewer"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <TextBlock Margin="0,0,0,4" FontSize="22" FontWeight="Bold" Foreground="White" Text="Uninstall from"/>
+                            <TextBlock Margin="0,0,0,16" FontSize="12" Foreground="#50FFFFFF" Text="Only registered targets can be removed."/>
+                            <Button x:Name="UninstallClaudeCodeButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Claude Code" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="UninstallCodexButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Codex" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="UninstallVsCodeButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="VS Code" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="UninstallVisualStudioButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Visual Studio" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="UninstallClaudeDesktopButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Claude Desktop" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="UninstallOtherButton" Style="{StaticResource ItemBtn}">
+                                <Grid>
+                                    <TextBlock Text="Other" VerticalAlignment="Center"/>
+                                    <TextBlock Text="(Installed)" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="#A78BFA" FontSize="12"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
 
-                    <TextBlock x:Name="TxtUninstMsg" Margin="0,14,0,0" FontSize="12"
-                               Foreground="#E85D75" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="TxtUninstMsg" Margin="0,14,0,0" FontSize="12"
+                                       Foreground="#E85D75" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </ScrollViewer>
                 </StackPanel>
             </Grid>
         </Grid>
@@ -2202,7 +2244,7 @@ function Show-InstallerWindow {
                 try { $window.WindowState = 'Minimized' } catch {}
             })
         $window.FindName('BtnClose').Add_Click({
-                try { $window.Close() } catch {}
+                Request-WindowClose -Window $window
             })
         $window.FindName('GoInstallButton').Add_Click({
                 Update-AllStatus -Window $window -InstalledStatus (Get-InstalledClientStatusMap -State (Get-InstallerState)) -LatestVersion $latestVersion
@@ -2493,14 +2535,14 @@ function Show-OperationSummary {
         $openDocsButton.Visibility = if ($isInstall) { 'Visible' } else { 'Collapsed' }
 
         $closeAction = {
-            try { $window.Close() } catch {}
+            Request-WindowClose -Window $window
         }
         $summaryCloseCaptionButton.Add_Click($closeAction)
         $closeSummaryButton.Add_Click($closeAction)
         $openDocsButton.Add_Click({
                 try {
                     Invoke-DocsHomepage
-                    $window.Close()
+                    Request-WindowClose -Window $window
                 }
                 catch {
                     $summaryVersionText.Text = "Unable to open documentation: $($_.Exception.Message)"

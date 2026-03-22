@@ -82,7 +82,7 @@ public sealed class InstallerInteractiveUiScriptTests
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
         content.Should().NotContain("??Back");
-        content.Should().Contain("Content=\"Back\"");
+        content.Should().Contain("Content=\"&lt;-\"");
         content.Should().Contain("Style x:Key=\"ArchitectureComboBoxStyle\"");
         content.Should().Contain("Style x:Key=\"ArchitectureComboBoxItemStyle\"");
         content.Should().Contain("Popup");
@@ -124,6 +124,20 @@ public sealed class InstallerInteractiveUiScriptTests
         content.Should().Contain("Refresh-UpdateBanner");
         content.Should().Contain("Invoke-GuiInstallOperation -Window $window");
         content.Should().Contain("Invoke-GuiUninstallOperation -Window $window");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldDeclareScrollableClientListsAndDispatcherBasedCloseHandling()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("InstallPageScrollViewer");
+        content.Should().Contain("UninstallPageScrollViewer");
+        content.Should().Contain("VerticalScrollBarVisibility=\"Auto\"");
+        content.Should().Contain("function Request-WindowClose");
+        content.Should().Contain("DialogResult = $false");
+        content.Should().Contain("BeginInvoke");
     }
 
     [Fact]

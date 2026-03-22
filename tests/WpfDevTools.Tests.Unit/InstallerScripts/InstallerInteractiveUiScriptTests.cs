@@ -59,6 +59,33 @@ public sealed class InstallerInteractiveUiScriptTests
     }
 
     [Fact]
+    public void TuiScreenModel_ShouldSupportScrollableListsAvailabilityFilteringAndVersionLabels()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.ScreenModel.ps1"));
+
+        content.Should().Contain("VisibleWindowSize");
+        content.Should().Contain("ScrollOffset");
+        content.Should().Contain("Test-TuiClientAvailable");
+        content.Should().Contain("Get-TuiClientItems");
+        content.Should().Contain("Get-TuiUpdateBannerText");
+        content.Should().Contain("Installed v");
+    }
+
+    [Fact]
+    public void TuiFlow_ShouldKeepOperationsInSameSessionAndReuseInstallerCoreActions()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.Flow.ps1"));
+
+        content.Should().Contain("CurrentScreen = 'ProgressScreen'");
+        content.Should().Contain("Invoke-InstallerAction -ResolvedAction 'install'");
+        content.Should().Contain("Invoke-InstallerAction -ResolvedAction 'uninstall'");
+        content.Should().Contain("Invoke-InstallerAction -ResolvedAction 'install' -ResolvedArchitecture ([string]$update.Architecture)");
+        content.Should().Contain("CurrentScreen = 'HomeScreen'");
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldKeepCliFallbackPlainWithoutLegacyDecorativeBanners()
     {
         var content = File.ReadAllText(

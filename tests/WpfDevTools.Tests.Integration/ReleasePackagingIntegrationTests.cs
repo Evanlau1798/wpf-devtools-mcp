@@ -26,6 +26,10 @@ public sealed class ReleasePackagingIntegrationTests
 
             File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.ScreenModel.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Renderer.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Input.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Flow.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "manifest.json")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "internal-install.ps1")).Should().BeFalse(
@@ -90,6 +94,7 @@ public sealed class ReleasePackagingIntegrationTests
 
             File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.ScreenModel.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-arm64.exe")).Should().BeTrue();
         }
         finally

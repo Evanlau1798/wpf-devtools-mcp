@@ -340,4 +340,99 @@ public sealed class InstallerInteractiveUiScriptTests
         }
     }
 
+    [Fact]
+    public void OnlineInstallerScript_TuiUninstall_ShouldRequireTwoStepConfirmationBeforeRemovingRegistration()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+
+            ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "visual-studio", "-VisualStudioConfigPath", visualStudioConfigPath, "-NonInteractive", "-Force", "-OutputJson"],
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
+                }).ExitCode.Should().Be(0);
+
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+            var fakeBin = Path.Combine(tempRoot, "bin");
+            Directory.CreateDirectory(fakeBin);
+            var command = string.Join(" ; ",
+            [
+                "$env:APPDATA='" + Path.Combine(tempRoot, "AppData", "Roaming").Replace("'", "''") + "'",
+                "$env:LOCALAPPDATA='" + Path.Combine(tempRoot, "AppData", "Local").Replace("'", "''") + "'",
+                "$env:USERPROFILE='" + Path.Combine(tempRoot, "UserProfile").Replace("'", "''") + "'",
+                "$env:PATH='" + fakeBin.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
+                "Set-Location '" + tempRoot.Replace("'", "''") + "'",
+                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other -VisualStudioConfigPath '" + visualStudioConfigPath.Replace("'", "''") + "'"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("ConfirmScreen");
+            result.Stdout.Should().Contain("Step 1 of 2");
+            File.ReadAllText(visualStudioConfigPath).Should().Contain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_TuiFullUninstall_ShouldEnterTwoStepConfirmationBeforeExecution()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var fakeBin = Path.Combine(tempRoot, "bin");
+            Directory.CreateDirectory(appData);
+            Directory.CreateDirectory(localAppData);
+            Directory.CreateDirectory(userProfile);
+            Directory.CreateDirectory(fakeBin);
+
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+            var command = string.Join(" ; ",
+            [
+                "$env:APPDATA='" + appData.Replace("'", "''") + "'",
+                "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
+                "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
+                "$env:PATH='" + fakeBin.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
+                "Set-Location '" + tempRoot.Replace("'", "''") + "'",
+                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("ConfirmScreen");
+            result.Stdout.Should().Contain("Full Uninstall");
+            result.Stdout.Should().Contain("Step 1 of 2");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
 }

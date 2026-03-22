@@ -62,7 +62,17 @@ function Build-TuiScreenLines {
     $lines.Add("$($accent.Accent)$((Get-TuiScreenTitle -State $State))$($accent.Reset)")
     $lines.Add('')
 
-    if ($State.CurrentScreen -eq 'ProgressScreen') {
+    if ($State.CurrentScreen -eq 'ConfirmScreen') {
+        foreach ($line in @(Get-TuiConfirmationLinesCore -State $State)) {
+            if ([string]::IsNullOrWhiteSpace($line)) {
+                $lines.Add('')
+            }
+            else {
+                $lines.Add("$($accent.Text)$line$($accent.Reset)")
+            }
+        }
+    }
+    elseif ($State.CurrentScreen -eq 'ProgressScreen') {
         $lines.Add("$($accent.Text)$([string]$State.StatusMessage)$($accent.Reset)")
     }
     else {

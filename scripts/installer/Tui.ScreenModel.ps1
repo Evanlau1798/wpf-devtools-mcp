@@ -159,6 +159,8 @@ function New-TuiState {
         Cancelled = $false
         PendingAction = $null
         PendingClient = $null
+        ConfirmationMode = $null
+        ConfirmationStep = 0
         InstallerState = $InstallerState
         VisibleWindowSize = 6
         HomeItems = @(
@@ -196,6 +198,7 @@ function Get-TuiCurrentItems {
         'HomeScreen' { return @($State.HomeItems) }
         'InstallScreen' { return @($State.InstallItems) }
         'UninstallScreen' { return @($State.UninstallItems) }
+        'ConfirmScreen' { return @() }
         default { return @() }
     }
 }
@@ -225,6 +228,10 @@ function Update-TuiSelectionCore {
         [Parameter(Mandatory)] $State,
         [Parameter(Mandatory)] $KeyInfo
     )
+
+    if ([string]$State.CurrentScreen -eq 'ConfirmScreen') {
+        return (Handle-TuiConfirmationKeyCore -State $State -KeyInfo $KeyInfo)
+    }
 
     $items = @(Get-TuiCurrentItems -State $State)
     $maxIndex = [Math]::Max(0, $items.Count - 1)
@@ -276,8 +283,13 @@ function Update-TuiSelectionCore {
                 }
                 'UninstallScreen' {
                     if ($items.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$items[[int]$State.SelectionIndex].Id)) {
-                        $State.PendingAction = 'uninstall'
-                        $State.PendingClient = [string]$items[[int]$State.SelectionIndex].Id
+                        $selectedId = [string]$items[[int]$State.SelectionIndex].Id
+                        if ($selectedId -eq 'full-uninstall') {
+                            $State = Enter-TuiConfirmationCore -State $State -ConfirmationMode 'full-uninstall'
+                        }
+                        else {
+                            $State = Enter-TuiConfirmationCore -State $State -ConfirmationMode 'unregister' -ClientId $selectedId
+                        }
                     }
                 }
             }

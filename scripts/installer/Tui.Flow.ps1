@@ -51,6 +51,32 @@ function Invoke-TuiUninstallOperationCore {
         $State.StatusMessage = "Uninstall failed: $($_.Exception.Message)"
     }
     finally {
+        $State = Reset-TuiConfirmationCore -State $State
+        $State.PendingAction = $null
+        $State.PendingClient = $null
+        $State.CurrentScreen = 'UninstallScreen'
+    }
+
+    return $State
+}
+
+function Invoke-TuiFullUninstallOperationCore {
+    param([Parameter(Mandatory)] $State)
+
+    $State.CurrentScreen = 'ProgressScreen'
+    $State.StatusMessage = 'Removing all detected registrations and installer-owned server files...'
+    Render-TuiScreenCore -State $State | Out-Null
+
+    try {
+        $result = Invoke-InstallerAction -ResolvedAction 'full-uninstall' -ResolvedArchitecture ([string]$State.SelectedArchitecture) -ResolvedClient 'all' -ResolvedInstallRoot ([string]$State.InstallRoot) -RequestedVersion $Version
+        $State = Sync-TuiStateFromInstallerState -State $State -InstallerState (Get-InstallerState)
+        $State.StatusMessage = "Full Uninstall completed. $($result.verificationMessage)"
+    }
+    catch {
+        $State.StatusMessage = "Full Uninstall failed: $($_.Exception.Message)"
+    }
+    finally {
+        $State = Reset-TuiConfirmationCore -State $State
         $State.PendingAction = $null
         $State.PendingClient = $null
         $State.CurrentScreen = 'UninstallScreen'
@@ -118,6 +144,7 @@ function Start-TuiInstallerCore {
             'edit-root' { $state = Invoke-TuiInstallRootPromptCore -State $state; $state.PendingAction = $null }
             'install' { $state = Invoke-TuiInstallOperationCore -State $state }
             'uninstall' { $state = Invoke-TuiUninstallOperationCore -State $state }
+            'full-uninstall' { $state = Invoke-TuiFullUninstallOperationCore -State $state }
             'update-all' { $state = Invoke-TuiUpdateAllOperationCore -State $state }
         }
     }

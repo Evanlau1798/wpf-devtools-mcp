@@ -48,9 +48,10 @@ function Get-TuiClientItems {
     )
 
     $items = @()
+    $installedStatusMap = Get-InstalledClientStatusMap -State $State
     foreach ($client in Get-SupportedClients) {
         $clientId = [string]$client.Id
-        $installed = [bool]$State.registrations.Contains($clientId)
+        $installed = [bool]$installedStatusMap[$clientId]
         $available = Test-TuiClientAvailable -ClientId $clientId -State $State
         $version = Get-TuiInstalledVersion -State $State -ClientId $clientId
 

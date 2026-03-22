@@ -179,4 +179,48 @@ public sealed class InstallerInteractiveUiScriptTests
         }
     }
 
+    [Fact]
+    public void OnlineInstallerScript_TuiUninstallScreen_ShouldListJsonRegisteredTargetsEvenWhenInstallerStateIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var configPath = Path.Combine(appData, "Code", "User", "mcp.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+            Directory.CreateDirectory(localAppData);
+            Directory.CreateDirectory(userProfile);
+            File.WriteAllText(
+                configPath,
+                "{\"servers\":{\"wpf-devtools\":{\"command\":\"C:\\\\tools\\\\wpf-devtools-x64.exe\",\"args\":[]}}}");
+
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+            var command = string.Join(" ; ",
+            [
+                "$env:APPDATA='" + appData.Replace("'", "''") + "'",
+                "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
+                "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
+                "Set-Location '" + tempRoot.Replace("'", "''") + "'",
+                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("UninstallScreen");
+            result.Stdout.Should().Contain("VS Code");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
 }

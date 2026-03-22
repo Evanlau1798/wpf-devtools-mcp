@@ -68,17 +68,14 @@ internal static class ReleaseScriptTestHarness
         Directory.CreateDirectory(helperDir);
         File.Copy(GetRepoFilePath("scripts/online-installer.ps1"), Path.Combine(binDir, "install.ps1"), overwrite: true);
         File.Copy(GetRepoFilePath("scripts/tools/packaging/run-template.bat"), Path.Combine(packageDir, "run.bat"), overwrite: true);
-        foreach (var helperName in new[]
-                 {
-                     "Tui.ScreenModel.ps1",
-                     "Tui.Renderer.ps1",
-                     "Tui.Input.ps1",
-                     "Tui.Flow.ps1"
-                 })
+        foreach (var helperPath in Directory.GetFiles(
+                     GetRepoFilePath(Path.Combine("scripts", "installer")),
+                     "*.ps1",
+                     SearchOption.TopDirectoryOnly))
         {
             File.Copy(
-                GetRepoFilePath(Path.Combine("scripts", "installer", helperName)),
-                Path.Combine(helperDir, helperName),
+                helperPath,
+                Path.Combine(helperDir, Path.GetFileName(helperPath)),
                 overwrite: true);
         }
 

@@ -127,6 +127,12 @@ function Get-TuiHelperRuntimeRoot {
     return $runtimeRoot
 }
 
+function Get-TuiHelperCacheKeyPath {
+    param([Parameter(Mandatory)] [string]$RuntimeRoot)
+
+    return (Join-Path $RuntimeRoot 'helper-cache-key.txt')
+}
+
 function Get-TuiHelperOverrideDirectory {
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY)) {
         return $env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY
@@ -176,6 +182,13 @@ function Ensure-TuiHelpersAvailable {
     }
 
     $runtimeRoot = Get-TuiHelperRuntimeRoot
+    $cacheKeyPath = Get-TuiHelperCacheKeyPath -RuntimeRoot $runtimeRoot
+    $cachedKey = if (Test-Path $cacheKeyPath) { (Get-Content -Path $cacheKeyPath -Raw).Trim() } else { $null }
+    if ($cachedKey -ne $script:InstallerHelperCacheKey) {
+        Remove-PathIfExists -Path $runtimeRoot
+        New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
+    }
+
     $downloadBaseUri = if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI)) {
         $env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI.TrimEnd('/')
     }
@@ -194,6 +207,7 @@ function Ensure-TuiHelpersAvailable {
         Invoke-WebRequest -Uri $downloadUri -OutFile $destinationPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
     }
 
+    Set-Content -Path $cacheKeyPath -Value $script:InstallerHelperCacheKey -Encoding UTF8
     $script:TuiHelperResolvedRoot = $runtimeRoot
     return $runtimeRoot
 }

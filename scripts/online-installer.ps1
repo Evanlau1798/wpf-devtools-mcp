@@ -84,15 +84,22 @@ function Get-SystemDefaultArchitecture {
     return 'x64'
 }
 
-$script:TuiHelperSourcePaths = @(
+$script:InstallerHelperCacheKey = 'WPFDEVTOOLS_INSTALLER_HELPER_CACHE_KEY:v1'
+$script:InstallerHelperSourcePaths = @(
     'scripts/installer/Tui.ScreenModel.ps1'
     'scripts/installer/Tui.Renderer.ps1'
     'scripts/installer/Tui.Input.ps1'
     'scripts/installer/Tui.Flow.ps1'
+    'scripts/installer/Tui.Confirm.ps1'
+    'scripts/installer/Installer.Discovery.ps1'
+    'scripts/installer/Installer.Uninstall.ps1'
 )
 $script:TuiHelperDownloadBaseUri = 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/installer'
-$script:TuiScreenNames = @('HomeScreen', 'InstallScreen', 'UninstallScreen', 'ProgressScreen')
+$script:TuiScreenNames = @('HomeScreen', 'InstallScreen', 'UninstallScreen', 'ConfirmScreen', 'ProgressScreen')
 $script:TuiUiMarkers = @('Installed v', 'Update available', 'Architecture', 'Install location', 'Update All')
+$script:TuiConfirmationModes = @('unregister', 'full-uninstall')
+$script:TuiUninstallActions = @('UnregisterTarget', 'FullUninstall', 'Full Uninstall')
+$script:InstallerDiscoveryContractFields = @('RegistrationMode', 'InstalledExecutable', 'InstallerOwned', 'ConfirmationStep')
 $script:TuiNavigationKeys = @(
     [ConsoleKey]::UpArrow
     [ConsoleKey]::DownArrow
@@ -150,7 +157,7 @@ function Ensure-TuiHelpersAvailable {
         }
 
         $allPresent = $true
-        foreach ($repoRelativePath in $script:TuiHelperSourcePaths) {
+        foreach ($repoRelativePath in $script:InstallerHelperSourcePaths) {
             $leafName = Split-Path $repoRelativePath -Leaf
             if (-not (Test-Path (Join-Path $candidateRoot $leafName))) {
                 $allPresent = $false
@@ -176,7 +183,7 @@ function Ensure-TuiHelpersAvailable {
         $script:TuiHelperDownloadBaseUri
     }
 
-    foreach ($repoRelativePath in $script:TuiHelperSourcePaths) {
+    foreach ($repoRelativePath in $script:InstallerHelperSourcePaths) {
         $leafName = Split-Path $repoRelativePath -Leaf
         $destinationPath = Join-Path $runtimeRoot $leafName
         if (Test-Path $destinationPath) {
@@ -198,7 +205,7 @@ function Import-TuiHelpers {
     }
 
     $helperPaths = New-Object System.Collections.Generic.List[string]
-    foreach ($repoRelativePath in $script:TuiHelperSourcePaths) {
+    foreach ($repoRelativePath in $script:InstallerHelperSourcePaths) {
         $leafName = Split-Path $repoRelativePath -Leaf
         $runtimePath = Join-Path $helperRoot $leafName
         if (-not (Test-Path $runtimePath)) {

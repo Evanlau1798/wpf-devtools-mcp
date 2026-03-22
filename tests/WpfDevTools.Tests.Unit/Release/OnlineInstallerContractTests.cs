@@ -59,6 +59,18 @@ public sealed class OnlineInstallerContractTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldDeclareTwoStepConfirmationAndFullUninstallContracts()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("ConfirmScreen");
+        content.Should().Contain("ConfirmationStep");
+        content.Should().Contain("Full Uninstall");
+        content.Should().Contain("full-uninstall");
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldDownloadVersionedReleaseArchiveNames()
     {
         var content = File.ReadAllText(

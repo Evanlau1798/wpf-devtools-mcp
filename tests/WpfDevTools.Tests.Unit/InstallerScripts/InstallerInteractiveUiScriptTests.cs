@@ -86,6 +86,27 @@ public sealed class InstallerInteractiveUiScriptTests
     }
 
     [Fact]
+    public void TuiFlow_ShouldDeclareConfirmScreenAndDualUninstallActions()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("ConfirmScreen");
+        content.Should().Contain("UnregisterTarget");
+        content.Should().Contain("FullUninstall");
+    }
+
+    [Fact]
+    public void TuiScreenModel_ShouldDeclareFullUninstallRowSeparatedByDivider()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.ScreenModel.ps1"));
+
+        content.Should().Contain("------------------------------");
+        content.Should().Contain("Full Uninstall");
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldKeepCliFallbackPlainWithoutLegacyDecorativeBanners()
     {
         var content = File.ReadAllText(

@@ -112,6 +112,14 @@ function Get-TuiUpdateBannerText {
     return "Update available: $($updates.Count) target(s) can move to v$LatestVersion."
 }
 
+function Get-TuiFullUninstallDivider {
+    return '------------------------------'
+}
+
+function Get-TuiFullUninstallLabel {
+    return 'Full Uninstall'
+}
+
 function New-TuiState {
     param(
         [Parameter(Mandatory)] [string]$DefaultAction,

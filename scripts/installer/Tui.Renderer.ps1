@@ -71,6 +71,9 @@ function Build-TuiScreenLines {
         for ($index = 0; $index -lt $visibleItems.Count; $index++) {
             $absoluteIndex = [int]$State.ScrollOffset + $index
             $item = $visibleItems[$index]
+            if ([string]$item.Id -eq 'full-uninstall') {
+                $lines.Add("   $($accent.Dim)$(Get-TuiFullUninstallDivider)$($accent.Reset)")
+            }
             $prefix = if ($absoluteIndex -eq [int]$State.SelectionIndex) { "$($accent.Primary) > " } else { '   ' }
             $suffix = if ($absoluteIndex -eq [int]$State.SelectionIndex) { $accent.Reset } else { '' }
             $lines.Add("$prefix$([string]$item.Label)$suffix")

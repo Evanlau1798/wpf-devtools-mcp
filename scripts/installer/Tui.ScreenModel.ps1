@@ -80,7 +80,16 @@ function Get-TuiClientItems {
         }
     }
 
-    if ($items.Count -eq 0) {
+    if ($Mode -eq 'uninstall') {
+        $items += [ordered]@{
+            Id = 'full-uninstall'
+            Label = (Get-TuiFullUninstallLabel)
+            Installed = $true
+            Available = $true
+            Description = 'Press Enter to remove all detected registrations and installer-owned server files.'
+        }
+    }
+    elseif ($items.Count -eq 0) {
         $emptyLabel = if ($Mode -eq 'install') { 'No install targets available.' } else { 'No installed targets found.' }
         $items += [ordered]@{
             Id = ''
@@ -89,6 +98,10 @@ function Get-TuiClientItems {
             Available = $false
             Description = 'Press Escape to go back.'
         }
+    }
+
+    if ($Mode -eq 'uninstall' -and $items.Count -eq 1) {
+        $items[0].Description = 'Press Enter to remove all detected registrations and installer-owned server files.'
     }
 
     return @($items)

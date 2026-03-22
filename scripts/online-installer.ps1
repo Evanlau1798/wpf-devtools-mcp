@@ -1342,13 +1342,15 @@ function Invoke-InstallerAction {
 
     if ($ResolvedAction -eq 'uninstall') {
         $state = Get-InstallerState
-        $registrationRecord = if ($state.registrations.Contains($ResolvedClient)) { $state.registrations[$ResolvedClient] } else { $null }
+        $detectedRegistrations = Invoke-WithTuiHelpers -ScriptBlock { Get-DetectedInstallerRegistrationMap -State $state }
+        $detectedRegistration = if ($detectedRegistrations.Contains($ResolvedClient)) { $detectedRegistrations[$ResolvedClient] } else { $null }
+        $registrationRecord = if ($state.registrations.Contains($ResolvedClient)) { $state.registrations[$ResolvedClient] } else { $detectedRegistration }
         if ($null -ne $registrationRecord) {
             if ([string]::IsNullOrWhiteSpace($ResolvedArchitecture)) {
-                $ResolvedArchitecture = [string]$registrationRecord.architecture
+                $ResolvedArchitecture = if ($registrationRecord.Contains('architecture')) { [string]$registrationRecord.architecture } else { [string]$registrationRecord.Architecture }
             }
             if (-not $script:InstallRootWasSpecified -and [string]::IsNullOrWhiteSpace($ResolvedInstallRoot)) {
-                $ResolvedInstallRoot = [string]$registrationRecord.installRoot
+                $ResolvedInstallRoot = if ($registrationRecord.Contains('installRoot')) { [string]$registrationRecord.installRoot } else { [string]$registrationRecord.InstallRoot }
             }
         }
 
@@ -1360,17 +1362,8 @@ function Invoke-InstallerAction {
         }
 
         $ResolvedInstallRoot = Resolve-AbsoluteDirectory -Path $ResolvedInstallRoot
-        $installBase = Resolve-InstallBasePath -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture
-        $installManifestPath = Join-Path $installBase 'install-manifest.json'
-        $installedExecutable = if (Test-Path $installManifestPath) { ([string](Get-Content -Path $installManifestPath -Raw | ConvertFrom-Json).executable) } else { $null }
+        $installedExecutable = if ($null -ne $detectedRegistration) { [string]$detectedRegistration.InstalledExecutable } else { $null }
         $registrations = @(Invoke-ClientUnregistration -SelectedClient $ResolvedClient)
-        $remainingRegistrations = Get-RegistrationsForArchitecture -State $state -ResolvedArchitecture $ResolvedArchitecture -ResolvedInstallRoot $ResolvedInstallRoot -ExcludeClient $ResolvedClient
-        $removedInstallation = $false
-        if ($remainingRegistrations.Count -eq 0) {
-            Remove-PathIfExists -Path $installBase
-            $removedInstallation = $true
-        }
-
         $verification = Invoke-UninstallVerification -SelectedClient $ResolvedClient
         if (-not $verification.Succeeded) {
             throw $verification.VerificationMessage
@@ -1378,9 +1371,6 @@ function Invoke-InstallerAction {
 
         if ($state.registrations.Contains($ResolvedClient)) {
             [void]$state.registrations.Remove($ResolvedClient)
-        }
-        if ($removedInstallation -and $state.architectures.Contains($ResolvedArchitecture)) {
-            [void]$state.architectures.Remove($ResolvedArchitecture)
         }
 
         $statePath = Save-InstallerState -State $state
@@ -1398,7 +1388,7 @@ function Invoke-InstallerAction {
             installedExecutable = $installedExecutable
             selectedClients = @($ResolvedClient)
             statePath = $statePath
-            removedInstallation = $removedInstallation
+            removedInstallation = $false
             registrations = @($registrations)
             verificationMessage = [string]$verification.VerificationMessage
         }

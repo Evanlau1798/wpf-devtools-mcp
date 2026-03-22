@@ -345,7 +345,7 @@ public sealed class InstallerScriptTests
     }
 
     [Fact]
-    public void OnlineInstaller_Uninstall_ShouldRemoveArchitectureDirectoryWhenLastRegistrationIsRemoved()
+    public void OnlineInstaller_Uninstall_ShouldKeepServerFilesWhenLastRegistrationIsRemoved()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -380,11 +380,49 @@ public sealed class InstallerScriptTests
                 ]);
 
             uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
-            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
             File.ReadAllText(visualStudioConfigPath).Should().NotContain("wpf-devtools");
 
             using var json = JsonDocument.Parse(uninstall.Stdout);
-            json.RootElement.GetProperty("removedInstallation").GetBoolean().Should().BeTrue();
+            json.RootElement.GetProperty("removedInstallation").GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_Uninstall_ShouldNotDeleteDefaultInstallRootWhenOnlyExternalRegistrationWasDetected()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var installRoot = Path.Combine(appData, "WpfDevToolsMcp");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+            var defaultExecutable = Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(defaultExecutable)!);
+            File.WriteAllText(defaultExecutable, "stub");
+            Directory.CreateDirectory(Path.GetDirectoryName(visualStudioConfigPath)!);
+            File.WriteAllText(
+                visualStudioConfigPath,
+                "{\"servers\":{\"wpf-devtools\":{\"command\":\"C:\\\\external\\\\wpf-devtools-x64.exe\",\"args\":[]}}}");
+
+            var uninstall = RunInstaller(
+                tempRoot,
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]);
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            File.Exists(defaultExecutable).Should().BeTrue();
+            File.ReadAllText(visualStudioConfigPath).Should().NotContain("wpf-devtools");
         }
         finally
         {

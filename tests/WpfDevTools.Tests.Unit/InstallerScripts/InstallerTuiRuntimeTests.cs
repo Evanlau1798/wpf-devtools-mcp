@@ -73,4 +73,107 @@ public sealed class InstallerTuiRuntimeTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    [Fact]
+    public void OnlineInstaller_TuiStartup_ShouldDetectCodexViaPowerShellShim()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var fakeBin = Path.Combine(tempRoot, "bin");
+            Directory.CreateDirectory(appData);
+            Directory.CreateDirectory(localAppData);
+            Directory.CreateDirectory(userProfile);
+            Directory.CreateDirectory(fakeBin);
+
+            File.WriteAllText(
+                Path.Combine(fakeBin, "codex.ps1"),
+                "param([Parameter(ValueFromRemainingArguments=$true)][string[]]$args)" + Environment.NewLine +
+                "if (($args -join ' ') -eq 'mcp list') { Write-Output 'wpf-devtools'; exit 0 }" + Environment.NewLine +
+                "exit 0" + Environment.NewLine);
+
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+            var command = string.Join(" ; ",
+            [
+                "$env:APPDATA='" + appData.Replace("'", "''") + "'",
+                "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
+                "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
+                "$env:PATH='" + BuildShimOnlyPath(fakeBin).Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
+                "$env:WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC='1'",
+                "Set-Location '" + tempRoot.Replace("'", "''") + "'",
+                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("UninstallScreen");
+            result.Stdout.Should().Contain("Codex");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_ShouldVerifyCodexRegistrationViaPowerShellShim()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var fakeBin = Path.Combine(tempRoot, "bin");
+            var codexLog = Path.Combine(tempRoot, "codex.log");
+            Directory.CreateDirectory(fakeBin);
+
+            File.WriteAllText(
+                Path.Combine(fakeBin, "codex.ps1"),
+                "param([Parameter(ValueFromRemainingArguments=$true)][string[]]$args)" + Environment.NewLine +
+                "Add-Content -Path '" + codexLog.Replace("'", "''") + "' -Value ($args -join ' ')" + Environment.NewLine +
+                "if (($args[0] -eq 'mcp') -and ($args[1] -eq 'list')) { Write-Output 'wpf-devtools'; exit 0 }" + Environment.NewLine +
+                "if (($args[0] -eq 'mcp') -and ($args[1] -eq 'add')) { exit 0 }" + Environment.NewLine +
+                "exit 0" + Environment.NewLine);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "codex", "-NonInteractive", "-Force", "-OutputJson"],
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["PATH"] = BuildShimOnlyPath(fakeBin),
+                    ["WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC"] = "1"
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            File.ReadAllText(codexLog)
+                .Should().Contain("mcp add wpf-devtools")
+                .And.Contain("mcp list");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    private static string BuildShimOnlyPath(string fakeBin)
+        => string.Join(
+            Path.PathSeparator,
+            [
+                fakeBin,
+                Environment.SystemDirectory,
+                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "WindowsPowerShell", "v1.0")
+            ]);
 }

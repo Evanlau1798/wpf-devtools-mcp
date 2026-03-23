@@ -1375,8 +1375,8 @@ function Invoke-VerificationCommand {
         [Parameter(Mandatory)] [bool]$ExpectPresent
     )
 
-    $resolvedCommand = Get-Command $Command -ErrorAction SilentlyContinue
-    if ($null -eq $resolvedCommand) {
+    $resolvedCommands = @(Get-Command $Command -All -CommandType Application,ExternalScript -ErrorAction SilentlyContinue)
+    if ($resolvedCommands.Count -eq 0) {
         return [ordered]@{
             Succeeded = $false
             Output = "$Command is not installed."
@@ -1384,14 +1384,33 @@ function Invoke-VerificationCommand {
         }
     }
 
-    $resolvedCommandPath = if (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Source)) {
-        [string]$resolvedCommand.Source
+    $selectedCommandPath = $null
+    foreach ($resolvedCommand in $resolvedCommands) {
+        $candidatePath = if (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Path)) {
+            [string]$resolvedCommand.Path
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Source)) {
+            [string]$resolvedCommand.Source
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Definition)) {
+            [string]$resolvedCommand.Definition
+        }
+        else {
+            [string]$resolvedCommand.Name
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($candidatePath)) {
+            $selectedCommandPath = $candidatePath
+            break
+        }
     }
-    elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Path)) {
-        [string]$resolvedCommand.Path
-    }
-    else {
-        [string]$resolvedCommand.Name
+
+    if ([string]::IsNullOrWhiteSpace($selectedCommandPath)) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = "$Command is not installed."
+            ExitCode = -1
+        }
     }
 
     $timeoutSeconds = Get-InstallerVerificationTimeoutSeconds
@@ -1413,12 +1432,20 @@ function Invoke-VerificationCommand {
     $startInfo.RedirectStandardError = $true
     $startInfo.CreateNoWindow = $true
 
-    $filePath = $resolvedCommandPath
+    $filePath = $selectedCommandPath
     $argumentText = $quotedArguments -join ' '
-    if (@('.cmd', '.bat') -contains ([System.IO.Path]::GetExtension($resolvedCommandPath).ToLowerInvariant())) {
+    $selectedExtension = [System.IO.Path]::GetExtension($selectedCommandPath).ToLowerInvariant()
+    if (@('.cmd', '.bat') -contains $selectedExtension) {
         $filePath = if (-not [string]::IsNullOrWhiteSpace($env:ComSpec)) { $env:ComSpec } else { 'cmd.exe' }
-        $argumentText = '/c "' + $resolvedCommandPath + '"'
+        $argumentText = '/c "' + $selectedCommandPath + '"'
         if (-not [string]::IsNullOrWhiteSpace($argumentText) -and $quotedArguments.Count -gt 0) {
+            $argumentText += ' ' + ($quotedArguments -join ' ')
+        }
+    }
+    elseif ($selectedExtension -eq '.ps1') {
+        $filePath = (Get-Process -Id $PID).Path
+        $argumentText = '-NoProfile -ExecutionPolicy Bypass -File "' + $selectedCommandPath + '"'
+        if ($quotedArguments.Count -gt 0) {
             $argumentText += ' ' + ($quotedArguments -join ' ')
         }
     }
@@ -1435,26 +1462,36 @@ function Invoke-VerificationCommand {
         $stderrTask = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
             try {
-                & taskkill.exe /PID $process.Id /T /F *> $null
+                $process.Kill($true)
             }
             catch {
                 try {
-                    $process.Kill()
+                    & taskkill.exe /PID $process.Id /T /F *> $null
                 }
                 catch {
+                    try {
+                        $process.Kill()
+                    }
+                    catch {
+                    }
                 }
             }
 
+            $timeoutDrainMs = 250
             try {
-                $process.WaitForExit()
+                $null = $process.WaitForExit($timeoutDrainMs)
             }
             catch {
             }
 
-            $timeoutOutput = @(
-                $stdoutTask.GetAwaiter().GetResult()
-                $stderrTask.GetAwaiter().GetResult()
-            ) -join [Environment]::NewLine
+            $timeoutOutput = @()
+            if ($stdoutTask.IsCompleted) {
+                $timeoutOutput += $stdoutTask.GetAwaiter().GetResult()
+            }
+            if ($stderrTask.IsCompleted) {
+                $timeoutOutput += $stderrTask.GetAwaiter().GetResult()
+            }
+            $timeoutOutput = ($timeoutOutput -join [Environment]::NewLine).Trim()
 
             return [ordered]@{
                 Succeeded = $false

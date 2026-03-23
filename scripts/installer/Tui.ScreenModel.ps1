@@ -44,11 +44,12 @@ function Test-TuiClientAvailable {
 function Get-TuiClientItems {
     param(
         [Parameter(Mandatory)] $State,
-        [Parameter(Mandatory)] [ValidateSet('install', 'uninstall')] [string]$Mode
+        [Parameter(Mandatory)] [ValidateSet('install', 'uninstall')] [string]$Mode,
+        $RegistrationMap
     )
 
     $items = @()
-    $registrationMap = Get-DetectedInstallerRegistrationMap -State $State
+    $registrationMap = if ($null -ne $RegistrationMap) { $RegistrationMap } else { Get-DetectedInstallerRegistrationMap -State $State }
     foreach ($client in Get-SupportedClients) {
         $clientId = [string]$client.Id
         $installed = $registrationMap.Contains($clientId)
@@ -172,8 +173,10 @@ function New-TuiState {
         )
     }
 
-    $state.InstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'install')
-    $state.UninstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'uninstall')
+    $detectedRegistrationMap = Get-DetectedInstallerRegistrationMap -State $state.InstallerState
+    $state.DetectedRegistrationMap = $detectedRegistrationMap
+    $state.InstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap)
+    $state.UninstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap)
     $state.UpdateBannerText = Get-TuiUpdateBannerText -State $state.InstallerState -LatestVersion $LatestVersion
     return $state
 }
@@ -185,8 +188,10 @@ function Sync-TuiStateFromInstallerState {
     )
 
     $State.InstallerState = $InstallerState
-    $State.InstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'install')
-    $State.UninstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'uninstall')
+    $detectedRegistrationMap = Get-DetectedInstallerRegistrationMap -State $InstallerState
+    $State.DetectedRegistrationMap = $detectedRegistrationMap
+    $State.InstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap)
+    $State.UninstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap)
     $State.UpdateBannerText = Get-TuiUpdateBannerText -State $InstallerState -LatestVersion ([string]$State.LatestVersion)
     return $State
 }

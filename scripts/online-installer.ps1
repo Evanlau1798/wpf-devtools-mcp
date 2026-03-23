@@ -180,6 +180,10 @@ function Get-TuiHelperBootstrapTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_HELPER_BOOTSTRAP_TIMEOUT_SEC' -DefaultValue 20 -MinimumValue 3 -MaximumValue 120)
 }
 
+function Get-InstallerVerificationTimeoutSeconds {
+    return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC' -DefaultValue 2 -MinimumValue 1 -MaximumValue 30)
+}
+
 function Write-TuiBootstrapMessage {
     param([Parameter(Mandatory)] [string]$Message)
 
@@ -1380,8 +1384,105 @@ function Invoke-VerificationCommand {
         }
     }
 
-    $output = (& $Command @Arguments 2>&1 | Out-String).Trim()
-    $exitCode = $LASTEXITCODE
+    $resolvedCommandPath = if (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Source)) {
+        [string]$resolvedCommand.Source
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Path)) {
+        [string]$resolvedCommand.Path
+    }
+    else {
+        [string]$resolvedCommand.Name
+    }
+
+    $timeoutSeconds = Get-InstallerVerificationTimeoutSeconds
+    $quotedArguments = @($Arguments | ForEach-Object {
+            if ([string]::IsNullOrWhiteSpace([string]$_)) {
+                '""'
+            }
+            elseif ([string]$_ -match '[\s"]') {
+                '"' + ([string]$_).Replace('"', '\"') + '"'
+            }
+            else {
+                [string]$_
+            }
+        })
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+
+    $filePath = $resolvedCommandPath
+    $argumentText = $quotedArguments -join ' '
+    if (@('.cmd', '.bat') -contains ([System.IO.Path]::GetExtension($resolvedCommandPath).ToLowerInvariant())) {
+        $filePath = if (-not [string]::IsNullOrWhiteSpace($env:ComSpec)) { $env:ComSpec } else { 'cmd.exe' }
+        $argumentText = '/c "' + $resolvedCommandPath + '"'
+        if (-not [string]::IsNullOrWhiteSpace($argumentText) -and $quotedArguments.Count -gt 0) {
+            $argumentText += ' ' + ($quotedArguments -join ' ')
+        }
+    }
+
+    $process = $null
+    $exitCode = -3
+    try {
+        $startInfo.FileName = $filePath
+        $startInfo.Arguments = $argumentText
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $startInfo
+        $null = $process.Start()
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
+            try {
+                & taskkill.exe /PID $process.Id /T /F *> $null
+            }
+            catch {
+                try {
+                    $process.Kill()
+                }
+                catch {
+                }
+            }
+
+            try {
+                $process.WaitForExit()
+            }
+            catch {
+            }
+
+            $timeoutOutput = @(
+                $stdoutTask.GetAwaiter().GetResult()
+                $stderrTask.GetAwaiter().GetResult()
+            ) -join [Environment]::NewLine
+
+            return [ordered]@{
+                Succeeded = $false
+                Output = ("$Command timed out after $timeoutSeconds second(s). " + $timeoutOutput).Trim()
+                ExitCode = -2
+            }
+        }
+
+        $exitCode = $process.ExitCode
+    }
+    catch {
+        return [ordered]@{
+            Succeeded = $false
+            Output = $_.Exception.Message
+            ExitCode = -3
+        }
+    }
+    finally {
+        if ($null -ne $process) {
+            $process.Dispose()
+        }
+    }
+
+    $output = @(
+        $stdoutTask.GetAwaiter().GetResult()
+        $stderrTask.GetAwaiter().GetResult()
+    ) -join [Environment]::NewLine
+    $output = $output.Trim()
     if ($exitCode -ne 0) {
         return [ordered]@{
             Succeeded = $false

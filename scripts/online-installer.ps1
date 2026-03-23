@@ -1277,7 +1277,8 @@ function Update-InstallerStateAfterInstall {
 function Get-AvailableInstallerUpdates {
     param(
         [Parameter(Mandatory)] $State,
-        [string]$LatestVersion
+        [string]$LatestVersion,
+        $RegistrationMap
     )
 
     $updates = @()
@@ -1285,19 +1286,53 @@ function Get-AvailableInstallerUpdates {
         return @($updates)
     }
 
-    foreach ($property in $State.registrations.GetEnumerator()) {
-        $resolvedVersion = [string]$property.Value.resolvedVersion
+    $candidateRegistrations = @()
+    if ($null -ne $RegistrationMap) {
+        $candidateRegistrations = @($RegistrationMap.GetEnumerator() | ForEach-Object {
+                [ordered]@{
+                    Client = [string]$_.Key
+                    Registration = $_.Value
+                }
+            })
+    }
+    elseif ($null -ne (Get-Command 'Get-DetectedInstallerRegistrationMap' -CommandType Function -ErrorAction SilentlyContinue)) {
+        $detectedRegistrationMap = Get-DetectedInstallerRegistrationMap -State $State
+        $candidateRegistrations = @($detectedRegistrationMap.GetEnumerator() | ForEach-Object {
+                [ordered]@{
+                    Client = [string]$_.Key
+                    Registration = $_.Value
+                }
+            })
+    }
+    else {
+        $candidateRegistrations = @($State.registrations.GetEnumerator() | ForEach-Object {
+                [ordered]@{
+                    Client = [string]$_.Key
+                    Registration = $_.Value
+                }
+            })
+    }
+
+    foreach ($entry in $candidateRegistrations) {
+        $registration = $entry.Registration
+        $resolvedVersion = if ($registration.Contains('ResolvedVersion')) { [string]$registration.ResolvedVersion } else { [string]$registration.resolvedVersion }
         if ([string]::IsNullOrWhiteSpace($resolvedVersion)) {
             continue
         }
 
         if ($resolvedVersion -ne $LatestVersion) {
+            $installRoot = if ($registration.Contains('InstallRoot')) { [string]$registration.InstallRoot } else { [string]$registration.installRoot }
+            $architecture = if ($registration.Contains('Architecture')) { [string]$registration.Architecture } else { [string]$registration.architecture }
+            if ([string]::IsNullOrWhiteSpace($installRoot) -or [string]::IsNullOrWhiteSpace($architecture)) {
+                continue
+            }
+
             $updates += [ordered]@{
-                Client = [string]$property.Key
+                Client = [string]$entry.Client
                 CurrentVersion = $resolvedVersion
                 LatestVersion = $LatestVersion
-                InstallRoot = [string]$property.Value.installRoot
-                Architecture = [string]$property.Value.architecture
+                InstallRoot = $installRoot
+                Architecture = $architecture
             }
         }
     }

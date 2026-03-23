@@ -100,7 +100,7 @@ function Invoke-TuiUpdateAllOperationCore {
         return $State
     }
 
-    $updates = @(Get-AvailableInstallerUpdates -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion))
+    $updates = @(Get-AvailableInstallerUpdates -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap)
     if ($updates.Count -eq 0) {
         $State.StatusMessage = 'All installed targets are already on the latest release.'
         $State.PendingAction = $null
@@ -146,7 +146,7 @@ function Initialize-TuiStartupStateCore {
         $State.LatestVersion = Get-LatestInstallerVersion -UseCacheOnly
     }
 
-    $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion)
+    $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap
     $State.StatusMessage = ''
     return $State
 }

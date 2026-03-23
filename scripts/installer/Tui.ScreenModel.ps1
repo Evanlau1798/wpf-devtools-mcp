@@ -1,3 +1,16 @@
+function Test-TuiPathChildExists {
+    param(
+        [string]$BasePath,
+        [Parameter(Mandatory)] [string]$ChildPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($BasePath)) {
+        return $false
+    }
+
+    return (Test-Path (Join-Path $BasePath $ChildPath))
+}
+
 function Get-TuiInstalledVersion {
     param(
         [Parameter(Mandatory)] $RegistrationMap,
@@ -26,16 +39,16 @@ function Test-TuiClientAvailable {
         'codex' { return ($null -ne (Get-Command 'codex' -ErrorAction SilentlyContinue)) }
         'vscode' {
             return ($null -ne (Get-Command 'code' -ErrorAction SilentlyContinue)) -or
-                (Test-Path (Join-Path $env:APPDATA 'Code'))
+                (Test-TuiPathChildExists -BasePath $env:APPDATA -ChildPath 'Code')
         }
         'visual-studio' {
             return ($null -ne (Get-Command 'devenv' -ErrorAction SilentlyContinue)) -or
-                (Test-Path (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio')) -or
-                (Test-Path (Join-Path $env:ProgramFiles 'Microsoft Visual Studio'))
+                (Test-TuiPathChildExists -BasePath ${env:ProgramFiles(x86)} -ChildPath 'Microsoft Visual Studio') -or
+                (Test-TuiPathChildExists -BasePath $env:ProgramFiles -ChildPath 'Microsoft Visual Studio')
         }
         'claude-desktop' {
-            return (Test-Path (Join-Path $env:APPDATA 'Claude')) -or
-                (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\Claude'))
+            return (Test-TuiPathChildExists -BasePath $env:APPDATA -ChildPath 'Claude') -or
+                (Test-TuiPathChildExists -BasePath $env:LOCALAPPDATA -ChildPath 'Programs\Claude')
         }
         default { return $true }
     }
@@ -111,10 +124,11 @@ function Get-TuiClientItems {
 function Get-TuiUpdateBannerText {
     param(
         [Parameter(Mandatory)] $State,
-        [string]$LatestVersion
+        [string]$LatestVersion,
+        $RegistrationMap
     )
 
-    $updates = @(Get-AvailableInstallerUpdates -State $State -LatestVersion $LatestVersion)
+    $updates = @(Get-AvailableInstallerUpdates -State $State -LatestVersion $LatestVersion -RegistrationMap $RegistrationMap)
     if ($updates.Count -eq 0) {
         return ''
     }
@@ -177,7 +191,7 @@ function New-TuiState {
     $state.DetectedRegistrationMap = $detectedRegistrationMap
     $state.InstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap)
     $state.UninstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap)
-    $state.UpdateBannerText = Get-TuiUpdateBannerText -State $state.InstallerState -LatestVersion $LatestVersion
+    $state.UpdateBannerText = Get-TuiUpdateBannerText -State $state.InstallerState -LatestVersion $LatestVersion -RegistrationMap $detectedRegistrationMap
     return $state
 }
 
@@ -192,7 +206,7 @@ function Sync-TuiStateFromInstallerState {
     $State.DetectedRegistrationMap = $detectedRegistrationMap
     $State.InstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap)
     $State.UninstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap)
-    $State.UpdateBannerText = Get-TuiUpdateBannerText -State $InstallerState -LatestVersion ([string]$State.LatestVersion)
+    $State.UpdateBannerText = Get-TuiUpdateBannerText -State $InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $detectedRegistrationMap
     return $State
 }
 

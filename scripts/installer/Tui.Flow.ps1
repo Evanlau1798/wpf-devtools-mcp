@@ -88,14 +88,26 @@ function Invoke-TuiFullUninstallOperationCore {
 function Invoke-TuiUpdateAllOperationCore {
     param([Parameter(Mandatory)] $State)
 
+    $State.CurrentScreen = 'ProgressScreen'
+    $State.StatusMessage = 'Checking latest release...'
+    Render-TuiScreenCore -State $State | Out-Null
+    $State.LatestVersion = Get-LatestInstallerVersion
+    $State = Sync-TuiStateFromInstallerState -State $State -InstallerState $State.InstallerState
+    if ([string]::IsNullOrWhiteSpace([string]$State.LatestVersion)) {
+        $State.StatusMessage = 'Update All failed: latest release metadata is unavailable.'
+        $State.PendingAction = $null
+        $State.CurrentScreen = 'HomeScreen'
+        return $State
+    }
+
     $updates = @(Get-AvailableInstallerUpdates -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion))
     if ($updates.Count -eq 0) {
         $State.StatusMessage = 'All installed targets are already on the latest release.'
         $State.PendingAction = $null
+        $State.CurrentScreen = 'HomeScreen'
         return $State
     }
 
-    $State.CurrentScreen = 'ProgressScreen'
     $State.StatusMessage = "Updating $($updates.Count) target(s)..."
     Render-TuiScreenCore -State $State | Out-Null
 
@@ -130,21 +142,12 @@ function Initialize-TuiStartupStateCore {
     }
 
     $State.StartupInitialized = $true
-    if (-not [string]::IsNullOrWhiteSpace([string]$State.LatestVersion)) {
-        return $State
-    }
-
-    $State.StatusMessage = 'Checking latest release...'
-    Render-TuiScreenCore -State $State | Out-Null
-    $State.LatestVersion = Get-LatestInstallerVersion
-    $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion)
     if ([string]::IsNullOrWhiteSpace([string]$State.LatestVersion)) {
-        $State.StatusMessage = 'Latest release check unavailable.'
-    }
-    else {
-        $State.StatusMessage = ''
+        $State.LatestVersion = Get-LatestInstallerVersion -UseCacheOnly
     }
 
+    $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion)
+    $State.StatusMessage = ''
     return $State
 }
 

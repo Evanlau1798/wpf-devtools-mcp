@@ -84,7 +84,7 @@ function Get-SystemDefaultArchitecture {
     return 'x64'
 }
 
-$script:InstallerHelperCacheKey = 'WPFDEVTOOLS_INSTALLER_HELPER_CACHE_KEY:v1'
+$script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/Tui.ScreenModel.ps1'
     'scripts/installer/Tui.Renderer.ps1'
@@ -133,12 +133,22 @@ function Get-TuiHelperCacheKeyPath {
     return (Join-Path $RuntimeRoot 'helper-cache-key.txt')
 }
 
+function Get-TuiHelperManifestPath {
+    param([Parameter(Mandatory)] [string]$RootPath)
+
+    return (Join-Path $RootPath $script:InstallerHelperManifestFileName)
+}
+
 function Get-TuiHelperOverrideDirectory {
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY)) {
         return $env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY
     }
 
     return $null
+}
+
+function Get-HelperLeafNames {
+    return @($script:InstallerHelperSourcePaths | ForEach-Object { Split-Path $_ -Leaf })
 }
 
 function Get-InstallerTimeoutSeconds {
@@ -181,9 +191,96 @@ function Write-TuiBootstrapMessage {
     $script:LastTuiBootstrapMessage = $Message
 }
 
-function Ensure-TuiHelpersAvailable {
-    if (-not [string]::IsNullOrWhiteSpace($script:TuiHelperResolvedRoot)) {
-        return $script:TuiHelperResolvedRoot
+function Get-ComputedInstallerHelperCacheKey {
+    param(
+        [Parameter(Mandatory)] [string]$HelperDirectory,
+        [Parameter(Mandatory)] [string[]]$HelperFiles
+    )
+
+    $records = New-Object System.Collections.Generic.List[string]
+    foreach ($helperFile in ($HelperFiles | Sort-Object)) {
+        $helperPath = Join-Path $HelperDirectory $helperFile
+        if (-not (Test-Path $helperPath)) {
+            throw "Helper file was not found while computing the installer cache key: $helperPath"
+        }
+
+        $fileHash = (Get-FileHash -Algorithm SHA256 -Path $helperPath).Hash.ToLowerInvariant()
+        $records.Add("${helperFile}:$fileHash")
+    }
+
+    $utf8 = [System.Text.Encoding]::UTF8.GetBytes(($records -join '|'))
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($utf8)
+    }
+    finally {
+        $sha256.Dispose()
+    }
+
+    return 'sha256:' + (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+
+function Get-InstallerHelperRuntimeCacheKey {
+    param([Parameter(Mandatory)] $Manifest)
+
+    $seedParts = @(
+        [string]$Manifest.CacheKey
+        ((Get-Item 'function:Test-TuiSupport').ScriptBlock.ToString())
+        ((Get-Item 'function:Resolve-Selection').ScriptBlock.ToString())
+        ((Get-Item 'function:Invoke-InstallerAction').ScriptBlock.ToString())
+        ($script:InstallerHelperSourcePaths -join '|')
+    )
+
+    $utf8 = [System.Text.Encoding]::UTF8.GetBytes(($seedParts -join '|'))
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($utf8)
+    }
+    finally {
+        $sha256.Dispose()
+    }
+
+    return 'runtime-sha256:' + (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+
+function Read-TuiHelperManifest {
+    param(
+        [Parameter(Mandatory)] [string]$ManifestPath,
+        [Parameter(Mandatory)] [string]$HelperDirectory
+    )
+
+    if (-not (Test-Path $ManifestPath)) {
+        return $null
+    }
+
+    $parsed = Get-Content -Path $ManifestPath -Raw | ConvertFrom-Json
+    $helperFiles = @()
+    if ($null -ne $parsed.helperFiles) {
+        foreach ($entry in $parsed.helperFiles) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$entry)) {
+                $helperFiles += [string]$entry
+            }
+        }
+    }
+
+    if ($helperFiles.Count -eq 0) {
+        $helperFiles = @(Get-HelperLeafNames)
+    }
+
+    $cacheKey = [string]$parsed.cacheKey
+    if ([string]::IsNullOrWhiteSpace($cacheKey)) {
+        $cacheKey = Get-ComputedInstallerHelperCacheKey -HelperDirectory $HelperDirectory -HelperFiles $helperFiles
+    }
+
+    return [ordered]@{
+        CacheKey = $cacheKey
+        HelperFiles = @($helperFiles)
+    }
+}
+
+function Get-TuiHelperManifest {
+    if ($null -ne $script:TuiHelperManifest) {
+        return $script:TuiHelperManifest
     }
 
     $localScriptRoot = Resolve-InstallerScriptRoot
@@ -198,14 +295,90 @@ function Ensure-TuiHelpersAvailable {
     }
 
     foreach ($candidateRoot in $candidateRoots) {
+        if ([string]::IsNullOrWhiteSpace($candidateRoot) -or -not (Test-Path $candidateRoot)) {
+            continue
+        }
+
+        $helperFiles = @(Get-HelperLeafNames)
+        $allPresent = $true
+        foreach ($helperFile in $helperFiles) {
+            if (-not (Test-Path (Join-Path $candidateRoot $helperFile))) {
+                $allPresent = $false
+                break
+            }
+        }
+
+        if (-not $allPresent) {
+            continue
+        }
+
+        $manifestPath = Get-TuiHelperManifestPath -RootPath $candidateRoot
+        $manifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $candidateRoot
+        if ($null -eq $manifest) {
+            $manifest = [ordered]@{
+                CacheKey = (Get-ComputedInstallerHelperCacheKey -HelperDirectory $candidateRoot -HelperFiles $helperFiles)
+                HelperFiles = $helperFiles
+            }
+        }
+
+        $script:TuiHelperManifest = $manifest
+        return $manifest
+    }
+
+    if (Resolve-InstallerMode -ne 'online') {
+        return $null
+    }
+
+    $runtimeRoot = Get-TuiHelperRuntimeRoot
+    $manifestPath = Get-TuiHelperManifestPath -RootPath $runtimeRoot
+    $downloadBaseUri = if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI)) {
+        $env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI.TrimEnd('/')
+    }
+    else {
+        $script:TuiHelperDownloadBaseUri
+    }
+
+    $manifestUri = "$downloadBaseUri/$($script:InstallerHelperManifestFileName)"
+    $temporaryManifestPath = "$manifestPath.download"
+    try {
+        Invoke-WebRequest -Uri $manifestUri -OutFile $temporaryManifestPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
+        Move-Item -Path $temporaryManifestPath -Destination $manifestPath -Force
+    }
+    catch {
+        Remove-PathIfExists -Path $temporaryManifestPath
+        throw "Failed to download installer helper manifest from $manifestUri. $($_.Exception.Message)"
+    }
+
+    $script:TuiHelperManifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $runtimeRoot
+    return $script:TuiHelperManifest
+}
+
+function Ensure-TuiHelpersAvailable {
+    if (-not [string]::IsNullOrWhiteSpace($script:TuiHelperResolvedRoot)) {
+        return $script:TuiHelperResolvedRoot
+    }
+
+    $manifest = Get-TuiHelperManifest
+    $localScriptRoot = Resolve-InstallerScriptRoot
+    $candidateRoots = New-Object System.Collections.Generic.List[string]
+    if (-not [string]::IsNullOrWhiteSpace($localScriptRoot)) {
+        $candidateRoots.Add((Join-Path $localScriptRoot 'installer'))
+    }
+
+    $overrideDirectory = Get-TuiHelperOverrideDirectory
+    if (-not [string]::IsNullOrWhiteSpace($overrideDirectory)) {
+        $candidateRoots.Add($overrideDirectory)
+    }
+
+    $helperFiles = if ($null -ne $manifest -and $manifest.HelperFiles.Count -gt 0) { @($manifest.HelperFiles) } else { @(Get-HelperLeafNames) }
+    foreach ($candidateRoot in $candidateRoots) {
         if ([string]::IsNullOrWhiteSpace($candidateRoot)) {
             continue
         }
 
         $allPresent = $true
-        foreach ($repoRelativePath in $script:InstallerHelperSourcePaths) {
-            $leafName = Split-Path $repoRelativePath -Leaf
-            if (-not (Test-Path (Join-Path $candidateRoot $leafName))) {
+        foreach ($helperFile in $helperFiles) {
+            if (-not (Test-Path (Join-Path $candidateRoot $helperFile))) {
                 $allPresent = $false
                 break
             }
@@ -224,9 +397,13 @@ function Ensure-TuiHelpersAvailable {
     $runtimeRoot = Get-TuiHelperRuntimeRoot
     $cacheKeyPath = Get-TuiHelperCacheKeyPath -RuntimeRoot $runtimeRoot
     $cachedKey = if (Test-Path $cacheKeyPath) { (Get-Content -Path $cacheKeyPath -Raw).Trim() } else { $null }
-    if ($cachedKey -ne $script:InstallerHelperCacheKey) {
+    $targetCacheKey = if ($null -ne $manifest) { Get-InstallerHelperRuntimeCacheKey -Manifest $manifest } else { $null }
+    if ($cachedKey -ne $targetCacheKey) {
         Remove-PathIfExists -Path $runtimeRoot
         New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
+        if ($null -ne $manifest) {
+            $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Get-TuiHelperManifestPath -RootPath $runtimeRoot) -Encoding UTF8
+        }
     }
 
     $downloadBaseUri = if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI)) {
@@ -238,16 +415,15 @@ function Ensure-TuiHelpersAvailable {
 
     $requestTimeoutSeconds = Get-TuiHelperRequestTimeoutSeconds
     $bootstrapDeadline = [DateTimeOffset]::UtcNow.AddSeconds((Get-TuiHelperBootstrapTimeoutSeconds))
-    $totalHelperCount = $script:InstallerHelperSourcePaths.Count
+    $totalHelperCount = $helperFiles.Count
     $downloadIndex = 0
 
-    foreach ($repoRelativePath in $script:InstallerHelperSourcePaths) {
+    foreach ($helperFile in $helperFiles) {
         if ([DateTimeOffset]::UtcNow -gt $bootstrapDeadline) {
             throw 'Installer UI bootstrap timed out before the runtime assets finished downloading.'
         }
 
-        $leafName = Split-Path $repoRelativePath -Leaf
-        $destinationPath = Join-Path $runtimeRoot $leafName
+        $destinationPath = Join-Path $runtimeRoot $helperFile
         if (Test-Path $destinationPath) {
             $downloadIndex += 1
             continue
@@ -255,7 +431,7 @@ function Ensure-TuiHelpersAvailable {
 
         $downloadIndex += 1
         Write-TuiBootstrapMessage "Preparing installer UI... ($downloadIndex/$totalHelperCount)"
-        $downloadUri = "$downloadBaseUri/$leafName"
+        $downloadUri = "$downloadBaseUri/$helperFile"
         try {
             Invoke-WebRequest -Uri $downloadUri -OutFile $destinationPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec $requestTimeoutSeconds
         }
@@ -264,7 +440,7 @@ function Ensure-TuiHelpersAvailable {
         }
     }
 
-    Set-Content -Path $cacheKeyPath -Value $script:InstallerHelperCacheKey -Encoding UTF8
+    Set-Content -Path $cacheKeyPath -Value $targetCacheKey -Encoding UTF8
     $script:TuiHelperResolvedRoot = $runtimeRoot
     return $runtimeRoot
 }
@@ -847,6 +1023,40 @@ function Resolve-LocalPackageRoot {
     return $null
 }
 
+function Resolve-LatestVersionCachePath {
+    $stateRoot = Resolve-AbsoluteDirectory -Path (Join-Path $env:APPDATA 'WpfDevToolsMcp')
+    return (Join-Path $stateRoot 'latest-release-cache.json')
+}
+
+function Get-CachedLatestInstallerVersion {
+    $cachePath = Resolve-LatestVersionCachePath
+    if (-not (Test-Path $cachePath)) {
+        return $null
+    }
+
+    try {
+        $parsed = Get-Content -Path $cachePath -Raw | ConvertFrom-Json
+        return [string]$parsed.version
+    }
+    catch {
+        return $null
+    }
+}
+
+function Save-LatestInstallerVersionCache {
+    param([Parameter(Mandatory)] [string]$VersionValue)
+
+    if ([string]::IsNullOrWhiteSpace($VersionValue)) {
+        return
+    }
+
+    $cachePath = Resolve-LatestVersionCachePath
+    [ordered]@{
+        version = $VersionValue
+        refreshedUtc = [DateTime]::UtcNow.ToString('o')
+    } | ConvertTo-Json -Depth 3 | Set-Content -Path $cachePath -Encoding UTF8
+}
+
 function Resolve-InstallerMode {
     if (-not [string]::IsNullOrWhiteSpace($PackageArchivePath)) { return 'offline' }
     if (-not [string]::IsNullOrWhiteSpace((Resolve-LocalPackageRoot))) { return 'offline' }
@@ -957,8 +1167,7 @@ function Get-OfflineVersionHint {
             return $null
         }
 
-        $latest = Invoke-RestMethod -Uri (Get-GitHubReleaseApiUri -ResolvedVersion 'latest') -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10
-        $latestVersion = ([string]$latest.tag_name).TrimStart('v')
+        $latestVersion = Get-LatestInstallerVersion -UseCacheOnly
         if ([string]::IsNullOrWhiteSpace($latestVersion) -or $latestVersion -eq $localVersion) {
             return "Offline package version v$localVersion."
         }
@@ -1333,16 +1542,28 @@ function Invoke-UninstallVerification {
 }
 
 function Get-LatestInstallerVersion {
+    param([switch]$UseCacheOnly)
+
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION)) {
         return $env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION
     }
 
+    $cachedVersion = Get-CachedLatestInstallerVersion
+    if ($UseCacheOnly) {
+        return $cachedVersion
+    }
+
     try {
-        return [string](Invoke-RestMethod -Uri (Get-GitHubReleaseApiUri -ResolvedVersion 'latest') -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
+        $latestVersion = [string](Invoke-RestMethod -Uri (Get-GitHubReleaseApiUri -ResolvedVersion 'latest') -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
+        if (-not [string]::IsNullOrWhiteSpace($latestVersion)) {
+            Save-LatestInstallerVersionCache -VersionValue $latestVersion
+            return $latestVersion
+        }
     }
     catch {
-        return $null
     }
+
+    return $cachedVersion
 }
 
 function Test-TuiSupport {
@@ -1594,7 +1815,7 @@ function Resolve-Selection {
     $defaultInstallRoot = Resolve-PreferredInstallRoot
     $mode = Resolve-InstallerMode
     $versionHint = Get-OfflineVersionHint -Mode $mode
-    $latestVersion = $null
+    $latestVersion = Get-LatestInstallerVersion -UseCacheOnly
 
     if (Test-TuiSupport) {
         $tuiResult = Start-TuiInstaller `

@@ -70,7 +70,7 @@ internal static class ReleaseScriptTestHarness
         File.Copy(GetRepoFilePath("scripts/tools/packaging/run-template.bat"), Path.Combine(packageDir, "run.bat"), overwrite: true);
         foreach (var helperPath in Directory.GetFiles(
                      GetRepoFilePath(Path.Combine("scripts", "installer")),
-                     "*.ps1",
+                     "*.*",
                      SearchOption.TopDirectoryOnly))
         {
             File.Copy(

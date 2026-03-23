@@ -22,7 +22,8 @@ public sealed class InstallerUninstallBehaviorTests
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
-        content.Should().Contain("WPFDEVTOOLS_INSTALLER_HELPER_CACHE_KEY");
+        content.Should().Contain("installer-helpers.manifest.json");
+        content.Should().Contain("Get-InstallerHelperRuntimeCacheKey");
         content.Should().Contain("helper-cache-key.txt");
         content.Should().Contain("Remove-PathIfExists -Path $runtimeRoot");
         content.Should().Contain("InstallerOwned");

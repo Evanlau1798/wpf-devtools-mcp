@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "cacheKey": "sha256:0b5d8bcdec1d288c3ee29128bd916cf252c1afe0f18e4bdceca2cfe04101f545",
+  "helperFiles": [
+    "Tui.ScreenModel.ps1",
+    "Tui.Renderer.ps1",
+    "Tui.Input.ps1",
+    "Tui.Flow.ps1",
+    "Tui.Confirm.ps1",
+    "Installer.Discovery.ps1",
+    "Installer.Uninstall.ps1"
+  ]
+}

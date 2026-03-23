@@ -77,6 +77,48 @@ public sealed class InstallerFullUninstallTests
         }
     }
 
+    [Fact]
+    public void OnlineInstaller_FullUninstall_ShouldTreatCaseVariantConfigPathsAsInstallerOwned()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var vscodeConfigPath = Path.Combine(tempRoot, "config", "Code", "User", "mcp.json");
+
+            var install = RunInstaller(
+                tempRoot,
+                ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "vscode", "-VsCodeConfigPath", vscodeConfigPath, "-NonInteractive", "-Force", "-OutputJson"]);
+
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            using var installJson = JsonDocument.Parse(install.Stdout);
+            var statePath = installJson.RootElement.GetProperty("statePath").GetString();
+            statePath.Should().NotBeNullOrWhiteSpace();
+            File.Delete(statePath!);
+
+            var installedExecutable = installJson.RootElement.GetProperty("installedExecutable").GetString();
+            installedExecutable.Should().NotBeNullOrWhiteSpace();
+            var caseVariantExecutable = installedExecutable!.ToUpperInvariant();
+            File.WriteAllText(
+                vscodeConfigPath,
+                "{\"servers\":{\"wpf-devtools\":{\"command\":\"" + caseVariantExecutable.Replace("\\", "\\\\") + "\",\"args\":[]}}}");
+
+            var uninstall = RunInstaller(
+                tempRoot,
+                ["-Action", "full-uninstall", "-Architecture", "x64", "-InstallRoot", installRoot, "-VsCodeConfigPath", vscodeConfigPath, "-NonInteractive", "-Force", "-OutputJson"]);
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(vscodeConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static (int ExitCode, string Stdout, string Stderr) RunInstaller(
         string tempRoot,
         IReadOnlyList<string> arguments)

@@ -122,6 +122,32 @@ function Invoke-TuiUpdateAllOperationCore {
     return $State
 }
 
+function Initialize-TuiStartupStateCore {
+    param([Parameter(Mandatory)] $State)
+
+    if ($State.StartupInitialized) {
+        return $State
+    }
+
+    $State.StartupInitialized = $true
+    if (-not [string]::IsNullOrWhiteSpace([string]$State.LatestVersion)) {
+        return $State
+    }
+
+    $State.StatusMessage = 'Checking latest release...'
+    Render-TuiScreenCore -State $State | Out-Null
+    $State.LatestVersion = Get-LatestInstallerVersion
+    $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion)
+    if ([string]::IsNullOrWhiteSpace([string]$State.LatestVersion)) {
+        $State.StatusMessage = 'Latest release check unavailable.'
+    }
+    else {
+        $State.StatusMessage = ''
+    }
+
+    return $State
+}
+
 function Start-TuiInstallerCore {
     param(
         [Parameter(Mandatory)] [string]$DefaultAction,
@@ -134,6 +160,8 @@ function Start-TuiInstallerCore {
     )
 
     $state = New-TuiState -DefaultAction $DefaultAction -DefaultArchitecture $DefaultArchitecture -DefaultClient $DefaultClient -DefaultInstallRoot $DefaultInstallRoot -InstallerState $InstallerState -VersionHint $VersionHint -LatestVersion $LatestVersion
+    Render-TuiScreenCore -State $state | Out-Null
+    $state = Initialize-TuiStartupStateCore -State $state
 
     while (-not $state.ShouldExit) {
         Render-TuiScreenCore -State $state | Out-Null

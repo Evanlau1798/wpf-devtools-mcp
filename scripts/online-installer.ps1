@@ -141,6 +141,46 @@ function Get-TuiHelperOverrideDirectory {
     return $null
 }
 
+function Get-InstallerTimeoutSeconds {
+    param(
+        [Parameter(Mandatory)] [string]$EnvironmentVariable,
+        [Parameter(Mandatory)] [int]$DefaultValue,
+        [int]$MinimumValue = 1,
+        [int]$MaximumValue = 120
+    )
+
+    $rawValue = [Environment]::GetEnvironmentVariable($EnvironmentVariable)
+    if ([string]::IsNullOrWhiteSpace($rawValue)) {
+        return $DefaultValue
+    }
+
+    $parsedValue = 0
+    if (-not [int]::TryParse($rawValue, [ref]$parsedValue)) {
+        return $DefaultValue
+    }
+
+    return [Math]::Min($MaximumValue, [Math]::Max($MinimumValue, $parsedValue))
+}
+
+function Get-TuiHelperRequestTimeoutSeconds {
+    return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_HELPER_TIMEOUT_SEC' -DefaultValue 5 -MinimumValue 1 -MaximumValue 30)
+}
+
+function Get-TuiHelperBootstrapTimeoutSeconds {
+    return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_HELPER_BOOTSTRAP_TIMEOUT_SEC' -DefaultValue 20 -MinimumValue 3 -MaximumValue 120)
+}
+
+function Write-TuiBootstrapMessage {
+    param([Parameter(Mandatory)] [string]$Message)
+
+    if ($script:LastTuiBootstrapMessage -eq $Message) {
+        return
+    }
+
+    Write-InstallerMessage $Message
+    $script:LastTuiBootstrapMessage = $Message
+}
+
 function Ensure-TuiHelpersAvailable {
     if (-not [string]::IsNullOrWhiteSpace($script:TuiHelperResolvedRoot)) {
         return $script:TuiHelperResolvedRoot
@@ -196,15 +236,32 @@ function Ensure-TuiHelpersAvailable {
         $script:TuiHelperDownloadBaseUri
     }
 
+    $requestTimeoutSeconds = Get-TuiHelperRequestTimeoutSeconds
+    $bootstrapDeadline = [DateTimeOffset]::UtcNow.AddSeconds((Get-TuiHelperBootstrapTimeoutSeconds))
+    $totalHelperCount = $script:InstallerHelperSourcePaths.Count
+    $downloadIndex = 0
+
     foreach ($repoRelativePath in $script:InstallerHelperSourcePaths) {
+        if ([DateTimeOffset]::UtcNow -gt $bootstrapDeadline) {
+            throw 'Installer UI bootstrap timed out before the runtime assets finished downloading.'
+        }
+
         $leafName = Split-Path $repoRelativePath -Leaf
         $destinationPath = Join-Path $runtimeRoot $leafName
         if (Test-Path $destinationPath) {
+            $downloadIndex += 1
             continue
         }
 
+        $downloadIndex += 1
+        Write-TuiBootstrapMessage "Preparing installer UI... ($downloadIndex/$totalHelperCount)"
         $downloadUri = "$downloadBaseUri/$leafName"
-        Invoke-WebRequest -Uri $downloadUri -OutFile $destinationPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+        try {
+            Invoke-WebRequest -Uri $downloadUri -OutFile $destinationPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec $requestTimeoutSeconds
+        }
+        catch {
+            throw "Failed to download installer UI runtime from $downloadUri. $($_.Exception.Message)"
+        }
     }
 
     Set-Content -Path $cacheKeyPath -Value $script:InstallerHelperCacheKey -Encoding UTF8
@@ -1293,10 +1350,14 @@ function Test-TuiSupport {
         return $false
     }
 
+    $script:LastTuiBootstrapMessage = $null
+    $script:LastTuiBootstrapFailureReason = $null
     try {
         $null = Ensure-TuiHelpersAvailable
     }
     catch {
+        $script:LastTuiBootstrapFailureReason = $_.Exception.Message
+        Write-InstallerMessage 'Installer UI bootstrap failed. Falling back to plain CLI.'
         return $false
     }
 
@@ -1344,6 +1405,35 @@ function Invoke-TuiUpdateAllOperation {
     return (Invoke-WithTuiHelpers -ScriptBlock { Invoke-TuiUpdateAllOperationCore -State $State })
 }
 
+function Initialize-TuiStartupState {
+    param([Parameter(Mandatory)] $State)
+
+    return (Invoke-WithTuiHelpers -ScriptBlock { Initialize-TuiStartupStateCore -State $State })
+}
+
+function Assert-InstallerHelperRuntimeAvailable {
+    param([Parameter(Mandatory)] [string]$ResolvedAction)
+
+    if ($ResolvedAction -eq 'install') {
+        return
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($script:LastTuiBootstrapFailureReason)) {
+        throw "The installer runtime required for $ResolvedAction is unavailable. Re-run the installer with network access or use a full offline package. $script:LastTuiBootstrapFailureReason"
+    }
+
+    try {
+        $helperRoot = Ensure-TuiHelpersAvailable
+    }
+    catch {
+        throw "The installer runtime required for $ResolvedAction is unavailable. Re-run the installer with network access or use a full offline package. $($_.Exception.Message)"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($helperRoot)) {
+        throw "The installer runtime required for $ResolvedAction is unavailable. Re-run the installer with network access or use a full offline package."
+    }
+}
+
 function Invoke-InstallerAction {
     param(
         [Parameter(Mandatory)] [ValidateSet('install', 'uninstall', 'full-uninstall')] [string]$ResolvedAction,
@@ -1353,6 +1443,8 @@ function Invoke-InstallerAction {
         [Parameter(Mandatory)] [string]$RequestedVersion,
         [switch]$UseLatestRelease
     )
+
+    Assert-InstallerHelperRuntimeAvailable -ResolvedAction $ResolvedAction
 
     if ($ResolvedAction -eq 'full-uninstall') {
         $state = Get-InstallerState
@@ -1502,7 +1594,7 @@ function Resolve-Selection {
     $defaultInstallRoot = Resolve-PreferredInstallRoot
     $mode = Resolve-InstallerMode
     $versionHint = Get-OfflineVersionHint -Mode $mode
-    $latestVersion = Get-LatestInstallerVersion
+    $latestVersion = $null
 
     if (Test-TuiSupport) {
         $tuiResult = Start-TuiInstaller `

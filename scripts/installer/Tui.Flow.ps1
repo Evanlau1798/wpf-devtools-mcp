@@ -147,7 +147,48 @@ function Initialize-TuiStartupStateCore {
     }
 
     $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap
+    $State = Start-TuiLatestVersionRefreshCore -State $State
     $State.StatusMessage = ''
+    return $State
+}
+
+function Start-TuiLatestVersionRefreshCore {
+    param([Parameter(Mandatory)] $State)
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$State.LatestVersion)) {
+        return $State
+    }
+
+    if ($null -ne $State.LatestVersionRefreshHandle) {
+        return $State
+    }
+
+    if ($State.DetectedRegistrationMap.Count -eq 0) {
+        return $State
+    }
+
+    $State.LatestVersionRefreshHandle = Start-LatestInstallerVersionRefresh
+    return $State
+}
+
+function Update-TuiLatestVersionRefreshCore {
+    param([Parameter(Mandatory)] $State)
+
+    if ($null -eq $State.LatestVersionRefreshHandle) {
+        return $State
+    }
+
+    $refreshResult = Receive-LatestInstallerVersionRefresh -RefreshHandle $State.LatestVersionRefreshHandle
+    if (-not [bool]$refreshResult.IsCompleted) {
+        return $State
+    }
+
+    $State.LatestVersionRefreshHandle = $null
+    if (-not [string]::IsNullOrWhiteSpace([string]$refreshResult.Version)) {
+        $State.LatestVersion = [string]$refreshResult.Version
+        $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap
+    }
+
     return $State
 }
 
@@ -167,8 +208,12 @@ function Start-TuiInstallerCore {
     $state = Initialize-TuiStartupStateCore -State $state
 
     while (-not $state.ShouldExit) {
+        $state = Update-TuiLatestVersionRefreshCore -State $state
         Render-TuiScreenCore -State $state | Out-Null
-        $keyInfo = Read-TuiKeyCore
+        $keyInfo = Read-TuiKeyCore -TimeoutMilliseconds $(if ($null -ne $state.LatestVersionRefreshHandle) { 200 } else { 0 })
+        if ($null -eq $keyInfo) {
+            continue
+        }
         $state = Update-TuiSelectionCore -State $state -KeyInfo $keyInfo
 
         switch ([string]$state.PendingAction) {

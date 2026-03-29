@@ -251,6 +251,82 @@ public sealed class InstallerTuiRuntimeTests
     }
 
     [Fact]
+    public void OnlineInstaller_TuiStartup_ShouldRefreshUpdateBannerWithoutCachedLatestVersion()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var executablePath = Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe");
+            var installBase = Path.Combine(installRoot, "x64");
+            var configPath = Path.Combine(appData, "Code", "User", "mcp.json");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(executablePath)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+            Directory.CreateDirectory(localAppData);
+            Directory.CreateDirectory(userProfile);
+
+            File.WriteAllText(executablePath, "stub");
+            File.WriteAllText(
+                Path.Combine(installBase, "install-manifest.json"),
+                """
+                {
+                  "name": "wpf-devtools",
+                  "architecture": "x64",
+                  "version": "1.0.0",
+                  "installRoot": "__INSTALL_ROOT__",
+                  "installDir": "__INSTALL_DIR__",
+                  "executable": "__EXECUTABLE__"
+                }
+                """
+                .Replace("__INSTALL_ROOT__", installRoot.Replace("\\", "\\\\"))
+                .Replace("__INSTALL_DIR__", Path.Combine(installBase, "current").Replace("\\", "\\\\"))
+                .Replace("__EXECUTABLE__", executablePath.Replace("\\", "\\\\")));
+            File.WriteAllText(
+                configPath,
+                """
+                {
+                  "servers": {
+                    "wpf-devtools": {
+                      "command": "__EXECUTABLE__",
+                      "args": []
+                    }
+                  }
+                }
+                """
+                .Replace("__EXECUTABLE__", executablePath.Replace("\\", "\\\\")));
+
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+            var command = string.Join(" ; ",
+            [
+                "$env:APPDATA='" + appData.Replace("'", "''") + "'",
+                "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
+                "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Tick||Tick||Tick||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION='1.2.3'",
+                "Set-Location '" + tempRoot.Replace("'", "''") + "'",
+                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("Update available");
+            result.Stdout.Should().Contain("1 target(s) can move to v1.2.3");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_ShouldVerifyCodexRegistrationViaPowerShellShim()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

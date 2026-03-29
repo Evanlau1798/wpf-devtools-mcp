@@ -12,6 +12,13 @@ function Get-TuiTestKeyQueueCore {
                 continue
             }
 
+            if ($trimmedToken -eq 'Tick') {
+                $script:TuiTestKeyQueue.Enqueue([ordered]@{
+                        IsTick = $true
+                    })
+                continue
+            }
+
             try {
                 $parsedKey = [ConsoleKey][System.Enum]::Parse([ConsoleKey], $trimmedToken, $true)
             }
@@ -27,6 +34,34 @@ function Get-TuiTestKeyQueueCore {
     }
 
     return ,$script:TuiTestKeyQueue
+}
+
+function Read-TuiConsoleKeyWithTimeoutCore {
+    param([int]$TimeoutMilliseconds)
+
+    if ($TimeoutMilliseconds -le 0) {
+        return $null
+    }
+
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        try {
+            if ([Console]::KeyAvailable) {
+                $read = [Console]::ReadKey($true)
+                return [ordered]@{
+                    Key = [ConsoleKey]$read.Key
+                    Character = [string]$read.KeyChar
+                }
+            }
+        }
+        catch {
+            return $null
+        }
+
+        Start-Sleep -Milliseconds 50
+    }
+
+    return $null
 }
 
 function Test-TuiSupportCore {
@@ -48,9 +83,16 @@ function Test-TuiSupportCore {
 }
 
 function Read-TuiKeyCore {
+    param([int]$TimeoutMilliseconds)
+
     $testQueue = Get-TuiTestKeyQueueCore
     if ($testQueue.Count -gt 0) {
-        return $testQueue.Dequeue()
+        $nextItem = $testQueue.Dequeue()
+        if ($nextItem.IsTick) {
+            return $null
+        }
+
+        return $nextItem
     }
 
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS)) {
@@ -58,6 +100,14 @@ function Read-TuiKeyCore {
             Key = [ConsoleKey]::Escape
             Character = ''
         }
+    }
+
+    $timedRead = Read-TuiConsoleKeyWithTimeoutCore -TimeoutMilliseconds $TimeoutMilliseconds
+    if ($null -ne $timedRead) {
+        return $timedRead
+    }
+    if ($TimeoutMilliseconds -gt 0) {
+        return $null
     }
 
     try {

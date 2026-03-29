@@ -1061,6 +1061,12 @@ function Save-LatestInstallerVersionCache {
     } | ConvertTo-Json -Depth 3 | Set-Content -Path $cachePath -Encoding UTF8
 }
 
+function ConvertTo-PowerShellEncodedCommand {
+    param([Parameter(Mandatory)] [string]$CommandText)
+
+    return [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($CommandText))
+}
+
 function Resolve-InstallerMode {
     if (-not [string]::IsNullOrWhiteSpace($PackageArchivePath)) { return 'offline' }
     if (-not [string]::IsNullOrWhiteSpace((Resolve-LocalPackageRoot))) { return 'offline' }
@@ -1737,6 +1743,99 @@ function Get-LatestInstallerVersion {
     }
 
     return $cachedVersion
+}
+
+function Start-LatestInstallerVersionRefresh {
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION)) {
+        return [ordered]@{
+            Mode = 'test'
+            Version = $env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION
+        }
+    }
+
+    $refreshDirectory = Resolve-AbsoluteDirectory -Path (Join-Path $env:TEMP 'wpf-devtools-online-installer\latest-version-refresh')
+    $refreshOutputPath = Join-Path $refreshDirectory ("latest-version-" + [Guid]::NewGuid().ToString('N') + '.json')
+    $releaseApiUri = Get-GitHubReleaseApiUri -ResolvedVersion 'latest'
+    $encodedCommand = ConvertTo-PowerShellEncodedCommand -CommandText @"
+\$ProgressPreference = 'SilentlyContinue'
+try {
+    \$latestVersion = [string](Invoke-RestMethod -Uri '$releaseApiUri' -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
+    if (-not [string]::IsNullOrWhiteSpace(\$latestVersion)) {
+        [ordered]@{ version = \$latestVersion } | ConvertTo-Json -Depth 3 | Set-Content -Path '$refreshOutputPath' -Encoding UTF8
+    }
+}
+catch {
+}
+"@
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $process.StartInfo.FileName = (Get-Process -Id $PID).Path
+    $process.StartInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
+    $process.StartInfo.UseShellExecute = $false
+    $process.StartInfo.RedirectStandardOutput = $false
+    $process.StartInfo.RedirectStandardError = $false
+    $process.StartInfo.CreateNoWindow = $true
+    $null = $process.Start()
+
+    return [ordered]@{
+        Mode = 'process'
+        Process = $process
+        OutputPath = $refreshOutputPath
+    }
+}
+
+function Receive-LatestInstallerVersionRefresh {
+    param([Parameter(Mandatory)] $RefreshHandle)
+
+    if ([string]$RefreshHandle.Mode -eq 'test') {
+        return [ordered]@{
+            IsCompleted = $true
+            Version = [string]$RefreshHandle.Version
+        }
+    }
+
+    $process = $RefreshHandle.Process
+    if ($null -eq $process) {
+        return [ordered]@{
+            IsCompleted = $true
+            Version = $null
+        }
+    }
+
+    if (-not $process.HasExited) {
+        return [ordered]@{
+            IsCompleted = $false
+            Version = $null
+        }
+    }
+
+    $resolvedVersion = $null
+    if (Test-Path ([string]$RefreshHandle.OutputPath)) {
+        try {
+            $parsed = Get-Content -Path ([string]$RefreshHandle.OutputPath) -Raw | ConvertFrom-Json
+            $resolvedVersion = [string]$parsed.version
+        }
+        catch {
+        }
+
+        Remove-PathIfExists -Path ([string]$RefreshHandle.OutputPath)
+    }
+
+    try {
+        $process.Dispose()
+    }
+    catch {
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($resolvedVersion)) {
+        Save-LatestInstallerVersionCache -VersionValue $resolvedVersion
+    }
+
+    return [ordered]@{
+        IsCompleted = $true
+        Version = $resolvedVersion
+    }
 }
 
 function Test-TuiSupport {

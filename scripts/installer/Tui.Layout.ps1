@@ -88,6 +88,58 @@ function ConvertTo-TuiWrappedLinesCore {
     return @($wrapped)
 }
 
+function ConvertTo-TuiWrappedPathLinesCore {
+    param(
+        [string]$Text,
+        [Parameter(Mandatory)] [int]$Width
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return @('')
+    }
+
+    $normalized = [string]$Text
+    $tokenPattern = '([\\\/]+|[^\\\/]+)'
+    $tokens = [regex]::Matches($normalized, $tokenPattern) | ForEach-Object { $_.Value }
+    if ($tokens.Count -eq 0) {
+        return @(ConvertTo-TuiWrappedLinesCore -Text $Text -Width $Width)
+    }
+
+    $wrapped = New-Object System.Collections.Generic.List[string]
+    $current = ''
+    foreach ($token in $tokens) {
+        $candidate = if ([string]::IsNullOrEmpty($current)) { $token } else { $current + $token }
+        if ((Get-TuiDisplayWidthCore -Text $candidate) -le $Width) {
+            $current = $candidate
+            continue
+        }
+
+        if (-not [string]::IsNullOrEmpty($current)) {
+            $wrapped.Add($current)
+            $current = ''
+        }
+
+        if ((Get-TuiDisplayWidthCore -Text $token) -le $Width) {
+            $current = $token
+            continue
+        }
+
+        foreach ($segment in @(ConvertTo-TuiWrappedLinesCore -Text $token -Width $Width)) {
+            if ([string]::IsNullOrWhiteSpace($segment)) {
+                continue
+            }
+
+            $wrapped.Add($segment)
+        }
+    }
+
+    if (-not [string]::IsNullOrEmpty($current)) {
+        $wrapped.Add($current)
+    }
+
+    return @($wrapped)
+}
+
 function Fit-TuiTextCore {
     param(
         [string]$Text,

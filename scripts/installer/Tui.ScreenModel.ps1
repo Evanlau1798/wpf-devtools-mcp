@@ -175,11 +175,14 @@ function Get-TuiHomeItemsCore {
         $RegistrationMap
     )
 
-    $updateSummary = 'All detected targets are up to date.'
+    $updateSummary = if ($RegistrationMap.Count -gt 0) { 'Checking latest release...' } else { 'All detected targets are up to date.' }
     if (-not [string]::IsNullOrWhiteSpace($LatestVersion)) {
         $updates = @(Get-AvailableInstallerUpdates -State $InstallerState -LatestVersion $LatestVersion -RegistrationMap $RegistrationMap)
         if ($updates.Count -gt 0) {
             $updateSummary = "$($updates.Count) target(s) can move to v$LatestVersion."
+        }
+        else {
+            $updateSummary = 'All detected targets are up to date.'
         }
     }
 
@@ -221,7 +224,7 @@ function New-TuiState {
         ConfirmationMode = $null
         ConfirmationStep = 0
         InstallerState = $InstallerState
-        VisibleWindowSize = 6
+        VisibleWindowSize = 4
         HomeItems = @()
     }
 

@@ -187,6 +187,7 @@ function Update-TuiLatestVersionRefreshCore {
     if (-not [string]::IsNullOrWhiteSpace([string]$refreshResult.Version)) {
         $State.LatestVersion = [string]$refreshResult.Version
         $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap
+        $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap)
     }
 
     return $State

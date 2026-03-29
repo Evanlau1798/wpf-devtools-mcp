@@ -16,20 +16,23 @@ public sealed class InstallerTuiLayoutContractTests
     }
 
     [Fact]
-    public void TuiRenderer_ShouldDeclareFrameBasedWpfInspiredLayoutPrimitives()
+    public void TuiRenderer_ShouldComposeFrameFromDedicatedSectionHelpers()
     {
-        var content = File.ReadAllText(
+        var rendererContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.Renderer.ps1"));
+        var sectionsContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.Sections.ps1"));
 
-        content.Should().Contain("Get-TuiViewportCore");
-        content.Should().Contain("Get-TuiContentColumnWidthCore");
-        content.Should().Contain("Build-TuiTitleBarLinesCore");
-        content.Should().Contain("Build-TuiHomeHeroLinesCore");
-        content.Should().Contain("Build-TuiPageHeaderLinesCore");
-        content.Should().Contain("Build-TuiStatusPanelLinesCore");
-        content.Should().Contain("Build-TuiFooterLinesCore");
-        content.Should().Contain("Format-TuiBadgeCore");
-        content.Should().Contain("New-TuiFrameLinesCore");
+        rendererContent.Should().Contain("Get-TuiViewportCore");
+        rendererContent.Should().Contain("Get-TuiContentColumnWidthCore");
+        rendererContent.Should().Contain("Build-TuiTitleBarLinesCore");
+        rendererContent.Should().Contain("Build-TuiHomeHeroLinesCore");
+        rendererContent.Should().Contain("Build-TuiPageHeaderLinesCore");
+        rendererContent.Should().Contain("Build-TuiStatusPanelLinesCore");
+        rendererContent.Should().Contain("Build-TuiFooterLinesCore");
+        rendererContent.Should().Contain("New-TuiFrameLinesCore");
+        sectionsContent.Should().Contain("Format-TuiBadgeCore");
+        sectionsContent.Should().Contain("Get-TuiCaptionControlsTextCore");
     }
 
     [Fact]

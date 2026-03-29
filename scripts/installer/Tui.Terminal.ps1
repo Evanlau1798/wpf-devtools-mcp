@@ -82,3 +82,84 @@ function Get-TuiViewportCore {
         UseAnsi = [bool](Test-TuiAnsiSupportCore)
     }
 }
+
+function Get-TuiBorderGlyphsCore {
+    if ($env:WPFDEVTOOLS_INSTALLER_TEST_ASCII_BORDER -eq '1') {
+        return [ordered]@{
+            Horizontal = '-'
+            Vertical = '|'
+            TopLeft = '+'
+            TopRight = '+'
+            BottomLeft = '+'
+            BottomRight = '+'
+            TeeLeft = '+'
+            TeeRight = '+'
+        }
+    }
+
+    return [ordered]@{
+        Horizontal = [string][char]0x2500
+        Vertical = [string][char]0x2502
+        TopLeft = [string][char]0x250C
+        TopRight = [string][char]0x2510
+        BottomLeft = [string][char]0x2514
+        BottomRight = [string][char]0x2518
+        TeeLeft = [string][char]0x251C
+        TeeRight = [string][char]0x2524
+    }
+}
+
+function Write-TuiFrameCore {
+    param(
+        [Parameter(Mandatory)] [string[]]$Lines,
+        [Parameter(Mandatory)] $Viewport
+    )
+
+    $frameText = $Lines -join [Environment]::NewLine
+    $isRedirected = $false
+    try {
+        $isRedirected = [Console]::IsOutputRedirected
+    }
+    catch {
+        $isRedirected = $false
+    }
+
+    if ($isRedirected -or (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR))) {
+        foreach ($line in $Lines) {
+            Write-Host $line
+        }
+
+        return
+    }
+
+    if ([bool]$Viewport.UseAnsi) {
+        try {
+            [Console]::Write("$([char]27)[H")
+            [Console]::Write($frameText)
+            return
+        }
+        catch {
+        }
+    }
+
+    try {
+        [Console]::SetCursorPosition(0, 0)
+        [Console]::Write($frameText)
+        return
+    }
+    catch {
+    }
+
+    try {
+        $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates 0, 0
+        [Console]::Write($frameText)
+        return
+    }
+    catch {
+    }
+
+    try { Clear-Host } catch {}
+    foreach ($line in $Lines) {
+        Write-Host $line
+    }
+}

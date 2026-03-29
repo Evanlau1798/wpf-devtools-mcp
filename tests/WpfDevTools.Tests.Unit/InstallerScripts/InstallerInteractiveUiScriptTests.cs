@@ -331,7 +331,7 @@ public sealed class InstallerInteractiveUiScriptTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("UninstallScreen");
-            result.Stdout.Should().Contain("------------------------------");
+            result.Stdout.Should().Contain("├");
             result.Stdout.Should().Contain("Full Uninstall");
         }
         finally

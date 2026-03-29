@@ -42,8 +42,9 @@ function Test-TuiClientAvailable {
                 (Test-TuiPathChildExists -BasePath $env:APPDATA -ChildPath 'Code')
         }
         'visual-studio' {
+            $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)', 'Process')
             return ($null -ne (Get-Command 'devenv' -ErrorAction SilentlyContinue)) -or
-                (Test-TuiPathChildExists -BasePath ${env:ProgramFiles(x86)} -ChildPath 'Microsoft Visual Studio') -or
+                (Test-TuiPathChildExists -BasePath $programFilesX86 -ChildPath 'Microsoft Visual Studio') -or
                 (Test-TuiPathChildExists -BasePath $env:ProgramFiles -ChildPath 'Microsoft Visual Studio')
         }
         'claude-desktop' {
@@ -88,12 +89,7 @@ function Get-TuiClientItems {
             $statusBadge = 'Installed'
         }
 
-        $secondaryText = if ($Mode -eq 'install') {
-            'Select this target to install or repair the MCP registration.'
-        }
-        else {
-            'Select this target to remove its MCP registration.'
-        }
+        $secondaryText = ''
 
         $items += [ordered]@{
             Id = $clientId
@@ -104,7 +100,7 @@ function Get-TuiClientItems {
             IsPrimaryAction = $false
             Installed = $installed
             Available = $available
-            Description = if ($Mode -eq 'install') { 'Press Enter to install or repair this registration.' } else { 'Press Enter to uninstall this registration.' }
+            Description = if ($Mode -eq 'install') { 'Press Enter to install or update this target.' } else { 'Press Enter to remove this registration.' }
         }
     }
 

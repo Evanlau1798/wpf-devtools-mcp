@@ -595,6 +595,10 @@ function Save-InstallerState {
     return $statePath
 }
 
+function Get-DefaultInstallRootPath {
+    return (Join-Path $env:APPDATA 'WpfDevToolsMcp')
+}
+
 function Resolve-PreferredInstallRoot {
     if ($script:InstallRootWasSpecified) {
         return $InstallRoot
@@ -602,11 +606,25 @@ function Resolve-PreferredInstallRoot {
 
     $state = Get-InstallerState
     if (-not [string]::IsNullOrWhiteSpace($state.lastInstallRoot)) {
-        return [string]$state.lastInstallRoot
+        $lastInstallRoot = [string]$state.lastInstallRoot
+        $defaultInstallRoot = Get-DefaultInstallRootPath
+        if ($lastInstallRoot -eq $defaultInstallRoot) {
+            return $defaultInstallRoot
+        }
+
+        $hasArchitectureEvidence = @($state.architectures.GetEnumerator() | Where-Object {
+                [string]$_.Value.installRoot -eq $lastInstallRoot
+            }).Count -gt 0
+        $hasRegistrationEvidence = @($state.registrations.GetEnumerator() | Where-Object {
+                [string]$_.Value.installRoot -eq $lastInstallRoot
+            }).Count -gt 0
+        if ($hasArchitectureEvidence -or $hasRegistrationEvidence) {
+            return $lastInstallRoot
+        }
     }
 
     # Default install root: %APPDATA%\WpfDevToolsMcp
-    return (Join-Path $env:APPDATA 'WpfDevToolsMcp')
+    return (Get-DefaultInstallRootPath)
 }
 
 function Backup-ConfigFile {

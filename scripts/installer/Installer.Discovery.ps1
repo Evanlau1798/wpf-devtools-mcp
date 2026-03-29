@@ -149,6 +149,15 @@ function Merge-DetectedInstallerRegistration {
     )
 
     $merged = [ordered]@{}
+    $preferSecondaryFields = @(
+        'RegistrationMode',
+        'RegistrationTarget',
+        'InstalledExecutable',
+        'InstallRoot',
+        'Architecture',
+        'EvidenceSource',
+        'ResolvedVersion'
+    )
     foreach ($field in @(
             'ClientId',
             'RegistrationMode',
@@ -161,7 +170,13 @@ function Merge-DetectedInstallerRegistration {
             'LastVerifiedUtc')) {
         $primaryValue = $Primary[$field]
         $secondaryValue = $Secondary[$field]
-        $merged[$field] = if (-not [string]::IsNullOrWhiteSpace([string]$primaryValue)) { $primaryValue } else { $secondaryValue }
+        $preferSecondary = $preferSecondaryFields -contains $field
+        $merged[$field] = if ($preferSecondary) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$secondaryValue)) { $secondaryValue } else { $primaryValue }
+        }
+        else {
+            if (-not [string]::IsNullOrWhiteSpace([string]$primaryValue)) { $primaryValue } else { $secondaryValue }
+        }
     }
 
     $merged['InstallerOwned'] = ([bool]$Primary.InstallerOwned -or [bool]$Secondary.InstallerOwned)

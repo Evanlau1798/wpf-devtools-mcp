@@ -64,6 +64,7 @@ function Get-TuiPageMetadataCore {
                 Title = 'WPF DevTools MCP'
                 Subtitle = 'Model Context Protocol Server'
                 Eyebrow = 'Installation Manager'
+                ContextLines = @()
             }
         }
         'InstallScreen' {
@@ -71,6 +72,10 @@ function Get-TuiPageMetadataCore {
                 Title = 'Where would you like to install?'
                 Subtitle = 'Choose the target AI tool.'
                 Eyebrow = '<- Back'
+                ContextLines = @(
+                    "Architecture: $([string]$State.SelectedArchitecture)"
+                    "Install location: $([string]$State.InstallRoot)"
+                )
             }
         }
         'UninstallScreen' {
@@ -78,6 +83,10 @@ function Get-TuiPageMetadataCore {
                 Title = 'Select what to uninstall'
                 Subtitle = 'Only detected installed targets can be removed.'
                 Eyebrow = '<- Back'
+                ContextLines = @(
+                    "Architecture: $([string]$State.SelectedArchitecture)"
+                    "Install location: $([string]$State.InstallRoot)"
+                )
             }
         }
         'ConfirmScreen' {
@@ -85,6 +94,7 @@ function Get-TuiPageMetadataCore {
                 Title = 'Confirm action'
                 Subtitle = 'Two-step confirmation is required.'
                 Eyebrow = '<- Back'
+                ContextLines = @()
             }
         }
         default {
@@ -92,6 +102,7 @@ function Get-TuiPageMetadataCore {
                 Title = 'Working...'
                 Subtitle = 'Please wait while the installer completes the current operation.'
                 Eyebrow = ''
+                ContextLines = @()
             }
         }
     }
@@ -199,13 +210,26 @@ function Build-TuiPageHeaderLinesCore {
 
     $contentWidth = Get-TuiContentColumnWidthCore -Viewport $Viewport
     $meta = Get-TuiPageMetadataCore -State $State
-    return @(
-        (New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$($meta.Eyebrow)$($Accent.Reset)" -ContentWidth $contentWidth)
-        ''
-        (New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Text)$($meta.Title)$($Accent.Reset)" -ContentWidth $contentWidth)
-        (New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$($meta.Subtitle)$($Accent.Reset)" -ContentWidth $contentWidth)
-        ''
-    )
+    $lines = New-Object System.Collections.Generic.List[string]
+    foreach ($line in @(
+            (New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$($meta.Eyebrow)$($Accent.Reset)" -ContentWidth $contentWidth)
+            ''
+            (New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Text)$($meta.Title)$($Accent.Reset)" -ContentWidth $contentWidth)
+            (New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$($meta.Subtitle)$($Accent.Reset)" -ContentWidth $contentWidth)
+        )) {
+        $lines.Add([string]$line)
+    }
+
+    foreach ($contextLine in @($meta.ContextLines)) {
+        if ([string]::IsNullOrWhiteSpace([string]$contextLine)) {
+            continue
+        }
+
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$contextLine$($Accent.Reset)" -ContentWidth $contentWidth))
+    }
+
+    $lines.Add('')
+    return @($lines)
 }
 
 function Build-TuiListBodyLinesCore {

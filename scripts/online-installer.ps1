@@ -86,6 +86,8 @@ function Get-SystemDefaultArchitecture {
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
 $script:InstallerHelperSourcePaths = @(
+    'scripts/installer/Tui.Terminal.ps1'
+    'scripts/installer/Tui.Layout.ps1'
     'scripts/installer/Tui.ScreenModel.ps1'
     'scripts/installer/Tui.Renderer.ps1'
     'scripts/installer/Tui.Input.ps1'

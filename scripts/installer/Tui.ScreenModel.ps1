@@ -78,16 +78,30 @@ function Get-TuiClientItems {
         }
 
         $label = Resolve-ClientLabel -ClientId $clientId
+        $statusBadge = ''
         if (-not [string]::IsNullOrWhiteSpace($version)) {
             $label = "$label (Installed v$version)"
+            $statusBadge = "Installed v$version"
         }
         elseif ($installed) {
             $label = "$label (Installed)"
+            $statusBadge = 'Installed'
+        }
+
+        $secondaryText = if ($Mode -eq 'install') {
+            'Select this target to install or repair the MCP registration.'
+        }
+        else {
+            'Select this target to remove its MCP registration.'
         }
 
         $items += [ordered]@{
             Id = $clientId
             Label = $label
+            PrimaryText = (Resolve-ClientLabel -ClientId $clientId)
+            SecondaryText = $secondaryText
+            StatusBadge = $statusBadge
+            IsPrimaryAction = $false
             Installed = $installed
             Available = $available
             Description = if ($Mode -eq 'install') { 'Press Enter to install or repair this registration.' } else { 'Press Enter to uninstall this registration.' }
@@ -98,6 +112,11 @@ function Get-TuiClientItems {
         $items += [ordered]@{
             Id = 'full-uninstall'
             Label = (Get-TuiFullUninstallLabel)
+            PrimaryText = (Get-TuiFullUninstallLabel)
+            SecondaryText = 'Remove every detected registration and every installer-owned server location.'
+            StatusBadge = ''
+            IsPrimaryAction = $false
+            ShowDividerBefore = $true
             Installed = $true
             Available = $true
             Description = 'Press Enter to remove all detected registrations and installer-owned server files.'
@@ -108,6 +127,10 @@ function Get-TuiClientItems {
         $items += [ordered]@{
             Id = ''
             Label = $emptyLabel
+            PrimaryText = $emptyLabel
+            SecondaryText = 'Press Escape to go back.'
+            StatusBadge = ''
+            IsPrimaryAction = $false
             Installed = $false
             Available = $false
             Description = 'Press Escape to go back.'
@@ -179,11 +202,11 @@ function New-TuiState {
         InstallerState = $InstallerState
         VisibleWindowSize = 6
         HomeItems = @(
-            [ordered]@{ Id = 'install'; Label = 'Install'; Description = 'Install the selected release into a client.' }
-            [ordered]@{ Id = 'uninstall'; Label = 'Uninstall'; Description = 'Remove an installed registration.' }
-            [ordered]@{ Id = 'update-all'; Label = 'Update All'; Description = 'Update every installed registration to the latest release.' }
-            [ordered]@{ Id = 'edit-root'; Label = 'Install location'; Description = 'Edit the shared server install root.' }
-            [ordered]@{ Id = 'exit'; Label = 'Exit'; Description = 'Close the installer.' }
+            [ordered]@{ Id = 'install'; Label = 'Install'; PrimaryText = 'Install'; SecondaryText = 'Select the target AI tool and install the MCP server.'; StatusBadge = ''; IsPrimaryAction = $true; Description = 'Install the selected release into a client.' }
+            [ordered]@{ Id = 'uninstall'; Label = 'Uninstall'; PrimaryText = 'Uninstall'; SecondaryText = 'Remove a registered target or run a full uninstall.'; StatusBadge = ''; IsPrimaryAction = $true; Description = 'Remove an installed registration.' }
+            [ordered]@{ Id = 'update-all'; Label = 'Update All'; PrimaryText = 'Update All'; SecondaryText = 'Update every detected installer-owned target to the latest release.'; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Update every installed registration to the latest release.' }
+            [ordered]@{ Id = 'edit-root'; Label = 'Install location'; PrimaryText = 'Install location'; SecondaryText = 'Change the shared MCP server install root.'; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Edit the shared server install root.' }
+            [ordered]@{ Id = 'exit'; Label = 'Exit'; PrimaryText = 'Exit'; SecondaryText = 'Close the installer.'; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Close the installer.' }
         )
     }
 

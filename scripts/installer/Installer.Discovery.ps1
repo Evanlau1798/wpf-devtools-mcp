@@ -41,6 +41,42 @@ function Get-WpfDevToolsExecutableFromText {
     return [string]$match.Groups['path'].Value
 }
 
+function Normalize-InstallerPathCore {
+    param([string]$PathValue)
+
+    if ([string]::IsNullOrWhiteSpace($PathValue)) {
+        return $null
+    }
+
+    $trimmed = [string]$PathValue.Trim().Trim('"')
+    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+        return $null
+    }
+
+    $normalizedSeparators = $trimmed.Replace('/', '\')
+    try {
+        return [System.IO.Path]::GetFullPath($normalizedSeparators)
+    }
+    catch {
+        return $normalizedSeparators
+    }
+}
+
+function Test-InstallerPathEqualsCore {
+    param(
+        [string]$Left,
+        [string]$Right
+    )
+
+    $normalizedLeft = Normalize-InstallerPathCore -PathValue $Left
+    $normalizedRight = Normalize-InstallerPathCore -PathValue $Right
+    if ([string]::IsNullOrWhiteSpace($normalizedLeft) -or [string]::IsNullOrWhiteSpace($normalizedRight)) {
+        return $false
+    }
+
+    return [string]::Equals($normalizedLeft, $normalizedRight, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Resolve-InstallerOwnershipFromExecutable {
     param([string]$InstalledExecutable)
 
@@ -85,7 +121,7 @@ function Resolve-InstallerOwnershipFromExecutable {
     try {
         $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
         $manifestExecutable = [string]$manifest.executable
-        if (-not [string]::IsNullOrWhiteSpace($manifestExecutable) -and $manifestExecutable -eq $InstalledExecutable) {
+        if (-not [string]::IsNullOrWhiteSpace($manifestExecutable) -and (Test-InstallerPathEqualsCore -Left $manifestExecutable -Right $InstalledExecutable)) {
             $result.InstallerOwned = $true
             $result.InstallBase = $installBase
             $result.InstallRoot = [string]$manifest.installRoot

@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "cacheKey": "sha256:27a2927ca55c9e6f9c2ea8741c55bb6a73ec88fd5707df10a40bede490affe66",
+  "cacheKey": "sha256:07ab07aba95153b0a8c4307fcefdc0e58051374801acd178567610d3b06481a6",
   "helperFiles": [
     "Tui.ScreenModel.ps1",
     "Tui.Renderer.ps1",
+    "Tui.Terminal.ps1",
+    "Tui.Layout.ps1",
     "Tui.Input.ps1",
     "Tui.Flow.ps1",
     "Tui.Confirm.ps1",

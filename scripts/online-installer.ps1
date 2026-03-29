@@ -89,6 +89,7 @@ $script:InstallerHelperSourcePaths = @(
     'scripts/installer/Tui.Terminal.ps1'
     'scripts/installer/Tui.Layout.ps1'
     'scripts/installer/Tui.ScreenModel.ps1'
+    'scripts/installer/Tui.Sections.ps1'
     'scripts/installer/Tui.Renderer.ps1'
     'scripts/installer/Tui.Input.ps1'
     'scripts/installer/Tui.Flow.ps1'

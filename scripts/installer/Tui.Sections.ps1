@@ -1,0 +1,371 @@
+function Get-TuiAccent {
+    $useAnsi = Test-TuiAnsiSupportCore
+    if (-not $useAnsi) {
+        return [ordered]@{
+            Reset = ''
+            Dim = ''
+            Text = ''
+            Accent = ''
+            Primary = ''
+            Banner = ''
+            Ok = ''
+            Warn = ''
+            Error = ''
+            Border = ''
+        }
+    }
+
+    return [ordered]@{
+        Reset = "$([char]27)[0m"
+        Dim = "$([char]27)[38;5;246m"
+        Text = "$([char]27)[38;5;255m"
+        Accent = "$([char]27)[38;5;223m"
+        Primary = "$([char]27)[48;5;238m$([char]27)[38;5;255m"
+        Banner = "$([char]27)[48;5;52m$([char]27)[38;5;255m"
+        Ok = "$([char]27)[38;5;120m"
+        Warn = "$([char]27)[38;5;221m"
+        Error = "$([char]27)[38;5;203m"
+        Border = "$([char]27)[38;5;240m"
+    }
+}
+
+function Get-TuiVisibleItems {
+    param([Parameter(Mandatory)] $State)
+
+    $items = @(Get-TuiCurrentItems -State $State)
+    $offset = [int]$State.ScrollOffset
+    $count = [Math]::Min([int]$State.VisibleWindowSize, [Math]::Max(0, $items.Count - $offset))
+    if ($count -le 0) {
+        return @()
+    }
+
+    return @($items[$offset..($offset + $count - 1)])
+}
+
+function Get-TuiScreenTitle {
+    param([Parameter(Mandatory)] $State)
+
+    switch ([string]$State.CurrentScreen) {
+        'HomeScreen' { return 'HomeScreen' }
+        'InstallScreen' { return 'InstallScreen' }
+        'UninstallScreen' { return 'UninstallScreen' }
+        'ConfirmScreen' { return 'ConfirmScreen' }
+        'ProgressScreen' { return 'ProgressScreen' }
+        default { return [string]$State.CurrentScreen }
+    }
+}
+
+function Get-TuiPageMetadataCore {
+    param([Parameter(Mandatory)] $State)
+
+    switch ([string]$State.CurrentScreen) {
+        'HomeScreen' {
+            return [ordered]@{
+                Title = 'WPF DevTools MCP'
+                Subtitle = 'Model Context Protocol Server'
+                Eyebrow = 'Installation Manager'
+                ContextLines = @()
+            }
+        }
+        'InstallScreen' {
+            return [ordered]@{
+                Title = 'Where would you like to install?'
+                Subtitle = 'Choose the target AI tool.'
+                Eyebrow = '<- Back'
+                ContextLines = @(
+                    "Architecture: $([string]$State.SelectedArchitecture)"
+                    "Install location: $([string]$State.InstallRoot)"
+                )
+            }
+        }
+        'UninstallScreen' {
+            return [ordered]@{
+                Title = 'Select what to uninstall'
+                Subtitle = 'Only detected installed targets can be removed.'
+                Eyebrow = '<- Back'
+                ContextLines = @(
+                    "Architecture: $([string]$State.SelectedArchitecture)"
+                    "Install location: $([string]$State.InstallRoot)"
+                )
+            }
+        }
+        'ConfirmScreen' {
+            return [ordered]@{
+                Title = 'Confirm action'
+                Subtitle = 'Two-step confirmation is required.'
+                Eyebrow = '<- Back'
+                ContextLines = @()
+            }
+        }
+        default {
+            return [ordered]@{
+                Title = 'Working...'
+                Subtitle = 'Please wait while the installer completes the current operation.'
+                Eyebrow = ''
+                ContextLines = @()
+            }
+        }
+    }
+}
+
+function Format-TuiBadgeCore {
+    param(
+        [string]$Text,
+        [string]$Tone = 'accent'
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return ''
+    }
+
+    $accent = Get-TuiAccent
+    $prefix = switch ($Tone) {
+        'warn' { $accent.Warn }
+        'ok' { $accent.Ok }
+        'error' { $accent.Error }
+        default { $accent.Accent }
+    }
+
+    return "$prefix[$Text]$($accent.Reset)"
+}
+
+function Get-TuiRuleLineCore {
+    param(
+        [Parameter(Mandatory)] [int]$Width,
+        [Parameter(Mandatory)] $Glyphs
+    )
+
+    return [string]::new([char]$Glyphs.Horizontal, [Math]::Max(1, $Width))
+}
+
+function New-TuiBoxLineCore {
+    param(
+        [Parameter(Mandatory)] [string]$Text,
+        [Parameter(Mandatory)] [int]$Width,
+        [Parameter(Mandatory)] $Glyphs
+    )
+
+    return "$($Glyphs.Vertical)$(Pad-TuiLineCore -Text $Text -Width ($Width - 2))$($Glyphs.Vertical)"
+}
+
+function New-TuiBoxBorderLineCore {
+    param(
+        [Parameter(Mandatory)] [string]$LeftGlyph,
+        [Parameter(Mandatory)] [string]$RightGlyph,
+        [Parameter(Mandatory)] [int]$Width,
+        [Parameter(Mandatory)] $Glyphs
+    )
+
+    return "$LeftGlyph$(Get-TuiRuleLineCore -Width ($Width - 2) -Glyphs $Glyphs)$RightGlyph"
+}
+
+function Build-TuiTitleBarLinesCore {
+    param(
+        [Parameter(Mandatory)] $State,
+        [Parameter(Mandatory)] $Viewport,
+        [Parameter(Mandatory)] $Accent
+    )
+
+    $glyphs = Get-TuiBorderGlyphsCore
+    $brand = "$($Accent.Dim)  WPF DevTools MCP$($Accent.Reset)"
+    $right = "$($Accent.Dim)$(Get-TuiScreenTitle -State $State) | $([string]$State.SelectedArchitecture)$($Accent.Reset)"
+    return @(
+        (Join-TuiColumnsCore -LeftText $brand -RightText $right -Width ([int]$Viewport.Width))
+        "$($Accent.Border)$(Get-TuiRuleLineCore -Width ([int]$Viewport.Width) -Glyphs $glyphs)$($Accent.Reset)"
+    )
+}
+
+function Build-TuiHomeHeroLinesCore {
+    param(
+        [Parameter(Mandatory)] $State,
+        [Parameter(Mandatory)] $Viewport,
+        [Parameter(Mandatory)] $Accent
+    )
+
+    $contentWidth = Get-TuiContentColumnWidthCore -Viewport $Viewport
+    $lines = New-Object System.Collections.Generic.List[string]
+    $meta = Get-TuiPageMetadataCore -State $State
+    $homeItems = @($State.HomeItems)
+    $primaryItems = @($homeItems | Where-Object { $_.IsPrimaryAction })
+    $secondaryItems = @($homeItems | Where-Object { -not $_.IsPrimaryAction })
+
+    $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Text)$($meta.Title)$($Accent.Reset)" -Centered -ContentWidth $contentWidth))
+    $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$($meta.Subtitle)$($Accent.Reset)" -Centered -ContentWidth $contentWidth))
+    $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$($meta.Eyebrow)$($Accent.Reset)" -Centered -ContentWidth $contentWidth))
+    $lines.Add('')
+
+    $glyphs = Get-TuiBorderGlyphsCore
+    foreach ($item in $primaryItems) {
+        $selected = ([int]$State.SelectionIndex -eq [Array]::IndexOf($homeItems, $item))
+        $borderColor = if ($selected) { $Accent.Accent } else { $Accent.Border }
+        $focusPrefix = if ($selected) { '>' } else { ' ' }
+        $titleLine = "$focusPrefix $($item.PrimaryText)"
+        $descriptionLine = "  $($item.SecondaryText)"
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$borderColor$(New-TuiBoxBorderLineCore -LeftGlyph $glyphs.TopLeft -RightGlyph $glyphs.TopRight -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$borderColor$(New-TuiBoxLineCore -Text $titleLine -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+        $descriptionText = "$($Accent.Dim)$descriptionLine$($Accent.Reset)"
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$borderColor$(New-TuiBoxLineCore -Text $descriptionText -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$borderColor$(New-TuiBoxBorderLineCore -LeftGlyph $glyphs.BottomLeft -RightGlyph $glyphs.BottomRight -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+        $lines.Add('')
+    }
+
+    foreach ($item in $secondaryItems) {
+        $selected = ([int]$State.SelectionIndex -eq [Array]::IndexOf($homeItems, $item))
+        $prefix = if ($selected) { "$($Accent.Accent)>$($Accent.Reset)" } else { ' ' }
+        $row = "$prefix $($Accent.Text)$($item.PrimaryText)$($Accent.Reset)"
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text (Pad-TuiLineCore -Text $row -Width $contentWidth) -ContentWidth $contentWidth))
+
+        foreach ($detailLine in @(ConvertTo-TuiWrappedLinesCore -Text ([string]$item.SecondaryText) -Width ($contentWidth - 4))) {
+            if ([string]::IsNullOrWhiteSpace($detailLine)) {
+                continue
+            }
+
+            $detailPrefix = if ($selected) { '   ' } else { '  ' }
+            $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$detailPrefix$($Accent.Dim)$detailLine$($Accent.Reset)" -ContentWidth $contentWidth))
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$State.VersionHint)) {
+        $lines.Add('')
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$([string]$State.VersionHint)$($Accent.Reset)" -ContentWidth $contentWidth))
+    }
+
+    return @($lines)
+}
+
+function Build-TuiPageHeaderLinesCore {
+    param(
+        [Parameter(Mandatory)] $State,
+        [Parameter(Mandatory)] $Viewport,
+        [Parameter(Mandatory)] $Accent
+    )
+
+    $contentWidth = Get-TuiContentColumnWidthCore -Viewport $Viewport
+    $meta = Get-TuiPageMetadataCore -State $State
+    $lines = New-Object System.Collections.Generic.List[string]
+    foreach ($line in @(
+            (New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$($meta.Eyebrow)$($Accent.Reset)" -ContentWidth $contentWidth)
+            ''
+            (New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Text)$($meta.Title)$($Accent.Reset)" -ContentWidth $contentWidth)
+            (New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$($meta.Subtitle)$($Accent.Reset)" -ContentWidth $contentWidth)
+        )) {
+        $lines.Add([string]$line)
+    }
+
+    foreach ($contextLine in @($meta.ContextLines)) {
+        if ([string]::IsNullOrWhiteSpace([string]$contextLine)) {
+            continue
+        }
+
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)$contextLine$($Accent.Reset)" -ContentWidth $contentWidth))
+    }
+
+    $lines.Add('')
+    return @($lines)
+}
+
+function Build-TuiListBodyLinesCore {
+    param(
+        [Parameter(Mandatory)] $State,
+        [Parameter(Mandatory)] $Viewport,
+        [Parameter(Mandatory)] $Accent
+    )
+
+    $contentWidth = Get-TuiContentColumnWidthCore -Viewport $Viewport
+    $allItems = @(Get-TuiCurrentItems -State $State)
+    $visibleItems = @(Get-TuiVisibleItems -State $State)
+    $lines = New-Object System.Collections.Generic.List[string]
+    $glyphs = Get-TuiBorderGlyphsCore
+
+    if ($visibleItems.Count -gt 0) {
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Border)$(New-TuiBoxBorderLineCore -LeftGlyph $glyphs.TopLeft -RightGlyph $glyphs.TopRight -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+    }
+
+    for ($index = 0; $index -lt $visibleItems.Count; $index++) {
+        $absoluteIndex = [int]$State.ScrollOffset + $index
+        $item = $visibleItems[$index]
+        if ($item.ShowDividerBefore) {
+            $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Border)$(New-TuiBoxBorderLineCore -LeftGlyph $glyphs.TeeLeft -RightGlyph $glyphs.TeeRight -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+        }
+
+        $selected = ($absoluteIndex -eq [int]$State.SelectionIndex)
+        $prefix = if ($selected) { "$($Accent.Accent)>$($Accent.Reset)" } else { ' ' }
+        $badge = Format-TuiBadgeCore -Text ([string]$item.StatusBadge)
+        $primaryRow = Join-TuiColumnsCore -LeftText "$prefix $($Accent.Text)$([string]$item.PrimaryText)$($Accent.Reset)" -RightText $badge -Width ($contentWidth - 2)
+        $lineColor = if ($selected) { $Accent.Accent } else { $Accent.Border }
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$lineColor$(New-TuiBoxLineCore -Text $primaryRow -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+    }
+
+    if ($visibleItems.Count -gt 0) {
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Border)$(New-TuiBoxBorderLineCore -LeftGlyph $glyphs.BottomLeft -RightGlyph $glyphs.BottomRight -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+    }
+
+    if ($allItems.Count -gt [int]$State.VisibleWindowSize) {
+        $lines.Add('')
+        $lastIndex = [Math]::Min($allItems.Count, [int]$State.ScrollOffset + [int]$State.VisibleWindowSize)
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Dim)Showing $([int]$State.ScrollOffset + 1)-$lastIndex of $($allItems.Count)$($Accent.Reset)" -ContentWidth $contentWidth))
+    }
+
+    return @($lines)
+}
+
+function Build-TuiStatusPanelLinesCore {
+    param(
+        [Parameter(Mandatory)] $State,
+        [Parameter(Mandatory)] $Viewport,
+        [Parameter(Mandatory)] $Accent
+    )
+
+    $contentWidth = Get-TuiContentColumnWidthCore -Viewport $Viewport
+    $lines = New-Object System.Collections.Generic.List[string]
+    $panelLabel = 'Status'
+    $panelText = [string]$State.StatusMessage
+    if ([string]::IsNullOrWhiteSpace($panelText) -and ([string]$State.CurrentScreen -ne 'HomeScreen')) {
+        $items = @(Get-TuiCurrentItems -State $State)
+        if (([int]$State.SelectionIndex -ge 0) -and ([int]$State.SelectionIndex -lt $items.Count)) {
+            $panelText = [string]$items[[int]$State.SelectionIndex].Description
+            $panelLabel = 'Focus'
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($panelText)) {
+        return @()
+    }
+
+    $tone = 'ok'
+    if ($panelLabel -eq 'Focus') {
+        $tone = 'warn'
+    }
+    elseif ($panelText -match 'failed|error') {
+        $tone = 'error'
+    }
+
+    $glyphs = Get-TuiBorderGlyphsCore
+    $badge = Format-TuiBadgeCore -Text $panelLabel -Tone $tone
+    $heading = Join-TuiColumnsCore -LeftText '' -RightText $badge -Width ($contentWidth - 2)
+    $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Border)$(New-TuiBoxBorderLineCore -LeftGlyph $glyphs.TopLeft -RightGlyph $glyphs.TopRight -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+    $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Border)$(New-TuiBoxLineCore -Text $heading -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+    $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Border)$(New-TuiBoxBorderLineCore -LeftGlyph $glyphs.TeeLeft -RightGlyph $glyphs.TeeRight -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+    foreach ($statusLine in @(ConvertTo-TuiWrappedLinesCore -Text $panelText -Width ($contentWidth - 4))) {
+        $textLine = " $($Accent.Text)$statusLine$($Accent.Reset)"
+        $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Border)$(New-TuiBoxLineCore -Text $textLine -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+    }
+    $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$($Accent.Border)$(New-TuiBoxBorderLineCore -LeftGlyph $glyphs.BottomLeft -RightGlyph $glyphs.BottomRight -Width $contentWidth -Glyphs $glyphs)$($Accent.Reset)" -ContentWidth $contentWidth))
+
+    return @($lines)
+}
+
+function Build-TuiFooterLinesCore {
+    param(
+        [Parameter(Mandatory)] $State,
+        [Parameter(Mandatory)] $Viewport,
+        [Parameter(Mandatory)] $Accent
+    )
+
+    $glyphs = Get-TuiBorderGlyphsCore
+    return @(
+        (Pad-TuiLineCore -Text "$($Accent.Border)$(Get-TuiRuleLineCore -Width ([int]$Viewport.Width) -Glyphs $glyphs)$($Accent.Reset)" -Width ([int]$Viewport.Width))
+        (Pad-TuiLineCore -Text "$($Accent.Dim)Enter select  Up/Down move  Left/Right architecture  Escape back  Backspace back$($Accent.Reset)" -Width ([int]$Viewport.Width))
+        (Pad-TuiLineCore -Text "$($Accent.Dim)Update All and install location are available from the home screen.$($Accent.Reset)" -Width ([int]$Viewport.Width))
+    )
+}

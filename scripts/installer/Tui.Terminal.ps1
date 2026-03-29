@@ -77,8 +77,8 @@ function Get-TuiViewportCore {
     }
 
     return [ordered]@{
-        Width = [Math]::Max(80, $width)
-        Height = [Math]::Max(24, $height)
+        Width = [Math]::Max(20, $width)
+        Height = [Math]::Max(12, $height)
         UseAnsi = [bool](Test-TuiAnsiSupportCore)
     }
 }

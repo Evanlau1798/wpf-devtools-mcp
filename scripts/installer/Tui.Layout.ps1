@@ -17,7 +17,8 @@ function Get-TuiDisplayWidthCore {
 function Get-TuiContentColumnWidthCore {
     param([Parameter(Mandatory)] $Viewport)
 
-    return [Math]::Min([Math]::Max(56, [int]$Viewport.Width - 12), 72)
+    $availableWidth = [Math]::Max(20, [int]$Viewport.Width - 4)
+    return [Math]::Min(72, $availableWidth)
 }
 
 function Get-TuiContentLeftPaddingCore {
@@ -26,7 +27,7 @@ function Get-TuiContentLeftPaddingCore {
         [Parameter(Mandatory)] [int]$ContentWidth
     )
 
-    return [Math]::Max(2, [Math]::Floor(([int]$Viewport.Width - $ContentWidth) / 2))
+    return [Math]::Max(0, [Math]::Floor(([int]$Viewport.Width - $ContentWidth) / 2))
 }
 
 function ConvertTo-TuiWrappedLinesCore {

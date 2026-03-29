@@ -327,6 +327,49 @@ public sealed class InstallerTuiRuntimeTests
     }
 
     [Fact]
+    public void OnlineInstaller_HomeScreen_ShouldDisplayCurrentInstallLocation()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var installRoot = @"C:\Srv\Mcp";
+            Directory.CreateDirectory(appData);
+            Directory.CreateDirectory(localAppData);
+            Directory.CreateDirectory(userProfile);
+
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+            var command = string.Join(" ; ",
+            [
+                "$env:APPDATA='" + appData.Replace("'", "''") + "'",
+                "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
+                "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='100'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='30'",
+                "Set-Location '" + tempRoot.Replace("'", "''") + "'",
+                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other -InstallRoot '" + installRoot.Replace("'", "''") + "'"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("Install location");
+            result.Stdout.Should().Contain(installRoot);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_ShouldVerifyCodexRegistrationViaPowerShellShim()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

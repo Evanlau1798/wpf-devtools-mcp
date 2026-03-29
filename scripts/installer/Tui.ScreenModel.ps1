@@ -171,6 +171,31 @@ function Get-TuiFullUninstallLabel {
     return 'Full Uninstall'
 }
 
+function Get-TuiHomeItemsCore {
+    param(
+        [Parameter(Mandatory)] [string]$InstallRoot,
+        [Parameter(Mandatory)] $InstallerState,
+        [string]$LatestVersion,
+        $RegistrationMap
+    )
+
+    $updateSummary = 'All detected targets are up to date.'
+    if (-not [string]::IsNullOrWhiteSpace($LatestVersion)) {
+        $updates = @(Get-AvailableInstallerUpdates -State $InstallerState -LatestVersion $LatestVersion -RegistrationMap $RegistrationMap)
+        if ($updates.Count -gt 0) {
+            $updateSummary = "$($updates.Count) target(s) can move to v$LatestVersion."
+        }
+    }
+
+    return @(
+        [ordered]@{ Id = 'install'; Label = 'Install'; PrimaryText = 'Install'; SecondaryText = 'Select the target AI tool and install the MCP server.'; StatusBadge = ''; IsPrimaryAction = $true; Description = 'Install the selected release into a client.' }
+        [ordered]@{ Id = 'uninstall'; Label = 'Uninstall'; PrimaryText = 'Uninstall'; SecondaryText = 'Remove a registered target or run a full uninstall.'; StatusBadge = ''; IsPrimaryAction = $true; Description = 'Remove an installed registration.' }
+        [ordered]@{ Id = 'update-all'; Label = 'Update All'; PrimaryText = 'Update All'; SecondaryText = $updateSummary; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Update every installed registration to the latest release.' }
+        [ordered]@{ Id = 'edit-root'; Label = 'Install location'; PrimaryText = 'Install location'; SecondaryText = $InstallRoot; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Change the shared MCP server install root.' }
+        [ordered]@{ Id = 'exit'; Label = 'Exit'; PrimaryText = 'Exit'; SecondaryText = 'Close the installer.'; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Close the installer.' }
+    )
+}
+
 function New-TuiState {
     param(
         [Parameter(Mandatory)] [string]$DefaultAction,
@@ -201,13 +226,7 @@ function New-TuiState {
         ConfirmationStep = 0
         InstallerState = $InstallerState
         VisibleWindowSize = 6
-        HomeItems = @(
-            [ordered]@{ Id = 'install'; Label = 'Install'; PrimaryText = 'Install'; SecondaryText = 'Select the target AI tool and install the MCP server.'; StatusBadge = ''; IsPrimaryAction = $true; Description = 'Install the selected release into a client.' }
-            [ordered]@{ Id = 'uninstall'; Label = 'Uninstall'; PrimaryText = 'Uninstall'; SecondaryText = 'Remove a registered target or run a full uninstall.'; StatusBadge = ''; IsPrimaryAction = $true; Description = 'Remove an installed registration.' }
-            [ordered]@{ Id = 'update-all'; Label = 'Update All'; PrimaryText = 'Update All'; SecondaryText = 'Update every detected installer-owned target to the latest release.'; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Update every installed registration to the latest release.' }
-            [ordered]@{ Id = 'edit-root'; Label = 'Install location'; PrimaryText = 'Install location'; SecondaryText = 'Change the shared MCP server install root.'; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Edit the shared server install root.' }
-            [ordered]@{ Id = 'exit'; Label = 'Exit'; PrimaryText = 'Exit'; SecondaryText = 'Close the installer.'; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Close the installer.' }
-        )
+        HomeItems = @()
     }
 
     $detectedRegistrationMap = Get-DetectedInstallerRegistrationMap -State $state.InstallerState
@@ -215,6 +234,7 @@ function New-TuiState {
     $state.InstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap)
     $state.UninstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap)
     $state.UpdateBannerText = Get-TuiUpdateBannerText -State $state.InstallerState -LatestVersion $LatestVersion -RegistrationMap $detectedRegistrationMap
+    $state.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$state.InstallRoot) -InstallerState $state.InstallerState -LatestVersion $LatestVersion -RegistrationMap $detectedRegistrationMap)
     return $state
 }
 
@@ -230,6 +250,7 @@ function Sync-TuiStateFromInstallerState {
     $State.InstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap)
     $State.UninstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap)
     $State.UpdateBannerText = Get-TuiUpdateBannerText -State $InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $detectedRegistrationMap
+    $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $detectedRegistrationMap)
     return $State
 }
 

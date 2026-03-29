@@ -171,10 +171,14 @@ function Build-TuiHomeHeroLinesCore {
         $prefix = if ($selected) { "$($Accent.Accent)>$($Accent.Reset)" } else { ' ' }
         $row = "$prefix $($Accent.Text)$($item.PrimaryText)$($Accent.Reset)"
         $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text (Pad-TuiLineCore -Text $row -Width $contentWidth) -ContentWidth $contentWidth))
-        if ($selected) {
-            foreach ($detailLine in @(ConvertTo-TuiWrappedLinesCore -Text ([string]$item.SecondaryText) -Width ($contentWidth - 4))) {
-                $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "   $($Accent.Dim)$detailLine$($Accent.Reset)" -ContentWidth $contentWidth))
+
+        foreach ($detailLine in @(ConvertTo-TuiWrappedLinesCore -Text ([string]$item.SecondaryText) -Width ($contentWidth - 4))) {
+            if ([string]::IsNullOrWhiteSpace($detailLine)) {
+                continue
             }
+
+            $detailPrefix = if ($selected) { '   ' } else { '  ' }
+            $lines.Add((New-TuiViewportLineCore -Viewport $Viewport -Text "$detailPrefix$($Accent.Dim)$detailLine$($Accent.Reset)" -ContentWidth $contentWidth))
         }
     }
 

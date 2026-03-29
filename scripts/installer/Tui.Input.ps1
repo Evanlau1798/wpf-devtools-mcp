@@ -134,6 +134,7 @@ function Invoke-TuiInstallRootPromptCore {
         $response = Read-InstallerInput -Prompt 'Install location' -DefaultValue ([string]$State.InstallRoot)
         if (-not [string]::IsNullOrWhiteSpace($response)) {
             $State.InstallRoot = $response.Trim()
+            $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap)
             $State.StatusMessage = "Install location updated to $($State.InstallRoot)."
         }
     }

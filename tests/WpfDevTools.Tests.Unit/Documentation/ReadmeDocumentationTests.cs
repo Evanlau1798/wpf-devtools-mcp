@@ -102,4 +102,15 @@ public class ReadmeDocumentationTests
         content.Should().NotContain("Use tree tools first",
             "README should not present tree-first exploration as the default path");
     }
+
+    [Fact]
+    public void Readme_ShouldDescribeConditionalRunBatElevationBehavior()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("WPFDEVTOOLS_SKIP_ELEVATION=1",
+            "README should explain the opt-out for the launcher elevation request");
+        content.Should().Contain("requests elevation when the current shell is not already elevated",
+            "README should describe the current conditional elevation behavior precisely");
+    }
 }

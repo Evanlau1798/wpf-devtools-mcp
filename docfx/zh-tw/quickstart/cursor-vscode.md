@@ -37,7 +37,6 @@ installer 會在 `client-registration\` 內輸出 editor-ready JSON。
   "mcpServers": {
     "wpf-devtools": {
       "type": "stdio",
-      "type": "stdio",
       "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }

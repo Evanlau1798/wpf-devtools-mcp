@@ -32,19 +32,19 @@ After installation, the default executable path is:
 
 ## 3. Register the MCP server
 
-Use the generated registration command from `client-registration\claude-code.txt`, or run:
+Use the generated registration command from `client-registration\claude-code.txt`, or run the same command shape with the actual absolute executable path produced by your install:
 
 ```powershell
-claude mcp add --transport stdio wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
+claude mcp add --transport stdio wpf-devtools -- "C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe"
 ```
 
 Project-scoped alternative:
 
 ```powershell
-claude mcp add --scope project --transport stdio wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
+claude mcp add --scope project --transport stdio wpf-devtools -- "C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe"
 ```
 
-The installer also writes `client-registration\claude-code.txt`. Treat that file as the reviewed command source, and add `--scope project` manually when you want project-scoped setup across contributors or CI worktrees.
+The installer also writes `client-registration\claude-code.txt`. Treat that file as the reviewed command source because it already reflects the real install root and architecture, and add `--scope project` manually when you want project-scoped setup across contributors or CI worktrees.
 
 ## 4. Verify the registration
 

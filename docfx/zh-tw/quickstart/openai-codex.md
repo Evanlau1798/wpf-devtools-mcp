@@ -32,10 +32,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 
 ## 3. 註冊 MCP server
 
-可直接使用 `client-registration\codex.txt` 中的命令，或手動執行：
+可直接使用 `client-registration\codex.txt` 中的命令，或依照同樣格式改成你的實際安裝後絕對路徑：
 
 ```powershell
-codex mcp add wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
+codex mcp add wpf-devtools -- "C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe"
 ```
 
 ## 4. 驗證註冊結果

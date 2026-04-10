@@ -32,10 +32,10 @@ After installation, the default executable path is:
 
 ## 3. Register the MCP server
 
-Use the generated command from `client-registration\codex.txt`, or run:
+Use the generated command from `client-registration\codex.txt`, or run the same command shape with the actual absolute executable path produced by your install:
 
 ```powershell
-codex mcp add wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
+codex mcp add wpf-devtools -- "C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe"
 ```
 
 ## 4. Verify the registration

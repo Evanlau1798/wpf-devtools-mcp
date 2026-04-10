@@ -56,7 +56,7 @@ Manual fallback:
 
 1. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` from Releases.
 2. Extract the archive.
-3. Run `run.bat` from the extracted package. It elevates when needed and launches the packaged `bin\install.ps1`.
+3. Run `run.bat` from the extracted package. It requests elevation when the current shell is not already elevated and launches the packaged `bin\install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 4. Register or verify the installed executable in your MCP client.
 
 The installer writes ready-to-copy registration snippets under `%APPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.

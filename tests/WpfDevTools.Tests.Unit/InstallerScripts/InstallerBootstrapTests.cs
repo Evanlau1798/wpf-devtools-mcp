@@ -284,6 +284,21 @@ function Invoke-RestMethod {
                 [pscustomobject]@{
                     name = 'release_1.2.3_win-x64.zip'
                     browser_download_url = 'https://example.invalid/release_1.2.3_win-x64.zip'
+                },
+                [pscustomobject]@{
+                    name = 'release-assets.json'
+                    browser_download_url = 'https://example.invalid/release-assets.json'
+                }
+            )
+        }
+    }
+
+    if ($Uri -eq 'https://example.invalid/release-assets.json') {
+        return [pscustomobject]@{
+            assets = @(
+                [pscustomobject]@{
+                    name = 'release_1.2.3_win-x64.zip'
+                    sha256 = '0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3'
                 }
             )
         }
@@ -293,7 +308,7 @@ function Invoke-RestMethod {
 }
 function Invoke-WebRequest {
     param([string]$Uri, [string]$OutFile, $Headers, [int]$TimeoutSec)
-    Set-Content -Path $OutFile -Value 'archive' -Encoding UTF8
+    [System.IO.File]::WriteAllBytes($OutFile, [System.Text.Encoding]::UTF8.GetBytes('archive'))
 }
 function Expand-Archive {
     param([string]$Path, [string]$DestinationPath, [switch]$Force)

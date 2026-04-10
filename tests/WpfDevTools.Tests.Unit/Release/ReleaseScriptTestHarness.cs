@@ -93,7 +93,54 @@ internal static class ReleaseScriptTestHarness
         }
 
         ZipFile.CreateFromDirectory(packageDir, archivePath);
+        WriteAdjacentReleaseMetadata(archivePath);
         return archivePath;
+    }
+
+    public static void WriteAdjacentReleaseMetadata(string archivePath, string? publishedAssetName = null)
+    {
+        var archiveFile = new FileInfo(archivePath);
+        if (!archiveFile.Exists)
+        {
+            throw new FileNotFoundException("Archive for release metadata was not found.", archivePath);
+        }
+
+        var assetName = string.IsNullOrWhiteSpace(publishedAssetName)
+            ? archiveFile.Name
+            : publishedAssetName;
+        var versionMatch = System.Text.RegularExpressions.Regex.Match(
+            assetName,
+            @"^release_(?<version>.+)_win-(?<architecture>x64|x86|arm64)\.zip$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var tag = versionMatch.Success
+            ? "v" + versionMatch.Groups["version"].Value
+            : "vtest";
+        var sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(archivePath)))
+            .ToLowerInvariant();
+        var metadataRoot = archiveFile.DirectoryName!;
+
+        File.WriteAllText(
+            Path.Combine(metadataRoot, "SHA256SUMS.txt"),
+            $"{sha256}  {assetName}{Environment.NewLine}");
+
+        var manifest = JsonSerializer.Serialize(
+            new
+            {
+                tag,
+                generatedUtc = DateTimeOffset.UtcNow.ToString("o"),
+                assetCount = 1,
+                assets = new[]
+                {
+                    new
+                    {
+                        name = assetName,
+                        path = archivePath,
+                        sizeBytes = archiveFile.Length,
+                        sha256
+                    }
+                }
+            });
+        File.WriteAllText(Path.Combine(metadataRoot, "release-assets.json"), manifest);
     }
 
     public static string CreateFakeCommand(string directory, string commandName, string logPath)

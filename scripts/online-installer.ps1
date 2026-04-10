@@ -136,6 +136,8 @@ $script:TuiNavigationKeys = @(
 )
 $script:TuiNavigationTokens = @('ConsoleKey.UpArrow', 'ConsoleKey.DownArrow', 'ConsoleKey.LeftArrow', 'ConsoleKey.RightArrow', 'ConsoleKey.Tab', 'ConsoleKey.Enter')
 $script:ResolvedOnlineReleaseVersion = $null
+$script:GitHubReleaseApiResponseCache = @{}
+$script:GitHubReleaseChecksumRecordCache = @{}
 
 function Resolve-InstallerScriptRoot {
     if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
@@ -1949,8 +1951,8 @@ function Get-ReleaseAssetDownloadDetails {
     $assetName = Get-ReleaseAssetName -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture
     $fallbackUri = Get-ReleaseDownloadUri -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture
 
-    try {
-        $release = Invoke-RestMethod -Uri (Get-GitHubReleaseApiUri -ResolvedVersion $ResolvedVersion) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+    $release = Get-GitHubReleaseApiResponse -ResolvedVersion $ResolvedVersion
+    if ($null -ne $release) {
         $asset = @($release.assets) | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
         if ($null -ne $asset) {
             return [ordered]@{
@@ -1960,13 +1962,324 @@ function Get-ReleaseAssetDownloadDetails {
             }
         }
     }
-    catch {
-    }
 
     return [ordered]@{
         AssetName = $assetName
         DownloadUri = $fallbackUri
         ResolvedVersion = $ResolvedVersion
+    }
+}
+
+function Get-GitHubReleaseApiResponse {
+    param([Parameter(Mandatory)] [string]$ResolvedVersion)
+
+    $cacheKey = [string]$ResolvedVersion
+    if ($script:GitHubReleaseApiResponseCache.Contains($cacheKey)) {
+        return $script:GitHubReleaseApiResponseCache[$cacheKey]
+    }
+
+    try {
+        $release = Invoke-RestMethod -Uri (Get-GitHubReleaseApiUri -ResolvedVersion $ResolvedVersion) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+        $script:GitHubReleaseApiResponseCache[$cacheKey] = $release
+        return $release
+    }
+    catch {
+        return $null
+    }
+}
+
+function Get-ReleaseAssetIdentity {
+    param([string]$AssetName)
+
+    if ([string]::IsNullOrWhiteSpace($AssetName)) {
+        return $null
+    }
+
+    $match = [regex]::Match($AssetName, '^release_(?<version>.+)_win-(?<architecture>x64|x86|arm64)\.zip$', 'IgnoreCase')
+    if (-not $match.Success) {
+        return $null
+    }
+
+    $resolvedVersion = [string]$match.Groups['version'].Value
+    $resolvedArchitecture = [string]$match.Groups['architecture'].Value.ToLowerInvariant()
+    return [ordered]@{
+        AssetName = (Get-ReleaseAssetName -ResolvedVersion $resolvedVersion -ResolvedArchitecture $resolvedArchitecture)
+        ResolvedVersion = $resolvedVersion
+        ResolvedArchitecture = $resolvedArchitecture
+    }
+}
+
+function Get-ReleaseArchiveIdentity {
+    param(
+        [Parameter(Mandatory)] [string]$ArchivePath,
+        [string]$ResolvedVersion,
+        [string]$ResolvedArchitecture
+    )
+
+    $archiveName = Split-Path -Leaf $ArchivePath
+    $match = [regex]::Match($archiveName, '^release_(?<version>.+)_win-(?<architecture>x64|x86|arm64)(?: \(\d+\))?\.zip$', 'IgnoreCase')
+    if ($match.Success) {
+        $versionFromName = [string]$match.Groups['version'].Value
+        $architectureFromName = [string]$match.Groups['architecture'].Value.ToLowerInvariant()
+        return [ordered]@{
+            AssetName = (Get-ReleaseAssetName -ResolvedVersion $versionFromName -ResolvedArchitecture $architectureFromName)
+            ResolvedVersion = $versionFromName
+            ResolvedArchitecture = $architectureFromName
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ResolvedVersion) -and
+        $ResolvedVersion -ne 'latest' -and
+        -not [string]::IsNullOrWhiteSpace($ResolvedArchitecture)) {
+        return [ordered]@{
+            AssetName = (Get-ReleaseAssetName -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture)
+            ResolvedVersion = $ResolvedVersion
+            ResolvedArchitecture = $ResolvedArchitecture
+        }
+    }
+
+    return $null
+}
+
+function Get-ArchiveSha256 {
+    param([Parameter(Mandatory)] [string]$ArchivePath)
+
+    return (Get-FileHash -Algorithm SHA256 -Path $ArchivePath).Hash.ToLowerInvariant()
+}
+
+function Get-ReleaseAssetRecordsFromManifestObject {
+    param($ManifestObject)
+
+    $records = @()
+    if ($null -eq $ManifestObject -or $null -eq $ManifestObject.assets) {
+        return $records
+    }
+
+    foreach ($asset in @($ManifestObject.assets)) {
+        $assetName = [string]$asset.name
+        $sha256 = [string]$asset.sha256
+        if ([string]::IsNullOrWhiteSpace($assetName) -or [string]::IsNullOrWhiteSpace($sha256)) {
+            continue
+        }
+
+        $records += ,([ordered]@{
+                AssetName = $assetName
+                Sha256 = $sha256.ToLowerInvariant()
+            })
+    }
+
+    return $records
+}
+
+function Get-ReleaseAssetRecordsFromManifestPath {
+    param([Parameter(Mandatory)] $ManifestPath)
+
+    $resolvedManifestPath = [string]$ManifestPath
+    if ([string]::IsNullOrWhiteSpace($resolvedManifestPath) -or -not (Test-Path -LiteralPath $resolvedManifestPath)) {
+        return @()
+    }
+
+    try {
+        $manifestJson = [System.IO.File]::ReadAllText((Resolve-Path -LiteralPath $resolvedManifestPath).Path)
+        $manifest = $manifestJson | ConvertFrom-Json
+    }
+    catch {
+        return @()
+    }
+
+    return @(Get-ReleaseAssetRecordsFromManifestObject -ManifestObject $manifest)
+}
+
+function Get-ReleaseAssetRecordsFromChecksumContent {
+    param([AllowEmptyString()] [string]$Content)
+
+    $records = @()
+    foreach ($rawLine in ($Content -split "`r?`n")) {
+        $line = [string]$rawLine
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        $match = [regex]::Match($line.Trim(), '^(?<sha>[0-9A-Fa-f]{64})\s+\*?(?<name>.+)$')
+        if (-not $match.Success) {
+            continue
+        }
+
+        $records += ,([ordered]@{
+                AssetName = [string]$match.Groups['name'].Value.Trim()
+                Sha256 = [string]$match.Groups['sha'].Value.ToLowerInvariant()
+            })
+    }
+
+    return $records
+}
+
+function Get-ReleaseAssetRecordsFromChecksumPath {
+    param([Parameter(Mandatory)] $ChecksumPath)
+
+    $resolvedChecksumPath = [string]$ChecksumPath
+    if ([string]::IsNullOrWhiteSpace($resolvedChecksumPath) -or -not (Test-Path -LiteralPath $resolvedChecksumPath)) {
+        return @()
+    }
+
+    $checksumContent = [System.IO.File]::ReadAllText((Resolve-Path -LiteralPath $resolvedChecksumPath).Path)
+    return @(Get-ReleaseAssetRecordsFromChecksumContent -Content $checksumContent)
+}
+
+function Find-ReleaseAssetRecord {
+    param(
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]]$Records,
+        [string]$AssetName,
+        [string]$ArchiveHash
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($AssetName)) {
+        $namedRecord = @($Records | Where-Object { [string]$_.AssetName -eq $AssetName } | Select-Object -First 1)
+        if ($namedRecord.Count -gt 0) {
+            return $namedRecord[0]
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ArchiveHash)) {
+        $hashRecord = @($Records | Where-Object { [string]$_.Sha256 -eq $ArchiveHash } | Select-Object -First 1)
+        if ($hashRecord.Count -gt 0) {
+            return $hashRecord[0]
+        }
+    }
+
+    return $null
+}
+
+function Get-ReleaseAssetRecordFromDirectory {
+    param(
+        [Parameter(Mandatory)] [string]$DirectoryPath,
+        [string]$AssetName,
+        [string]$ArchiveHash
+    )
+
+    if ([string]::IsNullOrWhiteSpace($DirectoryPath) -or -not (Test-Path $DirectoryPath)) {
+        return $null
+    }
+
+    $manifestPath = Join-Path -Path $DirectoryPath -ChildPath 'release-assets.json'
+    $manifestRecords = @(Get-ReleaseAssetRecordsFromManifestPath -ManifestPath $manifestPath)
+    $manifestRecord = Find-ReleaseAssetRecord `
+        -Records $manifestRecords `
+        -AssetName $AssetName `
+        -ArchiveHash $ArchiveHash
+    if ($null -ne $manifestRecord) {
+        return $manifestRecord
+    }
+
+    $checksumPath = Join-Path -Path $DirectoryPath -ChildPath 'SHA256SUMS.txt'
+    $checksumRecords = @(Get-ReleaseAssetRecordsFromChecksumPath -ChecksumPath $checksumPath)
+    return (Find-ReleaseAssetRecord `
+            -Records $checksumRecords `
+            -AssetName $AssetName `
+            -ArchiveHash $ArchiveHash)
+}
+
+function Get-ReleaseAssetRecordsFromGitHub {
+    param([Parameter(Mandatory)] [string]$ResolvedVersion)
+
+    $cacheKey = [string]$ResolvedVersion
+    if ($script:GitHubReleaseChecksumRecordCache.Contains($cacheKey)) {
+        return @($script:GitHubReleaseChecksumRecordCache[$cacheKey])
+    }
+
+    $records = @()
+    $release = Get-GitHubReleaseApiResponse -ResolvedVersion $ResolvedVersion
+    if ($null -ne $release -and $null -ne $release.assets) {
+        $manifestAsset = @($release.assets) | Where-Object { $_.name -eq 'release-assets.json' } | Select-Object -First 1
+        if ($null -ne $manifestAsset) {
+            try {
+                $manifest = Invoke-RestMethod -Uri ([string]$manifestAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+                $records = @(Get-ReleaseAssetRecordsFromManifestObject -ManifestObject $manifest)
+            }
+            catch {
+            }
+        }
+
+        if ($records.Count -eq 0) {
+            $checksumAsset = @($release.assets) | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
+            if ($null -ne $checksumAsset) {
+                try {
+                    $checksumResponse = Invoke-WebRequest -Uri ([string]$checksumAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+                    $records = @(Get-ReleaseAssetRecordsFromChecksumContent -Content ([string]$checksumResponse.Content))
+                }
+                catch {
+                }
+            }
+        }
+    }
+
+    $script:GitHubReleaseChecksumRecordCache[$cacheKey] = @($records)
+    return @($records)
+}
+
+function Get-ReleaseAssetRecordFromGitHub {
+    param(
+        [Parameter(Mandatory)] [string]$ResolvedVersion,
+        [string]$AssetName,
+        [string]$ArchiveHash
+    )
+
+    return (Find-ReleaseAssetRecord `
+            -Records @(Get-ReleaseAssetRecordsFromGitHub -ResolvedVersion $ResolvedVersion) `
+            -AssetName $AssetName `
+            -ArchiveHash $ArchiveHash)
+}
+
+function Assert-ArchiveIntegrity {
+    param(
+        [Parameter(Mandatory)] [string]$ArchivePath,
+        [Parameter(Mandatory)] [string]$DownloadSource,
+        [string]$ResolvedVersion,
+        [string]$ResolvedArchitecture
+    )
+
+    $archiveHash = Get-ArchiveSha256 -ArchivePath $ArchivePath
+    $archiveIdentity = Get-ReleaseArchiveIdentity -ArchivePath $ArchivePath -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture
+    $canonicalAssetName = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.AssetName } else { $null }
+
+    $releaseRecord = Get-ReleaseAssetRecordFromDirectory `
+        -DirectoryPath (Split-Path -Parent $ArchivePath) `
+        -AssetName $canonicalAssetName `
+        -ArchiveHash $archiveHash
+
+    if ($null -eq $releaseRecord -and $null -ne $archiveIdentity) {
+        $releaseRecord = Get-ReleaseAssetRecordFromGitHub `
+            -ResolvedVersion ([string]$archiveIdentity.ResolvedVersion) `
+            -AssetName $canonicalAssetName `
+            -ArchiveHash $archiveHash
+    }
+
+    if ($null -eq $releaseRecord -and $DownloadSource -eq 'github-release' -and -not [string]::IsNullOrWhiteSpace($canonicalAssetName)) {
+        throw "Archive integrity could not be verified for $canonicalAssetName because no matching release checksum metadata was found."
+    }
+
+    if ($null -ne $releaseRecord) {
+        if ([string]$releaseRecord.Sha256 -ne $archiveHash) {
+            throw "Archive integrity verification failed for $([string]$releaseRecord.AssetName). Expected SHA256 $([string]$releaseRecord.Sha256) but got $archiveHash."
+        }
+
+        $recordIdentity = Get-ReleaseAssetIdentity -AssetName ([string]$releaseRecord.AssetName)
+        $finalIdentity = if ($null -ne $recordIdentity) { $recordIdentity } else { $archiveIdentity }
+        return [ordered]@{
+            PackageAssetName = [string]$releaseRecord.AssetName
+            DownloadUri = if ($null -ne $finalIdentity) { Get-ReleaseDownloadUri -ResolvedVersion ([string]$finalIdentity.ResolvedVersion) -ResolvedArchitecture ([string]$finalIdentity.ResolvedArchitecture) } else { $null }
+            ResolvedVersion = if ($null -ne $finalIdentity) { [string]$finalIdentity.ResolvedVersion } else { $ResolvedVersion }
+            ResolvedArchitecture = if ($null -ne $finalIdentity) { [string]$finalIdentity.ResolvedArchitecture } else { $ResolvedArchitecture }
+            Sha256 = $archiveHash
+        }
+    }
+
+    return [ordered]@{
+        PackageAssetName = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.AssetName } else { (Split-Path -Leaf $ArchivePath) }
+        DownloadUri = if ($null -ne $archiveIdentity) { Get-ReleaseDownloadUri -ResolvedVersion ([string]$archiveIdentity.ResolvedVersion) -ResolvedArchitecture ([string]$archiveIdentity.ResolvedArchitecture) } else { $null }
+        ResolvedVersion = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.ResolvedVersion } else { $ResolvedVersion }
+        ResolvedArchitecture = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.ResolvedArchitecture } else { $ResolvedArchitecture }
+        Sha256 = $archiveHash
     }
 }
 
@@ -2102,16 +2415,18 @@ function Resolve-PackageSession {
     $extractRoot = Join-Path $sessionRoot 'package'
 
     if ($Mode -eq 'offline' -and -not [string]::IsNullOrWhiteSpace($PackageArchivePath)) {
+        $archivePath = (Resolve-Path $PackageArchivePath).Path
+        $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'local-package' -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture
         New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
-        Expand-Archive -Path (Resolve-Path $PackageArchivePath).Path -DestinationPath $extractRoot -Force
+        Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
         return [ordered]@{
             PackageDirectory = $extractRoot
             SessionRoot = $sessionRoot
             CleanupSession = $true
             DownloadSource = 'local-package'
-            DownloadUri = Get-ReleaseDownloadUri -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture
-            PackageAssetName = (Split-Path -Leaf $PackageArchivePath)
-            ResolvedVersion = $ResolvedVersion
+            DownloadUri = [string]$integrity.DownloadUri
+            PackageAssetName = [string]$integrity.PackageAssetName
+            ResolvedVersion = [string]$integrity.ResolvedVersion
         }
     }
 
@@ -2133,6 +2448,7 @@ function Resolve-PackageSession {
     $downloadDetails = Get-ReleaseAssetDownloadDetails -ResolvedVersion $downloadVersion -ResolvedArchitecture $ResolvedArchitecture
     $archivePath = Join-Path $workingRootPath ([string]$downloadDetails.AssetName)
     Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath
+    $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
     Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
     return [ordered]@{
@@ -2140,9 +2456,9 @@ function Resolve-PackageSession {
         SessionRoot = $sessionRoot
         CleanupSession = $true
         DownloadSource = 'github-release'
-        DownloadUri = [string]$downloadDetails.DownloadUri
-        PackageAssetName = [string]$downloadDetails.AssetName
-        ResolvedVersion = [string]$downloadDetails.ResolvedVersion
+        DownloadUri = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.DownloadUri)) { [string]$integrity.DownloadUri } else { [string]$downloadDetails.DownloadUri }
+        PackageAssetName = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.PackageAssetName)) { [string]$integrity.PackageAssetName } else { [string]$downloadDetails.AssetName }
+        ResolvedVersion = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.ResolvedVersion)) { [string]$integrity.ResolvedVersion } else { [string]$downloadDetails.ResolvedVersion }
     }
 }
 
@@ -2971,10 +3287,291 @@ function Initialize-TuiStartupState {
     return (Invoke-WithTuiHelpers -ScriptBlock { Initialize-TuiStartupStateCore -State $State })
 }
 
+function Get-StandaloneDetectedInstallerRegistrations {
+    param([Parameter(Mandatory)] $State)
+
+    $registrationMap = [ordered]@{}
+    foreach ($entry in $State.registrations.GetEnumerator()) {
+        $record = $entry.Value
+        $installedExecutable = if ($record.Contains('installedExecutable')) { [string]$record.installedExecutable } else { [string]$record.InstalledExecutable }
+        $installRoot = if ($record.Contains('installRoot')) { [string]$record.installRoot } else { [string]$record.InstallRoot }
+        $architecture = if ($record.Contains('architecture')) { [string]$record.architecture } else { [string]$record.Architecture }
+        $resolvedVersion = if ($record.Contains('resolvedVersion')) { [string]$record.resolvedVersion } else { [string]$record.ResolvedVersion }
+        $registrationMode = if ($record.Contains('mode')) { [string]$record.mode } else { [string]$record.Mode }
+        $registrationTarget = if ($record.Contains('target')) { [string]$record.target } else { [string]$record.Target }
+        $installerOwned = $false
+
+        if (-not [string]::IsNullOrWhiteSpace($installedExecutable)) {
+            $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+            $installerOwned = [bool]$ownership.InstallerOwned
+            if ([string]::IsNullOrWhiteSpace($installRoot)) {
+                $installRoot = [string]$ownership.InstallRoot
+            }
+
+            if ([string]::IsNullOrWhiteSpace($architecture)) {
+                $architecture = [string]$ownership.Architecture
+            }
+
+            if ([string]::IsNullOrWhiteSpace($resolvedVersion)) {
+                $resolvedVersion = [string]$ownership.ResolvedVersion
+            }
+        }
+
+        $registrationMap[[string]$entry.Key] = [ordered]@{
+                ClientId = [string]$entry.Key
+                RegistrationMode = $registrationMode
+                RegistrationTarget = $registrationTarget
+                InstalledExecutable = $installedExecutable
+                InstallRoot = $installRoot
+                Architecture = $architecture
+                InstallerOwned = $installerOwned
+                ResolvedVersion = $resolvedVersion
+            }
+    }
+
+    foreach ($registration in @(Get-StandaloneDetectedConfigRegistrations)) {
+        $stateKey = Resolve-ClientStateKey `
+            -ClientId ([string]$registration.ClientId) `
+            -RegistrationMode ([string]$registration.RegistrationMode)
+        if ($registrationMap.Contains($stateKey)) {
+            $existing = $registrationMap[$stateKey]
+            if ([string]::IsNullOrWhiteSpace([string]$existing.RegistrationTarget)) {
+                $existing.RegistrationTarget = [string]$registration.RegistrationTarget
+            }
+            if ([string]::IsNullOrWhiteSpace([string]$existing.InstalledExecutable)) {
+                $existing.InstalledExecutable = [string]$registration.InstalledExecutable
+            }
+            if (-not [bool]$existing.InstallerOwned -and [bool]$registration.InstallerOwned) {
+                $existing.InstallerOwned = $true
+                $existing.InstallRoot = [string]$registration.InstallRoot
+                $existing.Architecture = [string]$registration.Architecture
+                $existing.ResolvedVersion = [string]$registration.ResolvedVersion
+            }
+            continue
+        }
+
+        $registrationMap[$stateKey] = $registration
+    }
+
+    return @($registrationMap.Values)
+}
+
+function Get-JsonConfigRegisteredExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$CollectionName,
+        [AllowEmptyString()] [string]$ConfigPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ConfigPath) -or -not (Test-Path $ConfigPath)) {
+        return $null
+    }
+
+    $root = Get-ExistingConfigMap -Path $ConfigPath
+    $servers = Get-ConfigCollectionMap -Root $root -CollectionName $CollectionName
+    if (-not $servers.Contains('wpf-devtools')) {
+        return $null
+    }
+
+    return [string]$servers['wpf-devtools'].command
+}
+
+function Get-StandaloneDetectedConfigRegistrations {
+    $registrations = @()
+    foreach ($candidate in @(
+            [ordered]@{
+                ClientId = 'vscode'
+                RegistrationMode = 'json-file'
+                RegistrationTarget = (Resolve-VsCodeConfigPath)
+                CollectionName = 'servers'
+            }
+            [ordered]@{
+                ClientId = 'visual-studio'
+                RegistrationMode = 'json-file'
+                RegistrationTarget = (Resolve-VisualStudioConfigPath)
+                CollectionName = 'servers'
+            }
+            [ordered]@{
+                ClientId = 'claude-desktop'
+                RegistrationMode = 'json-file'
+                RegistrationTarget = (Resolve-ClaudeDesktopConfigPath)
+                CollectionName = 'mcpServers'
+            }
+            [ordered]@{
+                ClientId = 'cursor-global'
+                RegistrationMode = 'cursor-global'
+                RegistrationTarget = (Resolve-CursorGlobalConfigPath)
+                CollectionName = 'mcpServers'
+            }
+            [ordered]@{
+                ClientId = 'cursor-project'
+                RegistrationMode = 'cursor-project'
+                RegistrationTarget = (Resolve-CursorProjectConfigPath)
+                CollectionName = 'mcpServers'
+            }
+        )) {
+        $registrationTarget = [string]$candidate.RegistrationTarget
+        $installedExecutable = Get-JsonConfigRegisteredExecutable `
+            -CollectionName ([string]$candidate.CollectionName) `
+            -ConfigPath $registrationTarget
+        if ([string]::IsNullOrWhiteSpace($installedExecutable)) {
+            continue
+        }
+
+        $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+        $registrations += ,([ordered]@{
+                ClientId = [string]$candidate.ClientId
+                RegistrationMode = [string]$candidate.RegistrationMode
+                RegistrationTarget = $registrationTarget
+                InstalledExecutable = $installedExecutable
+                InstallRoot = [string]$ownership.InstallRoot
+                Architecture = [string]$ownership.Architecture
+                InstallerOwned = [bool]$ownership.InstallerOwned
+                ResolvedVersion = [string]$ownership.ResolvedVersion
+            })
+    }
+
+    return $registrations
+}
+
+function Get-StandaloneDetectedInstallerRegistrationMap {
+    param([Parameter(Mandatory)] $State)
+
+    $registrationMap = [ordered]@{}
+    foreach ($registration in @(Get-StandaloneDetectedInstallerRegistrations -State $State)) {
+        $stateKey = Resolve-ClientStateKey `
+            -ClientId ([string]$registration.ClientId) `
+            -RegistrationMode ([string]$registration.RegistrationMode)
+        $registrationMap[$stateKey] = $registration
+        if (-not $registrationMap.Contains([string]$registration.ClientId)) {
+            $registrationMap[[string]$registration.ClientId] = $registration
+        }
+    }
+
+    return $registrationMap
+}
+
+function Get-StandaloneDetectedInstallerInstallations {
+    param([Parameter(Mandatory)] $State)
+
+    $installations = [ordered]@{}
+    foreach ($registration in @(Get-StandaloneDetectedInstallerRegistrations -State $State)) {
+        if (-not [bool]$registration.InstallerOwned) {
+            continue
+        }
+
+        if ([string]::IsNullOrWhiteSpace([string]$registration.InstallRoot) -or [string]::IsNullOrWhiteSpace([string]$registration.Architecture)) {
+            continue
+        }
+
+        $key = "{0}|{1}" -f ([string]$registration.InstallRoot).ToLowerInvariant(), ([string]$registration.Architecture).ToLowerInvariant()
+        $installations[$key] = [ordered]@{
+            InstallRoot = [string]$registration.InstallRoot
+            Architecture = [string]$registration.Architecture
+            InstallBase = Resolve-InstallBasePath -ResolvedInstallRoot ([string]$registration.InstallRoot) -ResolvedArchitecture ([string]$registration.Architecture)
+            InstalledExecutable = [string]$registration.InstalledExecutable
+            ResolvedVersion = [string]$registration.ResolvedVersion
+            InstallerOwned = $true
+        }
+    }
+
+    foreach ($architectureEntry in $State.architectures.GetEnumerator()) {
+        $arch = [string]$architectureEntry.Key
+        $record = $architectureEntry.Value
+        $executable = [string]$record.executable
+        if ([string]::IsNullOrWhiteSpace($executable)) {
+            continue
+        }
+
+        $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $executable
+        if (-not [bool]$ownership.InstallerOwned) {
+            continue
+        }
+
+        $installRoot = [string]$record.installRoot
+        if ([string]::IsNullOrWhiteSpace($installRoot)) {
+            $installRoot = [string]$ownership.InstallRoot
+        }
+
+        if ([string]::IsNullOrWhiteSpace($installRoot)) {
+            continue
+        }
+
+        $key = "{0}|{1}" -f $installRoot.ToLowerInvariant(), $arch.ToLowerInvariant()
+        $installations[$key] = [ordered]@{
+            InstallRoot = $installRoot
+            Architecture = $arch
+            InstallBase = Resolve-InstallBasePath -ResolvedInstallRoot $installRoot -ResolvedArchitecture $arch
+            InstalledExecutable = $executable
+            ResolvedVersion = [string]$record.version
+            InstallerOwned = $true
+        }
+    }
+
+    return @($installations.Values)
+}
+
+function Invoke-StandaloneFullUninstall {
+    param([Parameter(Mandatory)] $State)
+
+    $detectedRegistrations = @(Get-StandaloneDetectedInstallerRegistrations -State $State)
+    $detectedInstallations = @(Get-StandaloneDetectedInstallerInstallations -State $State)
+    $unregistrationResults = @()
+
+    foreach ($registration in $detectedRegistrations) {
+        $unregistrationResults += @(Invoke-ClientUnregistration -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration)
+    }
+
+    $verificationFailures = @()
+    foreach ($registration in $detectedRegistrations) {
+        $verification = Invoke-UninstallVerification -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration
+        if (-not $verification.Succeeded) {
+            $verificationFailures += [string]$verification.VerificationMessage
+        }
+    }
+
+    $removedInstallations = @()
+    foreach ($installation in $detectedInstallations) {
+        if (-not [bool]$installation.InstallerOwned) {
+            continue
+        }
+
+        Remove-PathIfExists -Path ([string]$installation.InstallBase)
+        $removedInstallations += $installation
+    }
+
+    foreach ($installation in $removedInstallations) {
+        if (Test-Path ([string]$installation.InstallBase)) {
+            $verificationFailures += "Installation root still exists: $([string]$installation.InstallBase)"
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$installation.InstalledExecutable) -and (Test-Path ([string]$installation.InstalledExecutable))) {
+            $verificationFailures += "Executable still exists: $([string]$installation.InstalledExecutable)"
+        }
+    }
+
+    if ($verificationFailures.Count -gt 0) {
+        throw ($verificationFailures -join ' ')
+    }
+
+    $newState = Get-EmptyInstallerState
+    $newState.lastInstallRoot = $State.lastInstallRoot
+    $statePath = Save-InstallerState -State $newState
+    return [ordered]@{
+        statePath = $statePath
+        removedInstallation = ($removedInstallations.Count -gt 0)
+        removedInstallations = @($removedInstallations)
+        registrations = @($unregistrationResults)
+        verificationMessage = "Verified removal of $($detectedRegistrations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."
+    }
+}
+
 function Assert-InstallerHelperRuntimeAvailable {
     param([Parameter(Mandatory)] [string]$ResolvedAction)
 
     if ($ResolvedAction -eq 'install') {
+        return
+    }
+
+    if ($NonInteractive -or $OutputJson) {
         return
     }
 
@@ -3008,7 +3605,12 @@ function Invoke-InstallerAction {
 
     if ($ResolvedAction -eq 'full-uninstall') {
         $state = Get-InstallerState
-        $result = Invoke-WithTuiHelpers -ScriptBlock { Invoke-InstallerFullUninstallCore -State $state }
+        $result = if ($NonInteractive -or $OutputJson) {
+            Invoke-StandaloneFullUninstall -State $state
+        }
+        else {
+            Invoke-WithTuiHelpers -ScriptBlock { Invoke-InstallerFullUninstallCore -State $state }
+        }
         return [ordered]@{
             action = 'full-uninstall'
             mode = 'offline'
@@ -3032,7 +3634,12 @@ function Invoke-InstallerAction {
 
     if ($ResolvedAction -eq 'uninstall') {
         $state = Get-InstallerState
-        $detectedRegistrations = Invoke-WithTuiHelpers -ScriptBlock { Get-DetectedInstallerRegistrationMap -State $state }
+        $detectedRegistrations = if ($NonInteractive -or $OutputJson) {
+            Get-StandaloneDetectedInstallerRegistrationMap -State $state
+        }
+        else {
+            Invoke-WithTuiHelpers -ScriptBlock { Get-DetectedInstallerRegistrationMap -State $state }
+        }
         $cursorRegistrationMode = $null
         if ((Resolve-ClientBaseId -ClientId $ResolvedClient) -eq 'cursor') {
             $cursorProfile = Resolve-CursorRegistrationProfile -SelectedClient $ResolvedClient
@@ -3131,8 +3738,26 @@ function Invoke-InstallerAction {
     $session = Resolve-PackageSession -Mode $mode -ResolvedVersion $RequestedVersion -ResolvedArchitecture $ResolvedArchitecture
     try {
         $packageManifest = Get-Content -Path (Resolve-PackageManifestPath -PackageDirectory $session.PackageDirectory) -Raw | ConvertFrom-Json
+        $resolvedArchitecture = if ([string]::IsNullOrWhiteSpace([string]$packageManifest.architecture)) { $ResolvedArchitecture } else { [string]$packageManifest.architecture }
         $resolvedVersion = if ([string]::IsNullOrWhiteSpace([string]$packageManifest.version)) { [string]$session.ResolvedVersion } else { [string]$packageManifest.version }
-        $installResult = Install-PackagePayload -PackageDirectory $session.PackageDirectory -PackageManifest $packageManifest -ResolvedArchitecture $ResolvedArchitecture -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedVersion $resolvedVersion
+        $packageAssetIdentity = Get-ReleaseAssetIdentity -AssetName ([string]$session.PackageAssetName)
+        $packageAssetName = if ($null -ne $packageAssetIdentity) {
+            [string]$packageAssetIdentity.AssetName
+        }
+        elseif ($session.DownloadSource -eq 'local-package' -and -not [string]::IsNullOrWhiteSpace([string]$session.PackageAssetName) -and -not [string]::IsNullOrWhiteSpace($resolvedVersion)) {
+            Get-ReleaseAssetName -ResolvedVersion $resolvedVersion -ResolvedArchitecture $resolvedArchitecture
+        }
+        else {
+            [string]$session.PackageAssetName
+        }
+        $downloadUri = if (-not [string]::IsNullOrWhiteSpace($packageAssetName) -and -not [string]::IsNullOrWhiteSpace($resolvedVersion)) {
+            Get-ReleaseDownloadUri -ResolvedVersion $resolvedVersion -ResolvedArchitecture $resolvedArchitecture
+        }
+        else {
+            [string]$session.DownloadUri
+        }
+
+        $installResult = Install-PackagePayload -PackageDirectory $session.PackageDirectory -PackageManifest $packageManifest -ResolvedArchitecture $resolvedArchitecture -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedVersion $resolvedVersion
         $registrations = @(Invoke-ClientRegistration -SelectedClient $ResolvedClient -InstalledExecutable $installResult.installedExecutable -InstallBase $installResult.installBase)
         $verification = Invoke-InstallVerification -SelectedClient $ResolvedClient -ResolvedVersion $resolvedVersion -InstalledExecutable $installResult.installedExecutable -Registration $registrations[0]
         if (-not $verification.Succeeded) {
@@ -3140,7 +3765,7 @@ function Invoke-InstallerAction {
         }
 
         $state = Get-InstallerState
-        Update-InstallerStateAfterInstall -State $state -ResolvedInstallRoot $installResult.installRoot -ResolvedArchitecture $ResolvedArchitecture -ResolvedVersion ([string]$verification.InstalledVersion) -InstalledExecutable $installResult.installedExecutable -SelectedClient $ResolvedClient -Registration $registrations[0] -LastVerifiedUtc ([string]$verification.LastVerifiedUtc)
+        Update-InstallerStateAfterInstall -State $state -ResolvedInstallRoot $installResult.installRoot -ResolvedArchitecture $resolvedArchitecture -ResolvedVersion ([string]$verification.InstalledVersion) -InstalledExecutable $installResult.installedExecutable -SelectedClient $ResolvedClient -Registration $registrations[0] -LastVerifiedUtc ([string]$verification.LastVerifiedUtc)
         $statePath = Save-InstallerState -State $state
         return [ordered]@{
             action = 'install'
@@ -3148,10 +3773,10 @@ function Invoke-InstallerAction {
             downloadSource = [string]$session.DownloadSource
             version = $RequestedVersion
             resolvedVersion = [string]$verification.InstalledVersion
-            architecture = $ResolvedArchitecture
+            architecture = $resolvedArchitecture
             client = $ResolvedClient
-            packageAssetName = [string]$session.PackageAssetName
-            downloadUri = [string]$session.DownloadUri
+            packageAssetName = $packageAssetName
+            downloadUri = $downloadUri
             installRoot = $installResult.installRoot
             installedExecutable = $installResult.installedExecutable
             selectedClients = @($ResolvedClient)

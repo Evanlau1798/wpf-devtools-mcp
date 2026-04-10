@@ -94,6 +94,44 @@ public sealed class GitHubPagesInstallerScriptTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldUsePackageManifestArchitectureForOfflineArchiveMetadataWhenArchitectureWasNotSpecified()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64");
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-PackageArchivePath", archivePath,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                },
+                new Dictionary<string, string?>
+                {
+                    ["PROCESSOR_ARCHITECTURE"] = "x86",
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["PATH"] = string.Empty
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("architecture").GetString().Should().Be("x64");
+            json.RootElement.GetProperty("downloadUri").GetString()
+                .Should().EndWith("/release_1.2.3_win-x64.zip");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldSurfaceReleaseArchiveMetadataAndResolvedVersion()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -117,6 +155,7 @@ public sealed class GitHubPagesInstallerScriptTests
 
             var archivePath = Path.Combine(tempRoot, "release_1.2.3_win-x64.zip");
             ZipFile.CreateFromDirectory(packageDir, archivePath);
+            ReleaseScriptTestHarness.WriteAdjacentReleaseMetadata(archivePath);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),

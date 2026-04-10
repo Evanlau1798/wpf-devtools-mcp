@@ -261,6 +261,27 @@ public sealed class PublicQuickstartDocumentationTests
         content.Should().NotContain("scripts/");
     }
 
+    [Fact]
+    public void CliQuickstarts_ShouldNotHardCodeDefaultRootInManualRegistrationExamples()
+    {
+        var files = new[]
+        {
+            "docfx/quickstart/claude-code.md",
+            "docfx/quickstart/openai-codex.md",
+            "docfx/zh-tw/quickstart/claude-code.md",
+            "docfx/zh-tw/quickstart/openai-codex.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().NotContain("$env:APPDATA\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+                $"{file} should not hard-code the default root and x64 in manual CLI commands");
+            content.Should().Contain("client-registration\\",
+                $"{file} should keep the generated registration artifact as the source of truth");
+        }
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
 

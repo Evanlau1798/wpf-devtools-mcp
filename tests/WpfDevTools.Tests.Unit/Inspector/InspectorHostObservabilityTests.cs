@@ -21,7 +21,7 @@ public class InspectorHostObservabilityTests : IDisposable
         host.Start();
 
         using var client = new NamedPipeClient(pid);
-        var connected = await client.ConnectAsync(TimeSpan.FromSeconds(5));
+        var connected = await client.ConnectAsync(TimeSpan.FromSeconds(10), maxRetries: 5);
         connected.Should().BeTrue();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));

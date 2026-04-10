@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using Xunit;
@@ -22,14 +23,7 @@ public class InspectorHostConcurrencyTests
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
-
-        using var client = new NamedPipeClientStream(
-            ".",
-            $"WpfDevTools_{pid}",
-            PipeDirection.InOut,
-            PipeOptions.Asynchronous);
-
-        await client.ConnectAsync(5_000);
+        using var client = await ConnectToHostAsync(pid);
 
         // Send a ping request but don't wait for response yet
         var request = new InspectorRequest
@@ -71,5 +65,56 @@ public class InspectorHostConcurrencyTests
         // Assert
         act.Should().NotThrow();
         host.IsRunning.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Stop_WhenServerTaskIsCanceled_ShouldTreatCancellationAsNormalShutdown()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        using var host = new InspectorHost(pid);
+
+        var canceledTask = Task.FromCanceled(new CancellationToken(canceled: true));
+        SetPrivateField(host, "_serverTask", canceledTask);
+        SetPrivateField(host, "_cancellationTokenSource", new CancellationTokenSource());
+        SetPrivateField(host, "_isRunning", true);
+
+        var act = () => host.Stop();
+
+        act.Should().NotThrow("shutdown should treat a canceled server loop as a normal stop path");
+        host.IsRunning.Should().BeFalse();
+    }
+
+    private static void SetPrivateField<T>(InspectorHost host, string fieldName, T value)
+    {
+        var field = typeof(InspectorHost).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        field.Should().NotBeNull();
+        field!.SetValue(host, value);
+    }
+
+    private static async Task<NamedPipeClientStream> ConnectToHostAsync(int processId)
+    {
+        const int maxAttempts = 5;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var client = new NamedPipeClientStream(
+                ".",
+                $"WpfDevTools_{processId}",
+                PipeDirection.InOut,
+                PipeOptions.Asynchronous);
+
+            try
+            {
+                await client.ConnectAsync(1_000);
+                return client;
+            }
+            catch (TimeoutException) when (attempt < maxAttempts)
+            {
+                client.Dispose();
+                await Task.Delay(100);
+            }
+        }
+
+        throw new TimeoutException($"Timed out waiting for InspectorHost pipe for synthetic process {processId}.");
     }
 }

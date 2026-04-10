@@ -11,14 +11,48 @@ function Test-TuiPathChildExists {
     return (Test-Path (Join-Path $BasePath $ChildPath))
 }
 
-function Get-TuiInstalledVersion {
+function Get-TuiRegistrationEntriesCore {
     param(
         [Parameter(Mandatory)] $RegistrationMap,
         [Parameter(Mandatory)] [string]$ClientId
     )
 
     if ($RegistrationMap.Contains($ClientId)) {
-        return [string]$RegistrationMap[$ClientId].ResolvedVersion
+        return @([ordered]@{
+                Key = $ClientId
+                Registration = $RegistrationMap[$ClientId]
+            })
+    }
+
+    if ($ClientId -ne 'cursor') {
+        return @()
+    }
+
+    return @($RegistrationMap.GetEnumerator() |
+            Where-Object { $_.Key -like 'cursor-*' } |
+            Sort-Object Key |
+            ForEach-Object {
+                [ordered]@{
+                    Key = [string]$_.Key
+                    Registration = $_.Value
+                }
+            })
+}
+
+function Get-TuiInstalledVersion {
+    param(
+        [Parameter(Mandatory)] $RegistrationMap,
+        [Parameter(Mandatory)] [string]$ClientId
+    )
+
+    $versions = @((Get-TuiRegistrationEntriesCore -RegistrationMap $RegistrationMap -ClientId $ClientId) |
+        ForEach-Object {
+            Get-InstallerRecordStringValueCore -Record $_.Registration -PropertyNames @('ResolvedVersion', 'resolvedVersion')
+        } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+        Select-Object -Unique)
+    if ($versions.Count -eq 1) {
+        return [string]$versions[0]
     }
 
     return $null
@@ -37,6 +71,9 @@ function Test-TuiClientAvailable {
     switch ($ClientId) {
         'claude-code' { return ($null -ne (Get-Command 'claude' -ErrorAction SilentlyContinue)) }
         'codex' { return ($null -ne (Get-Command 'codex' -ErrorAction SilentlyContinue)) }
+        'cursor' {
+            return $true
+        }
         'vscode' {
             return ($null -ne (Get-Command 'code' -ErrorAction SilentlyContinue)) -or
                 (Test-TuiPathChildExists -BasePath $env:APPDATA -ChildPath 'Code')
@@ -62,45 +99,82 @@ function Get-TuiClientItems {
         $RegistrationMap
     )
 
-    $items = @()
     $registrationMap = if ($null -ne $RegistrationMap) { $RegistrationMap } else { Get-DetectedInstallerRegistrationMap -State $State }
-    foreach ($client in Get-SupportedClients) {
-        $clientId = [string]$client.Id
-        $installed = $registrationMap.Contains($clientId)
-        $available = Test-TuiClientAvailable -ClientId $clientId -State $State
-        $version = Get-TuiInstalledVersion -RegistrationMap $registrationMap -ClientId $clientId
+    $items = @()
+    if ($Mode -eq 'install') {
+        foreach ($client in Get-SupportedClients) {
+            $clientId = [string]$client.Id
+            $registrations = @(Get-TuiRegistrationEntriesCore -RegistrationMap $registrationMap -ClientId $clientId)
+            $installed = $registrations.Count -gt 0
+            $available = Test-TuiClientAvailable -ClientId $clientId -State $State
+            $version = Get-TuiInstalledVersion -RegistrationMap $registrationMap -ClientId $clientId
 
-        if ($Mode -eq 'install' -and -not ($available -or $installed)) {
-            continue
+            if (-not ($available -or $installed)) {
+                continue
+            }
+
+            $label = Resolve-ClientLabel -ClientId $clientId
+            $statusBadge = ''
+            if (-not [string]::IsNullOrWhiteSpace($version)) {
+                $label = "$label (Installed v$version)"
+                $statusBadge = "Installed v$version"
+            }
+            elseif ($installed -and $clientId -eq 'cursor' -and $registrations.Count -gt 1) {
+                $label = "$label ($($registrations.Count) scopes installed)"
+                $statusBadge = "$($registrations.Count) scopes installed"
+            }
+            elseif ($installed) {
+                $label = "$label (Installed)"
+                $statusBadge = 'Installed'
+            }
+
+            $secondaryText = ''
+            $description = 'Press Enter to install or update this target.'
+            $statusText = ''
+            if ($clientId -eq 'other') {
+                $secondaryText = 'Export JSON and CLI examples for manual MCP registration.'
+                $description = 'Review other.mcpServers.json, claude-code.txt, and codex.txt under client-registration. See AI Agent Clients for registration examples.'
+                $statusText = 'Registration examples: other.mcpServers.json, claude-code.txt, codex.txt.'
+            }
+
+            $items += [ordered]@{
+                Id = $clientId
+                Label = $label
+                PrimaryText = (Resolve-ClientLabel -ClientId $clientId)
+                SecondaryText = $secondaryText
+                StatusBadge = $statusBadge
+                IsPrimaryAction = $false
+                Installed = $installed
+                Available = $available
+                Description = $description
+                StatusText = $statusText
+            }
         }
+    }
+    else {
+        foreach ($entry in @($registrationMap.GetEnumerator() | Sort-Object Key)) {
+            $clientId = [string]$entry.Key
+            $version = Get-InstallerRecordStringValueCore -Record $entry.Value -PropertyNames @('ResolvedVersion', 'resolvedVersion')
+            $label = Resolve-ClientLabel -ClientId $clientId
+            $statusBadge = if ([string]::IsNullOrWhiteSpace($version)) { 'Installed' } else { "Installed v$version" }
+            if (-not [string]::IsNullOrWhiteSpace($version)) {
+                $label = "$label (Installed v$version)"
+            }
+            else {
+                $label = "$label (Installed)"
+            }
 
-        if ($Mode -eq 'uninstall' -and -not $installed) {
-            continue
-        }
-
-        $label = Resolve-ClientLabel -ClientId $clientId
-        $statusBadge = ''
-        if (-not [string]::IsNullOrWhiteSpace($version)) {
-            $label = "$label (Installed v$version)"
-            $statusBadge = "Installed v$version"
-        }
-        elseif ($installed) {
-            $label = "$label (Installed)"
-            $statusBadge = 'Installed'
-        }
-
-        $secondaryText = ''
-
-        $items += [ordered]@{
-            Id = $clientId
-            Label = $label
-            PrimaryText = (Resolve-ClientLabel -ClientId $clientId)
-            SecondaryText = $secondaryText
-            StatusBadge = $statusBadge
-            IsPrimaryAction = $false
-            Installed = $installed
-            Available = $available
-            Description = if ($Mode -eq 'install') { 'Press Enter to install or update this target.' } else { 'Press Enter to remove this registration.' }
+            $items += [ordered]@{
+                Id = $clientId
+                Label = $label
+                PrimaryText = (Resolve-ClientLabel -ClientId $clientId)
+                SecondaryText = ''
+                StatusBadge = $statusBadge
+                IsPrimaryAction = $false
+                Installed = $true
+                Available = (Test-TuiClientAvailable -ClientId (Resolve-ClientBaseId -ClientId $clientId) -State $State)
+                Description = 'Press Enter to remove this registration.'
+            }
         }
     }
 
@@ -172,11 +246,21 @@ function Get-TuiHomeItemsCore {
         [Parameter(Mandatory)] [string]$InstallRoot,
         [Parameter(Mandatory)] $InstallerState,
         [string]$LatestVersion,
-        $RegistrationMap
+        $RegistrationMap,
+        [bool]$LatestVersionRefreshPending = $false
     )
 
-    $updateSummary = if ($RegistrationMap.Count -gt 0) { 'Checking latest release...' } else { 'All detected targets are up to date.' }
-    if (-not [string]::IsNullOrWhiteSpace($LatestVersion)) {
+    if ($RegistrationMap.Count -eq 0) {
+        $updateSummary = 'All detected targets are up to date.'
+    }
+    elseif ($LatestVersionRefreshPending) {
+        $updateSummary = 'Checking latest release...'
+    }
+    else {
+        $updateSummary = 'Unable to check the latest release right now.'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$LatestVersion)) {
         $updates = @(Get-AvailableInstallerUpdates -State $InstallerState -LatestVersion $LatestVersion -RegistrationMap $RegistrationMap)
         if ($updates.Count -gt 0) {
             $updateSummary = "$($updates.Count) target(s) can move to v$LatestVersion."
@@ -191,7 +275,6 @@ function Get-TuiHomeItemsCore {
         [ordered]@{ Id = 'uninstall'; Label = 'Uninstall'; PrimaryText = 'Uninstall'; SecondaryText = 'Remove a registered target or run a full uninstall.'; StatusBadge = ''; IsPrimaryAction = $true; Description = 'Remove an installed registration.' }
         [ordered]@{ Id = 'update-all'; Label = 'Update All'; PrimaryText = 'Update All'; SecondaryText = $updateSummary; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Update every installed registration to the latest release.' }
         [ordered]@{ Id = 'edit-root'; Label = 'Install location'; PrimaryText = 'Install location'; SecondaryText = $InstallRoot; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Change the shared MCP server install root.' }
-        [ordered]@{ Id = 'exit'; Label = 'Exit'; PrimaryText = 'Exit'; SecondaryText = 'Close the installer.'; StatusBadge = ''; IsPrimaryAction = $false; Description = 'Close the installer.' }
     )
 }
 
@@ -223,9 +306,11 @@ function New-TuiState {
         PendingClient = $null
         ConfirmationMode = $null
         ConfirmationStep = 0
+        LatestVersionRefreshPending = $false
         InstallerState = $InstallerState
         VisibleWindowSize = 4
         HomeItems = @()
+        PathEditor = $null
     }
 
     $detectedRegistrationMap = Get-DetectedInstallerRegistrationMap -State $state.InstallerState
@@ -233,7 +318,7 @@ function New-TuiState {
     $state.InstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap)
     $state.UninstallItems = @(Get-TuiClientItems -State $state.InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap)
     $state.UpdateBannerText = Get-TuiUpdateBannerText -State $state.InstallerState -LatestVersion $LatestVersion -RegistrationMap $detectedRegistrationMap
-    $state.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$state.InstallRoot) -InstallerState $state.InstallerState -LatestVersion $LatestVersion -RegistrationMap $detectedRegistrationMap)
+    $state.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$state.InstallRoot) -InstallerState $state.InstallerState -LatestVersion $LatestVersion -RegistrationMap $detectedRegistrationMap -LatestVersionRefreshPending ([bool]$state.LatestVersionRefreshPending))
     return $state
 }
 
@@ -249,7 +334,7 @@ function Sync-TuiStateFromInstallerState {
     $State.InstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap)
     $State.UninstallItems = @(Get-TuiClientItems -State $InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap)
     $State.UpdateBannerText = Get-TuiUpdateBannerText -State $InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $detectedRegistrationMap
-    $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $detectedRegistrationMap)
+    $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $detectedRegistrationMap -LatestVersionRefreshPending ([bool]$State.LatestVersionRefreshPending))
     return $State
 }
 
@@ -261,27 +346,84 @@ function Get-TuiCurrentItems {
         'InstallScreen' { return @($State.InstallItems) }
         'UninstallScreen' { return @($State.UninstallItems) }
         'ConfirmScreen' { return @() }
+        'PathEditorScreen' { return @() }
+        'DirectoryPickerScreen' { return @() }
+        'FolderNamePromptScreen' { return @() }
         default { return @() }
     }
 }
 
+function Get-TuiDirectionalScrollOffsetCore {
+    param(
+        [Parameter(Mandatory)] [int]$SelectionIndex,
+        [Parameter(Mandatory)] [int]$ItemCount,
+        [Parameter(Mandatory)] [int]$WindowSize,
+        [Parameter(Mandatory)] [int]$CurrentOffset,
+        [int]$Direction = 0
+    )
+
+    $maxOffset = [Math]::Max(0, $ItemCount - $WindowSize)
+    if ($ItemCount -le $WindowSize) {
+        return 0
+    }
+
+    switch ($Direction) {
+        1 {
+            if ($SelectionIndex -lt ($ItemCount - 1)) {
+                $bottomAnchor = [Math]::Max(0, $WindowSize - 2)
+                return [Math]::Min($maxOffset, [Math]::Max(0, $SelectionIndex - $bottomAnchor))
+            }
+        }
+        -1 {
+            if ($SelectionIndex -gt 0) {
+                $topAnchor = if ($WindowSize -gt 1) { 1 } else { 0 }
+                return [Math]::Min($maxOffset, [Math]::Max(0, $SelectionIndex - $topAnchor))
+            }
+        }
+    }
+
+    $offset = [Math]::Max(0, $CurrentOffset)
+    if ($SelectionIndex -lt $offset) {
+        $offset = $SelectionIndex
+    }
+    elseif ($SelectionIndex -ge ($offset + $WindowSize)) {
+        $offset = $SelectionIndex - $WindowSize + 1
+    }
+
+    return [Math]::Min($maxOffset, [Math]::Max(0, $offset))
+}
+
 function Update-TuiScrollCore {
-    param([Parameter(Mandatory)] $State)
+    param(
+        [Parameter(Mandatory)] $State,
+        [int]$Direction = 0
+    )
 
     $items = @(Get-TuiCurrentItems -State $State)
     $maxIndex = [Math]::Max(0, $items.Count - 1)
     $State.SelectionIndex = [Math]::Min($maxIndex, [Math]::Max(0, [int]$State.SelectionIndex))
 
     $windowSize = [Math]::Max(1, [int]$State.VisibleWindowSize)
-    if ([int]$State.SelectionIndex -lt [int]$State.ScrollOffset) {
-        $State.ScrollOffset = [int]$State.SelectionIndex
+    if ([string]$State.CurrentScreen -in @('InstallScreen', 'UninstallScreen')) {
+        $State.ScrollOffset = Get-TuiDirectionalScrollOffsetCore `
+            -SelectionIndex ([int]$State.SelectionIndex) `
+            -ItemCount $items.Count `
+            -WindowSize $windowSize `
+            -CurrentOffset ([int]$State.ScrollOffset) `
+            -Direction $Direction
     }
-    elseif ([int]$State.SelectionIndex -ge ([int]$State.ScrollOffset + $windowSize)) {
-        $State.ScrollOffset = [int]$State.SelectionIndex - $windowSize + 1
+    else {
+        if ([int]$State.SelectionIndex -lt [int]$State.ScrollOffset) {
+            $State.ScrollOffset = [int]$State.SelectionIndex
+        }
+        elseif ([int]$State.SelectionIndex -ge ([int]$State.ScrollOffset + $windowSize)) {
+            $State.ScrollOffset = [int]$State.SelectionIndex - $windowSize + 1
+        }
+
+        $maxOffset = [Math]::Max(0, $items.Count - $windowSize)
+        $State.ScrollOffset = [Math]::Min($maxOffset, [Math]::Max(0, [int]$State.ScrollOffset))
     }
 
-    $maxOffset = [Math]::Max(0, $items.Count - $windowSize)
-    $State.ScrollOffset = [Math]::Min($maxOffset, [Math]::Max(0, [int]$State.ScrollOffset))
     return $State
 }
 
@@ -295,18 +437,28 @@ function Update-TuiSelectionCore {
         return (Handle-TuiConfirmationKeyCore -State $State -KeyInfo $KeyInfo)
     }
 
+    if ([string]$State.CurrentScreen -in @('PathEditorScreen', 'DirectoryPickerScreen', 'FolderNamePromptScreen')) {
+        return (Handle-TuiPathEditorKeyCore -State $State -KeyInfo $KeyInfo)
+    }
+
     $items = @(Get-TuiCurrentItems -State $State)
     $maxIndex = [Math]::Max(0, $items.Count - 1)
+    $scrollDirection = 0
 
     switch ($KeyInfo.Key) {
-        ([ConsoleKey]::UpArrow) { $State.SelectionIndex = [Math]::Max(0, [int]$State.SelectionIndex - 1) }
-        ([ConsoleKey]::DownArrow) { $State.SelectionIndex = [Math]::Min($maxIndex, [int]$State.SelectionIndex + 1) }
+        ([ConsoleKey]::UpArrow) {
+            $State.SelectionIndex = [Math]::Max(0, [int]$State.SelectionIndex - 1)
+            $scrollDirection = -1
+        }
+        ([ConsoleKey]::DownArrow) {
+            $State.SelectionIndex = [Math]::Min($maxIndex, [int]$State.SelectionIndex + 1)
+            $scrollDirection = 1
+        }
         ([ConsoleKey]::LeftArrow) { $State.SelectedArchitecture = Get-NextArchitecture -Current $State.SelectedArchitecture -Direction -1 }
         ([ConsoleKey]::RightArrow) { $State.SelectedArchitecture = Get-NextArchitecture -Current $State.SelectedArchitecture -Direction 1 }
         ([ConsoleKey]::Escape) {
             if ($State.CurrentScreen -eq 'HomeScreen') {
-                $State.Cancelled = $true
-                $State.ShouldExit = $true
+                $State = Enter-TuiConfirmationCore -State $State -ConfirmationMode 'close-app'
             }
             else {
                 $State.CurrentScreen = 'HomeScreen'
@@ -316,8 +468,7 @@ function Update-TuiSelectionCore {
         }
         ([ConsoleKey]::Backspace) {
             if ($State.CurrentScreen -eq 'HomeScreen') {
-                $State.Cancelled = $true
-                $State.ShouldExit = $true
+                $State = Enter-TuiConfirmationCore -State $State -ConfirmationMode 'close-app'
             }
             else {
                 $State.CurrentScreen = 'HomeScreen'
@@ -334,7 +485,7 @@ function Update-TuiSelectionCore {
                         'uninstall' { $State.CurrentScreen = 'UninstallScreen'; $State.SelectionIndex = 0; $State.ScrollOffset = 0 }
                         'update-all' { $State.PendingAction = 'update-all' }
                         'edit-root' { $State.PendingAction = 'edit-root' }
-                        default { $State.ShouldExit = $true }
+                        default { $State.PendingAction = $null }
                     }
                 }
                 'InstallScreen' {
@@ -358,5 +509,5 @@ function Update-TuiSelectionCore {
         }
     }
 
-    return (Update-TuiScrollCore -State $State)
+    return (Update-TuiScrollCore -State $State -Direction $scrollDirection)
 }

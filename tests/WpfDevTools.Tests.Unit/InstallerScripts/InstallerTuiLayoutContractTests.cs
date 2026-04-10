@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Xunit;
 
@@ -28,9 +29,9 @@ public sealed class InstallerTuiLayoutContractTests
         rendererContent.Should().Contain("Build-TuiTitleBarLinesCore");
         rendererContent.Should().Contain("Build-TuiHomeHeroLinesCore");
         rendererContent.Should().Contain("Build-TuiPageHeaderLinesCore");
-        rendererContent.Should().Contain("Build-TuiStatusPanelLinesCore");
         rendererContent.Should().Contain("Build-TuiFooterLinesCore");
         rendererContent.Should().Contain("New-TuiFrameLinesCore");
+        rendererContent.Should().NotContain("Build-TuiStatusPanelLinesCore");
         sectionsContent.Should().Contain("Format-TuiBadgeCore");
         sectionsContent.Should().Contain("Get-TuiCaptionControlsTextCore");
     }
@@ -56,4 +57,31 @@ public sealed class InstallerTuiLayoutContractTests
         content.Should().Contain("Tui.Terminal.ps1");
         content.Should().Contain("Tui.Layout.ps1");
     }
+
+    [Fact]
+    public void TuiPresenterFunctionNames_ShouldNotOverlapAcrossSplitHelperFiles()
+    {
+        var sectionsContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.Sections.ps1"));
+        var presentersContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.Presenters.ps1"));
+        var titleBarContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.TitleBar.ps1"));
+        var statusBarContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.StatusBar.ps1"));
+
+        var sectionsFunctions = GetFunctionNames(sectionsContent);
+        var splitPresenterFunctions = GetFunctionNames(presentersContent)
+            .Concat(GetFunctionNames(titleBarContent))
+            .Concat(GetFunctionNames(statusBarContent))
+            .ToHashSet(StringComparer.Ordinal);
+
+        sectionsFunctions.Intersect(splitPresenterFunctions, StringComparer.Ordinal)
+            .Should().BeEmpty("split TUI helpers should not redefine presenter functions from Tui.Sections.ps1");
+    }
+
+    private static IReadOnlyCollection<string> GetFunctionNames(string content)
+        => Regex.Matches(content, @"^function\s+([A-Za-z0-9\.-]+)", RegexOptions.Multiline)
+            .Select(static match => match.Groups[1].Value)
+            .ToArray();
 }

@@ -52,6 +52,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 | --- | --- | --- | --- |
 | Claude Code | 終端機導向的 agent workflow | installer 產生的 command | [Claude Code](claude-code.md) |
 | OpenAI Codex / Codex CLI | OpenAI CLI 與 agent workflow | installer 產生的 command | [OpenAI Codex 與 Codex CLI](openai-codex.md) |
+| Cursor | 編輯器或 Cursor CLI workflow | installer 產生的 JSON | [Cursor、VS Code 與 Visual Studio](cursor-vscode.md) |
 | Claude Desktop | 桌面聊天 workflow | installer 產生的 JSON config | [Claude Desktop](claude-desktop.md) |
 | VS Code / Visual Studio | 編輯器導向 workflow | installer 產生的 JSON config | [VS Code 與 Visual Studio](cursor-vscode.md) |
 

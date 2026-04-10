@@ -12,7 +12,7 @@ public class InspectorHostObservabilityTests : IDisposable
     [Fact]
     public async Task InspectorHost_WhenHandlingRequest_ShouldReturnAndLogCorrelationId()
     {
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_Inspector_{pid}.log");
         _logFilesToDelete.Add(logPath);
         TryDelete(logPath);

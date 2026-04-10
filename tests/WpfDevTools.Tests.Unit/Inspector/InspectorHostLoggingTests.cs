@@ -30,7 +30,7 @@ public class InspectorHostLoggingTests : IDisposable
     public void InspectorHost_LogError_ShouldNotBlockCaller()
     {
         // Arrange - create host and measure time for high-frequency logging
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 

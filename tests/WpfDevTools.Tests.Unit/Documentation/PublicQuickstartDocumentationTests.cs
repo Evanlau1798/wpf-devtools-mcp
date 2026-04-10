@@ -32,6 +32,40 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void ClientQuickstartDocs_ShouldDescribeCursorArtifactsAndCodexCliBranding()
+    {
+        var cursorDocs = new[]
+        {
+            "docfx/quickstart/cursor-vscode.md",
+            "docfx/zh-tw/quickstart/cursor-vscode.md"
+        };
+
+        foreach (var file in cursorDocs)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("Cursor");
+            content.Should().Contain("cursor.global.json");
+            content.Should().Contain("cursor.project.json");
+            content.Should().Contain(".cursor\\mcp.json");
+            content.Should().Contain("mcpServers");
+        }
+
+        var codexDocs = new[]
+        {
+            "docfx/quickstart/openai-codex.md",
+            "docfx/zh-tw/quickstart/openai-codex.md",
+            "docfx/quickstart/ai-agent-clients.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md"
+        };
+
+        foreach (var file in codexDocs)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("Codex CLI");
+        }
+    }
+
+    [Fact]
     public void DeploymentAndTroubleshootingDocs_ShouldCoverOnlineInstallerAndRunBatFallback()
     {
         var deployment = File.ReadAllText(GetRepoFilePath("docfx/production/deployment.md"));
@@ -160,6 +194,20 @@ public sealed class PublicQuickstartDocumentationTests
             var content = File.ReadAllText(GetRepoFilePath(file));
             content.Should().Contain("scripts/online-installer.ps1");
         }
+    }
+
+    [Fact]
+    public void Readme_ShouldDescribeCursorUsingDedicatedCursorSchema()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("### Cursor");
+        content.Should().Contain(".cursor\\mcp.json");
+        content.Should().Contain("\"mcpServers\"");
+        content.Should().Contain("### VS Code");
+        content.Should().Contain(".vscode/mcp.json");
+        content.Should().Contain("\"servers\"");
+        content.Should().NotContain("### VS Code / Cursor");
     }
 
     [Fact]

@@ -196,7 +196,7 @@ function Get-StateRegistrationEvidence {
     $registration = $State.registrations[$ClientId]
     $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable ([string]$registration.installedExecutable)
     return (New-DetectedInstallerRegistration `
-            -ClientId $ClientId `
+            -ClientId (Resolve-ClientStateKey -ClientId $ClientId -RegistrationMode ([string]$registration.mode)) `
             -RegistrationMode ([string]$registration.mode) `
             -RegistrationTarget ([string]$registration.target) `
             -InstalledExecutable ([string]$registration.installedExecutable) `
@@ -206,6 +206,26 @@ function Get-StateRegistrationEvidence {
             -EvidenceSource 'state' `
             -ResolvedVersion ($(if (-not [string]::IsNullOrWhiteSpace([string]$registration.resolvedVersion)) { [string]$registration.resolvedVersion } else { [string]$ownership.ResolvedVersion })) `
             -LastVerifiedUtc ([string]$registration.lastVerifiedUtc))
+}
+
+function Get-StateRegistrationEvidencesForClient {
+    param(
+        [Parameter(Mandatory)] $State,
+        [Parameter(Mandatory)] [string]$ClientId
+    )
+
+    if ($ClientId -ne 'cursor') {
+        $stateEvidence = Get-StateRegistrationEvidence -State $State -ClientId $ClientId
+        return @($(if ($null -ne $stateEvidence) { $stateEvidence }))
+    }
+
+    return @($State.registrations.Keys |
+            Where-Object { $_ -eq 'cursor' -or $_ -like 'cursor-*' } |
+            Sort-Object |
+            ForEach-Object {
+                Get-StateRegistrationEvidence -State $State -ClientId ([string]$_)
+            } |
+            Where-Object { $null -ne $_ })
 }
 
 function Get-JsonRegistrationEvidence {
@@ -236,6 +256,83 @@ function Get-JsonRegistrationEvidence {
             -LastVerifiedUtc $null)
 }
 
+function Get-CursorRegistrationEvidences {
+    param($StateEvidenceRecords)
+
+    $candidatePaths = New-Object System.Collections.Generic.List[string]
+    foreach ($stateEvidence in @($StateEvidenceRecords)) {
+        $stateTarget = Get-InstallerRecordStringValueCore -Record $stateEvidence -PropertyNames @('RegistrationTarget', 'target')
+        if (-not [string]::IsNullOrWhiteSpace($stateTarget)) {
+            $candidatePaths.Add($stateTarget)
+        }
+    }
+
+    foreach ($configPath in @(
+            (Resolve-CursorProjectConfigPath)
+            (Resolve-CursorGlobalConfigPath)
+        )) {
+        if ([string]::IsNullOrWhiteSpace($configPath)) {
+            continue
+        }
+
+        $alreadyAdded = $false
+        foreach ($existingPath in $candidatePaths) {
+            if (Test-InstallerPathEqualsCore -Left $existingPath -Right $configPath) {
+                $alreadyAdded = $true
+                break
+            }
+        }
+
+        if (-not $alreadyAdded) {
+            $candidatePaths.Add($configPath)
+        }
+    }
+
+    $globalConfigPath = Resolve-CursorGlobalConfigPath
+    $registrations = @()
+    foreach ($configPath in $candidatePaths) {
+        if (-not (Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $configPath)) {
+            continue
+        }
+
+        $root = Get-ExistingConfigMap -Path $configPath
+        $servers = Get-ConfigCollectionMap -Root $root -CollectionName 'mcpServers'
+        $command = [string]$servers['wpf-devtools'].command
+        $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $command
+        $registrationMode = $null
+        foreach ($stateEvidence in @($StateEvidenceRecords)) {
+            $stateTarget = Get-InstallerRecordStringValueCore -Record $stateEvidence -PropertyNames @('RegistrationTarget', 'target')
+            if (Test-InstallerPathEqualsCore -Left $stateTarget -Right $configPath) {
+                $registrationMode = Get-InstallerRecordStringValueCore -Record $stateEvidence -PropertyNames @('RegistrationMode', 'mode', 'ClientId')
+                break
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($registrationMode)) {
+            $registrationMode = if (-not [string]::IsNullOrWhiteSpace($globalConfigPath) -and (Test-InstallerPathEqualsCore -Left $configPath -Right $globalConfigPath)) {
+                'cursor-global'
+            }
+            else {
+                'cursor-project'
+            }
+        }
+
+        $registrations += (New-DetectedInstallerRegistration `
+                -ClientId $registrationMode `
+                -RegistrationMode $registrationMode `
+                -RegistrationTarget $configPath `
+                -InstalledExecutable $command `
+                -InstallRoot ([string]$ownership.InstallRoot) `
+                -Architecture ([string]$ownership.Architecture) `
+                -InstallerOwned ([bool]$ownership.InstallerOwned) `
+                -EvidenceSource 'json-file' `
+                -ResolvedVersion ([string]$ownership.ResolvedVersion) `
+                -LastVerifiedUtc $null)
+    }
+
+    return @($registrations)
+}
+
 function Get-CliRegistrationEvidence {
     param(
         [Parameter(Mandatory)] [string]$ClientId,
@@ -262,41 +359,53 @@ function Get-CliRegistrationEvidence {
             -LastVerifiedUtc $null)
 }
 
-function Get-DetectedCliRegistrations {
-    return @(
-        (Get-CliRegistrationEvidence -ClientId 'claude-code' -CommandName 'claude')
-        (Get-CliRegistrationEvidence -ClientId 'codex' -CommandName 'codex')
-    ) | Where-Object { $null -ne $_ }
-}
-
 function Get-DetectedInstallerRegistrations {
     param([Parameter(Mandatory)] $State)
 
     $detected = [ordered]@{}
     foreach ($client in Get-SupportedClients) {
         $clientId = [string]$client.Id
-        $stateEvidence = Get-StateRegistrationEvidence -State $State -ClientId $clientId
-        $externalEvidence = switch ($clientId) {
-            'claude-code' { Get-CliRegistrationEvidence -ClientId $clientId -CommandName 'claude'; break }
-            'codex' { Get-CliRegistrationEvidence -ClientId $clientId -CommandName 'codex'; break }
-            'vscode' { Get-JsonRegistrationEvidence -ClientId $clientId -CollectionName 'servers' -ConfigPath (Resolve-VsCodeConfigPath); break }
-            'visual-studio' { Get-JsonRegistrationEvidence -ClientId $clientId -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath); break }
-            'claude-desktop' { Get-JsonRegistrationEvidence -ClientId $clientId -CollectionName 'mcpServers' -ConfigPath (Resolve-ClaudeDesktopConfigPath); break }
-            default { $null; break }
+        $stateEvidenceMap = [ordered]@{}
+        foreach ($stateEvidence in @(Get-StateRegistrationEvidencesForClient -State $State -ClientId $clientId)) {
+            $stateEvidenceMap[[string]$stateEvidence.ClientId] = $stateEvidence
         }
 
-        if ($null -ne $stateEvidence -and $null -ne $externalEvidence) {
-            $detected[$clientId] = Merge-DetectedInstallerRegistration -Primary $stateEvidence -Secondary $externalEvidence
-            continue
+        $externalEvidenceMap = [ordered]@{}
+        foreach ($externalEvidence in @(switch ($clientId) {
+                    'claude-code' { Get-CliRegistrationEvidence -ClientId $clientId -CommandName 'claude'; break }
+                    'codex' { Get-CliRegistrationEvidence -ClientId $clientId -CommandName 'codex'; break }
+                    'cursor' { Get-CursorRegistrationEvidences -StateEvidenceRecords @($stateEvidenceMap.Values); break }
+                    'vscode' { Get-JsonRegistrationEvidence -ClientId $clientId -CollectionName 'servers' -ConfigPath (Resolve-VsCodeConfigPath); break }
+                    'visual-studio' { Get-JsonRegistrationEvidence -ClientId $clientId -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath); break }
+                    'claude-desktop' { Get-JsonRegistrationEvidence -ClientId $clientId -CollectionName 'mcpServers' -ConfigPath (Resolve-ClaudeDesktopConfigPath); break }
+                    default { $null; break }
+                })) {
+            if ($null -ne $externalEvidence) {
+                $externalEvidenceMap[[string]$externalEvidence.ClientId] = $externalEvidence
+            }
         }
 
-        if ($null -ne $stateEvidence) {
-            $detected[$clientId] = $stateEvidence
-            continue
+        $keys = New-Object System.Collections.Generic.List[string]
+        foreach ($key in $stateEvidenceMap.Keys + $externalEvidenceMap.Keys) {
+            if (-not $keys.Contains([string]$key)) {
+                $keys.Add([string]$key)
+            }
         }
 
-        if ($null -ne $externalEvidence) {
-            $detected[$clientId] = $externalEvidence
+        foreach ($key in $keys) {
+            if ($stateEvidenceMap.Contains($key) -and $externalEvidenceMap.Contains($key)) {
+                $detected[$key] = Merge-DetectedInstallerRegistration -Primary $stateEvidenceMap[$key] -Secondary $externalEvidenceMap[$key]
+                continue
+            }
+
+            if ($stateEvidenceMap.Contains($key)) {
+                $detected[$key] = $stateEvidenceMap[$key]
+                continue
+            }
+
+            if ($externalEvidenceMap.Contains($key)) {
+                $detected[$key] = $externalEvidenceMap[$key]
+            }
         }
     }
 

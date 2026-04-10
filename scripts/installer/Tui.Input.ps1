@@ -19,6 +19,17 @@ function Get-TuiTestKeyQueueCore {
                 continue
             }
 
+            if ($trimmedToken -like 'Text:*') {
+                $textPayload = $trimmedToken.Substring(5)
+                foreach ($character in $textPayload.ToCharArray()) {
+                    $script:TuiTestKeyQueue.Enqueue([ordered]@{
+                            Key = [ConsoleKey]::NoName
+                            Character = [string]$character
+                        })
+                }
+                continue
+            }
+
             try {
                 $parsedKey = [ConsoleKey][System.Enum]::Parse([ConsoleKey], $trimmedToken, $true)
             }
@@ -96,10 +107,7 @@ function Read-TuiKeyCore {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS)) {
-        return [ordered]@{
-            Key = [ConsoleKey]::Escape
-            Character = ''
-        }
+        throw 'TUI test key queue exhausted before the installer exited. Add more WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS tokens to cover the full interaction.'
     }
 
     $timedRead = Read-TuiConsoleKeyWithTimeoutCore -TimeoutMilliseconds $TimeoutMilliseconds
@@ -124,23 +132,4 @@ function Read-TuiKeyCore {
             Character = [string]$read.KeyChar
         }
     }
-}
-
-function Invoke-TuiInstallRootPromptCore {
-    param([Parameter(Mandatory)] $State)
-
-    try {
-        Write-Host ''
-        $response = Read-InstallerInput -Prompt 'Install location' -DefaultValue ([string]$State.InstallRoot)
-        if (-not [string]::IsNullOrWhiteSpace($response)) {
-            $State.InstallRoot = $response.Trim()
-            $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap)
-            $State.StatusMessage = "Install location updated to $($State.InstallRoot)."
-        }
-    }
-    catch {
-        $State.StatusMessage = "Unable to update install location: $($_.Exception.Message)"
-    }
-
-    return $State
 }

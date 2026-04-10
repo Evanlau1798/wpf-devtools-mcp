@@ -20,12 +20,12 @@ function Invoke-InstallerFullUninstallCore {
     $unregistrationResults = @()
 
     foreach ($registration in $detectedRegistrations) {
-        $unregistrationResults += @(Invoke-ClientUnregistration -SelectedClient ([string]$registration.ClientId))
+        $unregistrationResults += @(Invoke-ClientUnregistration -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration)
     }
 
     $verificationFailures = @()
     foreach ($registration in $detectedRegistrations) {
-        $verification = Invoke-UninstallVerification -SelectedClient ([string]$registration.ClientId)
+        $verification = Invoke-UninstallVerification -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration
         if (-not $verification.Succeeded) {
             $verificationFailures += [string]$verification.VerificationMessage
         }

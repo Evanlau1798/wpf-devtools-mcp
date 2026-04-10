@@ -22,6 +22,8 @@ public sealed class InstallerInteractiveUiScriptTests
         content.Should().Contain("HomeScreen");
         content.Should().Contain("InstallScreen");
         content.Should().Contain("UninstallScreen");
+        content.Should().Contain("DirectoryPickerScreen");
+        content.Should().Contain("FolderNamePromptScreen");
         content.Should().Contain("ProgressScreen");
         content.Should().Contain("Installed v");
         content.Should().Contain("Update available");
@@ -49,6 +51,9 @@ public sealed class InstallerInteractiveUiScriptTests
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
+        content.Should().Contain("scripts/installer/Tui.Window.ps1");
+        content.Should().Contain("scripts/installer/Tui.Presenters.ps1");
+        content.Should().Contain("scripts/installer/Tui.PathEditor.ps1");
         content.Should().Contain("scripts/installer/Tui.ScreenModel.ps1");
         content.Should().Contain("scripts/installer/Tui.Renderer.ps1");
         content.Should().Contain("scripts/installer/Tui.Input.ps1");
@@ -94,6 +99,15 @@ public sealed class InstallerInteractiveUiScriptTests
         content.Should().Contain("ConfirmScreen");
         content.Should().Contain("UnregisterTarget");
         content.Should().Contain("FullUninstall");
+    }
+
+    [Fact]
+    public void TuiConfirm_ShouldDeclareCloseAppConfirmationMode()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.Confirm.ps1"));
+
+        content.Should().Contain("'close-app'");
     }
 
     [Fact]
@@ -181,7 +195,7 @@ public sealed class InstallerInteractiveUiScriptTests
                 "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
                 "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
@@ -191,7 +205,7 @@ public sealed class InstallerInteractiveUiScriptTests
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("HomeScreen");
+            result.Stdout.Should().Contain("Installation Manager");
             result.Stdout.Should().Contain("Install location");
         }
         finally
@@ -225,7 +239,7 @@ public sealed class InstallerInteractiveUiScriptTests
                 "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
                 "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
@@ -235,7 +249,7 @@ public sealed class InstallerInteractiveUiScriptTests
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("UninstallScreen");
+            result.Stdout.Should().Contain("Select what to uninstall");
             result.Stdout.Should().Contain("VS Code");
         }
         finally
@@ -279,7 +293,7 @@ public sealed class InstallerInteractiveUiScriptTests
                 "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
                 "$env:PATH='" + fakeBin.Replace("'", "''") + ";" + Environment.GetEnvironmentVariable("PATH")!.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
@@ -289,7 +303,7 @@ public sealed class InstallerInteractiveUiScriptTests
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("UninstallScreen");
+            result.Stdout.Should().Contain("Select what to uninstall");
             result.Stdout.Should().Contain("Claude Code");
             result.Stdout.Should().Contain("Codex");
         }
@@ -320,7 +334,7 @@ public sealed class InstallerInteractiveUiScriptTests
                 "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
                 "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
@@ -330,7 +344,7 @@ public sealed class InstallerInteractiveUiScriptTests
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("UninstallScreen");
+            result.Stdout.Should().Contain("Select what to uninstall");
             result.Stdout.Should().Contain("├");
             result.Stdout.Should().Contain("Full Uninstall");
         }
@@ -371,7 +385,7 @@ public sealed class InstallerInteractiveUiScriptTests
                 "$env:USERPROFILE='" + Path.Combine(tempRoot, "UserProfile").Replace("'", "''") + "'",
                 "$env:PATH='" + fakeBin.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Enter||Escape||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
@@ -381,7 +395,7 @@ public sealed class InstallerInteractiveUiScriptTests
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("ConfirmScreen");
+            result.Stdout.Should().Contain("Confirm action");
             result.Stdout.Should().Contain("Step 1 of 2");
             File.ReadAllText(visualStudioConfigPath).Should().Contain("wpf-devtools");
         }
@@ -415,7 +429,7 @@ public sealed class InstallerInteractiveUiScriptTests
                 "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
                 "$env:PATH='" + fakeBin.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Enter||Escape||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
@@ -425,7 +439,7 @@ public sealed class InstallerInteractiveUiScriptTests
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("ConfirmScreen");
+            result.Stdout.Should().Contain("Confirm action");
             result.Stdout.Should().Contain("Full Uninstall");
             result.Stdout.Should().Contain("Step 1 of 2");
         }

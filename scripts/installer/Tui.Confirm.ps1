@@ -9,7 +9,7 @@ function Reset-TuiConfirmationCore {
 function Enter-TuiConfirmationCore {
     param(
         [Parameter(Mandatory)] $State,
-        [Parameter(Mandatory)] [ValidateSet('unregister', 'full-uninstall')] [string]$ConfirmationMode,
+        [Parameter(Mandatory)] [ValidateSet('unregister', 'full-uninstall', 'close-app')] [string]$ConfirmationMode,
         [string]$ClientId
     )
 
@@ -27,11 +27,17 @@ function Get-TuiConfirmationLinesCore {
     param([Parameter(Mandatory)] $State)
 
     $lines = New-Object System.Collections.Generic.List[string]
-    $stepLabel = "Step $([int]$State.ConfirmationStep) of 2"
+    $totalSteps = if ([string]$State.ConfirmationMode -eq 'close-app') { 1 } else { 2 }
+    $stepLabel = "Step $([int]$State.ConfirmationStep) of $totalSteps"
     $lines.Add($stepLabel)
     $lines.Add('')
 
-    if ([string]$State.ConfirmationMode -eq 'full-uninstall') {
+    if ([string]$State.ConfirmationMode -eq 'close-app') {
+        $lines.Add('Close the installer now?')
+        $lines.Add('No changes will be made unless you have already confirmed a pending action.')
+        $lines.Add('Press Enter to exit, or Escape to stay on the home screen.')
+    }
+    elseif ([string]$State.ConfirmationMode -eq 'full-uninstall') {
         $registrations = @(Get-DetectedInstallerRegistrations -State $State.InstallerState)
         $installations = @(Get-DetectedInstallerInstallations -State $State.InstallerState)
         if ([int]$State.ConfirmationStep -eq 1) {
@@ -70,22 +76,33 @@ function Handle-TuiConfirmationKeyCore {
 
     switch ($KeyInfo.Key) {
         ([ConsoleKey]::Escape) {
+            $confirmationMode = [string]$State.ConfirmationMode
             $State = Reset-TuiConfirmationCore -State $State
-            $State.CurrentScreen = 'UninstallScreen'
+            $State.CurrentScreen = if ($confirmationMode -eq 'close-app') { 'HomeScreen' } else { 'UninstallScreen' }
             return $State
         }
         ([ConsoleKey]::Backspace) {
+            $confirmationMode = [string]$State.ConfirmationMode
             $State = Reset-TuiConfirmationCore -State $State
-            $State.CurrentScreen = 'UninstallScreen'
+            $State.CurrentScreen = if ($confirmationMode -eq 'close-app') { 'HomeScreen' } else { 'UninstallScreen' }
             return $State
         }
         ([ConsoleKey]::Enter) {
+            if ([string]$State.ConfirmationMode -eq 'close-app') {
+                $State.PendingAction = 'exit'
+                return $State
+            }
+
             if ([int]$State.ConfirmationStep -lt 2) {
                 $State.ConfirmationStep = [int]$State.ConfirmationStep + 1
                 return $State
             }
 
-            $State.PendingAction = if ([string]$State.ConfirmationMode -eq 'full-uninstall') { 'full-uninstall' } else { 'uninstall' }
+            $State.PendingAction = switch ([string]$State.ConfirmationMode) {
+                'close-app' { 'exit' }
+                'full-uninstall' { 'full-uninstall' }
+                default { 'uninstall' }
+            }
             return $State
         }
     }

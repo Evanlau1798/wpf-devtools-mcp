@@ -12,7 +12,7 @@ public class NamedPipeClientTimeoutBudgetTests
     [Fact]
     public async Task ConnectAsync_WithRetries_ShouldRespectTotalTimeoutBudget()
     {
-        using var client = new NamedPipeClient(Random.Shared.Next(100_000, 999_999), $"WpfDevTools_Test_{Guid.NewGuid():N}");
+        using var client = new NamedPipeClient(global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId(), $"WpfDevTools_Test_{Guid.NewGuid():N}");
         var timeout = TimeSpan.FromMilliseconds(150);
 
         var sw = Stopwatch.StartNew();

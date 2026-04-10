@@ -266,6 +266,7 @@ public sealed class TraceRoutedEventsToolReplayTests
             });
 
             var sessionManager = new SessionManager();
+            DisableCleanupTimer(sessionManager);
             sessionManager.AddSession(processId);
             var client = new NamedPipeClient(processId, pipeName);
             (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
@@ -299,6 +300,14 @@ public sealed class TraceRoutedEventsToolReplayTests
             }
 
             pipeClients[processId] = replacement;
+        }
+
+        private static void DisableCleanupTimer(SessionManager sessionManager)
+        {
+            var timerField = typeof(SessionManager).GetField("_cleanupTimer", BindingFlags.Instance | BindingFlags.NonPublic);
+            var timer = timerField!.GetValue(sessionManager) as System.Threading.Timer;
+            timer.Should().NotBeNull();
+            timer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
     }
 }

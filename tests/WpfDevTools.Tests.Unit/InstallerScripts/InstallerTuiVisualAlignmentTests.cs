@@ -15,6 +15,8 @@ public sealed class InstallerTuiVisualAlignmentTests
 
         (terminalContent.Contains("SetCursorPosition") || terminalContent.Contains("[H"))
             .Should().BeTrue();
+        terminalContent.Should().Contain("$script:TuiLastRenderedFrameHeight");
+        terminalContent.Should().Contain("$script:TuiLastRenderedFrameWidth");
         rendererContent.Should().Contain("Write-TuiFrameCore");
     }
 
@@ -39,7 +41,7 @@ public sealed class InstallerTuiVisualAlignmentTests
                 "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
                 "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
@@ -53,6 +55,7 @@ public sealed class InstallerTuiVisualAlignmentTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("┌").And.Contain("┐").And.Contain("└").And.Contain("┘").And.Contain("│").And.Contain("─");
+            result.Stdout.Should().NotContain("HomeScreen | x64");
         }
         finally
         {
@@ -93,7 +96,7 @@ public sealed class InstallerTuiVisualAlignmentTests
                 "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
                 "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
@@ -142,7 +145,7 @@ public sealed class InstallerTuiVisualAlignmentTests
                 "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
                 "$env:PATH='" + testPath!.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||Escape||Escape'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
@@ -155,7 +158,7 @@ public sealed class InstallerTuiVisualAlignmentTests
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("InstallScreen");
+            result.Stdout.Should().Contain("Where would you like to install?");
             result.Stdout.Should().NotContain("Select this target to install or repair the MCP registration.");
         }
         finally

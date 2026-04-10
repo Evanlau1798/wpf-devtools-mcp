@@ -121,20 +121,16 @@ function Resolve-ServerOutputSource {
     if (Test-Path $runtimeBuildDir) {
         return [ordered]@{
             Path = $runtimeBuildDir
-            Layout = 'rid-specific'
         }
     }
 
     $frameworkBuildDir = Join-Path $RepositoryRoot "src\WpfDevTools.Mcp.Server\bin\$BuildConfiguration\net8.0"
-    if (Test-Path (Join-Path $frameworkBuildDir 'WpfDevTools.Mcp.Server.exe')) {
-        return [ordered]@{
-            Path = $frameworkBuildDir
-            Layout = 'framework'
-        }
-    }
-
     if ($UseExistingBuildOutput) {
-        throw "Expected existing server output was not found for runtime '$RuntimeId': $runtimeBuildDir or $frameworkBuildDir"
+        if (Test-Path (Join-Path $frameworkBuildDir 'WpfDevTools.Mcp.Server.exe')) {
+            throw "Expected existing server output was not found for runtime '$RuntimeId'. -SkipBuild requires RID-specific publish output under $runtimeBuildDir; framework-only output at $frameworkBuildDir cannot be repackaged safely."
+        }
+
+        throw "Expected existing server output was not found for runtime '$RuntimeId': $runtimeBuildDir"
     }
 
     return $null
@@ -146,17 +142,7 @@ function Copy-ServerBuildOutput {
         [Parameter(Mandatory)] [string]$Destination
     )
 
-    if ($SourceInfo.Layout -eq 'rid-specific') {
-        Copy-DirectoryContents -Source $SourceInfo.Path -Destination $Destination
-        return
-    }
-
-    Copy-DirectoryFilesOnly -Source $SourceInfo.Path -Destination $Destination
-
-    $runtimesSource = Join-Path $SourceInfo.Path 'runtimes'
-    if (Test-Path $runtimesSource) {
-        Copy-DirectoryContents -Source $runtimesSource -Destination (Join-Path $Destination 'runtimes')
-    }
+    Copy-DirectoryContents -Source $SourceInfo.Path -Destination $Destination
 }
 
 function Copy-DirectoryFilesOnly {
@@ -172,6 +158,45 @@ function Copy-DirectoryFilesOnly {
     New-Item -ItemType Directory -Force -Path $Destination | Out-Null
     Get-ChildItem -Path $Source -File | ForEach-Object {
         Copy-Item -Path $_.FullName -Destination (Join-Path $Destination $_.Name) -Force
+    }
+}
+
+function Get-InstallerHelperFiles {
+    param([Parameter(Mandatory)] [string]$RepositoryRoot)
+
+    $manifestPath = Join-Path $RepositoryRoot 'scripts\installer\installer-helpers.manifest.json'
+    if (-not (Test-Path $manifestPath)) {
+        throw "Installer helper manifest was not found: $manifestPath"
+    }
+
+    $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+    $helperFiles = @($manifest.helperFiles | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+    if ($helperFiles.Count -eq 0) {
+        throw "Installer helper manifest did not declare any helper files: $manifestPath"
+    }
+
+    return @($helperFiles)
+}
+
+function Copy-InstallerHelperFiles {
+    param(
+        [Parameter(Mandatory)] [string]$RepositoryRoot,
+        [Parameter(Mandatory)] [string]$Destination
+    )
+
+    $installerRoot = Join-Path $RepositoryRoot 'scripts\installer'
+    $manifestPath = Join-Path $installerRoot 'installer-helpers.manifest.json'
+
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+    Copy-Item -Path $manifestPath -Destination (Join-Path $Destination 'installer-helpers.manifest.json') -Force
+
+    foreach ($helperFile in @(Get-InstallerHelperFiles -RepositoryRoot $RepositoryRoot)) {
+        $sourcePath = Join-Path $installerRoot $helperFile
+        if (-not (Test-Path $sourcePath)) {
+            throw "Installer helper file declared in manifest was not found: $sourcePath"
+        }
+
+        Copy-Item -Path $sourcePath -Destination (Join-Path $Destination $helperFile) -Force
     }
 }
 
@@ -383,7 +408,7 @@ foreach ($architecture in $resolvedArchitectures) {
         Copy-Item -Path $bootstrapperSource -Destination (Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)) -Force
         Copy-Item -Path $installBatchTemplate -Destination (Join-Path $packageDir 'run.bat') -Force
         Copy-Item -Path $installScript -Destination (Join-Path $binDir 'install.ps1') -Force
-        Copy-DirectoryContents -Source (Join-Path $repoRoot 'scripts\installer') -Destination (Join-Path $binDir 'installer')
+        Copy-InstallerHelperFiles -RepositoryRoot $repoRoot -Destination (Join-Path $binDir 'installer')
 
         $manifest = [ordered]@{
             name = 'wpf-devtools'

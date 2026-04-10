@@ -19,7 +19,7 @@ public class InspectorHostConcurrencyTests
     public async Task Stop_DuringActiveRequest_ShouldWaitForCompletion()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 
@@ -61,7 +61,7 @@ public class InspectorHostConcurrencyTests
         // We can't easily force a timeout in unit tests, but we verify the
         // code path exists by checking the implementation
 
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 

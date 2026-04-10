@@ -11,6 +11,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public sealed class ConnectToolActiveProcessTests : IDisposable
 {
     private string? _dummyBootstrapperPath;
@@ -18,8 +19,8 @@ public sealed class ConnectToolActiveProcessTests : IDisposable
     [Fact]
     public async Task Execute_WhenFreshConnectionSucceeds_ShouldSelectConnectedProcessAsActive()
     {
-        const int existingProcessId = 54321;
-        const int connectedProcessId = 12345;
+        var existingProcessId = NextSyntheticProcessId();
+        var connectedProcessId = NextSyntheticProcessId();
         EnsureDummyBootstrapperExists();
 
         using var sessionManager = new SessionManager();

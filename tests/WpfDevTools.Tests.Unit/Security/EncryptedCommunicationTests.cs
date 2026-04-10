@@ -45,7 +45,7 @@ public class EncryptedCommunicationTests : IDisposable
     public async Task EncryptedPipe_WithDifferentPinnedCertificate_ShouldRejectConnection()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var serverCertManager = new CertificateManager(_tempCertDir);
         var clientCertManager = new CertificateManager(_otherTempCertDir);
 
@@ -65,7 +65,7 @@ public class EncryptedCommunicationTests : IDisposable
     public async Task EncryptedPipe_WithAuth_ShouldTransmitDataCorrectly()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(
@@ -95,7 +95,7 @@ public class EncryptedCommunicationTests : IDisposable
     public async Task EncryptedPipe_WithoutAuth_ShouldTransmitDataCorrectly()
     {
         // Arrange - encryption only, no auth
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var certManager = new CertificateManager(_tempCertDir);
         _output.WriteLine($"Pid={pid}, CertDir={_tempCertDir}");
 
@@ -126,7 +126,7 @@ public class EncryptedCommunicationTests : IDisposable
     public async Task EncryptedPipe_LargeMessage_ShouldTransmitCorrectly()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var certManager = new CertificateManager(_tempCertDir);
 
         using var host = new InspectorHost(pid, authManager: null, certManager);
@@ -149,7 +149,7 @@ public class EncryptedCommunicationTests : IDisposable
     public async Task NoEncryption_BackwardCompatible_ShouldStillWork()
     {
         // Arrange - no auth, no encryption (backward compatible)
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 
@@ -166,7 +166,7 @@ public class EncryptedCommunicationTests : IDisposable
     public async Task EncryptedPipe_MultipleRequests_ShouldAllSucceed()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(

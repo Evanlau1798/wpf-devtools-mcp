@@ -134,6 +134,15 @@ function Invoke-TuiUpdateAllOperationCore {
     return $State
 }
 
+function Get-TuiStartupReadyTimeoutSecondsCore {
+    $timeoutSeconds = 2
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_STARTUP_READY_TIMEOUT_SEC)) {
+        [void][int]::TryParse($env:WPFDEVTOOLS_INSTALLER_STARTUP_READY_TIMEOUT_SEC, [ref]$timeoutSeconds)
+    }
+
+    return [Math]::Min(15, [Math]::Max(1, $timeoutSeconds))
+}
+
 function Initialize-TuiStartupStateCore {
     param([Parameter(Mandatory)] $State)
 
@@ -142,13 +151,20 @@ function Initialize-TuiStartupStateCore {
     }
 
     $State.StartupInitialized = $true
+    $State.StatusMessage = 'Loading installer data...'
     if ([string]::IsNullOrWhiteSpace([string]$State.LatestVersion)) {
+        $State.StatusMessage = 'Checking cached release information...'
         $State.LatestVersion = Get-LatestInstallerVersion -UseCacheOnly
     }
 
     $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap
     $State = Start-TuiLatestVersionRefreshCore -State $State
-    $State.StatusMessage = ''
+    if ([bool]$State.LatestVersionRefreshPending) {
+        $State.StatusMessage = 'Checking latest release metadata...'
+    }
+    else {
+        $State.StatusMessage = 'Use Up/Down to choose an action.'
+    }
     return $State
 }
 
@@ -168,6 +184,8 @@ function Start-TuiLatestVersionRefreshCore {
     }
 
     $State.LatestVersionRefreshHandle = Start-LatestInstallerVersionRefresh
+    $State.LatestVersionRefreshPending = $true
+    $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap -LatestVersionRefreshPending ([bool]$State.LatestVersionRefreshPending))
     return $State
 }
 
@@ -184,13 +202,120 @@ function Update-TuiLatestVersionRefreshCore {
     }
 
     $State.LatestVersionRefreshHandle = $null
+    $State.LatestVersionRefreshPending = $false
+    if ([string]::IsNullOrWhiteSpace([string]$refreshResult.Version)) {
+        $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap
+        $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap -LatestVersionRefreshPending ([bool]$State.LatestVersionRefreshPending))
+        if ([string]$State.CurrentScreen -eq 'HomeScreen' -and ([string]$State.StatusMessage -in @('Checking latest release in the background...', 'Checking latest release metadata...'))) {
+            $State.StatusMessage = 'Use Up/Down to choose an action.'
+        }
+        return $State
+    }
+
     if (-not [string]::IsNullOrWhiteSpace([string]$refreshResult.Version)) {
         $State.LatestVersion = [string]$refreshResult.Version
         $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap
-        $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap)
+        $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap -LatestVersionRefreshPending ([bool]$State.LatestVersionRefreshPending))
+        if ([string]$State.CurrentScreen -eq 'HomeScreen' -and ([string]$State.StatusMessage -in @('Checking latest release in the background...', 'Checking latest release metadata...'))) {
+            $State.StatusMessage = 'Use Up/Down to choose an action.'
+        }
     }
 
     return $State
+}
+
+function Update-TuiStartupProgressCore {
+    param([Parameter(Mandatory)] $State)
+
+    if (-not [bool]$State.StartupProgressActive) {
+        return $State
+    }
+
+    if (-not [bool]$State.StartupInitialized) {
+        return $State
+    }
+
+    if (-not [bool]$State.LatestVersionRefreshPending) {
+        $State.StartupProgressActive = $false
+        $State.StartupProgressTitle = ''
+        $State.StartupReadyDeadlineUtc = $null
+        if ([string]::IsNullOrWhiteSpace([string]$State.StatusMessage) -or
+            ([string]$State.StatusMessage -eq 'Checking latest release metadata...')) {
+            $State.StatusMessage = 'Use Up/Down to choose an action.'
+        }
+
+        return $State
+    }
+
+    $State.StartupProgressTitle = 'Checking latest release'
+    $State.StatusMessage = 'Checking latest release metadata...'
+
+    $deadlineUtc = [DateTimeOffset]::MinValue
+    if (-not [DateTimeOffset]::TryParse([string]$State.StartupReadyDeadlineUtc, [ref]$deadlineUtc)) {
+        $deadlineUtc = [DateTimeOffset]::UtcNow.AddSeconds((Get-TuiStartupReadyTimeoutSecondsCore))
+        $State.StartupReadyDeadlineUtc = $deadlineUtc.ToString('o')
+        return $State
+    }
+
+    if ([DateTimeOffset]::UtcNow -lt $deadlineUtc) {
+        return $State
+    }
+
+    $State = Stop-TuiLatestVersionRefreshCore -State $State
+    $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap
+    $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap -LatestVersionRefreshPending ([bool]$State.LatestVersionRefreshPending))
+    $State.StatusMessage = 'Latest release metadata is unavailable. Continuing with cached or offline data.'
+    $State.StartupProgressActive = $false
+    $State.StartupProgressTitle = ''
+    $State.StartupReadyDeadlineUtc = $null
+    return $State
+}
+
+function Stop-TuiLatestVersionRefreshCore {
+    param([Parameter(Mandatory)] $State)
+
+    if ($null -eq $State.LatestVersionRefreshHandle) {
+        return $State
+    }
+
+    Stop-LatestInstallerVersionRefresh -RefreshHandle $State.LatestVersionRefreshHandle
+    $State.LatestVersionRefreshHandle = $null
+    $State.LatestVersionRefreshPending = $false
+    return $State
+}
+
+function Get-TuiRenderSignatureCore {
+    param([Parameter(Mandatory)] $State)
+
+    $pathEditorBuffer = if ($null -ne $State.PathEditor) { [string]$State.PathEditor.Buffer } else { '' }
+    $pathEditorStatus = if ($null -ne $State.PathEditor) { [string]$State.PathEditor.StatusMessage } else { '' }
+    $browserDirectory = if ($null -ne $State.PathEditor) { [string]$State.PathEditor.BrowserCurrentDirectory } else { '' }
+    $browserSelectionIndex = if ($null -ne $State.PathEditor) { [int]$State.PathEditor.BrowserSelectionIndex } else { 0 }
+    $browserScrollOffset = if ($null -ne $State.PathEditor) { [int]$State.PathEditor.BrowserScrollOffset } else { 0 }
+    $selectedParentDirectory = if ($null -ne $State.PathEditor) { [string]$State.PathEditor.SelectedParentDirectory } else { '' }
+    $folderNameBuffer = if ($null -ne $State.PathEditor) { [string]$State.PathEditor.FolderNameBuffer } else { '' }
+    return @(
+        [string]$State.CurrentScreen
+        [int]$State.SelectionIndex
+        [int]$State.ScrollOffset
+        [string]$State.SelectedArchitecture
+        [string]$State.InstallRoot
+        [string]$State.StatusMessage
+        [string]$State.UpdateBannerText
+        [string]$State.LatestVersion
+        [bool]$State.LatestVersionRefreshPending
+        [bool]$State.StartupProgressActive
+        [string]$State.StartupProgressTitle
+        [int]$State.ConfirmationStep
+        [string]$State.ConfirmationMode
+        $pathEditorBuffer
+        $pathEditorStatus
+        $browserDirectory
+        $browserSelectionIndex
+        $browserScrollOffset
+        $selectedParentDirectory
+        $folderNameBuffer
+    ) -join '|'
 }
 
 function Start-TuiInstallerCore {
@@ -205,25 +330,65 @@ function Start-TuiInstallerCore {
     )
 
     $state = New-TuiState -DefaultAction $DefaultAction -DefaultArchitecture $DefaultArchitecture -DefaultClient $DefaultClient -DefaultInstallRoot $DefaultInstallRoot -InstallerState $InstallerState -VersionHint $VersionHint -LatestVersion $LatestVersion
-    Render-TuiScreenCore -State $state | Out-Null
-    $state = Initialize-TuiStartupStateCore -State $state
+    $state.StartupProgressActive = $true
+    $state.StartupProgressTitle = 'Preparing installer UI'
+    $state.StatusMessage = 'Loading installer runtime...'
+    $terminalSession = Enter-TuiTerminalSessionCore -Viewport (Get-TuiViewportCore)
+    $lastViewportKey = $null
+    $lastRenderSignature = $null
 
-    while (-not $state.ShouldExit) {
-        $state = Update-TuiLatestVersionRefreshCore -State $state
+    try {
         Render-TuiScreenCore -State $state | Out-Null
-        $keyInfo = Read-TuiKeyCore -TimeoutMilliseconds $(if ($null -ne $state.LatestVersionRefreshHandle) { 200 } else { 0 })
-        if ($null -eq $keyInfo) {
-            continue
+        $lastViewportKey = Get-TuiViewportCacheKeyCore -Viewport (Get-TuiViewportCore)
+        $lastRenderSignature = Get-TuiRenderSignatureCore -State $state
+        $state.StartupProgressTitle = 'Loading installer data'
+        $state.StatusMessage = if ([string]::IsNullOrWhiteSpace([string]$state.LatestVersion)) {
+            'Checking cached release information...'
         }
-        $state = Update-TuiSelectionCore -State $state -KeyInfo $keyInfo
+        else {
+            'Loading installer data...'
+        }
+        Render-TuiScreenCore -State $state | Out-Null
+        $lastViewportKey = Get-TuiViewportCacheKeyCore -Viewport (Get-TuiViewportCore)
+        $lastRenderSignature = Get-TuiRenderSignatureCore -State $state
+        $state = Initialize-TuiStartupStateCore -State $state
+        $state = Update-TuiStartupProgressCore -State $state
 
-        switch ([string]$state.PendingAction) {
-            'edit-root' { $state = Invoke-TuiInstallRootPromptCore -State $state; $state.PendingAction = $null }
-            'install' { $state = Invoke-TuiInstallOperationCore -State $state }
-            'uninstall' { $state = Invoke-TuiUninstallOperationCore -State $state }
-            'full-uninstall' { $state = Invoke-TuiFullUninstallOperationCore -State $state }
-            'update-all' { $state = Invoke-TuiUpdateAllOperationCore -State $state }
+        while (-not $state.ShouldExit) {
+            $state = Update-TuiLatestVersionRefreshCore -State $state
+            $state = Update-TuiStartupProgressCore -State $state
+            $viewportKey = Get-TuiViewportCacheKeyCore -Viewport (Get-TuiViewportCore)
+            $renderSignature = Get-TuiRenderSignatureCore -State $state
+            if (($viewportKey -ne $lastViewportKey) -or ($renderSignature -ne $lastRenderSignature)) {
+                Render-TuiScreenCore -State $state | Out-Null
+                $lastViewportKey = $viewportKey
+                $lastRenderSignature = $renderSignature
+            }
+
+            if ([bool]$state.StartupProgressActive) {
+                Start-Sleep -Milliseconds 50
+                continue
+            }
+
+            $keyInfo = Read-TuiKeyCore -TimeoutMilliseconds (Get-TuiInputPollTimeoutCore -State $state)
+            if ($null -eq $keyInfo) {
+                continue
+            }
+            $state = Update-TuiSelectionCore -State $state -KeyInfo $keyInfo
+
+            switch ([string]$state.PendingAction) {
+                'edit-root' { $state = Invoke-TuiInstallRootPromptCore -State $state; $state.PendingAction = $null }
+                'install' { $state = Invoke-TuiInstallOperationCore -State $state }
+                'uninstall' { $state = Invoke-TuiUninstallOperationCore -State $state }
+                'full-uninstall' { $state = Invoke-TuiFullUninstallOperationCore -State $state }
+                'update-all' { $state = Invoke-TuiUpdateAllOperationCore -State $state }
+                'exit' { $state.PendingAction = $null; $state.ShouldExit = $true }
+            }
         }
+    }
+    finally {
+        $state = Stop-TuiLatestVersionRefreshCore -State $state
+        Exit-TuiTerminalSessionCore -Session $terminalSession
     }
 
     return [ordered]@{

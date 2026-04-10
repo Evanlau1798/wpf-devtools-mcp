@@ -22,22 +22,23 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
         var sessionManager = new SessionManager();
-        var pipeName = "WpfDevTools_12345";
+        var processId = NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_{processId}";
         using var server = CreateServer(pipeName);
         var tool = CreateTool(
             sessionManager,
-            detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp")),
+            detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp")),
             injector: new FakeProcessInjector());
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
 
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.GetProperty("processId").GetInt32().Should().Be(12345);
+        json.GetProperty("processId").GetInt32().Should().Be(processId);
         json.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
         json.GetProperty("candidateCount").GetInt32().Should().Be(1);
         sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
-        activeProcessId.Should().Be(12345);
+        activeProcessId.Should().Be(processId);
     }
 
     [Fact]
@@ -73,15 +74,17 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
         var sessionManager = new SessionManager();
-        var pipeName = "WpfDevTools_222";
+        var smallProcessId = NextSyntheticProcessId();
+        var largeProcessId = NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_{largeProcessId}";
         using var server = CreateServer(pipeName);
         var tool = CreateTool(
             sessionManager,
             detector: new FakeAutoDiscoveryProcessDetector(
-                CreateProcessInfo(111, "SmallApp"),
-                CreateProcessInfo(222, "LargeApp")),
+                CreateProcessInfo(smallProcessId, "SmallApp"),
+                CreateProcessInfo(largeProcessId, "LargeApp")),
             injector: new FakeProcessInjector(),
-            workingSetResolver: processId => processId == 222 ? 500_000_000 : 10_000_000);
+            workingSetResolver: processId => processId == largeProcessId ? 500_000_000 : 10_000_000);
 
         var result = await tool.ExecuteAsync(
             ToJsonElement(new { selectionStrategy = "largest_working_set" }),
@@ -89,19 +92,20 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
 
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.GetProperty("processId").GetInt32().Should().Be(222);
+        json.GetProperty("processId").GetInt32().Should().Be(largeProcessId);
         json.GetProperty("autoSelected").GetBoolean().Should().BeTrue();
         json.GetProperty("selectionReason").GetString().Should().Be("largest_working_set");
         json.GetProperty("candidateCount").GetInt32().Should().Be(2);
         json.GetProperty("processes").GetArrayLength().Should().Be(2);
         sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
-        activeProcessId.Should().Be(222);
+        activeProcessId.Should().Be(largeProcessId);
     }
 
     [Fact]
     public async Task Execute_WithInvalidSelectionStrategy_ShouldReturnValidationError()
     {
-        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp")));
+        var processId = NextSyntheticProcessId();
+        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp")));
 
         var result = await tool.ExecuteAsync(
             ToJsonElement(new { selectionStrategy = "unknown" }),
@@ -116,7 +120,8 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     [Fact]
     public async Task Execute_WithNonStringSelectionStrategy_ShouldReturnInvalidArgument()
     {
-        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp")));
+        var processId = NextSyntheticProcessId();
+        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp")));
 
         var result = await tool.ExecuteAsync(
             JsonSerializer.SerializeToElement(new { selectionStrategy = 1 }),
@@ -131,7 +136,8 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     [Fact]
     public async Task Execute_WithoutWindowFilter_ShouldDefaultAutoDiscoveryToVisible()
     {
-        var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp"));
+        var processId = NextSyntheticProcessId();
+        var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp"));
         var tool = CreateTool(detector: detector);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
@@ -144,7 +150,8 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     [Fact]
     public async Task Execute_WithWindowFilterAll_ShouldForwardAllFilter()
     {
-        var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp"));
+        var processId = NextSyntheticProcessId();
+        var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp"));
         var tool = CreateTool(detector: detector);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { windowFilter = "all" }), CancellationToken.None);
@@ -157,7 +164,8 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     [Fact]
     public async Task Execute_WithInvalidWindowFilter_ShouldReturnValidationError()
     {
-        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp")));
+        var processId = NextSyntheticProcessId();
+        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp")));
 
         var result = await tool.ExecuteAsync(
             ToJsonElement(new { windowFilter = "bad-filter" }),
@@ -172,7 +180,8 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     [Fact]
     public async Task Execute_WithNonStringWindowFilter_ShouldReturnInvalidArgument()
     {
-        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(12345, "SingleApp")));
+        var processId = NextSyntheticProcessId();
+        var tool = CreateTool(detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp")));
 
         var result = await tool.ExecuteAsync(
             JsonSerializer.SerializeToElement(new { windowFilter = true }),
@@ -189,10 +198,12 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
         var sessionManager = new SessionManager();
-        using var server = CreateServer("WpfDevTools_12345");
+        var initialProcessId = NextSyntheticProcessId();
+        var changedProcessId = NextSyntheticProcessId();
+        using var server = CreateServer($"WpfDevTools_{initialProcessId}");
         var detector = new SequencedProcessDetector(
-            [CreateProcessInfo(12345, "InitialApp")],
-            [CreateProcessInfo(54321, "ChangedApp")]);
+            [CreateProcessInfo(initialProcessId, "InitialApp")],
+            [CreateProcessInfo(changedProcessId, "ChangedApp")]);
         var tool = CreateTool(
             sessionManager,
             detector: detector,
@@ -202,7 +213,7 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
 
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.GetProperty("processId").GetInt32().Should().Be(12345);
+        json.GetProperty("processId").GetInt32().Should().Be(initialProcessId);
         json.GetProperty("processName").GetString().Should().Be("InitialApp");
         json.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
     }

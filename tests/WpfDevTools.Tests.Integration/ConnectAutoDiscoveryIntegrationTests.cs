@@ -8,12 +8,14 @@ using WpfDevTools.Injector.Injection;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
+using System.Threading;
 
 namespace WpfDevTools.Tests.Integration;
 
 [Collection("LiveBootstrapIntegration")]
 public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
 {
+    private static int _syntheticProcessId = 800_000;
     private string? _dummyBootstrapperPath;
 
     [Fact]
@@ -21,11 +23,12 @@ public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
     public async Task ConnectTool_WithoutProcessId_ShouldAutoConnectSingleCandidate()
     {
         EnsureDummyBootstrapperExists();
-        using var server = CreateServer("WpfDevTools_12345");
+        var processId = NextSyntheticProcessId();
+        using var server = CreateServer($"WpfDevTools_{processId}");
         using var sessionManager = new SessionManager();
         var tool = CreateTool(
             sessionManager,
-            new FakeProcessDetector(CreateProcessInfo(12345, "SingleApp")),
+            new FakeProcessDetector(CreateProcessInfo(processId, "SingleApp")),
             new FakeProcessInjector());
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
@@ -35,7 +38,7 @@ public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
         json.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
         json.GetProperty("candidateCount").GetInt32().Should().Be(1);
         sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
-        activeProcessId.Should().Be(12345);
+        activeProcessId.Should().Be(processId);
     }
 
     [Fact]
@@ -43,11 +46,13 @@ public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
     public async Task ConnectTool_WithoutProcessId_ShouldReturnCandidateListForMultipleProcesses()
     {
         using var sessionManager = new SessionManager();
+        var firstProcessId = NextSyntheticProcessId();
+        var secondProcessId = NextSyntheticProcessId();
         var tool = CreateTool(
             sessionManager,
             new FakeProcessDetector(
-                CreateProcessInfo(111, "AppA"),
-                CreateProcessInfo(222, "AppB")),
+                CreateProcessInfo(firstProcessId, "AppA"),
+                CreateProcessInfo(secondProcessId, "AppB")),
             new FakeProcessInjector());
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
@@ -64,15 +69,17 @@ public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
     public async Task ConnectTool_WithLargestWorkingSetStrategy_ShouldAutoSelectLargestCandidate()
     {
         EnsureDummyBootstrapperExists();
-        using var server = CreateServer("WpfDevTools_222");
+        var smallProcessId = NextSyntheticProcessId();
+        var largeProcessId = NextSyntheticProcessId();
+        using var server = CreateServer($"WpfDevTools_{largeProcessId}");
         using var sessionManager = new SessionManager();
         var tool = CreateTool(
             sessionManager,
             new FakeProcessDetector(
-                CreateProcessInfo(111, "AppA"),
-                CreateProcessInfo(222, "AppB")),
+                CreateProcessInfo(smallProcessId, "AppA"),
+                CreateProcessInfo(largeProcessId, "AppB")),
             new FakeProcessInjector(),
-            processId => processId == 222 ? 900_000_000 : 100_000_000);
+            processId => processId == largeProcessId ? 900_000_000 : 100_000_000);
 
         var result = await tool.ExecuteAsync(
             ToJsonElement(new { selectionStrategy = "largest_working_set" }),
@@ -80,7 +87,7 @@ public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
 
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.GetProperty("processId").GetInt32().Should().Be(222);
+        json.GetProperty("processId").GetInt32().Should().Be(largeProcessId);
         json.GetProperty("autoSelected").GetBoolean().Should().BeTrue();
         json.GetProperty("selectionReason").GetString().Should().Be("largest_working_set");
         json.GetProperty("processes").GetArrayLength().Should().Be(2);
@@ -91,7 +98,8 @@ public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
     public async Task ConnectTool_WithWindowFilterAll_ShouldForwardWindowFilter()
     {
         using var sessionManager = new SessionManager();
-        var detector = new FakeProcessDetector(CreateProcessInfo(12345, "SingleApp"));
+        var processId = NextSyntheticProcessId();
+        var detector = new FakeProcessDetector(CreateProcessInfo(processId, "SingleApp"));
         var tool = CreateTool(
             sessionManager,
             detector,
@@ -176,6 +184,9 @@ public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
         var json = JsonSerializer.Serialize(value);
         return JsonSerializer.Deserialize<JsonElement>(json);
     }
+
+    private static int NextSyntheticProcessId()
+        => Interlocked.Increment(ref _syntheticProcessId);
 
     private sealed class FakeProcessDetector(params WpfProcessInfo[] processes) : WpfProcessDetector
     {

@@ -35,6 +35,9 @@ public sealed class ReleasePackagingIntegrationTests
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Uninstall.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "manifest.json")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net48", "WpfDevTools.Inspector.dll")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "bootstrapper", "x64", "WpfDevTools.Bootstrapper.x64.dll")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "internal-install.ps1")).Should().BeFalse(
                 "the simplified package should not ship a second PowerShell installer chain");
 
@@ -102,6 +105,9 @@ public sealed class ReleasePackagingIntegrationTests
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Discovery.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Uninstall.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-arm64.exe")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net48", "WpfDevTools.Inspector.dll")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "bootstrapper", "arm64", "WpfDevTools.Bootstrapper.arm64.dll")).Should().BeTrue();
         }
         finally
         {

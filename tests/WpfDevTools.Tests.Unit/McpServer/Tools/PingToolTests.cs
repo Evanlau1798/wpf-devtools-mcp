@@ -8,6 +8,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public class PingToolTests
 {
     [Fact]
@@ -48,7 +49,7 @@ public class PingToolTests
     public async Task Execute_WithValidSession_ShouldReturnSuccess()
     {
         // Arrange
-        var processId = Random.Shared.Next(100_000, 999_999);
+        var processId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(processId);
         host.Start();
 

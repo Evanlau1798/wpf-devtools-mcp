@@ -8,6 +8,7 @@ namespace WpfDevTools.Tests.Unit.Release;
 internal static class ReleaseScriptTestHarness
 {
     private static readonly string RepoRoot = ResolveRepoRoot();
+    private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromSeconds(60);
 
     public static string CreateTempDirectory()
     {
@@ -47,6 +48,15 @@ internal static class ReleaseScriptTestHarness
         var binDir = Path.Combine(packageDir, "bin");
         Directory.CreateDirectory(binDir);
         File.WriteAllText(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), "stub");
+        var inspectorNet8Dir = Path.Combine(binDir, "inspectors", "net8.0-windows");
+        var inspectorNet48Dir = Path.Combine(binDir, "inspectors", "net48");
+        var bootstrapperDir = Path.Combine(binDir, "bootstrapper", architecture);
+        Directory.CreateDirectory(inspectorNet8Dir);
+        Directory.CreateDirectory(inspectorNet48Dir);
+        Directory.CreateDirectory(bootstrapperDir);
+        File.WriteAllText(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), "net8-inspector");
+        File.WriteAllText(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), "net48-inspector");
+        File.WriteAllText(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), "bootstrapper");
         File.WriteAllText(
             Path.Combine(binDir, "manifest.json"),
             JsonSerializer.Serialize(new
@@ -54,7 +64,13 @@ internal static class ReleaseScriptTestHarness
                 name = "wpf-devtools",
                 version = "1.2.3",
                 architecture,
-                runtimeId = architecture == "x86" ? "win-x86" : architecture == "arm64" ? "win-arm64" : "win-x64"
+                runtimeId = architecture == "x86" ? "win-x86" : architecture == "arm64" ? "win-arm64" : "win-x64",
+                inspector = new
+                {
+                    net8 = "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
+                    net48 = "bin/inspectors/net48/WpfDevTools.Inspector.dll"
+                },
+                bootstrapper = $"bin/bootstrapper/{architecture}/WpfDevTools.Bootstrapper.{architecture}.dll"
             }));
 
         return packageDir;
@@ -68,16 +84,7 @@ internal static class ReleaseScriptTestHarness
         Directory.CreateDirectory(helperDir);
         File.Copy(GetRepoFilePath("scripts/online-installer.ps1"), Path.Combine(binDir, "install.ps1"), overwrite: true);
         File.Copy(GetRepoFilePath("scripts/tools/packaging/run-template.bat"), Path.Combine(packageDir, "run.bat"), overwrite: true);
-        foreach (var helperPath in Directory.GetFiles(
-                     GetRepoFilePath(Path.Combine("scripts", "installer")),
-                     "*.*",
-                     SearchOption.TopDirectoryOnly))
-        {
-            File.Copy(
-                helperPath,
-                Path.Combine(helperDir, Path.GetFileName(helperPath)),
-                overwrite: true);
-        }
+        CopyInstallerHelperFiles(helperDir);
 
         var archivePath = Path.Combine(tempRoot, $"release_1.2.3_win-{architecture}.zip");
         if (File.Exists(archivePath))
@@ -105,10 +112,10 @@ internal static class ReleaseScriptTestHarness
     public static (int ExitCode, string Stdout, string Stderr) RunPowerShellScript(
         string scriptPath,
         IEnumerable<string> arguments,
-        IReadOnlyDictionary<string, string?>? environmentOverrides = null)
+        IReadOnlyDictionary<string, string?>? environmentOverrides = null,
+        TimeSpan? timeout = null)
     {
-        using var process = new Process();
-        process.StartInfo = new ProcessStartInfo
+        var startInfo = new ProcessStartInfo
         {
             FileName = "powershell.exe",
             RedirectStandardOutput = true,
@@ -118,38 +125,34 @@ internal static class ReleaseScriptTestHarness
             WorkingDirectory = GetRepoFilePath(".")
         };
 
-        process.StartInfo.ArgumentList.Add("-NoProfile");
-        process.StartInfo.ArgumentList.Add("-ExecutionPolicy");
-        process.StartInfo.ArgumentList.Add("Bypass");
-        process.StartInfo.ArgumentList.Add("-File");
-        process.StartInfo.ArgumentList.Add(scriptPath);
+        startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-ExecutionPolicy");
+        startInfo.ArgumentList.Add("Bypass");
+        startInfo.ArgumentList.Add("-File");
+        startInfo.ArgumentList.Add(scriptPath);
 
         foreach (var argument in arguments)
         {
-            process.StartInfo.ArgumentList.Add(argument);
+            startInfo.ArgumentList.Add(argument);
         }
 
         if (environmentOverrides is not null)
         {
             foreach (var pair in environmentOverrides)
             {
-                process.StartInfo.Environment[pair.Key] = pair.Value ?? string.Empty;
+                startInfo.Environment[pair.Key] = pair.Value ?? string.Empty;
             }
         }
 
-        process.Start();
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-        return (process.ExitCode, stdout, stderr);
+        return RunProcess(startInfo, timeout);
     }
 
     public static (int ExitCode, string Stdout, string Stderr) RunPowerShellCommand(
         string command,
-        IReadOnlyDictionary<string, string?>? environmentOverrides = null)
+        IReadOnlyDictionary<string, string?>? environmentOverrides = null,
+        TimeSpan? timeout = null)
     {
-        using var process = new Process();
-        process.StartInfo = new ProcessStartInfo
+        var startInfo = new ProcessStartInfo
         {
             FileName = "powershell.exe",
             RedirectStandardOutput = true,
@@ -159,29 +162,56 @@ internal static class ReleaseScriptTestHarness
             WorkingDirectory = GetRepoFilePath(".")
         };
 
-        process.StartInfo.ArgumentList.Add("-NoProfile");
-        process.StartInfo.ArgumentList.Add("-ExecutionPolicy");
-        process.StartInfo.ArgumentList.Add("Bypass");
-        process.StartInfo.ArgumentList.Add("-Command");
-        process.StartInfo.ArgumentList.Add(command);
+        startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-ExecutionPolicy");
+        startInfo.ArgumentList.Add("Bypass");
+        startInfo.ArgumentList.Add("-Command");
+        startInfo.ArgumentList.Add(command);
 
         if (environmentOverrides is not null)
         {
             foreach (var pair in environmentOverrides)
             {
-                process.StartInfo.Environment[pair.Key] = pair.Value ?? string.Empty;
+                startInfo.Environment[pair.Key] = pair.Value ?? string.Empty;
             }
         }
 
-        process.Start();
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-        return (process.ExitCode, stdout, stderr);
+        return RunProcess(startInfo, timeout);
     }
 
     public static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
+
+    private static void CopyInstallerHelperFiles(string destinationDirectory)
+    {
+        Directory.CreateDirectory(destinationDirectory);
+        var installerDirectory = GetRepoFilePath(Path.Combine("scripts", "installer"));
+        var manifestFileName = "installer-helpers.manifest.json";
+        File.Copy(
+            Path.Combine(installerDirectory, manifestFileName),
+            Path.Combine(destinationDirectory, manifestFileName),
+            overwrite: true);
+
+        foreach (var helperFile in GetInstallerHelperFiles())
+        {
+            File.Copy(
+                Path.Combine(installerDirectory, helperFile),
+                Path.Combine(destinationDirectory, helperFile),
+                overwrite: true);
+        }
+    }
+
+    private static string[] GetInstallerHelperFiles()
+    {
+        var manifestPath = GetRepoFilePath(Path.Combine("scripts", "installer", "installer-helpers.manifest.json"));
+        using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        return manifest.RootElement.GetProperty("helperFiles")
+            .EnumerateArray()
+            .Select(static entry => entry.GetString())
+            .Where(static entry => !string.IsNullOrWhiteSpace(entry))
+            .Cast<string>()
+            .ToArray();
+    }
 
     private static string ResolveRepoRoot()
     {
@@ -198,5 +228,80 @@ internal static class ReleaseScriptTestHarness
         }
 
         throw new DirectoryNotFoundException("Could not locate repository root from test base directory.");
+    }
+
+    private static (int ExitCode, string Stdout, string Stderr) RunProcess(
+        ProcessStartInfo startInfo,
+        TimeSpan? timeout)
+    {
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        var effectiveTimeout = timeout ?? DefaultProcessTimeout;
+        var timeoutMilliseconds = effectiveTimeout.TotalMilliseconds > int.MaxValue
+            ? int.MaxValue
+            : (int)Math.Ceiling(effectiveTimeout.TotalMilliseconds);
+
+        if (!process.WaitForExit(timeoutMilliseconds))
+        {
+            TryKillProcessTree(process);
+            try
+            {
+                process.WaitForExit(2000);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            throw new TimeoutException(
+                $"PowerShell command timed out after {effectiveTimeout.TotalSeconds:0.###} second(s).");
+        }
+
+        return (
+            process.ExitCode,
+            stdoutTask.GetAwaiter().GetResult(),
+            stderrTask.GetAwaiter().GetResult());
+    }
+
+    private static void TryKillProcessTree(Process process)
+    {
+        try
+        {
+            if (process.HasExited)
+            {
+                return;
+            }
+
+            process.Kill(entireProcessTree: true);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch
+        {
+            try
+            {
+                using var taskKill = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "taskkill.exe",
+                        Arguments = $"/PID {process.Id} /T /F",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                taskKill.Start();
+                taskKill.WaitForExit(5000);
+            }
+            catch
+            {
+            }
+        }
     }
 }

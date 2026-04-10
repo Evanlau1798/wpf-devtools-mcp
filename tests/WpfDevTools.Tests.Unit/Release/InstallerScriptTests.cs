@@ -430,6 +430,41 @@ public sealed class InstallerScriptTests
         }
     }
 
+    [Fact]
+    public void OnlineInstaller_Uninstall_ShouldNotCreateDefaultInstallRootWhenOnlyExternalRegistrationWasDetected()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var installRoot = Path.Combine(appData, "WpfDevToolsMcp");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(visualStudioConfigPath)!);
+            File.WriteAllText(
+                visualStudioConfigPath,
+                "{\"servers\":{\"wpf-devtools\":{\"command\":\"C:\\\\external\\\\wpf-devtools-x64.exe\",\"args\":[]}}}");
+
+            var uninstall = RunInstaller(
+                tempRoot,
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]);
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            Directory.Exists(installRoot).Should().BeFalse("external-registration cleanup must not create a new default install root");
+            File.ReadAllText(visualStudioConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static (int ExitCode, string Stdout, string Stderr) RunInstaller(
         string tempRoot,
         IReadOnlyList<string> arguments,

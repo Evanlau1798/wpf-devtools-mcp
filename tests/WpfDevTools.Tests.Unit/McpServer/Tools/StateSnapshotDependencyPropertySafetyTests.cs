@@ -12,12 +12,13 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public sealed class StateSnapshotDependencyPropertySafetyTests
 {
     [Fact]
     public async Task CaptureStateSnapshot_ShouldCaptureRestoreHandle_ForBindingBackedDependencyProperty()
     {
-        const int processId = 51020;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch
@@ -69,7 +70,7 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
     [Fact]
     public async Task RestoreStateSnapshot_ShouldRestoreBindingBackedDependencyProperty_WhenRestoreHandleWasCaptured()
     {
-        const int processId = 51021;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch
@@ -133,7 +134,7 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
     [Fact]
     public async Task CaptureStateSnapshot_ShouldKeepNonBindingExpressionAsSkippedCapabilityBoundary()
     {
-        const int processId = 51022;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch

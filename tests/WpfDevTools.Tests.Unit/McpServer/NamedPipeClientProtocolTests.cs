@@ -12,7 +12,7 @@ public class NamedPipeClientProtocolTests
     [Fact]
     public async Task SendRequestAsync_WhenResponseIdDoesNotMatch_ShouldThrowInvalidOperationException()
     {
-        var processId = Random.Shared.Next(100_000, 999_999);
+        var processId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
 
         using var server = new NamedPipeServerStream(

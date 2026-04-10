@@ -129,13 +129,28 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-### VS Code / Cursor
+### VS Code
 
 Add to `.vscode/mcp.json`:
 
 ```json
 {
   "servers": {
+    "wpf-devtools": {
+      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "args": []
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `.cursor\mcp.json`:
+
+```json
+{
+  "mcpServers": {
     "wpf-devtools": {
       "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []

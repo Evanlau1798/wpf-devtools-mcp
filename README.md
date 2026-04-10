@@ -122,6 +122,7 @@ Add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "wpf-devtools": {
+      "type": "stdio",
       "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }
@@ -137,6 +138,7 @@ Add to `.vscode/mcp.json`:
 {
   "servers": {
     "wpf-devtools": {
+      "type": "stdio",
       "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }
@@ -152,6 +154,7 @@ Add to `.cursor\mcp.json`:
 {
   "mcpServers": {
     "wpf-devtools": {
+      "type": "stdio",
       "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }

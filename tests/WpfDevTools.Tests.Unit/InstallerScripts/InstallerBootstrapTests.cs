@@ -88,6 +88,11 @@ public sealed class InstallerBootstrapTests
     public void InstallerHelperManifest_ShouldOnlyReferenceGitTrackedHelperFiles()
     {
         var repoRoot = ReleaseScriptTestHarness.GetRepoFilePath(".");
+        if (!CanValidateTrackedFilesWithGit(repoRoot))
+        {
+            return;
+        }
+
         var installerDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
         var manifestPath = Path.Combine(installerDirectory, "installer-helpers.manifest.json");
         using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
@@ -369,5 +374,46 @@ $session = Resolve-PackageSession -Mode online -ResolvedVersion latest -Resolved
             .Select(file => file + ":" + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(installerDirectory, file)))).ToLowerInvariant())
             .ToArray();
         return "sha256:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("|", records)))).ToLowerInvariant();
+    }
+
+    private static bool CanValidateTrackedFilesWithGit(string repoRoot)
+    {
+        var gitMetadataPath = Path.Combine(repoRoot, ".git");
+        if (!Directory.Exists(gitMetadataPath) && !File.Exists(gitMetadataPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "git",
+                WorkingDirectory = repoRoot,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("--version");
+
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return false;
+            }
+
+            if (!process.WaitForExit(5000))
+            {
+                process.Kill(entireProcessTree: true);
+                return false;
+            }
+
+            return process.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

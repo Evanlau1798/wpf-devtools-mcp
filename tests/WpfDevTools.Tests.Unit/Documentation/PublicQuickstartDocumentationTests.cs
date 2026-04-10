@@ -211,6 +211,29 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void ClientConfigDocs_ShouldShowCanonicalStdioTypeInPublishedJsonExamples()
+    {
+        CountOccurrences(
+            File.ReadAllText(GetRepoFilePath("README.md")),
+            "\"type\": \"stdio\"").Should().Be(3,
+            "README publishes Claude Desktop, VS Code, and Cursor JSON examples");
+
+        var quickstartFiles = new[]
+        {
+            "docfx/quickstart/cursor-vscode.md",
+            "docfx/zh-tw/quickstart/cursor-vscode.md"
+        };
+
+        foreach (var file in quickstartFiles)
+        {
+            CountOccurrences(
+                File.ReadAllText(GetRepoFilePath(file)),
+                "\"type\": \"stdio\"").Should().Be(2,
+                $"{file} should keep Cursor and VS Code / Visual Studio examples aligned with the generated installer artifacts");
+        }
+    }
+
+    [Fact]
     public void ReleaseLayoutDocs_ShouldDescribeZipAssetsAndRunBatEntryPoint()
     {
         var files = new[]
@@ -240,6 +263,19 @@ public sealed class PublicQuickstartDocumentationTests
 
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
+
+    private static int CountOccurrences(string content, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = content.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+
+        return count;
+    }
 
     private static string ResolveRepoRoot()
     {

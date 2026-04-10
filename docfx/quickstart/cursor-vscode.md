@@ -37,6 +37,7 @@ Its structure is:
   "mcpServers": {
     "wpf-devtools": {
       "type": "stdio",
+      "type": "stdio",
       "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }
@@ -62,6 +63,7 @@ Use `client-registration\vscode.json` or `client-registration\visual-studio.json
 {
   "servers": {
     "wpf-devtools": {
+      "type": "stdio",
       "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
       "args": []
     }

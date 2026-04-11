@@ -43,8 +43,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 線上安裝腳本與手動 package 安裝都會在下列位置產生 client-specific registration artifact：
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\client-registration\
+<InstallRoot>\<arch>\client-registration\
 ```
+
+如果未指定 `-InstallRoot`，預設 root 會是 `%APPDATA%\WpfDevToolsMcp`，因此產生的 artifact 會回落到 `%APPDATA%\WpfDevToolsMcp\<arch>\client-registration\`。
 
 ## 建議選擇
 

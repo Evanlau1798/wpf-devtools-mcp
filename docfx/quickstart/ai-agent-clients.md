@@ -43,8 +43,10 @@ Default installed path example:
 The online installer and manual package setup both generate client-specific registration snippets under:
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\client-registration\
+<InstallRoot>\<arch>\client-registration\
 ```
+
+If you omit `-InstallRoot`, the default root is `%APPDATA%\WpfDevToolsMcp`, so the generated artifacts fall back under `%APPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.
 
 ## Recommended paths
 

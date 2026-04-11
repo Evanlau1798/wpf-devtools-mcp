@@ -60,8 +60,10 @@ After installation, the default executable path is typically:
 The installer writes ready-to-copy registration artifacts under:
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\client-registration\
+<InstallRoot>\<arch>\client-registration\
 ```
+
+If you omit `-InstallRoot`, the default root is `%APPDATA%\WpfDevToolsMcp`, so the generated artifacts fall back under `%APPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.
 
 If you register manually, always point your client at the installed `wpf-devtools-x64.exe`, not a source-tree `dotnet run` command.
 

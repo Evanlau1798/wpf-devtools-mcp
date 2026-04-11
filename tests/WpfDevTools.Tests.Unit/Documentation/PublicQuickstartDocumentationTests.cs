@@ -283,6 +283,27 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void PublicQuickstarts_ShouldDescribeClientRegistrationUnderInstallRoot()
+    {
+        var files = new[]
+        {
+            "docfx/quickstart/index.md",
+            "docfx/quickstart/ai-agent-clients.md",
+            "docfx/zh-tw/quickstart/index.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("<InstallRoot>\\<arch>\\client-registration\\",
+                $"{file} should present the generated registration artifacts relative to the chosen install root");
+            content.Should().NotContain("%APPDATA%\\WpfDevToolsMcp\\x64\\client-registration\\",
+                $"{file} should not hard-code the default install root and x64 for generated registration artifacts");
+        }
+    }
+
+    [Fact]
     public void InstallerAutomationExamples_ShouldUseNonInteractiveAndOutputJson()
     {
         var files = new[]

@@ -277,10 +277,83 @@ function Get-LocalInstallerHelperRoots {
     $overrideDirectory = Get-TuiHelperOverrideDirectory
     Add-InstallerHelperRootCandidate -Roots $candidateRoots -CandidateRoot $overrideDirectory
 
+    if ($Action -ne 'install') {
+        foreach ($helperRoot in @(Get-InstalledInstallerHelperRoots)) {
+            Add-InstallerHelperRootCandidate -Roots $candidateRoots -CandidateRoot $helperRoot
+        }
+    }
+
     $workspaceHelperRoot = Join-Path (Get-Location).Path 'scripts\installer'
     Add-InstallerHelperRootCandidate -Roots $candidateRoots -CandidateRoot $workspaceHelperRoot
 
     return @($candidateRoots)
+}
+
+function Get-StandaloneInstallerStateSnapshot {
+    $statePath = Join-Path (Resolve-AbsolutePath -Path (Join-Path $env:APPDATA 'WpfDevToolsMcp')) 'installer-state.json'
+    if (-not (Test-Path $statePath)) {
+        return $null
+    }
+
+    try {
+        return (Get-Content -Path $statePath -Raw | ConvertFrom-Json)
+    }
+    catch {
+        return $null
+    }
+}
+
+function Add-InstalledInstallerHelperRoot {
+    param(
+        [System.Collections.Generic.List[string]]$Roots,
+        [string]$InstallRoot,
+        [string]$Architecture,
+        [string]$InstalledExecutable
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($InstalledExecutable)) {
+        $binRoot = Split-Path -Parent $InstalledExecutable
+        if (-not [string]::IsNullOrWhiteSpace($binRoot)) {
+            Add-InstallerHelperRootCandidate -Roots $Roots -CandidateRoot (Join-Path $binRoot 'installer')
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($InstallRoot) -and -not [string]::IsNullOrWhiteSpace($Architecture)) {
+        Add-InstallerHelperRootCandidate -Roots $Roots -CandidateRoot (Join-Path (Join-Path $InstallRoot "$Architecture\current\bin") 'installer')
+    }
+}
+
+function Get-InstalledInstallerHelperRoots {
+    $helperRoots = New-Object System.Collections.Generic.List[string]
+    $resolvedArchitecture = if ([string]::IsNullOrWhiteSpace($Architecture)) { Get-SystemDefaultArchitecture } else { [string]$Architecture }
+    Add-InstalledInstallerHelperRoot -Roots $helperRoots -InstallRoot $InstallRoot -Architecture $resolvedArchitecture -InstalledExecutable $null
+
+    $state = Get-StandaloneInstallerStateSnapshot
+    if ($null -eq $state) {
+        return @($helperRoots)
+    }
+
+    if ($null -ne $state.architectures) {
+        foreach ($property in $state.architectures.PSObject.Properties) {
+            Add-InstalledInstallerHelperRoot `
+                -Roots $helperRoots `
+                -InstallRoot ([string]$property.Value.installRoot) `
+                -Architecture ([string]$property.Name) `
+                -InstalledExecutable ([string]$property.Value.executable)
+        }
+    }
+
+    if ($null -ne $state.registrations) {
+        foreach ($property in $state.registrations.PSObject.Properties) {
+            Add-InstalledInstallerHelperRoot `
+                -Roots $helperRoots `
+                -InstallRoot ([string]$property.Value.installRoot) `
+                -Architecture ([string]$property.Value.architecture) `
+                -InstalledExecutable ([string]$property.Value.installedExecutable)
+        }
+    }
+
+    return @($helperRoots)
 }
 
 function Get-TuiHelperOverrideDirectory {

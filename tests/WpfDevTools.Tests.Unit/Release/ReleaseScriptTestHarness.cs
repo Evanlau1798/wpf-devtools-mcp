@@ -42,23 +42,23 @@ internal static class ReleaseScriptTestHarness
         }
     }
 
-    public static string CreatePackageDirectory(string tempRoot, string architecture = "x64")
+    public static string CreatePackageDirectory(string tempRoot, string architecture = "x64", bool useSignedPayload = true)
     {
         var packageDir = Path.Combine(tempRoot, "package");
         var binDir = Path.Combine(packageDir, "bin");
         var helperDir = Path.Combine(binDir, "installer");
         Directory.CreateDirectory(binDir);
         Directory.CreateDirectory(helperDir);
-        File.WriteAllText(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), "stub");
         var inspectorNet8Dir = Path.Combine(binDir, "inspectors", "net8.0-windows");
         var inspectorNet48Dir = Path.Combine(binDir, "inspectors", "net48");
         var bootstrapperDir = Path.Combine(binDir, "bootstrapper", architecture);
         Directory.CreateDirectory(inspectorNet8Dir);
         Directory.CreateDirectory(inspectorNet48Dir);
         Directory.CreateDirectory(bootstrapperDir);
-        File.WriteAllText(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), "net8-inspector");
-        File.WriteAllText(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), "net48-inspector");
-        File.WriteAllText(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), "bootstrapper");
+        WritePackagePayloadFile(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), "notepad.exe", "stub", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), "kernel32.dll", "net8-inspector", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), "user32.dll", "net48-inspector", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), "advapi32.dll", "bootstrapper", useSignedPayload);
         File.WriteAllText(
             Path.Combine(binDir, "manifest.json"),
             JsonSerializer.Serialize(new
@@ -80,9 +80,9 @@ internal static class ReleaseScriptTestHarness
         return packageDir;
     }
 
-    public static string CreatePackageArchive(string tempRoot, string architecture = "x64")
+    public static string CreatePackageArchive(string tempRoot, string architecture = "x64", bool useSignedPayload = true)
     {
-        var packageDir = CreatePackageDirectory(tempRoot, architecture);
+        var packageDir = CreatePackageDirectory(tempRoot, architecture, useSignedPayload);
         var binDir = Path.Combine(packageDir, "bin");
         var helperDir = Path.Combine(binDir, "installer");
         Directory.CreateDirectory(helperDir);
@@ -262,6 +262,22 @@ internal static class ReleaseScriptTestHarness
             .Where(static entry => !string.IsNullOrWhiteSpace(entry))
             .Cast<string>()
             .ToArray();
+    }
+
+    private static void WritePackagePayloadFile(string destinationPath, string signedSystemFileName, string unsignedContent, bool useSignedPayload)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+        if (useSignedPayload)
+        {
+            var signedSourcePath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                "System32",
+                signedSystemFileName);
+            File.Copy(signedSourcePath, destinationPath, overwrite: true);
+            return;
+        }
+
+        File.WriteAllText(destinationPath, unsignedContent);
     }
 
     private static string ResolveRepoRoot()

@@ -257,14 +257,16 @@ function Assert-ArchiveIntegrity {
         -AssetName $canonicalAssetName `
         -ArchiveHash $archiveHash
 
-    if ($null -eq $releaseRecord -and $null -ne $archiveIdentity) {
+    if ($null -eq $releaseRecord -and $DownloadSource -eq 'github-release' -and $null -ne $archiveIdentity) {
         $releaseRecord = Get-ReleaseAssetRecordFromGitHub `
             -ResolvedVersion ([string]$archiveIdentity.ResolvedVersion) `
             -AssetName $canonicalAssetName `
             -ArchiveHash $archiveHash
     }
 
-    if ($null -eq $releaseRecord -and $DownloadSource -eq 'github-release' -and -not [string]::IsNullOrWhiteSpace($canonicalAssetName)) {
+    if ($null -eq $releaseRecord -and
+        ($DownloadSource -eq 'github-release' -or $DownloadSource -eq 'local-package') -and
+        -not [string]::IsNullOrWhiteSpace($canonicalAssetName)) {
         throw "Archive integrity could not be verified for $canonicalAssetName because no matching release checksum metadata was found."
     }
 
@@ -347,11 +349,16 @@ function Assert-PackagePayloadIntegrity {
     )
 
     $signaturePolicy = [string]$PackageManifest.signaturePolicy
-    if ([string]::IsNullOrWhiteSpace($signaturePolicy) -or $signaturePolicy -eq 'DebugTrustedRootSkip') {
-        return
+    $requiresSignedPayload = $false
+
+    if ((Resolve-InstallerMode -eq 'offline') -and -not (Test-PackageArchiveRequested)) {
+        $requiresSignedPayload = $true
+    }
+    elseif ($signaturePolicy -eq 'RequireAuthenticodeSignature') {
+        $requiresSignedPayload = $true
     }
 
-    if ($signaturePolicy -ne 'RequireAuthenticodeSignature') {
+    if (-not $requiresSignedPayload) {
         return
     }
 

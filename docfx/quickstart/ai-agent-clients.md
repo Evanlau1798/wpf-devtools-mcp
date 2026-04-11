@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/script
 Client-specific example:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual package alternative:
@@ -29,7 +29,7 @@ Manual package alternative:
 Local script example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Every supported setup path should eventually launch the installed executable, not a source-tree command.

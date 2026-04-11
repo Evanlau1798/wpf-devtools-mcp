@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/script
 指定 client 的範例：
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 手動 package 的替代路徑：
@@ -29,7 +29,7 @@ irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/script
 本機腳本範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 所有支援的 setup 路徑最後都應該啟動安裝後的執行檔，而不是 source tree 內的命令。

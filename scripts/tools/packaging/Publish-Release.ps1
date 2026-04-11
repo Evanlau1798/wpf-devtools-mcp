@@ -322,6 +322,22 @@ function Assert-ArchitectureToolchainAvailable {
     }
 }
 
+function Write-ReleaseSidecars {
+    param(
+        [Parameter(Mandatory)] [string]$PackagingScriptRoot,
+        [Parameter(Mandatory)] [string]$ArchiveRoot,
+        [Parameter(Mandatory)] [string]$Version
+    )
+
+    $sidecarWriter = Join-Path $PackagingScriptRoot 'Write-ReleaseSidecars.ps1'
+    if (-not (Test-Path $sidecarWriter)) {
+        throw "Write-ReleaseSidecars.ps1 was not found: $sidecarWriter"
+    }
+
+    $tag = if ($Version.StartsWith('v')) { $Version } else { "v$Version" }
+    & $sidecarWriter -ArchiveRoot $ArchiveRoot -Tag $tag | Out-Null
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj'
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
@@ -440,3 +456,5 @@ foreach ($architecture in $resolvedArchitectures) {
         throw "Failed to package architecture $architecture. $($_.Exception.Message)"
     }
 }
+
+Write-ReleaseSidecars -PackagingScriptRoot $PSScriptRoot -ArchiveRoot $outputRootFullPath -Version $version

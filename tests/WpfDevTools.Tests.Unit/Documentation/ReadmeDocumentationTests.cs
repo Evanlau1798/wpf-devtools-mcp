@@ -113,4 +113,19 @@ public class ReadmeDocumentationTests
         content.Should().Contain("requests elevation when the current shell is not already elevated",
             "README should describe the current conditional elevation behavior precisely");
     }
+
+    [Fact]
+    public void Readme_ShouldUseAutomationSafeInstallerExamplesAndLiteralAbsoluteJsonPaths()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("-NonInteractive",
+            "README should not describe an automation-ready install flow without explicitly passing -NonInteractive");
+        content.Should().Contain("-OutputJson",
+            "README should include machine-readable installer output in automation-oriented examples");
+        content.Should().NotContain("%APPDATA%\\\\WpfDevToolsMcp\\\\x64\\\\current\\\\bin\\\\wpf-devtools-x64.exe",
+            "published JSON examples should use literal absolute paths rather than default-root placeholders");
+        content.Should().Contain("C:\\\\Users\\\\<you>\\\\AppData\\\\Roaming\\\\WpfDevToolsMcp\\\\<arch>\\\\current\\\\bin\\\\wpf-devtools-<arch>.exe",
+            "README should demonstrate the reviewed JSON shape with a literal absolute path template");
+    }
 }

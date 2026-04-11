@@ -29,7 +29,7 @@ irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/script
 Client-specific example:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### Manual release package
@@ -44,7 +44,7 @@ Client-specific example:
 If you prefer to run the same installer from a local clone instead of `irm | iex`, use:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ## Step 2: Confirm the installed executable path

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "cacheKey": "sha256:f66506dae47a6ed2698de3d881ad7b5665aa3ed532903c82a6e4177fa91421f6",
+  "cacheKey": "sha256:e1728588c7ec4e5b9cd31bc7496ef2a8f548a671b9af148850c5e008b7f233dd",
   "helperFiles": [
     "Tui.Terminal.ps1",
     "Tui.Layout.ps1",
@@ -17,6 +17,12 @@
     "Tui.Flow.ps1",
     "Tui.Confirm.ps1",
     "Installer.Discovery.ps1",
-    "Installer.Uninstall.ps1"
+    "Installer.Uninstall.ps1",
+    "Installer.Release.ps1",
+    "Installer.PackageIntegrity.ps1",
+    "Installer.State.ps1",
+    "Installer.Registration.ps1",
+    "Installer.Verification.ps1",
+    "Installer.Actions.ps1"
   ]
 }

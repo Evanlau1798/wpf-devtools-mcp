@@ -21,7 +21,7 @@ If you prefer a script-first setup, review [scripts/online-installer.ps1](https:
 Example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex -NonInteractive -Force -OutputJson
 ```
 
 After installation, the default executable path is:

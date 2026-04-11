@@ -29,7 +29,7 @@ irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/script
 指定 client 的範例：
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### 手動 release package
@@ -46,7 +46,7 @@ irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/script
 範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ## Step 2：確認安裝後的執行檔位置

@@ -1,0 +1,417 @@
+function Get-AvailableInstallerUpdates {
+    param(
+        [Parameter(Mandatory)] $State,
+        [string]$LatestVersion,
+        $RegistrationMap
+    )
+
+    $updates = @()
+    if ([string]::IsNullOrWhiteSpace($LatestVersion)) {
+        return @($updates)
+    }
+
+    $candidateRegistrations = @()
+    if ($null -ne $RegistrationMap) {
+        $candidateRegistrations = @($RegistrationMap.GetEnumerator() | ForEach-Object {
+                [ordered]@{
+                    Client = [string]$_.Key
+                    Registration = $_.Value
+                }
+            })
+    }
+    elseif ($null -ne (Get-Command 'Get-DetectedInstallerRegistrationMap' -CommandType Function -ErrorAction SilentlyContinue)) {
+        $detectedRegistrationMap = Get-DetectedInstallerRegistrationMap -State $State
+        $candidateRegistrations = @($detectedRegistrationMap.GetEnumerator() | ForEach-Object {
+                [ordered]@{
+                    Client = [string]$_.Key
+                    Registration = $_.Value
+                }
+            })
+    }
+    else {
+        $candidateRegistrations = @($State.registrations.GetEnumerator() | ForEach-Object {
+                [ordered]@{
+                    Client = [string]$_.Key
+                    Registration = $_.Value
+                }
+            })
+    }
+
+    foreach ($entry in $candidateRegistrations) {
+        $registration = $entry.Registration
+        $resolvedVersion = if ($registration.Contains('ResolvedVersion')) { [string]$registration.ResolvedVersion } else { [string]$registration.resolvedVersion }
+        if ([string]::IsNullOrWhiteSpace($resolvedVersion)) {
+            continue
+        }
+
+        if ($resolvedVersion -ne $LatestVersion) {
+            $installRoot = if ($registration.Contains('InstallRoot')) { [string]$registration.InstallRoot } else { [string]$registration.installRoot }
+            $architecture = if ($registration.Contains('Architecture')) { [string]$registration.Architecture } else { [string]$registration.architecture }
+            if ([string]::IsNullOrWhiteSpace($installRoot) -or [string]::IsNullOrWhiteSpace($architecture)) {
+                continue
+            }
+
+            $updates += [ordered]@{
+                Client = [string]$entry.Client
+                CurrentVersion = $resolvedVersion
+                LatestVersion = $LatestVersion
+                InstallRoot = $installRoot
+                Architecture = $architecture
+            }
+        }
+    }
+
+    return @($updates)
+}
+
+function Get-InstalledClientStatusMap {
+    param([Parameter(Mandatory)] $State)
+
+    $map = [ordered]@{}
+    foreach ($client in Get-SupportedClients) {
+        $isInstalled = $false
+        if ($client.Id -eq 'cursor') {
+            $isInstalled = @($State.registrations.Keys | Where-Object { $_ -like 'cursor-*' }).Count -gt 0
+        }
+        elseif ($State.registrations.Contains($client.Id)) {
+            $isInstalled = $true
+        }
+        else {
+            switch ($client.Id) {
+                'cursor' {
+                    $isInstalled = @(
+                        Get-CursorVerificationConfigPaths -SelectedClient $client.Id
+                    ).Where({
+                            Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $_
+                        }).Count -gt 0
+                }
+                'vscode' { $isInstalled = Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath (Resolve-VsCodeConfigPath) }
+                'visual-studio' { $isInstalled = Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath) }
+                'claude-desktop' { $isInstalled = Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath (Resolve-ClaudeDesktopConfigPath) }
+            }
+        }
+
+        $map[$client.Id] = $isInstalled
+    }
+
+    return $map
+}
+
+function Test-JsonConfigRegistrationMatchesExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$CollectionName,
+        [Parameter(Mandatory)] [string]$ConfigPath,
+        [Parameter(Mandatory)] [string]$InstalledExecutable
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
+        return $false
+    }
+
+    if (-not (Test-Path $ConfigPath)) {
+        return $false
+    }
+
+    $root = Get-ExistingConfigMap -Path $ConfigPath
+    $servers = Get-ConfigCollectionMap -Root $root -CollectionName $CollectionName
+    if (-not $servers.Contains('wpf-devtools')) {
+        return $false
+    }
+
+    return (Test-InstallerPathEqualsCore -Left ([string]$servers['wpf-devtools'].command) -Right $InstalledExecutable)
+}
+
+function Test-ArtifactRegistrationMatchesExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$ArtifactPath,
+        [Parameter(Mandatory)] [string]$InstalledExecutable
+    )
+
+    if (-not (Test-Path $ArtifactPath)) {
+        return $false
+    }
+
+    $artifact = Get-Content -Path $ArtifactPath -Raw | ConvertFrom-Json
+    $serverCollection = if ($null -ne $artifact.mcpServers) { $artifact.mcpServers } else { $artifact.servers }
+    if ($null -eq $serverCollection -or $null -eq $serverCollection.'wpf-devtools') {
+        return $false
+    }
+
+    return ([string]$serverCollection.'wpf-devtools'.command -eq $InstalledExecutable)
+}
+
+function Invoke-VerificationCommand {
+    param(
+        [Parameter(Mandatory)] [string]$Command,
+        [Parameter(Mandatory)] [string[]]$Arguments,
+        [Parameter(Mandatory)] [string]$ExpectedToken,
+        [Parameter(Mandatory)] [bool]$ExpectPresent
+    )
+
+    $resolvedCommands = @(Get-Command $Command -All -CommandType Application,ExternalScript -ErrorAction SilentlyContinue)
+    if ($resolvedCommands.Count -eq 0) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = "$Command is not installed."
+            ExitCode = -1
+        }
+    }
+
+    $selectedCommandPath = $null
+    foreach ($resolvedCommand in $resolvedCommands) {
+        $candidatePath = if (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Path)) {
+            [string]$resolvedCommand.Path
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Source)) {
+            [string]$resolvedCommand.Source
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Definition)) {
+            [string]$resolvedCommand.Definition
+        }
+        else {
+            [string]$resolvedCommand.Name
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($candidatePath)) {
+            $selectedCommandPath = $candidatePath
+            break
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($selectedCommandPath)) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = "$Command is not installed."
+            ExitCode = -1
+        }
+    }
+
+    $timeoutSeconds = Get-InstallerVerificationTimeoutSeconds
+    $quotedArguments = @($Arguments | ForEach-Object {
+            if ([string]::IsNullOrWhiteSpace([string]$_)) {
+                '""'
+            }
+            elseif ([string]$_ -match '[\s"]') {
+                '"' + ([string]$_).Replace('"', '\"') + '"'
+            }
+            else {
+                [string]$_
+            }
+        })
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+
+    $filePath = $selectedCommandPath
+    $argumentText = $quotedArguments -join ' '
+    $selectedExtension = [System.IO.Path]::GetExtension($selectedCommandPath).ToLowerInvariant()
+    if (@('.cmd', '.bat') -contains $selectedExtension) {
+        $filePath = if (-not [string]::IsNullOrWhiteSpace($env:ComSpec)) { $env:ComSpec } else { 'cmd.exe' }
+        $argumentText = '/c "' + $selectedCommandPath + '"'
+        if (-not [string]::IsNullOrWhiteSpace($argumentText) -and $quotedArguments.Count -gt 0) {
+            $argumentText += ' ' + ($quotedArguments -join ' ')
+        }
+    }
+    elseif ($selectedExtension -eq '.ps1') {
+        $filePath = (Get-Process -Id $PID).Path
+        $argumentText = '-NoProfile -ExecutionPolicy Bypass -File "' + $selectedCommandPath + '"'
+        if ($quotedArguments.Count -gt 0) {
+            $argumentText += ' ' + ($quotedArguments -join ' ')
+        }
+    }
+
+    $process = $null
+    $exitCode = -3
+    try {
+        $startInfo.FileName = $filePath
+        $startInfo.Arguments = $argumentText
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $startInfo
+        $null = $process.Start()
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
+            try {
+                $process.Kill($true)
+            }
+            catch {
+                try {
+                    & taskkill.exe /PID $process.Id /T /F *> $null
+                }
+                catch {
+                    try {
+                        $process.Kill()
+                    }
+                    catch {
+                    }
+                }
+            }
+
+            $timeoutDrainMs = 250
+            try {
+                $null = $process.WaitForExit($timeoutDrainMs)
+            }
+            catch {
+            }
+
+            $timeoutOutput = @()
+            if ($stdoutTask.IsCompleted) {
+                $timeoutOutput += $stdoutTask.GetAwaiter().GetResult()
+            }
+            if ($stderrTask.IsCompleted) {
+                $timeoutOutput += $stderrTask.GetAwaiter().GetResult()
+            }
+            $timeoutOutput = ($timeoutOutput -join [Environment]::NewLine).Trim()
+
+            return [ordered]@{
+                Succeeded = $false
+                Output = ("$Command timed out after $timeoutSeconds second(s). " + $timeoutOutput).Trim()
+                ExitCode = -2
+            }
+        }
+
+        $exitCode = $process.ExitCode
+    }
+    catch {
+        return [ordered]@{
+            Succeeded = $false
+            Output = $_.Exception.Message
+            ExitCode = -3
+        }
+    }
+    finally {
+        if ($null -ne $process) {
+            $process.Dispose()
+        }
+    }
+
+    $output = @(
+        $stdoutTask.GetAwaiter().GetResult()
+        $stderrTask.GetAwaiter().GetResult()
+    ) -join [Environment]::NewLine
+    $output = $output.Trim()
+    if ($exitCode -ne 0) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = $output
+            ExitCode = $exitCode
+        }
+    }
+
+    $containsToken = if ([string]::IsNullOrWhiteSpace($output)) { $ExpectPresent } else { $output.Contains($ExpectedToken) }
+    return [ordered]@{
+        Succeeded = ($containsToken -eq $ExpectPresent)
+        Output = $output
+        ExitCode = $exitCode
+    }
+}
+
+function Get-InstalledClientLabel {
+    param(
+        [Parameter(Mandatory)] [string]$ClientId,
+        [Parameter(Mandatory)] $State
+    )
+
+    $clientLabel = Resolve-ClientLabel -ClientId $ClientId
+    if (-not $State.registrations.Contains($ClientId)) {
+        return $clientLabel
+    }
+
+    $resolvedVersion = [string]$State.registrations[$ClientId].resolvedVersion
+    if ([string]::IsNullOrWhiteSpace($resolvedVersion)) {
+        return "$clientLabel (Installed)"
+    }
+
+    return "$clientLabel (Installed v$resolvedVersion)"
+}
+
+function Invoke-InstallVerification {
+    param(
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        [Parameter(Mandatory)] [string]$ResolvedVersion,
+        [Parameter(Mandatory)] [string]$InstalledExecutable,
+        [Parameter(Mandatory)] $Registration
+    )
+
+    $verificationSucceeded = $false
+    $verificationMessage = $null
+    $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
+    switch ($clientBaseId) {
+        'claude-code' {
+            $verification = Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true
+            $verificationSucceeded = ($verification.Succeeded -and (Test-Path $InstalledExecutable))
+            $verificationMessage = if ($verificationSucceeded) { 'Verified with claude mcp list.' } else { "Claude verification failed: $($verification.Output)" }
+        }
+        'codex' {
+            $verification = Invoke-VerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true
+            $verificationSucceeded = ($verification.Succeeded -and (Test-Path $InstalledExecutable))
+            $verificationMessage = if ($verificationSucceeded) { 'Verified with codex mcp list.' } else { "Codex verification failed: $($verification.Output)" }
+        }
+        'cursor' {
+            $verificationSucceeded = Test-JsonConfigRegistrationMatchesExecutable -CollectionName 'mcpServers' -ConfigPath ([string]$Registration.target) -InstalledExecutable $InstalledExecutable
+            $verificationMessage = if ($verificationSucceeded) { 'Verified Cursor configuration.' } else { 'Cursor verification failed.' }
+        }
+        'vscode' {
+            $verificationSucceeded = Test-JsonConfigRegistrationMatchesExecutable -CollectionName 'servers' -ConfigPath (Resolve-VsCodeConfigPath) -InstalledExecutable $InstalledExecutable
+            $verificationMessage = if ($verificationSucceeded) { 'Verified VS Code configuration.' } else { 'VS Code verification failed.' }
+        }
+        'visual-studio' {
+            $verificationSucceeded = Test-JsonConfigRegistrationMatchesExecutable -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath) -InstalledExecutable $InstalledExecutable
+            $verificationMessage = if ($verificationSucceeded) { 'Verified Visual Studio configuration.' } else { 'Visual Studio verification failed.' }
+        }
+        'claude-desktop' {
+            $verificationSucceeded = Test-JsonConfigRegistrationMatchesExecutable -CollectionName 'mcpServers' -ConfigPath (Resolve-ClaudeDesktopConfigPath) -InstalledExecutable $InstalledExecutable
+            $verificationMessage = if ($verificationSucceeded) { 'Verified Claude Desktop configuration.' } else { 'Claude Desktop verification failed.' }
+        }
+        'other' {
+            $verificationSucceeded = Test-ArtifactRegistrationMatchesExecutable -ArtifactPath ([string]$Registration.target) -InstalledExecutable $InstalledExecutable
+            $verificationMessage = if ($verificationSucceeded) { 'Verified exported registration artifact.' } else { 'Artifact verification failed.' }
+        }
+    }
+
+    return [ordered]@{
+        Succeeded = $verificationSucceeded
+        InstalledVersion = $ResolvedVersion
+        VerificationMessage = $verificationMessage
+        LastVerifiedUtc = [DateTime]::UtcNow.ToString('o')
+    }
+}
+
+function Invoke-UninstallVerification {
+    param(
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        $RegistrationRecord
+    )
+
+    $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
+    $verificationSucceeded = switch ($clientBaseId) {
+        'claude-code' {
+            (Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            break
+        }
+        'codex' {
+            (Invoke-VerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            break
+        }
+        'cursor' {
+            @(
+                Get-CursorVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
+            ).Where({
+                    Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $_
+                }).Count -eq 0
+            break
+        }
+        'vscode' { -not (Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath (Resolve-VsCodeConfigPath)); break }
+        'visual-studio' { -not (Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath)); break }
+        'claude-desktop' { -not (Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath (Resolve-ClaudeDesktopConfigPath)); break }
+        default { $true }
+    }
+
+    return [ordered]@{
+        Succeeded = [bool]$verificationSucceeded
+        VerificationMessage = "Verified uninstall state for $SelectedClient."
+    }
+}

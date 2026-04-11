@@ -182,7 +182,7 @@ public sealed class GitHubPagesInstallerScriptTests
             json.RootElement.GetProperty("resolvedVersion").GetString().Should().Be("1.2.3");
             json.RootElement.GetProperty("architecture").GetString().Should().Be("x64");
             json.RootElement.GetProperty("packageAssetName").GetString().Should().Be("release_1.2.3_win-x64.zip");
-            json.RootElement.GetProperty("downloadUri").GetString().Should().Contain("github.com/Evanlau1798/wpf-devtools-mcp/releases/download/1.2.3/release_1.2.3_win-x64.zip");
+            json.RootElement.GetProperty("downloadUri").GetString().Should().Contain("github.com/Evanlau1798/wpf-devtools-mcp/releases/download/v1.2.3/release_1.2.3_win-x64.zip");
         }
         finally
         {
@@ -255,6 +255,11 @@ public sealed class GitHubPagesInstallerScriptTests
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Confirm.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Discovery.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Uninstall.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Release.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.PackageIntegrity.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.State.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Registration.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Actions.ps1")).Should().BeTrue();
         }
         finally
         {

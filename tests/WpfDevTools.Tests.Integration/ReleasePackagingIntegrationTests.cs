@@ -22,6 +22,8 @@ public sealed class ReleasePackagingIntegrationTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             var archivePath = Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Single();
+            File.Exists(Path.Combine(outputRoot, "SHA256SUMS.txt")).Should().BeTrue();
+            File.Exists(Path.Combine(outputRoot, "release-assets.json")).Should().BeTrue();
             var extractRoot = ReleasePackagingTestHarness.ExtractArchive(archivePath, tempRoot);
 
             File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();

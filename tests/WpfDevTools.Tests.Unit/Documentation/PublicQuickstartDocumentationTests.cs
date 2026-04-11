@@ -282,6 +282,31 @@ public sealed class PublicQuickstartDocumentationTests
         }
     }
 
+    [Fact]
+    public void InstallerAutomationExamples_ShouldUseNonInteractiveAndOutputJson()
+    {
+        var files = new[]
+        {
+            "docfx/quickstart/index.md",
+            "docfx/quickstart/ai-agent-clients.md",
+            "docfx/quickstart/claude-code.md",
+            "docfx/quickstart/openai-codex.md",
+            "docfx/zh-tw/quickstart/index.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md",
+            "docfx/zh-tw/quickstart/claude-code.md",
+            "docfx/zh-tw/quickstart/openai-codex.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("-NonInteractive",
+                $"{file} should show explicit non-interactive installer usage for automation-safe examples");
+            content.Should().Contain("-OutputJson",
+                $"{file} should show machine-readable installer output for automation-safe examples");
+        }
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
 

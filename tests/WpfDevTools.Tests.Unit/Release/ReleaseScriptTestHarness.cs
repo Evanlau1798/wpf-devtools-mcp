@@ -46,7 +46,9 @@ internal static class ReleaseScriptTestHarness
     {
         var packageDir = Path.Combine(tempRoot, "package");
         var binDir = Path.Combine(packageDir, "bin");
+        var helperDir = Path.Combine(binDir, "installer");
         Directory.CreateDirectory(binDir);
+        Directory.CreateDirectory(helperDir);
         File.WriteAllText(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), "stub");
         var inspectorNet8Dir = Path.Combine(binDir, "inspectors", "net8.0-windows");
         var inspectorNet48Dir = Path.Combine(binDir, "inspectors", "net48");
@@ -72,6 +74,8 @@ internal static class ReleaseScriptTestHarness
                 },
                 bootstrapper = $"bin/bootstrapper/{architecture}/WpfDevTools.Bootstrapper.{architecture}.dll"
             }));
+
+        CopyInstallerHelperFiles(helperDir);
 
         return packageDir;
     }

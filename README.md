@@ -49,7 +49,7 @@ Maintainers should treat `scripts/online-installer.ps1` as the canonical source 
 If you want a single-command, non-interactive setup for a specific client and architecture, use:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Architecture x64 -Client claude-code -Force
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual fallback:
@@ -59,7 +59,7 @@ Manual fallback:
 3. Run `run.bat` from the extracted package. It requests elevation when the current shell is not already elevated and launches the packaged `bin\install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 4. Register or verify the installed executable in your MCP client.
 
-The installer writes ready-to-copy registration snippets under `%APPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.
+The installer writes ready-to-copy registration snippets under `<InstallRoot>\<arch>\client-registration\`. If you do not pass `-InstallRoot`, the default root is `%APPDATA%\WpfDevToolsMcp`.
 
 ### Build
 
@@ -123,7 +123,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "wpf-devtools": {
       "type": "stdio",
-      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
       "args": []
     }
   }
@@ -139,7 +139,7 @@ Add to `.vscode/mcp.json`:
   "servers": {
     "wpf-devtools": {
       "type": "stdio",
-      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
       "args": []
     }
   }
@@ -155,7 +155,7 @@ Add to `.cursor\mcp.json`:
   "mcpServers": {
     "wpf-devtools": {
       "type": "stdio",
-      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
       "args": []
     }
   }

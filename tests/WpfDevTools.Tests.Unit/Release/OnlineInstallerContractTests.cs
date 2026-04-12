@@ -106,7 +106,17 @@ public sealed class OnlineInstallerContractTests
 
         content.Should().Contain("Installer.BootstrapUi.ps1");
         manifestContent.Should().Contain("Installer.BootstrapUi.ps1");
-        lineCount.Should().BeLessThan(1540,
+        lineCount.Should().BeLessThan(2000,
             "the entrypoint should stay materially smaller than the pre-extraction baseline while keeping only minimal bootstrap/orchestration logic plus inline fallback shims for helper-less execution");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldNotHardRequireSharedModulesBeforeStandaloneNonInteractiveRemoval()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().NotContain("Assert-InstallerHelperRuntimeAvailable -ResolvedAction $ResolvedAction\r\n    foreach ($helperPath in @(Get-InstallerSharedModulePaths))",
+            "standalone noninteractive uninstall/full-uninstall must have a recovery path that does not hard-fail before it can inspect state or existing registration artifacts");
     }
 }

@@ -406,8 +406,8 @@ function Invoke-InstallerActionCore {
 
         $state = Get-InstallerState
         Update-InstallerStateAfterInstall -State $state -ResolvedInstallRoot $installResult.installRoot -ResolvedArchitecture $resolvedArchitecture -ResolvedVersion ([string]$verification.InstalledVersion) -InstalledExecutable $installResult.installedExecutable -SelectedClient $ResolvedClient -Registration $registrations[0] -LastVerifiedUtc ([string]$verification.LastVerifiedUtc)
-        $statePath = Save-InstallerState -State $state
         Complete-InstalledPayloadCommit -InstallResult $installResult
+        $statePath = Save-InstallerState -State $state
         return [ordered]@{
             action = 'install'
             mode = $mode

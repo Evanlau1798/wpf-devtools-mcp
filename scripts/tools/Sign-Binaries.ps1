@@ -126,74 +126,73 @@ if ([string]::IsNullOrWhiteSpace($CertificatePath) -and [string]::IsNullOrWhiteS
 
 $activeThumbprint = $CertificateThumbprint
 $importedCertificateThumbprints = @()
+$exitCode = 0
+try {
+    if (-not [string]::IsNullOrWhiteSpace($CertificatePath)) {
+        if (-not (Test-Path $CertificatePath)) {
+            throw "Certificate file not found: $CertificatePath"
+        }
 
-if (-not [string]::IsNullOrWhiteSpace($CertificatePath)) {
-    if (-not (Test-Path $CertificatePath)) {
-        Write-Host "ERROR: Certificate file not found: $CertificatePath" -ForegroundColor Red
-        exit 1
-    }
-
-    try {
         $certificatePassword = Get-CertificatePassword -EnvironmentVariableName $PasswordEnvironmentVariable
         $importResult = Import-SigningCertificate -Path $CertificatePath -Password $certificatePassword
         $activeThumbprint = [string]$importResult.Thumbprint
         $importedCertificateThumbprints = @($importResult.ImportedThumbprints)
     }
-    catch {
-        Write-Host "ERROR: Failed to import certificate: $($_.Exception.Message)" -ForegroundColor Red
-        exit 1
+
+    if ([string]::IsNullOrWhiteSpace($activeThumbprint)) {
+        throw 'Certificate thumbprint could not be resolved.'
     }
-}
 
-if ([string]::IsNullOrWhiteSpace($activeThumbprint)) {
-    Write-Host "ERROR: Certificate thumbprint could not be resolved." -ForegroundColor Red
-    exit 1
-}
-
-$binaries = Get-BinariesToSign -Roots (Get-BinaryRoots)
-if ($binaries.Count -eq 0) {
-    Write-Host "No binaries found to sign. Did you build the project?" -ForegroundColor Yellow
-    Remove-ImportedSigningCertificates -Thumbprints $importedCertificateThumbprints
-    exit 0
-}
-
-Write-Host "Found $($binaries.Count) binaries to sign" -ForegroundColor Cyan
-
-$successCount = 0
-$failCount = 0
-
-foreach ($binary in $binaries) {
-    Write-Host "Signing: $($binary.FullName)" -ForegroundColor Gray
-
-    $result = & $signtool sign `
-        /sha1 $activeThumbprint `
-        /s My `
-        /fd SHA256 `
-        /tr $TimestampServer `
-        /td SHA256 `
-        /v `
-        $binary.FullName 2>&1
-
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "  Signed successfully" -ForegroundColor Green
-        $successCount++
+    $binaries = Get-BinariesToSign -Roots (Get-BinaryRoots)
+    if ($binaries.Count -eq 0) {
+        Write-Host "No binaries found to sign. Did you build the project?" -ForegroundColor Yellow
     }
     else {
-        Write-Host "  Failed to sign" -ForegroundColor Red
-        Write-Host "  Error: $result" -ForegroundColor Red
-        $failCount++
+        Write-Host "Found $($binaries.Count) binaries to sign" -ForegroundColor Cyan
+
+        $successCount = 0
+        $failCount = 0
+
+        foreach ($binary in $binaries) {
+            Write-Host "Signing: $($binary.FullName)" -ForegroundColor Gray
+
+            $result = & $signtool sign `
+                /sha1 $activeThumbprint `
+                /s My `
+                /fd SHA256 `
+                /tr $TimestampServer `
+                /td SHA256 `
+                /v `
+                $binary.FullName 2>&1
+
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "  Signed successfully" -ForegroundColor Green
+                $successCount++
+            }
+            else {
+                Write-Host "  Failed to sign" -ForegroundColor Red
+                Write-Host "  Error: $result" -ForegroundColor Red
+                $failCount++
+            }
+        }
+
+        Write-Host "`nSigning Summary:" -ForegroundColor Yellow
+        Write-Host "  Success: $successCount" -ForegroundColor Green
+        Write-Host "  Failed: $failCount" -ForegroundColor Red
+
+        if ($failCount -gt 0) {
+            throw 'Some binaries failed to sign. Please check the errors above.'
+        }
+
+        Write-Host "`nAll binaries signed successfully!" -ForegroundColor Green
     }
 }
-
-Write-Host "`nSigning Summary:" -ForegroundColor Yellow
-Write-Host "  Success: $successCount" -ForegroundColor Green
-Write-Host "  Failed: $failCount" -ForegroundColor Red
-
-if ($failCount -gt 0) {
-    Write-Host "`nSome binaries failed to sign. Please check the errors above." -ForegroundColor Red
-    exit 1
+catch {
+    Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+    $exitCode = 1
+}
+finally {
+    Remove-ImportedSigningCertificates -Thumbprints $importedCertificateThumbprints
 }
 
-Remove-ImportedSigningCertificates -Thumbprints $importedCertificateThumbprints
-
-Write-Host "`nAll binaries signed successfully!" -ForegroundColor Green
+exit $exitCode

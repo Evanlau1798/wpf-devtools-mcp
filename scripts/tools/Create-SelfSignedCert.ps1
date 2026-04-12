@@ -64,6 +64,7 @@ Write-Host "  3. Select 'Local Machine' (requires admin)"
 Write-Host "  4. Place in 'Trusted Root Certification Authorities'"
 
 Write-Host "`nTo use this certificate for signing:" -ForegroundColor Green
-Write-Host "  .\scripts\tools\Sign-Binaries.ps1 -CertificatePath '$pfxPath' -Password '$Password'"
+Write-Host "  `$env:WPFDEVTOOLS_PFX_PASSWORD = '$Password'"
+Write-Host "  .\scripts\tools\Sign-Binaries.ps1 -CertificatePath '$pfxPath'"
 
 Write-Host "`nDone!" -ForegroundColor Green

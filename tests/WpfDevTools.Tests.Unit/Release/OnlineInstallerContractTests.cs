@@ -94,4 +94,19 @@ public sealed class OnlineInstallerContractTests
         content.Should().NotContain("Open docs homepage");
         content.Should().NotContain("WindowChrome.WindowChrome");
     }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldOffloadBootstrapUiHelpersIntoInstallerModules()
+    {
+        var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+        var content = File.ReadAllText(scriptPath);
+        var lineCount = File.ReadLines(scriptPath).Count();
+        var manifestContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
+
+        content.Should().Contain("Installer.BootstrapUi.ps1");
+        manifestContent.Should().Contain("Installer.BootstrapUi.ps1");
+        lineCount.Should().BeLessThan(1540,
+            "the entrypoint should stay materially smaller than the pre-extraction baseline while keeping only minimal bootstrap/orchestration logic plus inline fallback shims for helper-less execution");
+    }
 }

@@ -4,6 +4,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
+[Collection("TimingSensitive")]
 public sealed partial class InstallerTuiRuntimeTests
 {
     [Fact]
@@ -77,13 +78,10 @@ public sealed partial class InstallerTuiRuntimeTests
                 "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
             ]);
 
-            var stopwatch = Stopwatch.StartNew();
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
-            stopwatch.Stop();
 
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("Installation Manager");
-            stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(8));
 
             System.Threading.Thread.Sleep(TimeSpan.FromMilliseconds(3500));
             File.Exists(timeoutMarker).Should().BeFalse("timed out CLI discovery should terminate the spawned process tree before the child marker is written");

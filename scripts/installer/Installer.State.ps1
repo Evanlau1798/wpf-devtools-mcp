@@ -64,7 +64,16 @@ function Save-InstallerState {
     param([Parameter(Mandatory)] $State)
 
     $statePath = Resolve-InstallerStatePath -CreateRoot
-    $State | ConvertTo-Json -Depth 10 | Set-Content -Path $statePath -Encoding UTF8
+    $tempStatePath = "$statePath.tmp-$([guid]::NewGuid().ToString('N'))"
+    try {
+        $State | ConvertTo-Json -Depth 10 | Set-Content -Path $tempStatePath -Encoding UTF8
+        Move-Item -Path $tempStatePath -Destination $statePath -Force
+    }
+    finally {
+        if (Test-Path $tempStatePath) {
+            Remove-Item -Path $tempStatePath -Force
+        }
+    }
     return $statePath
 }
 

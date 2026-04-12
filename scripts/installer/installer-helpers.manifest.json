@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
-  "cacheKey": "sha256:df81507cdd1edb975ebc522a1f5543697c50cda0a75c9b9f2610671cfba7694c",
+  "cacheKey": "sha256:4189b13b82f15a4f88acf4b2f9bd2531322b9e456d1db03cfdd087e92e0bff4a",
   "helperFiles": [
+    "Installer.BootstrapUi.ps1",
     "Tui.Terminal.ps1",
     "Tui.Layout.ps1",
     "Tui.ScreenModel.ps1",

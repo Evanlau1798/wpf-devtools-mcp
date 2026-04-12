@@ -13,6 +13,7 @@ using Xunit.Abstractions;
 
 namespace WpfDevTools.Tests.Unit.Security;
 
+[Collection("TimingSensitive")]
 public class EncryptedCommunicationTests : IDisposable
 {
     private readonly string _tempCertDir;

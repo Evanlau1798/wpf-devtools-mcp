@@ -6,6 +6,8 @@ using WpfDevTools.Tests.Unit.Inspector;
 using WpfDevTools.Tests.Unit.Inspector.Analyzers;
 using WpfDevTools.Tests.Unit.Inspector.Utilities;
 using WpfDevTools.Tests.Unit.McpServer;
+using WpfDevTools.Tests.Unit.Release;
+using WpfDevTools.Tests.Unit.Security;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Execution;
@@ -66,6 +68,10 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(FileLoggerPerformanceTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(NamedPipeClientTimeoutBudgetTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostAuthTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InstallerTuiRuntimeTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InstallerTuiInstallLocationEditorTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InstallerProcessLifecycleTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(EncryptedCommunicationTests)).Should().Be("TimingSensitive");
     }
 
     [Fact]

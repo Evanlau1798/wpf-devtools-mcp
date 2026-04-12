@@ -97,6 +97,7 @@ public class DllInjector
     {
         IntPtr hProcess = IntPtr.Zero;
         IntPtr allocatedMemory = IntPtr.Zero;
+        var shouldFreeAllocatedMemory = false;
 
         try
         {
@@ -211,6 +212,7 @@ public class DllInjector
                     $"Unexpected wait result: 0x{waitResult:X8}");
             }
 
+            shouldFreeAllocatedMemory = true;
             return InjectionResult.CreateSuccess(processId, dllPath);
         }
         catch (Exception ex)
@@ -222,8 +224,8 @@ public class DllInjector
         }
         finally
         {
-            // Cleanup
-            if (allocatedMemory != IntPtr.Zero && hProcess != IntPtr.Zero)
+            // Only release the remote buffer after the remote thread is known to be finished.
+            if (shouldFreeAllocatedMemory && allocatedMemory != IntPtr.Zero && hProcess != IntPtr.Zero)
             {
                 VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
             }
@@ -249,6 +251,8 @@ public class DllInjector
         string parameters,
         TimeSpan timeout)
     {
+        var shouldFreeBootstrapParameters = false;
+
         // Step 1: Load bootstrapper via LoadLibraryW
         if (!LoadLibraryRemote(hProcess, bootstrapperPath, timeout))
             return InjectionMechanismFailure.LoadBootstrapperFailed;
@@ -294,19 +298,23 @@ public class DllInjector
         if (waitResult != WAIT_OBJECT_0)
         {
             CloseHandle(hThread);
-            VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
             return InjectionMechanismFailure.InvokeBootstrapExportTimedOut;
         }
 
+        shouldFreeBootstrapParameters = true;
         GetExitCodeThread(hThread, out uint exitCode);
         CloseHandle(hThread);
-        VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
+        if (shouldFreeBootstrapParameters && remoteParamAddr != IntPtr.Zero)
+        {
+            VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
+        }
 
         return (int)exitCode;
     }
 
     private bool LoadLibraryRemote(IntPtr hProcess, string dllPath, TimeSpan timeout)
     {
+        var shouldFreeAllocatedMemory = false;
         var kernel32 = GetModuleHandle("kernel32.dll");
         var loadLibraryAddr = GetProcAddress(kernel32, "LoadLibraryW");
         if (loadLibraryAddr == IntPtr.Zero)
@@ -345,8 +353,16 @@ public class DllInjector
             remoteModuleHandle = new IntPtr(unchecked((int)exitCode));
         }
 
+        if (waitResult == LoadLibraryRemoteResult.WaitObject0)
+        {
+            shouldFreeAllocatedMemory = true;
+        }
+
         CloseHandle(hThread);
-        VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
+        if (shouldFreeAllocatedMemory)
+        {
+            VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
+        }
 
         return LoadLibraryRemoteResult.IsSuccessful(
             waitResult,

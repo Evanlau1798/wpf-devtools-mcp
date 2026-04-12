@@ -23,7 +23,8 @@ if /I not "%WPFDEVTOOLS_SKIP_ELEVATION%"=="1" (
     )
 )
 
-"%POWERSHELL_EXE%" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_SCRIPT%" %*
+call :build_install_args %*
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_SCRIPT%" %INSTALL_ARGS%
 set "EXIT_CODE=%ERRORLEVEL%"
 
 if not "%EXIT_CODE%"=="0" (
@@ -33,10 +34,21 @@ if not "%EXIT_CODE%"=="0" (
 exit /b %EXIT_CODE%
 
 :elevate
-set "ELEVATED_COMMAND=""%POWERSHELL_EXE%"" -NoLogo -NoProfile -ExecutionPolicy Bypass -File ""%INSTALL_SCRIPT%"" %*"
+call :build_install_args %*
+set "ELEVATED_COMMAND=""%POWERSHELL_EXE%"" -NoLogo -NoProfile -ExecutionPolicy Bypass -File ""%INSTALL_SCRIPT%"" %INSTALL_ARGS%"
 "%POWERSHELL_EXE%" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$process = Start-Process -Verb RunAs -FilePath $env:ComSpec -ArgumentList '/c', $env:ELEVATED_COMMAND -Wait -PassThru; exit $process.ExitCode"
 set "EXIT_CODE=%ERRORLEVEL%"
 if not "%EXIT_CODE%"=="0" (
     echo Elevation failed with exit code %EXIT_CODE%.
 )
 exit /b %EXIT_CODE%
+
+:build_install_args
+set "INSTALL_ARGS="
+if "%~1"=="" goto :eof
+set "BATCH_ARG=%~1"
+setlocal EnableDelayedExpansion
+set "BATCH_ARG=!BATCH_ARG:"=""!"
+for %%I in ("!BATCH_ARG!") do endlocal & set "INSTALL_ARGS=%INSTALL_ARGS% "%%~I""
+shift
+goto build_install_args

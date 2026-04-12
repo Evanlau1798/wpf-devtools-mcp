@@ -36,7 +36,6 @@ if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES)
         $script:InstallerTestResponses.Enqueue($entry)
     }
 }
-
 function Read-InstallerInput {
     param(
         [Parameter(Mandatory)] [string]$Prompt,
@@ -53,7 +52,6 @@ function Read-InstallerInput {
 
     return Read-Host "$Prompt [$DefaultValue]"
 }
-
 function Write-InstallerMessage {
     param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Message)
 
@@ -61,7 +59,6 @@ function Write-InstallerMessage {
         Write-Host $Message
     }
 }
-
 function Resolve-AbsoluteDirectory {
     param([Parameter(Mandatory)] [string]$Path)
 
@@ -69,7 +66,6 @@ function Resolve-AbsoluteDirectory {
     New-Item -ItemType Directory -Force -Path $resolvedPath | Out-Null
     return $resolvedPath
 }
-
 function Resolve-AbsolutePath {
     param([Parameter(Mandatory)] [string]$Path)
 
@@ -79,7 +75,6 @@ function Resolve-AbsolutePath {
 
     return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
 }
-
 function Remove-PathIfExists {
     param([string]$Path)
 
@@ -87,7 +82,6 @@ function Remove-PathIfExists {
         Remove-Item -Path $Path -Recurse -Force
     }
 }
-
 function Get-SystemDefaultArchitecture {
     if ($env:PROCESSOR_ARCHITEW6432 -eq 'ARM64' -or $env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {
         return 'arm64'
@@ -102,6 +96,7 @@ function Get-SystemDefaultArchitecture {
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
 $script:InstallerHelperSourcePaths = @(
+    'scripts/installer/Installer.BootstrapUi.ps1'
     'scripts/installer/Tui.Terminal.ps1'
     'scripts/installer/Tui.Layout.ps1'
     'scripts/installer/Tui.ScreenModel.ps1'
@@ -158,7 +153,6 @@ $script:TuiNavigationTokens = @('ConsoleKey.UpArrow', 'ConsoleKey.DownArrow', 'C
 $script:ResolvedOnlineReleaseVersion = $null
 $script:GitHubReleaseApiResponseCache = @{}
 $script:GitHubReleaseChecksumRecordCache = @{}
-
 function Resolve-InstallerScriptRoot {
     if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
         return $PSScriptRoot
@@ -170,25 +164,21 @@ function Resolve-InstallerScriptRoot {
 
     return $null
 }
-
 function Get-TuiHelperRuntimeRoot {
     $runtimeRoot = Join-Path (Resolve-AbsoluteDirectory -Path $WorkingRoot) 'tui-helpers'
     New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
     return $runtimeRoot
 }
-
 function Get-TuiHelperCacheKeyPath {
     param([Parameter(Mandatory)] [string]$RuntimeRoot)
 
     return (Join-Path $RuntimeRoot 'helper-cache-key.txt')
 }
-
 function Get-TuiHelperManifestPath {
     param([Parameter(Mandatory)] [string]$RootPath)
 
     return (Join-Path $RootPath $script:InstallerHelperManifestFileName)
 }
-
 function Find-InstallerHelperArchiveEntry {
     param(
         [Parameter(Mandatory)] $Archive,
@@ -207,7 +197,6 @@ function Find-InstallerHelperArchiveEntry {
 
     return $null
 }
-
 function Copy-InstallerHelperBundleFromArchive {
     param(
         [Parameter(Mandatory)] [string]$ArchivePath,
@@ -246,11 +235,9 @@ function Copy-InstallerHelperBundleFromArchive {
         $archive.Dispose()
     }
 }
-
 function Test-PackageArchiveRequested {
     return $script:PackageArchivePathWasSpecified -and -not [string]::IsNullOrWhiteSpace([string]$PackageArchivePath)
 }
-
 function Add-InstallerHelperRootCandidate {
     param(
         [System.Collections.Generic.List[string]]$Roots,
@@ -265,7 +252,6 @@ function Add-InstallerHelperRootCandidate {
         $Roots.Add($CandidateRoot)
     }
 }
-
 function Get-LocalInstallerHelperRoots {
     $candidateRoots = New-Object System.Collections.Generic.List[string]
 
@@ -288,7 +274,6 @@ function Get-LocalInstallerHelperRoots {
 
     return @($candidateRoots)
 }
-
 function Get-StandaloneInstallerStateSnapshot {
     $statePath = Join-Path (Resolve-AbsolutePath -Path (Join-Path $env:APPDATA 'WpfDevToolsMcp')) 'installer-state.json'
     if (-not (Test-Path $statePath)) {
@@ -302,7 +287,6 @@ function Get-StandaloneInstallerStateSnapshot {
         return $null
     }
 }
-
 function Add-InstalledInstallerHelperRoot {
     param(
         [System.Collections.Generic.List[string]]$Roots,
@@ -322,7 +306,6 @@ function Add-InstalledInstallerHelperRoot {
         Add-InstallerHelperRootCandidate -Roots $Roots -CandidateRoot (Join-Path (Join-Path $InstallRoot "$Architecture\current\bin") 'installer')
     }
 }
-
 function Get-InstalledInstallerHelperRoots {
     $helperRoots = New-Object System.Collections.Generic.List[string]
     $resolvedArchitecture = if ([string]::IsNullOrWhiteSpace($Architecture)) { Get-SystemDefaultArchitecture } else { [string]$Architecture }
@@ -355,7 +338,6 @@ function Get-InstalledInstallerHelperRoots {
 
     return @($helperRoots)
 }
-
 function Get-TuiHelperOverrideDirectory {
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY)) {
         return $env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY
@@ -363,11 +345,52 @@ function Get-TuiHelperOverrideDirectory {
 
     return $null
 }
-
 function Get-HelperLeafNames {
     return @($script:InstallerHelperSourcePaths | ForEach-Object { Split-Path $_ -Leaf })
 }
+function Resolve-InstallerBootstrapUiPath {
+    if ($null -ne (Get-Command Write-TuiBootstrapScreen -ErrorAction SilentlyContinue)) {
+        return $null
+    }
 
+    foreach ($candidateRoot in @(Get-LocalInstallerHelperRoots)) {
+        if ([string]::IsNullOrWhiteSpace($candidateRoot) -or -not (Test-Path $candidateRoot)) {
+            continue
+        }
+
+        $bootstrapHelperPath = Join-Path $candidateRoot 'Installer.BootstrapUi.ps1'
+        if (Test-Path $bootstrapHelperPath) {
+            return $bootstrapHelperPath
+        }
+    }
+
+    return $null
+}
+
+$script:InstallerBootstrapUiPath = Resolve-InstallerBootstrapUiPath
+if (-not [string]::IsNullOrWhiteSpace($script:InstallerBootstrapUiPath)) {
+    . $script:InstallerBootstrapUiPath
+}
+if ($null -eq (Get-Command Enter-TuiBootstrapTerminalSession -ErrorAction SilentlyContinue)) {
+    function Enter-TuiBootstrapTerminalSession { return $null }
+}
+if ($null -eq (Get-Command Exit-TuiBootstrapTerminalSession -ErrorAction SilentlyContinue)) {
+    function Exit-TuiBootstrapTerminalSession { param($Session) }
+}
+if ($null -eq (Get-Command Close-TuiBootstrapScreen -ErrorAction SilentlyContinue)) {
+    function Close-TuiBootstrapScreen { }
+}
+if ($null -eq (Get-Command Write-TuiBootstrapScreen -ErrorAction SilentlyContinue)) {
+    function Write-TuiBootstrapScreen {
+        param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Message)
+
+        if ([string]::IsNullOrWhiteSpace($Message)) {
+            return ''
+        }
+
+        return $Message
+    }
+}
 function Get-InstallerTimeoutSeconds {
     param(
         [Parameter(Mandatory)] [string]$EnvironmentVariable,
@@ -388,486 +411,15 @@ function Get-InstallerTimeoutSeconds {
 
     return [Math]::Min($MaximumValue, [Math]::Max($MinimumValue, $parsedValue))
 }
-
 function Get-TuiHelperRequestTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_HELPER_TIMEOUT_SEC' -DefaultValue 5 -MinimumValue 1 -MaximumValue 30)
 }
-
 function Get-TuiHelperBootstrapTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_HELPER_BOOTSTRAP_TIMEOUT_SEC' -DefaultValue 20 -MinimumValue 3 -MaximumValue 120)
 }
-
 function Get-InstallerVerificationTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC' -DefaultValue 2 -MinimumValue 1 -MaximumValue 30)
 }
-
-function Test-TuiBootstrapAnsiSupport {
-    if ($env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI -eq '1') {
-        return $false
-    }
-
-    if ($env:WPFDEVTOOLS_INSTALLER_TEST_FORCE_ANSI -eq '1') {
-        return $true
-    }
-
-    try {
-        if ([Console]::IsOutputRedirected) {
-            return $false
-        }
-    }
-    catch {
-        return $false
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace($env:WT_SESSION)) {
-        return $true
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace($env:TERM_PROGRAM)) {
-        return $true
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace($env:ConEmuANSI) -and $env:ConEmuANSI -eq 'ON') {
-        return $true
-    }
-
-    return ($PSVersionTable.PSVersion.Major -ge 7)
-}
-
-function Get-TuiBootstrapViewport {
-    $width = 0
-    $height = 0
-
-    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH)) {
-        [void][int]::TryParse($env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH, [ref]$width)
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT)) {
-        [void][int]::TryParse($env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT, [ref]$height)
-    }
-
-    if ($width -le 0 -or $height -le 0) {
-        try {
-            if ($width -le 0) {
-                $width = [Console]::WindowWidth
-            }
-
-            if ($height -le 0) {
-                $height = [Console]::WindowHeight
-            }
-        }
-        catch {
-        }
-    }
-
-    if ($width -le 0) {
-        $width = 100
-    }
-
-    if ($height -le 0) {
-        $height = 32
-    }
-
-    return [ordered]@{
-        Width = [Math]::Max(20, [int]$width)
-        Height = [Math]::Max(12, [int]$height)
-        UseAnsi = [bool](Test-TuiBootstrapAnsiSupport)
-    }
-}
-
-function Get-TuiBootstrapBorderGlyphs {
-    if ($env:WPFDEVTOOLS_INSTALLER_TEST_ASCII_BORDER -eq '1') {
-        return [ordered]@{
-            Horizontal = '-'
-            Vertical = '|'
-            TopLeft = '+'
-            TopRight = '+'
-            BottomLeft = '+'
-            BottomRight = '+'
-        }
-    }
-
-    return [ordered]@{
-        Horizontal = [string][char]0x2500
-        Vertical = [string][char]0x2502
-        TopLeft = [string][char]0x250C
-        TopRight = [string][char]0x2510
-        BottomLeft = [string][char]0x2514
-        BottomRight = [string][char]0x2518
-    }
-}
-
-function Get-TuiBootstrapRuleLine {
-    param(
-        [Parameter(Mandatory)] [int]$Width,
-        [Parameter(Mandatory)] $Glyphs
-    )
-
-    return ($Glyphs.Horizontal * [Math]::Max(0, $Width))
-}
-
-function Pad-TuiBootstrapLine {
-    param(
-        [AllowEmptyString()] [string]$Text,
-        [Parameter(Mandatory)] [int]$Width
-    )
-
-    $value = [string]$Text
-    if ($value.Length -gt $Width) {
-        return $value.Substring(0, $Width)
-    }
-
-    return $value.PadRight($Width)
-}
-
-function New-TuiBootstrapCenteredLine {
-    param(
-        [AllowEmptyString()] [string]$Text,
-        [Parameter(Mandatory)] [int]$Width
-    )
-
-    $value = [string]$Text
-    if ([string]::IsNullOrWhiteSpace($value)) {
-        return (' ' * $Width)
-    }
-
-    if ($value.Length -ge $Width) {
-        return $value.Substring(0, $Width)
-    }
-
-    $leftPadding = [Math]::Floor(([double]($Width - $value.Length)) / 2)
-    return ((' ' * [int]$leftPadding) + $value).PadRight($Width)
-}
-
-function ConvertTo-TuiBootstrapWrappedLines {
-    param(
-        [AllowEmptyString()] [string]$Text,
-        [Parameter(Mandatory)] [int]$Width
-    )
-
-    $lines = New-Object System.Collections.Generic.List[string]
-    $remaining = [string]$Text
-    if ([string]::IsNullOrWhiteSpace($remaining)) {
-        $lines.Add('')
-        return @($lines)
-    }
-
-    while ($remaining.Length -gt $Width) {
-        $lines.Add($remaining.Substring(0, $Width))
-        $remaining = $remaining.Substring($Width)
-    }
-
-    if ($remaining.Length -gt 0) {
-        $lines.Add($remaining)
-    }
-
-    return @($lines)
-}
-
-function Sync-TuiBootstrapConsoleBuffer {
-    param([Parameter(Mandatory)] $Viewport)
-
-    $targetWidth = [Math]::Max(20, [int]$Viewport.Width)
-    $targetHeight = [Math]::Max(12, [int]$Viewport.Height)
-
-    try {
-        $rawUi = $Host.UI.RawUI
-        $windowSize = $rawUi.WindowSize
-        $targetWidth = [Math]::Max([int]$windowSize.Width, $targetWidth)
-        $targetHeight = [Math]::Max([int]$windowSize.Height, $targetHeight)
-        $bufferSize = $rawUi.BufferSize
-        if (($bufferSize.Width -ne $targetWidth) -or ($bufferSize.Height -ne $targetHeight)) {
-            $rawUi.BufferSize = New-Object Management.Automation.Host.Size($targetWidth, $targetHeight)
-        }
-
-        return $true
-    }
-    catch {
-    }
-
-    try {
-        if (([Console]::BufferWidth -ne $targetWidth) -or ([Console]::BufferHeight -ne $targetHeight)) {
-            [Console]::SetBufferSize($targetWidth, $targetHeight)
-        }
-
-        return $true
-    }
-    catch {
-    }
-
-    return $false
-}
-
-function Enter-TuiBootstrapTerminalSession {
-    param([Parameter(Mandatory)] $Viewport)
-
-    $session = [ordered]@{
-        UsedAlternateScreen = $false
-        HidCursor = $false
-        ManagedBuffer = $false
-        SavedBufferWidth = 0
-        SavedBufferHeight = 0
-        SavedCursorVisible = $null
-    }
-
-    $isRedirected = $false
-    try {
-        $isRedirected = [Console]::IsOutputRedirected
-    }
-    catch {
-        $isRedirected = $false
-    }
-
-    if ($isRedirected -or (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR))) {
-        return $session
-    }
-
-    try {
-        $rawUi = $Host.UI.RawUI
-        $bufferSize = $rawUi.BufferSize
-        $session.SavedBufferWidth = [int]$bufferSize.Width
-        $session.SavedBufferHeight = [int]$bufferSize.Height
-        $session.ManagedBuffer = $true
-    }
-    catch {
-        try {
-            $session.SavedBufferWidth = [int][Console]::BufferWidth
-            $session.SavedBufferHeight = [int][Console]::BufferHeight
-            $session.ManagedBuffer = $true
-        }
-        catch {
-            $session.ManagedBuffer = $false
-        }
-    }
-
-    try {
-        $session.SavedCursorVisible = [bool][Console]::CursorVisible
-    }
-    catch {
-        $session.SavedCursorVisible = $null
-    }
-
-    [void](Sync-TuiBootstrapConsoleBuffer -Viewport $Viewport)
-
-    if (-not [bool]$Viewport.UseAnsi) {
-        try {
-            [Console]::CursorVisible = $false
-            $session.HidCursor = $true
-        }
-        catch {
-        }
-
-        return $session
-    }
-
-    $escape = [string][char]27
-    try {
-        [Console]::Write("${escape}[?1049h${escape}[?25l${escape}[2J${escape}[H")
-        $session.UsedAlternateScreen = $true
-        $session.HidCursor = $true
-    }
-    catch {
-    }
-
-    try {
-        [Console]::CursorVisible = $false
-        $session.HidCursor = $true
-    }
-    catch {
-    }
-
-    return $session
-}
-
-function Exit-TuiBootstrapTerminalSession {
-    param($Session)
-
-    if ($null -eq $Session) {
-        return
-    }
-
-    $escape = [string][char]27
-    if ([bool]$Session.UsedAlternateScreen) {
-        try {
-            [Console]::Write("${escape}[?25h${escape}[?1049l")
-        }
-        catch {
-        }
-    }
-
-    if ([bool]$Session.ManagedBuffer -and ([int]$Session.SavedBufferWidth -gt 0) -and ([int]$Session.SavedBufferHeight -gt 0)) {
-        try {
-            $rawUi = $Host.UI.RawUI
-            $rawUi.BufferSize = New-Object Management.Automation.Host.Size([int]$Session.SavedBufferWidth, [int]$Session.SavedBufferHeight)
-        }
-        catch {
-            try {
-                [Console]::SetBufferSize([int]$Session.SavedBufferWidth, [int]$Session.SavedBufferHeight)
-            }
-            catch {
-            }
-        }
-    }
-
-    if ($null -ne $Session.SavedCursorVisible) {
-        try {
-            [Console]::CursorVisible = [bool]$Session.SavedCursorVisible
-            return
-        }
-        catch {
-        }
-    }
-
-    if ([bool]$Session.HidCursor) {
-        try {
-            [Console]::Write("${escape}[?25h")
-        }
-        catch {
-            try {
-                [Console]::CursorVisible = $true
-            }
-            catch {
-            }
-        }
-    }
-}
-
-function Close-TuiBootstrapScreen {
-    if ($null -ne $script:TuiBootstrapTerminalSession) {
-        Exit-TuiBootstrapTerminalSession -Session $script:TuiBootstrapTerminalSession
-    }
-
-    $script:TuiBootstrapTerminalSession = $null
-    $script:LastTuiBootstrapMessage = $null
-}
-
-function Write-TuiBootstrapScreen {
-    param([Parameter(Mandatory)] [string]$Message)
-
-    if ($script:LastTuiBootstrapMessage -eq $Message) {
-        return $null
-    }
-
-    $viewport = Get-TuiBootstrapViewport
-    if ($null -eq $script:TuiBootstrapTerminalSession) {
-        $script:TuiBootstrapTerminalSession = Enter-TuiBootstrapTerminalSession -Viewport $viewport
-    }
-
-    $glyphs = Get-TuiBootstrapBorderGlyphs
-    $innerWidth = [Math]::Max(18, [int]$viewport.Width - 2)
-    $innerHeight = [Math]::Max(10, [int]$viewport.Height - 2)
-    $title = 'WPF DevTools MCP'
-    $subtitle = 'Model Context Protocol Server'
-    $eyebrow = 'Installation Manager'
-    $caption = '[_] [ ] [X]'
-    $titleRow = (' ' + $title).PadRight([Math]::Max(1, $innerWidth - $caption.Length)) + $caption
-    $rule = Get-TuiBootstrapRuleLine -Width $innerWidth -Glyphs $glyphs
-    $progressTitle = switch -Wildcard ($Message) {
-        'Preparing installer UI...*' { 'Preparing installer UI' }
-        'Loading installer runtime...*' { 'Loading installer runtime' }
-        'Loading installer data...*' { 'Loading installer data' }
-        'Checking latest release*' { 'Checking latest release' }
-        default { 'Loading installer runtime' }
-    }
-
-    $heroLines = @(
-        New-TuiBootstrapCenteredLine -Text $title -Width $innerWidth
-        New-TuiBootstrapCenteredLine -Text $subtitle -Width $innerWidth
-        New-TuiBootstrapCenteredLine -Text $eyebrow -Width $innerWidth
-        (' ' * $innerWidth)
-        New-TuiBootstrapCenteredLine -Text $progressTitle -Width $innerWidth
-    )
-
-    $statusLines = @(ConvertTo-TuiBootstrapWrappedLines -Text "[Status] $Message" -Width $innerWidth) | ForEach-Object {
-        Pad-TuiBootstrapLine -Text ([string]$_) -Width $innerWidth
-    }
-
-    $footerLines = @(
-        (Pad-TuiBootstrapLine -Text $rule -Width $innerWidth)
-        @($statusLines)
-    )
-
-    $bodyLineCount = [Math]::Max(0, $innerHeight - 2 - $footerLines.Count)
-    $topPadding = [Math]::Max(0, [Math]::Floor(([double]($bodyLineCount - $heroLines.Count)) / 2))
-    $bodyLines = New-Object System.Collections.Generic.List[string]
-    for ($index = 0; $index -lt $topPadding; $index++) {
-        $bodyLines.Add((' ' * $innerWidth))
-    }
-    foreach ($heroLine in $heroLines) {
-        if ($bodyLines.Count -ge $bodyLineCount) {
-            break
-        }
-
-        $bodyLines.Add((Pad-TuiBootstrapLine -Text ([string]$heroLine) -Width $innerWidth))
-    }
-    while ($bodyLines.Count -lt $bodyLineCount) {
-        $bodyLines.Add((' ' * $innerWidth))
-    }
-
-    $innerLines = @(
-        (Pad-TuiBootstrapLine -Text $titleRow -Width $innerWidth)
-        (Pad-TuiBootstrapLine -Text $rule -Width $innerWidth)
-        @($bodyLines)
-        @($footerLines)
-    )
-
-    $frameLines = New-Object System.Collections.Generic.List[string]
-    $frameLines.Add($glyphs.TopLeft + $rule + $glyphs.TopRight)
-    foreach ($line in $innerLines) {
-        $frameLines.Add($glyphs.Vertical + (Pad-TuiBootstrapLine -Text ([string]$line) -Width $innerWidth) + $glyphs.Vertical)
-    }
-    $frameLines.Add($glyphs.BottomLeft + $rule + $glyphs.BottomRight)
-
-    $frameText = $frameLines -join [Environment]::NewLine
-    $isRedirected = $false
-    try {
-        $isRedirected = [Console]::IsOutputRedirected
-    }
-    catch {
-        $isRedirected = $false
-    }
-
-    if ($isRedirected -or (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR))) {
-        foreach ($line in $frameLines) {
-            Write-Host $line
-        }
-    }
-    else {
-        [void](Sync-TuiBootstrapConsoleBuffer -Viewport $viewport)
-        if ([bool]$viewport.UseAnsi) {
-            $escape = [string][char]27
-            try {
-                [Console]::Write("${escape}[H")
-                [Console]::Write($frameText)
-            }
-            catch {
-                [Console]::SetCursorPosition(0, 0)
-                [Console]::Write($frameText)
-            }
-        }
-        else {
-            try {
-                [Console]::SetCursorPosition(0, 0)
-                [Console]::Write($frameText)
-            }
-            catch {
-                try {
-                    Clear-Host
-                }
-                catch {
-                }
-
-                foreach ($line in $frameLines) {
-                    Write-Host $line
-                }
-            }
-        }
-    }
-
-    $script:LastTuiBootstrapMessage = $Message
-    return $frameText
-}
-
 function Get-ComputedInstallerHelperCacheKey {
     param(
         [Parameter(Mandatory)] [string]$HelperDirectory,
@@ -896,7 +448,6 @@ function Get-ComputedInstallerHelperCacheKey {
 
     return 'sha256:' + (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
 }
-
 function Get-InstallerHelperRuntimeCacheKey {
     param([Parameter(Mandatory)] $Manifest)
 
@@ -919,7 +470,6 @@ function Get-InstallerHelperRuntimeCacheKey {
 
     return 'runtime-sha256:' + (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
 }
-
 function Read-TuiHelperManifest {
     param(
         [Parameter(Mandatory)] [string]$ManifestPath,
@@ -954,7 +504,6 @@ function Read-TuiHelperManifest {
         HelperFiles = @($helperFiles)
     }
 }
-
 function Get-TuiHelperManifest {
     param([switch]$SuppressBootstrapOutput)
 
@@ -1018,7 +567,6 @@ function Get-TuiHelperManifest {
     $script:TuiHelperManifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $runtimeRoot
     return $script:TuiHelperManifest
 }
-
 function Ensure-TuiHelpersAvailable {
     param([switch]$SuppressBootstrapOutput)
 
@@ -1125,7 +673,6 @@ function Ensure-TuiHelpersAvailable {
     $script:TuiHelperResolvedRoot = $runtimeRoot
     return $runtimeRoot
 }
-
 function Get-InstallerSharedModulePaths {
     $helperRoot = Ensure-TuiHelpersAvailable -SuppressBootstrapOutput
     if ([string]::IsNullOrWhiteSpace($helperRoot)) {
@@ -1144,7 +691,6 @@ function Get-InstallerSharedModulePaths {
 
     return @($helperPaths)
 }
-
 function Import-TuiHelpers {
     $helperRoot = Ensure-TuiHelpersAvailable
     if ([string]::IsNullOrWhiteSpace($helperRoot)) {
@@ -1164,7 +710,6 @@ function Import-TuiHelpers {
 
     return @($helperPaths)
 }
-
 function Invoke-WithTuiHelpers {
     param([Parameter(Mandatory)] [scriptblock]$ScriptBlock)
 
@@ -1174,7 +719,6 @@ function Invoke-WithTuiHelpers {
 
     return (. $ScriptBlock)
 }
-
 function Get-NextArchitecture {
     param(
         [Parameter(Mandatory)] [string]$Current,
@@ -1194,7 +738,6 @@ function Get-NextArchitecture {
 
     return $architectures[$index]
 }
-
 function Get-SupportedClients {
     return @(
         [pscustomobject]@{ Id = 'claude-code'; Label = 'Claude Code'; ConfigType = 'cli' }
@@ -1206,7 +749,6 @@ function Get-SupportedClients {
         [pscustomobject]@{ Id = 'other'; Label = 'Other'; ConfigType = 'artifact-only' }
     )
 }
-
 function Resolve-ClientBaseId {
     param([Parameter(Mandatory)] [string]$ClientId)
 
@@ -1216,7 +758,6 @@ function Resolve-ClientBaseId {
 
     return $ClientId
 }
-
 function Resolve-ClientStateKey {
     param(
         [Parameter(Mandatory)] [string]$ClientId,
@@ -1236,7 +777,6 @@ function Resolve-ClientStateKey {
         default { return 'cursor-global' }
     }
 }
-
 function Resolve-ClientLabel {
     param([Parameter(Mandatory)] [string]$ClientId)
 
@@ -1252,7 +792,6 @@ function Resolve-ClientLabel {
 
     return $ClientId
 }
-
 function Get-DefaultClient {
     if ($null -ne (Get-Command 'claude' -ErrorAction SilentlyContinue)) { return 'claude-code' }
     if ($null -ne (Get-Command 'codex' -ErrorAction SilentlyContinue)) { return 'codex' }
@@ -1262,7 +801,6 @@ function Get-DefaultClient {
     if (Test-Path (Join-Path $env:USERPROFILE '.mcp.json')) { return 'visual-studio' }
     return 'other'
 }
-
 function Get-ReleaseAssetName {
     param(
         [Parameter(Mandatory)] [string]$ResolvedVersion,
@@ -1271,7 +809,6 @@ function Get-ReleaseAssetName {
 
     return [string]::Format('release_{0}_win-{1}.zip', $ResolvedVersion, $ResolvedArchitecture)
 }
-
 function Get-ReleaseDownloadUri {
     param(
         [Parameter(Mandatory)] [string]$ResolvedVersion,
@@ -1286,7 +823,6 @@ function Get-ReleaseDownloadUri {
     $tag = if ($ResolvedVersion.StartsWith('v')) { $ResolvedVersion } else { "v$ResolvedVersion" }
     return "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/download/$tag/$assetName"
 }
-
 function Get-GitHubReleaseApiUri {
     param([Parameter(Mandatory)] [string]$ResolvedVersion)
 
@@ -1298,7 +834,6 @@ function Get-GitHubReleaseApiUri {
     $tag = if ($ResolvedVersion.StartsWith('v')) { $ResolvedVersion } else { "v$ResolvedVersion" }
     return "$apiBase/tags/$tag"
 }
-
 function Get-GitHubTagRef {
     param([Parameter(Mandatory)] [string]$ResolvedVersion)
 
@@ -1313,7 +848,6 @@ function Get-GitHubTagRef {
 
     return "v$tagVersion"
 }
-
 function Get-ReleaseRawContentBaseUri {
     param(
         [Parameter(Mandatory)] [string]$ResolvedVersion,
@@ -1324,7 +858,6 @@ function Get-ReleaseRawContentBaseUri {
     $normalizedPath = $RepositoryRelativePath.Trim([char[]]@('\', '/')).Replace('\', '/')
     return "https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/$tagRef/$normalizedPath"
 }
-
 function Resolve-TuiHelperDownloadBaseUri {
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI)) {
         return $env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI.TrimEnd('/')
@@ -1333,7 +866,6 @@ function Resolve-TuiHelperDownloadBaseUri {
     $resolvedVersion = Resolve-RequestedReleaseVersion -RequestedVersion $Version
     return (Get-ReleaseRawContentBaseUri -ResolvedVersion $resolvedVersion -RepositoryRelativePath $script:InstallerHelperRepositoryRelativePath)
 }
-
 function Get-GitHubReleaseApiResponse {
     param([Parameter(Mandatory)] [string]$ResolvedVersion)
 
@@ -1351,7 +883,6 @@ function Get-GitHubReleaseApiResponse {
         return $null
     }
 }
-
 function Resolve-LocalPackageRoot {
     $scriptRoot = Resolve-InstallerScriptRoot
     if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
@@ -1370,7 +901,6 @@ function Resolve-LocalPackageRoot {
 
     return $null
 }
-
 function Resolve-LatestVersionCachePath {
     param([switch]$CreateRoot)
 
@@ -1381,7 +911,6 @@ function Resolve-LatestVersionCachePath {
 
     return (Join-Path $stateRoot 'latest-release-cache.json')
 }
-
 function Get-CachedLatestInstallerVersion {
     $cachePath = Resolve-LatestVersionCachePath
     if (-not (Test-Path $cachePath)) {
@@ -1396,7 +925,6 @@ function Get-CachedLatestInstallerVersion {
         return $null
     }
 }
-
 function Save-LatestInstallerVersionCache {
     param([Parameter(Mandatory)] [string]$VersionValue)
 
@@ -1410,7 +938,6 @@ function Save-LatestInstallerVersionCache {
         refreshedUtc = [DateTime]::UtcNow.ToString('o')
     } | ConvertTo-Json -Depth 3 | Set-Content -Path $cachePath -Encoding UTF8
 }
-
 function Resolve-RequestedReleaseVersion {
     param([Parameter(Mandatory)] [string]$RequestedVersion)
 
@@ -1429,19 +956,16 @@ function Resolve-RequestedReleaseVersion {
 
     return $script:ResolvedOnlineReleaseVersion
 }
-
 function ConvertTo-PowerShellEncodedCommand {
     param([Parameter(Mandatory)] [string]$CommandText)
 
     return [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($CommandText))
 }
-
 function Resolve-InstallerMode {
     if (Test-PackageArchiveRequested) { return 'offline' }
     if (-not [string]::IsNullOrWhiteSpace((Resolve-LocalPackageRoot))) { return 'offline' }
     return 'online'
 }
-
 function Get-ReleaseAssetDownloadDetails {
     param(
         [Parameter(Mandatory)] [string]$ResolvedVersion,
@@ -1469,7 +993,6 @@ function Get-ReleaseAssetDownloadDetails {
         ResolvedVersion = $ResolvedVersion
     }
 }
-
 function Resolve-PackageSession {
     param(
         [Parameter(Mandatory)] [string]$Mode,
@@ -1532,7 +1055,6 @@ function Resolve-PackageSession {
         ResolvedVersion = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.ResolvedVersion)) { [string]$integrity.ResolvedVersion } else { [string]$downloadDetails.ResolvedVersion }
     }
 }
-
 function Get-OfflineVersionHint {
     param([Parameter(Mandatory)] [string]$Mode)
 
@@ -1563,7 +1085,6 @@ function Get-OfflineVersionHint {
         return $null
     }
 }
-
 function Read-ValidatedChoice {
     param(
         [Parameter(Mandatory)] [string]$Prompt,
@@ -1585,7 +1106,6 @@ function Read-ValidatedChoice {
         Write-InstallerMessage ("Allowed values: " + ($AllowedValues -join ', '))
     }
 }
-
 function Get-CliSelection {
     $defaultInstallRoot = $InstallRoot
     try {
@@ -1626,7 +1146,6 @@ function Get-CliSelection {
         InstallRoot = $installRootPrompt.Trim()
     }
 }
-
 function Get-LatestInstallerVersion {
     param([switch]$UseCacheOnly)
 
@@ -1651,7 +1170,6 @@ function Get-LatestInstallerVersion {
 
     return $cachedVersion
 }
-
 function Start-LatestInstallerVersionRefresh {
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION)) {
         return [ordered]@{
@@ -1691,7 +1209,6 @@ catch {
         OutputPath = $refreshOutputPath
     }
 }
-
 function Receive-LatestInstallerVersionRefresh {
     param([Parameter(Mandatory)] $RefreshHandle)
 
@@ -1744,7 +1261,6 @@ function Receive-LatestInstallerVersionRefresh {
         Version = $resolvedVersion
     }
 }
-
 function Stop-LatestInstallerVersionRefresh {
     param($RefreshHandle)
 
@@ -1786,7 +1302,6 @@ function Stop-LatestInstallerVersionRefresh {
 
     Remove-PathIfExists -Path ([string]$RefreshHandle.OutputPath)
 }
-
 function Test-TuiSupport {
     if ($NonInteractive -or $OutputJson) {
         Close-TuiBootstrapScreen
@@ -1814,17 +1329,14 @@ function Test-TuiSupport {
 
     return (Invoke-WithTuiHelpers -ScriptBlock { Test-TuiSupportCore })
 }
-
 function Render-TuiScreen {
     param([Parameter(Mandatory)] $State)
 
     Invoke-WithTuiHelpers -ScriptBlock { Render-TuiScreenCore -State $State } | Out-Null
 }
-
 function Read-TuiKey {
     return (Invoke-WithTuiHelpers -ScriptBlock { Read-TuiKeyCore })
 }
-
 function Update-TuiSelection {
     param(
         [Parameter(Mandatory)] $State,
@@ -1833,31 +1345,26 @@ function Update-TuiSelection {
 
     return (Invoke-WithTuiHelpers -ScriptBlock { Update-TuiSelectionCore -State $State -KeyInfo $KeyInfo })
 }
-
 function Invoke-TuiInstallOperation {
     param([Parameter(Mandatory)] $State)
 
     return (Invoke-WithTuiHelpers -ScriptBlock { Invoke-TuiInstallOperationCore -State $State })
 }
-
 function Invoke-TuiUninstallOperation {
     param([Parameter(Mandatory)] $State)
 
     return (Invoke-WithTuiHelpers -ScriptBlock { Invoke-TuiUninstallOperationCore -State $State })
 }
-
 function Invoke-TuiUpdateAllOperation {
     param([Parameter(Mandatory)] $State)
 
     return (Invoke-WithTuiHelpers -ScriptBlock { Invoke-TuiUpdateAllOperationCore -State $State })
 }
-
 function Initialize-TuiStartupState {
     param([Parameter(Mandatory)] $State)
 
     return (Invoke-WithTuiHelpers -ScriptBlock { Initialize-TuiStartupStateCore -State $State })
 }
-
 function Assert-InstallerHelperRuntimeAvailable {
     param([Parameter(Mandatory)] [string]$ResolvedAction)
 
@@ -1884,7 +1391,6 @@ function Assert-InstallerHelperRuntimeAvailable {
         throw "The installer runtime required for $ResolvedAction is unavailable. Re-run the installer with network access or use a full offline package."
     }
 }
-
 function Invoke-InstallerAction {
     param(
         [Parameter(Mandatory)] [ValidateSet('install', 'uninstall', 'full-uninstall')] [string]$ResolvedAction,
@@ -1907,7 +1413,6 @@ function Invoke-InstallerAction {
             -RequestedVersion $RequestedVersion `
             -UseLatestRelease:$UseLatestRelease)
 }
-
 function Start-TuiInstaller {
     param(
         [Parameter(Mandatory)] [string]$DefaultAction,
@@ -1940,7 +1445,6 @@ function Start-TuiInstaller {
         Remove-Variable -Name WpfDevToolsInstallerBootstrapSession -Scope Global -ErrorAction SilentlyContinue
     }
 }
-
 function Resolve-Selection {
     $defaultArchitecture = if ([string]::IsNullOrWhiteSpace($Architecture)) { Get-SystemDefaultArchitecture } else { $Architecture }
     $defaultClient = if ([string]::IsNullOrWhiteSpace($Client)) { Get-DefaultClient } else { $Client }

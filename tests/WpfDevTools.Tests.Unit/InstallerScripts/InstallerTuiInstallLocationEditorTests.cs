@@ -3,6 +3,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
+[Collection("TimingSensitive")]
 public sealed class InstallerTuiInstallLocationEditorTests
 {
     [Fact]

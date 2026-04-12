@@ -6,6 +6,18 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class SigningScriptTests
 {
     [Fact]
+    public void SignBinariesScript_ShouldAvoidPassingPfxPasswordsToSigntoolArguments()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/Sign-Binaries.ps1"));
+
+        content.Should().NotContain("/p $Password");
+        content.Should().Contain("Import-PfxCertificate",
+            "the script should import the PFX with a secure password handling path and sign by thumbprint instead of exposing the password in process arguments");
+        content.Should().Contain("CertificateThumbprint");
+    }
+
+    [Fact]
     public void SignBinariesScript_ShouldSupportSigntoolAndRootOverridesForDeterministicTests()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -25,8 +37,7 @@ public sealed class SigningScriptTests
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/Sign-Binaries.ps1"),
                 new[]
                 {
-                    "-CertificatePath", certificatePath,
-                    "-Password", "test-password",
+                    "-CertificateThumbprint", "ABCD1234",
                     "-BuildConfiguration", "Release"
                 },
                 new Dictionary<string, string?>
@@ -36,7 +47,10 @@ public sealed class SigningScriptTests
                 });
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            File.ReadAllText(logPath).Should().Contain("WpfDevTools.Sample.exe");
+            var invocation = File.ReadAllText(logPath);
+            invocation.Should().Contain("WpfDevTools.Sample.exe");
+            invocation.Should().Contain("/sha1");
+            invocation.Should().Contain("ABCD1234");
         }
         finally
         {

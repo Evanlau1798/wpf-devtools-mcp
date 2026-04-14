@@ -17,6 +17,8 @@ Published releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](h
 - The server bootstrap uses `Host.CreateEmptyApplicationBuilder(...)` so the process does not inherit default console logging that could pollute `stdout`.
 - MCP clients should treat tool discovery as the source of truth for detailed schemas; this README stays intentionally high level.
 - HTTP/SSE work remains planned and is not part of the current server binary.
+- MCP schemas improve discovery, but runtime validation still happens inside tool handlers because generated schemas and SDK annotations are not a substitute for validating untrusted arguments.
+- Tool metadata is written for agent use: each tool description should state what the tool does, when to use it, when not to use it, and the limits of the returned data.
 
 ## Why This Server Exists
 
@@ -93,7 +95,7 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 2. Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you intentionally need background / foreground filtering before connecting.
 3. Build initial context with `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before expanding full trees.
 4. Use tree tools only when scene-level summaries are insufficient and you need stable `elementId` values.
-5. After diagnostics, interaction, or mutation, prefer the returned `nextSteps` / `navigation` guidance over ad hoc tool guessing.
+5. After diagnostics, interaction, or mutation, prefer `navigation.recommended` first and treat `nextSteps` as the compatibility field for older clients instead of guessing the next tool.
 
 ## Maintainer Release Flow
 
@@ -228,6 +230,8 @@ The server ships 63 MCP tools across 11 categories. Use MCP tool discovery for f
 
 - [MCP build-server guide (C#)](https://modelcontextprotocol.io/docs/develop/build-server#c)
 - [ModelContextProtocol C# SDK API](https://csharp.sdk.modelcontextprotocol.io/api/ModelContextProtocol.html)
+- [Anthropic tool-definition guidance](https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools)
+- [Anthropic tool design guidance](https://www.anthropic.com/engineering/writing-tools-for-agents)
 
 ## Development Notes
 

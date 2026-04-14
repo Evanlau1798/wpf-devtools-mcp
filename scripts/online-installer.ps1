@@ -78,8 +78,13 @@ function Resolve-AbsolutePath {
 function Remove-PathIfExists {
     param([string]$Path)
 
-    if (-not [string]::IsNullOrWhiteSpace($Path) -and (Test-Path $Path)) {
-        Remove-Item -Path $Path -Recurse -Force
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return
+    }
+
+    $resolvedPath = Resolve-AbsolutePath -Path $Path
+    if (Test-Path -LiteralPath $resolvedPath) {
+        Remove-Item -LiteralPath $resolvedPath -Recurse -Force
     }
 }
 function Get-SystemDefaultArchitecture {
@@ -98,7 +103,7 @@ $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/Installer.BootstrapUi.ps1'
     'scripts/installer/Tui.Terminal.ps1'
-    'scripts/installer/Tui.Layout.ps1'
+    'scripts/installer/Tui.Layout.ps1', 'scripts/installer/Tui.State.ps1'
     'scripts/installer/Tui.ScreenModel.ps1'
     'scripts/installer/Tui.Sections.ps1'
     'scripts/installer/Tui.Window.ps1'
@@ -268,9 +273,6 @@ function Get-LocalInstallerHelperRoots {
             Add-InstallerHelperRootCandidate -Roots $candidateRoots -CandidateRoot $helperRoot
         }
     }
-
-    $workspaceHelperRoot = Join-Path (Get-Location).Path 'scripts\installer'
-    Add-InstallerHelperRootCandidate -Roots $candidateRoots -CandidateRoot $workspaceHelperRoot
 
     return @($candidateRoots.ToArray())
 }
@@ -834,6 +836,76 @@ function Get-ComputedInstallerHelperCacheKey {
 
     return 'sha256:' + (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
 }
+function Get-InstallerHelperFileSha256 {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+}
+function Assert-InstallerHelperFileRecord {
+    param(
+        [Parameter(Mandatory)] [string]$HelperPath,
+        [Parameter(Mandatory)] $HelperRecord
+    )
+
+    if (-not (Test-Path -LiteralPath $HelperPath)) {
+        throw "Installer helper file was not found: $HelperPath"
+    }
+
+    $expectedPath = [string]$HelperRecord.Path
+    $expectedHash = [string]$HelperRecord.Sha256
+    $expectedSize = [long]$HelperRecord.SizeBytes
+    $actualSize = (Get-Item -LiteralPath $HelperPath).Length
+    if ($actualSize -ne $expectedSize) {
+        throw "Installer helper integrity verification failed for $expectedPath. Expected size $expectedSize but found $actualSize."
+    }
+
+    $actualHash = Get-InstallerHelperFileSha256 -Path $HelperPath
+    if (-not [string]::Equals($actualHash, $expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Installer helper integrity verification failed for $expectedPath. Expected SHA-256 $expectedHash but found $actualHash."
+    }
+}
+function Get-InstallerHelperRecordMap {
+    param($Manifest)
+
+    $recordMap = @{}
+    if ($null -eq $Manifest -or $null -eq $Manifest.HelperFileRecords) {
+        return $recordMap
+    }
+
+    foreach ($record in @($Manifest.HelperFileRecords)) {
+        if ($null -eq $record) {
+            continue
+        }
+
+        $path = [string]$record.Path
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            continue
+        }
+
+        $recordMap[$path] = $record
+    }
+
+    return $recordMap
+}
+function Assert-InstallerHelperManifestIntegrity {
+    param(
+        [Parameter(Mandatory)] [string]$HelperDirectory,
+        [Parameter(Mandatory)] $Manifest
+    )
+
+    $recordMap = Get-InstallerHelperRecordMap -Manifest $Manifest
+    if ($recordMap.Count -eq 0) {
+        return
+    }
+
+    foreach ($helperFile in @($Manifest.HelperFiles)) {
+        if (-not $recordMap.ContainsKey($helperFile)) {
+            throw "Installer helper manifest is missing integrity metadata for $helperFile."
+        }
+
+        Assert-InstallerHelperFileRecord -HelperPath (Join-Path $HelperDirectory $helperFile) -HelperRecord $recordMap[$helperFile]
+    }
+}
 function Get-InstallerHelperRuntimeCacheKey {
     param([Parameter(Mandatory)] $Manifest)
 
@@ -868,10 +940,32 @@ function Read-TuiHelperManifest {
 
     $parsed = Get-Content -Path $ManifestPath -Raw | ConvertFrom-Json
     $helperFiles = @()
+    $helperFileRecords = New-Object System.Collections.Generic.List[object]
     if ($null -ne $parsed.helperFiles) {
         foreach ($entry in $parsed.helperFiles) {
-            if (-not [string]::IsNullOrWhiteSpace([string]$entry)) {
-                $helperFiles += [string]$entry
+            if ($entry -is [string]) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$entry)) {
+                    $helperFiles += [string]$entry
+                }
+                continue
+            }
+
+            if ($null -eq $entry) {
+                continue
+            }
+
+            $path = [string]$entry.path
+            $sha256 = [string]$entry.sha256
+            $sizeBytes = [long]$entry.sizeBytes
+            if (-not [string]::IsNullOrWhiteSpace($path)) {
+                $helperFiles += $path
+                if (-not [string]::IsNullOrWhiteSpace($sha256) -and $sizeBytes -gt 0) {
+                    $helperFileRecords.Add([ordered]@{
+                            Path = $path
+                            Sha256 = $sha256.ToLowerInvariant()
+                            SizeBytes = $sizeBytes
+                        })
+                }
             }
         }
     }
@@ -888,6 +982,7 @@ function Read-TuiHelperManifest {
     return [ordered]@{
         CacheKey = $cacheKey
         HelperFiles = @($helperFiles)
+        HelperFileRecords = @($helperFileRecords.ToArray())
     }
 }
 function Get-TuiHelperManifest {
@@ -921,7 +1016,11 @@ function Get-TuiHelperManifest {
             $manifest = [ordered]@{
                 CacheKey = (Get-ComputedInstallerHelperCacheKey -HelperDirectory $candidateRoot -HelperFiles $helperFiles)
                 HelperFiles = $helperFiles
+                HelperFileRecords = @()
             }
+        }
+        else {
+            Assert-InstallerHelperManifestIntegrity -HelperDirectory $candidateRoot -Manifest $manifest
         }
 
         $script:TuiHelperManifest = $manifest
@@ -976,6 +1075,9 @@ function Ensure-TuiHelpersAvailable {
         }
 
         if ($allPresent) {
+            if ($null -ne $manifest) {
+                Assert-InstallerHelperManifestIntegrity -HelperDirectory $candidateRoot -Manifest $manifest
+            }
             $script:TuiHelperResolvedRoot = $candidateRoot
             return $candidateRoot
         }
@@ -1000,10 +1102,12 @@ function Ensure-TuiHelpersAvailable {
             $manifest = [ordered]@{
                 CacheKey = (Get-ComputedInstallerHelperCacheKey -HelperDirectory $runtimeRoot -HelperFiles $helperFiles)
                 HelperFiles = $helperFiles
+                HelperFileRecords = @()
             }
         }
 
         $script:TuiHelperManifest = $manifest
+        Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest
         $script:TuiHelperResolvedRoot = $runtimeRoot
         return $runtimeRoot
     }
@@ -1023,6 +1127,18 @@ function Ensure-TuiHelpersAvailable {
             $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Get-TuiHelperManifestPath -RootPath $runtimeRoot) -Encoding UTF8
         }
     }
+    elseif ($null -ne $manifest) {
+        try {
+            Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest
+            $script:TuiHelperResolvedRoot = $runtimeRoot
+            return $runtimeRoot
+        }
+        catch {
+            Remove-PathIfExists -Path $runtimeRoot
+            New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
+            $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Get-TuiHelperManifestPath -RootPath $runtimeRoot) -Encoding UTF8
+        }
+    }
 
     $downloadBaseUri = Resolve-TuiHelperDownloadBaseUri
 
@@ -1030,6 +1146,7 @@ function Ensure-TuiHelpersAvailable {
     $bootstrapDeadline = [DateTimeOffset]::UtcNow.AddSeconds((Get-TuiHelperBootstrapTimeoutSeconds))
     $totalHelperCount = $helperFiles.Count
     $downloadIndex = 0
+    $helperRecordMap = Get-InstallerHelperRecordMap -Manifest $manifest
 
     foreach ($helperFile in $helperFiles) {
         if ([DateTimeOffset]::UtcNow -gt $bootstrapDeadline) {
@@ -1047,10 +1164,16 @@ function Ensure-TuiHelpersAvailable {
             Write-TuiBootstrapScreen "Preparing installer UI... ($downloadIndex/$totalHelperCount)" | Out-Host
         }
         $downloadUri = "$downloadBaseUri/$helperFile"
+        $temporaryPath = "$destinationPath.download"
         try {
-            Invoke-WebRequest -Uri $downloadUri -OutFile $destinationPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec $requestTimeoutSeconds
+            Invoke-WebRequest -Uri $downloadUri -OutFile $temporaryPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec $requestTimeoutSeconds
+            if ($helperRecordMap.ContainsKey($helperFile)) {
+                Assert-InstallerHelperFileRecord -HelperPath $temporaryPath -HelperRecord $helperRecordMap[$helperFile]
+            }
+            Move-Item -Path $temporaryPath -Destination $destinationPath -Force
         }
         catch {
+            Remove-PathIfExists -Path $temporaryPath
             throw "Failed to download installer UI runtime from $downloadUri. $($_.Exception.Message)"
         }
     }
@@ -1848,9 +1971,12 @@ function Invoke-InstallerAction {
     Assert-InstallerHelperRuntimeAvailable -ResolvedAction $ResolvedAction
     $sharedModulePaths = @()
     $shouldUseStandaloneFallback = $false
-    if ($ResolvedAction -eq 'install' -or -not ($NonInteractive -or $OutputJson)) {
+    if ($ResolvedAction -eq 'install') {
+        $sharedModulePaths = @(Get-InstallerSharedModulePaths)
+    }
+    elseif (-not ($NonInteractive -or $OutputJson)) {
         $sharedModulePaths = @(Get-InstallerSharedModulePaths -AllowMissing)
-        $shouldUseStandaloneFallback = ($sharedModulePaths.Count -eq 0 -and $ResolvedAction -ne 'install')
+        $shouldUseStandaloneFallback = ($sharedModulePaths.Count -eq 0)
     }
     else {
         $sharedModulePaths = @(Get-InstallerSharedModulePaths -AllowMissing)

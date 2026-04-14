@@ -170,7 +170,17 @@ function Get-InstallerHelperFiles {
     }
 
     $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
-    $helperFiles = @($manifest.helperFiles | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+    $helperFiles = @(
+        $manifest.helperFiles |
+            ForEach-Object {
+                if ($_ -is [string]) {
+                    return [string]$_
+                }
+
+                return [string]$_.path
+            } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
     if ($helperFiles.Count -eq 0) {
         throw "Installer helper manifest did not declare any helper files: $manifestPath"
     }
@@ -205,6 +215,34 @@ function Remove-PathIfExists {
 
     if (-not [string]::IsNullOrWhiteSpace($Path) -and (Test-Path $Path)) {
         Remove-Item -Path $Path -Recurse -Force
+    }
+}
+
+function Assert-FileAuthenticodeSignature {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    if (-not (Test-Path $Path)) {
+        throw "Signature validation target was not found: $Path"
+    }
+
+    $signature = Get-AuthenticodeSignature -FilePath $Path
+    if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
+        throw "Release packaging requires an Authenticode-signed payload. '$Path' reported signature status '$($signature.Status)'."
+    }
+}
+
+function Assert-ReleasePayloadSignaturePolicy {
+    param(
+        [Parameter(Mandatory)] [string]$SignaturePolicy,
+        [Parameter(Mandatory)] [string[]]$PayloadPaths
+    )
+
+    if ($SignaturePolicy -ne 'RequireAuthenticodeSignature') {
+        return
+    }
+
+    foreach ($payloadPath in $PayloadPaths) {
+        Assert-FileAuthenticodeSignature -Path $payloadPath
     }
 }
 
@@ -421,10 +459,18 @@ foreach ($architecture in $resolvedArchitectures) {
 
         Copy-DirectoryFilesOnly -Source $inspectorNet8BuildDir -Destination $inspectorNet8Dir
         Copy-DirectoryContents -Source $inspectorNet48BuildDir -Destination $inspectorNet48Dir
-        Copy-Item -Path $bootstrapperSource -Destination (Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)) -Force
+        $bootstrapperDestination = Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)
+        Copy-Item -Path $bootstrapperSource -Destination $bootstrapperDestination -Force
         Copy-Item -Path $installBatchTemplate -Destination (Join-Path $packageDir 'run.bat') -Force
         Copy-Item -Path $installScript -Destination (Join-Path $binDir 'install.ps1') -Force
         Copy-InstallerHelperFiles -RepositoryRoot $repoRoot -Destination (Join-Path $binDir 'installer')
+
+        Assert-ReleasePayloadSignaturePolicy -SignaturePolicy $signaturePolicy -PayloadPaths @(
+            (Join-Path $binDir $packagedExecutableName)
+            (Join-Path $inspectorNet8Dir 'WpfDevTools.Inspector.dll')
+            (Join-Path $inspectorNet48Dir 'WpfDevTools.Inspector.dll')
+            $bootstrapperDestination
+        )
 
         $manifest = [ordered]@{
             name = 'wpf-devtools'
@@ -434,7 +480,6 @@ foreach ($architecture in $resolvedArchitectures) {
             channel = $channel
             buildConfiguration = $Configuration
             signaturePolicy = $signaturePolicy
-            createdUtc = [DateTime]::UtcNow.ToString('o')
             entryExecutable = "bin/$packagedExecutableName"
             runBatch = 'run.bat'
             installScript = 'bin\install.ps1'

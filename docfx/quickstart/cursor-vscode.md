@@ -12,10 +12,10 @@ Preferred public path:
 
 If you prefer a script-first setup, review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) and run it locally.
 
-After installation, the default executable path is:
+After installation, a typical executable path is:
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
+C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
 ## 2. Generated JSON artifacts
@@ -37,7 +37,7 @@ Its structure is:
   "mcpServers": {
     "wpf-devtools": {
       "type": "stdio",
-      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
       "args": []
     }
   }
@@ -63,7 +63,7 @@ Use `client-registration\vscode.json` or `client-registration\visual-studio.json
   "servers": {
     "wpf-devtools": {
       "type": "stdio",
-      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
       "args": []
     }
   }
@@ -74,11 +74,12 @@ Use the same `servers.wpf-devtools` node in VS Code `mcp.json` or Visual Studio 
 
 ## 3. First useful workflow
 
-1. Ask the client to call `tools/list`.
-2. Run `connect()`.
+1. Run `connect()`.
+2. If the client exposes prompts or resources, prefer those discovery surfaces over raw protocol bootstrapping.
 3. If auto-discovery reports multiple candidates, run `get_processes(windowFilter)` and retry `connect(processId)`.
 4. Run `get_ui_summary(depthMode: "semantic")`.
-5. Use `get_element_snapshot` or `get_visual_tree` only if you still need deeper structure.
+5. Follow `navigation.recommended` first and use `nextSteps` as the compatibility field when the client does not surface navigation yet.
+6. Use `get_element_snapshot` or `get_visual_tree` only if you still need deeper structure.
 
 ## Notes
 
@@ -88,3 +89,4 @@ Use the same `servers.wpf-devtools` node in VS Code `mcp.json` or Visual Studio 
 - Re-register the installed executable after switching architectures.
 - Keep editor-side wrappers from writing to `stdout`.
 - Prefer scene-level summaries before tree dumps in editor-driven workflows.
+- When a tool result already includes `navigation.recommended` or `nextSteps`, treat that runtime guidance as more reliable than a fixed manual checklist.

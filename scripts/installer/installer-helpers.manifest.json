@@ -1,29 +1,126 @@
 {
   "schemaVersion": 1,
-  "cacheKey": "sha256:67a35f83d9116e2196be1e5196dcf35e719f88286a233af793593a516e26ecc6",
+  "cacheKey": "sha256:0d732b85b16c5a081b4b5e995151a1f221c71528c2314507d064b5633d0c02b4",
   "helperFiles": [
-    "Installer.BootstrapUi.ps1",
-    "Tui.Terminal.ps1",
-    "Tui.Layout.ps1",
-    "Tui.ScreenModel.ps1",
-    "Tui.Sections.ps1",
-    "Tui.Window.ps1",
-    "Tui.TitleBar.ps1",
-    "Tui.StatusBar.ps1",
-    "Tui.Presenters.ps1",
-    "Tui.PathEditor.ps1",
-    "Tui.PathEditor.Views.ps1",
-    "Tui.Renderer.ps1",
-    "Tui.Input.ps1",
-    "Tui.Flow.ps1",
-    "Tui.Confirm.ps1",
-    "Installer.Discovery.ps1",
-    "Installer.Uninstall.ps1",
-    "Installer.Release.ps1",
-    "Installer.PackageIntegrity.ps1",
-    "Installer.State.ps1",
-    "Installer.Registration.ps1",
-    "Installer.Verification.ps1",
-    "Installer.Actions.ps1"
+    {
+      "path": "Installer.BootstrapUi.ps1",
+      "sha256": "7ab201561603715c1cef753b9c288da9873a3d17ba39511d99a93d57e33c2c26",
+      "sizeBytes": 12845
+    },
+    {
+      "path": "Tui.Terminal.ps1",
+      "sha256": "bbd7f9d0833a684660fe2a8846a0a2d805d1606898f6cc6d5f80b379c1a5e8ce",
+      "sizeBytes": 10918
+    },
+    {
+      "path": "Tui.Layout.ps1",
+      "sha256": "a890b32644a44cbbf88d0800bdf15eb4b6ebbd711d6eb165064f1c88b17fbbc0",
+      "sizeBytes": 10754
+    },
+    {
+      "path": "Tui.State.ps1",
+      "sha256": "773e5cf042426b822968150fa7b9316424dc369b7f34e9d81d480c9cc6035061",
+      "sizeBytes": 5092
+    },
+    {
+      "path": "Tui.ScreenModel.ps1",
+      "sha256": "15f2e814c6585c098e5be1d92c40d989435b7f392bd3924c7d5678588edbd072",
+      "sizeBytes": 15814
+    },
+    {
+      "path": "Tui.Sections.ps1",
+      "sha256": "9e48e68bc85b9d7bad4b408bc56ce11ea84408ed7a646e222184744c18557352",
+      "sizeBytes": 2506
+    },
+    {
+      "path": "Tui.Window.ps1",
+      "sha256": "c300958ebd55f46ee74de50b9f466e74fa0c9e6ba3b249434c47dd0e71408b01",
+      "sizeBytes": 2361
+    },
+    {
+      "path": "Tui.TitleBar.ps1",
+      "sha256": "11d74ba006e3cc307d907dc740b4945fa98d9d948b642b59edb2a8b7d2a870d0",
+      "sizeBytes": 1146
+    },
+    {
+      "path": "Tui.StatusBar.ps1",
+      "sha256": "2d10f530dec05a8aded5658972d1179ecf974529307689e2cf473eaa9795aa62",
+      "sizeBytes": 4691
+    },
+    {
+      "path": "Tui.Presenters.ps1",
+      "sha256": "6d05f91d02f7aa6458d9c9374997f5b8f93df16f8409da873e932b42728373d5",
+      "sizeBytes": 18234
+    },
+    {
+      "path": "Tui.PathEditor.ps1",
+      "sha256": "590b07bb06921aaf5e9644ec4b99fe419127e4b8a29ed27f9e77231e4b03974b",
+      "sizeBytes": 16862
+    },
+    {
+      "path": "Tui.PathEditor.Views.ps1",
+      "sha256": "4bd8ec8758a80511755bdc9a881c29799a721bfbbf12d58845ea0655db2646e5",
+      "sizeBytes": 9807
+    },
+    {
+      "path": "Tui.Renderer.ps1",
+      "sha256": "51ec60f75d27269905847dea289af7b863ebcda77b08be5fd9b2daab8f2a86e5",
+      "sizeBytes": 4683
+    },
+    {
+      "path": "Tui.Input.ps1",
+      "sha256": "51e19c2e434f7b641061982138ca4e1d223f4389d72295c1620857add36748d4",
+      "sizeBytes": 3833
+    },
+    {
+      "path": "Tui.Flow.ps1",
+      "sha256": "981208789b10cfa118c877464ea4f6ea389088e7940de06710d9971a909f7062",
+      "sizeBytes": 18175
+    },
+    {
+      "path": "Tui.Confirm.ps1",
+      "sha256": "6fcdcca718085675b6bcb59f8eb8d20ac91e32d5d7cb1879ba074c2018a61aeb",
+      "sizeBytes": 4400
+    },
+    {
+      "path": "Installer.Discovery.ps1",
+      "sha256": "1ecc64a5a7bb9bfdf78d08625b82517ee9a7e067aa56db0fb87020a6af270e6c",
+      "sizeBytes": 18356
+    },
+    {
+      "path": "Installer.Uninstall.ps1",
+      "sha256": "b4c9b509f51d678c6e1913124bd8acb8666365333bf5049be9128ad2f357b7ff",
+      "sizeBytes": 20358
+    },
+    {
+      "path": "Installer.Release.ps1",
+      "sha256": "46dace97b4a6e7127e4edc04a5f96585364e2476ab7452d61a993fc03f441855",
+      "sizeBytes": 6558
+    },
+    {
+      "path": "Installer.PackageIntegrity.ps1",
+      "sha256": "db4cc5ce0b2bb71d0f90859ac2bd763e79fe5d0ecfde6db08665b260553d1a0d",
+      "sizeBytes": 14455
+    },
+    {
+      "path": "Installer.State.ps1",
+      "sha256": "6dd9913be6cb11544edccea061fdca17259454a7aa4ce1e3a398e662a665ed93",
+      "sizeBytes": 12668
+    },
+    {
+      "path": "Installer.Registration.ps1",
+      "sha256": "0ab688000deaf7113dbf93d20ba8b0a2b6362c8cd2701a7036a582f3332f7cd9",
+      "sizeBytes": 17118
+    },
+    {
+      "path": "Installer.Verification.ps1",
+      "sha256": "b0140b52b350327232a12f893f97b82ec4673c94f9e4efb2f2a4ed1f2d1cfaf0",
+      "sizeBytes": 16350
+    },
+    {
+      "path": "Installer.Actions.ps1",
+      "sha256": "b5effc58ad4bd9907ef950fdb804b2ef2e9b820b53100383f31c5c24b928da9f",
+      "sizeBytes": 20539
+    }
   ]
 }

@@ -67,6 +67,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 3. `get_ui_summary(depthMode: "semantic")`
 4. 只有當 summary 還不夠時，才使用 `get_element_snapshot` 或 `get_visual_tree`
 5. 只有需要明確存活檢查時才呼叫 `ping`
+6. 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`，並把 `nextSteps` 視為舊版 client 的相容欄位
 
 ## WPF 特有提醒
 
@@ -75,5 +76,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 - server 與 bootstrapper 位元數必須和 target process 一致。
 - `client-registration` 產物是最可靠的 copy-paste 真源。
 - 在需要之前，先用 scene-level 工具，不要太早展開整棵 tree 或索取完整 screenshot。
+- 如果工具回應已提供 `navigation.recommended` 或 `nextSteps`，請先遵循這個執行期 guidance，再決定是否補其他工具。
 
 下一步：選擇你要使用的 client-specific 指南。

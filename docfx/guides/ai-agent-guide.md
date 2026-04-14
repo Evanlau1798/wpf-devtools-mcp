@@ -16,6 +16,14 @@ This server is explicitly intended for AI-assisted WPF debugging and testing. Th
 
 ## Best practices
 
+### 0. Keep the server instructions AI-friendly
+
+Follow the same authoring rules that the official MCP and Anthropic guidance emphasize:
+
+- Detailed `tool descriptions` should explain what a tool does, `when to use` it, `when not to use` it, and any important limits or caveats.
+- JSON schema and SDK annotations help discovery, but they are not `runtime validation`; tool handlers still need to validate untrusted arguments explicitly at runtime.
+- Prefer realistic client workflows, prompts, and resources over raw protocol walkthroughs when writing public quickstarts.
+
 ### 1. Discover before assuming
 
 Do not hard-code argument shapes from stale prompts or screenshots. Use the tool metadata exposed by the server and adapt to the current schema.

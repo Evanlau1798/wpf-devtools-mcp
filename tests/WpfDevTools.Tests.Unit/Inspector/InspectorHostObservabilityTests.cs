@@ -31,10 +31,10 @@ public class InspectorHostObservabilityTests : IDisposable
         response.CorrelationId.Should().NotBeNullOrEmpty();
 
         host.Dispose();
-        await Task.Delay(200);
-
-        File.Exists(logPath).Should().BeTrue();
-        var content = await File.ReadAllTextAsync(logPath);
+        var content = await WaitForLogContentAsync(
+            logPath,
+            value => value.Contains(response.CorrelationId!, StringComparison.Ordinal),
+            TimeSpan.FromSeconds(5));
         content.Should().Contain("REQUEST");
         content.Should().Contain("\"method\":\"ping\"");
         content.Should().Contain(response.CorrelationId!);
@@ -60,5 +60,28 @@ public class InspectorHostObservabilityTests : IDisposable
         catch
         {
         }
+    }
+
+    private static async Task<string> WaitForLogContentAsync(
+        string path,
+        Func<string, bool> condition,
+        TimeSpan timeout)
+    {
+        var startedAt = DateTime.UtcNow;
+        while (DateTime.UtcNow - startedAt < timeout)
+        {
+            if (File.Exists(path))
+            {
+                var content = await File.ReadAllTextAsync(path);
+                if (condition(content))
+                {
+                    return content;
+                }
+            }
+
+            await Task.Delay(50);
+        }
+
+        throw new TimeoutException($"Timed out waiting for log content at '{path}'.");
     }
 }

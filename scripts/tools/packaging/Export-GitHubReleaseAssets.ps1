@@ -34,7 +34,7 @@ function New-UploadScriptContent {
         [Parameter(Mandatory)] [string[]]$AssetNames
     )
 
-    $assetBlock = ($AssetNames | ForEach-Object { "    `"$_`"" }) -join [Environment]::NewLine
+    $assetBlock = ($AssetNames | ForEach-Object { "    (Join-Path `$PSScriptRoot `"$_`")" }) -join [Environment]::NewLine
     return @"
 param(
     [string]`$ReleaseTag = '$ReleaseTag'
@@ -45,8 +45,11 @@ param(
 $assetBlock
 )
 
-# Default command: gh release upload $ReleaseTag @assets --clobber
-gh release upload `$ReleaseTag @assets --clobber
+# Upload assets staged next to this script.
+& gh release upload `
+    `$ReleaseTag `
+    @assets `
+    --clobber
 "@
 }
 

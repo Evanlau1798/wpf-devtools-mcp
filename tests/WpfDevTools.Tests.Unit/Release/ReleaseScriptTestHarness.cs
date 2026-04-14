@@ -131,14 +131,12 @@ internal static class ReleaseScriptTestHarness
             new
             {
                 tag,
-                generatedUtc = DateTimeOffset.UtcNow.ToString("o"),
                 assetCount = 1,
                 assets = new[]
                 {
                     new
                     {
                         name = assetName,
-                        path = archivePath,
                         sizeBytes = archiveFile.Length,
                         sha256
                     }
@@ -258,7 +256,9 @@ internal static class ReleaseScriptTestHarness
         using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
         return manifest.RootElement.GetProperty("helperFiles")
             .EnumerateArray()
-            .Select(static entry => entry.GetString())
+            .Select(static entry => entry.ValueKind == JsonValueKind.Object
+                ? entry.GetProperty("path").GetString()
+                : entry.GetString())
             .Where(static entry => !string.IsNullOrWhiteSpace(entry))
             .Cast<string>()
             .ToArray();

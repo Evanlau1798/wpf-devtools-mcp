@@ -18,53 +18,173 @@ function Invoke-InstallerFullUninstallCore {
     $detectedRegistrations = @(Get-DetectedInstallerRegistrations -State $State)
     $detectedInstallations = @(Get-DetectedInstallerInstallations -State $State)
     $unregistrationResults = @()
-
-    foreach ($registration in $detectedRegistrations) {
-        $unregistrationResults += @(Invoke-ClientUnregistration -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration)
-    }
-
-    $verificationFailures = @()
-    foreach ($registration in $detectedRegistrations) {
-        $verification = Invoke-UninstallVerification -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration
-        if (-not $verification.Succeeded) {
-            $verificationFailures += [string]$verification.VerificationMessage
-        }
-    }
-
+    $unregistrationOperations = @()
+    $registrationBackups = @()
+    $installationBackups = @()
     $removedInstallations = @()
-    foreach ($installation in $detectedInstallations) {
-        if (-not [bool]$installation.InstallerOwned) {
-            continue
+
+    try {
+        foreach ($registration in $detectedRegistrations) {
+            if ([string]::Equals([string]$registration.RegistrationMode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase) -and
+                -not [string]::IsNullOrWhiteSpace([string]$registration.RegistrationTarget) -and
+                (Test-Path -LiteralPath ([string]$registration.RegistrationTarget))) {
+                $backupPath = "{0}.rollback-{1}" -f ([string]$registration.RegistrationTarget), ([guid]::NewGuid().ToString('N'))
+                Copy-Item -LiteralPath ([string]$registration.RegistrationTarget) -Destination $backupPath -Force
+                $registrationBackups += [ordered]@{
+                    TargetPath = [string]$registration.RegistrationTarget
+                    BackupPath = $backupPath
+                }
+            }
+
+            $results = @(Invoke-ClientUnregistration -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration)
+            $unregistrationOperations += [ordered]@{
+                ClientId = [string]$registration.ClientId
+                RegistrationRecord = $registration
+                Registrations = @($results)
+            }
+            $unregistrationResults += @($results)
         }
 
-        Remove-PathIfExists -Path ([string]$installation.InstallBase)
-        $removedInstallations += $installation
-    }
-
-    foreach ($installation in $removedInstallations) {
-        if (Test-Path ([string]$installation.InstallBase)) {
-            $verificationFailures += "Installation root still exists: $([string]$installation.InstallBase)"
+        $verificationFailures = @()
+        foreach ($registration in $detectedRegistrations) {
+            $verification = Invoke-UninstallVerification -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration
+            if (-not $verification.Succeeded) {
+                $verificationFailures += [string]$verification.VerificationMessage
+            }
         }
-        if (-not [string]::IsNullOrWhiteSpace([string]$installation.InstalledExecutable) -and (Test-Path ([string]$installation.InstalledExecutable))) {
-            $verificationFailures += "Executable still exists: $([string]$installation.InstalledExecutable)"
+
+        if ($verificationFailures.Count -gt 0) {
+            throw ($verificationFailures -join ' ')
+        }
+
+        foreach ($installation in $detectedInstallations) {
+            if (-not [bool]$installation.InstallerOwned) {
+                continue
+            }
+
+            $installBase = [string]$installation.InstallBase
+            if ([string]::IsNullOrWhiteSpace($installBase) -or -not (Test-Path -LiteralPath $installBase)) {
+                continue
+            }
+
+            $rollbackPath = "$installBase.rollback-$([guid]::NewGuid().ToString('N'))"
+            Move-Item -LiteralPath $installBase -Destination $rollbackPath -Force
+            $installationBackups += [ordered]@{
+                Installation = $installation
+                RollbackPath = $rollbackPath
+            }
+            $removedInstallations += $installation
+        }
+
+        $verificationFailures = @()
+        foreach ($installation in $removedInstallations) {
+            if (Test-Path -LiteralPath ([string]$installation.InstallBase)) {
+                $verificationFailures += "Installation root still exists: $([string]$installation.InstallBase)"
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$installation.InstalledExecutable) -and (Test-Path -LiteralPath ([string]$installation.InstalledExecutable))) {
+                $verificationFailures += "Executable still exists: $([string]$installation.InstalledExecutable)"
+            }
+        }
+
+        if ($verificationFailures.Count -gt 0) {
+            throw ($verificationFailures -join ' ')
+        }
+
+        foreach ($registrationBackup in $registrationBackups) {
+            Remove-PathIfExists -Path ([string]$registrationBackup.BackupPath)
+        }
+
+        foreach ($backup in $installationBackups) {
+            Remove-PathIfExists -Path ([string]$backup.RollbackPath)
+        }
+
+        $newState = Get-EmptyInstallerState
+        $newState.lastInstallRoot = $State.lastInstallRoot
+        $statePath = Save-InstallerState -State $newState
+        return [ordered]@{
+            action = 'full-uninstall'
+            client = 'all'
+            statePath = $statePath
+            removedInstallation = ($removedInstallations.Count -gt 0)
+            removedInstallations = @($removedInstallations)
+            registrations = @($unregistrationResults)
+            verificationMessage = "Verified removal of $($detectedRegistrations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."
         }
     }
+    catch {
+        $registrationBackupsInReverse = @($registrationBackups)
+        [array]::Reverse($registrationBackupsInReverse)
+        foreach ($registrationBackup in $registrationBackupsInReverse) {
+            $targetPath = [string]$registrationBackup.TargetPath
+            $backupPath = [string]$registrationBackup.BackupPath
+            if ([string]::IsNullOrWhiteSpace($targetPath) -or [string]::IsNullOrWhiteSpace($backupPath)) {
+                continue
+            }
 
-    if ($verificationFailures.Count -gt 0) {
-        throw ($verificationFailures -join ' ')
-    }
+            if (Test-Path -LiteralPath $backupPath) {
+                try {
+                    if (Test-Path -LiteralPath $targetPath) {
+                        (Get-Item -LiteralPath $targetPath).Attributes = [System.IO.FileAttributes]::Normal
+                    }
 
-    $newState = Get-EmptyInstallerState
-    $newState.lastInstallRoot = $State.lastInstallRoot
-    $statePath = Save-InstallerState -State $newState
-    return [ordered]@{
-        action = 'full-uninstall'
-        client = 'all'
-        statePath = $statePath
-        removedInstallation = ($removedInstallations.Count -gt 0)
-        removedInstallations = @($removedInstallations)
-        registrations = @($unregistrationResults)
-        verificationMessage = "Verified removal of $($detectedRegistrations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."
+                    Copy-Item -LiteralPath $backupPath -Destination $targetPath -Force
+                    Remove-PathIfExists -Path $backupPath
+                }
+                catch {
+                }
+            }
+        }
+
+        $backupsInReverse = @($installationBackups)
+        [array]::Reverse($backupsInReverse)
+        foreach ($backup in $backupsInReverse) {
+            $rollbackPath = [string]$backup.RollbackPath
+            $installBase = [string]$backup.Installation.InstallBase
+            if ([string]::IsNullOrWhiteSpace($rollbackPath) -or [string]::IsNullOrWhiteSpace($installBase)) {
+                continue
+            }
+
+            if (Test-Path -LiteralPath $rollbackPath) {
+                Move-Item -LiteralPath $rollbackPath -Destination $installBase -Force
+            }
+        }
+
+        $operationsInReverse = @($unregistrationOperations)
+        [array]::Reverse($operationsInReverse)
+        foreach ($operation in $operationsInReverse) {
+            $registrationRecord = $operation.RegistrationRecord
+            $registrationRollbackItems = @($operation.Registrations)
+            [array]::Reverse($registrationRollbackItems)
+            foreach ($registration in $registrationRollbackItems) {
+                if ($null -eq $registration) {
+                    continue
+                }
+
+                if ([string]::Equals([string]$registration.mode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $backupPath = [string]$registration.backupPath
+                    $targetPath = [string]$registration.target
+                    if (-not [string]::IsNullOrWhiteSpace($backupPath) -and -not [string]::IsNullOrWhiteSpace($targetPath) -and (Test-Path -LiteralPath $backupPath)) {
+                        Copy-Item -LiteralPath $backupPath -Destination $targetPath -Force
+                        Remove-PathIfExists -Path $backupPath
+                    }
+                }
+            }
+
+            $installBase = $null
+            if (-not [string]::IsNullOrWhiteSpace([string]$registrationRecord.InstallRoot) -and -not [string]::IsNullOrWhiteSpace([string]$registrationRecord.Architecture)) {
+                $installBase = Resolve-InstallBasePath -ResolvedInstallRoot ([string]$registrationRecord.InstallRoot) -ResolvedArchitecture ([string]$registrationRecord.Architecture)
+            }
+
+            Undo-ClientRegistrationChanges `
+                -SelectedClient ([string]$operation.ClientId) `
+                -Registrations @($operation.Registrations) `
+                -RollbackMode 'uninstall' `
+                -InstalledExecutable ([string]$registrationRecord.InstalledExecutable) `
+                -InstallBase $installBase `
+                -RegistrationRecord $registrationRecord
+        }
+
+        throw
     }
 }
 

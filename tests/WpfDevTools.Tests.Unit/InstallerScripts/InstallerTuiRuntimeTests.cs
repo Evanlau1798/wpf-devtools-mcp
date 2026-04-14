@@ -12,15 +12,18 @@ public sealed partial class InstallerTuiRuntimeTests
     {
         var screenModelContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.ScreenModel.ps1"));
+        var stateContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.State.ps1"));
         var flowContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.Flow.ps1"));
 
-        screenModelContent.Should().Contain("Get-TuiClientItems -State $state.InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap");
-        screenModelContent.Should().Contain("Get-TuiClientItems -State $state.InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap");
-        screenModelContent.Should().Contain("Get-TuiClientItems -State $InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap");
-        screenModelContent.Should().Contain("Get-TuiClientItems -State $InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap");
-        screenModelContent.Should().Contain("Get-TuiUpdateBannerText -State $state.InstallerState -LatestVersion $LatestVersion -RegistrationMap $detectedRegistrationMap");
-        screenModelContent.Should().Contain("Get-TuiUpdateBannerText -State $InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $detectedRegistrationMap");
+        stateContent.Should().Contain("Get-TuiClientItems -State $state.InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap");
+        stateContent.Should().Contain("Get-TuiClientItems -State $state.InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap");
+        stateContent.Should().Contain("Get-TuiClientItems -State $InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap");
+        stateContent.Should().Contain("Get-TuiClientItems -State $InstallerState -Mode 'uninstall' -RegistrationMap $detectedRegistrationMap");
+        stateContent.Should().Contain("Get-TuiUpdateBannerText -State $state.InstallerState -LatestVersion $LatestVersion -RegistrationMap $detectedRegistrationMap");
+        stateContent.Should().Contain("Get-TuiUpdateBannerText -State $InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $detectedRegistrationMap");
+        screenModelContent.Should().NotContain("Get-TuiClientItems -State $state.InstallerState -Mode 'install' -RegistrationMap $detectedRegistrationMap");
         flowContent.Should().Contain("Get-AvailableInstallerUpdates -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap");
         flowContent.Should().Contain("Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap");
     }

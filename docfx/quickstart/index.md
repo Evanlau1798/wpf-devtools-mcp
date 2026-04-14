@@ -80,6 +80,7 @@ Use this sequence in your MCP client:
 3. `get_ui_summary(depthMode: "semantic")`
 4. `get_element_snapshot` or `get_visual_tree` only if the summary is still insufficient
 5. `ping` only if you want an explicit health check
+6. After each diagnostic, interaction, or mutation, follow `navigation.recommended` first; use `nextSteps` as the compatibility fallback for clients that do not surface navigation yet
 
 Healthy first-run signs:
 

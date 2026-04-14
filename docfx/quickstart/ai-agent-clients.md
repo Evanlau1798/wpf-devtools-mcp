@@ -67,6 +67,7 @@ No matter which client you choose, verify the first connection in this order:
 3. `get_ui_summary(depthMode: "semantic")`
 4. `get_element_snapshot` or `get_visual_tree` only if the summary is insufficient
 5. `ping` only if you want an explicit liveness check
+6. After a diagnostic, interaction, or mutation, follow `navigation.recommended` first and treat `nextSteps` as the compatibility field for older clients
 
 ## WPF-specific reminders
 
@@ -75,5 +76,6 @@ No matter which client you choose, verify the first connection in this order:
 - Match the server and bootstrapper bitness to the target process.
 - Treat the generated `client-registration` artifacts as the source of truth for copy-paste setup.
 - Prefer scene-level tools before tree dumps or screenshots.
+- When a tool response already includes `navigation.recommended` or `nextSteps`, use that runtime guidance before inventing another follow-up.
 
 Next: pick your client-specific guide.

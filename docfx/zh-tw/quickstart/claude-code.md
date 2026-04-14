@@ -70,6 +70,7 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 - 不要在 `wpf-devtools-x64.exe` 外層再包會污染 `stdout` 的啟動器。
 - 一般情況先從 `connect()` 開始；只有 auto-discovery 回報多個候選，或你需要先拿到 target metadata 時才用 `get_processes(windowFilter)`。
 - 在 tree-heavy inspection 前，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`。
+- 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`，並把 `nextSteps` 當成相容欄位。
 - 如果你已經知道下一步工具，且希望回應更精簡，可在該次呼叫傳入 `navigation=false`。
 - 若 `connect` 失敗，先一起檢查 server、bootstrapper 與 target 的 bitness。
 - 如果目標 app 是 elevated，請以系統管理員權限啟動 Claude Code，讓它透過 STDIO 拉起的 MCP server 能在相同完整性等級下 attach。

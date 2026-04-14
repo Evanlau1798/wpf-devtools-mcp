@@ -82,7 +82,7 @@ public sealed class ReleasePackagingIntegrationTests
     }
 
     [Fact]
-    public void BuildReleaseScript_ReleaseMode_ShouldProduceX64X86AndArm64Archives()
+    public void BuildReleaseScript_ReleaseMode_ShouldFailWhenPayloadSigningRequirementsAreNotMet()
     {
         var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
         try
@@ -94,22 +94,10 @@ public sealed class ReleasePackagingIntegrationTests
                 outputRoot.Replace("'", "''") + "'";
             var result = ReleasePackagingTestHarness.RunPowerShellCommand(command);
 
-            result.ExitCode.Should().Be(0, result.Stderr);
-            Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Should().ContainSingle();
-            Directory.GetFiles(outputRoot, "release_*_win-x86.zip").Should().ContainSingle();
-            var arm64ArchivePath = Directory.GetFiles(outputRoot, "release_*_win-arm64.zip").Should().ContainSingle().Subject;
-            var extractRoot = ReleasePackagingTestHarness.ExtractArchive(arm64ArchivePath, Path.Combine(tempRoot, "arm64-extract"));
-
-            File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.ScreenModel.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Confirm.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Discovery.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Uninstall.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-arm64.exe")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net48", "WpfDevTools.Inspector.dll")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "bootstrapper", "arm64", "WpfDevTools.Bootstrapper.arm64.dll")).Should().BeTrue();
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("signature",
+                "Release packaging should refuse to emit RequireAuthenticodeSignature packages when payloads are unsigned");
+            Directory.GetFiles(outputRoot, "release_*_win-*.zip").Should().BeEmpty();
         }
         finally
         {

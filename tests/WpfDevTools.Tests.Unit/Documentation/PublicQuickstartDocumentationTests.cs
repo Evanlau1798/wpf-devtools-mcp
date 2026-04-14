@@ -24,7 +24,7 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("wpf-devtools-x64.exe",
+            content.Should().MatchRegex(@"wpf-devtools-(x64|<arch>)\.exe",
                 $"{file} should guide public users toward the packaged release executable");
             content.Should().NotContain("dotnet run --project",
                 $"{file} should not use source-tree launch commands as the primary public quickstart path");

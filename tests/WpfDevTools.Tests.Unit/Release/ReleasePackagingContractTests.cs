@@ -239,7 +239,13 @@ public sealed class ReleasePackagingContractTests
             var manifestSource = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json");
             File.Copy(manifestSource, Path.Combine(installerRoot, "installer-helpers.manifest.json"), overwrite: true);
             using var helperManifest = JsonDocument.Parse(File.ReadAllText(manifestSource));
-            foreach (var helperFile in helperManifest.RootElement.GetProperty("helperFiles").EnumerateArray().Select(static x => x.GetString()).Where(static x => !string.IsNullOrWhiteSpace(x)).Cast<string>())
+            foreach (var helperFile in helperManifest.RootElement.GetProperty("helperFiles")
+                         .EnumerateArray()
+                         .Select(static entry => entry.ValueKind == JsonValueKind.Object
+                             ? entry.GetProperty("path").GetString()
+                             : entry.GetString())
+                         .Where(static entry => !string.IsNullOrWhiteSpace(entry))
+                         .Cast<string>())
             {
                 File.Copy(
                     ReleaseScriptTestHarness.GetRepoFilePath(Path.Combine("scripts", "installer", helperFile)),

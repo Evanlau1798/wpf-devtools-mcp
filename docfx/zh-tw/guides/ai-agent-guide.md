@@ -16,6 +16,14 @@
 
 ## 最佳實務
 
+### 0. 讓 server instructions 保持 AI-friendly
+
+請依照官方 MCP 與 Anthropic 指南的同一套原則撰寫：
+
+- 詳細的 `tool descriptions` 應說明工具做什麼、`when to use`、`when not to use`，以及重要限制或 caveats。
+- JSON schema 與 SDK annotations 只幫助 discovery，並不等於 `runtime validation`；tool handler 仍必須在執行期明確驗證 untrusted arguments。
+- 撰寫公開 quickstart 時，優先使用真實 client workflow、prompts 與 resources，而不是 raw protocol walkthrough。
+
 ### 1. 先 discovery，再假設
 
 不要根據過時的 prompt、截圖或記憶去硬寫參數形狀。請依 server 真正暴露出的工具 metadata 與目前 schema 動態調整。

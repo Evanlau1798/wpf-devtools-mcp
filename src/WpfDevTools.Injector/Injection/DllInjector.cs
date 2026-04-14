@@ -4,7 +4,6 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using System.Text;
 using WpfDevTools.Shared.Enums;
 
@@ -24,12 +23,27 @@ public class DllInjector
     private const int PROCESS_VM_WRITE = 0x0020;
     private const int PROCESS_VM_READ = 0x0010;
 
-    private const uint MEM_COMMIT = 0x1000;
-    private const uint MEM_RESERVE = 0x2000;
-    private const uint PAGE_READWRITE = 0x04;
-    private const uint MEM_RELEASE = 0x8000;
-
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
+    private readonly IRemoteInjectionApi _api;
+    private readonly RemoteThreadBufferInvoker _bufferInvoker;
+
+    /// <summary>
+    /// Create a DLL injector backed by the native Win32 injection API.
+    /// </summary>
+    public DllInjector()
+        : this(
+            Win32RemoteInjectionApi.Instance,
+            DeferredRemoteAllocationCleanupScheduler.Instance)
+    {
+    }
+
+    internal DllInjector(
+        IRemoteInjectionApi api,
+        IRemoteAllocationCleanupScheduler cleanupScheduler)
+    {
+        _api = api;
+        _bufferInvoker = new RemoteThreadBufferInvoker(api, cleanupScheduler);
+    }
 
     /// <summary>
     /// Inject DLL into target process
@@ -96,13 +110,11 @@ public class DllInjector
     private InjectionResult PerformInjection(int processId, string dllPath, TimeSpan timeout)
     {
         IntPtr hProcess = IntPtr.Zero;
-        IntPtr allocatedMemory = IntPtr.Zero;
-        var shouldFreeAllocatedMemory = false;
 
         try
         {
             // Open target process
-            hProcess = OpenProcess(
+            hProcess = _api.OpenProcess(
                 PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
                 PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
                 false,
@@ -113,12 +125,12 @@ public class DllInjector
                 return InjectionResult.CreateFailure(
                     processId,
                     InjectionError.AccessDenied,
-                    $"Failed to open process. Error: {Marshal.GetLastWin32Error()}");
+                    $"Failed to open process. Error: {_api.GetLastError()}");
             }
 
             // Get LoadLibraryW address
-            var kernel32 = GetModuleHandle("kernel32.dll");
-            var loadLibraryAddr = GetProcAddress(kernel32, "LoadLibraryW");
+            var kernel32 = _api.GetModuleHandle("kernel32.dll");
+            var loadLibraryAddr = _api.GetProcAddress(kernel32, "LoadLibraryW");
 
             if (loadLibraryAddr == IntPtr.Zero)
             {
@@ -130,90 +142,45 @@ public class DllInjector
 
             // Allocate memory in target process
             var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
-            var size = (uint)dllPathBytes.Length;
-
-            allocatedMemory = VirtualAllocEx(
+            var invocationResult = _bufferInvoker.Invoke(
                 hProcess,
-                IntPtr.Zero,
-                size,
-                MEM_COMMIT | MEM_RESERVE,
-                PAGE_READWRITE);
+                loadLibraryAddr,
+                dllPathBytes,
+                timeout,
+                requireExitCode: false);
 
-            if (allocatedMemory == IntPtr.Zero)
+            return invocationResult.Status switch
             {
-                return InjectionResult.CreateFailure(
+                RemoteThreadInvocationStatus.Completed => InjectionResult.CreateSuccess(processId, dllPath),
+                RemoteThreadInvocationStatus.AllocationFailed => InjectionResult.CreateFailure(
                     processId,
                     InjectionError.AllocationFailed,
-                    $"Failed to allocate memory. Error: {Marshal.GetLastWin32Error()}");
-            }
-
-            // Write DLL path to target process
-            if (!WriteProcessMemory(
-                hProcess,
-                allocatedMemory,
-                dllPathBytes,
-                size,
-                out _))
-            {
-                return InjectionResult.CreateFailure(
+                    $"Failed to allocate memory. Error: {invocationResult.LastError}"),
+                RemoteThreadInvocationStatus.WriteFailed => InjectionResult.CreateFailure(
                     processId,
                     InjectionError.WriteFailed,
-                    $"Failed to write memory. Error: {Marshal.GetLastWin32Error()}");
-            }
-
-            // Create remote thread
-            var hThread = CreateRemoteThread(
-                hProcess,
-                IntPtr.Zero,
-                0,
-                loadLibraryAddr,
-                allocatedMemory,
-                0,
-                IntPtr.Zero);
-
-            if (hThread == IntPtr.Zero)
-            {
-                return InjectionResult.CreateFailure(
+                    $"Failed to write memory. Error: {invocationResult.LastError}"),
+                RemoteThreadInvocationStatus.ThreadCreationFailed => InjectionResult.CreateFailure(
                     processId,
                     InjectionError.CreateThreadFailed,
-                    $"Failed to create remote thread. Error: {Marshal.GetLastWin32Error()}");
-            }
-
-            // Wait for thread to complete
-            var waitResult = WaitForSingleObject(hThread, (uint)timeout.TotalMilliseconds);
-
-            CloseHandle(hThread);
-
-            const uint WAIT_OBJECT_0 = 0x00000000;
-            const uint WAIT_TIMEOUT = 0x00000102;
-            const uint WAIT_FAILED = 0xFFFFFFFF;
-
-            if (waitResult == WAIT_TIMEOUT)
-            {
-                return InjectionResult.CreateFailure(
+                    $"Failed to create remote thread. Error: {invocationResult.LastError}"),
+                RemoteThreadInvocationStatus.TimedOut => InjectionResult.CreateFailure(
                     processId,
                     InjectionError.Timeout,
-                    "Injection timed out");
-            }
-
-            if (waitResult == WAIT_FAILED)
-            {
-                return InjectionResult.CreateFailure(
+                    "Injection timed out"),
+                RemoteThreadInvocationStatus.WaitFailed => InjectionResult.CreateFailure(
                     processId,
                     InjectionError.Unknown,
-                    $"WaitForSingleObject failed with error: {Marshal.GetLastWin32Error()}");
-            }
-
-            if (waitResult != WAIT_OBJECT_0)
-            {
-                return InjectionResult.CreateFailure(
+                    $"WaitForSingleObject failed with error: {invocationResult.LastError}"),
+                RemoteThreadInvocationStatus.UnexpectedWaitResult => InjectionResult.CreateFailure(
                     processId,
                     InjectionError.Unknown,
-                    $"Unexpected wait result: 0x{waitResult:X8}");
-            }
-
-            shouldFreeAllocatedMemory = true;
-            return InjectionResult.CreateSuccess(processId, dllPath);
+                    $"Unexpected wait result: 0x{invocationResult.WaitResult:X8}"),
+                _ => InjectionResult.CreateFailure(
+                    processId,
+                    InjectionError.Unknown,
+                    "Injection thread completed, but the injector could not confirm its result.")
+            };
         }
         catch (Exception ex)
         {
@@ -224,15 +191,9 @@ public class DllInjector
         }
         finally
         {
-            // Only release the remote buffer after the remote thread is known to be finished.
-            if (shouldFreeAllocatedMemory && allocatedMemory != IntPtr.Zero && hProcess != IntPtr.Zero)
-            {
-                VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
-            }
-
             if (hProcess != IntPtr.Zero)
             {
-                CloseHandle(hProcess);
+                _api.CloseHandle(hProcess);
             }
         }
     }
@@ -251,8 +212,6 @@ public class DllInjector
         string parameters,
         TimeSpan timeout)
     {
-        var shouldFreeBootstrapParameters = false;
-
         // Step 1: Load bootstrapper via LoadLibraryW
         if (!LoadLibraryRemote(hProcess, bootstrapperPath, timeout))
             return InjectionMechanismFailure.LoadBootstrapperFailed;
@@ -272,102 +231,51 @@ public class DllInjector
 
         // Write parameters to target process memory
         var paramBytes = Encoding.Unicode.GetBytes(parameters + "\0");
-        var remoteParamAddr = VirtualAllocEx(hProcess, IntPtr.Zero,
-            (uint)paramBytes.Length, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        if (remoteParamAddr == IntPtr.Zero)
-            return InjectionMechanismFailure.AllocateBootstrapParametersFailed;
+        var invocationResult = _bufferInvoker.Invoke(
+            hProcess,
+            remoteFuncAddr,
+            paramBytes,
+            timeout,
+            requireExitCode: true);
 
-        if (!WriteProcessMemory(hProcess, remoteParamAddr, paramBytes,
-            (uint)paramBytes.Length, out _))
+        return invocationResult.Status switch
         {
-            VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
-            return InjectionMechanismFailure.WriteBootstrapParametersFailed;
-        }
-
-        // Step 2: CreateRemoteThread calling exported function
-        var hThread = CreateRemoteThread(hProcess, IntPtr.Zero, 0,
-            remoteFuncAddr, remoteParamAddr, 0, IntPtr.Zero);
-        if (hThread == IntPtr.Zero)
-        {
-            VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
-            return InjectionMechanismFailure.StartBootstrapExportFailed;
-        }
-
-        var waitResult = WaitForSingleObject(hThread, (uint)timeout.TotalMilliseconds);
-        const uint WAIT_OBJECT_0 = 0x00000000;
-        if (waitResult != WAIT_OBJECT_0)
-        {
-            CloseHandle(hThread);
-            return InjectionMechanismFailure.InvokeBootstrapExportTimedOut;
-        }
-
-        shouldFreeBootstrapParameters = true;
-        GetExitCodeThread(hThread, out uint exitCode);
-        CloseHandle(hThread);
-        if (shouldFreeBootstrapParameters && remoteParamAddr != IntPtr.Zero)
-        {
-            VirtualFreeEx(hProcess, remoteParamAddr, 0, MEM_RELEASE);
-        }
-
-        return (int)exitCode;
+            RemoteThreadInvocationStatus.Completed => (int)invocationResult.ExitCode,
+            RemoteThreadInvocationStatus.AllocationFailed =>
+                InjectionMechanismFailure.AllocateBootstrapParametersFailed,
+            RemoteThreadInvocationStatus.WriteFailed =>
+                InjectionMechanismFailure.WriteBootstrapParametersFailed,
+            RemoteThreadInvocationStatus.ThreadCreationFailed =>
+                InjectionMechanismFailure.StartBootstrapExportFailed,
+            RemoteThreadInvocationStatus.ExitCodeUnavailable =>
+                InjectionMechanismFailure.ReadBootstrapExitCodeFailed,
+            _ => InjectionMechanismFailure.InvokeBootstrapExportTimedOut
+        };
     }
 
     private bool LoadLibraryRemote(IntPtr hProcess, string dllPath, TimeSpan timeout)
     {
-        var shouldFreeAllocatedMemory = false;
-        var kernel32 = GetModuleHandle("kernel32.dll");
-        var loadLibraryAddr = GetProcAddress(kernel32, "LoadLibraryW");
+        var kernel32 = _api.GetModuleHandle("kernel32.dll");
+        var loadLibraryAddr = _api.GetProcAddress(kernel32, "LoadLibraryW");
         if (loadLibraryAddr == IntPtr.Zero)
             return false;
 
         var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
-        var size = (uint)dllPathBytes.Length;
+        var invocationResult = _bufferInvoker.Invoke(
+            hProcess,
+            loadLibraryAddr,
+            dllPathBytes,
+            timeout,
+            requireExitCode: true);
+        var remoteModuleHandle = invocationResult.ExitCodeAvailable
+            ? new IntPtr(unchecked((int)invocationResult.ExitCode))
+            : IntPtr.Zero;
 
-        var allocatedMemory = VirtualAllocEx(hProcess, IntPtr.Zero, size,
-            MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        if (allocatedMemory == IntPtr.Zero)
-            return false;
-
-        if (!WriteProcessMemory(hProcess, allocatedMemory, dllPathBytes, size, out _))
-        {
-            VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
-            return false;
-        }
-
-        var hThread = CreateRemoteThread(hProcess, IntPtr.Zero, 0,
-            loadLibraryAddr, allocatedMemory, 0, IntPtr.Zero);
-        if (hThread == IntPtr.Zero)
-        {
-            VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
-            return false;
-        }
-
-        var waitResult = WaitForSingleObject(hThread, (uint)timeout.TotalMilliseconds);
-        var exitCodeAvailable = false;
-        var remoteModuleHandle = IntPtr.Zero;
-
-        if (waitResult == LoadLibraryRemoteResult.WaitObject0 &&
-            GetExitCodeThread(hThread, out uint exitCode))
-        {
-            exitCodeAvailable = true;
-            remoteModuleHandle = new IntPtr(unchecked((int)exitCode));
-        }
-
-        if (waitResult == LoadLibraryRemoteResult.WaitObject0)
-        {
-            shouldFreeAllocatedMemory = true;
-        }
-
-        CloseHandle(hThread);
-        if (shouldFreeAllocatedMemory)
-        {
-            VirtualFreeEx(hProcess, allocatedMemory, 0, MEM_RELEASE);
-        }
-
-        return LoadLibraryRemoteResult.IsSuccessful(
-            waitResult,
-            exitCodeAvailable,
-            remoteModuleHandle);
+        return invocationResult.Status == RemoteThreadInvocationStatus.Completed &&
+            LoadLibraryRemoteResult.IsSuccessful(
+                invocationResult.WaitResult,
+                invocationResult.ExitCodeAvailable,
+                remoteModuleHandle);
     }
 
     private string GetErrorMessage(InjectionError error)
@@ -386,61 +294,5 @@ public class DllInjector
         };
     }
 
-    // P/Invoke declarations
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr OpenProcess(
-        int dwDesiredAccess,
-        bool bInheritHandle,
-        int dwProcessId);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr VirtualAllocEx(
-        IntPtr hProcess,
-        IntPtr lpAddress,
-        uint dwSize,
-        uint flAllocationType,
-        uint flProtect);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool WriteProcessMemory(
-        IntPtr hProcess,
-        IntPtr lpBaseAddress,
-        byte[] lpBuffer,
-        uint nSize,
-        out int lpNumberOfBytesWritten);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr CreateRemoteThread(
-        IntPtr hProcess,
-        IntPtr lpThreadAttributes,
-        uint dwStackSize,
-        IntPtr lpStartAddress,
-        IntPtr lpParameter,
-        uint dwCreationFlags,
-        IntPtr lpThreadId);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern uint WaitForSingleObject(
-        IntPtr hHandle,
-        uint dwMilliseconds);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CloseHandle(IntPtr hObject);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool VirtualFreeEx(
-        IntPtr hProcess,
-        IntPtr lpAddress,
-        int dwSize,
-        uint dwFreeType);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-    private static extern IntPtr GetModuleHandle(string lpModuleName);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
-    private static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool GetExitCodeThread(IntPtr hThread, out uint lpExitCode);
 }
 

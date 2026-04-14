@@ -4,8 +4,8 @@
 
 param(
     [string]$CertificateName = "WpfDevTools Development",
-    [string]$OutputPath = ".\cert",
-    [string]$Password = "DevPassword123!"
+    [string]$OutputPath = ".\tmp\cert",
+    [Parameter(Mandatory)] [string]$Password
 )
 
 Write-Host "Creating self-signed certificate for code signing..." -ForegroundColor Green

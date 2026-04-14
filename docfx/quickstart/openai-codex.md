@@ -55,6 +55,7 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 - Keep the MCP server on Windows even if your editor tooling spans multiple environments.
 - Start with `connect()` in the common case. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you want explicit target metadata first.
 - Prefer scene-level tools before tree-heavy inspection.
+- After each diagnostic, interaction, or mutation, follow `navigation.recommended` first and use `nextSteps` only as the compatibility field.
 - If you already know the next tool and want a leaner payload, pass `navigation=false` on that specific call.
 - If `connect` fails, check server bitness, bootstrapper bitness, and the target process bitness together.
 - Keep `stdout` clean because Codex uses STDIO MCP transport.

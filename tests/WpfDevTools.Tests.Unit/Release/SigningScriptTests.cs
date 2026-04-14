@@ -16,6 +16,8 @@ public sealed class SigningScriptTests
         content.Should().Contain("Import-PfxCertificate",
             "the script should import the PFX with a secure password handling path and sign by thumbprint instead of exposing the password in process arguments");
         content.Should().Contain("CertificateThumbprint");
+        content.Should().Contain("https://",
+            "timestamp traffic for production signing should use HTTPS");
     }
 
     [Fact]
@@ -140,5 +142,16 @@ public sealed class SigningScriptTests
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    [Fact]
+    public void CreateSelfSignedCertScript_ShouldNotShipHardCodedDevelopmentPasswordDefaults()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/Create-SelfSignedCert.ps1"));
+
+        content.Should().NotContain("DevPassword123!");
+        content.Should().Contain("[Parameter(Mandatory)]",
+            "development certificate generation should require an explicit password or equivalent caller input");
     }
 }

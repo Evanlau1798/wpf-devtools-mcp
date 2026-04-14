@@ -49,6 +49,16 @@ public sealed class InstallerTuiLayoutContractTests
     }
 
     [Fact]
+    public void TuiScreenModel_ShouldStayWithinSingleFileLimitAfterHelperSplits()
+    {
+        var lineCount = File.ReadLines(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.ScreenModel.ps1")).Count();
+
+        lineCount.Should().BeLessThanOrEqualTo(500,
+            "screen model responsibilities should be split into helper modules before the file grows past the repository limit");
+    }
+
+    [Fact]
     public void InstallerHelperManifest_ShouldListTerminalAndLayoutHelpers()
     {
         var content = File.ReadAllText(
@@ -56,6 +66,7 @@ public sealed class InstallerTuiLayoutContractTests
 
         content.Should().Contain("Tui.Terminal.ps1");
         content.Should().Contain("Tui.Layout.ps1");
+        content.Should().Contain("Tui.State.ps1");
     }
 
     [Fact]

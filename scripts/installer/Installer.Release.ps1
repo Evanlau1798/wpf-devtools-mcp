@@ -50,6 +50,15 @@ function Get-ReleaseAssetDownloadDetails {
     }
 }
 
+function Get-ReleaseArchiveDownloadTimeoutSeconds {
+    $resolver = Get-Command 'Get-InstallerTimeoutSeconds' -ErrorAction SilentlyContinue
+    if ($null -ne $resolver) {
+        return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_DOWNLOAD_TIMEOUT_SEC' -DefaultValue 30 -MinimumValue 5 -MaximumValue 300)
+    }
+
+    return 30
+}
+
 function Resolve-PackageSession {
     param(
         [Parameter(Mandatory)] [string]$Mode,
@@ -94,7 +103,7 @@ function Resolve-PackageSession {
     $downloadVersion = Resolve-RequestedReleaseVersion -RequestedVersion $ResolvedVersion
     $downloadDetails = Get-ReleaseAssetDownloadDetails -ResolvedVersion $downloadVersion -ResolvedArchitecture $ResolvedArchitecture
     $archivePath = Join-Path $workingRootPath ([string]$downloadDetails.AssetName)
-    Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath
+    Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath -TimeoutSec (Get-ReleaseArchiveDownloadTimeoutSeconds)
     $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
     Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force

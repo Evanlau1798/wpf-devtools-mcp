@@ -26,7 +26,6 @@ $assets = foreach ($archive in $archives) {
     $hash = (Get-FileHash -Path $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     [pscustomobject]@{
         name = $archive.Name
-        path = $archive.FullName
         sizeBytes = $archive.Length
         sha256 = $hash
     }
@@ -38,8 +37,6 @@ $checksumLines | Set-Content -Path $checksumPath -Encoding UTF8
 
 $manifest = [pscustomobject]@{
     tag = $Tag
-    generatedUtc = [DateTimeOffset]::UtcNow.ToString('o')
-    outputRoot = $archiveRootFullPath
     assetCount = @($assets).Count
     assets = @($assets)
 }

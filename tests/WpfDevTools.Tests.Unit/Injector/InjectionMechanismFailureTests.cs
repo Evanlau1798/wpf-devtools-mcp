@@ -40,4 +40,16 @@ public class InjectionMechanismFailureTests
         result!.Stage.Should().Be(BootstrapStage.ManagedEntrypoint);
         result.Message.Should().Contain("timeout");
     }
+
+    [Fact]
+    public void TryInterpret_WhenBootstrapExitCodeCannotBeRead_ShouldReturnManagedEntrypointStage()
+    {
+        var interpreted = InjectionMechanismFailure.TryInterpret(
+            InjectionMechanismFailure.ReadBootstrapExitCodeFailed,
+            out var result);
+
+        interpreted.Should().BeTrue();
+        result!.Stage.Should().Be(BootstrapStage.ManagedEntrypoint);
+        result.Message.Should().Contain("exit code");
+    }
 }

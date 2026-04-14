@@ -12,10 +12,10 @@ Cursor、VS Code 與 Visual Studio 最適合直接套用 installer 產生的 JSO
 
 如果你偏好腳本驅動安裝，請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 再於本機執行。
 
-安裝後的預設 executable 路徑是：
+安裝後，典型的 executable 路徑會是：
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
+C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
 ## 2. 使用 installer 產生的 JSON artifact
@@ -37,7 +37,7 @@ installer 會在 `client-registration\` 內輸出 editor-ready JSON。
   "mcpServers": {
     "wpf-devtools": {
       "type": "stdio",
-      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
       "args": []
     }
   }
@@ -63,7 +63,7 @@ Cursor editor workflow 與 Cursor CLI 的 MCP workflow 會共用這個 `.cursor\
   "servers": {
     "wpf-devtools": {
       "type": "stdio",
-      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
       "args": []
     }
   }
@@ -74,11 +74,12 @@ Cursor editor workflow 與 Cursor CLI 的 MCP workflow 會共用這個 `.cursor\
 
 ## 3. 第一個實用流程
 
-1. 請 client 先呼叫 `tools/list`。
-2. 執行 `connect()`。
+1. 執行 `connect()`。
+2. 如果 client 有暴露 prompts 或 resources，優先使用那些 discovery surfaces，而不是 raw protocol bootstrapping。
 3. 若 auto-discovery 回傳多個候選，執行 `get_processes(windowFilter)` 並重新執行 `connect(processId)`。
 4. 執行 `get_ui_summary(depthMode: "semantic")`。
-5. 只有在仍需要更深層結構時才使用 `get_element_snapshot` 或 `get_visual_tree`。
+5. 優先遵循 `navigation.recommended`，若 client 尚未呈現 navigation，則把 `nextSteps` 當成相容欄位。
+6. 只有在仍需要更深層結構時才使用 `get_element_snapshot` 或 `get_visual_tree`。
 
 ## 注意事項
 
@@ -88,3 +89,4 @@ Cursor editor workflow 與 Cursor CLI 的 MCP workflow 會共用這個 `.cursor\
 - 若切換架構，請重新註冊已安裝的 executable。
 - 避免讓編輯器外層 wrapper 把額外訊息寫入 `stdout`。
 - 在 editor-driven workflow 中，先用 scene-level 摘要，再展開 tree。
+- 如果工具結果已包含 `navigation.recommended` 或 `nextSteps`，那個執行期 guidance 會比固定手冊流程更可靠。

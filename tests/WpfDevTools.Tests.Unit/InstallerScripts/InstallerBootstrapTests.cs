@@ -69,7 +69,9 @@ public sealed class InstallerBootstrapTests
         using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
         var helperFiles = manifest.RootElement.GetProperty("helperFiles")
             .EnumerateArray()
-            .Select(static entry => entry.GetString())
+            .Select(static entry => entry.ValueKind == JsonValueKind.Object
+                ? entry.GetProperty("path").GetString()
+                : entry.GetString())
             .Where(static entry => !string.IsNullOrWhiteSpace(entry))
             .Cast<string>()
             .ToArray();
@@ -98,7 +100,9 @@ public sealed class InstallerBootstrapTests
         using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
         var helperFiles = manifest.RootElement.GetProperty("helperFiles")
             .EnumerateArray()
-            .Select(static entry => entry.GetString())
+            .Select(static entry => entry.ValueKind == JsonValueKind.Object
+                ? entry.GetProperty("path").GetString()
+                : entry.GetString())
             .Where(static entry => !string.IsNullOrWhiteSpace(entry))
             .Cast<string>()
             .ToArray();
@@ -250,6 +254,7 @@ $env:APPDATA='{{appData.Replace("'", "''")}}'
 $env:LOCALAPPDATA='{{localAppData.Replace("'", "''")}}'
 $env:USERPROFILE='{{userProfile.Replace("'", "''")}}'
 $env:TEMP='{{tempRoot.Replace("'", "''")}}'
+$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='{{ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer").Replace("'", "''")}}'
 $scriptPath='{{repoScriptPath.Replace("'", "''")}}'
 $scriptContent = Get-Content $scriptPath -Raw
 $marker = '$selectionContext = Resolve-Selection'

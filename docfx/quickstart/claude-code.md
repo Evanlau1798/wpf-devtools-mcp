@@ -70,6 +70,7 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 - Do not wrap `wpf-devtools-x64.exe` with extra stdout logging.
 - Start with `connect()` in the common case. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you need explicit target metadata first.
 - Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.
+- After each diagnostic, interaction, or mutation, follow `navigation.recommended` first and treat `nextSteps` as the compatibility field.
 - If you already know the next tool and want a leaner payload, pass `navigation=false` on that specific call.
 - If `connect` fails, check server bitness, bootstrapper bitness, and target bitness together.
 - If the target app is elevated, start Claude Code as administrator so the STDIO-launched MCP server can attach at the same integrity level.

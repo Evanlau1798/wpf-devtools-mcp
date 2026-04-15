@@ -9,7 +9,8 @@ internal enum RemoteThreadInvocationStatus
     TimedOut,
     WaitFailed,
     UnexpectedWaitResult,
-    ExitCodeUnavailable
+    ExitCodeUnavailable,
+    DeferredCleanupSchedulingFailed
 }
 
 internal readonly record struct RemoteThreadInvocationResult(

@@ -326,7 +326,10 @@ function Resolve-PackageExecutable {
 }
 
 function Get-PackagePayloadSignatureTargets {
-    param([Parameter(Mandatory)] [string]$PackageDirectory)
+    param(
+        [Parameter(Mandatory)] [string]$PackageDirectory,
+        [Parameter(Mandatory)] [psobject]$PackageManifest
+    )
 
     $payloadRoot = if (Test-Path (Join-Path $PackageDirectory 'bin')) {
         Join-Path $PackageDirectory 'bin'
@@ -339,7 +342,32 @@ function Get-PackagePayloadSignatureTargets {
         return @()
     }
 
-    return @(Get-ChildItem -Path $payloadRoot -Recurse -File -Include '*.exe', '*.dll' | ForEach-Object { $_.FullName })
+    $targets = New-Object System.Collections.Generic.List[string]
+    foreach ($relativePath in @(
+            [string]$PackageManifest.entryExecutable
+            [string]$PackageManifest.inspector.net8
+            [string]$PackageManifest.inspector.net48
+            [string]$PackageManifest.bootstrapper
+        )) {
+        if (-not [string]::IsNullOrWhiteSpace($relativePath)) {
+            $candidate = Join-Path $PackageDirectory $relativePath
+            if (Test-Path $candidate) {
+                $targets.Add((Resolve-Path $candidate).Path)
+            }
+        }
+    }
+
+    $knownPayloads = @(Get-ChildItem -Path $payloadRoot -Recurse -File -Include @(
+                'wpf-devtools-*.exe',
+                'WpfDevTools.Mcp.Server.exe',
+                'WpfDevTools.Inspector.dll',
+                'WpfDevTools.Bootstrapper.*.dll'
+            ) | ForEach-Object { $_.FullName })
+    foreach ($payload in $knownPayloads) {
+        $targets.Add($payload)
+    }
+
+    return @($targets | Sort-Object -Unique)
 }
 
 function Assert-PackagePayloadIntegrity {
@@ -362,7 +390,7 @@ function Assert-PackagePayloadIntegrity {
         return
     }
 
-    $targets = @(Get-PackagePayloadSignatureTargets -PackageDirectory $PackageDirectory)
+    $targets = @(Get-PackagePayloadSignatureTargets -PackageDirectory $PackageDirectory -PackageManifest $PackageManifest)
     if ($targets.Count -eq 0) {
         throw 'Package payload signature verification could not locate any executable payloads.'
     }

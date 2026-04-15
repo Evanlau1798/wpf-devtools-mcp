@@ -98,6 +98,13 @@ internal sealed class RemoteThreadBufferInvoker
                 processHandle,
                 threadHandle,
                 remoteBuffer);
+            if (!cleanupScheduled)
+            {
+                return new RemoteThreadInvocationResult(
+                    RemoteThreadInvocationStatus.DeferredCleanupSchedulingFailed,
+                    WaitResult: waitResult,
+                    LastError: waitError);
+            }
 
             return waitResult switch
             {

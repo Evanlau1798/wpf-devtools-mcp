@@ -152,7 +152,12 @@ internal static class ReleaseScriptTestHarness
         File.WriteAllText(
             scriptPath,
             "@echo off" + Environment.NewLine +
+            "setlocal EnableDelayedExpansion" + Environment.NewLine +
+            "set \"STATE_PATH=" + logPath + ".state\"" + Environment.NewLine +
             $"echo %*>>\"{logPath}\"" + Environment.NewLine +
+            "for %%A in (%*) do set \"LAST_ARG=%%~A\"" + Environment.NewLine +
+            "if /I \"%1 %2\"==\"mcp add\" >\"%STATE_PATH%\" echo wpf-devtools !LAST_ARG!" + Environment.NewLine +
+            "if /I \"%1 %2\"==\"mcp list\" if exist \"%STATE_PATH%\" type \"%STATE_PATH%\"" + Environment.NewLine +
             "exit /b 0" + Environment.NewLine);
 
         return scriptPath;

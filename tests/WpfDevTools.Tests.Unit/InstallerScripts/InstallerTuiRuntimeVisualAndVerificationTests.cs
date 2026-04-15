@@ -299,12 +299,13 @@ public sealed partial class InstallerTuiRuntimeTests
             var fakeBin = Path.Combine(tempRoot, "bin");
             var codexLog = Path.Combine(tempRoot, "codex.log");
             Directory.CreateDirectory(fakeBin);
+            var expectedExecutable = Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe");
 
             File.WriteAllText(
                 Path.Combine(fakeBin, "codex.ps1"),
                 "param([Parameter(ValueFromRemainingArguments=$true)][string[]]$args)" + Environment.NewLine +
                 "Add-Content -Path '" + codexLog.Replace("'", "''") + "' -Value ($args -join ' ')" + Environment.NewLine +
-                "if (($args[0] -eq 'mcp') -and ($args[1] -eq 'list')) { Write-Output 'wpf-devtools'; exit 0 }" + Environment.NewLine +
+                "if (($args[0] -eq 'mcp') -and ($args[1] -eq 'list')) { Write-Output 'wpf-devtools " + expectedExecutable.Replace("'", "''") + "'; exit 0 }" + Environment.NewLine +
                 "if (($args[0] -eq 'mcp') -and ($args[1] -eq 'add')) { exit 0 }" + Environment.NewLine +
                 "exit 0" + Environment.NewLine);
 
@@ -317,7 +318,7 @@ public sealed partial class InstallerTuiRuntimeTests
                     ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
                     ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
                     ["PATH"] = BuildShimOnlyPath(fakeBin),
-                    ["WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC"] = "1"
+                    ["WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC"] = "5"
                 });
 
             result.ExitCode.Should().Be(0, result.Stderr);

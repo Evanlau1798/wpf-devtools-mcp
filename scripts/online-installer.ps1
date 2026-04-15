@@ -737,10 +737,6 @@ function Get-HelperLeafNames {
     return @($script:InstallerHelperSourcePaths | ForEach-Object { Split-Path $_ -Leaf })
 }
 function Resolve-InstallerBootstrapUiPath {
-    if ($null -ne (Get-Command Write-TuiBootstrapScreen -ErrorAction SilentlyContinue)) {
-        return $null
-    }
-
     foreach ($candidateRoot in @(Get-LocalInstallerHelperRoots)) {
         if ([string]::IsNullOrWhiteSpace($candidateRoot) -or -not (Test-Path $candidateRoot)) {
             continue
@@ -756,9 +752,6 @@ function Resolve-InstallerBootstrapUiPath {
 }
 
 $script:InstallerBootstrapUiPath = Resolve-InstallerBootstrapUiPath
-if (-not [string]::IsNullOrWhiteSpace($script:InstallerBootstrapUiPath)) {
-    . $script:InstallerBootstrapUiPath
-}
 if ($null -eq (Get-Command Enter-TuiBootstrapTerminalSession -ErrorAction SilentlyContinue)) {
     function Enter-TuiBootstrapTerminalSession { return $null }
 }
@@ -769,15 +762,7 @@ if ($null -eq (Get-Command Close-TuiBootstrapScreen -ErrorAction SilentlyContinu
     function Close-TuiBootstrapScreen { }
 }
 if ($null -eq (Get-Command Write-TuiBootstrapScreen -ErrorAction SilentlyContinue)) {
-    function Write-TuiBootstrapScreen {
-        param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Message)
-
-        if ([string]::IsNullOrWhiteSpace($Message)) {
-            return ''
-        }
-
-        return $Message
-    }
+    function Write-TuiBootstrapScreen { param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Message); if ([string]::IsNullOrWhiteSpace($Message)) { return '' }; return $Message }
 }
 function Get-InstallerTimeoutSeconds {
     param(
@@ -983,6 +968,18 @@ function Read-TuiHelperManifest {
         CacheKey = $cacheKey
         HelperFiles = @($helperFiles)
         HelperFileRecords = @($helperFileRecords.ToArray())
+    }
+}
+if (-not [string]::IsNullOrWhiteSpace($script:InstallerBootstrapUiPath)) {
+    $helperDirectory = Split-Path -Parent $script:InstallerBootstrapUiPath
+    $manifest = Read-TuiHelperManifest -ManifestPath (Get-TuiHelperManifestPath -RootPath $helperDirectory) -HelperDirectory $helperDirectory
+    if ($null -ne $manifest) {
+        $recordMap = Get-InstallerHelperRecordMap -Manifest $manifest
+        if (-not $recordMap.ContainsKey('Installer.BootstrapUi.ps1')) {
+            throw 'Installer helper manifest is missing integrity metadata for Installer.BootstrapUi.ps1.'
+        }
+        Assert-InstallerHelperFileRecord -HelperPath $script:InstallerBootstrapUiPath -HelperRecord $recordMap['Installer.BootstrapUi.ps1']
+        . $script:InstallerBootstrapUiPath
     }
 }
 function Get-TuiHelperManifest {

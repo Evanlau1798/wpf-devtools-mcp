@@ -93,6 +93,104 @@ public sealed class InstallerIdeRegistrationSmokeTests
         }
     }
 
+    [Fact]
+    public void OnlineInstaller_ShouldRejectCliVerificationWhenListOutputPointsAtDifferentExecutable()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var cliDirectory = Path.Combine(tempRoot, "bin");
+            var logPath = Path.Combine(tempRoot, "cli-state", "claude.log");
+            Directory.CreateDirectory(cliDirectory);
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            File.WriteAllText(
+                Path.Combine(cliDirectory, "claude.cmd"),
+                BuildCliRegistrationShimWithListOutput(
+                    logPath,
+                    @"wpf-devtools C:\stale\wpf-devtools-x64.exe"));
+
+            var environment = new Dictionary<string, string?>
+            {
+                ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                ["PATH"] = cliDirectory + ";" + (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+            };
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "claude-code",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                environment);
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("does not match");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_ShouldRejectCliVerificationWhenExpectedPathBelongsToDifferentEntry()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var cliDirectory = Path.Combine(tempRoot, "bin");
+            var logPath = Path.Combine(tempRoot, "cli-state", "claude.log");
+            var expectedPath = Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe");
+            Directory.CreateDirectory(cliDirectory);
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            File.WriteAllText(
+                Path.Combine(cliDirectory, "claude.cmd"),
+                BuildCliRegistrationShimWithListOutput(
+                    logPath,
+                    "other-server " + expectedPath + Environment.NewLine +
+                    @"wpf-devtools C:\stale\wpf-devtools-x64.exe"));
+
+            var environment = new Dictionary<string, string?>
+            {
+                ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                ["PATH"] = cliDirectory + ";" + (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+            };
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "claude-code",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                environment);
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("does not match");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static void ConfigureScenarioEnvironment(
         string tempRoot,
         RegistrationScenario scenario,
@@ -195,13 +293,14 @@ public sealed class InstallerIdeRegistrationSmokeTests
             Environment.NewLine,
             [
                 "@echo off",
-                "setlocal",
+                "setlocal EnableDelayedExpansion",
                 "set \"STATE_PATH=" + EscapeForBatch(statePath) + "\"",
                 "set \"LOG_PATH=" + EscapeForBatch(logPath) + "\"",
                 "if not exist \"%LOG_PATH%\" type nul >\"%LOG_PATH%\"",
                 "echo %*>>\"%LOG_PATH%\"",
                 "if /I \"%1 %2\"==\"mcp add\" (",
-                "  >\"%STATE_PATH%\" echo wpf-devtools",
+                "  for %%A in (%*) do set \"LAST_ARG=%%~A\"",
+                "  >\"%STATE_PATH%\" echo wpf-devtools !LAST_ARG!",
                 "  exit /b 0",
                 ")",
                 "if /I \"%1 %2\"==\"mcp remove\" (",
@@ -214,6 +313,31 @@ public sealed class InstallerIdeRegistrationSmokeTests
                 ")",
                 "exit /b 0"
             ]);
+    }
+
+    private static string BuildCliRegistrationShimWithListOutput(string logPath, string listOutput)
+    {
+        static string EscapeForBatch(string value) => value.Replace("\"", "\"\"");
+
+        var lines = new List<string>
+        {
+            "@echo off",
+            "setlocal",
+            "set \"LOG_PATH=" + EscapeForBatch(logPath) + "\"",
+            "if not exist \"%LOG_PATH%\" type nul >\"%LOG_PATH%\"",
+            "echo %*>>\"%LOG_PATH%\"",
+            "if /I \"%1 %2\"==\"mcp add\" exit /b 0",
+            "if /I \"%1 %2\"==\"mcp list\" ("
+        };
+        foreach (var outputLine in listOutput.Split([Environment.NewLine], StringSplitOptions.None))
+        {
+            lines.Add("  echo " + EscapeForBatch(outputLine));
+        }
+
+        lines.Add("  exit /b 0");
+        lines.Add(")");
+        lines.Add("exit /b 0");
+        return string.Join(Environment.NewLine, lines);
     }
 
     private sealed record RegistrationScenario(

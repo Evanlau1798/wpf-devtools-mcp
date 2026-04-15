@@ -176,6 +176,10 @@ public class DllInjector
                     processId,
                     InjectionError.Unknown,
                     $"Unexpected wait result: 0x{invocationResult.WaitResult:X8}"),
+                RemoteThreadInvocationStatus.DeferredCleanupSchedulingFailed => InjectionResult.CreateFailure(
+                    processId,
+                    InjectionError.Unknown,
+                    "Remote thread did not complete, and deferred remote buffer cleanup could not be scheduled."),
                 _ => InjectionResult.CreateFailure(
                     processId,
                     InjectionError.Unknown,
@@ -249,6 +253,8 @@ public class DllInjector
                 InjectionMechanismFailure.StartBootstrapExportFailed,
             RemoteThreadInvocationStatus.ExitCodeUnavailable =>
                 InjectionMechanismFailure.ReadBootstrapExitCodeFailed,
+            RemoteThreadInvocationStatus.DeferredCleanupSchedulingFailed =>
+                InjectionMechanismFailure.ScheduleBootstrapCleanupFailed,
             _ => InjectionMechanismFailure.InvokeBootstrapExportTimedOut
         };
     }

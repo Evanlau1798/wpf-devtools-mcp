@@ -1,11 +1,8 @@
 param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
-
     [string[]]$Architectures = @('x64'),
-
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release'),
-
     [switch]$SkipBuild
 )
 
@@ -49,7 +46,6 @@ function Get-BootstrapperPlatform {
 
 function Get-PackageChannel {
     param([Parameter(Mandatory)] [string]$BuildConfiguration)
-
     if ($BuildConfiguration -eq 'Debug') {
         return 'dev'
     }
@@ -59,7 +55,6 @@ function Get-PackageChannel {
 
 function Get-SignaturePolicy {
     param([Parameter(Mandatory)] [string]$BuildConfiguration)
-
     if ($BuildConfiguration -eq 'Debug') {
         return 'DebugTrustedRootSkip'
     }

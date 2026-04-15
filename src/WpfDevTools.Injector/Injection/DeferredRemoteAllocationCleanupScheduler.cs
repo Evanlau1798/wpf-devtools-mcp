@@ -44,10 +44,11 @@ internal sealed class DeferredRemoteAllocationCleanupScheduler : IRemoteAllocati
             waitHandle.SafeWaitHandle = new SafeWaitHandle(duplicatedThreadHandle, ownsHandle: true);
             duplicatedThreadHandle = IntPtr.Zero;
 
-            var registration = new CleanupRegistration(
+            var registration = new RemoteAllocationCleanupRegistration(
                 duplicatedProcessHandle,
                 remoteAddress,
-                waitHandle);
+                waitHandle,
+                ReleaseRemoteAllocation);
             registration.Register();
             return true;
         }
@@ -77,51 +78,30 @@ internal sealed class DeferredRemoteAllocationCleanupScheduler : IRemoteAllocati
             DUPLICATE_SAME_ACCESS);
     }
 
-    private sealed class CleanupRegistration
+    private static void ReleaseRemoteAllocation(IntPtr processHandle, IntPtr remoteAddress)
     {
-        private readonly IntPtr _processHandle;
-        private readonly IntPtr _remoteAddress;
-        private readonly WaitHandle _waitHandle;
-        private RegisteredWaitHandle? _registration;
-        private int _released;
-
-        public CleanupRegistration(
-            IntPtr processHandle,
-            IntPtr remoteAddress,
-            WaitHandle waitHandle)
+        try
         {
-            _processHandle = processHandle;
-            _remoteAddress = remoteAddress;
-            _waitHandle = waitHandle;
+            VirtualFreeEx(processHandle, remoteAddress, 0, MEM_RELEASE);
+        }
+        finally
+        {
+            CloseHandle(processHandle);
+        }
+    }
+
+    internal sealed class ThreadPoolDeferredCleanupWaitRegistration : IDeferredCleanupWaitRegistration
+    {
+        private readonly RegisteredWaitHandle _registration;
+
+        public ThreadPoolDeferredCleanupWaitRegistration(RegisteredWaitHandle registration)
+        {
+            _registration = registration;
         }
 
-        public void Register()
+        public void Unregister()
         {
-            _registration = ThreadPool.RegisterWaitForSingleObject(
-                _waitHandle,
-                static (state, _) => ((CleanupRegistration)state!).Release(),
-                this,
-                Timeout.Infinite,
-                true);
-        }
-
-        private void Release()
-        {
-            if (Interlocked.Exchange(ref _released, 1) != 0)
-            {
-                return;
-            }
-
-            try
-            {
-                VirtualFreeEx(_processHandle, _remoteAddress, 0, MEM_RELEASE);
-            }
-            finally
-            {
-                _registration?.Unregister(null);
-                _waitHandle.Dispose();
-                CloseHandle(_processHandle);
-            }
+            _registration.Unregister(null);
         }
     }
 
@@ -147,4 +127,95 @@ internal sealed class DeferredRemoteAllocationCleanupScheduler : IRemoteAllocati
         IntPtr address,
         int size,
         uint freeType);
+}
+
+internal interface IDeferredCleanupWaitRegistration
+{
+    void Unregister();
+}
+
+internal sealed class RemoteAllocationCleanupRegistration
+{
+    private readonly object _syncRoot = new();
+    private readonly IntPtr _processHandle;
+    private readonly IntPtr _remoteAddress;
+    private readonly WaitHandle _waitHandle;
+    private readonly Action<IntPtr, IntPtr> _releaseRemoteAllocation;
+    private IDeferredCleanupWaitRegistration? _registration;
+    private bool _released;
+
+    public RemoteAllocationCleanupRegistration(
+        IntPtr processHandle,
+        IntPtr remoteAddress,
+        WaitHandle waitHandle,
+        Action<IntPtr, IntPtr> releaseRemoteAllocation)
+    {
+        _processHandle = processHandle;
+        _remoteAddress = remoteAddress;
+        _waitHandle = waitHandle;
+        _releaseRemoteAllocation = releaseRemoteAllocation;
+    }
+
+    public void Register()
+    {
+        Register(static (waitHandle, callback) =>
+        {
+            var registeredWait = ThreadPool.RegisterWaitForSingleObject(
+                waitHandle,
+                static (state, _) => ((Action)state!).Invoke(),
+                callback,
+                Timeout.Infinite,
+                true);
+
+            return new DeferredRemoteAllocationCleanupScheduler.ThreadPoolDeferredCleanupWaitRegistration(registeredWait);
+        });
+    }
+
+    internal void Register(Func<WaitHandle, Action, IDeferredCleanupWaitRegistration> registerWait)
+    {
+        var waitRegistration = registerWait(_waitHandle, Release);
+        var unregisterImmediately = false;
+
+        lock (_syncRoot)
+        {
+            if (_released)
+            {
+                unregisterImmediately = true;
+            }
+            else
+            {
+                _registration = waitRegistration;
+            }
+        }
+
+        if (unregisterImmediately)
+        {
+            waitRegistration.Unregister();
+        }
+    }
+
+    private void Release()
+    {
+        IDeferredCleanupWaitRegistration? registration;
+        lock (_syncRoot)
+        {
+            if (_released)
+            {
+                return;
+            }
+
+            _released = true;
+            registration = _registration;
+        }
+
+        try
+        {
+            _releaseRemoteAllocation(_processHandle, _remoteAddress);
+        }
+        finally
+        {
+            registration?.Unregister();
+            _waitHandle.Dispose();
+        }
+    }
 }

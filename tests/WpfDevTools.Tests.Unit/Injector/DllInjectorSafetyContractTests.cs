@@ -35,6 +35,53 @@ public sealed class DllInjectorSafetyContractTests
     }
 
     [Fact]
+    public void Invoke_WhenDeferredCleanupCannotBeScheduled_ShouldReportCleanupSchedulingFailure()
+    {
+        var api = new FakeRemoteInjectionApi
+        {
+            WaitResult = RemoteThreadInvocationResult.WaitTimeout,
+            RemoteBufferAddress = new IntPtr(0x1010),
+            RemoteThreadHandle = new IntPtr(0x2020)
+        };
+        var cleanup = new RecordingCleanupScheduler { ScheduleSucceeds = false };
+        var invoker = new RemoteThreadBufferInvoker(api, cleanup);
+
+        var result = invoker.Invoke(
+            new IntPtr(0x3030),
+            new IntPtr(0x4040),
+            Encoding.Unicode.GetBytes("payload\0"),
+            TimeSpan.FromSeconds(1),
+            requireExitCode: false);
+
+        result.Status.Should().Be(RemoteThreadInvocationStatus.DeferredCleanupSchedulingFailed);
+        result.DeferredCleanupScheduled.Should().BeFalse();
+        cleanup.Requests.Should().ContainSingle();
+        api.VirtualFreeCalls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void DeferredCleanupRegistration_WhenCallbackRunsBeforeAssignment_ShouldUnregisterReturnedRegistration()
+    {
+        using var waitHandle = new ManualResetEvent(initialState: true);
+        var releaseCount = 0;
+        var fakeRegistration = new FakeDeferredCleanupWaitRegistration();
+        var registration = new RemoteAllocationCleanupRegistration(
+            new IntPtr(0x3030),
+            new IntPtr(0x1010),
+            waitHandle,
+            (_, _) => releaseCount++);
+
+        registration.Register((_, callback) =>
+        {
+            callback();
+            return fakeRegistration;
+        });
+
+        releaseCount.Should().Be(1);
+        fakeRegistration.UnregisterCallCount.Should().Be(1);
+    }
+
+    [Fact]
     public void Invoke_WhenRemoteThreadCompletes_ShouldFreeRemoteBufferImmediately()
     {
         var api = new FakeRemoteInjectionApi
@@ -208,6 +255,7 @@ public sealed class DllInjectorSafetyContractTests
 
     private sealed class RecordingCleanupScheduler : IRemoteAllocationCleanupScheduler
     {
+        public bool ScheduleSucceeds { get; init; } = true;
         public List<CleanupRequest> Requests { get; } = [];
 
         public bool TryScheduleRelease(
@@ -216,7 +264,7 @@ public sealed class DllInjectorSafetyContractTests
             IntPtr remoteAddress)
         {
             Requests.Add(new CleanupRequest(processHandle, threadHandle, remoteAddress));
-            return true;
+            return ScheduleSucceeds;
         }
     }
 
@@ -228,4 +276,14 @@ public sealed class DllInjectorSafetyContractTests
     private sealed record VirtualFreeCall(
         IntPtr ProcessHandle,
         IntPtr Address);
+
+    private sealed class FakeDeferredCleanupWaitRegistration : IDeferredCleanupWaitRegistration
+    {
+        public int UnregisterCallCount { get; private set; }
+
+        public void Unregister()
+        {
+            UnregisterCallCount++;
+        }
+    }
 }

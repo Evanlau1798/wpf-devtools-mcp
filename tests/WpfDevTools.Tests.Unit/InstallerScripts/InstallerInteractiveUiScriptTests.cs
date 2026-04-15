@@ -272,16 +272,17 @@ public sealed class InstallerInteractiveUiScriptTests
             Directory.CreateDirectory(localAppData);
             Directory.CreateDirectory(userProfile);
             Directory.CreateDirectory(fakeBin);
+            var detectedExecutable = Path.Combine(tempRoot, "external", "wpf-devtools-x64.exe");
 
             File.WriteAllText(
                 Path.Combine(fakeBin, "claude.cmd"),
                 "@echo off" + Environment.NewLine +
-                "if \"%1 %2\"==\"mcp list\" echo wpf-devtools" + Environment.NewLine +
+                "if \"%1 %2\"==\"mcp list\" echo wpf-devtools " + detectedExecutable + Environment.NewLine +
                 "exit /b 0" + Environment.NewLine);
             File.WriteAllText(
                 Path.Combine(fakeBin, "codex.cmd"),
                 "@echo off" + Environment.NewLine +
-                "if \"%1 %2\"==\"mcp list\" echo wpf-devtools" + Environment.NewLine +
+                "if \"%1 %2\"==\"mcp list\" echo wpf-devtools " + detectedExecutable + Environment.NewLine +
                 "exit /b 0" + Environment.NewLine);
 
             var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");

@@ -140,6 +140,48 @@ function Test-ArtifactRegistrationMatchesExecutable {
     return ([string]$serverCollection.'wpf-devtools'.command -eq $InstalledExecutable)
 }
 
+function Get-VerifiedWpfDevToolsExecutableFromText {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return $null
+    }
+
+    foreach ($rawLine in ($Text -split "`r?`n")) {
+        $line = [string]$rawLine
+        if ($line -notmatch '^\s*(?:[-*]\s*)?["'']?wpf-devtools["'']?(?:\s|:|=|$)') {
+            continue
+        }
+
+        $match = [regex]::Match($line, '(?<path>[A-Za-z]:\\[^`"\r\n]*wpf-devtools-(x64|x86|arm64)\.exe)', 'IgnoreCase')
+        if ($match.Success) {
+            return [string]$match.Groups['path'].Value
+        }
+    }
+
+    return $null
+}
+
+function Test-VerifiedInstallerPathEquals {
+    param(
+        [string]$Left,
+        [string]$Right
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Left) -or [string]::IsNullOrWhiteSpace($Right)) {
+        return $false
+    }
+
+    try {
+        $leftFullPath = [System.IO.Path]::GetFullPath(([string]$Left).Trim().Trim('"')).TrimEnd('\', '/')
+        $rightFullPath = [System.IO.Path]::GetFullPath(([string]$Right).Trim().Trim('"')).TrimEnd('\', '/')
+        return [System.StringComparer]::OrdinalIgnoreCase.Equals($leftFullPath, $rightFullPath)
+    }
+    catch {
+        return $false
+    }
+}
+
 function Invoke-VerificationCommand {
     param(
         [Parameter(Mandatory)] [string]$Command,
@@ -301,12 +343,43 @@ function Invoke-VerificationCommand {
         }
     }
 
-    $containsToken = if ([string]::IsNullOrWhiteSpace($output)) { $ExpectPresent } else { $output.Contains($ExpectedToken) }
+    $containsToken = -not [string]::IsNullOrWhiteSpace($output) -and $output.Contains($ExpectedToken)
     return [ordered]@{
         Succeeded = ($containsToken -eq $ExpectPresent)
         Output = $output
         ExitCode = $exitCode
     }
+}
+
+function Test-CliRegistrationMatchesExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$Command,
+        [Parameter(Mandatory)] [string]$InstalledExecutable
+    )
+
+    $verification = Invoke-VerificationCommand -Command $Command -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true
+    if (-not $verification.Succeeded) {
+        return $verification
+    }
+
+    $registeredExecutable = Get-VerifiedWpfDevToolsExecutableFromText -Text ([string]$verification.Output)
+    if ([string]::IsNullOrWhiteSpace($registeredExecutable)) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = "$Command mcp list contains wpf-devtools, but could not verify the registered executable path."
+            ExitCode = 0
+        }
+    }
+
+    if (-not (Test-VerifiedInstallerPathEquals -Left $registeredExecutable -Right $InstalledExecutable)) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = "$Command mcp list registered executable '$registeredExecutable' does not match '$InstalledExecutable'."
+            ExitCode = 0
+        }
+    }
+
+    return $verification
 }
 
 function Get-InstalledClientLabel {
@@ -341,12 +414,12 @@ function Invoke-InstallVerification {
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
     switch ($clientBaseId) {
         'claude-code' {
-            $verification = Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true
+            $verification = Test-CliRegistrationMatchesExecutable -Command 'claude' -InstalledExecutable $InstalledExecutable
             $verificationSucceeded = ($verification.Succeeded -and (Test-Path $InstalledExecutable))
             $verificationMessage = if ($verificationSucceeded) { 'Verified with claude mcp list.' } else { "Claude verification failed: $($verification.Output)" }
         }
         'codex' {
-            $verification = Invoke-VerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true
+            $verification = Test-CliRegistrationMatchesExecutable -Command 'codex' -InstalledExecutable $InstalledExecutable
             $verificationSucceeded = ($verification.Succeeded -and (Test-Path $InstalledExecutable))
             $verificationMessage = if ($verificationSucceeded) { 'Verified with codex mcp list.' } else { "Codex verification failed: $($verification.Output)" }
         }

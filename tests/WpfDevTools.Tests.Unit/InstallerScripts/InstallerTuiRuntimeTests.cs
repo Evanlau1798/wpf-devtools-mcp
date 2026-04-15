@@ -109,11 +109,12 @@ public sealed partial class InstallerTuiRuntimeTests
             Directory.CreateDirectory(localAppData);
             Directory.CreateDirectory(userProfile);
             Directory.CreateDirectory(fakeBin);
+            var detectedExecutable = Path.Combine(tempRoot, "external", "wpf-devtools-x64.exe");
 
             File.WriteAllText(
                 Path.Combine(fakeBin, "codex.ps1"),
                 "param([Parameter(ValueFromRemainingArguments=$true)][string[]]$args)" + Environment.NewLine +
-                "if (($args -join ' ') -eq 'mcp list') { Write-Output 'wpf-devtools'; exit 0 }" + Environment.NewLine +
+                "if (($args -join ' ') -eq 'mcp list') { Write-Output 'wpf-devtools " + detectedExecutable.Replace("'", "''") + "'; exit 0 }" + Environment.NewLine +
                 "exit 0" + Environment.NewLine);
 
             var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
@@ -128,7 +129,7 @@ public sealed partial class InstallerTuiRuntimeTests
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
-                "$env:WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC='5'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
                 "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
             ]);

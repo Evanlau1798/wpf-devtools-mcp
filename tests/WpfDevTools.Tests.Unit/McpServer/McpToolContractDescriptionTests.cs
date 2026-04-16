@@ -122,6 +122,20 @@ public sealed class McpToolContractDescriptionTests
             "the legacy detail keyword should remain documented as a compatibility alias during the transition");
     }
 
+    [Theory]
+    [InlineData(typeof(MutationBatchMcpTools), nameof(MutationBatchMcpTools.BatchMutate))]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetActiveProcess))]
+    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetAffectedElements))]
+    public void AiFacingToolDescriptions_ShouldIncludeUseWhenAndDoNotUseGuidance(Type toolType, string methodName)
+    {
+        var description = GetDescription(toolType, methodName);
+
+        description.Should().Contain("USE WHEN:",
+            $"{toolType.Name}.{methodName} should include positive selection guidance for AI clients");
+        description.Should().Contain("DO NOT USE:",
+            $"{toolType.Name}.{methodName} should include negative selection guidance for AI clients");
+    }
+
     private static string GetDescription(Type toolType, string methodName)
     {
         var method = toolType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);

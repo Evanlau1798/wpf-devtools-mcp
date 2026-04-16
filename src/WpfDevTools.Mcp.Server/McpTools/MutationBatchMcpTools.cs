@@ -15,6 +15,8 @@ public static class MutationBatchMcpTools
     [Description(
         "Use this tool to execute multiple WPF runtime mutations in a single ordered batch.\n\n" +
         BatchMetadata +
+        "USE WHEN: You need an ordered multi-step mutation workflow, shared snapshot/diff context, or one failure surface instead of many separate mutation calls.\n" +
+        "DO NOT USE: When you need automatic rollback, when a single mutation call is sufficient, or when you have not captured an explicit snapshot for destructive experimentation.\n\n" +
         "SEQUENTIAL SEMANTICS: Mutations run in order, stop on the first failure, and do not roll back automatically.\n" +
         "ROLLBACK GUIDANCE: When captureSnapshot is provided, failures include explicit restore_state_snapshot guidance instead of hidden transaction behavior.\n" +
         "DIFF SUPPORT: Set includeDiff=true together with captureSnapshot to compute get_state_diff after all mutations succeed.\n\n" +

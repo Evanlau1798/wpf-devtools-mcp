@@ -92,6 +92,7 @@ public static class ProcessMcpTools
         "Use this tool to verify which connected WPF process is currently active for omitted processId workflows.\n\n" +
         ProcessMetadata + "[Process] Returns the active selected process, if any.\n\n" +
         "USE WHEN: Verifying session state before omitting processId in later calls.\n" +
+        "DO NOT USE: As a substitute for connect(), or when you already pass processId explicitly on every later tool call.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{ success: boolean, hasActiveProcess: boolean, processId?: number, selectedAtUtc?: string }\n\n" +
         "EXAMPLES:\n" +

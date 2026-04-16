@@ -116,6 +116,7 @@ public static class BindingMcpTools
         "Use this tool to cheaply narrow down which WPF elements may be affected by a ViewModel property change before doing a full binding-tree verification pass.\n\n" +
         BindingMetadata + "[Binding] Scan a runtime element or subtree and return candidate elements whose binding declaration deterministically matches the supplied property name.\n\n" +
         "USE WHEN: An agent needs a fast candidate list before deciding whether to pay for get_bindings(recursive=true).\n" +
+        "DO NOT USE: As proof that a ViewModel property definitely updates those elements, or when you need converter/runtime source certainty instead of best-effort triage.\n" +
         "MATCHING: Exact simple binding-path matches remain best-effort. Nested terminal segments such as `Item.SubItem.Name` and explicit `MultiBinding` child paths can return higher confidence when the declaration itself proves the relationship.\n" +
         "SOURCE MODEL: Bindings that can be proven to stay on the element's local or inherited DataContext chain remain in `affectedElements`. ElementName, RelativeSource, explicit Source, or missing-DataContext cases are surfaced separately through `unsupportedElements` instead of being guessed as ViewModel impact.\n" +
         "VERIFICATION: Successful responses include explicit uncertainty metadata and should usually be followed by get_bindings for precise confirmation.\n\n" +

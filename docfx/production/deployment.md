@@ -14,53 +14,31 @@ Installer and packaging behavior are defined in `scripts/`, not in the documenta
 
 ## Recommended install modes
 
-### Public release package
+### Reviewed script-driven install
 
-1. Download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
-2. Extract the package.
-3. Run `run.bat`.
+Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the maintainer source first. The reviewed installer resolves the matching GitHub Release asset, validates archive integrity before extraction, and then runs the version-matched packaged `bin/install.ps1` from that release.
 
-### Script-driven install
-
-Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) first. Then choose either a published-release bootstrap or local execution.
-
-Remote example:
+Recommended example:
 
 ```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
 
-Client-specific remote example:
-
-```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
-```
-
-Local example:
+Client-specific automation example:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
+### Public release package fallback
+
+1. Download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
+2. Extract the package.
+3. Run `run.bat`.
+
 ## Remote script execution is optional
 
-Any remote bootstrap flow is optional. Review the repository source first and treat the script in `scripts/` as the authoritative implementation.
+Any package-local bootstrap flow is optional. Review the repository source first and treat the script in `scripts/` as the authoritative implementation.
 
 ## Release layout matters
 

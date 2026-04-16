@@ -8,7 +8,7 @@ WPF DevTools MCP Server 是一個只支援 Windows 的 Model Context Protocol �
 
 - Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
-- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)（維護者來源；執行 published package 前，請先比對版本相符的 release artifact）
 - Release packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
 - Installed-layout sources: [scripts/installer/Installer.Actions.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Actions.ps1), [scripts/installer/Installer.Registration.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Registration.ps1)
 
@@ -18,35 +18,21 @@ WPF DevTools MCP Server 是一個只支援 Windows 的 Model Context Protocol �
 
 ### 線上安裝腳本路徑
 
-請先審查正式來源：[scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+請先審查維護者來源：[scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)。這支已審查的 installer 會解析對應的 published release asset、在解壓前驗證 archive integrity，然後執行該 release 內版本相符的 `bin/install.ps1`。
 
-預設一鍵安裝：
-
-```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
-```
-
-指定 client 的範例：
+建議範例：
 
 ```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
+
+指定 client 的自動化範例：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+```
+
+Repository 內的 entrypoint 仍只是 bootstrap 層；實際安裝動作是由解析出的 release 內 packaged `bin/install.ps1` 執行。
 
 ### 手動 release package 路徑
 

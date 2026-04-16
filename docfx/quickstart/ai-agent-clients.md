@@ -6,34 +6,20 @@ Install WPF DevTools first, then register the installed executable with your pre
 
 - Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
-- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) (maintainer source; compare it with the version-matched `bin/install.ps1` inside the release package you actually execute)
 
 Recommended public path:
 
 ```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
+
+That reviewed installer resolves the versioned release asset, validates archive integrity before extraction, and then runs the version-matched packaged installer from the downloaded release.
 
 Client-specific example:
 
 ```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual package alternative:
@@ -42,10 +28,10 @@ Manual package alternative:
 2. Extract the package.
 3. Run `run.bat`.
 
-Local script example:
+Package-local fallback:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+```text
+Download the matching release_<version>_win-<arch>.zip, extract it, and run run.bat.
 ```
 
 Every supported setup path should eventually launch the installed executable, not a source-tree command.

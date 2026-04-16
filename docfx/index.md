@@ -8,7 +8,7 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 
 - Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
-- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) (maintainer source; review the version-matched release artifact before executing a published package)
 - Release packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
 - Installed-layout sources: [scripts/installer/Installer.Actions.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Actions.ps1), [scripts/installer/Installer.Registration.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Registration.ps1)
 
@@ -18,35 +18,21 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 
 ### Online installer path
 
-Review the canonical source first: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+Review the canonical maintainer source first: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1). The reviewed installer resolves the matching published release asset, validates archive integrity before extraction, and then runs the version-matched `bin/install.ps1` from that release.
 
-Default one-line install:
-
-```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
-```
-
-Client-specific example:
+Recommended example:
 
 ```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
+
+Client-specific automation example:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+```
+
+The repository entrypoint is still only the bootstrap layer; the actual install is performed by the packaged `bin/install.ps1` from the resolved release.
 
 ### Manual release package path
 

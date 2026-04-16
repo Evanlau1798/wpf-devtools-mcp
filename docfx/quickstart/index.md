@@ -18,34 +18,18 @@ This quickstart is optimized for the current public distribution model: use the 
 
 ## Step 1: Choose an install path
 
-### Online installer
+### Reviewed online installer
 
-Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1), then bootstrap from the latest published release package:
+Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the canonical source first. That installer resolves the published release asset, validates archive integrity before extraction, and then runs the version-matched packaged `bin/install.ps1` from the downloaded release.
 
 ```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
 
-Client-specific example:
+Client-specific automation example:
 
 ```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### Manual release package
@@ -57,11 +41,7 @@ powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
 
 ### Local script invocation
 
-If you prefer to run the same installer from a local clone instead of `irm | iex`, use:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
-```
+If you prefer a package-local install instead of the reviewed script-first path, use the manual release package flow above.
 
 ## Step 2: Confirm the installed executable path
 

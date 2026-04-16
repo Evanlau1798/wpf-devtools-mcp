@@ -72,7 +72,8 @@ public sealed class PublicQuickstartDocumentationTests
         var troubleshooting = File.ReadAllText(GetRepoFilePath("docfx/guides/troubleshooting.md"));
         var toc = File.ReadAllText(GetRepoFilePath("docfx/toc.yml"));
 
-        deployment.Should().Contain("releases/latest/download/$assetName");
+        deployment.Should().Contain(".\\scripts\\online-installer.ps1");
+        deployment.Should().Contain("validates archive integrity before extraction");
         deployment.Should().Contain("run.bat");
         deployment.Should().Contain("release layout");
         deployment.Should().Contain("scripts/online-installer.ps1");
@@ -157,7 +158,7 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
-    public void InstallerFacingDocs_ShouldExplainRemoteAndLocalInstallFallbacks()
+    public void InstallerFacingDocs_ShouldExplainReviewedInstallerAndPackageFallbacks()
     {
         var files = new[]
         {
@@ -171,8 +172,10 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("releases/latest/download/$assetName",
-                $"{file} should explain the reviewed one-command published-release bootstrap path");
+            content.Should().Contain(".\\scripts\\online-installer.ps1",
+                $"{file} should make the reviewed repository installer the primary bootstrap path");
+            content.Should().Contain("integrity",
+                $"{file} should explain that the reviewed installer validates the release archive before extraction");
             content.Should().Contain("run.bat",
                 $"{file} should document the reviewed package installer fallback");
         }
@@ -203,10 +206,12 @@ public sealed class PublicQuickstartDocumentationTests
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
         content.Should().Contain("### Cursor");
-        content.Should().Contain(".cursor\\mcp.json");
+        content.Should().Contain("client-registration\\cursor.global.json");
+        content.Should().Contain("%USERPROFILE%\\.cursor\\mcp.json");
         content.Should().Contain("\"mcpServers\"");
         content.Should().Contain("### VS Code");
-        content.Should().Contain(".vscode/mcp.json");
+        content.Should().Contain("client-registration\\vscode.json");
+        content.Should().Contain("%APPDATA%\\Code\\User\\mcp.json");
         content.Should().Contain("\"servers\"");
         content.Should().NotContain("### VS Code / Cursor");
     }

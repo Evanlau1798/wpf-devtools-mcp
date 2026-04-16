@@ -128,4 +128,19 @@ public class ReadmeDocumentationTests
         content.Should().Contain("C:\\\\Users\\\\<you>\\\\AppData\\\\Roaming\\\\WpfDevToolsMcp\\\\<arch>\\\\current\\\\bin\\\\wpf-devtools-<arch>.exe",
             "README should demonstrate the reviewed JSON shape with a literal absolute path template");
     }
+
+    [Fact]
+    public void Readme_ShouldUseReviewedOnlineInstallerAsPrimaryBootstrapPath()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().NotContain("raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1",
+            "README should not ask users to execute the moving master branch installer directly");
+        content.Should().Contain(".\\scripts\\online-installer.ps1",
+            "README should make the reviewed repository installer the primary bootstrap path");
+        content.Should().Contain("validates archive integrity before extraction",
+            "README should explain why the reviewed installer path is safer than manually expanding the archive");
+        content.Should().Contain("run.bat",
+            "README should keep the package-local launcher as the manual fallback path");
+    }
 }

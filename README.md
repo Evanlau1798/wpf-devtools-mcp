@@ -15,7 +15,7 @@ Published releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](h
 
 - Shipping transport is STDIO only. The server is wired through `WithStdioServerTransport()`.
 - The server bootstrap uses `Host.CreateEmptyApplicationBuilder(...)` so the process does not inherit default console logging that could pollute `stdout`.
-- MCP clients should treat tool discovery as the source of truth for detailed schemas; this README stays intentionally high level.
+- MCP clients should treat tool discovery as the source of truth for exposed request schemas; this README stays intentionally high level and may describe runtime conventions that are not universally discoverable from every client SDK.
 - HTTP/SSE work remains planned and is not part of the current server binary.
 - MCP schemas improve discovery, but runtime validation still happens inside tool handlers because generated schemas and SDK annotations are not a substitute for validating untrusted arguments.
 - Tool metadata is written for agent use: each tool description should state what the tool does, when to use it, when not to use it, and the limits of the returned data.
@@ -35,41 +35,24 @@ Published releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](h
 
 If you are building from source instead of using a published release, install .NET SDK 8.0+.
 
-### Install from a published release
+### Install with the reviewed online installer
 
-For first-time setup, prefer the published release flow instead of launching from the source tree.
+For first-time setup, prefer the reviewed installer flow instead of launching from the source tree or manually expanding a release archive.
 
-Fastest path on Windows:
+Preferred path on Windows:
 
-> **Security note**: This command downloads the latest published release package and runs the packaged installer from that same release. Review the [script source](scripts/online-installer.ps1) or use the manual release flow in sensitive environments.
+> **Security note**: Review [scripts/online-installer.ps1](scripts/online-installer.ps1) first. The online installer resolves the versioned GitHub Release asset, validates archive integrity before extraction, and then runs the version-matched packaged installer from that release.
 
 ```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
 
-That published-release bootstrap keeps the bootstrap path, helper bundle, and packaged `bin\install.ps1` on the same release boundary.
-Maintainers should treat `scripts/online-installer.ps1` as the canonical source entrypoint for that installer flow.
+That script-first path keeps `scripts/online-installer.ps1` as the canonical source entrypoint while still installing from a published release package.
 
 If you want a single-command, non-interactive setup for a specific client and architecture, use:
 
 ```powershell
-$architecture = 'x64'
-$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
-$assetName = "release_${version}_win-$architecture.zip"
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
-$archivePath = Join-Path $tempRoot $assetName
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
-Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
-powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual fallback:
@@ -152,7 +135,9 @@ Add to `claude_desktop_config.json`:
 
 ### VS Code
 
-Add to `.vscode/mcp.json`:
+Use the installer-generated `client-registration\vscode.json` artifact as the source of truth for the resolved executable path. By default, installer-managed VS Code registrations go to `%APPDATA%\Code\User\mcp.json`; use `.vscode\mcp.json` only when you intentionally want a manual project-scoped alternative.
+
+Example project-scoped configuration:
 
 ```json
 {
@@ -168,7 +153,9 @@ Add to `.vscode/mcp.json`:
 
 ### Cursor
 
-Add to `.cursor\mcp.json`:
+Use the installer-generated `client-registration\cursor.global.json` or `client-registration\cursor.project.json` artifact as the source of truth for the resolved executable path. By default, installer-managed global Cursor registrations go to `%USERPROFILE%\.cursor\mcp.json`; use `.cursor\mcp.json` only when you intentionally want a manual project-scoped alternative.
+
+Example project-scoped configuration:
 
 ```json
 {

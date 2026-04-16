@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Diagnostics;
 using FluentAssertions;
 using Xunit;
+using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
@@ -94,6 +95,45 @@ public sealed class InstallerBootstrapTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldRejectHelperBaseUriOverrideOutsideTestMode()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var command = string.Join(" ; ",
+            [
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI='http://127.0.0.1:9/installer'",
+                "$scriptPath='" + repoScriptPath.Replace("'", "''") + "'",
+                "$scriptContent = Get-Content $scriptPath -Raw",
+                "$marker = '$selectionContext = Resolve-Selection'",
+                "$markerIndex = $scriptContent.LastIndexOf($marker)",
+                "if ($markerIndex -lt 0) { throw 'Main script marker not found.' }",
+                "$definitions = $scriptContent.Substring(0, $markerIndex)",
+                ". ([scriptblock]::Create($definitions)) -Action install -Architecture x64 -Client other -NonInteractive",
+                "Resolve-TuiHelperDownloadBaseUri"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void InstallerHelperManifest_ShouldMatchCurrentHelperFiles()
     {
         var installerDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
@@ -126,7 +166,7 @@ public sealed class InstallerBootstrapTests
         var repoRoot = ReleaseScriptTestHarness.GetRepoFilePath(".");
         if (!CanValidateTrackedFilesWithGit(repoRoot))
         {
-            return;
+            throw SkipException.ForSkip("Git metadata or the git executable is unavailable, so tracked-file validation cannot run in this environment.");
         }
 
         var installerDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
@@ -278,19 +318,20 @@ Assert-InstallerHelperManifestIntegrity -HelperDirectory '{{helperRoot.Replace("
         content.Should().Contain("Write-TuiBootstrapScreen");
         content.Should().Contain("Enter-TuiBootstrapTerminalSession");
         content.Should().Contain("Exit-TuiBootstrapTerminalSession");
-        content.Should().Contain("Preparing installer UI... (manifest)");
+        content.Should().Contain("Preparing installer UI... (archive)");
         content.Should().Contain("Preparing installer UI... (fallback)");
         content.Should().NotContain("('+' + ('-' * $innerWidth) + '+')");
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldNotDownloadHelperRuntimeFromMovingMasterBranch()
+    public void OnlineInstallerScript_ShouldBootstrapHelperRuntimeFromReleaseArchives()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
-        content.Should().NotContain("/master/scripts/installer");
-        content.Should().Contain("Get-ReleaseRawContentBaseUri");
+        content.Should().Contain("Get-TuiHelperArchiveDownloadDetails");
+        content.Should().Contain("Assert-TuiHelperArchiveIntegrity");
+        content.Should().Contain("Copy-InstallerHelperBundleFromArchive");
     }
 
     [Fact]
@@ -386,7 +427,7 @@ $null = Get-LatestInstallerVersion -UseCacheOnly
     }
 
     [Fact]
-    public void OnlineInstallerScript_FunctionDefinitions_ShouldReuseSingleResolvedLatestVersionForHelpersAndPackagePayload()
+    public void OnlineInstallerScript_FunctionDefinitions_ShouldReuseSingleResolvedLatestVersionForHelperArchiveAndPackagePayload()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -474,10 +515,11 @@ function Expand-Archive {
     Set-Content -Path (Join-Path $binDir 'manifest.json') -Value '{"version":"1.2.3"}' -Encoding UTF8
     Set-Content -Path (Join-Path $binDir 'wpf-devtools-x64.exe') -Value 'stub' -Encoding UTF8
 }
-$helperUri = Resolve-TuiHelperDownloadBaseUri
+$helperDownload = Get-TuiHelperArchiveDownloadDetails
 $session = Resolve-PackageSession -Mode online -ResolvedVersion latest -ResolvedArchitecture x64
 [ordered]@{
-    helperUri = $helperUri
+    helperDownloadUri = [string]$helperDownload.DownloadUri
+    helperResolvedVersion = [string]$helperDownload.ResolvedVersion
     packageResolvedVersion = [string]$session.ResolvedVersion
 } | ConvertTo-Json -Depth 3
 """;
@@ -486,7 +528,8 @@ $session = Resolve-PackageSession -Mode online -ResolvedVersion latest -Resolved
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var payload = JsonDocument.Parse(result.Stdout);
-            payload.RootElement.GetProperty("helperUri").GetString().Should().Contain("/v1.2.3/scripts/installer");
+            payload.RootElement.GetProperty("helperDownloadUri").GetString().Should().Contain("release_1.2.3_win-x64.zip");
+            payload.RootElement.GetProperty("helperResolvedVersion").GetString().Should().Be("1.2.3");
             payload.RootElement.GetProperty("packageResolvedVersion").GetString().Should().Be("1.2.3");
         }
         finally

@@ -192,6 +192,7 @@ $script:TuiNavigationTokens = @('ConsoleKey.UpArrow', 'ConsoleKey.DownArrow', 'C
 $script:ResolvedOnlineReleaseVersion = $null
 $script:GitHubReleaseApiResponseCache = @{}
 $script:GitHubReleaseChecksumRecordCache = @{}
+$script:TuiHelperBootstrapArchive = $null
 function Resolve-InstallerScriptRoot {
     if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
         return $PSScriptRoot
@@ -1911,13 +1912,27 @@ function Get-InstalledInstallerHelperRoots {
 
     return @($helperRoots.ToArray())
 }
+function Test-InstallerTestModeEnabled {
+    return [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)
+}
 function Get-TuiHelperOverrideDirectory {
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY)) {
-        if (-not [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)) {
+        if (-not (Test-InstallerTestModeEnabled)) {
             throw 'WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
         }
 
         return $env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY
+    }
+
+    return $null
+}
+function Get-TuiHelperOverrideDownloadBaseUri {
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI)) {
+        if (-not (Test-InstallerTestModeEnabled)) {
+            throw 'WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+        }
+
+        return $env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI.TrimEnd('/')
     }
 
     return $null
@@ -2215,9 +2230,13 @@ function Get-TuiHelperManifest {
         return $null
     }
 
+    $downloadBaseUri = Resolve-TuiHelperDownloadBaseUri
+    if ([string]::IsNullOrWhiteSpace($downloadBaseUri)) {
+        return $null
+    }
+
     $runtimeRoot = Get-TuiHelperRuntimeRoot
     $manifestPath = Get-TuiHelperManifestPath -RootPath $runtimeRoot
-    $downloadBaseUri = Resolve-TuiHelperDownloadBaseUri
 
     $manifestUri = "$downloadBaseUri/$($script:InstallerHelperManifestFileName)"
     $temporaryManifestPath = "$manifestPath.download"
@@ -2303,67 +2322,87 @@ function Ensure-TuiHelpersAvailable {
 
     $runtimeRoot = Get-TuiHelperRuntimeRoot
     $cacheKeyPath = Get-TuiHelperCacheKeyPath -RuntimeRoot $runtimeRoot
-    $cachedKey = if (Test-Path $cacheKeyPath) { (Get-Content -Path $cacheKeyPath -Raw).Trim() } else { $null }
-    $targetCacheKey = if ($null -ne $manifest) { Get-InstallerHelperRuntimeCacheKey -Manifest $manifest } else { $null }
-    if ($cachedKey -ne $targetCacheKey) {
-        Remove-PathIfExists -Path $runtimeRoot
-        New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
-        if ($null -ne $manifest) {
-            $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Get-TuiHelperManifestPath -RootPath $runtimeRoot) -Encoding UTF8
-        }
-    }
-    elseif ($null -ne $manifest) {
-        try {
-            Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest
-            $script:TuiHelperResolvedRoot = $runtimeRoot
-            return $runtimeRoot
-        }
-        catch {
-            Remove-PathIfExists -Path $runtimeRoot
-            New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
-            $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Get-TuiHelperManifestPath -RootPath $runtimeRoot) -Encoding UTF8
-        }
-    }
-
     $downloadBaseUri = Resolve-TuiHelperDownloadBaseUri
+    Remove-PathIfExists -Path $runtimeRoot
+    New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
 
-    $requestTimeoutSeconds = Get-TuiHelperRequestTimeoutSeconds
-    $bootstrapDeadline = [DateTimeOffset]::UtcNow.AddSeconds((Get-TuiHelperBootstrapTimeoutSeconds))
-    $totalHelperCount = $helperFiles.Count
-    $downloadIndex = 0
-    $helperRecordMap = Get-InstallerHelperRecordMap -Manifest $manifest
-
-    foreach ($helperFile in $helperFiles) {
-        if ([DateTimeOffset]::UtcNow -gt $bootstrapDeadline) {
-            throw 'Installer UI bootstrap timed out before the runtime assets finished downloading.'
+    if (-not [string]::IsNullOrWhiteSpace($downloadBaseUri)) {
+        if ($null -eq $manifest) {
+            throw "Installer helper manifest could not be resolved from $downloadBaseUri"
         }
 
-        $destinationPath = Join-Path $runtimeRoot $helperFile
-        if (Test-Path $destinationPath) {
-            $downloadIndex += 1
-            continue
-        }
+        $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Get-TuiHelperManifestPath -RootPath $runtimeRoot) -Encoding UTF8
 
-        $downloadIndex += 1
-        if (-not $SuppressBootstrapOutput) {
-            Write-TuiBootstrapScreen "Preparing installer UI... ($downloadIndex/$totalHelperCount)" | Out-Host
-        }
-        $downloadUri = "$downloadBaseUri/$helperFile"
-        $temporaryPath = "$destinationPath.download"
-        try {
-            Invoke-WebRequest -Uri $downloadUri -OutFile $temporaryPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec $requestTimeoutSeconds
-            if ($helperRecordMap.ContainsKey($helperFile)) {
-                Assert-InstallerHelperFileRecord -HelperPath $temporaryPath -HelperRecord $helperRecordMap[$helperFile]
+        $requestTimeoutSeconds = Get-TuiHelperRequestTimeoutSeconds
+        $bootstrapDeadline = [DateTimeOffset]::UtcNow.AddSeconds((Get-TuiHelperBootstrapTimeoutSeconds))
+        $totalHelperCount = $helperFiles.Count
+        $downloadIndex = 0
+        $helperRecordMap = Get-InstallerHelperRecordMap -Manifest $manifest
+
+        foreach ($helperFile in $helperFiles) {
+            if ([DateTimeOffset]::UtcNow -gt $bootstrapDeadline) {
+                throw 'Installer UI bootstrap timed out before the runtime assets finished downloading.'
             }
-            Move-Item -Path $temporaryPath -Destination $destinationPath -Force
+
+            $destinationPath = Join-Path $runtimeRoot $helperFile
+            $downloadIndex += 1
+            if (-not $SuppressBootstrapOutput) {
+                Write-TuiBootstrapScreen "Preparing installer UI... ($downloadIndex/$totalHelperCount)" | Out-Host
+            }
+            $downloadUri = "$downloadBaseUri/$helperFile"
+            $temporaryPath = "$destinationPath.download"
+            try {
+                Invoke-WebRequest -Uri $downloadUri -OutFile $temporaryPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec $requestTimeoutSeconds
+                if ($helperRecordMap.ContainsKey($helperFile)) {
+                    Assert-InstallerHelperFileRecord -HelperPath $temporaryPath -HelperRecord $helperRecordMap[$helperFile]
+                }
+                Move-Item -Path $temporaryPath -Destination $destinationPath -Force
+            }
+            catch {
+                Remove-PathIfExists -Path $temporaryPath
+                throw "Failed to download installer UI runtime from $downloadUri. $($_.Exception.Message)"
+            }
         }
-        catch {
-            Remove-PathIfExists -Path $temporaryPath
-            throw "Failed to download installer UI runtime from $downloadUri. $($_.Exception.Message)"
-        }
+
+        Set-Content -Path $cacheKeyPath -Value (Get-InstallerHelperRuntimeCacheKey -Manifest $manifest) -Encoding UTF8
+        $script:TuiHelperResolvedRoot = $runtimeRoot
+        return $runtimeRoot
     }
 
-    Set-Content -Path $cacheKeyPath -Value $targetCacheKey -Encoding UTF8
+    $archiveDownload = Get-TuiHelperArchiveDownloadDetails
+    $archivePath = Join-Path $runtimeRoot 'helper-bootstrap-package.zip'
+    $temporaryArchivePath = "$archivePath.download"
+    try {
+        if (-not $SuppressBootstrapOutput) {
+            Write-TuiBootstrapScreen 'Preparing installer UI... (archive)' | Out-Host
+        }
+
+        Invoke-WebRequest -Uri ([string]$archiveDownload.DownloadUri) -OutFile $temporaryArchivePath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
+        Move-Item -LiteralPath $temporaryArchivePath -Destination $archivePath -Force
+        Assert-TuiHelperArchiveIntegrity -ArchivePath $archivePath -DownloadDetails $archiveDownload
+        Copy-InstallerHelperBundleFromArchive -ArchivePath $archivePath -DestinationRoot $runtimeRoot -HelperFiles $helperFiles
+    }
+    catch {
+        Remove-PathIfExists -Path $temporaryArchivePath
+        throw "Failed to download installer UI runtime from $([string]$archiveDownload.DownloadUri). $($_.Exception.Message)"
+    }
+
+    $manifestPath = Get-TuiHelperManifestPath -RootPath $runtimeRoot
+    $manifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $runtimeRoot
+    if ($null -eq $manifest) {
+        throw "Installer helper manifest was not found in helper bootstrap archive: $manifestPath"
+    }
+
+    $script:TuiHelperManifest = $manifest
+    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest
+    Set-Content -Path $cacheKeyPath -Value (Get-InstallerHelperRuntimeCacheKey -Manifest $manifest) -Encoding UTF8
+    $script:TuiHelperBootstrapArchive = [ordered]@{
+        ArchivePath = $archivePath
+        DownloadUri = [string]$archiveDownload.DownloadUri
+        AssetName = [string]$archiveDownload.AssetName
+        ResolvedVersion = [string]$archiveDownload.ResolvedVersion
+        ResolvedArchitecture = [string](Resolve-TuiHelperBootstrapArchitecture)
+    }
     $script:TuiHelperResolvedRoot = $runtimeRoot
     return $runtimeRoot
 }
@@ -2569,12 +2608,14 @@ function Get-ReleaseRawContentBaseUri {
     return "https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/$tagRef/$normalizedPath"
 }
 function Resolve-TuiHelperDownloadBaseUri {
-    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI)) {
-        return $env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI.TrimEnd('/')
+    return (Get-TuiHelperOverrideDownloadBaseUri)
+}
+function Resolve-TuiHelperBootstrapArchitecture {
+    if ([string]::IsNullOrWhiteSpace($Architecture)) {
+        return (Get-SystemDefaultArchitecture)
     }
 
-    $resolvedVersion = Resolve-RequestedReleaseVersion -RequestedVersion $Version
-    return (Get-ReleaseRawContentBaseUri -ResolvedVersion $resolvedVersion -RepositoryRelativePath $script:InstallerHelperRepositoryRelativePath)
+    return [string]$Architecture
 }
 function Get-GitHubReleaseApiResponse {
     param([Parameter(Mandatory)] [string]$ResolvedVersion)
@@ -2591,6 +2632,143 @@ function Get-GitHubReleaseApiResponse {
     }
     catch {
         return $null
+    }
+}
+function Get-TuiHelperReleaseAssetRecordsFromManifestObject {
+    param($ManifestObject)
+
+    $records = @()
+    if ($null -eq $ManifestObject -or $null -eq $ManifestObject.assets) {
+        return $records
+    }
+
+    foreach ($asset in @($ManifestObject.assets)) {
+        $assetName = [string]$asset.name
+        $sha256 = [string]$asset.sha256
+        if ([string]::IsNullOrWhiteSpace($assetName) -or [string]::IsNullOrWhiteSpace($sha256)) {
+            continue
+        }
+
+        $records += ,([ordered]@{
+                AssetName = $assetName
+                Sha256 = $sha256.ToLowerInvariant()
+            })
+    }
+
+    return $records
+}
+function Get-TuiHelperReleaseAssetRecordsFromChecksumContent {
+    param([AllowEmptyString()] [string]$Content)
+
+    $records = @()
+    foreach ($rawLine in ($Content -split "`r?`n")) {
+        $line = [string]$rawLine
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        $match = [regex]::Match($line.Trim(), '^(?<sha>[0-9A-Fa-f]{64})\s+\*?(?<name>.+)$')
+        if (-not $match.Success) {
+            continue
+        }
+
+        $records += ,([ordered]@{
+                AssetName = [string]$match.Groups['name'].Value.Trim()
+                Sha256 = [string]$match.Groups['sha'].Value.ToLowerInvariant()
+            })
+    }
+
+    return $records
+}
+function Get-TuiHelperReleaseAssetRecordsFromGitHub {
+    param([Parameter(Mandatory)] [string]$ResolvedVersion)
+
+    $cacheKey = [string]$ResolvedVersion
+    if ($script:GitHubReleaseChecksumRecordCache.Contains($cacheKey)) {
+        return @($script:GitHubReleaseChecksumRecordCache[$cacheKey])
+    }
+
+    $records = @()
+    $release = Get-GitHubReleaseApiResponse -ResolvedVersion $ResolvedVersion
+    if ($null -ne $release -and $null -ne $release.assets) {
+        $manifestAsset = @($release.assets) | Where-Object { $_.name -eq 'release-assets.json' } | Select-Object -First 1
+        if ($null -ne $manifestAsset) {
+            try {
+                $manifest = Invoke-RestMethod -Uri ([string]$manifestAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+                $records = @(Get-TuiHelperReleaseAssetRecordsFromManifestObject -ManifestObject $manifest)
+            }
+            catch {
+            }
+        }
+
+        if ($records.Count -eq 0) {
+            $checksumAsset = @($release.assets) | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
+            if ($null -ne $checksumAsset) {
+                try {
+                    $checksumResponse = Invoke-WebRequest -Uri ([string]$checksumAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+                    $records = @(Get-TuiHelperReleaseAssetRecordsFromChecksumContent -Content ([string]$checksumResponse.Content))
+                }
+                catch {
+                }
+            }
+        }
+    }
+
+    $script:GitHubReleaseChecksumRecordCache[$cacheKey] = @($records)
+    return @($records)
+}
+function Get-TuiHelperReleaseAssetRecord {
+    param(
+        [Parameter(Mandatory)] [string]$ResolvedVersion,
+        [string]$AssetName,
+        [string]$ArchiveHash
+    )
+
+    $records = @(Get-TuiHelperReleaseAssetRecordsFromGitHub -ResolvedVersion $ResolvedVersion)
+    if (-not [string]::IsNullOrWhiteSpace($AssetName)) {
+        $namedRecord = @($records | Where-Object { [string]$_.AssetName -eq $AssetName } | Select-Object -First 1)
+        if ($namedRecord.Count -gt 0) {
+            return $namedRecord[0]
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ArchiveHash)) {
+        $hashRecord = @($records | Where-Object { [string]$_.Sha256 -eq $ArchiveHash } | Select-Object -First 1)
+        if ($hashRecord.Count -gt 0) {
+            return $hashRecord[0]
+        }
+    }
+
+    return $null
+}
+function Get-TuiHelperArchiveSha256 {
+    param([Parameter(Mandatory)] [string]$ArchivePath)
+
+    return (Get-FileHash -Algorithm SHA256 -LiteralPath $ArchivePath).Hash.ToLowerInvariant()
+}
+function Get-TuiHelperArchiveDownloadDetails {
+    $resolvedArchitecture = Resolve-TuiHelperBootstrapArchitecture
+    $downloadVersion = Resolve-RequestedReleaseVersion -RequestedVersion $Version
+    return (Get-ReleaseAssetDownloadDetails -ResolvedVersion $downloadVersion -ResolvedArchitecture $resolvedArchitecture)
+}
+function Assert-TuiHelperArchiveIntegrity {
+    param(
+        [Parameter(Mandatory)] [string]$ArchivePath,
+        [Parameter(Mandatory)] $DownloadDetails
+    )
+
+    $archiveHash = Get-TuiHelperArchiveSha256 -ArchivePath $ArchivePath
+    $releaseRecord = Get-TuiHelperReleaseAssetRecord `
+        -ResolvedVersion ([string]$DownloadDetails.ResolvedVersion) `
+        -AssetName ([string]$DownloadDetails.AssetName) `
+        -ArchiveHash $archiveHash
+
+    if ($null -eq $releaseRecord) {
+        throw "Installer helper bootstrap archive integrity could not be verified for $([string]$DownloadDetails.AssetName) because no matching release checksum metadata was found."
+    }
+
+    if ([string]$releaseRecord.Sha256 -ne $archiveHash) {
+        throw "Installer helper bootstrap archive integrity verification failed for $([string]$releaseRecord.AssetName). Expected SHA256 $([string]$releaseRecord.Sha256) but got $archiveHash."
     }
 }
 function Resolve-LocalPackageRoot {
@@ -2751,8 +2929,19 @@ function Resolve-PackageSession {
     $downloadVersion = Resolve-RequestedReleaseVersion -RequestedVersion $ResolvedVersion
     $downloadDetails = Get-ReleaseAssetDownloadDetails -ResolvedVersion $downloadVersion -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $sessionRoot | Out-Null
-    $archivePath = Join-Path $sessionRoot ([string]$downloadDetails.AssetName)
-    Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath
+    $archivePath = $null
+    if ($null -ne $script:TuiHelperBootstrapArchive -and
+        [string]::Equals([string]$script:TuiHelperBootstrapArchive.ResolvedVersion, [string]$downloadDetails.ResolvedVersion, [System.StringComparison]::OrdinalIgnoreCase) -and
+        [string]::Equals([string]$script:TuiHelperBootstrapArchive.ResolvedArchitecture, [string]$ResolvedArchitecture, [System.StringComparison]::OrdinalIgnoreCase) -and
+        -not [string]::IsNullOrWhiteSpace([string]$script:TuiHelperBootstrapArchive.ArchivePath) -and
+        (Test-Path -LiteralPath ([string]$script:TuiHelperBootstrapArchive.ArchivePath))) {
+        $archivePath = [string]$script:TuiHelperBootstrapArchive.ArchivePath
+    }
+    else {
+        $archivePath = Join-Path $sessionRoot ([string]$downloadDetails.AssetName)
+        Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath
+    }
+
     $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
     Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force

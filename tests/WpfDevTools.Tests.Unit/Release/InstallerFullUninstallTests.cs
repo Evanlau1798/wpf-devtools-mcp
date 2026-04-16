@@ -213,6 +213,53 @@ public sealed class InstallerFullUninstallTests
         }
     }
 
+    [Fact]
+    public void InvokeInstallerFullUninstallCore_ShouldRollbackRegistrationsAndInstallationsWhenStateSaveFails()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var vscodeConfigPath = Path.Combine(tempRoot, "config", "Code", "User", "mcp.json");
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var installBase = Path.Combine(installRoot, "x64");
+            var installedExecutable = Path.Combine(installBase, "current", "bin", "wpf-devtools-x64.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(vscodeConfigPath)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(installedExecutable)!);
+            File.WriteAllText(
+                vscodeConfigPath,
+                "{\"servers\":{\"wpf-devtools\":{\"command\":\"" + installedExecutable.Replace("\\", "\\\\") + "\",\"args\":[]}}}");
+            File.WriteAllText(installedExecutable, "installed");
+
+            var command = string.Join(" ; ",
+            [
+                ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Uninstall.ps1").Replace("'", "''") + "'",
+                "function Resolve-ClientStateKey { param([string]$ClientId, [string]$RegistrationMode) return $ClientId }",
+                "function Resolve-ClientBaseId { param([string]$ClientId) return $ClientId }",
+                "function Get-DetectedInstallerRegistrations { param($State) return @([ordered]@{ ClientId='vscode'; RegistrationMode='json-file'; RegistrationTarget='" + vscodeConfigPath.Replace("'", "''") + "'; InstallRoot='" + installRoot.Replace("'", "''") + "'; Architecture='x64'; InstalledExecutable='" + installedExecutable.Replace("'", "''") + "'; InstallerOwned=$true }) }",
+                "function Get-DetectedInstallerInstallations { param($State) return @([ordered]@{ InstallRoot='" + installRoot.Replace("'", "''") + "'; Architecture='x64'; InstallBase='" + installBase.Replace("'", "''") + "'; InstalledExecutable='" + installedExecutable.Replace("'", "''") + "'; InstallerOwned=$true }) }",
+                "function Invoke-UninstallVerification { param([string]$SelectedClient, $RegistrationRecord) return @{ Succeeded = $true; VerificationMessage = 'ok' } }",
+                "function Resolve-InstallBasePath { param([string]$ResolvedInstallRoot, [string]$ResolvedArchitecture) return '" + installBase.Replace("'", "''") + "' }",
+                "function Remove-PathIfExists { param([string]$Path) if (-not [string]::IsNullOrWhiteSpace($Path) -and (Test-Path -LiteralPath $Path)) { Remove-Item -LiteralPath $Path -Recurse -Force } }",
+                "function Get-EmptyInstallerState { return [ordered]@{ lastInstallRoot=$null; architectures=[ordered]@{}; registrations=[ordered]@{} } }",
+                "function Save-InstallerState { param($State) throw 'simulated state save failure' }",
+                "try { Invoke-InstallerFullUninstallCore -State ([ordered]@{ lastInstallRoot='" + installRoot.Replace("'", "''") + "'; architectures=[ordered]@{}; registrations=[ordered]@{} }) | Out-Null } catch { }",
+                "@{ Config = ([System.IO.File]::ReadAllText('" + vscodeConfigPath.Replace("'", "''") + "')); InstallExists = (Test-Path -LiteralPath '" + installBase.Replace("'", "''") + "'); ExecutableExists = (Test-Path -LiteralPath '" + installedExecutable.Replace("'", "''") + "') } | ConvertTo-Json -Compress"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("Config").GetString().Should().Contain("wpf-devtools");
+            json.RootElement.GetProperty("InstallExists").GetBoolean().Should().BeTrue();
+            json.RootElement.GetProperty("ExecutableExists").GetBoolean().Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static (int ExitCode, string Stdout, string Stderr) RunInstaller(
         string tempRoot,
         IReadOnlyList<string> arguments,

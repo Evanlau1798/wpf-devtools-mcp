@@ -1,0 +1,554 @@
+using System.Text.Json;
+using FluentAssertions;
+using Xunit;
+
+namespace WpfDevTools.Tests.Unit.Release;
+
+public sealed class StandaloneInstallerRegressionTests
+{
+    public static TheoryData<string> RemovalActions => new()
+    {
+        "uninstall",
+        "full-uninstall"
+    };
+
+    [Theory]
+    [MemberData(nameof(RemovalActions))]
+    public void StandaloneOnlineInstaller_NonInteractiveRemovalModes_ShouldNotRequireHelperRuntime(string action)
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var installWorkingRoot = Path.Combine(tempRoot, "working-install");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-WorkingRoot", installWorkingRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", action,
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            using var json = JsonDocument.Parse(removal.Stdout);
+            json.RootElement.GetProperty("action").GetString().Should().Be(action);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(RemovalActions))]
+    public void StandaloneOnlineInstaller_NonInteractiveRemovalModes_ShouldNotRequireInstalledHelperModules(string action)
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
+
+            var removalWorkingRoot = Path.Combine(tempRoot, "working-removal");
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-no-helpers");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            var wrapperPath = Path.Combine(standaloneRoot, "invoke-removal.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+            File.WriteAllText(
+                wrapperPath,
+                string.Join(Environment.NewLine,
+                [
+                    "Set-Location '" + standaloneRoot.Replace("'", "''") + "'",
+                    "& '" + standaloneScriptPath.Replace("'", "''") + "' " +
+                    "-Action " + action + " " +
+                    "-Architecture x64 " +
+                    "-InstallRoot '" + installRoot.Replace("'", "''") + "' " +
+                    "-WorkingRoot '" + removalWorkingRoot.Replace("'", "''") + "' " +
+                    "-Client visual-studio " +
+                    "-VisualStudioConfigPath '" + visualStudioConfigPath.Replace("'", "''") + "' " +
+                    "-NonInteractive -Force -OutputJson"
+                ]));
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                wrapperPath,
+                [],
+                CreateStandaloneEnvironment(tempRoot));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            using var json = JsonDocument.Parse(removal.Stdout);
+            json.RootElement.GetProperty("action").GetString().Should().Be(action);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(RemovalActions))]
+    public void StandaloneOnlineInstaller_ExecutedOutsideRepo_NonInteractiveRemovalModes_ShouldNotRequireHelperRuntime(string action)
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-external");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            var wrapperPath = Path.Combine(standaloneRoot, "invoke-removal.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+            File.WriteAllText(
+                wrapperPath,
+                string.Join(Environment.NewLine,
+                [
+                    "Set-Location '" + standaloneRoot.Replace("'", "''") + "'",
+                    "& '" + standaloneScriptPath.Replace("'", "''") + "' " +
+                    "-Action " + action + " " +
+                    "-Architecture x64 " +
+                    "-InstallRoot '" + installRoot.Replace("'", "''") + "' " +
+                    "-Client visual-studio " +
+                    "-VisualStudioConfigPath '" + visualStudioConfigPath.Replace("'", "''") + "' " +
+                    "-NonInteractive -Force -OutputJson"
+                ]));
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                wrapperPath,
+                [],
+                CreateStandaloneEnvironment(tempRoot));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            using var json = JsonDocument.Parse(removal.Stdout);
+            json.RootElement.GetProperty("action").GetString().Should().Be(action);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void StandaloneOnlineInstaller_FullUninstall_ShouldRemoveJsonRegistrationsWhenHelperModulesAreUnavailable()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-full-uninstall");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(visualStudioConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void StandaloneOnlineInstaller_FullUninstall_ShouldUseLiveDiscoveryWhenStateFileIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
+
+            var statePath = Path.Combine(tempRoot, "AppData", "Roaming", "WpfDevToolsMcp", "installer-state.json");
+            File.Delete(statePath);
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-full-uninstall-missing-state");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(visualStudioConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void StandaloneOnlineInstaller_Uninstall_ShouldRollbackArtifactRemovalWhenStateSaveFails()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
+
+            var artifactPath = Path.Combine(installRoot, "x64", "client-registration", "other.mcpServers.json");
+            File.Exists(artifactPath).Should().BeTrue();
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-artifact-rollback");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot, new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_FAIL_SAVE_STANDALONE_STATE"] = "1"
+                }));
+
+            removal.ExitCode.Should().NotBe(0);
+            File.Exists(artifactPath).Should().BeTrue("artifact-only uninstall should roll back if standalone state persistence fails");
+            File.ReadAllText(artifactPath).Should().Contain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void StandaloneOnlineInstaller_FullUninstall_ShouldRollbackRegistrationsAndInstallRootWhenStateSaveFails()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-full-uninstall-rollback");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", visualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot, new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_FAIL_SAVE_STANDALONE_STATE"] = "1"
+                }));
+
+            removal.ExitCode.Should().NotBe(0);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeTrue(
+                "standalone full-uninstall should restore the installer-owned install root when state persistence fails");
+            File.ReadAllText(visualStudioConfigPath).Should().Contain("wpf-devtools",
+                "standalone full-uninstall should restore the live JSON registration when state persistence fails");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void StandaloneOnlineInstaller_FullUninstall_ShouldRemoveLiveJsonRegistrationWhenStateTargetIsStale()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var liveVisualStudioConfigPath = Path.Combine(tempRoot, "UserProfile", ".mcp.json");
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+            File.ReadAllText(liveVisualStudioConfigPath).Should().Contain("wpf-devtools");
+
+            var statePath = Path.Combine(tempRoot, "AppData", "Roaming", "WpfDevToolsMcp", "installer-state.json");
+            var staleTargetPath = Path.Combine(tempRoot, "stale", ".mcp.json");
+            using (var stateDocument = JsonDocument.Parse(File.ReadAllText(statePath)))
+            {
+                var root = stateDocument.RootElement;
+                var registrations = root.GetProperty("registrations");
+                var visualStudio = registrations.GetProperty("visual-studio");
+
+                var updatedState = new
+                {
+                    lastInstallRoot = root.GetProperty("lastInstallRoot").GetString(),
+                    architectures = JsonSerializer.Deserialize<object>(root.GetProperty("architectures").GetRawText()),
+                    registrations = new Dictionary<string, object?>
+                    {
+                        ["visual-studio"] = new
+                        {
+                            architecture = visualStudio.GetProperty("architecture").GetString(),
+                            installRoot = visualStudio.GetProperty("installRoot").GetString(),
+                            mode = visualStudio.GetProperty("mode").GetString(),
+                            target = staleTargetPath,
+                            resolvedVersion = visualStudio.GetProperty("resolvedVersion").GetString(),
+                            installedExecutable = visualStudio.GetProperty("installedExecutable").GetString(),
+                            lastVerifiedUtc = visualStudio.GetProperty("lastVerifiedUtc").GetString()
+                        }
+                    }
+                };
+
+                File.WriteAllText(statePath, JsonSerializer.Serialize(updatedState));
+            }
+
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-stale-target");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(liveVisualStudioConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    private static (int ExitCode, string Stdout, string Stderr) RunRepoInstaller(
+        string tempRoot,
+        IReadOnlyList<string> arguments)
+        => ReleaseScriptTestHarness.RunPowerShellScript(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+            arguments,
+            CreateStandaloneEnvironment(tempRoot));
+
+    private static IReadOnlyDictionary<string, string?> CreateStandaloneEnvironment(
+        string tempRoot,
+        IReadOnlyDictionary<string, string?>? overrides = null)
+    {
+        var environment = new Dictionary<string, string?>
+        {
+            ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+            ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+            ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+            ["WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI"] = "http://127.0.0.1:1/installer",
+            ["WPFDEVTOOLS_INSTALLER_HELPER_TIMEOUT_SEC"] = "1",
+            ["WPFDEVTOOLS_INSTALLER_HELPER_BOOTSTRAP_TIMEOUT_SEC"] = "3"
+        };
+
+        if (overrides is not null)
+        {
+            foreach (var pair in overrides)
+            {
+                environment[pair.Key] = pair.Value;
+            }
+        }
+
+        return environment;
+    }
+}

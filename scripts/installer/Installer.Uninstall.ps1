@@ -90,6 +90,9 @@ function Invoke-InstallerFullUninstallCore {
             throw ($verificationFailures -join ' ')
         }
 
+        $newState = Get-EmptyInstallerState
+        $newState.lastInstallRoot = $State.lastInstallRoot
+        $statePath = Save-InstallerState -State $newState
         foreach ($registrationBackup in $registrationBackups) {
             Remove-PathIfExists -Path ([string]$registrationBackup.BackupPath)
         }
@@ -97,10 +100,6 @@ function Invoke-InstallerFullUninstallCore {
         foreach ($backup in $installationBackups) {
             Remove-PathIfExists -Path ([string]$backup.RollbackPath)
         }
-
-        $newState = Get-EmptyInstallerState
-        $newState.lastInstallRoot = $State.lastInstallRoot
-        $statePath = Save-InstallerState -State $newState
         return [ordered]@{
             action = 'full-uninstall'
             client = 'all'
@@ -236,8 +235,35 @@ function Get-StandaloneDetectedInstallerRegistrations {
             -RegistrationMode ([string]$registration.RegistrationMode)
         if ($registrationMap.Contains($stateKey)) {
             $existing = $registrationMap[$stateKey]
+            $clientBaseId = Resolve-ClientBaseId -ClientId ([string]$registration.ClientId)
+            $collectionName = switch ($clientBaseId) {
+                'vscode' { 'servers' }
+                'visual-studio' { 'servers' }
+                'claude-desktop' { 'mcpServers' }
+                'cursor' { 'mcpServers' }
+                default { $null }
+            }
+            $existingTarget = [string]$existing.RegistrationTarget
+            $liveTarget = [string]$registration.RegistrationTarget
+            $existingTargetHasRegistration = $false
+            $liveTargetHasRegistration = $false
+            if (-not [string]::IsNullOrWhiteSpace($collectionName)) {
+                if (-not [string]::IsNullOrWhiteSpace($existingTarget)) {
+                    $existingTargetHasRegistration = Test-JsonConfigRegistration -CollectionName $collectionName -ConfigPath $existingTarget
+                }
+
+                if (-not [string]::IsNullOrWhiteSpace($liveTarget)) {
+                    $liveTargetHasRegistration = Test-JsonConfigRegistration -CollectionName $collectionName -ConfigPath $liveTarget
+                }
+            }
+
             if ([string]::IsNullOrWhiteSpace([string]$existing.RegistrationTarget)) {
                 $existing.RegistrationTarget = [string]$registration.RegistrationTarget
+            }
+            elseif ($liveTargetHasRegistration -and (-not $existingTargetHasRegistration -or -not (Test-InstallerPathEqualsCore -Left $existingTarget -Right $liveTarget))) {
+                $existing.RegistrationTarget = $liveTarget
+                $existing.RegistrationMode = [string]$registration.RegistrationMode
+                $existing.InstalledExecutable = [string]$registration.InstalledExecutable
             }
             if ([string]::IsNullOrWhiteSpace([string]$existing.InstalledExecutable)) {
                 $existing.InstalledExecutable = [string]$registration.InstalledExecutable

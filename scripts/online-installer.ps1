@@ -320,6 +320,25 @@ function Get-StandaloneInstallerStateSnapshot {
         return (Get-Content -Path $statePath -Raw | ConvertFrom-Json)
     }
     catch {
+        Move-StandaloneCorruptInstallerStateFile -Path $statePath | Out-Null
+        return $null
+    }
+}
+function Move-StandaloneCorruptInstallerStateFile {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path $Path)) {
+        return $null
+    }
+
+    try {
+        $directory = Split-Path -Parent $Path
+        $fileName = Split-Path -Leaf $Path
+        $quarantinePath = Join-Path $directory ("{0}.corrupt-{1}" -f $fileName, ([guid]::NewGuid().ToString('N')))
+        Move-Item -LiteralPath $Path -Destination $quarantinePath -Force
+        return $quarantinePath
+    }
+    catch {
         return $null
     }
 }
@@ -656,6 +675,189 @@ function Get-StandaloneRecordStringValue {
 
     return $null
 }
+function Add-StandaloneTrustedTargetCandidate {
+    param(
+        [System.Collections.Generic.List[string]]$Targets,
+        [string]$Candidate
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Candidate)) {
+        return
+    }
+
+    foreach ($existing in $Targets) {
+        if (Test-StandaloneInstallerPathEquals -Left $existing -Right $Candidate) {
+            return
+        }
+    }
+
+    $Targets.Add($Candidate)
+}
+function Resolve-StandaloneTrustedOtherRegistrationArtifactPath {
+    param($RegistrationRecord)
+
+    $installedExecutable = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('installedExecutable', 'InstalledExecutable')
+    if (-not [string]::IsNullOrWhiteSpace($installedExecutable)) {
+        $ownership = Resolve-StandaloneInstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+        if ($null -ne $ownership -and [bool]$ownership.InstallerOwned -and -not [string]::IsNullOrWhiteSpace([string]$ownership.InstallBase)) {
+            return (Join-Path ([string]$ownership.InstallBase) 'client-registration\other.mcpServers.json')
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($InstallRoot) -and -not [string]::IsNullOrWhiteSpace($Architecture)) {
+        $liveEvidence = Get-StandaloneLiveInstallerManifestEvidence -InstallRoot $InstallRoot -Architecture $Architecture
+        if ($null -ne $liveEvidence) {
+            return (Join-Path (Resolve-StandaloneInstallBasePath -ResolvedInstallRoot $InstallRoot -ResolvedArchitecture $Architecture) 'client-registration\other.mcpServers.json')
+        }
+    }
+
+    return $null
+}
+function Get-StandaloneTrustedManagedRegistrationTargetFromManifest {
+    param(
+        [Parameter(Mandatory)] [string[]]$StateKeys,
+        $RegistrationRecord
+    )
+
+    $manifestPath = $null
+    $installedExecutable = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('installedExecutable', 'InstalledExecutable')
+    if (-not [string]::IsNullOrWhiteSpace($installedExecutable)) {
+        $ownership = Resolve-StandaloneInstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+        if ($null -ne $ownership -and [bool]$ownership.InstallerOwned -and -not [string]::IsNullOrWhiteSpace([string]$ownership.InstallBase)) {
+            $manifestPath = Join-Path ([string]$ownership.InstallBase) 'install-manifest.json'
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($manifestPath)) {
+        $installRoot = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('installRoot', 'InstallRoot')
+        $architecture = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('architecture', 'Architecture')
+        if (-not [string]::IsNullOrWhiteSpace($installRoot) -and -not [string]::IsNullOrWhiteSpace($architecture)) {
+            $liveEvidence = Get-StandaloneLiveInstallerManifestEvidence -InstallRoot $installRoot -Architecture $architecture
+            if ($null -ne $liveEvidence) {
+                $manifestPath = Join-Path (Resolve-StandaloneInstallBasePath -ResolvedInstallRoot $installRoot -ResolvedArchitecture $architecture) 'install-manifest.json'
+            }
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($manifestPath) -or -not (Test-Path $manifestPath)) {
+        return $null
+    }
+
+    try {
+        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+    }
+    catch {
+        return $null
+    }
+
+    $managedTargets = $manifest.PSObject.Properties['managedRegistrationTargets']
+    if ($null -eq $managedTargets -or $null -eq $managedTargets.Value) {
+        return $null
+    }
+
+    foreach ($stateKey in $StateKeys) {
+        if ([string]::IsNullOrWhiteSpace($stateKey)) {
+            continue
+        }
+
+        $property = $managedTargets.Value.PSObject.Properties[$stateKey]
+        if ($null -ne $property -and -not [string]::IsNullOrWhiteSpace([string]$property.Value)) {
+            return [string]$property.Value
+        }
+    }
+
+    return $null
+}
+function Get-StandaloneTrustedManagedJsonRegistrationTarget {
+    param(
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        $RegistrationRecord
+    )
+
+    return (Get-StandaloneTrustedManagedRegistrationTargetFromManifest -StateKeys @($SelectedClient) -RegistrationRecord $RegistrationRecord)
+}
+function Get-StandaloneTrustedCursorManifestTarget {
+    param(
+        [string]$SelectedClient,
+        $RegistrationRecord
+    )
+
+    if ($SelectedClient -eq 'cursor-global') {
+        return (Get-StandaloneTrustedManagedRegistrationTargetFromManifest -StateKeys @('cursor-global') -RegistrationRecord $RegistrationRecord)
+    }
+
+    if ($SelectedClient -eq 'cursor-project') {
+        return (Get-StandaloneTrustedManagedRegistrationTargetFromManifest -StateKeys @('cursor-project') -RegistrationRecord $RegistrationRecord)
+    }
+
+    $registrationMode = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('mode', 'Mode', 'RegistrationMode')
+    if ($registrationMode -eq 'cursor-project') {
+        return (Get-StandaloneTrustedManagedRegistrationTargetFromManifest -StateKeys @('cursor-project') -RegistrationRecord $RegistrationRecord)
+    }
+
+    if ($registrationMode -eq 'cursor-global') {
+        return (Get-StandaloneTrustedManagedRegistrationTargetFromManifest -StateKeys @('cursor-global') -RegistrationRecord $RegistrationRecord)
+    }
+
+    return (Get-StandaloneTrustedManagedRegistrationTargetFromManifest -StateKeys @('cursor-global', 'cursor-project') -RegistrationRecord $RegistrationRecord)
+}
+function Get-StandaloneTrustedRecordedTarget {
+    param(
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        $RegistrationRecord,
+        [string[]]$AdditionalAllowedTargets = @()
+    )
+
+    $recordedTarget = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('target', 'Target', 'RegistrationTarget')
+    if ([string]::IsNullOrWhiteSpace($recordedTarget)) {
+        return $null
+    }
+
+    $allowedTargets = New-Object System.Collections.Generic.List[string]
+    foreach ($candidate in @($AdditionalAllowedTargets)) {
+        Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate $candidate
+    }
+
+    if ($SelectedClient -like 'cursor*') {
+        Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Get-StandaloneTrustedCursorManifestTarget -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)
+    }
+    else {
+        $manifestClientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
+        if ($manifestClientBaseId -ne 'other' -and $manifestClientBaseId -ne 'claude-code' -and $manifestClientBaseId -ne 'codex') {
+            Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Get-StandaloneTrustedManagedJsonRegistrationTarget -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)
+        }
+    }
+
+    switch ($SelectedClient) {
+        'cursor-global' {
+            Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Resolve-StandaloneCursorGlobalConfigPath)
+        }
+        'cursor-project' {
+            Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Resolve-StandaloneCursorProjectConfigPath)
+        }
+        default {
+            $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
+            switch ($clientBaseId) {
+                'vscode' { Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Resolve-StandaloneVsCodeConfigPath) }
+                'visual-studio' { Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Resolve-StandaloneVisualStudioConfigPath) }
+                'claude-desktop' { Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Resolve-StandaloneClaudeDesktopConfigPath) }
+                'cursor' {
+                    Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Resolve-StandaloneCursorGlobalConfigPath)
+                    Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Resolve-StandaloneCursorProjectConfigPath)
+                }
+                'other' { Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Resolve-StandaloneTrustedOtherRegistrationArtifactPath -RegistrationRecord $RegistrationRecord) }
+            }
+        }
+    }
+
+    foreach ($allowedTarget in $allowedTargets) {
+        if (Test-StandaloneInstallerPathEquals -Left $recordedTarget -Right $allowedTarget) {
+            return $allowedTarget
+        }
+    }
+
+    return $null
+}
 function Get-StandaloneJsonCollectionName {
     param([Parameter(Mandatory)] [string]$ClientBaseId)
 
@@ -667,6 +869,70 @@ function Get-StandaloneJsonCollectionName {
         default { return $null }
     }
 }
+function Get-StandaloneNormalizedRegistrationMode {
+    param([string]$RegistrationMode)
+
+    if ([string]::IsNullOrWhiteSpace($RegistrationMode)) {
+        return $RegistrationMode
+    }
+
+    if ($RegistrationMode -like 'cursor-*') {
+        return 'json-file'
+    }
+
+    return $RegistrationMode
+}
+function Get-StandaloneManagedRegistrationsFromInstall {
+    param(
+        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [string]$ResolvedArchitecture
+    )
+
+    $liveEvidence = Get-StandaloneLiveInstallerManifestEvidence -InstallRoot $ResolvedInstallRoot -Architecture $ResolvedArchitecture
+    if ($null -eq $liveEvidence) {
+        return @()
+    }
+
+    $manifestPath = Join-Path (Resolve-StandaloneInstallBasePath -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture) 'install-manifest.json'
+    if (-not (Test-Path $manifestPath)) {
+        return @()
+    }
+
+    try {
+        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+    }
+    catch {
+        return @()
+    }
+
+    $managedTargets = $manifest.PSObject.Properties['managedRegistrationTargets']
+    if ($null -eq $managedTargets -or $null -eq $managedTargets.Value) {
+        return @()
+    }
+
+    $registrations = New-Object System.Collections.Generic.List[object]
+    foreach ($property in $managedTargets.Value.PSObject.Properties) {
+        $targetPath = [string]$property.Value
+        if ([string]::IsNullOrWhiteSpace($targetPath)) {
+            continue
+        }
+
+        $clientId = [string]$property.Name
+        $registrationMode = if ($clientId -like 'cursor-*') { $clientId } else { 'json-file' }
+        $registrations.Add([ordered]@{
+                ClientId = $clientId
+                RegistrationMode = $registrationMode
+                RegistrationTarget = $targetPath
+                InstalledExecutable = [string]$liveEvidence.InstalledExecutable
+                InstallRoot = $ResolvedInstallRoot
+                Architecture = $ResolvedArchitecture
+                InstallerOwned = $true
+                ResolvedVersion = [string]$liveEvidence.ResolvedVersion
+            })
+    }
+
+    return @($registrations.ToArray())
+}
 function Get-StandaloneJsonVerificationTargets {
     param(
         [Parameter(Mandatory)] [string]$SelectedClient,
@@ -674,9 +940,19 @@ function Get-StandaloneJsonVerificationTargets {
     )
 
     $targets = New-Object System.Collections.Generic.List[string]
-    $recordedTarget = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('target', 'Target', 'RegistrationTarget')
+    $recordedTarget = Get-StandaloneTrustedRecordedTarget -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
     if (-not [string]::IsNullOrWhiteSpace($recordedTarget) -and -not $targets.Contains($recordedTarget)) {
         $targets.Add($recordedTarget)
+    }
+
+    $manifestTarget = if ((Resolve-ClientBaseId -ClientId $SelectedClient) -eq 'cursor') {
+        Get-StandaloneTrustedCursorManifestTarget -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
+    }
+    else {
+        Get-StandaloneTrustedManagedJsonRegistrationTarget -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
+    }
+    if (-not [string]::IsNullOrWhiteSpace($manifestTarget) -and -not $targets.Contains($manifestTarget)) {
+        $targets.Add($manifestTarget)
     }
 
     $defaultTargets = switch ($SelectedClient) {
@@ -1040,6 +1316,47 @@ function Get-StandaloneFallbackRegistrationRecord {
 
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
     $liveEvidence = Get-StandaloneLiveInstallerManifestEvidence -InstallRoot $ResolvedInstallRoot -Architecture $ResolvedArchitecture
+    $managedRegistrations = @(Get-StandaloneManagedRegistrationsFromInstall -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture)
+
+    switch ($clientBaseId) {
+        'vscode' {
+            $registration = $managedRegistrations | Where-Object { [string]$_.ClientId -eq 'vscode' } | Select-Object -First 1
+            if ($null -ne $registration) { return $registration }
+            break
+        }
+        'visual-studio' {
+            $registration = $managedRegistrations | Where-Object { [string]$_.ClientId -eq 'visual-studio' } | Select-Object -First 1
+            if ($null -ne $registration) { return $registration }
+            break
+        }
+        'claude-desktop' {
+            $registration = $managedRegistrations | Where-Object { [string]$_.ClientId -eq 'claude-desktop' } | Select-Object -First 1
+            if ($null -ne $registration) { return $registration }
+            break
+        }
+        'cursor' {
+            $preferredClientId = if ($SelectedClient -eq 'cursor-global') {
+                'cursor-global'
+            }
+            elseif ($SelectedClient -eq 'cursor-project') {
+                'cursor-project'
+            }
+            elseif ($CursorMode -eq 'project') {
+                'cursor-project'
+            }
+            else {
+                'cursor-global'
+            }
+
+            $registration = $managedRegistrations | Where-Object { [string]$_.ClientId -eq $preferredClientId } | Select-Object -First 1
+            if ($null -eq $registration) {
+                $registration = $managedRegistrations | Where-Object { [string]$_.ClientId -like 'cursor-*' } | Select-Object -First 1
+            }
+
+            if ($null -ne $registration) { return $registration }
+            break
+        }
+    }
 
     switch ($clientBaseId) {
         'other' {
@@ -1136,7 +1453,11 @@ function Invoke-StandaloneUninstallVerification {
             break
         }
         'other' {
-            $targetPath = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('target', 'Target', 'RegistrationTarget')
+            $targetPath = Get-StandaloneTrustedRecordedTarget -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
+            if ([string]::IsNullOrWhiteSpace($targetPath)) {
+                $targetPath = Resolve-StandaloneTrustedOtherRegistrationArtifactPath -RegistrationRecord $RegistrationRecord
+            }
+
             if ([string]::IsNullOrWhiteSpace($targetPath)) {
                 $true
             }
@@ -1168,16 +1489,37 @@ function Invoke-StandaloneInstallerActionCore {
     $state = Get-StandaloneInstallerState
 
     if ($ResolvedAction -eq 'full-uninstall') {
-        $detectedRegistrations = @(Get-StandaloneDetectedInstallerRegistrations -State $state)
         $detectedInstallations = @(Get-StandaloneDetectedInstallerInstallations -State $state -ExpectedInstallRoot $ResolvedInstallRoot)
+        $detectedRegistrations = @(Get-StandaloneDetectedInstallerRegistrations -State $state)
+        $registrationMap = [ordered]@{}
+        foreach ($registration in $detectedRegistrations) {
+            $stateKey = Resolve-ClientStateKey -ClientId ([string]$registration.ClientId) -RegistrationMode ([string]$registration.RegistrationMode)
+            $registrationMap[$stateKey] = $registration
+        }
+
+        foreach ($installation in $detectedInstallations) {
+            foreach ($registration in @(Get-StandaloneManagedRegistrationsFromInstall -ResolvedInstallRoot ([string]$installation.InstallRoot) -ResolvedArchitecture ([string]$installation.Architecture))) {
+                $stateKey = Resolve-ClientStateKey -ClientId ([string]$registration.ClientId) -RegistrationMode ([string]$registration.RegistrationMode)
+                if (-not $registrationMap.Contains($stateKey)) {
+                    $registrationMap[$stateKey] = $registration
+                }
+            }
+        }
+
+        $detectedRegistrations = @($registrationMap.Values)
         $registrationOperations = @()
         $installationBackups = @()
         $removedInstallations = @()
+        $stateRestoreRequired = $false
+        $statePath = Resolve-StandaloneInstallerStatePath -CreateRoot
+        $hadOriginalStateFile = Test-Path -LiteralPath $statePath
+        $originalStateJson = if ($hadOriginalStateFile) { Get-Content -LiteralPath $statePath -Raw } else { $null }
         try {
             foreach ($record in $detectedRegistrations) {
                 $clientId = [string]$record.ClientId
-                $registrationMode = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('RegistrationMode', 'mode', 'Mode')
-                $targetPath = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('RegistrationTarget', 'target', 'Target')
+                $rawRegistrationMode = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('RegistrationMode', 'mode', 'Mode')
+                $registrationMode = Get-StandaloneNormalizedRegistrationMode -RegistrationMode $rawRegistrationMode
+                $targetPath = Get-StandaloneTrustedRecordedTarget -SelectedClient $clientId -RegistrationRecord $record
                 $clientBaseId = Resolve-ClientBaseId -ClientId $clientId
                 $operation = [ordered]@{
                     ClientId = $clientId
@@ -1186,6 +1528,22 @@ function Invoke-StandaloneInstallerActionCore {
                     BackupPath = $null
                     Applied = $false
                     InstalledExecutable = (Get-StandaloneRecordStringValue -Record $record -PropertyNames @('InstalledExecutable', 'installedExecutable'))
+                }
+
+                if ([string]::IsNullOrWhiteSpace($targetPath) -and [string]::Equals($registrationMode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    if ($clientBaseId -eq 'cursor') {
+                        $targetPath = Get-StandaloneTrustedCursorManifestTarget -SelectedClient $clientId -RegistrationRecord $record
+                    }
+                    else {
+                        $targetPath = Get-StandaloneTrustedManagedJsonRegistrationTarget -SelectedClient $clientId -RegistrationRecord $record
+                    }
+
+                    $operation.TargetPath = $targetPath
+                }
+
+                if ([string]::Equals($registrationMode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase) -and [string]::IsNullOrWhiteSpace($targetPath)) {
+                    $targetPath = Resolve-StandaloneTrustedOtherRegistrationArtifactPath -RegistrationRecord $record
+                    $operation.TargetPath = $targetPath
                 }
 
                 if ([string]::Equals($registrationMode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -1259,6 +1617,7 @@ function Invoke-StandaloneInstallerActionCore {
             $state.registrations.Clear()
             $state.architectures.Clear()
             $statePath = Save-StandaloneInstallerState -State $state
+            $stateRestoreRequired = $true
             foreach ($operation in $registrationOperations) {
                 Remove-PathIfExists -Path ([string]$operation.BackupPath)
             }
@@ -1328,6 +1687,20 @@ function Invoke-StandaloneInstallerActionCore {
                 }
             }
 
+            if ($stateRestoreRequired) {
+                try {
+                    if ($hadOriginalStateFile) {
+                        $originalStateJson | Set-Content -LiteralPath $statePath -Encoding UTF8
+                    }
+                    else {
+                        Remove-PathIfExists -Path $statePath
+                    }
+                }
+                catch {
+                    throw ($_.Exception.Message + ' Failed to restore standalone installer state after rollback. ' + $_.Exception.Message)
+                }
+            }
+
             throw
         }
     }
@@ -1353,9 +1726,23 @@ function Invoke-StandaloneInstallerActionCore {
     $registrations = @()
     try {
         if ($null -ne $registrationRecord) {
-            $mode = Get-StandaloneRecordStringValue -Record $registrationRecord -PropertyNames @('mode', 'Mode', 'RegistrationMode')
-            $targetPath = Get-StandaloneRecordStringValue -Record $registrationRecord -PropertyNames @('target', 'Target', 'RegistrationTarget')
+            $rawMode = Get-StandaloneRecordStringValue -Record $registrationRecord -PropertyNames @('mode', 'Mode', 'RegistrationMode')
+            $mode = Get-StandaloneNormalizedRegistrationMode -RegistrationMode $rawMode
+            $targetPath = Get-StandaloneTrustedRecordedTarget -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord
             $clientBaseId = Resolve-ClientBaseId -ClientId $ResolvedClient
+
+            if ([string]::IsNullOrWhiteSpace($targetPath) -and [string]::Equals($mode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase)) {
+                if ($clientBaseId -eq 'cursor') {
+                    $targetPath = Get-StandaloneTrustedCursorManifestTarget -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord
+                }
+                else {
+                    $targetPath = Get-StandaloneTrustedManagedJsonRegistrationTarget -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord
+                }
+            }
+
+            if ([string]::Equals($mode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase) -and [string]::IsNullOrWhiteSpace($targetPath)) {
+                $targetPath = Resolve-StandaloneTrustedOtherRegistrationArtifactPath -RegistrationRecord $registrationRecord
+            }
 
             if ([string]::Equals($mode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase)) {
                 $collectionName = switch ($clientBaseId) {

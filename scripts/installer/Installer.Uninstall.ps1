@@ -22,16 +22,38 @@ function Invoke-InstallerFullUninstallCore {
     $registrationBackups = @()
     $installationBackups = @()
     $removedInstallations = @()
+    $stateRestoreRequired = $false
 
     try {
         foreach ($registration in $detectedRegistrations) {
-            if ([string]::Equals([string]$registration.RegistrationMode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase) -and
-                -not [string]::IsNullOrWhiteSpace([string]$registration.RegistrationTarget) -and
-                (Test-Path -LiteralPath ([string]$registration.RegistrationTarget))) {
-                $backupPath = "{0}.rollback-{1}" -f ([string]$registration.RegistrationTarget), ([guid]::NewGuid().ToString('N'))
-                Copy-Item -LiteralPath ([string]$registration.RegistrationTarget) -Destination $backupPath -Force
+            $trustedBackupTarget = $null
+            $clientId = [string]$registration.ClientId
+            $clientBaseId = Resolve-ClientBaseId -ClientId $clientId
+            if ([string]::Equals([string]$registration.RegistrationMode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase)) {
+                if ($clientBaseId -eq 'cursor') {
+                    $trustedBackupTarget = [string](Resolve-CursorRegistrationProfile -SelectedClient $clientId -RegistrationRecord $registration).ConfigPath
+                }
+                else {
+                    $trustedBackupTarget = Get-TrustedRecordedRegistrationTarget -ClientBaseId $clientBaseId -RegistrationRecord $registration
+                    if ([string]::IsNullOrWhiteSpace($trustedBackupTarget)) {
+                        $trustedBackupTarget = switch ($clientBaseId) {
+                            'vscode' { Resolve-VsCodeConfigPath }
+                            'visual-studio' { Resolve-VisualStudioConfigPath }
+                            'claude-desktop' { Resolve-ClaudeDesktopConfigPath }
+                            default { $null }
+                        }
+                    }
+                }
+            }
+            elseif ([string]::Equals([string]$registration.RegistrationMode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $trustedBackupTarget = Resolve-TrustedOtherRegistrationArtifactPath -RegistrationRecord $registration
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($trustedBackupTarget) -and (Test-Path -LiteralPath $trustedBackupTarget)) {
+                $backupPath = "{0}.rollback-{1}" -f $trustedBackupTarget, ([guid]::NewGuid().ToString('N'))
+                Copy-Item -LiteralPath $trustedBackupTarget -Destination $backupPath -Force
                 $registrationBackups += [ordered]@{
-                    TargetPath = [string]$registration.RegistrationTarget
+                    TargetPath = $trustedBackupTarget
                     BackupPath = $backupPath
                 }
             }
@@ -93,6 +115,7 @@ function Invoke-InstallerFullUninstallCore {
         $newState = Get-EmptyInstallerState
         $newState.lastInstallRoot = $State.lastInstallRoot
         $statePath = Save-InstallerState -State $newState
+        $stateRestoreRequired = $true
         foreach ($registrationBackup in $registrationBackups) {
             Remove-PathIfExists -Path ([string]$registrationBackup.BackupPath)
         }
@@ -111,6 +134,7 @@ function Invoke-InstallerFullUninstallCore {
         }
     }
     catch {
+        $rollbackErrors = New-Object System.Collections.Generic.List[string]
         $registrationBackupsInReverse = @($registrationBackups)
         [array]::Reverse($registrationBackupsInReverse)
         foreach ($registrationBackup in $registrationBackupsInReverse) {
@@ -130,6 +154,7 @@ function Invoke-InstallerFullUninstallCore {
                     Remove-PathIfExists -Path $backupPath
                 }
                 catch {
+                    $rollbackErrors.Add("Failed to restore registration backup '$targetPath'. $($_.Exception.Message)")
                 }
             }
         }
@@ -144,7 +169,12 @@ function Invoke-InstallerFullUninstallCore {
             }
 
             if (Test-Path -LiteralPath $rollbackPath) {
-                Move-Item -LiteralPath $rollbackPath -Destination $installBase -Force
+                try {
+                    Move-Item -LiteralPath $rollbackPath -Destination $installBase -Force
+                }
+                catch {
+                    $rollbackErrors.Add("Failed to restore installation root '$installBase'. $($_.Exception.Message)")
+                }
             }
         }
 
@@ -163,8 +193,13 @@ function Invoke-InstallerFullUninstallCore {
                     $backupPath = [string]$registration.backupPath
                     $targetPath = [string]$registration.target
                     if (-not [string]::IsNullOrWhiteSpace($backupPath) -and -not [string]::IsNullOrWhiteSpace($targetPath) -and (Test-Path -LiteralPath $backupPath)) {
-                        Copy-Item -LiteralPath $backupPath -Destination $targetPath -Force
-                        Remove-PathIfExists -Path $backupPath
+                        try {
+                            Copy-Item -LiteralPath $backupPath -Destination $targetPath -Force
+                            Remove-PathIfExists -Path $backupPath
+                        }
+                        catch {
+                            $rollbackErrors.Add("Failed to restore client registration artifact '$targetPath'. $($_.Exception.Message)")
+                        }
                     }
                 }
             }
@@ -174,13 +209,31 @@ function Invoke-InstallerFullUninstallCore {
                 $installBase = Resolve-InstallBasePath -ResolvedInstallRoot ([string]$registrationRecord.InstallRoot) -ResolvedArchitecture ([string]$registrationRecord.Architecture)
             }
 
-            Undo-ClientRegistrationChanges `
-                -SelectedClient ([string]$operation.ClientId) `
-                -Registrations @($operation.Registrations) `
-                -RollbackMode 'uninstall' `
-                -InstalledExecutable ([string]$registrationRecord.InstalledExecutable) `
-                -InstallBase $installBase `
-                -RegistrationRecord $registrationRecord
+            try {
+                Undo-ClientRegistrationChanges `
+                    -SelectedClient ([string]$operation.ClientId) `
+                    -Registrations @($operation.Registrations) `
+                    -RollbackMode 'uninstall' `
+                    -InstalledExecutable ([string]$registrationRecord.InstalledExecutable) `
+                    -InstallBase $installBase `
+                    -RegistrationRecord $registrationRecord
+            }
+            catch {
+                $rollbackErrors.Add("Failed to restore registration command state for '$([string]$operation.ClientId)'. $($_.Exception.Message)")
+            }
+        }
+
+        if ($stateRestoreRequired) {
+            try {
+                [void](Save-InstallerState -State $State)
+            }
+            catch {
+                $rollbackErrors.Add("Failed to restore installer state after full-uninstall rollback. $($_.Exception.Message)")
+            }
+        }
+
+        if ($rollbackErrors.Count -gt 0) {
+            throw ($_.Exception.Message + ' Rollback issues: ' + ($rollbackErrors -join ' '))
         }
 
         throw

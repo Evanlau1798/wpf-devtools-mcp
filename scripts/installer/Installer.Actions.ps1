@@ -38,13 +38,17 @@ function Install-PackagePayload {
 
         if (($existingManifest.version -eq $ResolvedVersion) -and $existingBinaryLooksOwned) {
             $reusedExistingBinary = $true
+            $rollbackBackupManifestPath = "$installManifestPath.rollback-$([guid]::NewGuid().ToString('N'))"
+            Copy-Item -LiteralPath $installManifestPath -Destination $rollbackBackupManifestPath -Force
             $rollbackBackupRegistrationDir = Update-ClientRegistrationArtifactsTransactional -InstallBase $installBase -InstalledExecutable $existingExecutable -RestoreOnError
-            Remove-PathIfExists -Path $rollbackBackupRegistrationDir
             return [ordered]@{
                 installRoot = $installRootFullPath
                 installBase = $installBase
+                installManifestPath = $installManifestPath
                 installedExecutable = $existingExecutable
                 reusedExistingBinary = $reusedExistingBinary
+                rollbackBackupManifestPath = $rollbackBackupManifestPath
+                rollbackBackupRegistrationDir = $rollbackBackupRegistrationDir
             }
         }
     }
@@ -188,13 +192,26 @@ function Restore-InstallerBackupDirectory {
 function Undo-InstalledPayload {
     param($InstallResult)
 
-    if ($null -eq $InstallResult -or [bool]$InstallResult.reusedExistingBinary) {
+    if ($null -eq $InstallResult) {
+        return
+    }
+
+    $registrationArtifactsPath = if (-not [string]::IsNullOrWhiteSpace([string]$InstallResult.installBase)) {
+        Join-Path ([string]$InstallResult.installBase) 'client-registration'
+    }
+    else {
+        $null
+    }
+
+    if ([bool]$InstallResult.reusedExistingBinary) {
+        Restore-InstallerBackupDirectory -BackupPath ([string]$InstallResult.rollbackBackupRegistrationDir) -TargetPath $registrationArtifactsPath -RemoveTargetWhenNoBackup
+        Restore-InstallerBackupFile -BackupPath ([string]$InstallResult.rollbackBackupManifestPath) -TargetPath ([string]$InstallResult.installManifestPath)
         return
     }
 
     Remove-PathIfExists -Path ([string]$InstallResult.currentDir)
     Remove-PathIfExists -Path ([string]$InstallResult.installManifestPath)
-    Restore-InstallerBackupDirectory -BackupPath ([string]$InstallResult.rollbackBackupRegistrationDir) -TargetPath (Join-Path ([string]$InstallResult.installBase) 'client-registration') -RemoveTargetWhenNoBackup
+    Restore-InstallerBackupDirectory -BackupPath ([string]$InstallResult.rollbackBackupRegistrationDir) -TargetPath $registrationArtifactsPath -RemoveTargetWhenNoBackup
     Restore-InstallerBackupFile -BackupPath ([string]$InstallResult.rollbackBackupCurrentDir) -TargetPath ([string]$InstallResult.currentDir)
     Restore-InstallerBackupFile -BackupPath ([string]$InstallResult.rollbackBackupManifestPath) -TargetPath ([string]$InstallResult.installManifestPath)
 }
@@ -202,13 +219,75 @@ function Undo-InstalledPayload {
 function Complete-InstalledPayloadCommit {
     param($InstallResult)
 
-    if ($null -eq $InstallResult -or [bool]$InstallResult.reusedExistingBinary) {
+    if ($null -eq $InstallResult) {
+        return
+    }
+
+    Remove-PathIfExists -Path ([string]$InstallResult.rollbackBackupRegistrationDir)
+    Remove-PathIfExists -Path ([string]$InstallResult.rollbackBackupManifestPath)
+
+    if ([bool]$InstallResult.reusedExistingBinary) {
         return
     }
 
     Remove-PathIfExists -Path ([string]$InstallResult.rollbackBackupCurrentDir)
-    Remove-PathIfExists -Path ([string]$InstallResult.rollbackBackupManifestPath)
-    Remove-PathIfExists -Path ([string]$InstallResult.rollbackBackupRegistrationDir)
+}
+
+function Update-InstalledManifestManagedRegistrationTarget {
+    param(
+        [Parameter(Mandatory)] [string]$InstallBase,
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        [Parameter(Mandatory)] $Registration
+    )
+
+    $registrationMode = [string]$Registration.mode
+    $registrationTarget = [string]$Registration.target
+    if ([string]::IsNullOrWhiteSpace($registrationTarget) -or
+        (-not [string]::Equals($registrationMode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase) -and
+         -not $registrationMode.StartsWith('cursor-', [System.StringComparison]::OrdinalIgnoreCase))) {
+        return
+    }
+
+    $manifestPath = Join-Path $InstallBase 'install-manifest.json'
+    if (-not (Test-Path $manifestPath)) {
+        return
+    }
+
+    $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+    $managedRegistrationTargets = [ordered]@{}
+    $existingTargets = $manifest.PSObject.Properties['managedRegistrationTargets']
+    if ($null -ne $existingTargets -and $null -ne $existingTargets.Value) {
+        foreach ($property in $existingTargets.Value.PSObject.Properties) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$property.Value)) {
+                $managedRegistrationTargets[$property.Name] = [string]$property.Value
+            }
+        }
+    }
+
+    $stateKey = Resolve-ClientStateKey -ClientId $SelectedClient -RegistrationMode $registrationMode
+    $managedRegistrationTargets[$stateKey] = $registrationTarget
+
+    $updatedManifest = [ordered]@{}
+    foreach ($property in $manifest.PSObject.Properties) {
+        if ($property.Name -eq 'managedRegistrationTargets') {
+            continue
+        }
+
+        $updatedManifest[$property.Name] = $property.Value
+    }
+
+    $updatedManifest.managedRegistrationTargets = $managedRegistrationTargets
+
+    $tempManifestPath = "$manifestPath.tmp-$([guid]::NewGuid().ToString('N'))"
+    try {
+        $updatedManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $tempManifestPath -Encoding UTF8
+        Move-Item -Path $tempManifestPath -Destination $manifestPath -Force
+    }
+    finally {
+        if (Test-Path $tempManifestPath) {
+            Remove-Item -Path $tempManifestPath -Force
+        }
+    }
 }
 
 function Restore-RegistrationArtifact {
@@ -390,7 +469,7 @@ function Invoke-InstallerActionCore {
             $state.registrations[$stateRegistrationKey]
         }
         else {
-            $null
+            Get-StandaloneFallbackRegistrationRecord -SelectedClient $ResolvedClient -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture
         }
         if ($null -ne $registrationRecord) {
             if ([string]::IsNullOrWhiteSpace($ResolvedArchitecture)) {
@@ -492,6 +571,8 @@ function Invoke-InstallerActionCore {
         if (-not $verification.Succeeded) {
             throw $verification.VerificationMessage
         }
+
+        Update-InstalledManifestManagedRegistrationTarget -InstallBase $installResult.installBase -SelectedClient $ResolvedClient -Registration $registrations[0]
 
         $state = Get-InstallerState
         Update-InstallerStateAfterInstall -State $state -ResolvedInstallRoot $installResult.installRoot -ResolvedArchitecture $resolvedArchitecture -ResolvedVersion ([string]$verification.InstalledVersion) -InstalledExecutable $installResult.installedExecutable -SelectedClient $ResolvedClient -Registration $registrations[0] -LastVerifiedUtc ([string]$verification.LastVerifiedUtc)

@@ -301,6 +301,37 @@ public sealed partial class InstallerScriptTests
     }
 
     [Fact]
+    public void DiscoveryParser_ShouldIgnoreExecutablePathsFromOtherCliEntries()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var expectedExecutable = Path.Combine(tempRoot, "install-root", "x64", "current", "bin", "wpf-devtools-x64.exe");
+            var unrelatedExecutable = Path.Combine(tempRoot, "other-tool", "wpf-devtools-x64.exe");
+
+            var command = string.Join(
+                Environment.NewLine,
+                [
+                    ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Discovery.ps1").Replace("'", "''") + "'",
+                    "$text = @'",
+                    "other-server " + unrelatedExecutable.Replace("'", "''"),
+                    "wpf-devtools " + expectedExecutable.Replace("'", "''"),
+                    "'@",
+                    "Get-WpfDevToolsExecutableFromText -Text $text"
+                ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be(expectedExecutable);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_Uninstall_ShouldRemoveClientRegistrationButKeepBinaryWhenAnotherClientStillUsesIt()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

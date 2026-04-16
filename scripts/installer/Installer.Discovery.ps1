@@ -33,12 +33,19 @@ function Get-WpfDevToolsExecutableFromText {
         return $null
     }
 
-    $match = [regex]::Match($Text, '(?<path>[A-Za-z]:\\[^`"\r\n]*wpf-devtools-(x64|x86|arm64)\.exe)', 'IgnoreCase')
-    if (-not $match.Success) {
-        return $null
+    foreach ($rawLine in ($Text -split "`r?`n")) {
+        $line = [string]$rawLine
+        if ($line -notmatch '^\s*(?:[-*]\s*)?["'']?wpf-devtools["'']?(?:\s|:|=|$)') {
+            continue
+        }
+
+        $match = [regex]::Match($line, '(?<path>[A-Za-z]:\\[^`"\r\n]*wpf-devtools-(x64|x86|arm64)\.exe)', 'IgnoreCase')
+        if ($match.Success) {
+            return [string]$match.Groups['path'].Value
+        }
     }
 
-    return [string]$match.Groups['path'].Value
+    return $null
 }
 
 function Normalize-InstallerPathCore {

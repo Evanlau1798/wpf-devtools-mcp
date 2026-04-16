@@ -252,10 +252,15 @@ public sealed class StandaloneInstallerRegressionTests
     }
 
     [Theory]
-    [InlineData("vscode")]
-    [InlineData("visual-studio")]
-    [InlineData("cursor-global")]
-    public void StandaloneOnlineInstaller_Uninstall_ShouldFailCleanlyWhenManagedJsonConfigIsMalformed(string client)
+    [InlineData("uninstall", "vscode")]
+    [InlineData("uninstall", "visual-studio")]
+    [InlineData("uninstall", "cursor-global")]
+    [InlineData("uninstall", "cursor-project")]
+    [InlineData("full-uninstall", "vscode")]
+    [InlineData("full-uninstall", "visual-studio")]
+    [InlineData("full-uninstall", "cursor-global")]
+    [InlineData("full-uninstall", "cursor-project")]
+    public void StandaloneOnlineInstaller_ManagedJsonRemovalModes_ShouldFailCleanlyWhenConfigIsMalformed(string action, string client)
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -281,7 +286,7 @@ public sealed class StandaloneInstallerRegressionTests
 
             var uninstall = ReleaseScriptTestHarness.RunPowerShellScript(
                 standaloneScriptPath,
-                scenario.UninstallArguments,
+                action == "full-uninstall" ? scenario.FullUninstallArguments : scenario.UninstallArguments,
                 CreateStandaloneEnvironment(tempRoot));
 
             uninstall.ExitCode.Should().NotBe(0);
@@ -1115,7 +1120,7 @@ public sealed class StandaloneInstallerRegressionTests
         return environment;
     }
 
-    private static (string StateKey, string ConfigPath, string[] InstallArguments, string[] UninstallArguments) CreateMalformedJsonClientScenario(
+    private static (string StateKey, string ConfigPath, string[] InstallArguments, string[] UninstallArguments, string[] FullUninstallArguments) CreateMalformedJsonClientScenario(
         string tempRoot,
         string archivePath,
         string installRoot,
@@ -1142,6 +1147,15 @@ public sealed class StandaloneInstallerRegressionTests
                     "-VsCodeConfigPath", Path.Combine(tempRoot, "config", "Code", "User", "mcp.json"),
                     "-NonInteractive",
                     "-OutputJson"
+                ],
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-VsCodeConfigPath", Path.Combine(tempRoot, "config", "Code", "User", "mcp.json"),
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
                 ]),
             "visual-studio" => (
                 "visual-studio",
@@ -1162,6 +1176,15 @@ public sealed class StandaloneInstallerRegressionTests
                     "-Client", "visual-studio",
                     "-VisualStudioConfigPath", Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json"),
                     "-NonInteractive",
+                    "-OutputJson"
+                ],
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-VisualStudioConfigPath", Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json"),
+                    "-NonInteractive",
+                    "-Force",
                     "-OutputJson"
                 ]),
             "cursor-global" => (
@@ -1185,6 +1208,51 @@ public sealed class StandaloneInstallerRegressionTests
                     "-CursorMode", "global",
                     "-CursorConfigPath", Path.Combine(tempRoot, "config", "cursor", "global", "mcp.json"),
                     "-NonInteractive",
+                    "-OutputJson"
+                ],
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "global",
+                    "-CursorConfigPath", Path.Combine(tempRoot, "config", "cursor", "global", "mcp.json"),
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]),
+            "cursor-project" => (
+                "cursor-project",
+                Path.Combine(tempRoot, "CursorProject", ".cursor", "mcp.json"),
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "project",
+                    "-CursorProjectRoot", Path.Combine(tempRoot, "CursorProject"),
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "project",
+                    "-CursorProjectRoot", Path.Combine(tempRoot, "CursorProject"),
+                    "-NonInteractive",
+                    "-OutputJson"
+                ],
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "project",
+                    "-CursorProjectRoot", Path.Combine(tempRoot, "CursorProject"),
+                    "-NonInteractive",
+                    "-Force",
                     "-OutputJson"
                 ]),
             _ => throw new ArgumentOutOfRangeException(nameof(client), client, null)

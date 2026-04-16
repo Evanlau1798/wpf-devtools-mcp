@@ -14,6 +14,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static partial class ToolCallHelper
 {
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
+    private static readonly HashSet<string> NavigationOptOutTools = new(StringComparer.Ordinal)
+    {
+        "get_binding_errors"
+    };
     private static MetricsCollector? _metrics;
     private static ToolNavigationPlanner _navigationPlanner = new(new ToolNavigationRegistry());
 
@@ -79,7 +83,7 @@ public static partial class ToolCallHelper
         [System.Runtime.CompilerServices.CallerMemberName] string toolName = "unknown")
     {
         var effectiveTimeoutSeconds = timeoutSeconds ?? McpServerConfiguration.DefaultToolTimeoutSeconds;
-        var includeNavigation = ShouldIncludeNavigation(args);
+        var includeNavigation = ShouldIncludeNavigation(toolName, args);
 
         // CRITICAL FIX: Enforce timeout on all tool executions
         // Prevents server hang if target process is frozen or unresponsive
@@ -428,12 +432,17 @@ public static partial class ToolCallHelper
         return processId;
     }
 
-    private static bool ShouldIncludeNavigation(JsonElement? args)
+    private static bool ShouldIncludeNavigation(string toolName, JsonElement? args)
     {
-        return args is not { } candidate
+        if (args is not { } candidate
             || candidate.ValueKind != JsonValueKind.Object
             || !candidate.TryGetProperty("navigation", out var property)
-            || property.ValueKind != JsonValueKind.False;
+            || property.ValueKind != JsonValueKind.False)
+        {
+            return true;
+        }
+
+        return !NavigationOptOutTools.Contains(toolName);
     }
 
     private static bool TryGetBool(JsonElement? args, string propertyName)

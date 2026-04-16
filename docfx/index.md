@@ -52,6 +52,7 @@ The repository entrypoint is still only the bootstrap layer; the actual install 
 | Use the server from Claude Code | [Claude Code setup](quickstart/claude-code.md) |
 | Use the server from OpenAI Codex or Codex CLI | [OpenAI Codex and Codex CLI setup](quickstart/openai-codex.md) |
 | Use the server from Claude Desktop | [Claude Desktop setup](quickstart/claude-desktop.md) |
+| Use the server from Cursor | [Cursor setup](quickstart/cursor-vscode.md) |
 | Use the server from VS Code or Visual Studio | [VS Code and Visual Studio setup](quickstart/cursor-vscode.md) |
 | Understand agent-safe workflows and response contracts | [AI Agent Guide](guides/ai-agent-guide.md) |
 | Review deployment and package layout contracts | [Deployment Guide](production/deployment.md) |

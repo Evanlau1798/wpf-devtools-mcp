@@ -187,6 +187,18 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void LandingPages_ShouldCallOutCursorAsADedicatedEditorEntryPoint()
+    {
+        File.ReadAllText(GetRepoFilePath("docfx/index.md"))
+            .Should().Contain("| Use the server from Cursor | [Cursor setup](quickstart/cursor-vscode.md) |",
+                "the English landing page should surface Cursor as its own editor entry point instead of burying it under the VS Code row");
+
+        File.ReadAllText(GetRepoFilePath("docfx/zh-tw/index.md"))
+            .Should().Contain("| 從 Cursor 使用這個 server | [Cursor 快速開始](quickstart/cursor-vscode.md) |",
+                "the Traditional Chinese landing page should surface Cursor as its own editor entry point instead of burying it under the VS Code row");
+    }
+
+    [Fact]
     public void InstallerFacingDocs_ShouldExplainReviewedInstallerAndPackageFallbacks()
     {
         var files = new[]

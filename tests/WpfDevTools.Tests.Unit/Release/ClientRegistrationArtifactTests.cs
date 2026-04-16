@@ -15,8 +15,7 @@ public sealed class ClientRegistrationArtifactTests
             var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
             var vscodeConfigPath = Path.Combine(tempRoot, "config", "Code", "User", "mcp.json");
-            Directory.CreateDirectory(Path.GetDirectoryName(vscodeConfigPath)!);
-            File.WriteAllText(vscodeConfigPath, "{\"servers\":{\"existing\":{\"command\":\"old.exe\",\"args\":[]}}}");
+            JsonRegistrationTestAssertions.SeedRegistrationFile(vscodeConfigPath, "servers", "existing", "old.exe");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -101,6 +100,7 @@ public sealed class ClientRegistrationArtifactTests
             var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
             var vscodeConfigPath = Path.Combine(tempRoot, "config", "Code", "User", "mcp.json");
+            JsonRegistrationTestAssertions.SeedRegistrationFile(vscodeConfigPath, "servers", "existing", "old.exe");
 
             var install = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -132,7 +132,8 @@ public sealed class ClientRegistrationArtifactTests
                 CreateInstallerEnvironment(tempRoot));
 
             uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
-            File.ReadAllText(vscodeConfigPath).Should().NotContain("wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationAbsent(vscodeConfigPath, "servers", "wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationCommand(vscodeConfigPath, "servers", "existing", "old.exe");
         }
         finally
         {
@@ -149,6 +150,7 @@ public sealed class ClientRegistrationArtifactTests
             var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
             var customVisualStudioConfigPath = Path.Combine(tempRoot, "custom", "visual-studio", ".mcp.json");
+            JsonRegistrationTestAssertions.SeedRegistrationFile(customVisualStudioConfigPath, "servers", "existing", "custom-existing.exe");
 
             var install = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -180,7 +182,8 @@ public sealed class ClientRegistrationArtifactTests
                 CreateInstallerEnvironment(tempRoot));
 
             uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
-            File.ReadAllText(customVisualStudioConfigPath).Should().NotContain("wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationAbsent(customVisualStudioConfigPath, "servers", "wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationCommand(customVisualStudioConfigPath, "servers", "existing", "custom-existing.exe");
         }
         finally
         {
@@ -199,6 +202,7 @@ public sealed class ClientRegistrationArtifactTests
             var customVisualStudioConfigPath = Path.Combine(tempRoot, "custom", "visual-studio", ".mcp.json");
             var defaultVisualStudioConfigPath = Path.Combine(tempRoot, "UserProfile", ".mcp.json");
             var environment = CreateInstallerEnvironment(tempRoot);
+            JsonRegistrationTestAssertions.SeedRegistrationFile(customVisualStudioConfigPath, "servers", "existing", "custom-existing.exe");
 
             var install = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -235,7 +239,8 @@ public sealed class ClientRegistrationArtifactTests
                 environment);
 
             uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
-            File.ReadAllText(customVisualStudioConfigPath).Should().NotContain("wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationAbsent(customVisualStudioConfigPath, "servers", "wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationCommand(customVisualStudioConfigPath, "servers", "existing", "custom-existing.exe");
             using var defaultConfig = JsonDocument.Parse(File.ReadAllText(defaultVisualStudioConfigPath));
             defaultConfig.RootElement.GetProperty("servers").GetProperty("wpf-devtools").GetProperty("command").GetString()
                 .Should().Be("C:\\external\\wpf-devtools-x64.exe");
@@ -255,6 +260,7 @@ public sealed class ClientRegistrationArtifactTests
             var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
             var installRoot = Path.Combine(tempRoot, "install-root");
             var liveVisualStudioConfigPath = Path.Combine(tempRoot, "UserProfile", ".mcp.json");
+            JsonRegistrationTestAssertions.SeedRegistrationFile(liveVisualStudioConfigPath, "servers", "existing", "live-existing.exe");
 
             var install = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -315,7 +321,8 @@ public sealed class ClientRegistrationArtifactTests
                 CreateInstallerEnvironment(tempRoot));
 
             uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
-            File.ReadAllText(liveVisualStudioConfigPath).Should().NotContain("wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationAbsent(liveVisualStudioConfigPath, "servers", "wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationCommand(liveVisualStudioConfigPath, "servers", "existing", "live-existing.exe");
         }
         finally
         {
@@ -512,6 +519,7 @@ public sealed class ClientRegistrationArtifactTests
             var hostileTargetPath = Path.Combine(tempRoot, "hostile", "unrelated.json");
             Directory.CreateDirectory(Path.GetDirectoryName(hostileTargetPath)!);
             File.WriteAllText(hostileTargetPath, "{\"keep\":true}");
+            JsonRegistrationTestAssertions.SeedRegistrationFile(liveVisualStudioConfigPath, "servers", "existing", "live-existing.exe");
 
             var install = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -571,7 +579,8 @@ public sealed class ClientRegistrationArtifactTests
                 CreateInstallerEnvironment(tempRoot));
 
             uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
-            File.ReadAllText(liveVisualStudioConfigPath).Should().NotContain("wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationAbsent(liveVisualStudioConfigPath, "servers", "wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationCommand(liveVisualStudioConfigPath, "servers", "existing", "live-existing.exe");
             File.ReadAllText(hostileTargetPath).Should().Be("{\"keep\":true}");
         }
         finally

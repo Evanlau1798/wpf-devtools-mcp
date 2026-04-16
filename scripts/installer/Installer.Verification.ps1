@@ -617,16 +617,21 @@ function Invoke-UninstallVerification {
             break
         }
         'other' {
-            $targetPath = $recordedTarget
-            if ([string]::IsNullOrWhiteSpace($targetPath)) {
-                $targetPath = Resolve-TrustedOtherRegistrationArtifactPath -RegistrationRecord $RegistrationRecord
+            $verificationTargets = New-Object System.Collections.Generic.List[string]
+            foreach ($candidateTarget in @(Get-TrustedOtherRegistrationArtifactTargets -RegistrationRecord $RegistrationRecord)) {
+                Add-TrustedRegistrationTargetCandidate -Targets $verificationTargets -Candidate $candidateTarget
+            }
+            foreach ($candidateTarget in @($registrationTargets.ToArray())) {
+                Add-TrustedRegistrationTargetCandidate -Targets $verificationTargets -Candidate $candidateTarget
             }
 
-            if ([string]::IsNullOrWhiteSpace($targetPath)) {
-                $true
+            if ($verificationTargets.Count -eq 0) {
+                $false
             }
             else {
-                -not (Test-Path $targetPath)
+                @($verificationTargets).Where({
+                        Test-Path $_
+                    }).Count -eq 0
             }
             break
         }

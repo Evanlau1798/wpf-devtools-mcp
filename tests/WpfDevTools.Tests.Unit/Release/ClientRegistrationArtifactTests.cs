@@ -452,6 +452,55 @@ public sealed class ClientRegistrationArtifactTests
     }
 
     [Fact]
+    public void OnlineInstaller_Uninstall_ShouldRemoveOtherArtifactWithoutExplicitInstallRootWhenManifestIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+
+            var install = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                },
+                CreateInstallerEnvironment(tempRoot));
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var artifactPath = Path.Combine(installRoot, "x64", "client-registration", "other.mcpServers.json");
+            var manifestPath = Path.Combine(installRoot, "x64", "install-manifest.json");
+            File.Exists(artifactPath).Should().BeTrue();
+            File.Delete(manifestPath);
+
+            var uninstall = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-OutputJson"
+                },
+                CreateInstallerEnvironment(tempRoot));
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            File.Exists(artifactPath).Should().BeFalse();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_Uninstall_ShouldIgnoreHostileStateTargetForVisualStudioConfig()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

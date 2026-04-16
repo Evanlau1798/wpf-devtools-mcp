@@ -189,27 +189,90 @@ function Add-TrustedRegistrationTargetCandidate {
     $Targets.Add($Candidate)
 }
 
-function Resolve-TrustedOtherRegistrationArtifactPath {
+function Resolve-TrustedInstallBaseFromRegistrationRecord {
     param($RegistrationRecord)
 
     $installedExecutable = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('installedExecutable', 'InstalledExecutable')
     if (-not [string]::IsNullOrWhiteSpace($installedExecutable)) {
         $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
         if ($null -ne $ownership -and [bool]$ownership.InstallerOwned -and -not [string]::IsNullOrWhiteSpace([string]$ownership.InstallBase)) {
-            return (Join-Path ([string]$ownership.InstallBase) 'client-registration\other.mcpServers.json')
+            return [string]$ownership.InstallBase
         }
     }
 
-    $resolvedInstallRoot = $InstallRoot
-    $resolvedArchitecture = $Architecture
-    if (-not [string]::IsNullOrWhiteSpace($resolvedInstallRoot) -and -not [string]::IsNullOrWhiteSpace($resolvedArchitecture)) {
-        $liveEvidence = Get-LiveInstallerManifestEvidence -InstallRoot $resolvedInstallRoot -Architecture $resolvedArchitecture
-        if ($null -ne $liveEvidence) {
-            return (Join-Path (Join-Path $resolvedInstallRoot $resolvedArchitecture) 'client-registration\other.mcpServers.json')
+    $resolvedInstallRoot = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('installRoot', 'InstallRoot')
+    if ([string]::IsNullOrWhiteSpace($resolvedInstallRoot)) {
+        $resolvedInstallRoot = $InstallRoot
+    }
+
+    $resolvedArchitecture = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('architecture', 'Architecture')
+    if ([string]::IsNullOrWhiteSpace($resolvedArchitecture)) {
+        $resolvedArchitecture = $Architecture
+    }
+
+    if ([string]::IsNullOrWhiteSpace($resolvedInstallRoot) -or [string]::IsNullOrWhiteSpace($resolvedArchitecture)) {
+        return $null
+    }
+
+    $resolvedArchitecture = $resolvedArchitecture.ToLowerInvariant()
+    $expectedInstallBase = Join-Path $resolvedInstallRoot $resolvedArchitecture
+    if (-not [string]::IsNullOrWhiteSpace($installedExecutable)) {
+        $expectedExecutable = Join-Path $expectedInstallBase "current\bin\wpf-devtools-$resolvedArchitecture.exe"
+        if ((Test-Path $installedExecutable) -and (Test-InstallerPathEqualsCore -Left $installedExecutable -Right $expectedExecutable)) {
+            return $expectedInstallBase
         }
+    }
+
+    $liveEvidence = Get-LiveInstallerManifestEvidence -InstallRoot $resolvedInstallRoot -Architecture $resolvedArchitecture
+    if ($null -ne $liveEvidence) {
+        return $expectedInstallBase
     }
 
     return $null
+}
+
+function Resolve-TrustedOtherRegistrationArtifactPath {
+    param($RegistrationRecord)
+
+    $manifestTarget = Get-TrustedManagedRegistrationTargetFromManifest -StateKeys @('other') -RegistrationRecord $RegistrationRecord
+    if (-not [string]::IsNullOrWhiteSpace($manifestTarget)) {
+        return $manifestTarget
+    }
+
+    $installBase = Resolve-TrustedInstallBaseFromRegistrationRecord -RegistrationRecord $RegistrationRecord
+    if (-not [string]::IsNullOrWhiteSpace($installBase)) {
+        return (Join-Path $installBase 'client-registration\other.mcpServers.json')
+    }
+
+    return $null
+}
+
+function Get-TrustedOtherRegistrationArtifactTargets {
+    param($RegistrationRecord)
+
+    $targets = New-Object System.Collections.Generic.List[string]
+    Add-TrustedRegistrationTargetCandidate -Targets $targets -Candidate (Resolve-TrustedOtherRegistrationArtifactPath -RegistrationRecord $RegistrationRecord)
+
+    $recordedTarget = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('target', 'RegistrationTarget')
+    $recordInstallRoot = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('installRoot', 'InstallRoot')
+    $recordArchitecture = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('architecture', 'Architecture')
+    $installedExecutable = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('installedExecutable', 'InstalledExecutable')
+    if (-not [string]::IsNullOrWhiteSpace($recordedTarget) -and
+        -not [string]::IsNullOrWhiteSpace($recordInstallRoot) -and
+        -not [string]::IsNullOrWhiteSpace($recordArchitecture) -and
+        -not [string]::IsNullOrWhiteSpace($installedExecutable)) {
+        $normalizedArchitecture = $recordArchitecture.ToLowerInvariant()
+        $expectedInstallBase = Join-Path $recordInstallRoot $normalizedArchitecture
+        $expectedArtifactTarget = Join-Path $expectedInstallBase 'client-registration\other.mcpServers.json'
+        $expectedExecutable = Join-Path $expectedInstallBase "current\bin\wpf-devtools-$normalizedArchitecture.exe"
+        if ((Test-Path $installedExecutable) -and
+            (Test-InstallerPathEqualsCore -Left $recordedTarget -Right $expectedArtifactTarget) -and
+            (Test-InstallerPathEqualsCore -Left $installedExecutable -Right $expectedExecutable)) {
+            Add-TrustedRegistrationTargetCandidate -Targets $targets -Candidate $expectedArtifactTarget
+        }
+    }
+
+    return @($targets.ToArray())
 }
 
 function Get-TrustedManagedRegistrationTargetFromManifest {
@@ -324,7 +387,7 @@ function Get-TrustedRecordedRegistrationTarget {
         $installerOwned = [bool]$RegistrationRecord.installerOwned
     }
 
-    if ($installerOwned -and -not [string]::Equals($evidenceSource, 'state', [System.StringComparison]::OrdinalIgnoreCase)) {
+    if ($ClientBaseId -ne 'other' -and $installerOwned -and -not [string]::Equals($evidenceSource, 'state', [System.StringComparison]::OrdinalIgnoreCase)) {
         return $recordedTarget
     }
 
@@ -716,13 +779,30 @@ function Invoke-ClientUnregistration {
             return @(Remove-JsonConfigRegistration -ClientName $clientBaseId -CollectionName 'mcpServers' -ConfigPath $configPath)
         }
         'other' {
-            $targetPath = if (-not [string]::IsNullOrWhiteSpace($recordedTarget)) { $recordedTarget } else { Resolve-TrustedOtherRegistrationArtifactPath -RegistrationRecord $RegistrationRecord }
+            $artifactTargets = @(Get-TrustedOtherRegistrationArtifactTargets -RegistrationRecord $RegistrationRecord)
+            $targetPath = if ($artifactTargets.Count -gt 0) {
+                [string]$artifactTargets[0]
+            }
+            elseif (-not [string]::IsNullOrWhiteSpace($recordedTarget)) {
+                $recordedTarget
+            }
+            else {
+                $null
+            }
             $backupPath = $null
             $applied = $false
-            if (-not [string]::IsNullOrWhiteSpace($targetPath) -and (Test-Path $targetPath)) {
-                $backupPath = "$targetPath.bak-$([guid]::NewGuid().ToString('N'))"
-                Copy-Item -Path $targetPath -Destination $backupPath -Force
-                Remove-PathIfExists -Path $targetPath
+            foreach ($candidateTarget in @($artifactTargets + @($targetPath))) {
+                if ([string]::IsNullOrWhiteSpace([string]$candidateTarget) -or -not (Test-Path $candidateTarget)) {
+                    continue
+                }
+
+                if ([string]::IsNullOrWhiteSpace($backupPath)) {
+                    $targetPath = [string]$candidateTarget
+                    $backupPath = "$targetPath.bak-$([guid]::NewGuid().ToString('N'))"
+                    Copy-Item -Path $targetPath -Destination $backupPath -Force
+                }
+
+                Remove-PathIfExists -Path ([string]$candidateTarget)
                 $applied = $true
             }
 

@@ -359,6 +359,68 @@ public sealed class StandaloneInstallerRegressionTests
         }
     }
 
+    [Fact]
+    public void StandaloneOnlineInstaller_Uninstall_ShouldNotRollbackCustomVisualStudioRemovalWhenDefaultConfigStillContainsAnotherRegistration()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var customVisualStudioConfigPath = Path.Combine(tempRoot, "custom", "visual-studio", ".mcp.json");
+            var defaultVisualStudioConfigPath = Path.Combine(tempRoot, "UserProfile", ".mcp.json");
+            JsonRegistrationTestAssertions.SeedRegistrationFile(customVisualStudioConfigPath, "servers", "existing", "custom-existing.exe");
+
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", customVisualStudioConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-custom-target-default-conflict");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            JsonRegistrationTestAssertions.SeedRegistrationFile(defaultVisualStudioConfigPath, "servers", "wpf-devtools", "C:/external/wpf-devtools-x64.exe");
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-NonInteractive",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            JsonRegistrationTestAssertions.AssertRegistrationAbsent(customVisualStudioConfigPath, "servers", "wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationCommand(customVisualStudioConfigPath, "servers", "existing", "custom-existing.exe");
+            JsonRegistrationTestAssertions.AssertRegistrationPresent(defaultVisualStudioConfigPath, "servers", "wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationCommand(defaultVisualStudioConfigPath, "servers", "wpf-devtools", "C:/external/wpf-devtools-x64.exe");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     [Theory]
     [MemberData(nameof(RemovalActions))]
     public void StandaloneOnlineInstaller_CursorRemovalModes_ShouldRemoveCustomCursorRegistrationWithoutRequiringOverrideAgain(string action)
@@ -416,6 +478,74 @@ public sealed class StandaloneInstallerRegressionTests
             {
                 Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
             }
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void StandaloneOnlineInstaller_FullUninstall_ShouldNotRollbackCustomCursorProjectRemovalWhenDefaultGlobalConfigStillContainsAnotherRegistration()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var projectRoot = Path.Combine(tempRoot, "CustomCursorProject");
+            var customProjectConfigPath = Path.Combine(projectRoot, ".cursor", "mcp.json");
+            var defaultGlobalConfigPath = Path.Combine(tempRoot, "UserProfile", ".cursor", "mcp.json");
+            JsonRegistrationTestAssertions.SeedRegistrationFile(customProjectConfigPath, "mcpServers", "existing", "project-existing.exe");
+
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "project",
+                    "-CursorProjectRoot", projectRoot,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-cursor-project-default-conflict");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            JsonRegistrationTestAssertions.SeedRegistrationFile(defaultGlobalConfigPath, "mcpServers", "wpf-devtools", "C:/external/wpf-devtools-x64.exe");
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "project",
+                    "-CursorProjectRoot", projectRoot,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            JsonRegistrationTestAssertions.AssertRegistrationAbsent(customProjectConfigPath, "mcpServers", "wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationCommand(customProjectConfigPath, "mcpServers", "existing", "project-existing.exe");
+            JsonRegistrationTestAssertions.AssertRegistrationPresent(defaultGlobalConfigPath, "mcpServers", "wpf-devtools");
+            JsonRegistrationTestAssertions.AssertRegistrationCommand(defaultGlobalConfigPath, "mcpServers", "wpf-devtools", "C:/external/wpf-devtools-x64.exe");
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
         }
         finally
         {

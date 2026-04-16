@@ -314,7 +314,7 @@ function Get-StandaloneDetectedInstallerRegistrations {
             if ([string]::IsNullOrWhiteSpace([string]$existing.RegistrationTarget)) {
                 $existing.RegistrationTarget = [string]$registration.RegistrationTarget
             }
-            elseif ($liveTargetHasRegistration -and (-not $existingTargetHasRegistration -or -not (Test-InstallerPathEqualsCore -Left $existingTarget -Right $liveTarget))) {
+            elseif ($liveTargetHasRegistration -and -not $existingTargetHasRegistration) {
                 $existing.RegistrationTarget = $liveTarget
                 $existing.RegistrationMode = [string]$registration.RegistrationMode
                 $existing.InstalledExecutable = [string]$registration.InstalledExecutable

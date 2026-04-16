@@ -588,8 +588,9 @@ function Invoke-UninstallVerification {
             break
         }
         'cursor' {
+            $verificationTargets = if ($registrationTargets.Count -gt 0) { @($registrationTargets.ToArray()) } else { @(Get-CursorVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord) }
             @(
-                Get-CursorVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
+                $verificationTargets
             ).Where({
                     Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $_
                 }).Count -eq 0

@@ -187,6 +187,37 @@ function Merge-DetectedInstallerRegistration {
     }
 
     $merged['InstallerOwned'] = ([bool]$Primary.InstallerOwned -or [bool]$Secondary.InstallerOwned)
+
+    $primaryEvidenceSource = [string]$Primary.EvidenceSource
+    $secondaryEvidenceSource = [string]$Secondary.EvidenceSource
+    $primaryTarget = [string]$Primary.RegistrationTarget
+    $secondaryTarget = [string]$Secondary.RegistrationTarget
+    $primaryClientBaseId = Resolve-ClientBaseId -ClientId ([string]$Primary.ClientId)
+    $collectionName = switch ($primaryClientBaseId) {
+        'vscode' { 'servers' }
+        'visual-studio' { 'servers' }
+        'claude-desktop' { 'mcpServers' }
+        'cursor' { 'mcpServers' }
+        default { $null }
+    }
+
+    if ([string]::Equals($primaryEvidenceSource, 'state', [System.StringComparison]::OrdinalIgnoreCase) -and
+        [string]::Equals($secondaryEvidenceSource, 'json-file', [System.StringComparison]::OrdinalIgnoreCase) -and
+        -not [string]::IsNullOrWhiteSpace($collectionName) -and
+        -not [string]::IsNullOrWhiteSpace($primaryTarget) -and
+        -not [string]::IsNullOrWhiteSpace($secondaryTarget)) {
+        $primaryHasRegistration = Test-JsonConfigRegistration -CollectionName $collectionName -ConfigPath $primaryTarget
+        $secondaryHasRegistration = Test-JsonConfigRegistration -CollectionName $collectionName -ConfigPath $secondaryTarget
+        if ($primaryHasRegistration -and $secondaryHasRegistration -and -not (Test-InstallerPathEqualsCore -Left $primaryTarget -Right $secondaryTarget)) {
+            $merged['RegistrationTarget'] = $primaryTarget
+            $merged['RegistrationMode'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.RegistrationMode)) { [string]$Primary.RegistrationMode } else { [string]$merged['RegistrationMode'] }
+            $merged['InstalledExecutable'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.InstalledExecutable)) { [string]$Primary.InstalledExecutable } else { [string]$merged['InstalledExecutable'] }
+            $merged['InstallRoot'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.InstallRoot)) { [string]$Primary.InstallRoot } else { [string]$merged['InstallRoot'] }
+            $merged['Architecture'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.Architecture)) { [string]$Primary.Architecture } else { [string]$merged['Architecture'] }
+            $merged['ResolvedVersion'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.ResolvedVersion)) { [string]$Primary.ResolvedVersion } else { [string]$merged['ResolvedVersion'] }
+        }
+    }
+
     return $merged
 }
 
@@ -366,6 +397,178 @@ function Get-CliRegistrationEvidence {
             -LastVerifiedUtc $null)
 }
 
+function Get-JsonCollectionNameForClientId {
+    param([Parameter(Mandatory)] [string]$ClientId)
+
+    switch (Resolve-ClientBaseId -ClientId $ClientId) {
+        'vscode' { return 'servers' }
+        'visual-studio' { return 'servers' }
+        'claude-desktop' { return 'mcpServers' }
+        'cursor' { return 'mcpServers' }
+        default { return $null }
+    }
+}
+
+function Get-ManagedRegistrationEvidenceFromInstall {
+    param(
+        [Parameter(Mandatory)] [string]$ClientId,
+        [Parameter(Mandatory)] [string]$RegistrationTarget,
+        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [string]$ResolvedArchitecture,
+        [string]$InstalledExecutable,
+        [string]$ResolvedVersion
+    )
+
+    $collectionName = Get-JsonCollectionNameForClientId -ClientId $ClientId
+    if ([string]::IsNullOrWhiteSpace($collectionName) -or [string]::IsNullOrWhiteSpace($RegistrationTarget)) {
+        return $null
+    }
+
+    if (-not (Test-JsonConfigRegistration -CollectionName $collectionName -ConfigPath $RegistrationTarget)) {
+        return $null
+    }
+
+    $root = Get-ExistingConfigMap -Path $RegistrationTarget
+    $servers = Get-ConfigCollectionMap -Root $root -CollectionName $collectionName
+    $command = [string]$servers['wpf-devtools'].command
+    $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $command
+    if (-not [bool]$ownership.InstallerOwned) {
+        return $null
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$ownership.InstallRoot) -and -not (Test-InstallerPathEqualsCore -Left ([string]$ownership.InstallRoot) -Right $ResolvedInstallRoot)) {
+        return $null
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$ownership.Architecture) -and -not [string]::Equals([string]$ownership.Architecture, $ResolvedArchitecture, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $null
+    }
+
+    $registrationMode = if ($ClientId -like 'cursor-*') { $ClientId } else { 'json-file' }
+    return (New-DetectedInstallerRegistration `
+            -ClientId $ClientId `
+            -RegistrationMode $registrationMode `
+            -RegistrationTarget $RegistrationTarget `
+            -InstalledExecutable $(if (-not [string]::IsNullOrWhiteSpace($command)) { $command } else { $InstalledExecutable }) `
+            -InstallRoot $(if (-not [string]::IsNullOrWhiteSpace([string]$ownership.InstallRoot)) { [string]$ownership.InstallRoot } else { $ResolvedInstallRoot }) `
+            -Architecture $(if (-not [string]::IsNullOrWhiteSpace([string]$ownership.Architecture)) { [string]$ownership.Architecture } else { $ResolvedArchitecture }) `
+            -InstallerOwned $true `
+            -EvidenceSource 'install-manifest' `
+            -ResolvedVersion $(if (-not [string]::IsNullOrWhiteSpace([string]$ownership.ResolvedVersion)) { [string]$ownership.ResolvedVersion } else { $ResolvedVersion }) `
+            -LastVerifiedUtc $null)
+}
+
+function Get-ManagedRegistrationsFromInstall {
+    param(
+        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [string]$ResolvedArchitecture
+    )
+
+    $liveEvidence = Get-LiveInstallerManifestEvidence -InstallRoot $ResolvedInstallRoot -Architecture $ResolvedArchitecture
+    if ($null -eq $liveEvidence) {
+        return @()
+    }
+
+    $manifestPath = Join-Path (Resolve-InstallBasePath -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture) 'install-manifest.json'
+    if (-not (Test-Path $manifestPath)) {
+        return @()
+    }
+
+    try {
+        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+    }
+    catch {
+        return @()
+    }
+
+    $managedTargets = $manifest.PSObject.Properties['managedRegistrationTargets']
+    if ($null -eq $managedTargets -or $null -eq $managedTargets.Value) {
+        return @()
+    }
+
+    $registrations = New-Object System.Collections.Generic.List[object]
+    foreach ($property in $managedTargets.Value.PSObject.Properties) {
+        $targetPath = [string]$property.Value
+        if ([string]::IsNullOrWhiteSpace($targetPath)) {
+            continue
+        }
+
+        $registration = Get-ManagedRegistrationEvidenceFromInstall `
+            -ClientId ([string]$property.Name) `
+            -RegistrationTarget $targetPath `
+            -ResolvedInstallRoot $ResolvedInstallRoot `
+            -ResolvedArchitecture $ResolvedArchitecture `
+            -InstalledExecutable ([string]$liveEvidence.InstalledExecutable) `
+            -ResolvedVersion ([string]$liveEvidence.ResolvedVersion)
+        if ($null -ne $registration) {
+            $registrations.Add($registration)
+        }
+    }
+
+    return @($registrations.ToArray())
+}
+
+function Add-InstallerDiscoveryCandidateRoot {
+    param(
+        [Parameter(Mandatory)] $Roots,
+        [string]$Candidate
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Candidate)) {
+        return
+    }
+
+    foreach ($existing in $Roots) {
+        if (Test-InstallerPathEqualsCore -Left $existing -Right $Candidate) {
+            return
+        }
+    }
+
+    $Roots.Add($Candidate)
+}
+
+function Get-InstallerDiscoveryCandidateRoots {
+    param([Parameter(Mandatory)] $State)
+
+    $roots = New-Object System.Collections.Generic.List[string]
+    Add-InstallerDiscoveryCandidateRoot -Roots $roots -Candidate ([string]$State.lastInstallRoot)
+
+    $preferredInstallRootResolver = Get-Command 'Resolve-PreferredInstallRoot' -ErrorAction SilentlyContinue
+    if ($null -ne $preferredInstallRootResolver) {
+        Add-InstallerDiscoveryCandidateRoot -Roots $roots -Candidate (Resolve-PreferredInstallRoot)
+    }
+
+    if ($null -ne $State.registrations) {
+        foreach ($registrationEntry in $State.registrations.GetEnumerator()) {
+            $record = $registrationEntry.Value
+            $installRoot = Get-InstallerRecordStringValueCore -Record $record -PropertyNames @('installRoot', 'InstallRoot')
+            if ([string]::IsNullOrWhiteSpace($installRoot)) {
+                $installedExecutable = Get-InstallerRecordStringValueCore -Record $record -PropertyNames @('installedExecutable', 'InstalledExecutable')
+                $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+                $installRoot = [string]$ownership.InstallRoot
+            }
+
+            Add-InstallerDiscoveryCandidateRoot -Roots $roots -Candidate $installRoot
+        }
+    }
+
+    if ($null -ne $State.architectures) {
+        foreach ($architectureEntry in $State.architectures.GetEnumerator()) {
+            $record = $architectureEntry.Value
+            $installRoot = Get-InstallerRecordStringValueCore -Record $record -PropertyNames @('installRoot', 'InstallRoot')
+            if ([string]::IsNullOrWhiteSpace($installRoot)) {
+                $installedExecutable = Get-InstallerRecordStringValueCore -Record $record -PropertyNames @('executable', 'Executable')
+                $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+                $installRoot = [string]$ownership.InstallRoot
+            }
+
+            Add-InstallerDiscoveryCandidateRoot -Roots $roots -Candidate $installRoot
+        }
+    }
+
+    return @($roots.ToArray())
+}
+
 function Get-DetectedInstallerRegistrations {
     param([Parameter(Mandatory)] $State)
 
@@ -412,6 +615,20 @@ function Get-DetectedInstallerRegistrations {
 
             if ($externalEvidenceMap.Contains($key)) {
                 $detected[$key] = $externalEvidenceMap[$key]
+            }
+        }
+    }
+
+    foreach ($installRoot in @(Get-InstallerDiscoveryCandidateRoots -State $State)) {
+        foreach ($architecture in @(Get-InstallerKnownArchitecturesCore)) {
+            foreach ($manifestRegistration in @(Get-ManagedRegistrationsFromInstall -ResolvedInstallRoot $installRoot -ResolvedArchitecture $architecture)) {
+                $stateKey = Resolve-ClientStateKey -ClientId ([string]$manifestRegistration.ClientId) -RegistrationMode ([string]$manifestRegistration.RegistrationMode)
+                if ($detected.Contains($stateKey)) {
+                    $detected[$stateKey] = Merge-DetectedInstallerRegistration -Primary $detected[$stateKey] -Secondary $manifestRegistration
+                    continue
+                }
+
+                $detected[$stateKey] = $manifestRegistration
             }
         }
     }
@@ -479,6 +696,25 @@ function Get-DetectedInstallerInstallations {
             InstalledExecutable = [string]$record.executable
             ResolvedVersion = [string]$record.version
             InstallerOwned = $true
+        }
+    }
+
+    foreach ($candidateRoot in @(Get-InstallerDiscoveryCandidateRoots -State $State)) {
+        foreach ($architecture in @(Get-InstallerKnownArchitecturesCore)) {
+            $evidence = Get-LiveInstallerManifestEvidence -InstallRoot $candidateRoot -Architecture $architecture
+            if ($null -eq $evidence) {
+                continue
+            }
+
+            $key = "{0}|{1}" -f $candidateRoot.ToLowerInvariant(), $architecture.ToLowerInvariant()
+            $installations[$key] = [ordered]@{
+                InstallRoot = $candidateRoot
+                Architecture = $architecture
+                InstallBase = Resolve-InstallBasePath -ResolvedInstallRoot $candidateRoot -ResolvedArchitecture $architecture
+                InstalledExecutable = [string]$evidence.InstalledExecutable
+                ResolvedVersion = [string]$evidence.ResolvedVersion
+                InstallerOwned = $true
+            }
         }
     }
 

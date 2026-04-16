@@ -1009,10 +1009,38 @@ function Get-StandaloneManagedRegistrationsFromInstall {
 function Get-StandaloneJsonVerificationTargets {
     param(
         [Parameter(Mandatory)] [string]$SelectedClient,
-        $RegistrationRecord
+        $RegistrationRecord,
+        $RegistrationChanges
     )
 
     $targets = New-Object System.Collections.Generic.List[string]
+    foreach ($registrationChange in @($RegistrationChanges)) {
+        if ($null -eq $registrationChange) {
+            continue
+        }
+
+        $changeClient = if ($registrationChange.Contains('client')) { [string]$registrationChange.client } else { [string]$registrationChange.Client }
+        $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
+        if (-not [string]::IsNullOrWhiteSpace($changeClient)) {
+            if (-not [string]::Equals($changeClient, $SelectedClient, [System.StringComparison]::OrdinalIgnoreCase) -and -not [string]::Equals($changeClient, $clientBaseId, [System.StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
+        }
+
+        $changeTarget = if ($registrationChange.Contains('target')) { [string]$registrationChange.target } else { [string]$registrationChange.Target }
+        if ([string]::IsNullOrWhiteSpace($changeTarget)) {
+            continue
+        }
+
+        if (-not $targets.Contains($changeTarget)) {
+            $targets.Add($changeTarget)
+        }
+    }
+
+    if ($targets.Count -gt 0) {
+        return @($targets.ToArray())
+    }
+
     $recordedTarget = Get-StandaloneTrustedRecordedTarget -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
     if (-not [string]::IsNullOrWhiteSpace($recordedTarget) -and -not $targets.Contains($recordedTarget)) {
         $targets.Add($recordedTarget)
@@ -1253,7 +1281,7 @@ function Get-StandaloneDetectedInstallerRegistrations {
             if ([string]::IsNullOrWhiteSpace([string]$existing.RegistrationTarget)) {
                 $existing.RegistrationTarget = [string]$registration.RegistrationTarget
             }
-            elseif ($liveTargetHasRegistration -and (-not $existingTargetHasRegistration -or -not (Test-StandaloneInstallerPathEquals -Left $existingTarget -Right $liveTarget))) {
+            elseif ($liveTargetHasRegistration -and -not $existingTargetHasRegistration) {
                 $existing.RegistrationTarget = $liveTarget
                 $existing.RegistrationMode = [string]$registration.RegistrationMode
                 $existing.InstalledExecutable = [string]$registration.InstalledExecutable
@@ -1475,7 +1503,8 @@ function Get-StandaloneFallbackRegistrationRecord {
 function Invoke-StandaloneUninstallVerification {
     param(
         [Parameter(Mandatory)] [string]$SelectedClient,
-        $RegistrationRecord
+        $RegistrationRecord,
+        $RegistrationChanges
     )
 
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
@@ -1490,7 +1519,7 @@ function Invoke-StandaloneUninstallVerification {
         }
         'cursor' {
             $verificationSucceeded = $true
-            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)) {
+            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord -RegistrationChanges $RegistrationChanges)) {
                 if (Test-StandaloneJsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $targetPath) {
                     $verificationSucceeded = $false
                     break
@@ -1501,7 +1530,7 @@ function Invoke-StandaloneUninstallVerification {
         }
         'vscode' {
             $verificationSucceeded = $true
-            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)) {
+            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord -RegistrationChanges $RegistrationChanges)) {
                 if (Test-StandaloneJsonConfigRegistration -CollectionName 'servers' -ConfigPath $targetPath) {
                     $verificationSucceeded = $false
                     break
@@ -1512,7 +1541,7 @@ function Invoke-StandaloneUninstallVerification {
         }
         'visual-studio' {
             $verificationSucceeded = $true
-            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)) {
+            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord -RegistrationChanges $RegistrationChanges)) {
                 if (Test-StandaloneJsonConfigRegistration -CollectionName 'servers' -ConfigPath $targetPath) {
                     $verificationSucceeded = $false
                     break
@@ -1523,7 +1552,7 @@ function Invoke-StandaloneUninstallVerification {
         }
         'claude-desktop' {
             $verificationSucceeded = $true
-            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)) {
+            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord -RegistrationChanges $RegistrationChanges)) {
                 if (Test-StandaloneJsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $targetPath) {
                     $verificationSucceeded = $false
                     break
@@ -1674,7 +1703,7 @@ function Invoke-StandaloneInstallerActionCore {
                 }
 
                 $registrationOperations += $operation
-                $verification = Invoke-StandaloneUninstallVerification -SelectedClient $clientId -RegistrationRecord $record
+                $verification = Invoke-StandaloneUninstallVerification -SelectedClient $clientId -RegistrationRecord $record -RegistrationChanges @($registrationOperations | Where-Object { [string]$_.ClientId -eq $clientId })
                 if (-not $verification.Succeeded) {
                     throw $verification.VerificationMessage
                 }
@@ -1905,7 +1934,7 @@ function Invoke-StandaloneInstallerActionCore {
             }
         }
 
-        $verification = Invoke-StandaloneUninstallVerification -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord
+        $verification = Invoke-StandaloneUninstallVerification -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord -RegistrationChanges @($registrations)
         if (-not $verification.Succeeded) {
             throw $verification.VerificationMessage
         }

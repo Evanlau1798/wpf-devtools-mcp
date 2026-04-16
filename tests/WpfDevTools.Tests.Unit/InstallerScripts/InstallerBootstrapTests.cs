@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Diagnostics;
 using FluentAssertions;
 using Xunit;
@@ -57,6 +58,39 @@ public sealed class InstallerBootstrapTests
         content.Should().Contain("installer-helpers.manifest.json");
         content.Should().Contain("Get-InstallerHelperRuntimeCacheKey");
         content.Should().NotContain("WPFDEVTOOLS_INSTALLER_HELPER_CACHE_KEY:v1");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldRejectHelperOverrideOutsideTestMode()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+            var command = string.Join(" ; ",
+            [
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
+                ". ([scriptblock]::Create((Get-Content '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1").Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other -NonInteractive",
+                "Get-TuiHelperOverrideDirectory"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
     }
 
     [Fact]
@@ -129,6 +163,73 @@ public sealed class InstallerBootstrapTests
     }
 
     [Fact]
+    public void InstallerHelperManifestIntegrity_ShouldFail_WhenAHelperRecordIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var helperRoot = Path.Combine(tempRoot, "installer");
+            Directory.CreateDirectory(helperRoot);
+
+            var sourceHelperRoot = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+            foreach (var sourcePath in Directory.GetFiles(sourceHelperRoot, "*.ps1"))
+            {
+                File.Copy(sourcePath, Path.Combine(helperRoot, Path.GetFileName(sourcePath)), overwrite: true);
+            }
+
+            var manifestPath = Path.Combine(helperRoot, "installer-helpers.manifest.json");
+            var manifestNode = JsonNode.Parse(File.ReadAllText(Path.Combine(sourceHelperRoot, "installer-helpers.manifest.json")))!.AsObject();
+            var helperFiles = manifestNode["helperFiles"]!.AsArray();
+            var filteredHelperFiles = new JsonArray();
+            foreach (var entry in helperFiles)
+            {
+                if (entry is null)
+                {
+                    continue;
+                }
+
+                var path = entry["path"]?.GetValue<string>() ?? entry.GetValue<string>();
+                if (string.Equals(path, "Installer.Actions.ps1", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                filteredHelperFiles.Add(entry.DeepClone());
+            }
+
+            manifestNode["helperFiles"] = filteredHelperFiles;
+            File.WriteAllText(manifestPath, manifestNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var command = $$"""
+$env:APPDATA='{{Path.Combine(tempRoot, "AppData", "Roaming").Replace("'", "''")}}'
+$env:LOCALAPPDATA='{{Path.Combine(tempRoot, "AppData", "Local").Replace("'", "''")}}'
+$env:USERPROFILE='{{Path.Combine(tempRoot, "UserProfile").Replace("'", "''")}}'
+$scriptPath='{{repoScriptPath.Replace("'", "''")}}'
+$scriptContent = Get-Content $scriptPath -Raw
+$marker = '$selectionContext = Resolve-Selection'
+$markerIndex = $scriptContent.LastIndexOf($marker)
+if ($markerIndex -lt 0) { throw 'Main script marker not found.' }
+$definitions = $scriptContent.Substring(0, $markerIndex)
+. ([scriptblock]::Create($definitions)) -Action install -Version latest -Architecture x64 -Client other -NonInteractive
+$manifest = Read-TuiHelperManifest -ManifestPath '{{manifestPath.Replace("'", "''")}}' -HelperDirectory '{{helperRoot.Replace("'", "''")}}'
+Assert-InstallerHelperManifestIntegrity -HelperDirectory '{{helperRoot.Replace("'", "''")}}' -Manifest $manifest
+""";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().MatchRegex("must exactly match the expected helper file set|missing integrity metadata",
+                    "bootstrap should fail before loading helper code when the manifest no longer provides a complete integrity record set");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstallerScript_InlineIexExecution_WhenTuiBootstrapFails_ShouldExplainFallbackAndContinueWithCli()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -137,6 +238,7 @@ public sealed class InstallerBootstrapTests
             var appData = Path.Combine(tempRoot, "AppData", "Roaming");
             var localAppData = Path.Combine(tempRoot, "AppData", "Local");
             var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var installRootResponse = Path.Combine(appData, "WpfDevToolsMcp");
             Directory.CreateDirectory(appData);
             Directory.CreateDirectory(localAppData);
             Directory.CreateDirectory(userProfile);
@@ -148,8 +250,10 @@ public sealed class InstallerBootstrapTests
                 "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
                 "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI='http://127.0.0.1:9'",
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_TIMEOUT_SEC='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_HELPER_BOOTSTRAP_TIMEOUT_SEC='3'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES='||||'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES='uninstall||x64||other||" + installRootResponse.Replace("'", "''") + "'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
                 "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action uninstall -Architecture x64 -Client other"
             ]);
@@ -187,6 +291,54 @@ public sealed class InstallerBootstrapTests
 
         content.Should().NotContain("/master/scripts/installer");
         content.Should().Contain("Get-ReleaseRawContentBaseUri");
+    }
+
+    [Fact]
+    public void StartLatestInstallerVersionRefresh_ShouldEscapeSingleQuotedPathsAndUrisInBackgroundCommand()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var quotedTempRoot = Path.Combine(tempRoot, "user's-temp");
+            Directory.CreateDirectory(quotedTempRoot);
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var command = $$"""
+$env:APPDATA='{{Path.Combine(tempRoot, "AppData", "Roaming").Replace("'", "''")}}'
+$env:LOCALAPPDATA='{{Path.Combine(tempRoot, "AppData", "Local").Replace("'", "''")}}'
+$env:USERPROFILE='{{Path.Combine(tempRoot, "UserProfile").Replace("'", "''")}}'
+$env:TEMP='{{quotedTempRoot.Replace("'", "''")}}'
+$scriptPath='{{repoScriptPath.Replace("'", "''")}}'
+$scriptContent = Get-Content $scriptPath -Raw
+$marker = '$selectionContext = Resolve-Selection'
+$markerIndex = $scriptContent.LastIndexOf($marker)
+if ($markerIndex -lt 0) { throw 'Main script marker not found.' }
+$definitions = $scriptContent.Substring(0, $markerIndex)
+. ([scriptblock]::Create($definitions)) -Action install -Version latest -Architecture x64 -Client other -InstallRoot '{{Path.Combine(tempRoot, "install-root").Replace("'", "''")}}' -WorkingRoot '{{Path.Combine(tempRoot, "working").Replace("'", "''")}}' -NonInteractive
+function Get-GitHubReleaseApiUri { param([string]$ResolvedVersion) return 'https://example.invalid/releases/o''clock' }
+function ConvertTo-PowerShellEncodedCommand {
+    param([string]$CommandText)
+    $script:capturedCommandText = $CommandText
+    return 'V3JpdGUtT3V0cHV0ICd0ZXN0Jw=='
+}
+$handle = Start-LatestInstallerVersionRefresh
+try {
+    [string]$script:capturedCommandText
+}
+finally {
+    Stop-LatestInstallerVersionRefresh -RefreshHandle $handle
+}
+""";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("https://example.invalid/releases/o''clock");
+            result.Stdout.Should().Contain("user''s-temp");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
     }
 
     [Fact]

@@ -76,16 +76,49 @@ function Resolve-AbsolutePath {
     return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
 }
 function Remove-PathIfExists {
-    param([string]$Path)
+    param(
+        [string]$Path,
+        [switch]$BestEffort,
+        [int]$RetryCount = 3,
+        [int]$RetryDelayMilliseconds = 200
+    )
 
     if ([string]::IsNullOrWhiteSpace($Path)) {
         return
     }
 
     $resolvedPath = Resolve-AbsolutePath -Path $Path
-    if (Test-Path -LiteralPath $resolvedPath) {
-        Remove-Item -LiteralPath $resolvedPath -Recurse -Force
+    if (-not (Test-Path -LiteralPath $resolvedPath)) {
+        return
     }
+
+    $attempts = [Math]::Max(1, $RetryCount)
+    for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+        try {
+            Remove-Item -LiteralPath $resolvedPath -Recurse -Force
+            return
+        }
+        catch {
+            if ($attempt -ge $attempts) {
+                if ($BestEffort) {
+                    return
+                }
+
+                throw
+            }
+
+            Start-Sleep -Milliseconds $RetryDelayMilliseconds
+        }
+    }
+}
+function ConvertTo-SingleQuotedPowerShellLiteral {
+    param([AllowEmptyString()] [string]$Value)
+
+    if ($null -eq $Value) {
+        return ''
+    }
+
+    return $Value.Replace("'", "''")
 }
 function Get-SystemDefaultArchitecture {
     if ($env:PROCESSOR_ARCHITEW6432 -eq 'ARM64' -or $env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {
@@ -130,6 +163,7 @@ $script:InstallerHelperRepositoryRelativePath = 'scripts/installer'
 # installer-state.json handling, Get-AvailableInstallerUpdates, and the rest of
 # the persistent state/update flow.
 $script:InstallerSharedHelperLeafNames = @(
+    'Installer.Discovery.ps1'
     'Installer.Uninstall.ps1'
     'Installer.Release.ps1'
     'Installer.PackageIntegrity.ps1'
@@ -349,6 +383,9 @@ function Save-StandaloneInstallerState {
     $tempStatePath = "$statePath.tmp-$([guid]::NewGuid().ToString('N'))"
     try {
         $State | ConvertTo-Json -Depth 10 | Set-Content -Path $tempStatePath -Encoding UTF8
+        if ($env:WPFDEVTOOLS_INSTALLER_TEST_FAIL_SAVE_STANDALONE_STATE -eq '1') {
+            throw 'Simulated standalone state save failure.'
+        }
         Move-Item -Path $tempStatePath -Destination $statePath -Force
     }
     finally {
@@ -453,6 +490,591 @@ function Remove-StandaloneJsonConfigRegistration {
         applied = $true
     }
 }
+function Resolve-StandaloneVsCodeConfigPath {
+    if (-not [string]::IsNullOrWhiteSpace($VsCodeConfigPath)) { return $VsCodeConfigPath }
+    return (Join-Path $env:APPDATA 'Code\User\mcp.json')
+}
+function Resolve-StandaloneVisualStudioConfigPath {
+    if (-not [string]::IsNullOrWhiteSpace($VisualStudioConfigPath)) { return $VisualStudioConfigPath }
+    return (Join-Path $env:USERPROFILE '.mcp.json')
+}
+function Resolve-StandaloneClaudeDesktopConfigPath {
+    if (-not [string]::IsNullOrWhiteSpace($ClaudeDesktopConfigPath)) { return $ClaudeDesktopConfigPath }
+    return (Join-Path $env:APPDATA 'Claude\claude_desktop_config.json')
+}
+function Resolve-StandaloneCursorProjectRoot {
+    if (-not [string]::IsNullOrWhiteSpace($CursorProjectRoot)) {
+        return (Resolve-AbsoluteDirectory -Path $CursorProjectRoot)
+    }
+
+    return (Resolve-AbsoluteDirectory -Path (Get-Location).Path)
+}
+function Resolve-StandaloneCursorGlobalConfigPath {
+    if ($CursorMode -eq 'project') {
+        return $null
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($CursorConfigPath)) {
+        return $CursorConfigPath
+    }
+
+    return (Join-Path $env:USERPROFILE '.cursor\mcp.json')
+}
+function Resolve-StandaloneCursorProjectConfigPath {
+    if ($CursorMode -eq 'global') {
+        return $null
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($CursorConfigPath)) {
+        return $CursorConfigPath
+    }
+
+    return (Join-Path (Resolve-StandaloneCursorProjectRoot) '.cursor\mcp.json')
+}
+function Normalize-StandaloneInstallerPath {
+    param([string]$PathValue)
+
+    if ([string]::IsNullOrWhiteSpace($PathValue)) {
+        return $null
+    }
+
+    $trimmed = [string]$PathValue.Trim().Trim('"')
+    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+        return $null
+    }
+
+    $normalizedSeparators = $trimmed.Replace('/', '\')
+    try {
+        return [System.IO.Path]::GetFullPath($normalizedSeparators)
+    }
+    catch {
+        return $normalizedSeparators
+    }
+}
+function Test-StandaloneInstallerPathEquals {
+    param(
+        [string]$Left,
+        [string]$Right
+    )
+
+    $normalizedLeft = Normalize-StandaloneInstallerPath -PathValue $Left
+    $normalizedRight = Normalize-StandaloneInstallerPath -PathValue $Right
+    if ([string]::IsNullOrWhiteSpace($normalizedLeft) -or [string]::IsNullOrWhiteSpace($normalizedRight)) {
+        return $false
+    }
+
+    return [string]::Equals($normalizedLeft, $normalizedRight, [System.StringComparison]::OrdinalIgnoreCase)
+}
+function Resolve-StandaloneInstallerOwnershipFromExecutable {
+    param([string]$InstalledExecutable)
+
+    $result = [ordered]@{
+        InstallerOwned = $false
+        InstalledExecutable = $InstalledExecutable
+        InstallBase = $null
+        InstallRoot = $null
+        Architecture = $null
+        ResolvedVersion = $null
+    }
+
+    if ([string]::IsNullOrWhiteSpace($InstalledExecutable) -or -not (Test-Path $InstalledExecutable)) {
+        return $result
+    }
+
+    $architectureMatch = [regex]::Match($InstalledExecutable, 'wpf-devtools-(x64|x86|arm64)\.exe', 'IgnoreCase')
+    if ($architectureMatch.Success) {
+        $result.Architecture = [string]$architectureMatch.Groups[1].Value.ToLowerInvariant()
+    }
+
+    $binDirectory = Split-Path -Parent $InstalledExecutable
+    if ([string]::IsNullOrWhiteSpace($binDirectory)) {
+        return $result
+    }
+
+    $currentDirectory = Split-Path -Parent $binDirectory
+    if ([string]::IsNullOrWhiteSpace($currentDirectory)) {
+        return $result
+    }
+
+    $installBase = Split-Path -Parent $currentDirectory
+    if ([string]::IsNullOrWhiteSpace($installBase)) {
+        return $result
+    }
+
+    $manifestPath = Join-Path $installBase 'install-manifest.json'
+    if (-not (Test-Path $manifestPath)) {
+        return $result
+    }
+
+    try {
+        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+        $manifestExecutable = [string]$manifest.executable
+        if (-not [string]::IsNullOrWhiteSpace($manifestExecutable) -and (Test-StandaloneInstallerPathEquals -Left $manifestExecutable -Right $InstalledExecutable)) {
+            $result.InstallerOwned = $true
+            $result.InstallBase = $installBase
+            $result.InstallRoot = [string]$manifest.installRoot
+            if ([string]::IsNullOrWhiteSpace($result.InstallRoot)) {
+                $result.InstallRoot = Split-Path -Parent $installBase
+            }
+
+            if ([string]::IsNullOrWhiteSpace([string]$result.Architecture)) {
+                $result.Architecture = [string]$manifest.architecture
+            }
+
+            $result.ResolvedVersion = [string]$manifest.version
+        }
+    }
+    catch {
+    }
+
+    return $result
+}
+function Get-StandaloneRecordStringValue {
+    param(
+        $Record,
+        [Parameter(Mandatory)] [string[]]$PropertyNames
+    )
+
+    if ($null -eq $Record) {
+        return $null
+    }
+
+    if ($Record -is [System.Collections.IDictionary]) {
+        foreach ($propertyName in $PropertyNames) {
+            if ($Record.Contains($propertyName) -and -not [string]::IsNullOrWhiteSpace([string]$Record[$propertyName])) {
+                return [string]$Record[$propertyName]
+            }
+        }
+    }
+
+    foreach ($propertyName in $PropertyNames) {
+        $property = $Record.PSObject.Properties[$propertyName]
+        if ($null -ne $property -and -not [string]::IsNullOrWhiteSpace([string]$property.Value)) {
+            return [string]$property.Value
+        }
+    }
+
+    return $null
+}
+function Get-StandaloneJsonCollectionName {
+    param([Parameter(Mandatory)] [string]$ClientBaseId)
+
+    switch ($ClientBaseId) {
+        'vscode' { return 'servers' }
+        'visual-studio' { return 'servers' }
+        'claude-desktop' { return 'mcpServers' }
+        'cursor' { return 'mcpServers' }
+        default { return $null }
+    }
+}
+function Get-StandaloneJsonVerificationTargets {
+    param(
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        $RegistrationRecord
+    )
+
+    $targets = New-Object System.Collections.Generic.List[string]
+    $recordedTarget = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('target', 'Target', 'RegistrationTarget')
+    if (-not [string]::IsNullOrWhiteSpace($recordedTarget) -and -not $targets.Contains($recordedTarget)) {
+        $targets.Add($recordedTarget)
+    }
+
+    $defaultTargets = switch ($SelectedClient) {
+        'cursor-global' { @((Resolve-StandaloneCursorGlobalConfigPath) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) }
+        'cursor-project' { @((Resolve-StandaloneCursorProjectConfigPath) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) }
+        default {
+            $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
+            switch ($clientBaseId) {
+                'vscode' { @((Resolve-StandaloneVsCodeConfigPath)) }
+                'visual-studio' { @((Resolve-StandaloneVisualStudioConfigPath)) }
+                'claude-desktop' { @((Resolve-StandaloneClaudeDesktopConfigPath)) }
+                'cursor' {
+                    @(
+                        (Resolve-StandaloneCursorProjectConfigPath)
+                        (Resolve-StandaloneCursorGlobalConfigPath)
+                    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+                }
+                default { @() }
+            }
+        }
+    }
+
+    foreach ($target in $defaultTargets) {
+        if (-not [string]::IsNullOrWhiteSpace($target) -and -not $targets.Contains($target)) {
+            $targets.Add([string]$target)
+        }
+    }
+
+    return @($targets.ToArray())
+}
+function Get-StandaloneJsonRegisteredExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$CollectionName,
+        [AllowEmptyString()] [string]$ConfigPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ConfigPath) -or -not (Test-Path $ConfigPath)) {
+        return $null
+    }
+
+    $root = Get-StandaloneExistingConfigMap -Path $ConfigPath
+    $servers = Get-StandaloneConfigCollectionMap -Root $root -CollectionName $CollectionName
+    if (-not $servers.Contains('wpf-devtools')) {
+        return $null
+    }
+
+    return [string]$servers['wpf-devtools'].command
+}
+function Resolve-StandaloneInstallBasePath {
+    param(
+        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [string]$ResolvedArchitecture
+    )
+
+    return (Join-Path $ResolvedInstallRoot $ResolvedArchitecture)
+}
+function Get-StandaloneLiveInstallerManifestEvidence {
+    param(
+        [string]$InstallRoot,
+        [string]$Architecture
+    )
+
+    if ([string]::IsNullOrWhiteSpace($InstallRoot) -or [string]::IsNullOrWhiteSpace($Architecture)) {
+        return $null
+    }
+
+    $installBase = Resolve-StandaloneInstallBasePath -ResolvedInstallRoot $InstallRoot -ResolvedArchitecture $Architecture
+    $manifestPath = Join-Path $installBase 'install-manifest.json'
+    if (-not (Test-Path $manifestPath)) {
+        return $null
+    }
+
+    try {
+        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+    }
+    catch {
+        return $null
+    }
+
+    $manifestInstallRoot = [string]$manifest.installRoot
+    if (-not [string]::IsNullOrWhiteSpace($manifestInstallRoot) -and -not (Test-StandaloneInstallerPathEquals -Left $manifestInstallRoot -Right $InstallRoot)) {
+        return $null
+    }
+
+    $installedExecutable = [string]$manifest.executable
+    if ([string]::IsNullOrWhiteSpace($installedExecutable)) {
+        $installedExecutable = Join-Path $installBase "current\\bin\\wpf-devtools-$Architecture.exe"
+    }
+
+    $ownership = Resolve-StandaloneInstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+    if (-not [bool]$ownership.InstallerOwned) {
+        return $null
+    }
+
+    if (-not (Test-StandaloneInstallerPathEquals -Left ([string]$ownership.InstallRoot) -Right $InstallRoot)) {
+        return $null
+    }
+
+    return [ordered]@{
+        Architecture = $Architecture
+        InstalledExecutable = [string]$ownership.InstalledExecutable
+        ResolvedVersion = [string]$ownership.ResolvedVersion
+    }
+}
+function Get-StandaloneKnownArchitectures {
+    return @('x64', 'x86', 'arm64')
+}
+function Get-StandaloneDetectedConfigRegistrations {
+    $registrations = @()
+    foreach ($candidate in @(
+            [ordered]@{
+                ClientId = 'vscode'
+                RegistrationMode = 'json-file'
+                RegistrationTarget = (Resolve-StandaloneVsCodeConfigPath)
+                CollectionName = 'servers'
+            }
+            [ordered]@{
+                ClientId = 'visual-studio'
+                RegistrationMode = 'json-file'
+                RegistrationTarget = (Resolve-StandaloneVisualStudioConfigPath)
+                CollectionName = 'servers'
+            }
+            [ordered]@{
+                ClientId = 'claude-desktop'
+                RegistrationMode = 'json-file'
+                RegistrationTarget = (Resolve-StandaloneClaudeDesktopConfigPath)
+                CollectionName = 'mcpServers'
+            }
+            [ordered]@{
+                ClientId = 'cursor-global'
+                RegistrationMode = 'json-file'
+                RegistrationTarget = (Resolve-StandaloneCursorGlobalConfigPath)
+                CollectionName = 'mcpServers'
+            }
+            [ordered]@{
+                ClientId = 'cursor-project'
+                RegistrationMode = 'json-file'
+                RegistrationTarget = (Resolve-StandaloneCursorProjectConfigPath)
+                CollectionName = 'mcpServers'
+            }
+        )) {
+        $registrationTarget = [string]$candidate.RegistrationTarget
+        $installedExecutable = Get-StandaloneJsonRegisteredExecutable -CollectionName ([string]$candidate.CollectionName) -ConfigPath $registrationTarget
+        if ([string]::IsNullOrWhiteSpace($installedExecutable)) {
+            continue
+        }
+
+        $ownership = Resolve-StandaloneInstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+        $registrations += ,([ordered]@{
+                ClientId = [string]$candidate.ClientId
+                RegistrationMode = [string]$candidate.RegistrationMode
+                RegistrationTarget = $registrationTarget
+                InstalledExecutable = $installedExecutable
+                InstallRoot = [string]$ownership.InstallRoot
+                Architecture = [string]$ownership.Architecture
+                InstallerOwned = [bool]$ownership.InstallerOwned
+                ResolvedVersion = [string]$ownership.ResolvedVersion
+            })
+    }
+
+    return $registrations
+}
+function Get-StandaloneDetectedInstallerRegistrations {
+    param([Parameter(Mandatory)] $State)
+
+    $registrationMap = [ordered]@{}
+    foreach ($entry in $State.registrations.GetEnumerator()) {
+        $record = $entry.Value
+        $installedExecutable = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('installedExecutable', 'InstalledExecutable')
+        $installRoot = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('installRoot', 'InstallRoot')
+        $architecture = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('architecture', 'Architecture')
+        $resolvedVersion = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('resolvedVersion', 'ResolvedVersion')
+        $registrationMode = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('mode', 'Mode', 'RegistrationMode')
+        $registrationTarget = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('target', 'Target', 'RegistrationTarget')
+        $installerOwned = $false
+
+        if (-not [string]::IsNullOrWhiteSpace($installedExecutable)) {
+            $ownership = Resolve-StandaloneInstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+            $installerOwned = [bool]$ownership.InstallerOwned
+            if ([string]::IsNullOrWhiteSpace($installRoot)) {
+                $installRoot = [string]$ownership.InstallRoot
+            }
+
+            if ([string]::IsNullOrWhiteSpace($architecture)) {
+                $architecture = [string]$ownership.Architecture
+            }
+
+            if ([string]::IsNullOrWhiteSpace($resolvedVersion)) {
+                $resolvedVersion = [string]$ownership.ResolvedVersion
+            }
+        }
+
+        $registrationMap[[string]$entry.Key] = [ordered]@{
+            ClientId = [string]$entry.Key
+            RegistrationMode = $registrationMode
+            RegistrationTarget = $registrationTarget
+            InstalledExecutable = $installedExecutable
+            InstallRoot = $installRoot
+            Architecture = $architecture
+            InstallerOwned = $installerOwned
+            ResolvedVersion = $resolvedVersion
+        }
+    }
+
+    foreach ($registration in @(Get-StandaloneDetectedConfigRegistrations)) {
+        $stateKey = Resolve-ClientStateKey -ClientId ([string]$registration.ClientId) -RegistrationMode ([string]$registration.RegistrationMode)
+        if ($registrationMap.Contains($stateKey)) {
+            $existing = $registrationMap[$stateKey]
+            $clientBaseId = Resolve-ClientBaseId -ClientId ([string]$registration.ClientId)
+            $collectionName = Get-StandaloneJsonCollectionName -ClientBaseId $clientBaseId
+            $existingTarget = [string]$existing.RegistrationTarget
+            $liveTarget = [string]$registration.RegistrationTarget
+            $existingTargetHasRegistration = $false
+            $liveTargetHasRegistration = $false
+            if (-not [string]::IsNullOrWhiteSpace($collectionName)) {
+                if (-not [string]::IsNullOrWhiteSpace($existingTarget)) {
+                    $existingTargetHasRegistration = Test-StandaloneJsonConfigRegistration -CollectionName $collectionName -ConfigPath $existingTarget
+                }
+
+                if (-not [string]::IsNullOrWhiteSpace($liveTarget)) {
+                    $liveTargetHasRegistration = Test-StandaloneJsonConfigRegistration -CollectionName $collectionName -ConfigPath $liveTarget
+                }
+            }
+
+            if ([string]::IsNullOrWhiteSpace([string]$existing.RegistrationTarget)) {
+                $existing.RegistrationTarget = [string]$registration.RegistrationTarget
+            }
+            elseif ($liveTargetHasRegistration -and (-not $existingTargetHasRegistration -or -not (Test-StandaloneInstallerPathEquals -Left $existingTarget -Right $liveTarget))) {
+                $existing.RegistrationTarget = $liveTarget
+                $existing.RegistrationMode = [string]$registration.RegistrationMode
+                $existing.InstalledExecutable = [string]$registration.InstalledExecutable
+            }
+            if ([string]::IsNullOrWhiteSpace([string]$existing.InstalledExecutable)) {
+                $existing.InstalledExecutable = [string]$registration.InstalledExecutable
+            }
+            if (-not [bool]$existing.InstallerOwned -and [bool]$registration.InstallerOwned) {
+                $existing.InstallerOwned = $true
+                $existing.InstallRoot = [string]$registration.InstallRoot
+                $existing.Architecture = [string]$registration.Architecture
+                $existing.ResolvedVersion = [string]$registration.ResolvedVersion
+            }
+            continue
+        }
+
+        $registrationMap[$stateKey] = $registration
+    }
+
+    return @($registrationMap.Values)
+}
+function Get-StandaloneDetectedInstallerRegistrationMap {
+    param([Parameter(Mandatory)] $State)
+
+    $registrationMap = [ordered]@{}
+    foreach ($registration in @(Get-StandaloneDetectedInstallerRegistrations -State $State)) {
+        $stateKey = Resolve-ClientStateKey -ClientId ([string]$registration.ClientId) -RegistrationMode ([string]$registration.RegistrationMode)
+        $registrationMap[$stateKey] = $registration
+        if (-not $registrationMap.Contains([string]$registration.ClientId)) {
+            $registrationMap[[string]$registration.ClientId] = $registration
+        }
+    }
+
+    return $registrationMap
+}
+function Get-StandaloneDetectedInstallerInstallations {
+    param(
+        [Parameter(Mandatory)] $State,
+        [string]$ExpectedInstallRoot
+    )
+
+    $installations = [ordered]@{}
+    foreach ($registration in @(Get-StandaloneDetectedInstallerRegistrations -State $State)) {
+        if (-not [bool]$registration.InstallerOwned) {
+            continue
+        }
+
+        if ([string]::IsNullOrWhiteSpace([string]$registration.InstallRoot) -or [string]::IsNullOrWhiteSpace([string]$registration.Architecture)) {
+            continue
+        }
+
+        $key = "{0}|{1}" -f ([string]$registration.InstallRoot).ToLowerInvariant(), ([string]$registration.Architecture).ToLowerInvariant()
+        $installations[$key] = [ordered]@{
+            InstallRoot = [string]$registration.InstallRoot
+            Architecture = [string]$registration.Architecture
+            InstallBase = Resolve-StandaloneInstallBasePath -ResolvedInstallRoot ([string]$registration.InstallRoot) -ResolvedArchitecture ([string]$registration.Architecture)
+            InstalledExecutable = [string]$registration.InstalledExecutable
+            ResolvedVersion = [string]$registration.ResolvedVersion
+            InstallerOwned = $true
+        }
+    }
+
+    foreach ($architectureEntry in $State.architectures.GetEnumerator()) {
+        $arch = [string]$architectureEntry.Key
+        $record = $architectureEntry.Value
+        $executable = [string]$record.executable
+        if ([string]::IsNullOrWhiteSpace($executable)) {
+            continue
+        }
+
+        $ownership = Resolve-StandaloneInstallerOwnershipFromExecutable -InstalledExecutable $executable
+        if (-not [bool]$ownership.InstallerOwned) {
+            continue
+        }
+
+        $installRoot = [string]$record.installRoot
+        if ([string]::IsNullOrWhiteSpace($installRoot)) {
+            $installRoot = [string]$ownership.InstallRoot
+        }
+
+        if ([string]::IsNullOrWhiteSpace($installRoot)) {
+            continue
+        }
+
+        $key = "{0}|{1}" -f $installRoot.ToLowerInvariant(), $arch.ToLowerInvariant()
+        $installations[$key] = [ordered]@{
+            InstallRoot = $installRoot
+            Architecture = $arch
+            InstallBase = Resolve-StandaloneInstallBasePath -ResolvedInstallRoot $installRoot -ResolvedArchitecture $arch
+            InstalledExecutable = $executable
+            ResolvedVersion = [string]$record.version
+            InstallerOwned = $true
+        }
+    }
+
+    $candidateRoots = New-Object System.Collections.Generic.List[string]
+    foreach ($candidateRoot in @(
+            $ExpectedInstallRoot
+            [string]$State.lastInstallRoot
+        )) {
+        if (-not [string]::IsNullOrWhiteSpace($candidateRoot) -and -not $candidateRoots.Contains($candidateRoot)) {
+            $candidateRoots.Add($candidateRoot)
+        }
+    }
+
+    foreach ($candidateRoot in $candidateRoots) {
+        foreach ($architecture in @(Get-StandaloneKnownArchitectures)) {
+            $evidence = Get-StandaloneLiveInstallerManifestEvidence -InstallRoot $candidateRoot -Architecture $architecture
+            if ($null -eq $evidence) {
+                continue
+            }
+
+            $key = "{0}|{1}" -f $candidateRoot.ToLowerInvariant(), $architecture.ToLowerInvariant()
+            $installations[$key] = [ordered]@{
+                InstallRoot = $candidateRoot
+                Architecture = $architecture
+                InstallBase = Resolve-StandaloneInstallBasePath -ResolvedInstallRoot $candidateRoot -ResolvedArchitecture $architecture
+                InstalledExecutable = [string]$evidence.InstalledExecutable
+                ResolvedVersion = [string]$evidence.ResolvedVersion
+                InstallerOwned = $true
+            }
+        }
+    }
+
+    return @($installations.Values)
+}
+function Get-StandaloneFallbackRegistrationRecord {
+    param(
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [string]$ResolvedArchitecture
+    )
+
+    $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
+    $liveEvidence = Get-StandaloneLiveInstallerManifestEvidence -InstallRoot $ResolvedInstallRoot -Architecture $ResolvedArchitecture
+
+    switch ($clientBaseId) {
+        'other' {
+            return [ordered]@{
+                ClientId = 'other'
+                RegistrationMode = 'artifact-only'
+                RegistrationTarget = (Join-Path (Resolve-StandaloneInstallBasePath -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture) 'client-registration\other.mcpServers.json')
+                InstalledExecutable = if ($null -ne $liveEvidence) { [string]$liveEvidence.InstalledExecutable } else { $null }
+                InstallRoot = $ResolvedInstallRoot
+                Architecture = $ResolvedArchitecture
+            }
+        }
+        'claude-code' {
+            return [ordered]@{
+                ClientId = 'claude-code'
+                RegistrationMode = 'cli'
+                RegistrationTarget = 'claude'
+                InstalledExecutable = if ($null -ne $liveEvidence) { [string]$liveEvidence.InstalledExecutable } else { $null }
+                InstallRoot = $ResolvedInstallRoot
+                Architecture = $ResolvedArchitecture
+            }
+        }
+        'codex' {
+            return [ordered]@{
+                ClientId = 'codex'
+                RegistrationMode = 'cli'
+                RegistrationTarget = 'codex'
+                InstalledExecutable = if ($null -ne $liveEvidence) { [string]$liveEvidence.InstalledExecutable } else { $null }
+                InstallRoot = $ResolvedInstallRoot
+                Architecture = $ResolvedArchitecture
+            }
+        }
+        default { return $null }
+    }
+}
 function Invoke-StandaloneUninstallVerification {
     param(
         [Parameter(Mandatory)] [string]$SelectedClient,
@@ -470,28 +1092,57 @@ function Invoke-StandaloneUninstallVerification {
             break
         }
         'cursor' {
-            $targetPath = [string]$RegistrationRecord.target
+            $verificationSucceeded = $true
+            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)) {
+                if (Test-StandaloneJsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $targetPath) {
+                    $verificationSucceeded = $false
+                    break
+                }
+            }
+            $verificationSucceeded
+            break
+        }
+        'vscode' {
+            $verificationSucceeded = $true
+            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)) {
+                if (Test-StandaloneJsonConfigRegistration -CollectionName 'servers' -ConfigPath $targetPath) {
+                    $verificationSucceeded = $false
+                    break
+                }
+            }
+            $verificationSucceeded
+            break
+        }
+        'visual-studio' {
+            $verificationSucceeded = $true
+            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)) {
+                if (Test-StandaloneJsonConfigRegistration -CollectionName 'servers' -ConfigPath $targetPath) {
+                    $verificationSucceeded = $false
+                    break
+                }
+            }
+            $verificationSucceeded
+            break
+        }
+        'claude-desktop' {
+            $verificationSucceeded = $true
+            foreach ($targetPath in @(Get-StandaloneJsonVerificationTargets -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)) {
+                if (Test-StandaloneJsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $targetPath) {
+                    $verificationSucceeded = $false
+                    break
+                }
+            }
+            $verificationSucceeded
+            break
+        }
+        'other' {
+            $targetPath = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('target', 'Target', 'RegistrationTarget')
             if ([string]::IsNullOrWhiteSpace($targetPath)) {
                 $true
             }
             else {
-                -not (Test-StandaloneJsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $targetPath)
+                -not (Test-Path $targetPath)
             }
-            break
-        }
-        'vscode' {
-            $targetPath = [string]$RegistrationRecord.target
-            -not (Test-StandaloneJsonConfigRegistration -CollectionName 'servers' -ConfigPath $targetPath)
-            break
-        }
-        'visual-studio' {
-            $targetPath = [string]$RegistrationRecord.target
-            -not (Test-StandaloneJsonConfigRegistration -CollectionName 'servers' -ConfigPath $targetPath)
-            break
-        }
-        'claude-desktop' {
-            $targetPath = [string]$RegistrationRecord.target
-            -not (Test-StandaloneJsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $targetPath)
             break
         }
         default {
@@ -517,76 +1168,193 @@ function Invoke-StandaloneInstallerActionCore {
     $state = Get-StandaloneInstallerState
 
     if ($ResolvedAction -eq 'full-uninstall') {
+        $detectedRegistrations = @(Get-StandaloneDetectedInstallerRegistrations -State $state)
+        $detectedInstallations = @(Get-StandaloneDetectedInstallerInstallations -State $state -ExpectedInstallRoot $ResolvedInstallRoot)
+        $registrationOperations = @()
+        $installationBackups = @()
         $removedInstallations = @()
-        foreach ($architectureEntry in $state.architectures.GetEnumerator()) {
-            $architecture = [string]$architectureEntry.Key
-            $record = $architectureEntry.Value
-            $installRoot = [string]$record.installRoot
-            if ([string]::IsNullOrWhiteSpace($installRoot)) {
-                continue
-            }
+        try {
+            foreach ($record in $detectedRegistrations) {
+                $clientId = [string]$record.ClientId
+                $registrationMode = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('RegistrationMode', 'mode', 'Mode')
+                $targetPath = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('RegistrationTarget', 'target', 'Target')
+                $clientBaseId = Resolve-ClientBaseId -ClientId $clientId
+                $operation = [ordered]@{
+                    ClientId = $clientId
+                    RegistrationMode = $registrationMode
+                    TargetPath = $targetPath
+                    BackupPath = $null
+                    Applied = $false
+                    InstalledExecutable = (Get-StandaloneRecordStringValue -Record $record -PropertyNames @('InstalledExecutable', 'installedExecutable'))
+                }
 
-            $installBase = Join-Path $installRoot $architecture
-            if (Test-Path $installBase) {
-                Remove-PathIfExists -Path $installBase
-                $removedInstallations += [ordered]@{
-                    InstallRoot = $installRoot
-                    Architecture = $architecture
-                    InstallBase = $installBase
-                    InstalledExecutable = [string]$record.executable
-                    ResolvedVersion = [string]$record.version
-                    InstallerOwned = $true
+                if ([string]::Equals($registrationMode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $collectionName = switch ($clientBaseId) {
+                        'vscode' { 'servers' }
+                        'visual-studio' { 'servers' }
+                        'claude-desktop' { 'mcpServers' }
+                        'cursor' { 'mcpServers' }
+                        default { $null }
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($collectionName) -and -not [string]::IsNullOrWhiteSpace($targetPath)) {
+                        $removal = Remove-StandaloneJsonConfigRegistration -CollectionName $collectionName -ConfigPath $targetPath
+                        $operation.BackupPath = [string]$removal.backupPath
+                        $operation.Applied = [bool]$removal.applied
+                    }
+                }
+                elseif ([string]::Equals($registrationMode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    if (-not [string]::IsNullOrWhiteSpace($targetPath) -and (Test-Path $targetPath)) {
+                        $backupPath = "$targetPath.bak-$([guid]::NewGuid().ToString('N'))"
+                        Copy-Item -Path $targetPath -Destination $backupPath -Force
+                        Remove-PathIfExists -Path $targetPath
+                        $operation.BackupPath = $backupPath
+                        $operation.Applied = $true
+                    }
+                }
+                elseif ([string]::Equals($registrationMode, 'cli', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $commandName = if ($clientBaseId -eq 'claude-code') { 'claude' } else { 'codex' }
+                    $resolvedCommand = Get-Command $commandName -CommandType Application,ExternalScript -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($null -ne $resolvedCommand) {
+                        & $resolvedCommand.Source mcp remove wpf-devtools | Out-Null
+                        $operation.Applied = ($LASTEXITCODE -eq 0)
+                    }
+                }
+
+                $registrationOperations += $operation
+                $verification = Invoke-StandaloneUninstallVerification -SelectedClient $clientId -RegistrationRecord $record
+                if (-not $verification.Succeeded) {
+                    throw $verification.VerificationMessage
                 }
             }
-        }
 
-        $state.registrations.Clear()
-        $state.architectures.Clear()
-        $statePath = Save-StandaloneInstallerState -State $state
-        return [ordered]@{
-            action = 'full-uninstall'
-            mode = 'offline'
-            downloadSource = 'none'
-            version = $RequestedVersion
-            resolvedVersion = $null
-            architecture = 'all'
-            client = 'all'
-            packageAssetName = $null
-            downloadUri = $null
-            installRoot = $null
-            installedExecutable = $null
-            selectedClients = @()
-            statePath = $statePath
-            removedInstallation = ($removedInstallations.Count -gt 0)
-            removedInstallations = @($removedInstallations)
-            registrations = @()
-            verificationMessage = "Verified removal of $($removedInstallations.Count) installer-owned server location(s)."
+            foreach ($installation in $detectedInstallations) {
+                $architecture = [string]$installation.Architecture
+                $installRoot = [string]$installation.InstallRoot
+                $installBase = [string]$installation.InstallBase
+                if (Test-Path $installBase) {
+                    $rollbackPath = "$installBase.rollback-$([guid]::NewGuid().ToString('N'))"
+                    Move-Item -LiteralPath $installBase -Destination $rollbackPath -Force
+                    $installationBackups += [ordered]@{
+                        InstallBase = $installBase
+                        RollbackPath = $rollbackPath
+                    }
+                    $removedInstallations += [ordered]@{
+                        InstallRoot = $installRoot
+                        Architecture = $architecture
+                        InstallBase = $installBase
+                        InstalledExecutable = [string]$installation.InstalledExecutable
+                        ResolvedVersion = [string]$installation.ResolvedVersion
+                        InstallerOwned = $true
+                    }
+                }
+            }
+
+            foreach ($installation in $removedInstallations) {
+                if (Test-Path ([string]$installation.InstallBase)) {
+                    throw "Installation root still exists: $([string]$installation.InstallBase)"
+                }
+            }
+
+            $state.registrations.Clear()
+            $state.architectures.Clear()
+            $statePath = Save-StandaloneInstallerState -State $state
+            foreach ($operation in $registrationOperations) {
+                Remove-PathIfExists -Path ([string]$operation.BackupPath)
+            }
+
+            foreach ($backup in $installationBackups) {
+                Remove-PathIfExists -Path ([string]$backup.RollbackPath)
+            }
+            return [ordered]@{
+                action = 'full-uninstall'
+                mode = 'offline'
+                downloadSource = 'none'
+                version = $RequestedVersion
+                resolvedVersion = $null
+                architecture = 'all'
+                client = 'all'
+                packageAssetName = $null
+                downloadUri = $null
+                installRoot = $null
+                installedExecutable = $null
+                selectedClients = @()
+                statePath = $statePath
+                removedInstallation = ($removedInstallations.Count -gt 0)
+                removedInstallations = @($removedInstallations)
+                registrations = @($registrationOperations | Where-Object { [bool]$_.Applied })
+                verificationMessage = "Verified removal of $($registrationOperations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."
+            }
+        }
+        catch {
+            $backupsInReverse = @($installationBackups)
+            [array]::Reverse($backupsInReverse)
+            foreach ($backup in $backupsInReverse) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$backup.RollbackPath) -and (Test-Path ([string]$backup.RollbackPath))) {
+                    Move-Item -LiteralPath ([string]$backup.RollbackPath) -Destination ([string]$backup.InstallBase) -Force
+                }
+            }
+
+            $operationsInReverse = @($registrationOperations)
+            [array]::Reverse($operationsInReverse)
+            foreach ($operation in $operationsInReverse) {
+                if (-not [bool]$operation.Applied) {
+                    continue
+                }
+
+                if ([string]::Equals([string]$operation.RegistrationMode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    if (-not [string]::IsNullOrWhiteSpace([string]$operation.BackupPath) -and (Test-Path ([string]$operation.BackupPath))) {
+                        Copy-Item -Path ([string]$operation.BackupPath) -Destination ([string]$operation.TargetPath) -Force
+                        Remove-PathIfExists -Path ([string]$operation.BackupPath)
+                    }
+                    continue
+                }
+
+                if ([string]::Equals([string]$operation.RegistrationMode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    if (-not [string]::IsNullOrWhiteSpace([string]$operation.BackupPath) -and (Test-Path ([string]$operation.BackupPath))) {
+                        Copy-Item -Path ([string]$operation.BackupPath) -Destination ([string]$operation.TargetPath) -Force
+                        Remove-PathIfExists -Path ([string]$operation.BackupPath)
+                    }
+                    continue
+                }
+
+                if ([string]::Equals([string]$operation.RegistrationMode, 'cli', [System.StringComparison]::OrdinalIgnoreCase) -and -not [string]::IsNullOrWhiteSpace([string]$operation.InstalledExecutable)) {
+                    $clientBaseId = Resolve-ClientBaseId -ClientId ([string]$operation.ClientId)
+                    $commandName = if ($clientBaseId -eq 'claude-code') { 'claude' } else { 'codex' }
+                    $resolvedCommand = Get-Command $commandName -CommandType Application,ExternalScript -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($null -ne $resolvedCommand) {
+                        & $resolvedCommand.Source mcp add wpf-devtools -- ([string]$operation.InstalledExecutable) | Out-Null
+                    }
+                }
+            }
+
+            throw
         }
     }
 
-    $registrationKey = if ($state.registrations.Contains($ResolvedClient)) {
+    $detectedRegistrationMap = Get-StandaloneDetectedInstallerRegistrationMap -State $state
+    $registrationKey = if ($detectedRegistrationMap.Contains($ResolvedClient)) {
         $ResolvedClient
     }
     elseif ($ResolvedClient -eq 'cursor') {
-        ($state.registrations.Keys | Where-Object { $_ -like 'cursor-*' } | Select-Object -First 1)
+        ($detectedRegistrationMap.Keys | Where-Object { $_ -like 'cursor-*' } | Select-Object -First 1)
     }
     else {
         $null
     }
 
-    $registrationRecord = if (-not [string]::IsNullOrWhiteSpace([string]$registrationKey) -and $state.registrations.Contains($registrationKey)) {
-        $state.registrations[$registrationKey]
+    $registrationRecord = if (-not [string]::IsNullOrWhiteSpace([string]$registrationKey) -and $detectedRegistrationMap.Contains($registrationKey)) {
+        $detectedRegistrationMap[$registrationKey]
     }
     else {
-        $null
+        Get-StandaloneFallbackRegistrationRecord -SelectedClient $ResolvedClient -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture
     }
 
     $registrations = @()
-    $backupPath = $null
     try {
         if ($null -ne $registrationRecord) {
-            $mode = [string]$registrationRecord.mode
-            $targetPath = [string]$registrationRecord.target
+            $mode = Get-StandaloneRecordStringValue -Record $registrationRecord -PropertyNames @('mode', 'Mode', 'RegistrationMode')
+            $targetPath = Get-StandaloneRecordStringValue -Record $registrationRecord -PropertyNames @('target', 'Target', 'RegistrationTarget')
             $clientBaseId = Resolve-ClientBaseId -ClientId $ResolvedClient
 
             if ([string]::Equals($mode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -600,24 +1368,30 @@ function Invoke-StandaloneInstallerActionCore {
 
                 if (-not [string]::IsNullOrWhiteSpace($collectionName) -and -not [string]::IsNullOrWhiteSpace($targetPath)) {
                     $removal = Remove-StandaloneJsonConfigRegistration -CollectionName $collectionName -ConfigPath $targetPath
-                    $backupPath = [string]$removal.backupPath
                     $registrations += [ordered]@{
                         client = $clientBaseId
                         mode = 'json-file'
                         target = $targetPath
-                        backupPath = $backupPath
+                        backupPath = [string]$removal.backupPath
+                        installedExecutable = (Get-StandaloneRecordStringValue -Record $registrationRecord -PropertyNames @('InstalledExecutable', 'installedExecutable'))
                         applied = [bool]$removal.applied
                     }
                 }
             }
             elseif ([string]::Equals($mode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $backupPath = $null
+                if (-not [string]::IsNullOrWhiteSpace($targetPath) -and (Test-Path $targetPath)) {
+                    $backupPath = "$targetPath.bak-$([guid]::NewGuid().ToString('N'))"
+                    Copy-Item -Path $targetPath -Destination $backupPath -Force
+                }
                 Remove-PathIfExists -Path $targetPath
                 $registrations += [ordered]@{
                     client = $clientBaseId
                     mode = 'artifact-only'
                     target = $targetPath
-                    backupPath = $null
-                    applied = $true
+                    backupPath = $backupPath
+                    installedExecutable = (Get-StandaloneRecordStringValue -Record $registrationRecord -PropertyNames @('InstalledExecutable', 'installedExecutable'))
+                    applied = (-not [string]::IsNullOrWhiteSpace($targetPath))
                 }
             }
             elseif ([string]::Equals($mode, 'cli', [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -632,6 +1406,7 @@ function Invoke-StandaloneInstallerActionCore {
                     mode = 'cli'
                     target = $command
                     backupPath = $null
+                    installedExecutable = (Get-StandaloneRecordStringValue -Record $registrationRecord -PropertyNames @('InstalledExecutable', 'installedExecutable'))
                     applied = ($LASTEXITCODE -eq 0)
                 }
             }
@@ -667,9 +1442,32 @@ function Invoke-StandaloneInstallerActionCore {
         }
     }
     catch {
-        if (-not [string]::IsNullOrWhiteSpace($backupPath) -and (Test-Path $backupPath) -and -not [string]::IsNullOrWhiteSpace([string]$registrationRecord.target)) {
-            Copy-Item -Path $backupPath -Destination ([string]$registrationRecord.target) -Force
-            Remove-PathIfExists -Path $backupPath
+        $registrationsInReverse = @($registrations)
+        [array]::Reverse($registrationsInReverse)
+        foreach ($registration in $registrationsInReverse) {
+            if (-not [bool]$registration.applied) {
+                continue
+            }
+
+            if ([string]::Equals([string]$registration.mode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase) -or
+                [string]::Equals([string]$registration.mode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase)) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$registration.backupPath) -and
+                    -not [string]::IsNullOrWhiteSpace([string]$registration.target) -and
+                    (Test-Path ([string]$registration.backupPath))) {
+                    Copy-Item -Path ([string]$registration.backupPath) -Destination ([string]$registration.target) -Force
+                    Remove-PathIfExists -Path ([string]$registration.backupPath)
+                }
+                continue
+            }
+
+            if ([string]::Equals([string]$registration.mode, 'cli', [System.StringComparison]::OrdinalIgnoreCase) -and
+                -not [string]::IsNullOrWhiteSpace([string]$registration.installedExecutable)) {
+                $command = if ([string]$registration.client -eq 'claude-code') { 'claude' } else { 'codex' }
+                $resolvedCommand = Get-Command $command -CommandType Application,ExternalScript -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($null -ne $resolvedCommand) {
+                    & $resolvedCommand.Source mcp add wpf-devtools -- ([string]$registration.installedExecutable) | Out-Null
+                }
+            }
         }
 
         throw
@@ -728,6 +1526,10 @@ function Get-InstalledInstallerHelperRoots {
 }
 function Get-TuiHelperOverrideDirectory {
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY)) {
+        if (-not [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)) {
+            throw 'WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+        }
+
         return $env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY
     }
 
@@ -878,12 +1680,15 @@ function Assert-InstallerHelperManifestIntegrity {
         [Parameter(Mandatory)] $Manifest
     )
 
-    $recordMap = Get-InstallerHelperRecordMap -Manifest $Manifest
-    if ($recordMap.Count -eq 0) {
-        return
+    $expectedHelperFiles = @(Get-HelperLeafNames | Sort-Object)
+    $manifestHelperFiles = @($Manifest.HelperFiles | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique)
+    $difference = Compare-Object -ReferenceObject $expectedHelperFiles -DifferenceObject $manifestHelperFiles
+    if ($difference.Count -gt 0) {
+        throw 'Installer helper manifest must exactly match the expected helper file set.'
     }
 
-    foreach ($helperFile in @($Manifest.HelperFiles)) {
+    $recordMap = Get-InstallerHelperRecordMap -Manifest $Manifest
+    foreach ($helperFile in $expectedHelperFiles) {
         if (-not $recordMap.ContainsKey($helperFile)) {
             throw "Installer helper manifest is missing integrity metadata for $helperFile."
         }
@@ -1010,15 +1815,10 @@ function Get-TuiHelperManifest {
         $manifestPath = Get-TuiHelperManifestPath -RootPath $candidateRoot
         $manifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $candidateRoot
         if ($null -eq $manifest) {
-            $manifest = [ordered]@{
-                CacheKey = (Get-ComputedInstallerHelperCacheKey -HelperDirectory $candidateRoot -HelperFiles $helperFiles)
-                HelperFiles = $helperFiles
-                HelperFileRecords = @()
-            }
+            continue
         }
-        else {
-            Assert-InstallerHelperManifestIntegrity -HelperDirectory $candidateRoot -Manifest $manifest
-        }
+
+        Assert-InstallerHelperManifestIntegrity -HelperDirectory $candidateRoot -Manifest $manifest
 
         $script:TuiHelperManifest = $manifest
         return $manifest
@@ -1047,6 +1847,11 @@ function Get-TuiHelperManifest {
     }
 
     $script:TuiHelperManifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $runtimeRoot
+    if ($null -eq $script:TuiHelperManifest) {
+        throw "Installer helper manifest was not found after download: $manifestPath"
+    }
+
+    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $script:TuiHelperManifest
     return $script:TuiHelperManifest
 }
 function Ensure-TuiHelpersAvailable {
@@ -1057,7 +1862,7 @@ function Ensure-TuiHelpersAvailable {
     }
 
     $manifest = Get-TuiHelperManifest -SuppressBootstrapOutput:$SuppressBootstrapOutput
-    $helperFiles = if ($null -ne $manifest -and $manifest.HelperFiles.Count -gt 0) { @($manifest.HelperFiles) } else { @(Get-HelperLeafNames) }
+    $helperFiles = @(Get-HelperLeafNames)
     foreach ($candidateRoot in @(Get-LocalInstallerHelperRoots)) {
         if ([string]::IsNullOrWhiteSpace($candidateRoot)) {
             continue
@@ -1082,7 +1887,7 @@ function Ensure-TuiHelpersAvailable {
 
     if (Resolve-InstallerMode -eq 'offline' -and (Test-PackageArchiveRequested)) {
         $runtimeRoot = Get-TuiHelperRuntimeRoot
-        $helperFiles = if ($null -ne $manifest -and $manifest.HelperFiles.Count -gt 0) { @($manifest.HelperFiles) } else { @(Get-HelperLeafNames) }
+        $helperFiles = @(Get-HelperLeafNames)
         $archivePath = [string]$PackageArchivePath
 
         if ([string]::IsNullOrWhiteSpace($archivePath)) {
@@ -1096,11 +1901,7 @@ function Ensure-TuiHelpersAvailable {
         $manifestPath = Get-TuiHelperManifestPath -RootPath $runtimeRoot
         $manifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $runtimeRoot
         if ($null -eq $manifest) {
-            $manifest = [ordered]@{
-                CacheKey = (Get-ComputedInstallerHelperCacheKey -HelperDirectory $runtimeRoot -HelperFiles $helperFiles)
-                HelperFiles = $helperFiles
-                HelperFileRecords = @()
-            }
+            throw "Installer helper manifest was not found in package runtime: $manifestPath"
         }
 
         $script:TuiHelperManifest = $manifest
@@ -1212,48 +2013,6 @@ function Get-InstallerSharedModulePaths {
     }
 
     return @($helperPaths)
-}
-function Get-StandaloneInstallerSharedModulePaths {
-    $helperRoots = New-Object System.Collections.Generic.List[string]
-    $resolvedArchitecture = if ([string]::IsNullOrWhiteSpace($Architecture)) { Get-SystemDefaultArchitecture } else { [string]$Architecture }
-    if (-not [string]::IsNullOrWhiteSpace($InstallRoot)) {
-        Add-InstallerHelperRootCandidate -Roots $helperRoots -CandidateRoot (Join-Path (Join-Path $InstallRoot $resolvedArchitecture) 'current\bin\installer')
-    }
-
-    foreach ($candidateRoot in @(Get-InstalledInstallerHelperRoots)) {
-        Add-InstallerHelperRootCandidate -Roots $helperRoots -CandidateRoot $candidateRoot
-    }
-
-    foreach ($candidateRoot in @(Get-LocalInstallerHelperRoots)) {
-        Add-InstallerHelperRootCandidate -Roots $helperRoots -CandidateRoot $candidateRoot
-    }
-
-    $sharedModulePaths = New-Object System.Collections.Generic.List[string]
-    foreach ($helperRoot in $helperRoots) {
-        if ([string]::IsNullOrWhiteSpace($helperRoot) -or -not (Test-Path $helperRoot)) {
-            continue
-        }
-
-        $allPresent = $true
-        foreach ($helperFile in $script:InstallerSharedHelperLeafNames) {
-            $helperPath = Join-Path $helperRoot $helperFile
-            if (-not (Test-Path $helperPath)) {
-                $allPresent = $false
-                break
-            }
-        }
-
-        if (-not $allPresent) {
-            continue
-        }
-
-        foreach ($helperFile in $script:InstallerSharedHelperLeafNames) {
-            $sharedModulePaths.Add((Join-Path $helperRoot $helperFile))
-        }
-        break
-    }
-
-    return @($sharedModulePaths)
 }
 function Import-TuiHelpers {
     $helperRoot = Ensure-TuiHelpersAvailable
@@ -1604,7 +2363,8 @@ function Resolve-PackageSession {
 
     $downloadVersion = Resolve-RequestedReleaseVersion -RequestedVersion $ResolvedVersion
     $downloadDetails = Get-ReleaseAssetDownloadDetails -ResolvedVersion $downloadVersion -ResolvedArchitecture $ResolvedArchitecture
-    $archivePath = Join-Path $workingRootPath ([string]$downloadDetails.AssetName)
+    New-Item -ItemType Directory -Force -Path $sessionRoot | Out-Null
+    $archivePath = Join-Path $sessionRoot ([string]$downloadDetails.AssetName)
     Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath
     $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
@@ -1745,15 +2505,22 @@ function Start-LatestInstallerVersionRefresh {
     $refreshDirectory = Resolve-AbsoluteDirectory -Path (Join-Path $env:TEMP 'wpf-devtools-online-installer\latest-version-refresh')
     $refreshOutputPath = Join-Path $refreshDirectory ("latest-version-" + [Guid]::NewGuid().ToString('N') + '.json')
     $releaseApiUri = Get-GitHubReleaseApiUri -ResolvedVersion 'latest'
+    $escapedReleaseApiUri = ConvertTo-SingleQuotedPowerShellLiteral -Value $releaseApiUri
+    $escapedRefreshOutputPath = ConvertTo-SingleQuotedPowerShellLiteral -Value $refreshOutputPath
     $encodedCommand = ConvertTo-PowerShellEncodedCommand -CommandText @"
 \$ProgressPreference = 'SilentlyContinue'
 try {
-    \$latestVersion = [string](Invoke-RestMethod -Uri '$releaseApiUri' -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
+    \$latestVersion = [string](Invoke-RestMethod -Uri '$escapedReleaseApiUri' -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
     if (-not [string]::IsNullOrWhiteSpace(\$latestVersion)) {
-        [ordered]@{ version = \$latestVersion } | ConvertTo-Json -Depth 3 | Set-Content -Path '$refreshOutputPath' -Encoding UTF8
+        [ordered]@{ version = \$latestVersion; error = \$null; exitCode = 0 } | ConvertTo-Json -Depth 3 | Set-Content -Path '$escapedRefreshOutputPath' -Encoding UTF8
+        exit 0
     }
+    [ordered]@{ version = \$null; error = 'Latest release metadata did not return a tag_name.'; exitCode = 2 } | ConvertTo-Json -Depth 3 | Set-Content -Path '$escapedRefreshOutputPath' -Encoding UTF8
+    exit 2
 }
 catch {
+    [ordered]@{ version = \$null; error = [string]\$_.Exception.Message; exitCode = 1 } | ConvertTo-Json -Depth 3 | Set-Content -Path '$escapedRefreshOutputPath' -Encoding UTF8
+    exit 1
 }
 "@
 
@@ -1780,6 +2547,8 @@ function Receive-LatestInstallerVersionRefresh {
         return [ordered]@{
             IsCompleted = $true
             Version = [string]$RefreshHandle.Version
+            ErrorMessage = $null
+            ExitCode = 0
         }
     }
 
@@ -1788,6 +2557,8 @@ function Receive-LatestInstallerVersionRefresh {
         return [ordered]@{
             IsCompleted = $true
             Version = $null
+            ErrorMessage = $null
+            ExitCode = 0
         }
     }
 
@@ -1795,16 +2566,25 @@ function Receive-LatestInstallerVersionRefresh {
         return [ordered]@{
             IsCompleted = $false
             Version = $null
+            ErrorMessage = $null
+            ExitCode = $null
         }
     }
 
     $resolvedVersion = $null
+    $errorMessage = $null
+    $exitCode = $process.ExitCode
     if (Test-Path ([string]$RefreshHandle.OutputPath)) {
         try {
             $parsed = Get-Content -Path ([string]$RefreshHandle.OutputPath) -Raw | ConvertFrom-Json
             $resolvedVersion = [string]$parsed.version
+            $errorMessage = [string]$parsed.error
+            if ($parsed.PSObject.Properties.Name -contains 'exitCode') {
+                $exitCode = [int]$parsed.exitCode
+            }
         }
         catch {
+            $errorMessage = [string]$_.Exception.Message
         }
 
         Remove-PathIfExists -Path ([string]$RefreshHandle.OutputPath)
@@ -1819,10 +2599,15 @@ function Receive-LatestInstallerVersionRefresh {
     if (-not [string]::IsNullOrWhiteSpace($resolvedVersion)) {
         Save-LatestInstallerVersionCache -VersionValue $resolvedVersion
     }
+    elseif ([string]::IsNullOrWhiteSpace($errorMessage) -and $exitCode -ne 0) {
+        $errorMessage = "Background metadata refresh exited with code $exitCode."
+    }
 
     return [ordered]@{
         IsCompleted = $true
         Version = $resolvedVersion
+        ErrorMessage = $errorMessage
+        ExitCode = $exitCode
     }
 }
 function Stop-LatestInstallerVersionRefresh {
@@ -1880,6 +2665,11 @@ function Test-TuiSupport {
     }
     catch {
         $script:LastTuiBootstrapFailureReason = $_.Exception.Message
+        if (Resolve-InstallerMode -eq 'offline') {
+            Close-TuiBootstrapScreen
+            throw "The installer runtime bundled with this package failed integrity or bootstrap validation. $script:LastTuiBootstrapFailureReason"
+        }
+
         Write-TuiBootstrapScreen 'Preparing installer UI... (fallback)' | Out-Host
         Close-TuiBootstrapScreen
         Write-InstallerMessage 'Installer UI bootstrap failed. Falling back to plain CLI.'
@@ -1966,19 +2756,13 @@ function Invoke-InstallerAction {
     )
 
     Assert-InstallerHelperRuntimeAvailable -ResolvedAction $ResolvedAction
-    $sharedModulePaths = @()
-    $shouldUseStandaloneFallback = $false
-    if ($ResolvedAction -eq 'install') {
-        $sharedModulePaths = @(Get-InstallerSharedModulePaths)
-    }
-    elseif (-not ($NonInteractive -or $OutputJson)) {
-        $sharedModulePaths = @(Get-InstallerSharedModulePaths -AllowMissing)
-        $shouldUseStandaloneFallback = ($sharedModulePaths.Count -eq 0)
+    $sharedModulePaths = if ($ResolvedAction -eq 'install') {
+        @(Get-InstallerSharedModulePaths)
     }
     else {
-        $sharedModulePaths = @(Get-InstallerSharedModulePaths -AllowMissing)
-        $shouldUseStandaloneFallback = ($sharedModulePaths.Count -eq 0)
+        @(Get-InstallerSharedModulePaths -AllowMissing)
     }
+    $shouldUseStandaloneFallback = ($ResolvedAction -ne 'install' -and $sharedModulePaths.Count -eq 0)
 
     foreach ($helperPath in $sharedModulePaths) {
         . $helperPath

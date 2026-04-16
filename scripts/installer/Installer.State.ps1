@@ -1,7 +1,22 @@
+function Resolve-InstallerStateAbsolutePath {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    $resolver = Get-Command Resolve-AbsolutePath -ErrorAction SilentlyContinue
+    if ($null -ne $resolver) {
+        return (Resolve-AbsolutePath -Path $Path)
+    }
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
+}
+
 function Resolve-InstallerStatePath {
     param([switch]$CreateRoot)
 
-    $stateRoot = Resolve-AbsolutePath -Path (Join-Path $env:APPDATA 'WpfDevToolsMcp')
+    $stateRoot = Resolve-InstallerStateAbsolutePath -Path (Join-Path $env:APPDATA 'WpfDevToolsMcp')
     if ($CreateRoot) {
         New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
     }
@@ -14,6 +29,24 @@ function Get-EmptyInstallerState {
         lastInstallRoot = $null
         architectures = [ordered]@{}
         registrations = [ordered]@{}
+    }
+}
+
+function Move-CorruptInstallerStateFile {
+    param([Parameter(Mandatory)] [string]$StatePath)
+
+    if (-not (Test-Path $StatePath)) {
+        return $null
+    }
+
+    $timestamp = [DateTime]::UtcNow.ToString('yyyyMMddHHmmssfff')
+    $corruptPath = "$StatePath.corrupt-$timestamp"
+    try {
+        Move-Item -Path $StatePath -Destination $corruptPath -Force
+        return $corruptPath
+    }
+    catch {
+        return $null
     }
 }
 
@@ -30,7 +63,14 @@ function Get-InstallerState {
         return $state
     }
 
-    $parsed = $raw | ConvertFrom-Json
+    try {
+        $parsed = $raw | ConvertFrom-Json
+    }
+    catch {
+        Move-CorruptInstallerStateFile -StatePath $statePath | Out-Null
+        return $state
+    }
+
     $state.lastInstallRoot = [string]$parsed.lastInstallRoot
 
     if ($null -ne $parsed.architectures) {

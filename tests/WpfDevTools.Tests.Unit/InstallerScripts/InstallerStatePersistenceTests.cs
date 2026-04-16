@@ -51,4 +51,47 @@ public sealed class InstallerStatePersistenceTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    [Fact]
+    public void SharedInstallerStateLoader_ShouldQuarantineMalformedStateAndReturnEmptyState()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var stateDirectory = Path.Combine(appData, "WpfDevToolsMcp");
+            Directory.CreateDirectory(stateDirectory);
+            var statePath = Path.Combine(stateDirectory, "installer-state.json");
+            File.WriteAllText(statePath, "{ this is not valid json", System.Text.Encoding.UTF8);
+
+            var command = string.Join(" ; ",
+            [
+                "$env:APPDATA='" + appData.Replace("'", "''") + "'",
+                ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.State.ps1").Replace("'", "''") + "'",
+                "$state = Get-InstallerState",
+                "@{ State = $state; StateExists = (Test-Path -LiteralPath '" + statePath.Replace("'", "''") + "'); CorruptCount = @((Get-ChildItem -LiteralPath '" + stateDirectory.Replace("'", "''") + "' -Filter 'installer-state.json.corrupt-*' -ErrorAction SilentlyContinue)).Count } | ConvertTo-Json -Depth 5 -Compress"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+
+            using var payload = JsonDocument.Parse(result.Stdout);
+            payload.RootElement.GetProperty("StateExists").GetBoolean().Should().BeFalse(
+                "malformed shared installer state should be quarantined instead of hard-failing future installer flows");
+            payload.RootElement.GetProperty("CorruptCount").GetInt32().Should().Be(1);
+            payload.RootElement.GetProperty("State").GetProperty("lastInstallRoot").ValueKind.Should().Be(JsonValueKind.Null);
+            payload.RootElement.GetProperty("State").GetProperty("architectures").EnumerateObject().Should().BeEmpty();
+            payload.RootElement.GetProperty("State").GetProperty("registrations").EnumerateObject().Should().BeEmpty();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
 }

@@ -24,20 +24,31 @@ internal static class ReleaseScriptTestHarness
             return;
         }
 
-        for (var attempt = 0; attempt < 10; attempt++)
+        static void NormalizeAttributes(string root)
+        {
+            foreach (var entry in Directory.EnumerateFileSystemEntries(root, "*", SearchOption.AllDirectories))
+            {
+                File.SetAttributes(entry, FileAttributes.Normal);
+            }
+
+            File.SetAttributes(root, FileAttributes.Normal);
+        }
+
+        for (var attempt = 0; attempt < 30; attempt++)
         {
             try
             {
+                NormalizeAttributes(path);
                 Directory.Delete(path, recursive: true);
                 return;
             }
-            catch (IOException) when (attempt < 9)
+            catch (IOException) when (attempt < 29)
             {
-                Thread.Sleep(100);
+                Thread.Sleep(200);
             }
-            catch (UnauthorizedAccessException) when (attempt < 9)
+            catch (UnauthorizedAccessException) when (attempt < 29)
             {
-                Thread.Sleep(100);
+                Thread.Sleep(200);
             }
         }
     }
@@ -198,6 +209,11 @@ internal static class ReleaseScriptTestHarness
             }
         }
 
+        if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
+        {
+            startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1";
+        }
+
         return RunProcess(startInfo, timeout);
     }
 
@@ -228,6 +244,11 @@ internal static class ReleaseScriptTestHarness
             {
                 startInfo.Environment[pair.Key] = pair.Value ?? string.Empty;
             }
+        }
+
+        if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
+        {
+            startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1";
         }
 
         return RunProcess(startInfo, timeout);

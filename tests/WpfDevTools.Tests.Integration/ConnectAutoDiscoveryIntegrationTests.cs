@@ -15,10 +15,11 @@ namespace WpfDevTools.Tests.Integration;
 public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
 {
     private static int _syntheticProcessId = 1_500_000_000;
+    private string? _temporaryArtifactsRoot;
     private string? _dummyBootstrapperPath;
 
     [Fact]
-    [Trait("Category", "Integration")]
+    [Trait("Category", "SyntheticIntegration")]
     public async Task ConnectTool_WithoutProcessId_ShouldAutoConnectSingleCandidate()
     {
         EnsureDummyBootstrapperExists();
@@ -41,7 +42,7 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
+    [Trait("Category", "SyntheticIntegration")]
     public async Task ConnectTool_WithoutProcessId_ShouldReturnCandidateListForMultipleProcesses()
     {
         using var sessionManager = new SessionManager();
@@ -64,7 +65,7 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
+    [Trait("Category", "SyntheticIntegration")]
     public async Task ConnectTool_WithLargestWorkingSetStrategy_ShouldAutoSelectLargestCandidate()
     {
         EnsureDummyBootstrapperExists();
@@ -93,7 +94,7 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
+    [Trait("Category", "SyntheticIntegration")]
     public async Task ConnectTool_WithWindowFilterAll_ShouldForwardWindowFilter()
     {
         using var sessionManager = new SessionManager();
@@ -113,9 +114,9 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
 
     public void Dispose()
     {
-        if (_dummyBootstrapperPath != null && File.Exists(_dummyBootstrapperPath))
+        if (!string.IsNullOrWhiteSpace(_temporaryArtifactsRoot) && Directory.Exists(_temporaryArtifactsRoot))
         {
-            try { File.Delete(_dummyBootstrapperPath); } catch { }
+            try { Directory.Delete(_temporaryArtifactsRoot, recursive: true); } catch { }
         }
     }
 
@@ -131,14 +132,17 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
             detector,
             _ => { },
             () => false,
-            workingSetResolver);
+            workingSetResolver,
+            bootstrapperCandidateResolver: _ => string.IsNullOrWhiteSpace(_dummyBootstrapperPath)
+                ? []
+                : [_dummyBootstrapperPath]);
     }
 
     private void EnsureDummyBootstrapperExists()
     {
-        _dummyBootstrapperPath = Path.Combine(
-            AppContext.BaseDirectory,
-            "WpfDevTools.Bootstrapper.x64.dll");
+        _temporaryArtifactsRoot ??= Path.Combine(Path.GetTempPath(), "WpfDevTools_ConnectAutoDiscovery_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_temporaryArtifactsRoot);
+        _dummyBootstrapperPath = Path.Combine(_temporaryArtifactsRoot, "WpfDevTools.Bootstrapper.x64.dll");
         if (!File.Exists(_dummyBootstrapperPath))
         {
             File.WriteAllBytes(_dummyBootstrapperPath, Array.Empty<byte>());

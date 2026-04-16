@@ -47,6 +47,35 @@ function Get-AvailableInstallerUpdates {
         if ($resolvedVersion -ne $LatestVersion) {
             $installRoot = if ($registration.Contains('InstallRoot')) { [string]$registration.InstallRoot } else { [string]$registration.installRoot }
             $architecture = if ($registration.Contains('Architecture')) { [string]$registration.Architecture } else { [string]$registration.architecture }
+            $installerOwned = if ($registration.Contains('InstallerOwned')) {
+                [bool]$registration.InstallerOwned
+            }
+            elseif ($registration.Contains('installerOwned')) {
+                [bool]$registration.installerOwned
+            }
+            else {
+                $false
+            }
+
+            if (-not $installerOwned) {
+                $installedExecutable = if ($registration.Contains('InstalledExecutable')) { [string]$registration.InstalledExecutable } else { [string]$registration.installedExecutable }
+                if (-not [string]::IsNullOrWhiteSpace($installedExecutable) -and $null -ne (Get-Command 'Resolve-InstallerOwnershipFromExecutable' -CommandType Function -ErrorAction SilentlyContinue)) {
+                    $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+                    $installerOwned = [bool]$ownership.InstallerOwned
+                    if ([string]::IsNullOrWhiteSpace($installRoot)) {
+                        $installRoot = [string]$ownership.InstallRoot
+                    }
+
+                    if ([string]::IsNullOrWhiteSpace($architecture)) {
+                        $architecture = [string]$ownership.Architecture
+                    }
+                }
+            }
+
+            if (-not $installerOwned) {
+                continue
+            }
+
             if ([string]::IsNullOrWhiteSpace($installRoot) -or [string]::IsNullOrWhiteSpace($architecture)) {
                 continue
             }
@@ -119,6 +148,59 @@ function Test-JsonConfigRegistrationMatchesExecutable {
     }
 
     return (Test-InstallerPathEqualsCore -Left ([string]$servers['wpf-devtools'].command) -Right $InstalledExecutable)
+}
+
+function Get-JsonUninstallVerificationConfigPaths {
+    param(
+        [Parameter(Mandatory)] [string]$SelectedClient,
+        $RegistrationRecord
+    )
+
+    $paths = New-Object System.Collections.Generic.List[string]
+    $recordedTarget = Get-TrustedRecordedRegistrationTarget -ClientBaseId $SelectedClient -RegistrationRecord $RegistrationRecord
+    if (-not [string]::IsNullOrWhiteSpace($recordedTarget)) {
+        $paths.Add($recordedTarget)
+    }
+
+    $manifestTarget = Get-TrustedManagedJsonRegistrationTarget -ClientBaseId $SelectedClient -RegistrationRecord $RegistrationRecord
+    if (-not [string]::IsNullOrWhiteSpace($manifestTarget)) {
+        $alreadyAdded = $false
+        foreach ($existingPath in $paths) {
+            if (Test-InstallerPathEqualsCore -Left $existingPath -Right $manifestTarget) {
+                $alreadyAdded = $true
+                break
+            }
+        }
+
+        if (-not $alreadyAdded) {
+            $paths.Add($manifestTarget)
+        }
+    }
+
+    foreach ($candidatePath in @(switch ($SelectedClient) {
+            'vscode' { @(Resolve-VsCodeConfigPath); break }
+            'visual-studio' { @(Resolve-VisualStudioConfigPath); break }
+            'claude-desktop' { @(Resolve-ClaudeDesktopConfigPath); break }
+            default { @() }
+        })) {
+        if ([string]::IsNullOrWhiteSpace($candidatePath)) {
+            continue
+        }
+
+        $alreadyAdded = $false
+        foreach ($existingPath in $paths) {
+            if (Test-InstallerPathEqualsCore -Left $existingPath -Right $candidatePath) {
+                $alreadyAdded = $true
+                break
+            }
+        }
+
+        if (-not $alreadyAdded) {
+            $paths.Add($candidatePath)
+        }
+    }
+
+    return @($paths.ToArray())
 }
 
 function Test-ArtifactRegistrationMatchesExecutable {
@@ -460,6 +542,7 @@ function Invoke-UninstallVerification {
     )
 
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
+    $recordedTarget = Get-TrustedRecordedRegistrationTarget -ClientBaseId $clientBaseId -RegistrationRecord $RegistrationRecord
     $verificationSucceeded = switch ($clientBaseId) {
         'claude-code' {
             (Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
@@ -477,9 +560,44 @@ function Invoke-UninstallVerification {
                 }).Count -eq 0
             break
         }
-        'vscode' { -not (Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath (Resolve-VsCodeConfigPath)); break }
-        'visual-studio' { -not (Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath)); break }
-        'claude-desktop' { -not (Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath (Resolve-ClaudeDesktopConfigPath)); break }
+        'vscode' {
+            @(
+                Get-JsonUninstallVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
+            ).Where({
+                    Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath $_
+                }).Count -eq 0
+            break
+        }
+        'visual-studio' {
+            @(
+                Get-JsonUninstallVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
+            ).Where({
+                    Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath $_
+                }).Count -eq 0
+            break
+        }
+        'claude-desktop' {
+            @(
+                Get-JsonUninstallVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
+            ).Where({
+                    Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $_
+                }).Count -eq 0
+            break
+        }
+        'other' {
+            $targetPath = $recordedTarget
+            if ([string]::IsNullOrWhiteSpace($targetPath)) {
+                $targetPath = Resolve-TrustedOtherRegistrationArtifactPath -RegistrationRecord $RegistrationRecord
+            }
+
+            if ([string]::IsNullOrWhiteSpace($targetPath)) {
+                $true
+            }
+            else {
+                -not (Test-Path $targetPath)
+            }
+            break
+        }
         default { $true }
     }
 

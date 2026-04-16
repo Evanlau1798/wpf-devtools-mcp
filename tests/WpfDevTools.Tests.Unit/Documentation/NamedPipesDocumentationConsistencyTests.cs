@@ -12,7 +12,7 @@ public class NamedPipesDocumentationConsistencyTests
     [InlineData("docs/checklist.md")]
     public void Documentation_ShouldDescribeCurrentByteModeImplementation(string relativePath)
     {
-        var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePathAcrossKnownRoots(relativePath));
+        var content = File.ReadAllText(TestRepositoryPaths.GetPrimaryRepoFilePath(relativePath));
 
         content.Should().ContainEquivalentOf("byte",
             $"{relativePath} should describe the current byte-mode Named Pipe implementation used by InspectorHost");

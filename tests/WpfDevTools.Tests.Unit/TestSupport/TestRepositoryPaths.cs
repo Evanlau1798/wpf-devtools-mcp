@@ -10,8 +10,8 @@ internal static class TestRepositoryPaths
     public static string GetRepoFilePath(string relativePath)
         => ResolveFromBaseDirectory(AppContext.BaseDirectory, relativePath);
 
-    public static string GetRepoFilePathAcrossKnownRoots(string relativePath)
-        => ResolveFromKnownRoots(AppContext.BaseDirectory, relativePath);
+    public static string GetPrimaryRepoFilePath(string relativePath)
+        => ResolveFromPrimaryRoot(AppContext.BaseDirectory, relativePath);
 
     internal static string ResolveFromBaseDirectory(string baseDirectory, string relativePath)
     {
@@ -22,7 +22,7 @@ internal static class TestRepositoryPaths
         return Path.GetFullPath(Path.Combine(repoRoot, relativePath));
     }
 
-    internal static string ResolveFromKnownRoots(string baseDirectory, string relativePath)
+    internal static string ResolveFromPrimaryRoot(string baseDirectory, string relativePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(baseDirectory);
         ArgumentNullException.ThrowIfNull(relativePath);
@@ -31,17 +31,15 @@ internal static class TestRepositoryPaths
         roots.Should().NotBeEmpty(
             $"at least one solution root should be discoverable from '{baseDirectory}' when resolving '{relativePath}'");
 
-        foreach (var root in roots)
+        var primaryRoot = roots[^1];
+        var candidate = Path.GetFullPath(Path.Combine(primaryRoot, relativePath));
+        if (File.Exists(candidate))
         {
-            var candidate = Path.GetFullPath(Path.Combine(root, relativePath));
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
+            return candidate;
         }
 
         throw new FileNotFoundException(
-            $"Could not locate repository file '{relativePath}' in the known solution roots: {string.Join(", ", roots)}.");
+            $"Could not locate repository file '{relativePath}' under the explicit primary solution root '{primaryRoot}'.");
     }
 
     internal static string ResolveRepoRoot(string baseDirectory)

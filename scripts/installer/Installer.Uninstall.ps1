@@ -59,7 +59,7 @@ function Invoke-InstallerFullUninstallCore {
             }
 
             $results = @(Invoke-ClientUnregistration -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration)
-            $unregistrationOperations += [ordered]@{
+            $unregistrationOperations += [pscustomobject][ordered]@{
                 ClientId = [string]$registration.ClientId
                 RegistrationRecord = $registration
                 Registrations = @($results)
@@ -502,7 +502,7 @@ function Invoke-StandaloneFullUninstall {
     foreach ($registration in $detectedRegistrations) {
         $results = @(Invoke-ClientUnregistration -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration)
         $unregistrationResults += @($results)
-        $unregistrationOperations += [ordered]@{
+        $unregistrationOperations += [pscustomobject][ordered]@{
             ClientId = [string]$registration.ClientId
             Registrations = @($results)
         }

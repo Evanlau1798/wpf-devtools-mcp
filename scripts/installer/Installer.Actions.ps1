@@ -498,7 +498,7 @@ function Invoke-InstallerActionCore {
         $registrations = @()
         try {
             $registrations = @(Invoke-ClientUnregistration -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord)
-            $verification = Invoke-UninstallVerification -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord
+            $verification = Invoke-UninstallVerification -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord -RegistrationChanges $registrations
             if (-not $verification.Succeeded) {
                 throw $verification.VerificationMessage
             }

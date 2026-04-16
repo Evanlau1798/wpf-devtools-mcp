@@ -157,46 +157,61 @@ function Get-JsonUninstallVerificationConfigPaths {
     )
 
     $paths = New-Object System.Collections.Generic.List[string]
+    $evidenceSource = if ($RegistrationRecord.Contains('EvidenceSource')) {
+        [string]$RegistrationRecord.EvidenceSource
+    }
+    else {
+        [string]$RegistrationRecord.evidenceSource
+    }
+    $installerOwned = if ($RegistrationRecord.Contains('InstallerOwned')) {
+        [bool]$RegistrationRecord.InstallerOwned
+    }
+    else {
+        [bool]$RegistrationRecord.installerOwned
+    }
+    $detectedTarget = if ($RegistrationRecord.Contains('RegistrationTarget')) {
+        [string]$RegistrationRecord.RegistrationTarget
+    }
+    else {
+        [string]$RegistrationRecord.target
+    }
+
+    if ($installerOwned -and -not [string]::IsNullOrWhiteSpace($detectedTarget) -and -not [string]::Equals($evidenceSource, 'state', [System.StringComparison]::OrdinalIgnoreCase)) {
+        Add-TrustedRegistrationTargetCandidate -Targets $paths -Candidate $detectedTarget
+    }
+
     $recordedTarget = Get-TrustedRecordedRegistrationTarget -ClientBaseId $SelectedClient -RegistrationRecord $RegistrationRecord
     if (-not [string]::IsNullOrWhiteSpace($recordedTarget)) {
-        $paths.Add($recordedTarget)
+        Add-TrustedRegistrationTargetCandidate -Targets $paths -Candidate $recordedTarget
     }
 
     $manifestTarget = Get-TrustedManagedJsonRegistrationTarget -ClientBaseId $SelectedClient -RegistrationRecord $RegistrationRecord
     if (-not [string]::IsNullOrWhiteSpace($manifestTarget)) {
-        $alreadyAdded = $false
-        foreach ($existingPath in $paths) {
-            if (Test-InstallerPathEqualsCore -Left $existingPath -Right $manifestTarget) {
-                $alreadyAdded = $true
-                break
-            }
-        }
-
-        if (-not $alreadyAdded) {
-            $paths.Add($manifestTarget)
-        }
+        Add-TrustedRegistrationTargetCandidate -Targets $paths -Candidate $manifestTarget
     }
 
-    foreach ($candidatePath in @(switch ($SelectedClient) {
-            'vscode' { @(Resolve-VsCodeConfigPath); break }
-            'visual-studio' { @(Resolve-VisualStudioConfigPath); break }
-            'claude-desktop' { @(Resolve-ClaudeDesktopConfigPath); break }
-            default { @() }
-        })) {
-        if ([string]::IsNullOrWhiteSpace($candidatePath)) {
-            continue
-        }
-
-        $alreadyAdded = $false
-        foreach ($existingPath in $paths) {
-            if (Test-InstallerPathEqualsCore -Left $existingPath -Right $candidatePath) {
-                $alreadyAdded = $true
-                break
+    if ($paths.Count -eq 0) {
+        foreach ($candidatePath in @(switch ($SelectedClient) {
+                'vscode' { @(Resolve-VsCodeConfigPath); break }
+                'visual-studio' { @(Resolve-VisualStudioConfigPath); break }
+                'claude-desktop' { @(Resolve-ClaudeDesktopConfigPath); break }
+                default { @() }
+            })) {
+            if ([string]::IsNullOrWhiteSpace($candidatePath)) {
+                continue
             }
-        }
 
-        if (-not $alreadyAdded) {
-            $paths.Add($candidatePath)
+            $alreadyAdded = $false
+            foreach ($existingPath in $paths) {
+                if (Test-InstallerPathEqualsCore -Left $existingPath -Right $candidatePath) {
+                    $alreadyAdded = $true
+                    break
+                }
+            }
+
+            if (-not $alreadyAdded) {
+                $paths.Add($candidatePath)
+            }
         }
     }
 
@@ -538,11 +553,31 @@ function Invoke-InstallVerification {
 function Invoke-UninstallVerification {
     param(
         [Parameter(Mandatory)] [string]$SelectedClient,
-        $RegistrationRecord
+        $RegistrationRecord,
+        $RegistrationChanges = @()
     )
 
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
     $recordedTarget = Get-TrustedRecordedRegistrationTarget -ClientBaseId $clientBaseId -RegistrationRecord $RegistrationRecord
+    $registrationTargets = New-Object System.Collections.Generic.List[string]
+    foreach ($registrationChange in @($RegistrationChanges)) {
+        if ($null -eq $registrationChange) {
+            continue
+        }
+
+        $changeClient = if ($registrationChange.Contains('client')) { [string]$registrationChange.client } else { [string]$registrationChange.Client }
+        if (-not [string]::IsNullOrWhiteSpace($changeClient) -and -not [string]::Equals($changeClient, $clientBaseId, [System.StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
+
+        $changeTarget = if ($registrationChange.Contains('target')) { [string]$registrationChange.target } else { [string]$registrationChange.Target }
+        if ([string]::IsNullOrWhiteSpace($changeTarget)) {
+            continue
+        }
+
+        Add-TrustedRegistrationTargetCandidate -Targets $registrationTargets -Candidate $changeTarget
+    }
+
     $verificationSucceeded = switch ($clientBaseId) {
         'claude-code' {
             (Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
@@ -561,25 +596,22 @@ function Invoke-UninstallVerification {
             break
         }
         'vscode' {
-            @(
-                Get-JsonUninstallVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
-            ).Where({
+            $verificationTargets = if ($registrationTargets.Count -gt 0) { @($registrationTargets.ToArray()) } else { @(Get-JsonUninstallVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord) }
+            @($verificationTargets).Where({
                     Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath $_
                 }).Count -eq 0
             break
         }
         'visual-studio' {
-            @(
-                Get-JsonUninstallVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
-            ).Where({
+            $verificationTargets = if ($registrationTargets.Count -gt 0) { @($registrationTargets.ToArray()) } else { @(Get-JsonUninstallVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord) }
+            @($verificationTargets).Where({
                     Test-JsonConfigRegistration -CollectionName 'servers' -ConfigPath $_
                 }).Count -eq 0
             break
         }
         'claude-desktop' {
-            @(
-                Get-JsonUninstallVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord
-            ).Where({
+            $verificationTargets = if ($registrationTargets.Count -gt 0) { @($registrationTargets.ToArray()) } else { @(Get-JsonUninstallVerificationConfigPaths -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord) }
+            @($verificationTargets).Where({
                     Test-JsonConfigRegistration -CollectionName 'mcpServers' -ConfigPath $_
                 }).Count -eq 0
             break

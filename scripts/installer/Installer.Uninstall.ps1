@@ -69,7 +69,8 @@ function Invoke-InstallerFullUninstallCore {
 
         $verificationFailures = @()
         foreach ($registration in $detectedRegistrations) {
-            $verification = Invoke-UninstallVerification -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration
+            $registrationChanges = @($unregistrationOperations | Where-Object { [string]$_.ClientId -eq [string]$registration.ClientId } | Select-Object -ExpandProperty Registrations)
+            $verification = Invoke-UninstallVerification -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration -RegistrationChanges $registrationChanges
             if (-not $verification.Succeeded) {
                 $verificationFailures += [string]$verification.VerificationMessage
             }
@@ -496,14 +497,21 @@ function Invoke-StandaloneFullUninstall {
     $detectedRegistrations = @(Get-StandaloneDetectedInstallerRegistrations -State $State)
     $detectedInstallations = @(Get-StandaloneDetectedInstallerInstallations -State $State)
     $unregistrationResults = @()
+    $unregistrationOperations = @()
 
     foreach ($registration in $detectedRegistrations) {
-        $unregistrationResults += @(Invoke-ClientUnregistration -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration)
+        $results = @(Invoke-ClientUnregistration -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration)
+        $unregistrationResults += @($results)
+        $unregistrationOperations += [ordered]@{
+            ClientId = [string]$registration.ClientId
+            Registrations = @($results)
+        }
     }
 
     $verificationFailures = @()
     foreach ($registration in $detectedRegistrations) {
-        $verification = Invoke-UninstallVerification -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration
+        $registrationChanges = @($unregistrationOperations | Where-Object { [string]$_.ClientId -eq [string]$registration.ClientId } | Select-Object -ExpandProperty Registrations)
+        $verification = Invoke-UninstallVerification -SelectedClient ([string]$registration.ClientId) -RegistrationRecord $registration -RegistrationChanges $registrationChanges
         if (-not $verification.Succeeded) {
             $verificationFailures += [string]$verification.VerificationMessage
         }

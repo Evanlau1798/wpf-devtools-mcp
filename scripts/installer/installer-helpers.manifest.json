@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "cacheKey":  "sha256:a2dbbc84d49977baa93ea8d85fd3ac6f5f73f38c5c31ab786941cfb6bc9943a7",
+    "cacheKey":  "sha256:8f5e702081f045c9e7ef3f413ef1cfe32562a12e595dce6f499078ba46697502",
     "helperFiles":  [
                         {
                             "path":  "Installer.BootstrapUi.ps1",
@@ -89,8 +89,8 @@
                         },
                         {
                             "path":  "Installer.Uninstall.ps1",
-                            "sha256":  "b89a7c8d10b9452774565aa35d6b69ab1fbda009159d8bd02119c390841a45f2",
-                            "sizeBytes":  24557
+                            "sha256":  "9a0eae1b8d135108fd36605d5c6d2bb946c2cd6dec147820ab8a784d15a6870d",
+                            "sizeBytes":  25225
                         },
                         {
                             "path":  "Installer.Release.ps1",
@@ -109,18 +109,18 @@
                         },
                         {
                             "path":  "Installer.Registration.ps1",
-                            "sha256":  "6f32c6574b88910b1b979bf431a2dce7087872723e52935a5b8717535458d5d6",
-                            "sizeBytes":  29469
+                            "sha256":  "ef66751b99a6374f9b50d2045ab41e1c15c6c18608ab55647defa10dc6318841",
+                            "sizeBytes":  30067
                         },
                         {
                             "path":  "Installer.Verification.ps1",
-                            "sha256":  "db6524f2c98da411df0a4f6589be15258b23d8fa408bbf9d2c4125850f0fb381",
-                            "sizeBytes":  22947
+                            "sha256":  "c9d9fcd9636970292cda1d2e4ff647c0b1d9085772709aaa031c789c3fc345eb",
+                            "sizeBytes":  25048
                         },
                         {
                             "path":  "Installer.Actions.ps1",
-                            "sha256":  "6012baa68e463fd77e37fe779a5f90aa83eafc2d697864747809a00bfcdea9d2",
-                            "sizeBytes":  28344
+                            "sha256":  "6921217e8daaec265ddb2c121a08fb45ab3c3c18d13857816826b6829cfffc51",
+                            "sizeBytes":  28380
                         }
                     ]
 }

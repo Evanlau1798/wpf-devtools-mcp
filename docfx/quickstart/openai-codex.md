@@ -24,7 +24,7 @@ Example:
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex -NonInteractive -Force -OutputJson
 ```
 
-After installation, the default executable path is:
+If the installer cannot reuse a previous live install root and you do not pass `-InstallRoot`, the fallback executable path is:
 
 ```text
 %APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe

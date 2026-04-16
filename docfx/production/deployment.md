@@ -10,7 +10,7 @@ Installer and packaging behavior are defined in `scripts/`, not in the documenta
 
 - [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
 - [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
-- [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- [scripts/installer/Installer.Actions.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Actions.ps1)
 
 ## Recommended install modes
 
@@ -22,29 +22,45 @@ Installer and packaging behavior are defined in `scripts/`, not in the documenta
 
 ### Script-driven install
 
-Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) first. Then choose either remote or local execution.
+Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) first. Then choose either a published-release bootstrap or local execution.
 
 Remote example:
 
 ```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
 ```
 
 Client-specific remote example:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Local example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ## Remote script execution is optional
 
-Any remote `irm | iex` flow is optional. Review the repository source first and treat the script in `scripts/` as the authoritative implementation.
+Any remote bootstrap flow is optional. Review the repository source first and treat the script in `scripts/` as the authoritative implementation.
 
 ## Release layout matters
 
@@ -54,11 +70,13 @@ See [Release Layout](release-layout.md) for the exact folder contract.
 
 ## Installed executable contract
 
-The MCP client should launch the installed `wpf-devtools-x64.exe`, for example:
+The MCP client should launch the resolved installed `wpf-devtools-<arch>.exe` under the chosen install root, for example:
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
+<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
+
+If you do not pass `-InstallRoot`, the installer first reuses the last live install root when possible. Only when no reusable install root exists does it fall back to `%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe`.
 
 ## Production checklist
 

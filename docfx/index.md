@@ -10,7 +10,7 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
 - Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
 - Release packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
-- Installed-layout source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Installed-layout sources: [scripts/installer/Installer.Actions.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Actions.ps1), [scripts/installer/Installer.Registration.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Registration.ps1)
 
 `scripts/` is the canonical source of truth for installer and release behavior. This DocFX site documents those scripts; it does not define them.
 
@@ -23,13 +23,29 @@ Review the canonical source first: [scripts/online-installer.ps1](https://github
 Default one-line install:
 
 ```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
 ```
 
 Client-specific example:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### Manual release package path

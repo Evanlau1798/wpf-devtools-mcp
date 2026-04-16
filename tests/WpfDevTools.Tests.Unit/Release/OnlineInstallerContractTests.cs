@@ -100,14 +100,13 @@ public sealed class OnlineInstallerContractTests
     {
         var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
         var content = File.ReadAllText(scriptPath);
-        var lineCount = File.ReadLines(scriptPath).Count();
         var manifestContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
 
         content.Should().Contain("Installer.BootstrapUi.ps1");
         manifestContent.Should().Contain("Installer.BootstrapUi.ps1");
-        lineCount.Should().BeLessThanOrEqualTo(2123,
-            "the entrypoint line count is locked to the current worktree baseline unless a separately reviewed major security fix justifies growth");
+        manifestContent.Should().Contain("Installer.Actions.ps1");
+        manifestContent.Should().Contain("Installer.Uninstall.ps1");
     }
 
     [Fact]

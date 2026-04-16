@@ -24,7 +24,7 @@ irm https://claude.ai/install.ps1 | iex
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
-安裝後的預設 executable 路徑是：
+如果 installer 不能重用先前仍有效的 live install root，且你也沒有傳入 `-InstallRoot`，回退用的 executable 路徑會是：
 
 ```text
 %APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
@@ -60,8 +60,8 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 
 ## 6. 在 Claude Code 內做 discovery
 
-- prompts 會以 `/mcp__wpf-devtools__connect_and_list_windows` 這類 slash commands 形式出現。
-- resources 會以 `@wpf-devtools:capabilities` 與 `@wpf-devtools:limitations/elevated-targets` 這類引用形式出現。
+- prompts 可能會以 `/mcp__wpf-devtools__connect_and_list_windows` 這類 slash commands 形式出現，但可攜的契約仍然是 prompt 名稱本身。
+- resources 可能會以 `@wpf-devtools:capabilities` 與 `@wpf-devtools:limitations/elevated-targets` 這類引用形式出現，但可攜的契約仍然是 resource URI。
 - 當 Claude Code 知道 server 已存在，但不容易挑到正確工具時，這些入口會比自由敘述更穩定。
 
 ## 注意事項

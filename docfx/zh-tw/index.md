@@ -10,7 +10,7 @@ WPF DevTools MCP Server 是一個只支援 Windows 的 Model Context Protocol �
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
 - Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
 - Release packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
-- Installed-layout source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Installed-layout sources: [scripts/installer/Installer.Actions.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Actions.ps1), [scripts/installer/Installer.Registration.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Registration.ps1)
 
 `scripts/` 是安裝與 release 行為的唯一真源。這個 DocFX 站台只負責說明，不定義腳本本身。
 
@@ -23,13 +23,29 @@ WPF DevTools MCP Server 是一個只支援 Windows 的 Model Context Protocol �
 預設一鍵安裝：
 
 ```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
 ```
 
 指定 client 的範例：
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### 手動 release package 路徑

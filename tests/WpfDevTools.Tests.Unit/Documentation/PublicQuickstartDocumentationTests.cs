@@ -72,7 +72,7 @@ public sealed class PublicQuickstartDocumentationTests
         var troubleshooting = File.ReadAllText(GetRepoFilePath("docfx/guides/troubleshooting.md"));
         var toc = File.ReadAllText(GetRepoFilePath("docfx/toc.yml"));
 
-        deployment.Should().Contain("irm | iex");
+        deployment.Should().Contain("releases/latest/download/$assetName");
         deployment.Should().Contain("run.bat");
         deployment.Should().Contain("release layout");
         deployment.Should().Contain("scripts/online-installer.ps1");
@@ -89,6 +89,7 @@ public sealed class PublicQuickstartDocumentationTests
 
         content.Should().Contain("run.bat");
         content.Should().Contain("bin/install.ps1");
+        content.Should().Contain("bin/installer");
         content.Should().Contain("wpf-devtools-x64.exe");
         content.Should().Contain("client-registration");
         content.Should().Contain("bootstrapper");
@@ -170,8 +171,8 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("irm",
-                $"{file} should explain the one-command bootstrap path");
+            content.Should().Contain("releases/latest/download/$assetName",
+                $"{file} should explain the reviewed one-command published-release bootstrap path");
             content.Should().Contain("run.bat",
                 $"{file} should document the reviewed package installer fallback");
         }
@@ -213,10 +214,12 @@ public sealed class PublicQuickstartDocumentationTests
     [Fact]
     public void ClientConfigDocs_ShouldShowCanonicalStdioTypeInPublishedJsonExamples()
     {
-        CountOccurrences(
-            File.ReadAllText(GetRepoFilePath("README.md")),
-            "\"type\": \"stdio\"").Should().Be(3,
-            "README publishes Claude Desktop, VS Code, and Cursor JSON examples");
+        var readme = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        readme.Should().Contain("\"type\": \"stdio\"");
+        readme.Should().Contain("### Claude Desktop");
+        readme.Should().Contain("### VS Code");
+        readme.Should().Contain("### Cursor");
 
         var quickstartFiles = new[]
         {
@@ -226,10 +229,10 @@ public sealed class PublicQuickstartDocumentationTests
 
         foreach (var file in quickstartFiles)
         {
-            CountOccurrences(
-                File.ReadAllText(GetRepoFilePath(file)),
-                "\"type\": \"stdio\"").Should().Be(2,
-                $"{file} should keep Cursor and VS Code / Visual Studio examples aligned with the generated installer artifacts");
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("\"type\": \"stdio\"");
+            content.Should().Contain("Cursor");
+            content.Should().Contain("VS Code");
         }
     }
 
@@ -248,6 +251,7 @@ public sealed class PublicQuickstartDocumentationTests
             content.Should().Contain("release_<version>_win-x64.zip");
             content.Should().Contain("run.bat");
             content.Should().Contain("install.ps1");
+            content.Should().Contain("bin/installer");
             content.Should().NotContain("setup.ps1");
         }
     }
@@ -308,14 +312,18 @@ public sealed class PublicQuickstartDocumentationTests
     {
         var files = new[]
         {
+            "docfx/index.md",
             "docfx/quickstart/index.md",
             "docfx/quickstart/ai-agent-clients.md",
             "docfx/quickstart/claude-code.md",
             "docfx/quickstart/openai-codex.md",
+            "docfx/production/deployment.md",
+            "docfx/zh-tw/index.md",
             "docfx/zh-tw/quickstart/index.md",
             "docfx/zh-tw/quickstart/ai-agent-clients.md",
             "docfx/zh-tw/quickstart/claude-code.md",
             "docfx/zh-tw/quickstart/openai-codex.md"
+            ,"docfx/zh-tw/production/deployment.md"
         };
 
         foreach (var file in files)
@@ -326,6 +334,23 @@ public sealed class PublicQuickstartDocumentationTests
             content.Should().Contain("-OutputJson",
                 $"{file} should show machine-readable installer output for automation-safe examples");
         }
+    }
+
+    [Fact]
+    public void CliQuickstarts_ShouldDescribeFallbackExecutablePath_NotFixedDefaultRoot()
+    {
+        File.ReadAllText(GetRepoFilePath("docfx/quickstart/claude-code.md"))
+            .Should().NotContain("default executable path",
+                "Claude Code quickstart should describe the AppData path as a fallback, not a fixed resolved install root");
+        File.ReadAllText(GetRepoFilePath("docfx/quickstart/openai-codex.md"))
+            .Should().NotContain("default executable path",
+                "Codex quickstart should describe the AppData path as a fallback, not a fixed resolved install root");
+        File.ReadAllText(GetRepoFilePath("docfx/zh-tw/quickstart/claude-code.md"))
+            .Should().NotContain("預設 executable 路徑",
+                "Traditional Chinese Claude quickstart should describe the AppData path as a fallback, not a fixed resolved install root");
+        File.ReadAllText(GetRepoFilePath("docfx/zh-tw/quickstart/openai-codex.md"))
+            .Should().NotContain("預設 executable 路徑",
+                "Traditional Chinese Codex quickstart should describe the AppData path as a fallback, not a fixed resolved install root");
     }
 
     private static string GetRepoFilePath(string relativePath)

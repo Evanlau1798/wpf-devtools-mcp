@@ -24,7 +24,7 @@ npm install -g @openai/codex
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex -NonInteractive -Force -OutputJson
 ```
 
-安裝後的預設 executable 路徑是：
+如果 installer 不能重用先前仍有效的 live install root，且你也沒有傳入 `-InstallRoot`，回退用的 executable 路徑會是：
 
 ```text
 %APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
@@ -45,6 +45,8 @@ codex mcp list
 ```
 
 ## 5. 第一個實用 prompt
+
+以下保留英文，是為了方便直接貼給 client：
 
 ```text
 Connect to the running WPF app, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").

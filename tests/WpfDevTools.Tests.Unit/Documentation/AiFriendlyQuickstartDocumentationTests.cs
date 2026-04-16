@@ -88,11 +88,39 @@ public sealed class AiFriendlyQuickstartDocumentationTests
         englishGuide.Should().Contain("when to use");
         englishGuide.Should().Contain("when not to use");
 
-        traditionalChineseGuide.Should().Contain("runtime validation",
-            "the Traditional Chinese AI guide should preserve the same explicit validation guidance");
-        traditionalChineseGuide.Should().Contain("tool descriptions");
-        traditionalChineseGuide.Should().Contain("when to use");
-        traditionalChineseGuide.Should().Contain("when not to use");
+        traditionalChineseGuide.Should().Contain("執行期驗證",
+            "the Traditional Chinese AI guide should preserve the same explicit validation guidance with localized wording");
+        traditionalChineseGuide.Should().Contain("工具描述");
+        traditionalChineseGuide.Should().Contain("適用時機");
+        traditionalChineseGuide.Should().Contain("不適用時機");
+    }
+
+    [Fact]
+    public void PublicInstallerEntrypoints_ShouldBootstrapFromPublishedReleases_NotRawMasterScript()
+    {
+        var files = new[]
+        {
+            "docfx/index.md",
+            "docfx/quickstart/index.md",
+            "docfx/quickstart/ai-agent-clients.md",
+            "docfx/production/deployment.md",
+            "docfx/zh-tw/index.md",
+            "docfx/zh-tw/quickstart/index.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md",
+            "docfx/zh-tw/production/deployment.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+
+            content.Should().NotContain("raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1",
+                $"{file} should not tell users to execute the moving master branch installer directly");
+            content.Should().Contain("releases/latest/download/$assetName",
+                $"{file} should keep public bootstrap examples aligned with published release packages");
+            content.Should().Contain("bin\\install.ps1",
+                $"{file} should run the packaged installer from the same release that supplied the archive");
+        }
     }
 
     private static string GetRepoFilePath(string relativePath)

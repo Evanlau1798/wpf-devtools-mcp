@@ -39,25 +39,38 @@ release_<version>_win-x64/
     bootstrapper/
       x64/
         WpfDevTools.Bootstrapper.x64.dll
+    installer/
+      installer-helpers.manifest.json
+      Installer.Actions.ps1
+      Installer.Uninstall.ps1
+      Tui.Flow.ps1
+      ...
 ```
 
 ## 安裝後目錄結構
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\
+<InstallRoot>\<arch>\
   current/
     bin/
       manifest.json
-      wpf-devtools-x64.exe
+      wpf-devtools-<arch>.exe
       WpfDevTools.Mcp.Server.dll
       WpfDevTools.Injector.dll
       WpfDevTools.Shared.dll
       inspectors/
       bootstrapper/
+      installer/
+        installer-helpers.manifest.json
+        Installer.Actions.ps1
+        Installer.Uninstall.ps1
+        Tui.Flow.ps1
   client-registration/
     claude-code.txt
     codex.txt
     claude-desktop.json
+    cursor.global.json
+    cursor.project.json
     vscode.json
     visual-studio.json
     other.mcpServers.json
@@ -66,8 +79,10 @@ release_<version>_win-x64/
 
 ## 契約說明
 
-- MCP client 應註冊 `bin/wpf-devtools-x64.exe`。
+- MCP client 應註冊 `bin/wpf-devtools-<arch>.exe`。
 - `bin/inspectors` 與 `bin/bootstrapper` 是 sidecar 目錄，必須與安裝後的 server 內容保持相對位置。
+- `bin/installer` 是經過完整性驗證的 helper bundle，供 packaged installer 與 standalone recovery flow 使用，必須與封裝或安裝後的 server 內容保持相對位置。
 - `run.bat` 是 package root 的使用者入口，適合不想直接執行 PowerShell 的使用者。
 - `bin/install.ps1` 是 canonical GUI-first installer 腳本在 package 內的複本。
 - `client-registration` 會在安裝時產生，並作為 AI client setup 的公開 copy-paste 來源。
+- 若省略 `-InstallRoot`，installer 會優先重用最後一個仍可存取的 live install root；只有沒有可重用途徑時，才會使用 `%APPDATA%\WpfDevToolsMcp` 作為回退根目錄。

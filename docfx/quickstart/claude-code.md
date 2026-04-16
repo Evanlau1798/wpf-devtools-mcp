@@ -24,7 +24,7 @@ Example:
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
-After installation, the default executable path is:
+If the installer cannot reuse a previous live install root and you do not pass `-InstallRoot`, the fallback executable path is:
 
 ```text
 %APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
@@ -60,8 +60,8 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 
 ## 6. Discovery entry points inside Claude Code
 
-- Prompts appear as slash commands such as `/mcp__wpf-devtools__connect_and_list_windows`.
-- Resources appear as `@wpf-devtools:capabilities` and `@wpf-devtools:limitations/elevated-targets`.
+- Prompts may appear as slash commands such as `/mcp__wpf-devtools__connect_and_list_windows`, but the portable contract is the prompt name itself.
+- Resources may appear as `@wpf-devtools:capabilities` and `@wpf-devtools:limitations/elevated-targets`, but the portable contract is the resource URI.
 - Use those discovery entry points when Claude Code knows the server exists but needs help selecting the right workflow.
 
 ## Notes

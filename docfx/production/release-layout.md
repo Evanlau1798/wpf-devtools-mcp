@@ -39,25 +39,38 @@ release_<version>_win-x64/
     bootstrapper/
       x64/
         WpfDevTools.Bootstrapper.x64.dll
+    installer/
+      installer-helpers.manifest.json
+      Installer.Actions.ps1
+      Installer.Uninstall.ps1
+      Tui.Flow.ps1
+      ...
 ```
 
 ## Installed layout
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\
+<InstallRoot>\<arch>\
   current/
     bin/
       manifest.json
-      wpf-devtools-x64.exe
+      wpf-devtools-<arch>.exe
       WpfDevTools.Mcp.Server.dll
       WpfDevTools.Injector.dll
       WpfDevTools.Shared.dll
       inspectors/
       bootstrapper/
+      installer/
+        installer-helpers.manifest.json
+        Installer.Actions.ps1
+        Installer.Uninstall.ps1
+        Tui.Flow.ps1
   client-registration/
     claude-code.txt
     codex.txt
     claude-desktop.json
+    cursor.global.json
+    cursor.project.json
     vscode.json
     visual-studio.json
     other.mcpServers.json
@@ -66,8 +79,10 @@ release_<version>_win-x64/
 
 ## Contract notes
 
-- MCP clients should register `bin/wpf-devtools-x64.exe`.
+- MCP clients should register `bin/wpf-devtools-<arch>.exe`.
 - `bin/inspectors` and `bin/bootstrapper` are sidecar folders and must remain adjacent to the installed server content.
+- `bin/installer` is the integrity-checked helper bundle used by the packaged installer and standalone recovery flows; keep it adjacent to the packaged or installed server content.
 - `run.bat` is the package-root entrypoint for users who do not want to invoke PowerShell directly.
 - `bin/install.ps1` is the packaged copy of the canonical GUI-first installer script.
 - `client-registration` is generated at install time and is the public copy-paste source for AI client setup.
+- If `-InstallRoot` is omitted, the installer reuses the last live install root when possible; `%APPDATA%\WpfDevToolsMcp` is only the fallback root when no reusable install root exists.

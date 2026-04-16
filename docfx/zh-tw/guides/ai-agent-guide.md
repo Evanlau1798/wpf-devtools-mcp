@@ -20,8 +20,8 @@
 
 請依照官方 MCP 與 Anthropic 指南的同一套原則撰寫：
 
-- 詳細的 `tool descriptions` 應說明工具做什麼、`when to use`、`when not to use`，以及重要限制或 caveats。
-- JSON schema 與 SDK annotations 只幫助 discovery，並不等於 `runtime validation`；tool handler 仍必須在執行期明確驗證 untrusted arguments。
+- 詳細的工具描述應說明工具做什麼、適用時機、不適用時機，以及重要限制或 caveats。
+- JSON schema 與 SDK annotations 只幫助 discovery，並不等於執行期驗證；tool handler 仍必須在執行期明確驗證 untrusted arguments。
 - 撰寫公開 quickstart 時，優先使用真實 client workflow、prompts 與 resources，而不是 raw protocol walkthrough。
 
 ### 1. 先 discovery，再假設
@@ -84,8 +84,10 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 另外，請優先使用 MCP 的 discovery 入口，而不是靠記憶硬猜：
 
-- prompts，例如 `/mcp__wpf-devtools__debug_binding_issue`
-- resources，例如 `@wpf-devtools:capabilities`
+- prompts，例如 `debug_binding_issue`
+- resources，例如 `wpf://capabilities`
+
+某些 client 可能會把它們顯示成 `/mcp__wpf-devtools__debug_binding_issue` 或 `@wpf-devtools:capabilities` 這類 client-specific shortcut，但可攜的標準契約仍然是 prompt 名稱與 resource URI 本身。
 
 當工具回應包含下列欄位時，也應一併解析：
 
@@ -122,7 +124,7 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 ## 容易成功的提示模式
 
-### 先看 tree 的提示詞
+### 先看 scene 的提示詞
 
 ```text
 先用 `connect()` 連線到 WPF 測試應用程式，呼叫 `get_ui_summary(depthMode: "semantic")` 建立語義上下文，只有在摘要不足時才展開 visual tree。

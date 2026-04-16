@@ -23,8 +23,8 @@ public static class CapabilityResources
         - Response contract version: `{ResponseContractVersion.Current}`
         - Transport: `stdio`
         - Tool surface: WPF process discovery, connection, exact-match element search, tree inspection, binding diagnostics, DependencyProperty analysis, MVVM inspection, style/template inspection, interaction, layout, performance, and routed-event diagnostics
-        - Prompt surface: workflow entry points for connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, and secondary-window inspection
-        - Resource surface: capability summary, workflow references, elevated-target limitations, and window/focus limitations
+        - Prompt surface: workflow entry points for connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, performance profiling, and secondary-window inspection
+        - Resource surface: capability summary, workflow references, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
         - Feature flags: `prompts=true`, `resources=true`, `stateSnapshots=true`, `diagnosticNormalization=true`, `elevatedTargetDiagnostics=true`
 
         ## Recommended workflow shape
@@ -210,7 +210,7 @@ public static class CapabilityResources
         - Changes are process-local and reset on app restart.
         - Snapshot/restore is session-scoped, not durable persistence.
         - `capture_state_snapshot` can capture DependencyProperty local values, scalar ViewModel values, and focus state.
-        - Expression-backed DependencyProperties are captured for verification, but `restore_state_snapshot` reports them as skipped instead of pretending it can reconstruct the original expression.
+        - Binding-backed DependencyProperties captured in the same session can be restored through the saved restore handle; non-Binding expressions are still surfaced as skipped capability boundaries instead of pretending they can be reconstructed.
         - `restore_state_snapshot` can replay captured local-value DependencyProperties, scalar ViewModel values, and focus state in the same connected session.
         - Prefer minimal mutations and capture a snapshot before a debugging sequence when rollback matters.
 

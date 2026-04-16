@@ -20,6 +20,8 @@ public class McpDiscoveryContentTests
         content.Should().Contain("slash commands");
         content.Should().Contain("@resource");
         content.Should().Contain("stateSnapshots");
+        content.Should().Contain("performance profiling");
+        content.Should().Contain("runtime state safety notes");
     }
 
     [Fact]
@@ -35,6 +37,8 @@ public class McpDiscoveryContentTests
 
         CapabilityResources.GetStateSafetyNotes().Should().Contain("Snapshot/restore");
         CapabilityResources.GetStateSafetyNotes().Should().Contain("capture_state_snapshot");
+        CapabilityResources.GetStateSafetyNotes().Should().Contain("Binding-backed DependencyProperties captured in the same session can be restored");
+        CapabilityResources.GetStateSafetyNotes().Should().Contain("non-Binding expressions are still surfaced as skipped capability boundaries");
         typeof(CapabilityResources)
             .GetMethod(nameof(CapabilityResources.GetStateSafetyNotes))!
             .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
@@ -54,6 +58,8 @@ public class McpDiscoveryContentTests
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("click_element");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("get_interaction_readiness");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("trace_routed_events(mode='get')");
+        WorkflowPrompts.ProfilePerformance().Should().Contain("get_render_stats");
+        WorkflowPrompts.ProfilePerformance().Should().Contain("measure_element_render_time");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("get_windows");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("connect()");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("windowFilter");

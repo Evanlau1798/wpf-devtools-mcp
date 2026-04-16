@@ -429,7 +429,13 @@ function Get-StandaloneExistingConfigMap {
         return $map
     }
 
-    $parsed = $raw | ConvertFrom-Json
+    try {
+        $parsed = $raw | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        throw "Failed to parse JSON config file '$Path'. Fix the malformed JSON and retry. The installer did not modify the file or update registration state. Parser error: $($_.Exception.Message)"
+    }
+
     foreach ($property in $parsed.PSObject.Properties) {
         $map[$property.Name] = $property.Value
     }

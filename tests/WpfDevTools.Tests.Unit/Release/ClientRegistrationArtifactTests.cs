@@ -141,6 +141,48 @@ public sealed class ClientRegistrationArtifactTests
         }
     }
 
+    [Theory]
+    [InlineData("vscode")]
+    [InlineData("visual-studio")]
+    [InlineData("cursor-global")]
+    public void OnlineInstaller_Uninstall_ShouldFailCleanlyWhenManagedJsonConfigIsMalformed(string client)
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var scenario = CreateMalformedJsonClientScenario(tempRoot, archivePath, installRoot, client);
+            var environment = CreateInstallerEnvironment(tempRoot);
+
+            var install = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                scenario.InstallArguments,
+                environment);
+            install.ExitCode.Should().Be(0, install.Stderr);
+
+            var statePath = Path.Combine(tempRoot, "AppData", "Roaming", "WpfDevToolsMcp", "installer-state.json");
+            const string malformedJson = "{ not valid json";
+            File.WriteAllText(scenario.ConfigPath, malformedJson);
+
+            var uninstall = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                scenario.UninstallArguments,
+                environment);
+
+            uninstall.ExitCode.Should().NotBe(0);
+            uninstall.Stderr.Should().Contain("Failed to parse JSON config file");
+            File.ReadAllText(scenario.ConfigPath).Should().Be(malformedJson);
+
+            using var stateDocument = JsonDocument.Parse(File.ReadAllText(statePath));
+            stateDocument.RootElement.GetProperty("registrations").TryGetProperty(scenario.StateKey, out _).Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     [Fact]
     public void OnlineInstaller_Uninstall_ShouldRemoveCustomJsonRegistrationWithoutRequiringOverrideAgain()
     {
@@ -595,5 +637,80 @@ public sealed class ClientRegistrationArtifactTests
             ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
             ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
             ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
+        };
+
+    private static (string StateKey, string ConfigPath, string[] InstallArguments, string[] UninstallArguments) CreateMalformedJsonClientScenario(
+        string tempRoot,
+        string archivePath,
+        string installRoot,
+        string client)
+        => client switch
+        {
+            "vscode" => (
+                "vscode",
+                Path.Combine(tempRoot, "config", "Code", "User", "mcp.json"),
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "vscode",
+                    "-VsCodeConfigPath", Path.Combine(tempRoot, "config", "Code", "User", "mcp.json"),
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "vscode",
+                    "-VsCodeConfigPath", Path.Combine(tempRoot, "config", "Code", "User", "mcp.json"),
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]),
+            "visual-studio" => (
+                "visual-studio",
+                Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json"),
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json"),
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "visual-studio",
+                    "-VisualStudioConfigPath", Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json"),
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]),
+            "cursor-global" => (
+                "cursor-global",
+                Path.Combine(tempRoot, "config", "cursor", "global", "mcp.json"),
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "global",
+                    "-CursorConfigPath", Path.Combine(tempRoot, "config", "cursor", "global", "mcp.json"),
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "global",
+                    "-CursorConfigPath", Path.Combine(tempRoot, "config", "cursor", "global", "mcp.json"),
+                    "-NonInteractive",
+                    "-OutputJson"
+                ]),
+            _ => throw new ArgumentOutOfRangeException(nameof(client), client, null)
         };
 }

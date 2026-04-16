@@ -10,6 +10,15 @@ function Backup-ConfigFile {
     return $backupPath
 }
 
+function Get-ConfigJsonParseFailureMessage {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] [string]$ErrorMessage
+    )
+
+    return "Failed to parse JSON config file '$Path'. Fix the malformed JSON and retry. The installer did not modify the file or update registration state. Parser error: $ErrorMessage"
+}
+
 function Get-ExistingConfigMap {
     param([Parameter(Mandatory)] [string]$Path)
 
@@ -23,7 +32,13 @@ function Get-ExistingConfigMap {
         return $map
     }
 
-    $parsed = $raw | ConvertFrom-Json
+    try {
+        $parsed = $raw | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        throw (Get-ConfigJsonParseFailureMessage -Path $Path -ErrorMessage $_.Exception.Message)
+    }
+
     foreach ($property in $parsed.PSObject.Properties) {
         $map[$property.Name] = $property.Value
     }

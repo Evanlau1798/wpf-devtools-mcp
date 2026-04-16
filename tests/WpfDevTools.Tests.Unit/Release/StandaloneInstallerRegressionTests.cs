@@ -254,10 +254,12 @@ public sealed class StandaloneInstallerRegressionTests
     [Theory]
     [InlineData("uninstall", "vscode")]
     [InlineData("uninstall", "visual-studio")]
+    [InlineData("uninstall", "claude-desktop")]
     [InlineData("uninstall", "cursor-global")]
     [InlineData("uninstall", "cursor-project")]
     [InlineData("full-uninstall", "vscode")]
     [InlineData("full-uninstall", "visual-studio")]
+    [InlineData("full-uninstall", "claude-desktop")]
     [InlineData("full-uninstall", "cursor-global")]
     [InlineData("full-uninstall", "cursor-project")]
     public void StandaloneOnlineInstaller_ManagedJsonRemovalModes_ShouldFailCleanlyWhenConfigIsMalformed(string action, string client)
@@ -1258,6 +1260,36 @@ public sealed class StandaloneInstallerRegressionTests
                     "-Architecture", "x64",
                     "-InstallRoot", installRoot,
                     "-VisualStudioConfigPath", Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json"),
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]),
+            "claude-desktop" => (
+                "claude-desktop",
+                Path.Combine(tempRoot, "config", "Claude", "claude_desktop_config.json"),
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "claude-desktop",
+                    "-ClaudeDesktopConfigPath", Path.Combine(tempRoot, "config", "Claude", "claude_desktop_config.json"),
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-Client", "claude-desktop",
+                    "-ClaudeDesktopConfigPath", Path.Combine(tempRoot, "config", "Claude", "claude_desktop_config.json"),
+                    "-NonInteractive",
+                    "-OutputJson"
+                ],
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-ClaudeDesktopConfigPath", Path.Combine(tempRoot, "config", "Claude", "claude_desktop_config.json"),
                     "-NonInteractive",
                     "-Force",
                     "-OutputJson"

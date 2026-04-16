@@ -63,13 +63,15 @@ internal static class ReleaseScriptTestHarness
         var inspectorNet8Dir = Path.Combine(binDir, "inspectors", "net8.0-windows");
         var inspectorNet48Dir = Path.Combine(binDir, "inspectors", "net48");
         var bootstrapperDir = Path.Combine(binDir, "bootstrapper", architecture);
+        var signedPayloadSourceName = Path.Combine("WindowsPowerShell", "v1.0", "powershell.exe");
+        var signerMetadata = GetSignedPayloadSignerMetadata(signedPayloadSourceName);
         Directory.CreateDirectory(inspectorNet8Dir);
         Directory.CreateDirectory(inspectorNet48Dir);
         Directory.CreateDirectory(bootstrapperDir);
-        WritePackagePayloadFile(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), "notepad.exe", "stub", useSignedPayload);
-        WritePackagePayloadFile(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), "kernel32.dll", "net8-inspector", useSignedPayload);
-        WritePackagePayloadFile(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), "user32.dll", "net48-inspector", useSignedPayload);
-        WritePackagePayloadFile(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), "advapi32.dll", "bootstrapper", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), signedPayloadSourceName, "stub", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), signedPayloadSourceName, "net8-inspector", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), signedPayloadSourceName, "net48-inspector", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), signedPayloadSourceName, "bootstrapper", useSignedPayload);
         File.WriteAllText(
             Path.Combine(binDir, "manifest.json"),
             JsonSerializer.Serialize(new
@@ -78,6 +80,14 @@ internal static class ReleaseScriptTestHarness
                 version = "1.2.3",
                 architecture,
                 runtimeId = architecture == "x86" ? "win-x86" : architecture == "arm64" ? "win-arm64" : "win-x64",
+                channel = "release",
+                buildConfiguration = "Release",
+                signaturePolicy = "RequireAuthenticodeSignature",
+                entryExecutable = $"bin/wpf-devtools-{architecture}.exe",
+                runBatch = "run.bat",
+                installScript = "bin/install.ps1",
+                signerThumbprint = signerMetadata.Thumbprint,
+                signerSubject = signerMetadata.Subject,
                 inspector = new
                 {
                     net8 = "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
@@ -304,6 +314,48 @@ internal static class ReleaseScriptTestHarness
         }
 
         File.WriteAllText(destinationPath, unsignedContent);
+    }
+
+    private static (string Thumbprint, string Subject) GetSignedPayloadSignerMetadata(string signedSystemFileName)
+    {
+        var signedSourcePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+            "System32",
+            signedSystemFileName);
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-Command");
+        startInfo.ArgumentList.Add(
+            "$sig = Get-AuthenticodeSignature -FilePath '" + signedSourcePath.Replace("'", "''") +
+            "'; [ordered]@{ Thumbprint = if ($null -ne $sig.SignerCertificate) { $sig.SignerCertificate.Thumbprint } else { $null }; Subject = if ($null -ne $sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { $null } } | ConvertTo-Json -Compress");
+
+        using var process = Process.Start(startInfo)!;
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Failed to resolve signer metadata for {signedSourcePath}: {stderr}");
+        }
+
+        using var payload = JsonDocument.Parse(stdout);
+        var thumbprint = payload.RootElement.GetProperty("Thumbprint").GetString();
+        var subject = payload.RootElement.GetProperty("Subject").GetString();
+        if (string.IsNullOrWhiteSpace(thumbprint) || string.IsNullOrWhiteSpace(subject))
+        {
+            throw new InvalidOperationException($"Signed payload {signedSourcePath} did not expose signer metadata.");
+        }
+
+        return (thumbprint, subject);
     }
 
     private static string ResolveRepoRoot()

@@ -213,7 +213,30 @@ function Remove-PathIfExists {
     }
 }
 
-function Assert-FileAuthenticodeSignature {
+function Test-InstallerTestModeEnabled {
+    return [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)
+}
+
+function Normalize-SignerThumbprint {
+    param([string]$Thumbprint)
+
+    if ([string]::IsNullOrWhiteSpace($Thumbprint)) {
+        return $null
+    }
+
+    return $Thumbprint.Replace(' ', '').ToUpperInvariant()
+}
+
+function Get-ReleaseSignerPin {
+    $thumbprint = Normalize-SignerThumbprint -Thumbprint ([string]$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)
+    $subject = [string]$env:WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT
+    return [ordered]@{
+        Thumbprint = $thumbprint
+        Subject = if ([string]::IsNullOrWhiteSpace($subject)) { $null } else { $subject }
+    }
+}
+
+function Get-FileAuthenticodeSignatureDetails {
     param([Parameter(Mandatory)] [string]$Path)
 
     if (-not (Test-Path $Path)) {
@@ -221,18 +244,63 @@ function Assert-FileAuthenticodeSignature {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS)) {
+        if (-not (Test-InstallerTestModeEnabled)) {
+            throw 'WPFDEVTOOLS_TEST_SIGNATURE_STATUS is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+        }
+
         $forcedStatus = [string]$env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS
         if ([string]::Equals($forcedStatus, 'Valid', [System.StringComparison]::OrdinalIgnoreCase)) {
-            return
+            return [ordered]@{
+                Status = 'Valid'
+                Thumbprint = 'TESTSIGNER00000000000000000000000000000000'
+                Subject = 'CN=WPFDEVTOOLS TEST SIGNER'
+            }
         }
 
         throw "Release packaging requires an Authenticode-signed payload. '$Path' reported signature status '$forcedStatus'."
     }
 
     $signature = Get-AuthenticodeSignature -FilePath $Path
-    if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
-        throw "Release packaging requires an Authenticode-signed payload. '$Path' reported signature status '$($signature.Status)'."
+    return [ordered]@{
+        Status = [string]$signature.Status
+        Thumbprint = if ($null -ne $signature.SignerCertificate) {
+            Normalize-SignerThumbprint -Thumbprint ([string]$signature.SignerCertificate.Thumbprint)
+        }
+        else {
+            $null
+        }
+        Subject = if ($null -ne $signature.SignerCertificate) {
+            [string]$signature.SignerCertificate.Subject
+        }
+        else {
+            $null
+        }
     }
+}
+
+function Assert-FileAuthenticodeSignature {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [string]$ExpectedThumbprint,
+        [string]$ExpectedSubject
+    )
+
+    $signatureInfo = Get-FileAuthenticodeSignatureDetails -Path $Path
+    if ($signatureInfo.Status -ne 'Valid') {
+        throw "Release packaging requires an Authenticode-signed payload. '$Path' reported signature status '$($signatureInfo.Status)'."
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedThumbprint) -and
+        -not [string]::Equals([string]$signatureInfo.Thumbprint, $ExpectedThumbprint, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Release packaging requires signer thumbprint '$ExpectedThumbprint'. '$Path' reported signer '$([string]$signatureInfo.Thumbprint)'."
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedSubject) -and
+        -not [string]::Equals([string]$signatureInfo.Subject, $ExpectedSubject, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Release packaging requires signer subject '$ExpectedSubject'. '$Path' reported signer '$([string]$signatureInfo.Subject)'."
+    }
+
+    return $signatureInfo
 }
 
 function Assert-ReleasePayloadSignaturePolicy {
@@ -245,9 +313,31 @@ function Assert-ReleasePayloadSignaturePolicy {
         return
     }
 
-    foreach ($payloadPath in $PayloadPaths) {
-        Assert-FileAuthenticodeSignature -Path $payloadPath
+    $signerPin = Get-ReleaseSignerPin
+    if (-not (Test-InstallerTestModeEnabled) -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS)) {
+        throw 'WPFDEVTOOLS_TEST_SIGNATURE_STATUS is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
     }
+
+    if (-not (Test-InstallerTestModeEnabled) -and [string]::IsNullOrWhiteSpace([string]$signerPin.Thumbprint)) {
+        throw 'Release packaging requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT when signaturePolicy is RequireAuthenticodeSignature.'
+    }
+
+    $observedSigner = $null
+
+    foreach ($payloadPath in $PayloadPaths) {
+        $signatureInfo = Assert-FileAuthenticodeSignature -Path $payloadPath -ExpectedThumbprint ([string]$signerPin.Thumbprint) -ExpectedSubject ([string]$signerPin.Subject)
+        if ($null -eq $observedSigner) {
+            $observedSigner = $signatureInfo
+            continue
+        }
+
+        if (-not [string]::Equals([string]$observedSigner.Thumbprint, [string]$signatureInfo.Thumbprint, [System.StringComparison]::OrdinalIgnoreCase) -or
+            -not [string]::Equals([string]$observedSigner.Subject, [string]$signatureInfo.Subject, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Release packaging requires every signed payload to use the same signer. '$payloadPath' does not match the signer used by the rest of the package."
+        }
+    }
+
+    return $observedSigner
 }
 
 function Invoke-ArchiveCreation {
@@ -469,7 +559,7 @@ foreach ($architecture in $resolvedArchitectures) {
         Copy-Item -Path $installScript -Destination (Join-Path $binDir 'install.ps1') -Force
         Copy-InstallerHelperFiles -RepositoryRoot $repoRoot -Destination (Join-Path $binDir 'installer')
 
-        Assert-ReleasePayloadSignaturePolicy -SignaturePolicy $signaturePolicy -PayloadPaths @(
+        $payloadSigner = Assert-ReleasePayloadSignaturePolicy -SignaturePolicy $signaturePolicy -PayloadPaths @(
             (Join-Path $binDir $packagedExecutableName)
             (Join-Path $inspectorNet8Dir 'WpfDevTools.Inspector.dll')
             (Join-Path $inspectorNet48Dir 'WpfDevTools.Inspector.dll')
@@ -492,6 +582,14 @@ foreach ($architecture in $resolvedArchitectures) {
                 net48 = 'bin/inspectors/net48/WpfDevTools.Inspector.dll'
             }
             bootstrapper = "bin/bootstrapper/$architecture/WpfDevTools.Bootstrapper.$architecture.dll"
+        }
+
+        if ($null -ne $payloadSigner -and -not [string]::IsNullOrWhiteSpace([string]$payloadSigner.Thumbprint)) {
+            $manifest.signerThumbprint = [string]$payloadSigner.Thumbprint
+        }
+
+        if ($null -ne $payloadSigner -and -not [string]::IsNullOrWhiteSpace([string]$payloadSigner.Subject)) {
+            $manifest.signerSubject = [string]$payloadSigner.Subject
         }
 
         $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $binDir 'manifest.json') -Encoding UTF8

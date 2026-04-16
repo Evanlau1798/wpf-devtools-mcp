@@ -93,12 +93,40 @@ public sealed class ReleasePackagingIntegrationTests
                 new[] { "-Configuration", "Release", "-Architectures", "x64", "-OutputRoot", outputRoot },
                 new Dictionary<string, string?>
                 {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1",
                     ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "NotSigned"
                 });
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("signature",
                 "Release packaging should refuse to emit RequireAuthenticodeSignature packages when payloads are unsigned");
+            Directory.GetFiles(outputRoot, "release_*_win-*.zip").Should().BeEmpty();
+        }
+        finally
+        {
+            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void BuildReleaseScript_ReleaseMode_ShouldRejectForcedSignatureStatusOutsideTestMode()
+    {
+        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
+        try
+        {
+            var outputRoot = Path.Combine(tempRoot, "release-output");
+            var result = ReleasePackagingTestHarness.RunPowerShellScript(
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
+                new[] { "-Configuration", "Release", "-Architectures", "x64", "-OutputRoot", outputRoot },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
+                    ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "Valid"
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("WPFDEVTOOLS_TEST_SIGNATURE_STATUS",
+                "production packaging must not honor test-only signature overrides");
             Directory.GetFiles(outputRoot, "release_*_win-*.zip").Should().BeEmpty();
         }
         finally

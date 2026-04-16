@@ -325,6 +325,43 @@ function Resolve-PackageExecutable {
     throw "Package does not contain an executable for architecture '$ResolvedArchitecture'."
 }
 
+function Test-InstallerTestModeEnabled {
+    return [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)
+}
+
+function Normalize-SignerThumbprint {
+    param([string]$Thumbprint)
+
+    if ([string]::IsNullOrWhiteSpace($Thumbprint)) {
+        return $null
+    }
+
+    return $Thumbprint.Replace(' ', '').ToUpperInvariant()
+}
+
+function Get-PackageExpectedSignerMetadata {
+    param([Parameter(Mandatory)] [psobject]$PackageManifest)
+
+    $thumbprint = if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+        [string]$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT
+    }
+    else {
+        [string]$PackageManifest.signerThumbprint
+    }
+
+    $subject = if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT)) {
+        [string]$env:WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT
+    }
+    else {
+        [string]$PackageManifest.signerSubject
+    }
+
+    return [ordered]@{
+        Thumbprint = Normalize-SignerThumbprint -Thumbprint $thumbprint
+        Subject = if ([string]::IsNullOrWhiteSpace($subject)) { $null } else { $subject }
+    }
+}
+
 function Get-PackagePayloadSignatureTargets {
     param(
         [Parameter(Mandatory)] [string]$PackageDirectory,
@@ -379,7 +416,13 @@ function Assert-PackagePayloadIntegrity {
     $signaturePolicy = [string]$PackageManifest.signaturePolicy
     $requiresSignedPayload = $false
 
-    if ((Resolve-InstallerMode -eq 'offline') -and -not (Test-PackageArchiveRequested)) {
+    if (Resolve-InstallerMode -eq 'offline') {
+        $requiresSignedPayload = $true
+    }
+    elseif ($signaturePolicy -eq 'DebugTrustedRootSkip') {
+        $requiresSignedPayload = $false
+    }
+    elseif (Resolve-InstallerMode -eq 'online') {
         $requiresSignedPayload = $true
     }
     elseif ($signaturePolicy -eq 'RequireAuthenticodeSignature') {
@@ -395,11 +438,35 @@ function Assert-PackagePayloadIntegrity {
         throw 'Package payload signature verification could not locate any executable payloads.'
     }
 
+    $expectedSigner = Get-PackageExpectedSignerMetadata -PackageManifest $PackageManifest
+    if (-not (Test-InstallerTestModeEnabled) -and
+        [string]::IsNullOrWhiteSpace([string]$expectedSigner.Thumbprint) -and
+        [string]::IsNullOrWhiteSpace([string]$expectedSigner.Subject)) {
+        throw 'Package payload signature verification requires pinned signer metadata in manifest.json or WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+    }
+
     foreach ($targetPath in $targets) {
         $signature = Get-AuthenticodeSignature -FilePath $targetPath
         if ($null -eq $signature -or $signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
             $signatureStatus = if ($null -eq $signature) { 'Unknown' } else { [string]$signature.Status }
             throw "Package payload signature verification failed for $targetPath. Authenticode status: $signatureStatus."
+        }
+
+        $signerCertificate = $signature.SignerCertificate
+        if ($null -eq $signerCertificate) {
+            throw "Package payload signature verification failed for $targetPath. Signer certificate metadata was missing."
+        }
+
+        $actualThumbprint = Normalize-SignerThumbprint -Thumbprint ([string]$signerCertificate.Thumbprint)
+        $actualSubject = [string]$signerCertificate.Subject
+        if (-not [string]::IsNullOrWhiteSpace([string]$expectedSigner.Thumbprint) -and
+            -not [string]::Equals($actualThumbprint, [string]$expectedSigner.Thumbprint, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Package payload signature verification failed for $targetPath. Expected signer thumbprint '$([string]$expectedSigner.Thumbprint)' but got '$actualThumbprint'."
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace([string]$expectedSigner.Subject) -and
+            -not [string]::Equals($actualSubject, [string]$expectedSigner.Subject, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Package payload signature verification failed for $targetPath. Expected signer subject '$([string]$expectedSigner.Subject)' but got '$actualSubject'."
         }
     }
 }

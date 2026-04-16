@@ -36,6 +36,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 2. Extract the package.
 3. Run `run.bat`.
 
+`run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
+
 ## Remote script execution is optional
 
 Any package-local bootstrap flow is optional. Review the repository source first and treat the script in `scripts/` as the authoritative implementation.

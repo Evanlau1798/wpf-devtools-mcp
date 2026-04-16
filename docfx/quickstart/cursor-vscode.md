@@ -10,9 +10,11 @@ Preferred public path:
 2. Extract the package.
 3. Run `run.bat`.
 
+`run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
+
 If you prefer a script-first setup, review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) and run it locally.
 
-After installation, a typical executable path is:
+After installation, the fallback executable path when no previous live install root is reused is:
 
 ```text
 C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
@@ -52,7 +54,7 @@ Use `client-registration\cursor.project.json` when you want a repo-local Cursor 
 <repo>\.cursor\mcp.json
 ```
 
-Cursor editor workflows and Cursor CLI MCP workflows both read the same `.cursor\mcp.json` / `%USERPROFILE%\.cursor\mcp.json` configuration shape.
+Cursor editor workflows and Cursor CLI MCP workflows both read the same `.cursor\mcp.json` / `%USERPROFILE%\.cursor\mcp.json` configuration shape. Treat the generated `client-registration` artifact as the source of truth for the resolved executable path instead of the sample path above.
 
 ### VS Code / Visual Studio
 
@@ -70,7 +72,7 @@ Use `client-registration\vscode.json` or `client-registration\visual-studio.json
 }
 ```
 
-Use the same `servers.wpf-devtools` node in VS Code `mcp.json` or Visual Studio `.mcp.json`.
+By default, the installer writes VS Code registrations to `%APPDATA%\Code\User\mcp.json` and Visual Studio registrations to `%USERPROFILE%\.mcp.json`. Use `.vscode\mcp.json` only when you intentionally want a manual project-scoped alternative. Treat the generated `client-registration` artifact as the source of truth for the resolved executable path instead of the sample path above.
 
 ## 3. First useful workflow
 

@@ -40,6 +40,8 @@ The repository entrypoint is still only the bootstrap layer; the actual install 
 2. Extract the package.
 3. Run `run.bat` from the extracted folder.
 
+`run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
+
 ## Choose your path
 
 | I want to... | Start here |

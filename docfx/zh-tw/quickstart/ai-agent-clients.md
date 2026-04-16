@@ -28,6 +28,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 2. 解壓縮套件。
 3. 執行 `run.bat`。
 
+`run.bat` 會在目前 shell 尚未提升權限時要求 elevation，然後啟動 packaged `bin/install.ps1`。如果你需要把安裝留在目前未提升權限的 shell 中，請設定 `WPFDEVTOOLS_SKIP_ELEVATION=1`。
+
 Package-local 替代路徑：
 
 ```text

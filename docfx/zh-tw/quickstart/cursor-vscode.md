@@ -10,9 +10,11 @@ Cursor、VS Code 與 Visual Studio 最適合直接套用 installer 產生的 JSO
 2. 解壓縮套件。
 3. 執行 `run.bat`。
 
+`run.bat` 會在目前 shell 尚未提升權限時要求 elevation，然後啟動 packaged `bin/install.ps1`。如果你需要把安裝留在目前未提升權限的 shell 中，請設定 `WPFDEVTOOLS_SKIP_ELEVATION=1`。
+
 如果你偏好腳本驅動安裝，請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 再於本機執行。
 
-安裝後，典型的 executable 路徑會是：
+安裝後，若沒有可沿用的既有 live install root，回退 executable 路徑會是：
 
 ```text
 C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
@@ -52,7 +54,7 @@ installer 會在 `client-registration\` 內輸出 editor-ready JSON。
 <repo>\.cursor\mcp.json
 ```
 
-Cursor editor workflow 與 Cursor CLI 的 MCP workflow 會共用這個 `.cursor\mcp.json` / `%USERPROFILE%\.cursor\mcp.json` 設定格式。
+Cursor editor workflow 與 Cursor CLI 的 MCP workflow 會共用這個 `.cursor\mcp.json` / `%USERPROFILE%\.cursor\mcp.json` 設定格式。請把產生的 `client-registration` artifact 視為解析後 executable 路徑的真源，而不是只依賴上面的範例路徑。
 
 ### VS Code / Visual Studio
 
@@ -70,7 +72,7 @@ Cursor editor workflow 與 Cursor CLI 的 MCP workflow 會共用這個 `.cursor\
 }
 ```
 
-把同一段 `servers.wpf-devtools` 套用到 VS Code 的 `mcp.json` 或 Visual Studio 的 `.mcp.json` 即可。
+installer 預設會把 VS Code 註冊寫到 `%APPDATA%\Code\User\mcp.json`，並把 Visual Studio 註冊寫到 `%USERPROFILE%\.mcp.json`。只有在你刻意要用手動的專案層級替代方案時，才使用 `.vscode\mcp.json`。請把產生的 `client-registration` artifact 視為解析後 executable 路徑的真源，而不是只依賴上面的範例路徑。
 
 ## 3. 第一個實用流程
 

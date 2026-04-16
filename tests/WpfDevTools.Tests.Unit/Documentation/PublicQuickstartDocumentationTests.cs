@@ -126,6 +126,35 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void PublicRunBatDocs_ShouldDescribeConditionalElevationAndOptOut()
+    {
+        var files = new[]
+        {
+            "docfx/index.md",
+            "docfx/quickstart/index.md",
+            "docfx/quickstart/ai-agent-clients.md",
+            "docfx/quickstart/claude-desktop.md",
+            "docfx/quickstart/cursor-vscode.md",
+            "docfx/production/deployment.md",
+            "docfx/zh-tw/index.md",
+            "docfx/zh-tw/quickstart/index.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md",
+            "docfx/zh-tw/quickstart/claude-desktop.md",
+            "docfx/zh-tw/quickstart/cursor-vscode.md",
+            "docfx/zh-tw/production/deployment.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("run.bat",
+                $"{file} should describe the package-local launcher path");
+            content.Should().Contain("WPFDEVTOOLS_SKIP_ELEVATION=1",
+                $"{file} should document the opt-out for launcher elevation");
+        }
+    }
+
+    [Fact]
     public void PublicDocs_ShouldDocumentCanonicalRepositoryInstallSources()
     {
         var files = new[]

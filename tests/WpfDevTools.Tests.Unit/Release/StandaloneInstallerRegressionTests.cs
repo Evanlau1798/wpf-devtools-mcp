@@ -1087,6 +1087,81 @@ public sealed class StandaloneInstallerRegressionTests
         }
     }
 
+    [Fact]
+    public void StandaloneOnlineInstaller_FullUninstall_ShouldRemoveCursorGlobalAndProjectRegistrationsTogether()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var globalConfigPath = Path.Combine(tempRoot, "UserProfile", ".cursor", "mcp.json");
+            var projectRoot = Path.Combine(tempRoot, "CursorProject");
+            var projectConfigPath = Path.Combine(projectRoot, ".cursor", "mcp.json");
+
+            RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "global",
+                    "-CursorConfigPath", globalConfigPath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]).ExitCode.Should().Be(0);
+
+            RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "cursor",
+                    "-CursorMode", "project",
+                    "-CursorProjectRoot", projectRoot,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]).ExitCode.Should().Be(0);
+
+            File.ReadAllText(globalConfigPath).Should().Contain("wpf-devtools");
+            File.ReadAllText(projectConfigPath).Should().Contain("wpf-devtools");
+
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-full-uninstall-cursor-both-scopes");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(globalConfigPath).Should().NotContain("wpf-devtools");
+            File.ReadAllText(projectConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static (int ExitCode, string Stdout, string Stderr) RunRepoInstaller(
         string tempRoot,
         IReadOnlyList<string> arguments)

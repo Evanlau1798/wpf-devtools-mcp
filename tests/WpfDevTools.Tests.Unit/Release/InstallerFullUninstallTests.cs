@@ -166,6 +166,168 @@ public sealed class InstallerFullUninstallTests
     }
 
     [Fact]
+    public void OnlineInstaller_FullUninstall_ShouldRecoverCustomVisualStudioRegistrationWhenStateFileIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var customVisualStudioConfigPath = Path.Combine(tempRoot, "custom", "visual-studio", ".mcp.json");
+            var environment = CreateInstallerEnvironment(tempRoot);
+
+            var install = RunInstaller(
+                tempRoot,
+                ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "visual-studio", "-VisualStudioConfigPath", customVisualStudioConfigPath, "-NonInteractive", "-Force", "-OutputJson"],
+                environment);
+
+            install.ExitCode.Should().Be(0, install.Stderr);
+            File.ReadAllText(customVisualStudioConfigPath).Should().Contain("wpf-devtools");
+
+            var statePath = Path.Combine(tempRoot, "AppData", "Roaming", "WpfDevToolsMcp", "installer-state.json");
+            File.Delete(statePath);
+
+            var uninstall = RunInstaller(
+                tempRoot,
+                ["-Action", "full-uninstall", "-Architecture", "x64", "-InstallRoot", installRoot, "-NonInteractive", "-Force", "-OutputJson"],
+                environment);
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(customVisualStudioConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_FullUninstall_ShouldRecoverCustomCursorRegistrationWhenStateFileIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var customCursorConfigPath = Path.Combine(tempRoot, "custom", "cursor", "mcp.json");
+            var environment = CreateInstallerEnvironment(tempRoot);
+
+            var install = RunInstaller(
+                tempRoot,
+                ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "global", "-CursorConfigPath", customCursorConfigPath, "-NonInteractive", "-Force", "-OutputJson"],
+                environment);
+
+            install.ExitCode.Should().Be(0, install.Stderr);
+            File.ReadAllText(customCursorConfigPath).Should().Contain("wpf-devtools");
+
+            var statePath = Path.Combine(tempRoot, "AppData", "Roaming", "WpfDevToolsMcp", "installer-state.json");
+            File.Delete(statePath);
+
+            var uninstall = RunInstaller(
+                tempRoot,
+                ["-Action", "full-uninstall", "-Architecture", "x64", "-InstallRoot", installRoot, "-NonInteractive", "-Force", "-OutputJson"],
+                environment);
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(customCursorConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_FullUninstall_ShouldRecoverCustomCursorProjectRegistrationWhenStateFileIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var projectRoot = Path.Combine(tempRoot, "CustomCursorProject");
+            var projectConfigPath = Path.Combine(projectRoot, ".cursor", "mcp.json");
+            var environment = CreateInstallerEnvironment(tempRoot);
+            environment["APPDATA"] = appData;
+            environment["LOCALAPPDATA"] = localAppData;
+            environment["USERPROFILE"] = userProfile;
+
+            var install = RunInstaller(
+                tempRoot,
+                ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "project", "-CursorProjectRoot", projectRoot, "-NonInteractive", "-Force", "-OutputJson"],
+                environment);
+
+            install.ExitCode.Should().Be(0, install.Stderr);
+            File.ReadAllText(projectConfigPath).Should().Contain("wpf-devtools");
+
+            var statePath = Path.Combine(appData, "WpfDevToolsMcp", "installer-state.json");
+            File.Delete(statePath);
+
+            var uninstall = RunInstaller(
+                tempRoot,
+                ["-Action", "full-uninstall", "-Architecture", "x64", "-InstallRoot", installRoot, "-NonInteractive", "-Force", "-OutputJson"],
+                environment);
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(projectConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_FullUninstall_ShouldRemoveCursorGlobalAndProjectRegistrationsTogether()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var globalConfigPath = Path.Combine(tempRoot, "UserProfile", ".cursor", "mcp.json");
+            var projectRoot = Path.Combine(tempRoot, "CursorProject");
+            var projectConfigPath = Path.Combine(projectRoot, ".cursor", "mcp.json");
+            var environment = CreateInstallerEnvironment(tempRoot);
+
+            RunInstaller(
+                tempRoot,
+                ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "global", "-CursorConfigPath", globalConfigPath, "-NonInteractive", "-Force", "-OutputJson"],
+                environment)
+                .ExitCode.Should().Be(0);
+
+            RunInstaller(
+                tempRoot,
+                ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "project", "-CursorProjectRoot", projectRoot, "-NonInteractive", "-Force", "-OutputJson"],
+                environment)
+                .ExitCode.Should().Be(0);
+
+            File.ReadAllText(globalConfigPath).Should().Contain("wpf-devtools");
+            File.ReadAllText(projectConfigPath).Should().Contain("wpf-devtools");
+
+            var uninstall = RunInstaller(
+                tempRoot,
+                ["-Action", "full-uninstall", "-Architecture", "x64", "-InstallRoot", installRoot, "-NonInteractive", "-Force", "-OutputJson"],
+                environment);
+
+            uninstall.ExitCode.Should().Be(0, uninstall.Stderr);
+            Directory.Exists(Path.Combine(installRoot, "x64")).Should().BeFalse();
+            File.ReadAllText(globalConfigPath).Should().NotContain("wpf-devtools");
+            File.ReadAllText(projectConfigPath).Should().NotContain("wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_FullUninstall_ShouldRollbackEarlierRegistrationChangesWhenLaterRemovalFails()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

@@ -71,6 +71,6 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 - 一般情況先從 `connect()` 開始；只有 auto-discovery 回報多個候選，或你需要先拿到 target metadata 時才用 `get_processes(windowFilter)`。
 - 在 tree-heavy inspection 前，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`。
 - 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`，並把 `nextSteps` 當成相容欄位。
-- 如果你已經知道下一步工具，且希望回應更精簡，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 呼叫傳入 `navigation=false`；但 schema-driven client 只有在其 MCP stack 能送出超出已公告 tool schema 的 optional args 時，才應依賴這個 opt-out，且不應假設其他工具今天也有公開這個參數。
+- 如果你已經知道下一步工具，且希望回應更精簡，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 呼叫傳入 `navigation=false`；schema-driven client 可以在這個工具上依賴這個 opt-out，因為它今天已經公告在 tool schema 中，但不應假設其他工具今天也有公開這個參數。
 - 若 `connect` 失敗，先一起檢查 server、bootstrapper 與 target 的 bitness。
 - 如果目標 app 是 elevated，請以系統管理員權限啟動 Claude Code，讓它透過 STDIO 拉起的 MCP server 能在相同完整性等級下 attach。

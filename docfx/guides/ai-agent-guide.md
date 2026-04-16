@@ -99,7 +99,7 @@ When present, parse these follow-up fields as part of the contract:
 
 `nextSteps` remains the compatibility field for older clients. Newer clients should prefer `navigation.recommended` and treat `alternatives` as optional human-guided branches.
 
-If the next action is already obvious, capable clients may pass `navigation=false` on `get_binding_errors` to omit `nextSteps` and `navigation` from that response and save tokens. Schema-driven clients should only rely on that opt-out when their MCP stack can send optional args beyond the advertised tool schema, and should not assume other tools accept it unless their schema advertises it.
+If the next action is already obvious, capable clients may pass `navigation=false` on `get_binding_errors` to omit `nextSteps` and `navigation` from that response and save tokens. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the `get_binding_errors` tool schema today, and should not assume other tools accept it unless their schema advertises it too.
 
 ### 6. Prefer scene-level aggregation before screenshots or tree dumps
 

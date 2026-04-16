@@ -56,7 +56,7 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 - Start with `connect()` in the common case. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you want explicit target metadata first.
 - Prefer scene-level tools before tree-heavy inspection.
 - After each diagnostic, interaction, or mutation, follow `navigation.recommended` first and use `nextSteps` only as the compatibility field.
-- If you already know the next tool and want a leaner payload, capable clients may pass `navigation=false` on `get_binding_errors`, but schema-driven clients should only rely on that opt-out when their MCP stack can send optional args beyond the advertised tool schema and should not assume other tools expose it yet.
+- If you already know the next tool and want a leaner payload, capable clients may pass `navigation=false` on `get_binding_errors`. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the `get_binding_errors` tool schema today, but should not assume other tools expose it yet.
 - If `connect` fails, check server bitness, bootstrapper bitness, and the target process bitness together.
 - Keep `stdout` clean because Codex uses STDIO MCP transport.
 - If the target app is elevated, start Codex or the host terminal as administrator. A non-administrator Codex host can usually discover the process but cannot control an elevated target.

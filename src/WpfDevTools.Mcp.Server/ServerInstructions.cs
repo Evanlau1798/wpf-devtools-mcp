@@ -111,7 +111,7 @@ public static class ServerInstructions
         - Check IsEnabled with get_dp_value_source before click_element to avoid errors
         - Use get_binding_errors as first diagnostic step for data display issues; its default response is compact, so pass compact=false only when the full human-readable binding trace text is required
         - Treat returned runtime navigation as session-aware when you have already captured a snapshot or started a routed-event trace in the same connected process
-        - When you already know the next step and do not need server guidance, get_binding_errors accepts navigation=false to omit navigation and compatibility nextSteps on that specific call; do not generalize that opt-out to other tools unless their schema explicitly advertises it, and schema-driven clients should only rely on that opt-out when their MCP stack can send optional args beyond the advertised tool schema
+        - When you already know the next step and do not need server guidance, get_binding_errors accepts navigation=false to omit navigation and compatibility nextSteps on that specific call; schema-driven clients may rely on that opt-out there because the parameter is advertised in the tool schema today. Do not generalize that opt-out to other tools unless their schema explicitly advertises it too.
         - In STDIO transport, prefer polling workflows over push-style watcher/event streaming expectations
         - Avoid calling performance tools (get_render_stats, measure_element_render_time) in loops
         - When debugging, start broad (get_binding_errors) then narrow (get_bindings on specific element)
@@ -176,7 +176,7 @@ public static class ServerInstructions
         - v2 `nextSteps` entries may also include optional `preconditions`, `expectedOutcome`, `workflowId`, `prefetchTools`, `whyNow`, and `confidence` fields.
         - v3 `navigation` includes `recommended`, `alternatives`, `prefetchTools`, and descriptive `contextRefs` entries.
         - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` for clients that ignore the richer envelope.
-        - Clients may use `navigation=false` as an explicit opt-out on `get_binding_errors` to omit both `navigation` and compatibility `nextSteps` on that specific call when their MCP stack can send optional args beyond the advertised tool schema; do not assume other tool schemas expose that parameter unless they advertise it explicitly.
+        - Clients may use `navigation=false` as an explicit opt-out on `get_binding_errors` to omit both `navigation` and compatibility `nextSteps` on that specific call. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the tool schema today; do not assume other tool schemas expose that parameter unless they advertise it explicitly.
         - These optional fields are session-aware hints for capable clients; older clients can ignore them safely.
         - `workflowId` and `expectedOutcome` are advisory only and describe short verification loops, not executable server-side orchestration.
         - `prefetchTools` is advisory only and contains tool names, not parameters or hidden commands.

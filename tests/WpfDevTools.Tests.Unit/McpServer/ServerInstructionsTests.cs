@@ -122,7 +122,7 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("descriptive JSON");
         ServerInstructions.Value.Should().Contain("already know the next step");
         ServerInstructions.Value.Should().Contain("get_binding_errors accepts navigation=false");
-        ServerInstructions.Value.Should().Contain("schema-driven clients should only rely on that opt-out");
+        ServerInstructions.Value.Should().Contain("Schema-driven clients can rely on that opt-out there");
         ServerInstructions.Value.Should().NotContain("Every tool response includes the additive `navigation` envelope",
             "navigation and nextSteps are default follow-up surfaces rather than unconditional fields on explicit opt-out calls");
         ServerInstructions.Value.Should().NotContain("use it as the preferred follow-up navigation field",

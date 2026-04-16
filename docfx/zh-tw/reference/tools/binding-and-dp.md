@@ -18,7 +18,7 @@
 
 `get_binding_errors` 預設採用 `compact=true`，會從主要 `errors` array 中移除冗長的逐筆訊息文字。只有在你真的需要完整 message payload 進行人工除錯時，才改傳 `compact=false`。
 
-如果你已經知道下一步是什麼，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 呼叫上傳入 `navigation=false`，即可省略該次回應的 `nextSteps` 與 `navigation`；但 schema-driven client 只有在其 MCP stack 能送出超出已公告 tool schema 的 optional args 時，才應依賴這個 opt-out，且不應假設其他 diagnostic 工具也已公開支援它。
+如果你已經知道下一步是什麼，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 呼叫上傳入 `navigation=false`，即可省略該次回應的 `nextSteps` 與 `navigation`；schema-driven client 可以在這個工具上依賴這個 opt-out，因為它今天已經公告在 tool schema 中，且不應假設其他 diagnostic 工具也已公開支援它。
 
 當 binding path 已經能解析，但值仍然看起來不合理，例如型別不相容、nullability 衝突、或 converter 造成的問題時，請優先使用 `get_binding_mismatches`。
 

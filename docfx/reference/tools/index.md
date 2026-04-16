@@ -65,7 +65,7 @@ Recent additions worth learning early:
 
 - By default, tool responses keep `nextSteps` as the compatibility field for older clients and also include a `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
 - `nextSteps` is derived from `navigation.recommended`, so both surfaces stay synchronized unless `get_binding_errors` explicitly disables navigation.
-- Capable clients may pass `navigation=false` on `get_binding_errors` when they already know the next action and want to reduce response size, but schema-driven clients should only rely on that opt-out when their MCP stack can send optional args beyond the advertised tool schema. Do not assume other tool schemas expose that parameter unless they advertise it explicitly.
+- Capable clients may pass `navigation=false` on `get_binding_errors` when they already know the next action and want to reduce response size. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the `get_binding_errors` tool schema today. Do not assume other tool schemas expose that parameter unless they advertise it explicitly.
 - `prefetchTools` is advisory only and contains tool names for progressive schema loading.
 - `contextRefs` are descriptive JSON only; they are not executable handles or hidden server-side orchestration.
 

@@ -18,7 +18,7 @@ Use `get_affected_elements` first when you already know a binding path or `DataC
 
 `get_binding_errors` defaults to `compact=true`, which trims verbose per-error message text from the main `errors` array. Pass `compact=false` only when you need the full message payload for manual debugging.
 
-When the next action is already obvious, pass `navigation=false` to `get_binding_errors` or other diagnostic tools to omit the compatibility `nextSteps` and `navigation` payload from that specific response.
+When the next action is already obvious, capable clients may pass `navigation=false` to `get_binding_errors` to omit the compatibility `nextSteps` and `navigation` payload from that specific response, but schema-driven clients should only rely on that opt-out when their MCP stack can send optional args beyond the advertised tool schema and should not assume other diagnostic tools expose it yet.
 
 Use `get_binding_mismatches` when the binding path resolves but the value still looks wrong because of type mismatches, nullability mismatches, or converter interactions.
 

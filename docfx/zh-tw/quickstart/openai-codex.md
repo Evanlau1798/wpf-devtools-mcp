@@ -58,7 +58,7 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 - 一般情況先從 `connect()` 開始；只有 auto-discovery 出現多個候選，或你想先看明確 target metadata 時，才使用 `get_processes(windowFilter)`。
 - 在 tree-heavy inspection 前，優先使用 scene-level 工具。
 - 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`，並把 `nextSteps` 視為相容欄位。
-- 如果你已經知道下一步工具，且希望回應更精簡，可在該次呼叫傳入 `navigation=false`。
+- 如果你已經知道下一步工具，且希望回應更精簡，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 呼叫傳入 `navigation=false`；但 schema-driven client 只有在其 MCP stack 能送出超出已公告 tool schema 的 optional args 時，才應依賴這個 opt-out，且不應假設其他工具今天也有公開這個參數。
 - 若 `connect` 失敗，請一起檢查 server、bootstrapper 與 target process 的 bitness。
 - Codex 使用 STDIO transport，因此請保持 `stdout` 乾淨。
 - 如果目標 app 是 elevated，請以系統管理員權限啟動 Codex 或其宿主終端機。非系統管理員權限的 Codex host 通常看得到 process，但無法真正控制 elevated target。

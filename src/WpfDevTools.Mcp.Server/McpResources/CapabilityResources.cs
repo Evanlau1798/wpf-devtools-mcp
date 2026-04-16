@@ -36,10 +36,10 @@ public static class CapabilityResources
 
         ## Response contract notes
 
-        - Every tool response now includes a compatibility `nextSteps` field; tools without runtime-computable guidance return `nextSteps: []`.
-        - v3 also adds an additive `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
-        - `nextSteps` remains a compatibility field and is derived from `navigation.recommended`.
-        - Clients may request `navigation=false` as an explicit opt-out to omit both `navigation` and compatibility `nextSteps` from a response.
+        - By default, every tool response includes compatibility `nextSteps`; tools without runtime-computable guidance return `nextSteps: []`.
+        - By default, responses also include a `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
+        - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` unless `get_binding_errors` explicitly receives `navigation=false`.
+        - Clients may request `navigation=false` on `get_binding_errors` as an explicit opt-out to omit both `navigation` and compatibility `nextSteps` from a response when their MCP stack can send optional args beyond the advertised tool schema; do not assume other tool schemas expose that parameter unless they advertise it explicitly.
         - v2 adds optional `preconditions`, `expectedOutcome`, `workflowId`, and `prefetchTools` fields on `nextSteps` entries.
         - `contextRefs` are descriptive JSON only; they are not executable handles or hidden server-side orchestration tokens.
         - `prefetchTools` is advisory only and contains tool names for clients that can load nearby schemas progressively.
@@ -67,7 +67,7 @@ public static class CapabilityResources
         - Elevated targets require the MCP server itself to run as administrator.
         - Main-window targeting is the default when `elementId` is omitted.
         - Runtime mutations are not persisted to XAML.
-        - Snapshot restore currently supports DependencyProperty local values, scalar ViewModel values, and focus restoration.
+        - Snapshot restore currently supports DependencyProperty local values, Binding-backed DependencyProperties captured in the same session, scalar ViewModel values, and focus restoration.
         """;
 
     [McpServerResource(

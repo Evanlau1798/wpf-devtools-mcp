@@ -36,6 +36,27 @@ public sealed class AiFriendlyQuickstartDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/guides/ai-agent-guide.md", "advertised tool schema")]
+    [InlineData("docfx/quickstart/claude-code.md", "advertised tool schema")]
+    [InlineData("docfx/quickstart/openai-codex.md", "advertised tool schema")]
+    [InlineData("docfx/reference/tools/binding-and-dp.md", "advertised tool schema")]
+    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md", "已公告 tool schema")]
+    [InlineData("docfx/zh-tw/quickstart/claude-code.md", "已公告 tool schema")]
+    [InlineData("docfx/zh-tw/quickstart/openai-codex.md", "已公告 tool schema")]
+    [InlineData("docfx/zh-tw/reference/tools/binding-and-dp.md", "已公告 tool schema")]
+    public void NavigationOptOutGuidance_ShouldPreserveSchemaDiscoverabilityCaveat(string relativePath, string expectedSnippet)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("navigation=false",
+            $"{relativePath} should keep the explicit opt-out syntax visible to AI agents");
+        content.Should().Contain("get_binding_errors",
+            $"{relativePath} should scope the explicit opt-out to the tool that actually advertises it today");
+        content.Should().Contain(expectedSnippet,
+            $"{relativePath} should warn that not every schema-driven client can discover or send the opt-out automatically");
+    }
+
+    [Theory]
     [InlineData("docfx/quickstart/cursor-vscode.md")]
     [InlineData("docfx/zh-tw/quickstart/cursor-vscode.md")]
     public void CursorEditorQuickstarts_ShouldAvoidRawProtocolFirstWorkflows(string relativePath)

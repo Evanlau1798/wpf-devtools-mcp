@@ -99,7 +99,7 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 `nextSteps` 是相容舊版 client 的欄位；新的 client 應以 `navigation.recommended` 為主，再把 `alternatives` 視為人工判斷時的備選路徑。
 
-如果你已經知道下一步是什麼，可在該次工具呼叫傳入 `navigation=false`，省略 `nextSteps` 與 `navigation`，以減少 token 消耗。
+如果你已經知道下一步是什麼，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 呼叫傳入 `navigation=false`，省略該次回應中的 `nextSteps` 與 `navigation`，以減少 token 消耗；但 schema-driven client 只有在其 MCP stack 能送出超出已公告 tool schema 的 optional args 時，才應依賴這個 opt-out，而且不應假設其他工具也支援它，除非 schema 有明確公告。
 
 ### 6. 先用 scene-level 聚合，再考慮 screenshot 或大型 tree
 

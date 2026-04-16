@@ -63,10 +63,9 @@
 
 ## Navigation 模型
 
-- 大多數工具回應都保留 `nextSteps`，作為舊版 client 的 compatibility field。
-- v3 另外加入 `navigation` envelope，包含 `recommended`、`alternatives`、`prefetchTools`、`contextRefs`。
-- 只要回應包含 navigation，`nextSteps` 就會由 `navigation.recommended` 推導，兩種表示法保持同步。
-- 若 client 已經知道下一步，且希望縮小回應大小，可在單次呼叫上傳入 `navigation=false`。
+- 預設情況下，工具回應會保留 `nextSteps` 作為舊版 client 的 compatibility field，並同時加入 `navigation` envelope，包含 `recommended`、`alternatives`、`prefetchTools`、`contextRefs`。
+- 除非 `get_binding_errors` 明確停用 navigation，否則 `nextSteps` 都會由 `navigation.recommended` 推導，兩種表示法保持同步。
+- 若 client 已經知道下一步，且希望縮小回應大小，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 單次呼叫上傳入 `navigation=false`；但 schema-driven client 只有在其 MCP stack 能送出超出已公告 tool schema 的 optional args 時，才應依賴這個 opt-out。不要假設其他 tool schema 今天都會明確公告這個參數。
 - `prefetchTools` 只是 advisory hint，內容只包含 tool name，供 capable client 做 progressive schema loading。
 - `contextRefs` 是 descriptive JSON only，不是 executable handle，也不是隱藏的 server-side orchestration token。
 

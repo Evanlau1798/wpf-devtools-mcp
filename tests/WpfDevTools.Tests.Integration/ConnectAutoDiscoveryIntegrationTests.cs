@@ -12,8 +12,7 @@ using System.Threading;
 
 namespace WpfDevTools.Tests.Integration;
 
-[Collection("LiveBootstrapIntegration")]
-public sealed class ConnectAutoDiscoveryIntegrationTests : IDisposable
+public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
 {
     private static int _syntheticProcessId = 1_500_000_000;
     private string? _dummyBootstrapperPath;

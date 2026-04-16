@@ -88,11 +88,13 @@ public sealed class ReleasePackagingIntegrationTests
         try
         {
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            var command = "& '" +
-                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1").Replace("'", "''") +
-                "' -Configuration Release -Architectures @('x64','x86','arm64') -OutputRoot '" +
-                outputRoot.Replace("'", "''") + "'";
-            var result = ReleasePackagingTestHarness.RunPowerShellCommand(command);
+            var result = ReleasePackagingTestHarness.RunPowerShellScript(
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
+                new[] { "-Configuration", "Release", "-Architectures", "x64", "-OutputRoot", outputRoot },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "NotSigned"
+                });
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("signature",

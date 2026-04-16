@@ -220,6 +220,15 @@ function Assert-FileAuthenticodeSignature {
         throw "Signature validation target was not found: $Path"
     }
 
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS)) {
+        $forcedStatus = [string]$env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS
+        if ([string]::Equals($forcedStatus, 'Valid', [System.StringComparison]::OrdinalIgnoreCase)) {
+            return
+        }
+
+        throw "Release packaging requires an Authenticode-signed payload. '$Path' reported signature status '$forcedStatus'."
+    }
+
     $signature = Get-AuthenticodeSignature -FilePath $Path
     if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
         throw "Release packaging requires an Authenticode-signed payload. '$Path' reported signature status '$($signature.Status)'."

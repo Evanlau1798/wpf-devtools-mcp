@@ -30,8 +30,10 @@ Published releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](h
 
 ### Prerequisites
 
-- Windows with .NET SDK 8.0+
+- Windows with the .NET runtime required by the published package
 - A target WPF application running under the same user account
+
+If you are building from source instead of using a published release, install .NET SDK 8.0+.
 
 ### Install from a published release
 
@@ -39,19 +41,35 @@ For first-time setup, prefer the published release flow instead of launching fro
 
 Fastest path on Windows:
 
-> **Security note**: This command downloads and executes a remote script. Review the [script source](scripts/online-installer.ps1) before running in sensitive environments.
+> **Security note**: This command downloads the latest published release package and runs the packaged installer from that same release. Review the [script source](scripts/online-installer.ps1) or use the manual release flow in sensitive environments.
 
 ```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
 ```
 
-That repository-hosted online installer downloads the matching `release_<version>_win-<arch>.zip` package from GitHub Releases and runs the same GUI-first installer logic that is packaged as `bin\install.ps1`.
+That published-release bootstrap keeps the bootstrap path, helper bundle, and packaged `bin\install.ps1` on the same release boundary.
 Maintainers should treat `scripts/online-installer.ps1` as the canonical source entrypoint for that installer flow.
 
 If you want a single-command, non-interactive setup for a specific client and architecture, use:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual fallback:
@@ -61,7 +79,7 @@ Manual fallback:
 3. Run `run.bat` from the extracted package. It requests elevation when the current shell is not already elevated and launches the packaged `bin\install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 4. Register or verify the installed executable in your MCP client.
 
-The installer writes ready-to-copy registration snippets under `<InstallRoot>\<arch>\client-registration\`. If you do not pass `-InstallRoot`, the default root is `%APPDATA%\WpfDevToolsMcp`.
+The installer writes ready-to-copy registration snippets under `<InstallRoot>\<arch>\client-registration\`. If you do not pass `-InstallRoot`, the installer reuses the last live install root when possible; otherwise it falls back to `%APPDATA%\WpfDevToolsMcp`.
 
 ### Build
 

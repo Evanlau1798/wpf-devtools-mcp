@@ -11,13 +11,29 @@
 建議的公開安裝路徑：
 
 ```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1')
 ```
 
 指定 client 的範例：
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+$architecture = 'x64'
+$version = (Invoke-RestMethod 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest').tag_name.TrimStart('v')
+$assetName = "release_${version}_win-$architecture.zip"
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("wpf-devtools-install-" + [guid]::NewGuid().ToString('N'))
+$archivePath = Join-Path $tempRoot $assetName
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+Invoke-WebRequest "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/latest/download/$assetName" -OutFile $archivePath
+Expand-Archive -LiteralPath $archivePath -DestinationPath $tempRoot -Force
+powershell -ExecutionPolicy Bypass -File (Join-Path $tempRoot 'bin\install.ps1') -Version latest -Architecture $architecture -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 手動 package 的替代路徑：
@@ -34,10 +50,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 
 所有支援的 setup 路徑最後都應該啟動安裝後的執行檔，而不是 source tree 內的命令。
 
-預設安裝路徑範例：
+在沒有可沿用的既有 install root 時，回退路徑範例：
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
+%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
 線上安裝腳本與手動 package 安裝都會在下列位置產生 client-specific registration artifact：
@@ -46,7 +62,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 <InstallRoot>\<arch>\client-registration\
 ```
 
-如果未指定 `-InstallRoot`，預設 root 會是 `%APPDATA%\WpfDevToolsMcp`，因此產生的 artifact 會回落到 `%APPDATA%\WpfDevToolsMcp\<arch>\client-registration\`。
+如果未指定 `-InstallRoot`，installer 會先沿用最後一個仍有 live install evidence 的 install root；只有在沒有可沿用路徑時，才會回退到 `%APPDATA%\WpfDevToolsMcp`。請把產生的 `client-registration` artifact 視為最終輸出路徑的真源。
 
 ## 建議選擇
 

@@ -8,7 +8,7 @@
 - server process architecture 與 target process architecture 相同
 - 安裝後的版面中存在對應的 native bootstrapper
 
-## architecture mismatch
+## 架構不相符
 
 最常見的修正方式，是切換成與目標 process bitness 一致的安裝包。
 
@@ -18,13 +18,13 @@
 
 也請確認目前使用的 server、bootstrapper 與 inspector sidecar 都來自同一組相符 bitness 的 package/build。
 
-## missing runtime
+## 缺少執行時
 
 如果 server 啟動後立刻結束，請確認對應發行包所需的 .NET runtime 已安裝。
 
-## bootstrapper resolution
+## bootstrapper 解析
 
-如果 `connect` 在找到 process 後仍失敗，請確認安裝資料夾中 `bootstrapper` 與 `inspectors` sidecar 仍與 `wpf-devtools-x64.exe` 位於預期位置。
+如果 `connect` 在找到 process 後仍失敗，請確認安裝資料夾中 `bootstrapper` 與 `inspectors` sidecar 仍與解析後的 `wpf-devtools-<arch>.exe` 位於預期位置。
 
 ## elevated target 與系統管理員權限不一致
 

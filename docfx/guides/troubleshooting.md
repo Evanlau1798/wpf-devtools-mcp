@@ -24,7 +24,7 @@ If the server starts and exits immediately, verify the required .NET runtime is 
 
 ## bootstrapper resolution
 
-If `connect` fails after process discovery, verify the installed folder still contains the expected `bootstrapper` and `inspectors` sidecar directories next to `wpf-devtools-x64.exe`.
+If `connect` fails after process discovery, verify the installed folder still contains the expected `bootstrapper` and `inspectors` sidecar directories next to the resolved `wpf-devtools-<arch>.exe`.
 
 ## elevated target or administrator mismatch
 

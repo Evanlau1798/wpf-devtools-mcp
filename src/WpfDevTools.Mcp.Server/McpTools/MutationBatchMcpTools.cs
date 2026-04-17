@@ -18,6 +18,9 @@ public static class MutationBatchMcpTools
         "USE WHEN: You need an ordered multi-step mutation workflow, shared snapshot/diff context, or one failure surface instead of many separate mutation calls.\n" +
         "DO NOT USE: When you need automatic rollback, when a single mutation call is sufficient, or when you have not captured an explicit snapshot for destructive experimentation.\n\n" +
         "SEQUENTIAL SEMANTICS: Mutations run in order, stop on the first failure, and do not roll back automatically.\n" +
+        "FAILURE RECOVERY: When step N fails after steps 1..N-1 succeeded, the target application is left in a partially mutated state. " +
+        "If captureSnapshot was provided, call restore_state_snapshot(snapshotId) using the returned snapshotId to revert. " +
+        "If no snapshot was captured, manual reversal via inverse mutations (e.g. set_dp_value with the prior value) is required.\n" +
         "ROLLBACK GUIDANCE: When captureSnapshot is provided, failures include explicit restore_state_snapshot guidance instead of hidden transaction behavior.\n" +
         "DIFF SUPPORT: Set includeDiff=true together with captureSnapshot to compute get_state_diff after all mutations succeed.\n\n" +
         "REQUEST FORMAT:\n" +

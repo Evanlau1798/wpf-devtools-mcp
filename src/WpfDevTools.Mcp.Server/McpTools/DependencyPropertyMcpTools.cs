@@ -200,6 +200,7 @@ public static class DependencyPropertyMcpTools
 
     [McpServerTool(Name = "watch_dp_changes", Title = "Watch WPF DependencyProperty Changes", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
+        "STDIO TRANSPORT LIMITATION: registration only. Change events are NOT pushed over STDIO; use wait_for_dp_change or poll get_dp_value_source to observe actual changes.\n\n" +
         "Use this tool to register WPF DependencyProperty watch state before polling for runtime changes.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Register a listener for property value changes. " +
         "CURRENT STDIO BEHAVIOR: registration-only. Change events are NOT pushed to the client; use get_dp_value_source to poll for changes.\n\n" +

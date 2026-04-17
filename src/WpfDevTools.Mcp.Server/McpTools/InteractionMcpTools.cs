@@ -14,7 +14,7 @@ public static class InteractionMcpTools
 {
     private const string InteractionMetadata = "CATEGORY: Interaction | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
     private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `navigation.recommended` plus compatibility field `nextSteps`; prefer `navigation.recommended` when present instead of ad hoc tool guessing.\n\n";
-    [McpServerTool(Name = "click_element", Title = "Interact With WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "click_element", Title = "Click WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to interact with a WPF element through a runtime click path that matches user behavior.\n\n" +
         InteractionMetadata + "[Interaction] Simulate a mouse click on a WPF element. " +

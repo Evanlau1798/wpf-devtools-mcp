@@ -600,6 +600,18 @@ function Invoke-InstallerActionCore {
     $installResult = $null
     $registrations = @()
     $allowPayloadRollback = $true
+    $stateRestoreRequired = $false
+    $statePathForRollback = $null
+    $stateFileExistedBeforeInstall = $false
+    $originalStateContent = $null
+    $statePathResolver = Get-Command Resolve-InstallerStatePath -ErrorAction SilentlyContinue
+    if ($null -ne $statePathResolver) {
+        $statePathForRollback = Resolve-InstallerStatePath
+        $stateFileExistedBeforeInstall = Test-Path -LiteralPath $statePathForRollback
+        if ($stateFileExistedBeforeInstall) {
+            $originalStateContent = Get-Content -LiteralPath $statePathForRollback -Raw
+        }
+    }
     try {
         $packageManifest = Get-Content -Path (Resolve-PackageManifestPath -PackageDirectory $session.PackageDirectory) -Raw | ConvertFrom-Json
         $resolvedArchitecture = if ([string]::IsNullOrWhiteSpace([string]$packageManifest.architecture)) { $ResolvedArchitecture } else { [string]$packageManifest.architecture }
@@ -633,6 +645,7 @@ function Invoke-InstallerActionCore {
         $state = Get-InstallerState
         Update-InstallerStateAfterInstall -State $state -ResolvedInstallRoot $installResult.installRoot -ResolvedArchitecture $resolvedArchitecture -ResolvedVersion ([string]$verification.InstalledVersion) -InstalledExecutable $installResult.installedExecutable -SelectedClient $ResolvedClient -Registration $registrations[0] -LastVerifiedUtc ([string]$verification.LastVerifiedUtc)
         $statePath = Save-InstallerState -State $state
+        $stateRestoreRequired = $true
         Complete-InstalledPayloadCommit -InstallResult $installResult
         $allowPayloadRollback = $false
         return [ordered]@{
@@ -656,12 +669,49 @@ function Invoke-InstallerActionCore {
         }
     }
     catch {
+        $rollbackErrors = New-Object System.Collections.Generic.List[string]
         $rollbackInstalledExecutable = if ($null -ne $installResult) { [string]$installResult.installedExecutable } else { $null }
         $rollbackInstallBase = if ($null -ne $installResult) { [string]$installResult.installBase } else { $null }
-        if ($allowPayloadRollback) {
-            Undo-ClientRegistrationChanges -SelectedClient $ResolvedClient -Registrations $registrations -RollbackMode 'install' -InstalledExecutable $rollbackInstalledExecutable -InstallBase $rollbackInstallBase
-            Undo-InstalledPayload -InstallResult $installResult
+        if ($stateRestoreRequired -and -not [string]::IsNullOrWhiteSpace($statePathForRollback)) {
+            try {
+                if ($stateFileExistedBeforeInstall) {
+                    $stateDirectory = Split-Path -Parent $statePathForRollback
+                    if (-not [string]::IsNullOrWhiteSpace($stateDirectory)) {
+                        New-Item -ItemType Directory -Force -Path $stateDirectory | Out-Null
+                    }
+
+                    $utf8Encoding = New-Object System.Text.UTF8Encoding($false)
+                    [System.IO.File]::WriteAllText($statePathForRollback, [string]$originalStateContent, $utf8Encoding)
+                }
+                else {
+                    Remove-PathIfExists -Path $statePathForRollback
+                }
+            }
+            catch {
+                $rollbackErrors.Add("Failed to restore installer state after install rollback. $($_.Exception.Message)")
+            }
         }
+
+        if ($allowPayloadRollback) {
+            try {
+                Undo-ClientRegistrationChanges -SelectedClient $ResolvedClient -Registrations $registrations -RollbackMode 'install' -InstalledExecutable $rollbackInstalledExecutable -InstallBase $rollbackInstallBase
+            }
+            catch {
+                $rollbackErrors.Add("Failed to restore client registrations after install rollback. $($_.Exception.Message)")
+            }
+
+            try {
+                Undo-InstalledPayload -InstallResult $installResult
+            }
+            catch {
+                $rollbackErrors.Add("Failed to restore installed payload after install rollback. $($_.Exception.Message)")
+            }
+        }
+
+        if ($rollbackErrors.Count -gt 0) {
+            throw ($_.Exception.Message + ' Rollback issues: ' + ($rollbackErrors -join ' '))
+        }
+
         throw
     }
     finally {

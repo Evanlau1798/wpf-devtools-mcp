@@ -4,9 +4,18 @@ Claude Code 是目前最直接的公開路徑，適合需要在終端機內以 a
 
 ## 1. 安裝 Claude Code
 
+請依照 Claude Code 官方安裝指引 <https://docs.claude.com/en/docs/claude-code/overview>。
+
+若選擇使用 Anthropic 的 PowerShell 安裝腳本，建議先下載再審查內容，再執行，以便稽核實際執行的指令：
+
 ```powershell
-irm https://claude.ai/install.ps1 | iex
+$installer = Join-Path $env:TEMP 'claude-install.ps1'
+Invoke-WebRequest -Uri 'https://claude.ai/install.ps1' -OutFile $installer -UseBasicParsing
+Get-Content $installer | Select-Object -First 60   # 審查後再執行
+& $installer
 ```
+
+> **資安提醒：** `irm <url> | iex` 一行式雖然方便，但會在未經檢視的情況下執行遠端程式；在未信任網路環境中，優先使用上述先下載再審查的流程。
 
 ## 2. 安裝 WPF DevTools
 

@@ -4,9 +4,18 @@ Claude Code is the fastest public path when you want a terminal-first agent work
 
 ## 1. Install Claude Code
 
+Follow the official Claude Code installation instructions at <https://docs.claude.com/en/docs/claude-code/overview>.
+
+If you choose to use Anthropic's PowerShell installer, download the script and review it before executing so you can audit what is being run:
+
 ```powershell
-irm https://claude.ai/install.ps1 | iex
+$installer = Join-Path $env:TEMP 'claude-install.ps1'
+Invoke-WebRequest -Uri 'https://claude.ai/install.ps1' -OutFile $installer -UseBasicParsing
+Get-Content $installer | Select-Object -First 60   # review before running
+& $installer
 ```
+
+> **Security note:** The `irm <url> | iex` one-liner is convenient but executes remote code without review; prefer the download-and-audit flow above, especially on untrusted networks.
 
 ## 2. Install WPF DevTools
 

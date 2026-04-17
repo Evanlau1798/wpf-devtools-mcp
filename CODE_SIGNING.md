@@ -36,8 +36,9 @@ This creates:
 # Build in Release mode first
 dotnet build -c Release
 
-# Sign all binaries
-.\scripts\Sign-Binaries.ps1 -CertificatePath ".\cert\WpfDevTools.pfx" -Password "DevPassword123!"
+# Sign all binaries (replace the placeholder below with a strong local-only secret;
+# never reuse production passwords and never commit the secret to source control)
+.\scripts\Sign-Binaries.ps1 -CertificatePath ".\cert\WpfDevTools.pfx" -Password "<YOUR_STRONG_PASSWORD>"
 ```
 
 ### Limitations

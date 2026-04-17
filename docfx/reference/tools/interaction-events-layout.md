@@ -9,11 +9,16 @@
 - `element_screenshot`
 - `get_focus_state`
 - `focus_element`
+
+`get_focus_state` and `focus_element` matter whenever keyboard input, default buttons, tab navigation, or multiple windows are involved.
+
+## State snapshot and sequential mutations
+
 - `capture_state_snapshot`
 - `batch_mutate`
 - `restore_state_snapshot`
 
-`get_focus_state` and `focus_element` matter whenever keyboard input, default buttons, tab navigation, or multiple windows are involved.
+These tools are registered under the State/Mutation category (see `src/WpfDevTools.Mcp.Server/McpTools/StateMcpTools.cs` and `MutationBatchMcpTools.cs`). They are listed together with interaction here because they are the preferred guard rails around destructive UI interactions.
 
 `capture_state_snapshot` and `restore_state_snapshot` are the preferred guard rails before trying UI mutations that may need rollback.
 

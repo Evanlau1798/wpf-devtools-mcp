@@ -33,7 +33,10 @@ Published releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](h
 - Windows with the .NET runtime required by the published package
 - A target WPF application running under the same user account
 
-If you are building from source instead of using a published release, install .NET SDK 8.0+.
+If you are building from source instead of using a published release, install:
+
+- .NET SDK 8.0 or newer
+- Visual Studio 2022 Build Tools (or the full IDE) with the **Desktop development with C++** workload, so `msbuild` can build the native `WpfDevTools.Bootstrapper.vcxproj` bootstrapper for the target architectures (x64, x86, arm64)
 
 ### Install with the reviewed online installer
 

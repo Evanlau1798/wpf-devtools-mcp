@@ -3,7 +3,7 @@
     <BuildInParallel>false</BuildInParallel>
     <RestoreBuildInParallel>false</RestoreBuildInParallel>
     <UseSharedCompilation>false</UseSharedCompilation>
-    <NuGetAudit>true</NuGetAudit>
+    <NuGetAudit Condition="'$(GITHUB_ACTIONS)' != 'true' and '$(TF_BUILD)' != 'True'">false</NuGetAudit>
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAuditLevel>low</NuGetAuditLevel>
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900;NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>

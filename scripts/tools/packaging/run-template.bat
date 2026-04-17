@@ -4,6 +4,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 set "SCRIPT_DIR=%~dp0"
 set "INSTALL_SCRIPT=%SCRIPT_DIR%bin\install.ps1"
 set "POWERSHELL_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+set "INSTALL_ARG_COUNT=0"
 
 if not exist "%POWERSHELL_EXE%" (
     set "POWERSHELL_EXE=powershell.exe"
@@ -14,19 +15,20 @@ if not exist "%INSTALL_SCRIPT%" (
     exit /b 1
 )
 
-set "INSTALL_ARGS_FILE=%TEMP%\wpf-devtools-install-args-%RANDOM%%RANDOM%.txt"
-if exist "%INSTALL_ARGS_FILE%" del /f /q "%INSTALL_ARGS_FILE%" >nul 2>&1
-
 :collect_install_args
-if "%~1"=="" goto launch_install
-set "INSTALL_ARG_VALUE=%~1"
-"%POWERSHELL_EXE%" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "Add-Content -LiteralPath $env:INSTALL_ARGS_FILE -Value $env:INSTALL_ARG_VALUE -Encoding UTF8"
-if not "%ERRORLEVEL%"=="0" (
-    echo Failed to prepare installer arguments.
-    exit /b %ERRORLEVEL%
-)
+if "%~1"=="" goto prepare_install_args
+set "INSTALL_ARG_%INSTALL_ARG_COUNT%=%~1"
+set /a INSTALL_ARG_COUNT+=1
 shift
 goto collect_install_args
+
+:prepare_install_args
+set "INSTALL_ARGS_B64="
+for /f "usebackq delims=" %%I in (`%POWERSHELL_EXE% -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$installerArgs = @(); for ($i = 0; $i -lt [int]$env:INSTALL_ARG_COUNT; $i++) { $installerArgs += [Environment]::GetEnvironmentVariable('INSTALL_ARG_' + $i, 'Process') }; $argsJson = ConvertTo-Json -Compress -InputObject @($installerArgs); $argsBytes = [System.Text.Encoding]::UTF8.GetBytes($argsJson); [Convert]::ToBase64String($argsBytes)"`) do set "INSTALL_ARGS_B64=%%I"
+if not defined INSTALL_ARGS_B64 (
+    echo Failed to prepare installer arguments.
+    exit /b 1
+)
 
 :launch_install
 if /I "%WPFDEVTOOLS_FORCE_ELEVATION%"=="1" goto elevate
@@ -38,7 +40,7 @@ if /I not "%WPFDEVTOOLS_SKIP_ELEVATION%"=="1" (
     )
 )
 
-"%POWERSHELL_EXE%" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$installerArgs = if (Test-Path -LiteralPath $env:INSTALL_ARGS_FILE) { Get-Content -LiteralPath $env:INSTALL_ARGS_FILE } else { @() }; try { & $env:INSTALL_SCRIPT @installerArgs } finally { if (Test-Path -LiteralPath $env:INSTALL_ARGS_FILE) { Remove-Item -LiteralPath $env:INSTALL_ARGS_FILE -Force -ErrorAction SilentlyContinue } }"
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$installerArgs = @(); if (-not [string]::IsNullOrWhiteSpace($env:INSTALL_ARGS_B64)) { $argsJson = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:INSTALL_ARGS_B64)); $decodedArgs = $argsJson | ConvertFrom-Json; $installerArgs = @($decodedArgs | ForEach-Object { [string]$_ }) }; & $env:INSTALL_SCRIPT @installerArgs"
 set "EXIT_CODE=%ERRORLEVEL%"
 
 if not "%EXIT_CODE%"=="0" (
@@ -48,7 +50,7 @@ if not "%EXIT_CODE%"=="0" (
 exit /b %EXIT_CODE%
 
 :elevate
-set "ELEVATED_COMMAND=set ""INSTALL_SCRIPT=%INSTALL_SCRIPT%"" && set ""INSTALL_ARGS_FILE=%INSTALL_ARGS_FILE%"" && ""%POWERSHELL_EXE%"" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ""$installerArgs = if (Test-Path -LiteralPath $env:INSTALL_ARGS_FILE) { Get-Content -LiteralPath $env:INSTALL_ARGS_FILE } else { @() }; try { & $env:INSTALL_SCRIPT @installerArgs } finally { if (Test-Path -LiteralPath $env:INSTALL_ARGS_FILE) { Remove-Item -LiteralPath $env:INSTALL_ARGS_FILE -Force -ErrorAction SilentlyContinue } }"""
+set "ELEVATED_COMMAND=set ""INSTALL_SCRIPT=%INSTALL_SCRIPT%"" && set ""INSTALL_ARGS_B64=%INSTALL_ARGS_B64%"" && ""%POWERSHELL_EXE%"" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ""$installerArgs = @(); if (-not [string]::IsNullOrWhiteSpace($env:INSTALL_ARGS_B64)) { $argsJson = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:INSTALL_ARGS_B64)); $decodedArgs = $argsJson | ConvertFrom-Json; $installerArgs = @($decodedArgs | ForEach-Object { [string]$_ }) }; & $env:INSTALL_SCRIPT @installerArgs"""
 "%POWERSHELL_EXE%" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$process = Start-Process -Verb RunAs -FilePath $env:ComSpec -ArgumentList '/c', $env:ELEVATED_COMMAND -Wait -PassThru; exit $process.ExitCode"
 set "EXIT_CODE=%ERRORLEVEL%"
 if not "%EXIT_CODE%"=="0" (

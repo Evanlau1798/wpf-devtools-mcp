@@ -11,6 +11,22 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 /// Helper for bridging MCP SDK tool methods to existing tool ExecuteAsync implementations.
 /// Converts typed parameters to JsonElement and wraps results as CallToolResult.
 /// </summary>
+/// <remarks>
+/// <para>
+/// This type is intentionally a <c>static partial class</c>. It holds process-wide state
+/// (tool instance cache, metrics collector, navigation planner, navigation-opt-out set).
+/// That is acceptable because the MCP server is hosted as a single-tenant process per
+/// connected agent: <c>Program.cs</c> wires <see cref="SetMetricsCollector"/> and the
+/// navigation planner exactly once during DI initialization, and tool invocations only
+/// read from these fields during request handling.
+/// </para>
+/// <para>
+/// Do NOT attempt to multi-host or multi-tenant this server without first converting the
+/// static state to a DI-scoped instance or a per-request context. Mutating
+/// <c>_metrics</c>, <c>_navigationPlanner</c>, or <c>NavigationOptOutTools</c> from
+/// multiple hosting contexts is not supported and is not covered by tests.
+/// </para>
+/// </remarks>
 public static partial class ToolCallHelper
 {
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();

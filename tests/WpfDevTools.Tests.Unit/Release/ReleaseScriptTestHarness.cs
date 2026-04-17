@@ -34,7 +34,7 @@ internal static class ReleaseScriptTestHarness
             File.SetAttributes(root, FileAttributes.Normal);
         }
 
-        for (var attempt = 0; attempt < 30; attempt++)
+        for (var attempt = 0; attempt < 60; attempt++)
         {
             try
             {
@@ -42,13 +42,13 @@ internal static class ReleaseScriptTestHarness
                 Directory.Delete(path, recursive: true);
                 return;
             }
-            catch (IOException) when (attempt < 29)
+            catch (IOException) when (attempt < 59)
             {
-                Thread.Sleep(200);
+                Thread.Sleep(250);
             }
-            catch (UnauthorizedAccessException) when (attempt < 29)
+            catch (UnauthorizedAccessException) when (attempt < 59)
             {
-                Thread.Sleep(200);
+                Thread.Sleep(250);
             }
         }
     }
@@ -190,6 +190,16 @@ internal static class ReleaseScriptTestHarness
         IReadOnlyDictionary<string, string?>? environmentOverrides = null,
         TimeSpan? timeout = null)
     {
+        var argumentList = arguments.ToList();
+        string? injectedWorkingRoot = null;
+        if (string.Equals(Path.GetFileName(scriptPath), "online-installer.ps1", StringComparison.OrdinalIgnoreCase) &&
+            !argumentList.Contains("-WorkingRoot", StringComparer.OrdinalIgnoreCase))
+        {
+            injectedWorkingRoot = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-working-root", Guid.NewGuid().ToString("N"));
+            argumentList.Add("-WorkingRoot");
+            argumentList.Add(injectedWorkingRoot);
+        }
+
         var startInfo = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -206,7 +216,7 @@ internal static class ReleaseScriptTestHarness
         startInfo.ArgumentList.Add("-File");
         startInfo.ArgumentList.Add(scriptPath);
 
-        foreach (var argument in arguments)
+        foreach (var argument in argumentList)
         {
             startInfo.ArgumentList.Add(argument);
         }
@@ -224,7 +234,17 @@ internal static class ReleaseScriptTestHarness
             startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1";
         }
 
-        return RunProcess(startInfo, timeout);
+        try
+        {
+            return RunProcess(startInfo, timeout);
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(injectedWorkingRoot))
+            {
+                DeleteDirectory(injectedWorkingRoot);
+            }
+        }
     }
 
     public static (int ExitCode, string Stdout, string Stderr) RunPowerShellCommand(

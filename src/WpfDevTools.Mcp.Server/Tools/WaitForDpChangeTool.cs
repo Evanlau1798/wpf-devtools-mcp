@@ -123,6 +123,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         var pollCount = 0;
         while (stopwatch.ElapsedMilliseconds < effectiveTimeoutMs)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Task.Delay(effectivePollIntervalMs, cancellationToken).ConfigureAwait(false);
             pollCount++;
 

@@ -28,7 +28,7 @@ public sealed partial class ConnectTool
     private readonly Func<int, long> _workingSetResolver;
     private readonly Func<string, IEnumerable<string>> _inspectorCandidateResolver;
     private readonly Func<string, IEnumerable<string>> _bootstrapperCandidateResolver;
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<object>> _inflightConnects = new();
+    private readonly ConcurrentDictionary<int, InflightConnectOperation> _inflightConnects = new();
 
     /// <summary>
     /// Create ConnectTool with dependency injection
@@ -153,12 +153,13 @@ public sealed partial class ConnectTool
 
         return await RunSingleFlightAsync(
             processId.Value,
-            () => ExecuteForProcessAsync(
+            cancellationToken,
+            sharedCancellationToken => ExecuteForProcessAsync(
                 processId.Value,
                 explicitProcessSelection,
                 selectionStrategy,
                 autoDiscoveryResolution,
-                cancellationToken)).ConfigureAwait(false);
+                sharedCancellationToken)).ConfigureAwait(false);
     }
 
     private async Task<object> ExecuteForProcessAsync(
@@ -407,42 +408,4 @@ public sealed partial class ConnectTool
         return null;
     }
 
-    private Task<object> RunSingleFlightAsync(int processId, Func<Task<object>> operationFactory)
-    {
-        ArgumentNullException.ThrowIfNull(operationFactory);
-
-        while (true)
-        {
-            if (_inflightConnects.TryGetValue(processId, out var existingOperation))
-            {
-                return existingOperation.Task;
-            }
-
-            var taskSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (_inflightConnects.TryAdd(processId, taskSource))
-            {
-                _ = Task.Run(() => CompleteSingleFlightAsync(processId, taskSource, operationFactory));
-                return taskSource.Task;
-            }
-        }
-    }
-
-    private async Task CompleteSingleFlightAsync(
-        int processId,
-        TaskCompletionSource<object> taskSource,
-        Func<Task<object>> operationFactory)
-    {
-        try
-        {
-            taskSource.SetResult(await operationFactory().ConfigureAwait(false));
-        }
-        catch (Exception ex)
-        {
-            taskSource.SetException(ex);
-        }
-        finally
-        {
-            _inflightConnects.TryRemove(new KeyValuePair<int, TaskCompletionSource<object>>(processId, taskSource));
-        }
-    }
 }

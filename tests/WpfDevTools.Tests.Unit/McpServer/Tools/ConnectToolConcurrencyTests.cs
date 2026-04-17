@@ -46,6 +46,40 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Execute_WhenOriginalCallerCancels_ShouldNotCancelOtherSingleFlightWaiters()
+    {
+        EnsureDummyBootstrapperExists();
+
+        using var sessionManager = new SessionManager();
+        using var injector = new BlockingFailureInjector();
+        var tool = new ConnectTool(
+            sessionManager,
+            injector,
+            new FakeProcessDetector(),
+            _ => { },
+            () => false);
+
+        using var firstCallCts = new CancellationTokenSource();
+        var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), firstCallCts.Token);
+        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+
+        var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        firstCallCts.Cancel();
+
+        Func<Task> cancelledWait = async () => await firstCall;
+        await cancelledWait.Should().ThrowAsync<OperationCanceledException>();
+
+        injector.Release();
+        var secondResult = await secondCall;
+
+        injector.InjectWithBootstrapCallCount.Should().Be(1);
+        var json = JsonSerializer.SerializeToElement(secondResult);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("error").GetString().Should().Contain("Simulated injection failure");
+    }
+
     public void Dispose()
     {
         if (_dummyBootstrapperPath != null && File.Exists(_dummyBootstrapperPath))

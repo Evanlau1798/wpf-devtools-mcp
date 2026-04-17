@@ -295,6 +295,66 @@ function Assert-ArchiveIntegrity {
     }
 }
 
+function Assert-ArchiveSafeEntries {
+    <#
+    .SYNOPSIS
+        Validate a zip archive's entry names do not escape the intended
+        destination directory (zip-slip, CVE-2018-1002200 pattern).
+
+    .DESCRIPTION
+        Enumerates every entry of the archive and requires that its
+        canonical full path, resolved relative to the destination root,
+        stays inside the destination root. Absolute paths, drive-qualified
+        paths, and traversal segments ("..") are rejected.
+
+    .PARAMETER ArchivePath
+        Path to the zip archive to inspect.
+
+    .PARAMETER DestinationPath
+        Intended extraction root. Does not need to exist yet.
+
+    .OUTPUTS
+        None. Throws on any unsafe entry. Returns silently when the
+        archive is well-formed.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$ArchivePath,
+        [Parameter(Mandatory)] [string]$DestinationPath
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue | Out-Null
+
+    $resolvedDestination = [System.IO.Path]::GetFullPath($DestinationPath)
+    if (-not $resolvedDestination.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $resolvedDestination = $resolvedDestination + [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
+    try {
+        foreach ($entry in $archive.Entries) {
+            $entryName = [string]$entry.FullName
+            if ([string]::IsNullOrEmpty($entryName)) {
+                continue
+            }
+
+            if ($entryName -match '^[a-zA-Z]:[\\/]' -or $entryName.StartsWith('/') -or $entryName.StartsWith('\')) {
+                throw "Unsafe archive entry rejected (absolute path): '$entryName' in $ArchivePath"
+            }
+
+            $normalizedEntry = $entryName.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+            $candidate = [System.IO.Path]::Combine($resolvedDestination, $normalizedEntry)
+            $fullCandidate = [System.IO.Path]::GetFullPath($candidate)
+
+            if (-not $fullCandidate.StartsWith($resolvedDestination, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Unsafe archive entry rejected (path traversal): '$entryName' in $ArchivePath"
+            }
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
 function Resolve-PackageManifestPath {
     param([Parameter(Mandatory)] [string]$PackageDirectory)
 

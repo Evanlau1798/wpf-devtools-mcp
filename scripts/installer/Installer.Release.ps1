@@ -74,6 +74,7 @@ function Resolve-PackageSession {
         $archivePath = (Resolve-Path $PackageArchivePath).Path
         $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'local-package' -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture
         New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
+        Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
         Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
         return [ordered]@{
             PackageDirectory = $extractRoot
@@ -107,6 +108,7 @@ function Resolve-PackageSession {
     Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath -TimeoutSec (Get-ReleaseArchiveDownloadTimeoutSeconds)
     $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
+    Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
     Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
     return [ordered]@{
         PackageDirectory = $extractRoot

@@ -655,12 +655,12 @@ function Invoke-RegistrationCommand {
         [Parameter(Mandatory)] [string]$ClientName
     )
 
-    $resolvedCommand = Get-Command $Command -ErrorAction SilentlyContinue
-    if ($null -eq $resolvedCommand) {
+    $resolvedCommandPath = Resolve-ExecutableCommandPath -Command $Command
+    if ([string]::IsNullOrWhiteSpace($resolvedCommandPath)) {
         throw "$Command is not installed. Cannot register $ClientName automatically."
     }
 
-    & $Command @Arguments | Out-Null
+    & $resolvedCommandPath @Arguments | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "$Command registration failed for $ClientName with exit code $LASTEXITCODE."
     }
@@ -668,10 +668,38 @@ function Invoke-RegistrationCommand {
     return [ordered]@{
         client = $ClientName
         mode = 'cli'
-        target = $Command
+        target = $resolvedCommandPath
         backupPath = $null
         applied = $true
     }
+}
+
+function Resolve-ExecutableCommandPath {
+    param(
+        [Parameter(Mandatory)] [string]$Command
+    )
+
+    $resolvedCommands = @(Get-Command $Command -All -CommandType Application,ExternalScript -ErrorAction SilentlyContinue)
+    foreach ($resolvedCommand in $resolvedCommands) {
+        $candidatePath = if (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Path)) {
+            [string]$resolvedCommand.Path
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Source)) {
+            [string]$resolvedCommand.Source
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Definition)) {
+            [string]$resolvedCommand.Definition
+        }
+        else {
+            $null
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($candidatePath)) {
+            return $candidatePath
+        }
+    }
+
+    return $null
 }
 
 function Invoke-OptionalRemovalCommand {
@@ -681,23 +709,23 @@ function Invoke-OptionalRemovalCommand {
         [Parameter(Mandatory)] [string]$ClientName
     )
 
-    $resolvedCommand = Get-Command $Command -ErrorAction SilentlyContinue
-    if ($null -eq $resolvedCommand) {
+    $resolvedCommandPath = Resolve-ExecutableCommandPath -Command $Command
+    if ([string]::IsNullOrWhiteSpace($resolvedCommandPath)) {
         return [ordered]@{
             client = $ClientName
             mode = 'cli'
-            target = $Command
+            target = $null
             backupPath = $null
             applied = $false
         }
     }
 
-    & $Command @Arguments | Out-Null
+    & $resolvedCommandPath @Arguments | Out-Null
     $succeeded = ($LASTEXITCODE -eq 0)
     return [ordered]@{
         client = $ClientName
         mode = 'cli'
-        target = $Command
+        target = $resolvedCommandPath
         backupPath = $null
         applied = $succeeded
     }

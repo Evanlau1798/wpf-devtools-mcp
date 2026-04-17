@@ -85,4 +85,15 @@ public class McpDiscoveryContentTests
         bindingWorkflow.Should().NotContain("get_visual_tree or get_logical_tree",
             "binding workflow should not recommend tree expansion before scene-level diagnostics");
     }
+
+    [Fact]
+    public void CapabilityResources_ShouldKeepSnapshotSummaryAlignedWithStateSafetyNotes()
+    {
+        var capabilities = CapabilityResources.GetCapabilities();
+        var stateSafety = CapabilityResources.GetStateSafetyNotes();
+
+        capabilities.Should().Contain("Binding-backed DependencyProperties captured in the same session",
+            "the summary resource should not understate rollback support compared with the detailed state-safety note");
+        stateSafety.Should().Contain("Binding-backed DependencyProperties captured in the same session");
+    }
 }

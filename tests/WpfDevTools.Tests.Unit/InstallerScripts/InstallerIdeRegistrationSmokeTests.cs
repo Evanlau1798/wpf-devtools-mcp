@@ -4,7 +4,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-public sealed class InstallerIdeRegistrationSmokeTests
+public sealed class InstallerIdeRegistrationShimBackedTests
 {
     [Theory]
     [InlineData("claude-code", null)]
@@ -14,7 +14,7 @@ public sealed class InstallerIdeRegistrationSmokeTests
     [InlineData("claude-desktop", null)]
     [InlineData("cursor", "global")]
     [InlineData("cursor", "project")]
-    public void OnlineInstaller_ShouldInstallAndUninstallIdeRegistrationsInTempRoots(
+    public void OnlineInstaller_ShouldInstallAndUninstallShimBackedClientRegistrationsInTempRoots(
         string client,
         string? cursorMode)
     {
@@ -94,7 +94,7 @@ public sealed class InstallerIdeRegistrationSmokeTests
     }
 
     [Fact]
-    public void OnlineInstaller_ShouldRejectCliVerificationWhenListOutputPointsAtDifferentExecutable()
+    public void OnlineInstaller_ShouldRejectCliShimVerificationWhenListOutputPointsAtDifferentExecutable()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -142,7 +142,7 @@ public sealed class InstallerIdeRegistrationSmokeTests
     }
 
     [Fact]
-    public void OnlineInstaller_ShouldRejectCliVerificationWhenExpectedPathBelongsToDifferentEntry()
+    public void OnlineInstaller_ShouldRejectCliShimVerificationWhenExpectedPathBelongsToDifferentEntry()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try

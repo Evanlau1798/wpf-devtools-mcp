@@ -118,6 +118,7 @@ public class McpPromptAndResourceAttributeTests
     [InlineData("wpf_elevated_target_limitations", "wpf://limitations/elevated-targets")]
     [InlineData("wpf_injection_failure_limitations", "wpf://limitations/injection-failures")]
     [InlineData("wpf_window_focus_limitations", "wpf://limitations/window-focus")]
+    [InlineData("wpf_performance_profiling_notes", "wpf://limitations/performance-profiling")]
     [InlineData("wpf_state_safety_notes", "wpf://limitations/state-safety")]
     public void RequiredRuntimeResources_ShouldExist(string resourceName, string uriTemplate)
     {

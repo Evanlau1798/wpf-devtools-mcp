@@ -332,6 +332,66 @@ public sealed partial class InstallerScriptTests
     }
 
     [Fact]
+    public void VerificationParser_ShouldExtractExecutableFromQuotedWpfDevToolsEntry()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var expectedExecutable = Path.Combine(tempRoot, "install-root", "x64", "current", "bin", "wpf-devtools-x64.exe");
+
+            var command = string.Join(
+                Environment.NewLine,
+                [
+                    ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Verification.ps1").Replace("'", "''") + "'",
+                    "$text = @'",
+                    "Registered MCP servers:",
+                    "- \"wpf-devtools\": \"" + expectedExecutable.Replace("'", "''") + "\"",
+                    "'@",
+                    "Get-VerifiedWpfDevToolsExecutableFromText -Text $text"
+                ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be(expectedExecutable);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void VerificationParser_ShouldIgnoreMatchingExecutableWhenItBelongsToDifferentNamedEntry()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var expectedExecutable = Path.Combine(tempRoot, "install-root", "x64", "current", "bin", "wpf-devtools-x64.exe");
+
+            var command = string.Join(
+                Environment.NewLine,
+                [
+                    ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Verification.ps1").Replace("'", "''") + "'",
+                    "$text = @'",
+                    "- other-server: \"" + expectedExecutable.Replace("'", "''") + "\"",
+                    "- wpf-devtools: C:\\stale\\wpf-devtools-x64.exe",
+                    "'@",
+                    "Get-VerifiedWpfDevToolsExecutableFromText -Text $text"
+                ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be(@"C:\stale\wpf-devtools-x64.exe");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_Uninstall_ShouldRemoveClientRegistrationButKeepBinaryWhenAnotherClientStillUsesIt()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

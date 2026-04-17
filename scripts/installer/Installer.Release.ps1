@@ -102,7 +102,8 @@ function Resolve-PackageSession {
 
     $downloadVersion = Resolve-RequestedReleaseVersion -RequestedVersion $ResolvedVersion
     $downloadDetails = Get-ReleaseAssetDownloadDetails -ResolvedVersion $downloadVersion -ResolvedArchitecture $ResolvedArchitecture
-    $archivePath = Join-Path $workingRootPath ([string]$downloadDetails.AssetName)
+    New-Item -ItemType Directory -Force -Path $sessionRoot | Out-Null
+    $archivePath = Join-Path $sessionRoot ([string]$downloadDetails.AssetName)
     Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath -TimeoutSec (Get-ReleaseArchiveDownloadTimeoutSeconds)
     $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null

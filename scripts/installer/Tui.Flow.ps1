@@ -207,7 +207,12 @@ function Update-TuiLatestVersionRefreshCore {
         $State.UpdateBannerText = Get-TuiUpdateBannerText -State $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap
         $State.HomeItems = @(Get-TuiHomeItemsCore -InstallRoot ([string]$State.InstallRoot) -InstallerState $State.InstallerState -LatestVersion ([string]$State.LatestVersion) -RegistrationMap $State.DetectedRegistrationMap -LatestVersionRefreshPending ([bool]$State.LatestVersionRefreshPending))
         if ([string]$State.CurrentScreen -eq 'HomeScreen' -and ([string]$State.StatusMessage -in @('Checking latest release in the background...', 'Checking latest release metadata...'))) {
-            $State.StatusMessage = 'Use Up/Down to choose an action.'
+            if (-not [string]::IsNullOrWhiteSpace([string]$refreshResult.ErrorMessage)) {
+                $State.StatusMessage = "Latest release metadata unavailable: $([string]$refreshResult.ErrorMessage)"
+            }
+            else {
+                $State.StatusMessage = 'Use Up/Down to choose an action.'
+            }
         }
         return $State
     }

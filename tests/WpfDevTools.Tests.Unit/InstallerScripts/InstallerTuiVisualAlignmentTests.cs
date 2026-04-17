@@ -3,7 +3,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-public sealed class InstallerTuiVisualAlignmentTests
+public sealed class InstallerTuiVisualContractTests
 {
     [Fact]
     public void TuiRenderer_ShouldDeclareViewportAnchoredRedrawContract()
@@ -21,7 +21,7 @@ public sealed class InstallerTuiVisualAlignmentTests
     }
 
     [Fact]
-    public void OnlineInstaller_HomeScreen_ShouldRenderSolidBorderCards()
+    public void OnlineInstaller_HomeScreen_ShouldRenderBorderGlyphContract()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try

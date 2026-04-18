@@ -12,7 +12,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class ProcessMcpTools
 {
-    private const string ProcessMetadata = "CATEGORY: Process | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+    private const string ProcessMetadata = "CATEGORY: Process\n\n";
     [McpServerTool(Name = "get_processes", Title = "List Inspectable WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to resolve target ambiguity after connect() reports multiple candidates, or when you explicitly need process metadata before connecting.\n\n" +

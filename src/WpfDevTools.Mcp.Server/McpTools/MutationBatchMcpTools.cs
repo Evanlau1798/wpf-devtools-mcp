@@ -9,7 +9,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class MutationBatchMcpTools
 {
-    private const string BatchMetadata = "CATEGORY: State | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+    private const string BatchMetadata = "CATEGORY: State\n\n";
 
     [McpServerTool(Name = "batch_mutate", Title = "Execute Sequential WPF Runtime Mutations", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
     [Description(

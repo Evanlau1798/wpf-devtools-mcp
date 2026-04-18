@@ -12,8 +12,8 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class InteractionMcpTools
 {
-    private const string InteractionMetadata = "CATEGORY: Interaction | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `navigation.recommended` plus compatibility field `nextSteps`; prefer `navigation.recommended` when present instead of ad hoc tool guessing.\n\n";
+    private const string InteractionMetadata = "CATEGORY: Interaction\n\n";
+
     [McpServerTool(Name = "click_element", Title = "Click WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to interact with a WPF element through a runtime click path that matches user behavior.\n\n" +
@@ -29,7 +29,6 @@ public static class InteractionMcpTools
         "- For button ICommand testing, both tools work; click_element is preferred for general use\n\n" +
         "WARNING: This triggers real application logic (e.g., button handlers, navigation, data modifications).\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core click result. Use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

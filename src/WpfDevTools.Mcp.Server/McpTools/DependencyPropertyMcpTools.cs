@@ -13,8 +13,8 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class DependencyPropertyMcpTools
 {
-    private const string DependencyPropertyMetadata = "CATEGORY: DependencyProperty | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `navigation.recommended` plus compatibility field `nextSteps`; prefer `navigation.recommended` when present instead of ad hoc tool guessing.\n\n";
+    private const string DependencyPropertyMetadata = "CATEGORY: DependencyProperty\n\n";
+
     [McpServerTool(Name = "get_dp_value_source", Title = "Inspect DependencyProperty Value Source", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect the runtime source and precedence of a WPF DependencyProperty value.\n\n" +
@@ -117,7 +117,6 @@ public static class DependencyPropertyMcpTools
         "WARNING: This modifies the running app. Changes are lost on app restart.\n\n" +
         "EXPRESSION ROLLBACK: If this overwrites a Binding, MultiBinding, or PriorityBinding expression, the response can report `replacedExpression=true` and `capturedRollbackExpression=true`. In the same session, clear_dp_value or restore_state_snapshot can then reapply that captured binding-backed expression. For two-way bindings where source-value rollback also matters, pair this with capture_state_snapshot(viewModelPropertyNames=...) so the source property can be restored deterministically.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep the core mutation result, use `minimal` for success/property/newValue confirmation only, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

@@ -6,7 +6,7 @@ using WpfDevTools.Mcp.Server.Tools;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
-/// MCP SDK wrapper for Binding Diagnostics tools (6 tools).
+/// MCP SDK wrapper for Binding Diagnostics tools (7 tools).
 /// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
 /// </summary>
 [McpServerToolType]

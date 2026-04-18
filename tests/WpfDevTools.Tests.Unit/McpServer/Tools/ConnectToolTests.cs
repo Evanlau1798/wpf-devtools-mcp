@@ -293,11 +293,36 @@ public partial class ConnectToolTests : IDisposable
             injector.LastInjectionRequest.Should().NotBeNull();
             injector.LastInjectionRequest!.AuthenticationSecretBase64.Should().Be(authSecret);
             injector.LastInjectionRequest.CertificateDirectory.Should().Be(certDirectory);
+            injector.CertificateFileExistedAtInjection.Should().BeTrue(
+                "the certificate should already exist before the bootstrapper request is sent");
+            injector.PasswordFileExistedAtInjection.Should().BeTrue(
+                "the certificate password should already exist before the bootstrapper request is sent");
+            File.Exists(Path.Combine(certDirectory, "server.pfx")).Should().BeTrue(
+                "the client and injected inspector must share a pre-created certificate to avoid first-connect races");
+            File.Exists(Path.Combine(certDirectory, "server.pwd")).Should().BeTrue(
+                "the protected certificate password must exist before secure bootstrap starts");
         }
         finally
         {
             Directory.Delete(certDirectory, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Execute_WhenSecureTransportArtifactsCannotBeCreated_ShouldReturnClearError()
+    {
+        var certDirectory = "invalid" + '\0' + "cert-path";
+        using var sessionManager = new SessionManager(certManager: new CertificateManager(certDirectory));
+        var injector = new FakeProcessInjector();
+        var tool = CreateTool(sessionManager: sessionManager, injector: injector);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("SecureTransportInitializationFailed");
+        resultJson.GetProperty("error").GetString().Should().Contain("Failed to prepare secure transport artifacts");
+        injector.InjectWithBootstrapCallCount.Should().Be(0);
     }
 
     private static string FindSolutionRoot()
@@ -366,6 +391,8 @@ public partial class ConnectToolTests : IDisposable
         public int InjectWithBootstrapCallCount { get; private set; }
         public CancellationToken LastInjectWithBootstrapCancellationToken { get; private set; }
         public InjectionRequest? LastInjectionRequest { get; private set; }
+        public bool CertificateFileExistedAtInjection { get; private set; }
+        public bool PasswordFileExistedAtInjection { get; private set; }
 
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
         {
@@ -388,6 +415,11 @@ public partial class ConnectToolTests : IDisposable
             InjectWithBootstrapCallCount++;
             LastInjectionRequest = request;
             LastInjectWithBootstrapCancellationToken = cancellationToken;
+            if (!string.IsNullOrWhiteSpace(request.CertificateDirectory))
+            {
+                CertificateFileExistedAtInjection = File.Exists(Path.Combine(request.CertificateDirectory, "server.pfx"));
+                PasswordFileExistedAtInjection = File.Exists(Path.Combine(request.CertificateDirectory, "server.pwd"));
+            }
 
             if (ShouldFailInjection)
             {

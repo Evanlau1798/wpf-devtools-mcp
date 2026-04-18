@@ -1,5 +1,4 @@
 using System.IO.Pipes;
-using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
@@ -175,16 +174,20 @@ public sealed class GetBindingErrorsToolPendingEventsTests
                 catch (EndOfStreamException)
                 {
                 }
+                catch (IOException)
+                {
+                }
                 catch (ObjectDisposedException)
                 {
                 }
             });
 
             var sessionManager = new SessionManager();
+            DisableSessionManagerCleanupTimer(sessionManager);
             sessionManager.AddSession(processId);
             var client = new NamedPipeClient(processId, pipeName);
             (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
-            ReplacePipeClient(sessionManager, processId, client);
+            ReplaceSessionManagerPipeClient(sessionManager, processId, client);
 
             return new ConnectedBindingErrorsSession(sessionManager, server, serverTask, requestMethods);
         }
@@ -195,7 +198,19 @@ public sealed class GetBindingErrorsToolPendingEventsTests
             {
                 SessionManager.Dispose();
                 server.Dispose();
-                ServerTask.GetAwaiter().GetResult();
+                try
+                {
+                    ServerTask.GetAwaiter().GetResult();
+                }
+                catch (EndOfStreamException)
+                {
+                }
+                catch (IOException)
+                {
+                }
+                catch (ObjectDisposedException)
+                {
+                }
             }
             finally
             {
@@ -204,16 +219,5 @@ public sealed class GetBindingErrorsToolPendingEventsTests
             }
         }
 
-        private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
-        {
-            var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
-            var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
-            if (pipeClients!.TryGetValue(processId, out var existingClient))
-            {
-                existingClient.Dispose();
-            }
-
-            pipeClients[processId] = replacement;
-        }
     }
 }

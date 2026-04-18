@@ -75,6 +75,35 @@ public class CertificateManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task GetOrCreateCertificate_CalledConcurrently_ShouldPersistReusableArtifacts()
+    {
+        var firstManager = new CertificateManager(_tempDir);
+        var secondManager = new CertificateManager(_tempDir);
+
+        var certificates = await Task.WhenAll(
+            Task.Run(() => firstManager.GetOrCreateCertificate()),
+            Task.Run(() => secondManager.GetOrCreateCertificate()),
+            Task.Run(() => firstManager.GetOrCreateCertificate()),
+            Task.Run(() => secondManager.GetOrCreateCertificate()));
+
+        try
+        {
+            certificates.Select(certificate => certificate.Thumbprint)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Should().ContainSingle();
+            File.Exists(Path.Combine(_tempDir, "server.pfx")).Should().BeTrue();
+            File.Exists(Path.Combine(_tempDir, "server.pwd")).Should().BeTrue();
+        }
+        finally
+        {
+            foreach (var certificate in certificates)
+            {
+                certificate.Dispose();
+            }
+        }
+    }
+
+    [Fact]
     public void GetOrCreateCertificate_ShouldHaveCorrectKeyUsage()
     {
         // Arrange

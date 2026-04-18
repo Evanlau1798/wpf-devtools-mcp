@@ -1,126 +1,126 @@
 ﻿{
     "schemaVersion":  1,
-    "cacheKey":  "sha256:a865c39bfb79ce26af88a02a036fd66498dc03df7c82cbbe5070988769f2e9c3",
+    "cacheKey":  "sha256:195c4c8025fed5eea988806ae312c0cee5b6f70e5a879a75cee2bd24f945fe05",
     "helperFiles":  [
                         {
                             "path":  "Installer.BootstrapUi.ps1",
-                            "sha256":  "7ab201561603715c1cef753b9c288da9873a3d17ba39511d99a93d57e33c2c26",
-                            "sizeBytes":  12845
+                            "sha256":  "89d8f7f621b23425dff37d034b8bde33a192a572ac016eda39e6f63852b9213c",
+                            "sizeBytes":  13311
                         },
                         {
                             "path":  "Tui.Terminal.ps1",
-                            "sha256":  "bbd7f9d0833a684660fe2a8846a0a2d805d1606898f6cc6d5f80b379c1a5e8ce",
-                            "sizeBytes":  10918
+                            "sha256":  "c02c74cf75c9fe1f722d650aec039fbd42e0f2ab6bf6903f0a11c7bb49e90a3f",
+                            "sizeBytes":  11340
                         },
                         {
                             "path":  "Tui.Layout.ps1",
-                            "sha256":  "a890b32644a44cbbf88d0800bdf15eb4b6ebbd711d6eb165064f1c88b17fbbc0",
-                            "sizeBytes":  10754
+                            "sha256":  "944d9efc59541b6a2d3db40d592d16d2736fc738c16eb3424600ef776e16e485",
+                            "sizeBytes":  11116
                         },
                         {
                             "path":  "Tui.State.ps1",
-                            "sha256":  "773e5cf042426b822968150fa7b9316424dc369b7f34e9d81d480c9cc6035061",
-                            "sizeBytes":  5092
+                            "sha256":  "fc9833828b63482917e1721fa37217b9e1fb96c287551fea4615611367fd23c5",
+                            "sizeBytes":  5188
                         },
                         {
                             "path":  "Tui.ScreenModel.ps1",
-                            "sha256":  "15f2e814c6585c098e5be1d92c40d989435b7f392bd3924c7d5678588edbd072",
-                            "sizeBytes":  15814
+                            "sha256":  "1c530f4acbd7a4a74276f4978cdf6b41ee99797f0110bf1f851289eb624b3797",
+                            "sizeBytes":  16230
                         },
                         {
                             "path":  "Tui.Sections.ps1",
-                            "sha256":  "9e48e68bc85b9d7bad4b408bc56ce11ea84408ed7a646e222184744c18557352",
-                            "sizeBytes":  2506
+                            "sha256":  "fe62d1b817659d62533cd63faf022a859cbf65b9808f9a4562821b893ed39c11",
+                            "sizeBytes":  2604
                         },
                         {
                             "path":  "Tui.Window.ps1",
-                            "sha256":  "c300958ebd55f46ee74de50b9f466e74fa0c9e6ba3b249434c47dd0e71408b01",
-                            "sizeBytes":  2361
+                            "sha256":  "c8488b38b7762686769643323970a11deae7ffc07db41a10553ab7b161b9e0ed",
+                            "sizeBytes":  2425
                         },
                         {
                             "path":  "Tui.TitleBar.ps1",
-                            "sha256":  "11d74ba006e3cc307d907dc740b4945fa98d9d948b642b59edb2a8b7d2a870d0",
-                            "sizeBytes":  1146
+                            "sha256":  "5ceefd6fc80078624aec19caeecdd0381aa145808dc5fa57a8a5c90ce04d97c4",
+                            "sizeBytes":  1180
                         },
                         {
                             "path":  "Tui.StatusBar.ps1",
-                            "sha256":  "2d10f530dec05a8aded5658972d1179ecf974529307689e2cf473eaa9795aa62",
-                            "sizeBytes":  4691
+                            "sha256":  "3ab04256ca8f026f6b9d09fd64f4c3333ab617fc4feec33e87b6084b81ac4d63",
+                            "sizeBytes":  4814
                         },
                         {
                             "path":  "Tui.Presenters.ps1",
-                            "sha256":  "6d05f91d02f7aa6458d9c9374997f5b8f93df16f8409da873e932b42728373d5",
-                            "sizeBytes":  18234
+                            "sha256":  "d2f7f1389985b8a2f86fa7a4f6f6e7fc50950b461946bb908f6abb651a049f12",
+                            "sizeBytes":  18685
                         },
                         {
                             "path":  "Tui.PathEditor.ps1",
-                            "sha256":  "590b07bb06921aaf5e9644ec4b99fe419127e4b8a29ed27f9e77231e4b03974b",
-                            "sizeBytes":  16862
+                            "sha256":  "799af2cb096ce87c489e956fde03b15eaab392927b8dd2690a7f03d7bf0adf3a",
+                            "sizeBytes":  17321
                         },
                         {
                             "path":  "Tui.PathEditor.Views.ps1",
-                            "sha256":  "4bd8ec8758a80511755bdc9a881c29799a721bfbbf12d58845ea0655db2646e5",
-                            "sizeBytes":  9807
+                            "sha256":  "c0b15ce98d188ff64c936445a90c1cd2ba12227d52f8c8f04dd27f30d7c63743",
+                            "sizeBytes":  9971
                         },
                         {
                             "path":  "Tui.Renderer.ps1",
-                            "sha256":  "51ec60f75d27269905847dea289af7b863ebcda77b08be5fd9b2daab8f2a86e5",
-                            "sizeBytes":  4683
+                            "sha256":  "802e8408405e577c14bab314a46d8ff66350bbf8362dd63acd35c87a4cb9cd93",
+                            "sizeBytes":  4786
                         },
                         {
                             "path":  "Tui.Input.ps1",
-                            "sha256":  "51e19c2e434f7b641061982138ca4e1d223f4389d72295c1620857add36748d4",
-                            "sizeBytes":  3833
+                            "sha256":  "40c2135daa7991f984b88e7727573d31bff6a2e125ae9aadb3444e880ea2fcae",
+                            "sizeBytes":  3968
                         },
                         {
                             "path":  "Tui.Flow.ps1",
-                            "sha256":  "6fa8970500acaebd3dfd49cd9e79bad11c47009800639f77cb3a45af4f54be4b",
-                            "sizeBytes":  18433
+                            "sha256":  "0f157f378a5e7b502cba6dc66305ee269c37c3e1ade5f94b8f247465178858bf",
+                            "sizeBytes":  18838
                         },
                         {
                             "path":  "Tui.Confirm.ps1",
-                            "sha256":  "6fcdcca718085675b6bcb59f8eb8d20ac91e32d5d7cb1879ba074c2018a61aeb",
-                            "sizeBytes":  4400
+                            "sha256":  "892be45513c9e6559e357c21dad0d5d8e79dae1547897f565e39b5e940859d5f",
+                            "sizeBytes":  4511
                         },
                         {
                             "path":  "Installer.Discovery.ps1",
-                            "sha256":  "1af3322eb49594d8a1679f68b0ed78ab089b84c86eced4321067cb6093374522",
-                            "sizeBytes":  29991
+                            "sha256":  "3232703b11874cf1b6bc81e9c22efefea27b9ff343a0023fb1f378af2b36fc85",
+                            "sizeBytes":  30713
                         },
                         {
                             "path":  "Installer.Uninstall.ps1",
-                            "sha256":  "2bfb223257aaadc2e5010a0991009b7b647ea38482171b204ff240abbc7b0b3b",
-                            "sizeBytes":  25202
+                            "sha256":  "d65d3cfa74f403cae58df829ef787349ace3946f4a04fb0b14a3c9c929faaaf8",
+                            "sizeBytes":  25755
                         },
                         {
                             "path":  "Installer.Release.ps1",
-                            "sha256":  "0b58b376f27a0f4537afdd6bdfa16097c1f490176860315e905aa5ab05f700da",
-                            "sizeBytes":  6800
+                            "sha256":  "c762bcc8926550cd7deb73f7eec61024f9f3991495b705c1959e805607a65564",
+                            "sizeBytes":  7539
                         },
                         {
                             "path":  "Installer.PackageIntegrity.ps1",
-                            "sha256":  "a8ed6f9da8cad1d4bd5c0b35fa01259328ad07a1fda375a3d761350ed22c1b52",
-                            "sizeBytes":  20743
+                            "sha256":  "53026057ed8144422353135f6ed3cf929511426f8e312aef42f9ebb3a0062b9f",
+                            "sizeBytes":  22010
                         },
                         {
                             "path":  "Installer.State.ps1",
-                            "sha256":  "dcaa4d6cbf7f9b25a82b2233a314f9905cd5d985ade8b58e2e86ecef54fb6c00",
-                            "sizeBytes":  13702
+                            "sha256":  "b91765ed0b9e050e373a80e9f88c1a0001727e3f941ddd01942a096caa179ddd",
+                            "sizeBytes":  14136
                         },
                         {
                             "path":  "Installer.Registration.ps1",
-                            "sha256":  "6f305471f4f00998c01f698fa2744ce41f39209afd7a01e60e4f2f029053a47d",
-                            "sizeBytes":  35459
+                            "sha256":  "599971aa30635187cc6ba587fc394849447cdc3427401e40c258ed7e3c528fb4",
+                            "sizeBytes":  36361
                         },
                         {
                             "path":  "Installer.Verification.ps1",
-                            "sha256":  "1c7277e776423152da04fad8c95e76959f11cb4b69f12a18ffaf1ed17f4f5399",
-                            "sizeBytes":  26228
+                            "sha256":  "c15dcf01655796e35df6f319a86c9be41aafee0556427cd04c21ab7255fac499",
+                            "sizeBytes":  26888
                         },
                         {
                             "path":  "Installer.Actions.ps1",
-                            "sha256":  "f1c8f324f71d59ddfd38895df5c43b3b7cd27ed7d9bcb28287200bd419ae4857",
-                            "sizeBytes":  37175
+                            "sha256":  "863381d53386f0f87853eb8635202bcae516167cf6a6f698dce2cb3eb808562a",
+                            "sizeBytes":  38663
                         }
                     ]
 }

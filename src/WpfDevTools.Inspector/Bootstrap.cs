@@ -179,7 +179,7 @@ public static class Bootstrap
         var certManager = encryptionEnabled
             ? (string.IsNullOrWhiteSpace(certDirectory)
                 ? new Shared.Security.CertificateManager()
-                : new Shared.Security.CertificateManager(certDirectory))
+                : new Shared.Security.CertificateManager(certDirectory!))
             : null;
 
         _host = new Host.InspectorHost(processId, pipeName, authManager, certManager);
@@ -202,9 +202,9 @@ public static class Bootstrap
 
         try
         {
-            if (!LooksLikeKeyValueParameters(parameters) && parameters.Count(static ch => ch == ';') == 1)
+            if (!LooksLikeKeyValueParameters(parameters) && CountOccurrences(parameters, ';') == 1)
             {
-                var legacyParts = parameters.Split(';', 2);
+                var legacyParts = parameters.Split(new[] { ';' }, 2);
                 if (legacyParts.Length == 2)
                 {
                     result["inspectorDllPath"] = legacyParts[0].Trim();
@@ -214,7 +214,7 @@ public static class Bootstrap
                 return result;
             }
 
-            var pairs = parameters.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            var pairs = parameters.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var pair in pairs)
             {
                 var separatorIndex = pair.IndexOf('=');
@@ -223,8 +223,8 @@ public static class Bootstrap
                     continue;
                 }
 
-                var key = pair[..separatorIndex].Trim();
-                var value = pair[(separatorIndex + 1)..].Trim();
+                var key = pair.Substring(0, separatorIndex).Trim();
+                var value = pair.Substring(separatorIndex + 1).Trim();
 
                 if (!string.IsNullOrWhiteSpace(key))
                 {
@@ -242,7 +242,7 @@ public static class Bootstrap
 
     private static bool LooksLikeKeyValueParameters(string parameters)
     {
-        foreach (var pair in parameters.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var pair in parameters.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = pair.Trim();
             if (trimmed.StartsWith("inspectorDllPath=", StringComparison.Ordinal) ||
@@ -257,6 +257,20 @@ public static class Bootstrap
         }
 
         return false;
+    }
+
+    private static int CountOccurrences(string value, char token)
+    {
+        var count = 0;
+        foreach (var ch in value)
+        {
+            if (ch == token)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private static void LogInfo(string message)

@@ -1,3 +1,4 @@
+using System.IO;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using WpfDevTools.Shared.Security;
@@ -215,6 +216,34 @@ public sealed partial class SessionManager : IDisposable
     internal string? GetCertificateDirectory()
     {
         return _certManager?.CertificateDirectory;
+    }
+
+    /// <summary>
+    /// Materialize the shared certificate artifacts required for secure bootstrap
+    /// before the injector launches the inspector. This prevents the server and
+    /// injected process from racing to create the same certificate files.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the certificate manager reports success but the expected on-disk
+    /// artifacts are still missing.
+    /// </exception>
+    internal void EnsureSecureTransportArtifactsCreated()
+    {
+        ThrowIfDisposed();
+
+        if (_certManager == null)
+        {
+            return;
+        }
+
+        using var certificate = _certManager.GetOrCreateCertificate();
+
+        var certDirectory = _certManager.CertificateDirectory;
+        if (!File.Exists(Path.Combine(certDirectory, "server.pfx")) ||
+            !File.Exists(Path.Combine(certDirectory, "server.pwd")))
+        {
+            throw new InvalidOperationException($"Secure transport certificate artifacts were not created under '{certDirectory}'.");
+        }
     }
 
     /// <summary>

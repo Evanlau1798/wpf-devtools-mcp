@@ -3,11 +3,22 @@ setlocal EnableExtensions DisableDelayedExpansion
 
 set "SCRIPT_DIR=%~dp0"
 set "INSTALL_SCRIPT=%SCRIPT_DIR%bin\install.ps1"
-set "POWERSHELL_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+REM ENCODER_POWERSHELL_EXE stays on a known-good Windows PowerShell path so
+REM argument JSON/base64 preparation works even when execution is user-overridden.
+set "ENCODER_POWERSHELL_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+set "POWERSHELL_EXE="
 set "INSTALL_ARG_COUNT=0"
 
-if not exist "%POWERSHELL_EXE%" (
-    set "POWERSHELL_EXE=powershell.exe"
+if not exist "%ENCODER_POWERSHELL_EXE%" (
+    set "ENCODER_POWERSHELL_EXE=powershell.exe"
+)
+
+REM POWERSHELL_EXE is the actual execution engine and may be overridden by
+REM WPFDEVTOOLS_POWERSHELL_EXE for environments that need a custom host.
+if defined WPFDEVTOOLS_POWERSHELL_EXE (
+    set "POWERSHELL_EXE=%WPFDEVTOOLS_POWERSHELL_EXE%"
+) else (
+    set "POWERSHELL_EXE=%ENCODER_POWERSHELL_EXE%"
 )
 
 if not exist "%INSTALL_SCRIPT%" (
@@ -24,7 +35,7 @@ goto collect_install_args
 
 :prepare_install_args
 set "INSTALL_ARGS_B64="
-for /f "usebackq delims=" %%I in (`%POWERSHELL_EXE% -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$installerArgs = @(); for ($i = 0; $i -lt [int]$env:INSTALL_ARG_COUNT; $i++) { $installerArgs += [Environment]::GetEnvironmentVariable('INSTALL_ARG_' + $i, 'Process') }; $argsJson = ConvertTo-Json -Compress -InputObject @($installerArgs); $argsBytes = [System.Text.Encoding]::UTF8.GetBytes($argsJson); [Convert]::ToBase64String($argsBytes)"`) do set "INSTALL_ARGS_B64=%%I"
+for /f "usebackq delims=" %%I in (`%ENCODER_POWERSHELL_EXE% -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$installerArgs = @(); for ($i = 0; $i -lt [int]$env:INSTALL_ARG_COUNT; $i++) { $installerArgs += [Environment]::GetEnvironmentVariable('INSTALL_ARG_' + $i, 'Process') }; $argsJson = ConvertTo-Json -Compress -InputObject @($installerArgs); $argsBytes = [System.Text.Encoding]::UTF8.GetBytes($argsJson); [Convert]::ToBase64String($argsBytes)"`) do set "INSTALL_ARGS_B64=%%I"
 if not defined INSTALL_ARGS_B64 (
     echo Failed to prepare installer arguments.
     exit /b 1

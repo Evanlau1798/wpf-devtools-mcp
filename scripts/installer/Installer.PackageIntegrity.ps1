@@ -467,22 +467,39 @@ function Get-PackagePayloadSignatureTargets {
     return @($targets | Sort-Object -Unique)
 }
 
+<#
+.SYNOPSIS
+    Verifies that executable payloads inside a package satisfy the current
+    signature policy before installation.
+
+.PARAMETER TrustedArchiveManifestPolicy
+    Indicates the package directory was extracted from an archive that already
+    passed Assert-ArchiveIntegrity and Assert-ArchiveSafeEntries, so a
+    DebugTrustedRootSkip manifest may skip per-payload Authenticode checks.
+#>
 function Assert-PackagePayloadIntegrity {
     param(
         [Parameter(Mandatory)] [string]$PackageDirectory,
-        [Parameter(Mandatory)] [psobject]$PackageManifest
+        [Parameter(Mandatory)] [psobject]$PackageManifest,
+        [switch]$TrustedArchiveManifestPolicy
     )
 
     $signaturePolicy = [string]$PackageManifest.signaturePolicy
+    $installerMode = Resolve-InstallerMode
+
+    # Archive-backed sessions have already passed release checksum and zip-slip
+    # validation in Assert-ArchiveIntegrity/Assert-ArchiveSafeEntries, so
+    # DebugTrustedRootSkip only bypasses per-payload Authenticode checks there.
+    if ($signaturePolicy -eq 'DebugTrustedRootSkip' -and $TrustedArchiveManifestPolicy) {
+        return
+    }
+
     $requiresSignedPayload = $false
 
-    if (Resolve-InstallerMode -eq 'offline') {
+    if ($installerMode -eq 'offline') {
         $requiresSignedPayload = $true
     }
-    elseif ($signaturePolicy -eq 'DebugTrustedRootSkip') {
-        $requiresSignedPayload = $false
-    }
-    elseif (Resolve-InstallerMode -eq 'online') {
+    elseif ($installerMode -eq 'online') {
         $requiresSignedPayload = $true
     }
     elseif ($signaturePolicy -eq 'RequireAuthenticodeSignature') {

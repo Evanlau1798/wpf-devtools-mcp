@@ -234,6 +234,23 @@ public sealed partial class ConnectTool
             };
         }
 
+        try
+        {
+            _sessionManager.EnsureSecureTransportArtifactsCreated();
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new
+            {
+                success = false,
+                error = $"Failed to prepare secure transport artifacts: {ex.Message}",
+                errorCode = "SecureTransportInitializationFailed",
+                targetIsElevated = processInfo.IsElevated,
+                requiresElevationToConnect = access.RequiresElevationToConnect,
+                canConnectFromCurrentServer = access.CanConnectFromCurrentServer
+            };
+        }
+
         var inspectorCandidates = _inspectorCandidateResolver(AppContext.BaseDirectory)
             .Where(File.Exists)
             .ToArray();

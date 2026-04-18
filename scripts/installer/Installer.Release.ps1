@@ -76,10 +76,13 @@ function Resolve-PackageSession {
         New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
         Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
         Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
+        # Extracted archives can trust DebugTrustedRootSkip only after the archive
+        # itself passes checksum and zip-slip validation above.
         return [ordered]@{
             PackageDirectory = $extractRoot
             SessionRoot = $sessionRoot
             CleanupSession = $true
+            TrustedArchiveManifestPolicy = $true
             DownloadSource = 'local-package'
             DownloadUri = [string]$integrity.DownloadUri
             PackageAssetName = [string]$integrity.PackageAssetName
@@ -90,10 +93,13 @@ function Resolve-PackageSession {
     if ($Mode -eq 'offline') {
         $localRoot = Resolve-LocalPackageRoot
         $manifest = Get-Content -Path (Resolve-PackageManifestPath -PackageDirectory $localRoot) -Raw | ConvertFrom-Json
+        # Package-local directories are not archive-backed, so embedded manifests
+        # never get trusted to relax payload signature validation.
         return [ordered]@{
             PackageDirectory = $localRoot
             SessionRoot = $null
             CleanupSession = $false
+            TrustedArchiveManifestPolicy = $false
             DownloadSource = 'local-package'
             DownloadUri = $null
             PackageAssetName = $null
@@ -110,10 +116,13 @@ function Resolve-PackageSession {
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
     Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
     Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
+    # GitHub release archives only enable DebugTrustedRootSkip after the archive
+    # download passes checksum and zip-slip validation.
     return [ordered]@{
         PackageDirectory = $extractRoot
         SessionRoot = $sessionRoot
         CleanupSession = $true
+        TrustedArchiveManifestPolicy = $true
         DownloadSource = 'github-release'
         DownloadUri = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.DownloadUri)) { [string]$integrity.DownloadUri } else { [string]$downloadDetails.DownloadUri }
         PackageAssetName = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.PackageAssetName)) { [string]$integrity.PackageAssetName } else { [string]$downloadDetails.AssetName }

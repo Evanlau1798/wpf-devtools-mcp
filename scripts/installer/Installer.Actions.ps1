@@ -1,14 +1,24 @@
+<#
+.SYNOPSIS
+    Installs a prepared package directory into the requested install root.
+
+.PARAMETER TrustedArchiveManifestPolicy
+    Indicates the package directory came from an archive session that already
+    passed release checksum and archive safety validation, allowing
+    DebugTrustedRootSkip manifests to skip per-payload Authenticode checks.
+#>
 function Install-PackagePayload {
     param(
         [Parameter(Mandatory)] [string]$PackageDirectory,
         [Parameter(Mandatory)] [psobject]$PackageManifest,
         [Parameter(Mandatory)] [string]$ResolvedArchitecture,
         [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
-        [Parameter(Mandatory)] [string]$ResolvedVersion
+        [Parameter(Mandatory)] [string]$ResolvedVersion,
+        [switch]$TrustedArchiveManifestPolicy
     )
 
     $packageExecutable = Resolve-PackageExecutable -PackageDirectory $PackageDirectory -ResolvedArchitecture $ResolvedArchitecture
-    Assert-PackagePayloadIntegrity -PackageDirectory $PackageDirectory -PackageManifest $PackageManifest
+    Assert-PackagePayloadIntegrity -PackageDirectory $PackageDirectory -PackageManifest $PackageManifest -TrustedArchiveManifestPolicy:$TrustedArchiveManifestPolicy
 
     $installRootFullPath = Resolve-AbsoluteDirectory -Path $ResolvedInstallRoot
     $installBase = Join-Path $installRootFullPath $ResolvedArchitecture
@@ -492,7 +502,7 @@ function Invoke-InstallerActionCore {
         [Parameter(Mandatory)] [ValidateSet('install', 'uninstall', 'full-uninstall')] [string]$ResolvedAction,
         [Parameter(Mandatory)] [string]$ResolvedArchitecture,
         [Parameter(Mandatory)] [string]$ResolvedClient,
-        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [AllowEmptyString()] [AllowNull()] [string]$ResolvedInstallRoot,
         [Parameter(Mandatory)] [string]$RequestedVersion,
         [switch]$UseLatestRelease
     )
@@ -646,6 +656,10 @@ function Invoke-InstallerActionCore {
         }
     }
 
+    if ([string]::IsNullOrWhiteSpace($ResolvedInstallRoot)) {
+        $ResolvedInstallRoot = Resolve-PreferredInstallRoot
+    }
+
     $mode = if ($UseLatestRelease) { 'online' } else { Resolve-InstallerMode }
     $session = Resolve-PackageSession -Mode $mode -ResolvedVersion $RequestedVersion -ResolvedArchitecture $ResolvedArchitecture
     $installResult = $null
@@ -684,7 +698,7 @@ function Invoke-InstallerActionCore {
             [string]$session.DownloadUri
         }
 
-        $installResult = Install-PackagePayload -PackageDirectory $session.PackageDirectory -PackageManifest $packageManifest -ResolvedArchitecture $resolvedArchitecture -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedVersion $resolvedVersion
+        $installResult = Install-PackagePayload -PackageDirectory $session.PackageDirectory -PackageManifest $packageManifest -ResolvedArchitecture $resolvedArchitecture -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedVersion $resolvedVersion -TrustedArchiveManifestPolicy:([bool]$session.TrustedArchiveManifestPolicy)
         $registrations = @(Invoke-ClientRegistration -SelectedClient $ResolvedClient -InstalledExecutable $installResult.installedExecutable -InstallBase $installResult.installBase)
         $verification = Invoke-InstallVerification -SelectedClient $ResolvedClient -ResolvedVersion $resolvedVersion -InstalledExecutable $installResult.installedExecutable -Registration $registrations[0]
         if (-not $verification.Succeeded) {

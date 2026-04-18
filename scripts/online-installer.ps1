@@ -1641,7 +1641,7 @@ function Invoke-StandaloneInstallerActionCore {
         [Parameter(Mandatory)] [ValidateSet('uninstall', 'full-uninstall')] [string]$ResolvedAction,
         [Parameter(Mandatory)] [string]$ResolvedArchitecture,
         [Parameter(Mandatory)] [string]$ResolvedClient,
-        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [AllowEmptyString()] [AllowNull()] [string]$ResolvedInstallRoot,
         [Parameter(Mandatory)] [string]$RequestedVersion,
         [switch]$UseLatestRelease
     )
@@ -3208,11 +3208,16 @@ function Get-CliSelection {
     $defaultClient = if ([string]::IsNullOrWhiteSpace($Client)) { Get-DefaultClient } else { $Client }
 
     if ($NonInteractive -or $OutputJson) {
+        $selectedInstallRoot = $defaultInstallRoot
+        if (-not $script:InstallRootWasSpecified -and $defaultAction -ne 'install') {
+            $selectedInstallRoot = $null
+        }
+
         return [ordered]@{
             Action = $defaultAction
             Architecture = $defaultArchitecture
             Client = $defaultClient
-            InstallRoot = $defaultInstallRoot
+            InstallRoot = $selectedInstallRoot
         }
     }
 
@@ -3511,7 +3516,7 @@ function Invoke-InstallerAction {
         [Parameter(Mandatory)] [ValidateSet('install', 'uninstall', 'full-uninstall')] [string]$ResolvedAction,
         [Parameter(Mandatory)] [string]$ResolvedArchitecture,
         [Parameter(Mandatory)] [string]$ResolvedClient,
-        [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] [AllowEmptyString()] [AllowNull()] [string]$ResolvedInstallRoot,
         [Parameter(Mandatory)] [string]$RequestedVersion,
         [switch]$UseLatestRelease
     )
@@ -3631,6 +3636,7 @@ function Resolve-Selection {
     }
 }
 
+# TEST_BOUNDARY_MARKER: definition-only loading stops before the main entrypoint.
 $selectionContext = Resolve-Selection
 if ($selectionContext.Cancelled) {
     return

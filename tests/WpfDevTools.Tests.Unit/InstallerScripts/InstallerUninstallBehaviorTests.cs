@@ -85,8 +85,13 @@ public sealed class InstallerUninstallBehaviorTests
             var command = string.Join(" ; ",
             [
                 "$repoScriptPath='" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1").Replace("'", "''") + "'",
+                "$scriptContent = Get-Content $repoScriptPath -Raw",
+                "$marker = '" + TestHelpers.OnlineInstallerDefinitionBoundaryMarker.Replace("'", "''") + "'",
+                "$markerIndex = $scriptContent.LastIndexOf($marker)",
+                "if ($markerIndex -lt 0) { throw 'Main script marker not found.' }",
+                "$definitions = $scriptContent.Substring(0, $markerIndex)",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
-                ". ([scriptblock]::Create((Get-Content $repoScriptPath -Raw))) -Action uninstall -Architecture x64 -Client other -NonInteractive -Force -OutputJson | Out-Null",
+                ". ([scriptblock]::Create($definitions)) -Action uninstall -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -NonInteractive -Force -OutputJson | Out-Null",
                 "Remove-PathIfExists -Path '" + targetPath.Replace("'", "''") + "'",
                 "@{ TargetExists = (Test-Path -LiteralPath '" + targetPath.Replace("'", "''") + "'); SiblingExists = (Test-Path -LiteralPath '" + siblingPath.Replace("'", "''") + "') } | ConvertTo-Json -Compress"
             ]);

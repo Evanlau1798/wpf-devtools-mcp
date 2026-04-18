@@ -11,7 +11,7 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public sealed partial class SessionManager : IDisposable
 {
-    private volatile bool _isDisposed;
+    private int _disposeState;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     internal readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly Dictionary<int, Dictionary<string, StoredStateSnapshot>> _stateSnapshots = new();
@@ -456,7 +456,7 @@ public sealed partial class SessionManager : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (_isDisposed)
+        if (Volatile.Read(ref _disposeState) != 0)
             throw new ObjectDisposedException(nameof(SessionManager));
     }
 
@@ -465,15 +465,13 @@ public sealed partial class SessionManager : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (_isDisposed)
+        if (Volatile.Read(ref _disposeState) != 0)
             return;
 
         lock (_lock)
         {
-            if (_isDisposed)
+            if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
                 return;
-
-            _isDisposed = true;
 
             // Dispose cleanup timer
             _cleanupTimer.Dispose();

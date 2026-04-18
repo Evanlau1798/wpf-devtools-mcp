@@ -28,7 +28,7 @@ public sealed class NamedPipeClient : IDisposable
     private Stream? _communicationStream;
     private readonly object _lock = new();
     private readonly SemaphoreSlim _pipeSemaphore = new(1, 1);
-    private volatile bool _isDisposed;
+    private int _disposeState;
 
     /// <summary>
     /// Initializes a new instance of the NamedPipeClient class without authentication
@@ -123,7 +123,7 @@ public sealed class NamedPipeClient : IDisposable
                 NamedPipeClientStream localClient;
                 lock (_lock)
                 {
-                    if (_isDisposed)
+                    if (Volatile.Read(ref _disposeState) != 0)
                         return false;
 
                     _pipeClient?.Dispose();
@@ -387,7 +387,7 @@ public sealed class NamedPipeClient : IDisposable
             Stream commStream;
             lock (_lock)
             {
-                if (_isDisposed)
+                if (Volatile.Read(ref _disposeState) != 0)
                 {
                     throw new ObjectDisposedException(nameof(NamedPipeClient), "Client has been disposed");
                 }
@@ -454,10 +454,9 @@ public sealed class NamedPipeClient : IDisposable
 
         lock (_lock)
         {
-            if (_isDisposed)
+            if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
                 return;
 
-            _isDisposed = true;
             streamToDispose = _communicationStream;
             pipeToDispose = _pipeClient;
             _communicationStream = null;

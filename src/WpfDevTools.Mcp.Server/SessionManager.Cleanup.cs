@@ -10,7 +10,7 @@ public sealed partial class SessionManager
     /// </summary>
     internal void PerformCleanup()
     {
-        if (_isDisposed) return;
+        if (Volatile.Read(ref _disposeState) != 0) return;
 
         try
         {
@@ -43,7 +43,7 @@ public sealed partial class SessionManager
         finally
         {
             // Reschedule the one-shot timer for the next cleanup cycle
-            if (!_isDisposed)
+            if (Volatile.Read(ref _disposeState) == 0)
             {
                 try { _cleanupTimer.Change(McpServerConfiguration.SessionCleanupInterval, Timeout.InfiniteTimeSpan); }
                 catch (ObjectDisposedException) { /* Timer disposed during shutdown */ }

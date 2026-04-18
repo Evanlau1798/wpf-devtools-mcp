@@ -253,8 +253,10 @@ public sealed partial class InspectorHost : IDisposable
             }
             catch (UnauthorizedAccessException ex)
             {
-                LogError($"Pipe access denied: {ex.Message}");
-                break; // Don't retry on access denied
+                LogError($"Pipe access denied (attempt will retry): {ex.Message}");
+                // Pipe name may still be registered in kernel after rapid disconnect/reconnect.
+                // Retry with delay instead of breaking permanently.
+                await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

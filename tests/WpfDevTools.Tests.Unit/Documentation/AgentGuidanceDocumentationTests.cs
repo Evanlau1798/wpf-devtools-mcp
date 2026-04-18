@@ -72,6 +72,27 @@ public sealed class AgentGuidanceDocumentationTests
             "error-model docs should document rate-limit recovery fields for agents");
     }
 
+    [Theory]
+    [InlineData("docfx/contributors/documentation-style.md")]
+    [InlineData("docfx/zh-tw/contributors/documentation-style.md")]
+    public void ContributorDocumentation_ShouldDescribeMcpSdkContractConventions(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("UseStructuredContent",
+            "maintainer docs should explain the repository's MCP C# SDK wrapper convention");
+        content.Should().Contain("ToolCallHelper",
+            "maintainer docs should point contributors to the shared response-contract wrapper");
+        content.Should().Contain("StructuredContent",
+            "maintainer docs should describe where the real JSON payload lives");
+        content.Should().Contain("navigation",
+            "maintainer docs should explain the shared follow-up guidance envelope");
+        content.Should().Contain("nextSteps",
+            "maintainer docs should document the compatibility guidance surface");
+        content.Should().Contain("Annotations",
+            "maintainer docs should mention error annotations on MCP tool results");
+    }
+
     private static string ExtractSection(string content, string heading)
     {
         var startIndex = content.IndexOf(heading, StringComparison.Ordinal);

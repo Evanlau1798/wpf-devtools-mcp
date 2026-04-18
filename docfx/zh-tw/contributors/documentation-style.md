@@ -17,6 +17,17 @@
 - 盡早說明 architecture 與 runtime 限制。
 - 讓 quickstart 維持精簡，再連到較深的頁面。
 
+## MCP C# SDK 契約慣例
+
+在這個 repository 中，官方 C# SDK attribute 只是公開契約的第一層。當 maintainer 新增或調整工具時，請同步維持以下 repo-specific 慣例與實際 server 行為一致：
+
+- Tool metadata 仍然從 SDK attribute 開始，但真正的 runtime response contract 會經過 `ToolCallHelper` 正規化。
+- MCP wrapper 會刻意使用 `UseStructuredContent = false`；之後由 `ToolCallHelper` 將 canonical JSON payload 放進 `StructuredContent`。
+- 當 `StructuredContent` 存在時，`Content.Text` 仍保留 compact fallback summary，供只讀文字的 client 使用。
+- 加值的 follow-up guidance 放在共用的 `navigation` envelope；`nextSteps` 則保留給較舊 client 的 compatibility surface。
+- 錯誤結果可能包含 `Annotations`，以及像 `suggestedAction`、`requiresReconnect`、`retryAfterSeconds` 這類 structured recovery 欄位。
+- 公開 docfx 文件應從 code-backed contract 出發更新，不要手動維護另一套容易 drift 的 schema 敘事。
+
 ## 公開文件與內部文件的區分
 
 - `docfx/` 是公開文件來源。

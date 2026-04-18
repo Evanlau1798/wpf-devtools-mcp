@@ -9,15 +9,19 @@ namespace WpfDevTools.Tests.TestApp;
 /// </summary>
 public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
 {
-    private string _firstName = "Ada";
-    private string _lastName = "Lovelace";
+    private const string DefaultFirstName = "Ada";
+    private const string DefaultLastName = "Lovelace";
+    private const string DefaultLastActionMessage = "Ready";
+
+    private string _firstName = DefaultFirstName;
+    private string _lastName = DefaultLastName;
     private string _name = "";
     private string _searchText = "";
     private int _age;
     private bool _isEnabled = true;
     private bool _isGhostVisible;
     private bool _useBrokenDetailContext;
-    private string _lastActionMessage = "Ready";
+    private string _lastActionMessage = DefaultLastActionMessage;
     private readonly RelayCommand _saveCommand;
     private readonly ValidDetailContext _validDetailContext = new("Detail ready");
     private readonly BrokenDetailContext _brokenDetailContext = new();
@@ -127,6 +131,7 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
 
     public ICommand SaveCommand { get; }
     public ICommand ClearCommand { get; }
+    public ICommand ResetStateCommand { get; }
 
     public TestViewModel()
     {
@@ -143,11 +148,28 @@ public class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
                 RecordActionMessage("Form cleared");
             },
             canExecute: _ => true);
+
+        ResetStateCommand = new RelayCommand(
+            execute: _ => ResetState(),
+            canExecute: _ => true);
     }
 
     public void RecordActionMessage(string message)
     {
         LastActionMessage = message;
+    }
+
+    public void ResetState()
+    {
+        FirstName = DefaultFirstName;
+        LastName = DefaultLastName;
+        SearchText = string.Empty;
+        IsEnabled = true;
+        IsGhostVisible = false;
+        UseBrokenDetailContext = false;
+        Name = string.Empty;
+        Age = 0;
+        LastActionMessage = DefaultLastActionMessage;
     }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)

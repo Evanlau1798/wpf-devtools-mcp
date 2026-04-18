@@ -12,7 +12,7 @@ namespace WpfDevTools.Tests.Integration.E2E;
 /// </summary>
 [Collection("McpE2E")]
 [Trait("Category", "E2E")]
-public sealed class BindingDiagnosticsE2eTests
+public sealed class BindingDiagnosticsE2eTests : IAsyncLifetime
 {
     private readonly McpE2eFixture _fixture;
     private readonly ITestOutputHelper _output;
@@ -22,6 +22,18 @@ public sealed class BindingDiagnosticsE2eTests
         _fixture = fixture;
         _output = output;
     }
+
+    public async Task InitializeAsync()
+    {
+        if (_fixture.SkipReason != null)
+        {
+            return;
+        }
+
+        await E2eTestHelpers.ResetTestAppStateAsync(_fixture.Client, _fixture.TestAppProcessId);
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task GetBindingErrors_ShouldDetectTestAppIntentionalErrors()

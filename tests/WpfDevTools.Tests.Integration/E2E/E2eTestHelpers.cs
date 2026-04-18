@@ -12,6 +12,10 @@ namespace WpfDevTools.Tests.Integration.E2E;
 /// </summary>
 public static class E2eTestHelpers
 {
+    private const string BasicControlsTabName = "BasicControlsTab";
+    private const string ResetCommandTargetName = "NameTextBox";
+    private const string ResetStateCommandName = "ResetStateCommand";
+
     /// <summary>
     /// Assert the E2E fixture is ready and connected.
     /// Fails with a clear message if prerequisites are missing.
@@ -160,6 +164,50 @@ public static class E2eTestHelpers
         return null;
     }
 
+    public static async Task ResetTestAppStateAsync(McpStdioClient client, int processId)
+    {
+        var basicControlsTabId = await FindElementByNameAsync(client, processId, BasicControlsTabName);
+        if (string.IsNullOrWhiteSpace(basicControlsTabId))
+        {
+            throw new InvalidOperationException($"Could not find {BasicControlsTabName} while resetting shared E2E state.");
+        }
+
+        var resetTargetId = await FindElementByNameAsync(client, processId, ResetCommandTargetName);
+        if (string.IsNullOrWhiteSpace(resetTargetId))
+        {
+            throw new InvalidOperationException($"Could not find {ResetCommandTargetName} while resetting shared E2E state.");
+        }
+
+        var activateResult = await client.CallToolAsync(
+            "click_element",
+            new
+            {
+                processId,
+                elementId = basicControlsTabId,
+                navigation = false
+            });
+        EnsureToolSucceeded(activateResult, "click_element", BasicControlsTabName);
+
+        var resetResult = await client.CallToolAsync(
+            "execute_command",
+            new
+            {
+                processId,
+                elementId = resetTargetId,
+                commandName = ResetStateCommandName,
+                navigation = false
+            });
+        EnsureToolSucceeded(resetResult, "execute_command", ResetStateCommandName);
+
+        var drainResult = await client.CallToolAsync(
+            "drain_events",
+            new
+            {
+                processId
+            });
+        EnsureToolSucceeded(drainResult, "drain_events", "pending event queue");
+    }
+
     /// <summary>
     /// Truncate a string for safe inclusion in log/error messages.
     /// </summary>
@@ -168,5 +216,14 @@ public static class E2eTestHelpers
         return value.Length <= maxLength
             ? value
             : value.Substring(0, maxLength) + "...";
+    }
+
+    private static void EnsureToolSucceeded(JsonElement result, string toolName, string target)
+    {
+        if (!result.TryGetProperty("success", out var success) || !success.GetBoolean())
+        {
+            throw new InvalidOperationException(
+                $"{toolName} failed while resetting {target}: {result.GetRawText()}");
+        }
     }
 }

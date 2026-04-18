@@ -5,7 +5,7 @@ namespace WpfDevTools.Tests.Integration.E2E;
 
 [Collection("McpE2E")]
 [Trait("Category", "E2E")]
-public sealed class FormSummaryE2eTests
+public sealed class FormSummaryE2eTests : IAsyncLifetime
 {
     private readonly McpE2eFixture _fixture;
 
@@ -13,6 +13,18 @@ public sealed class FormSummaryE2eTests
     {
         _fixture = fixture;
     }
+
+    public async Task InitializeAsync()
+    {
+        if (_fixture.SkipReason != null)
+        {
+            return;
+        }
+
+        await E2eTestHelpers.ResetTestAppStateAsync(_fixture.Client, _fixture.TestAppProcessId);
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task GetFormSummary_ShouldReportBasicControlsFormAsNotSubmittableInitially()

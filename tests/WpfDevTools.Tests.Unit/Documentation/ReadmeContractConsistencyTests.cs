@@ -105,10 +105,10 @@ public sealed class ReadmeContractConsistencyTests
         start.Should().BeGreaterThanOrEqualTo(0, "tool descriptions should include a CATEGORY header");
 
         var categoryStart = start + prefix.Length;
-        var categoryEnd = description.IndexOf(" | SAFETY:", categoryStart, StringComparison.Ordinal);
-        categoryEnd.Should().BeGreaterThan(categoryStart, "tool descriptions should include the SAFETY separator");
+        var categoryEnd = description.IndexOf("\n", categoryStart, StringComparison.Ordinal);
+        if (categoryEnd < 0) categoryEnd = description.Length;
 
-        return description.Substring(categoryStart, categoryEnd - categoryStart);
+        return description.Substring(categoryStart, categoryEnd - categoryStart).Trim();
     }
 
     private static string GetRepoFilePath(string relativePath)

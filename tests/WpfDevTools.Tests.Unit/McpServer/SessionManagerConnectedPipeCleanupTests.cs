@@ -1,5 +1,4 @@
 using System.IO.Pipes;
-using System.Reflection;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using static WpfDevTools.Tests.Unit.TestHelpers;
@@ -57,25 +56,18 @@ public sealed class SessionManagerConnectedPipeCleanupTests
 
     private static void InvokeCleanupDeadSessions(SessionManager manager)
     {
-        var cleanupMethod = typeof(SessionManager).GetMethod(
-            "CleanupDeadSessions",
-            BindingFlags.NonPublic | BindingFlags.Instance);
-        cleanupMethod.Should().NotBeNull();
-        cleanupMethod!.Invoke(manager, null);
+        manager.CleanupDeadSessions();
     }
 
     private static void DisableCleanupTimer(SessionManager manager)
     {
-        var timerField = typeof(SessionManager).GetField("_cleanupTimer", BindingFlags.Instance | BindingFlags.NonPublic);
-        var timer = timerField!.GetValue(manager) as System.Threading.Timer;
-        timer.Should().NotBeNull();
-        timer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        manager._cleanupTimer.Should().NotBeNull();
+        manager._cleanupTimer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
     {
-        var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
-        var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
+        var pipeClients = sessionManager._pipeClients;
         pipeClients.Should().NotBeNull();
         if (pipeClients!.TryGetValue(processId, out var existingClient))
         {

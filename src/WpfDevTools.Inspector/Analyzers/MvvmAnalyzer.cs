@@ -431,10 +431,17 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
                         }
 
                         // If target is Nullable<T>, wrap the result
+                        // SECURITY: Only allow Nullable wrapping for known safe primitive/value types
                         if (targetType.IsGenericType &&
                             targetType.GetGenericTypeDefinition() == typeof(Nullable<>) &&
                             convertedValue != null)
                         {
+                            if (!IsSafeNullableUnderlyingType(Nullable.GetUnderlyingType(targetType)!))
+                            {
+                                return ToolErrorFactory.InvalidArgument(
+                                    $"Nullable<{Nullable.GetUnderlyingType(targetType)!.Name}> is not a supported type for ViewModel modification",
+                                    "Only primitive types, DateTime, DateTimeOffset, TimeSpan, Guid, and decimal are supported for Nullable<T> wrapping.");
+                            }
                             convertedValue = Activator.CreateInstance(targetType, convertedValue);
                         }
                     }
@@ -496,5 +503,18 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
                     "Re-query the ViewModel with get_viewmodel and verify the property is writable before retrying modify_viewmodel.");
             }
         });
+    }
+
+    private static readonly HashSet<Type> SafeNullableUnderlyingTypes = new()
+    {
+        typeof(bool), typeof(byte), typeof(sbyte), typeof(short), typeof(ushort),
+        typeof(int), typeof(uint), typeof(long), typeof(ulong),
+        typeof(float), typeof(double), typeof(decimal), typeof(char),
+        typeof(DateTime), typeof(DateTimeOffset), typeof(TimeSpan), typeof(Guid)
+    };
+
+    private static bool IsSafeNullableUnderlyingType(Type type)
+    {
+        return SafeNullableUnderlyingTypes.Contains(type) || type.IsEnum;
     }
 }

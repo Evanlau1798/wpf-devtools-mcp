@@ -90,7 +90,7 @@ public sealed class InjectionRequest
 
     private static void ValidateReservedDelimiters(string fieldName, string? value)
     {
-        if (!string.IsNullOrEmpty(value) && value.Contains(';', StringComparison.Ordinal))
+        if (!string.IsNullOrEmpty(value) && value!.Contains(";"))
         {
             throw new InvalidOperationException(
                 $"Bootstrap parameter field '{fieldName}' cannot contain a semicolon because ';' is reserved as the parameter delimiter.");

@@ -55,7 +55,7 @@ public sealed partial class SessionManager
     /// Clean up sessions for processes that no longer exist.
     /// Prevents memory leak from dead sessions.
     /// </summary>
-    private void CleanupDeadSessions()
+    internal void CleanupDeadSessions()
     {
         List<int> deadProcessIds;
 

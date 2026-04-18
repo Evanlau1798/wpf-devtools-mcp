@@ -12,7 +12,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class LayoutMcpTools
 {
-    private const string LayoutMetadata = "CATEGORY: Layout | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+    private const string LayoutMetadata = "CATEGORY: Layout\n\n";
     [McpServerTool(Name = "get_layout_info", Title = "Inspect WPF Layout Info", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect WPF layout measurements and runtime positioning for an element.\n\n" +

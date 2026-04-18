@@ -18,27 +18,25 @@ internal static class DependencyObjectTraversal
         int maxDepth = 50)
     {
         var visited = new HashSet<DependencyObject>();
-        return EnumerateCore(root, depth: 0, maxDepth, visited);
-    }
+        var stack = new Stack<(DependencyObject Element, int Depth)>();
+        stack.Push((root, 0));
 
-    private static IEnumerable<DependencyObject> EnumerateCore(
-        DependencyObject current,
-        int depth,
-        int maxDepth,
-        HashSet<DependencyObject> visited)
-    {
-        if (depth > maxDepth || !visited.Add(current))
+        while (stack.Count > 0)
         {
-            yield break;
-        }
+            var (current, depth) = stack.Pop();
 
-        yield return current;
-
-        foreach (var child in EnumerateChildren(current))
-        {
-            foreach (var descendant in EnumerateCore(child, depth + 1, maxDepth, visited))
+            if (depth > maxDepth || !visited.Add(current))
             {
-                yield return descendant;
+                continue;
+            }
+
+            yield return current;
+
+            // Push children in reverse order so they are visited in forward order
+            var children = EnumerateChildren(current).ToList();
+            for (var i = children.Count - 1; i >= 0; i--)
+            {
+                stack.Push((children[i], depth + 1));
             }
         }
     }

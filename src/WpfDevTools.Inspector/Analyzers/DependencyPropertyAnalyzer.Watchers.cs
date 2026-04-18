@@ -155,7 +155,7 @@ public sealed partial class DependencyPropertyAnalyzer
     public object GetChangeLog() => new
     {
         success = true,
-        changeCount = _changeLogCount,
+        changeCount = _changeLog.Count,
         changes = _changeLog.ToArray()
     };
 

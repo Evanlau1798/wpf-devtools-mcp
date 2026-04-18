@@ -129,6 +129,9 @@ public static class ServerInstructions
         - invalidate_layout: force layout recalculation
         - focus_element, restore_state_snapshot: change focus or replay captured runtime state
         - wait_for_dp_change with triggerMutation: executes one live mutation before waiting for the resulting property transition
+        - batch_mutate: execute multiple mutations in ordered sequence
+        - scroll_to_element: change scroll position to bring element into view
+        - highlight_element: add temporary visual overlay adorner
 
         === COMMON WORKFLOWS ===
 

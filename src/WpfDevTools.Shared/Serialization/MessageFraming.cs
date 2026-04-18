@@ -34,23 +34,21 @@ public static class MessageFraming
         if (stream == null) throw new ArgumentNullException(nameof(stream));
         if (message == null) throw new ArgumentNullException(nameof(message));
 
-        var messageBytes = Encoding.UTF8.GetBytes(message);
+        var messageByteCount = Encoding.UTF8.GetByteCount(message);
 
-        if (messageBytes.Length > MaxMessageSize)
+        if (messageByteCount > MaxMessageSize)
         {
             throw new InvalidOperationException(
-                $"Message size ({messageBytes.Length} bytes) exceeds maximum allowed size ({MaxMessageSize} bytes)");
+                $"Message size ({messageByteCount} bytes) exceeds maximum allowed size ({MaxMessageSize} bytes)");
         }
 
-        var lengthBytes = BitConverter.GetBytes(messageBytes.Length);
-
-        // Combine length prefix and message into single buffer for atomic write
-        var totalLength = LengthPrefixSize + messageBytes.Length;
+        // Combine length prefix and message into single pooled buffer (zero intermediate allocation)
+        var totalLength = LengthPrefixSize + messageByteCount;
         var combined = ArrayPool<byte>.Shared.Rent(totalLength);
         try
         {
-            Buffer.BlockCopy(lengthBytes, 0, combined, 0, LengthPrefixSize);
-            Buffer.BlockCopy(messageBytes, 0, combined, LengthPrefixSize, messageBytes.Length);
+            BitConverter.GetBytes(messageByteCount).CopyTo(combined, 0);
+            Encoding.UTF8.GetBytes(message, 0, message.Length, combined, LengthPrefixSize);
 
 #if NET48
             // .NET 4.8: Check cancellation before write

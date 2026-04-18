@@ -8,7 +8,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class EventDrainMcpTools
 {
-    private const string EventMetadata = "CATEGORY: Event | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+    private const string EventMetadata = "CATEGORY: Event\n\n";
 
     [McpServerTool(Name = "drain_events", Title = "Drain Pending Runtime Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(

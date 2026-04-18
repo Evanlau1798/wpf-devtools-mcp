@@ -6,14 +6,13 @@ using WpfDevTools.Mcp.Server.Tools;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
-/// MCP SDK wrapper for Binding Diagnostics tools (6 tools).
+/// MCP SDK wrapper for Binding Diagnostics tools (7 tools).
 /// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
 /// </summary>
 [McpServerToolType]
 public static class BindingMcpTools
 {
-    private const string BindingMetadata = "CATEGORY: Binding | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `navigation.recommended` plus compatibility field `nextSteps`; prefer `navigation.recommended` when present instead of ad hoc tool guessing.\n\n";
+    private const string BindingMetadata = "CATEGORY: Binding\n\n";
 
     [McpServerTool(Name = "get_binding_mismatches", Title = "Detect WPF Binding Mismatches", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
@@ -21,7 +20,6 @@ public static class BindingMcpTools
         BindingMetadata + "[Binding] Cross-reference target DependencyProperty types with resolved binding source property types and report deterministic path, type, and nullability mismatches.\n\n" +
         "USE WHEN: A binding looks active but still behaves suspiciously, or you need to catch path/type issues without stitching together get_bindings, get_viewmodel, and get_dp_value_source.\n" +
         "DO NOT USE: For fuzzy guessing. This tool only reports deterministic mismatches and skips unresolved heuristics.\n\n" +
-        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -120,7 +118,6 @@ public static class BindingMcpTools
         "MATCHING: Exact simple binding-path matches remain best-effort. Nested terminal segments such as `Item.SubItem.Name` and explicit `MultiBinding` child paths can return higher confidence when the declaration itself proves the relationship.\n" +
         "SOURCE MODEL: Bindings that can be proven to stay on the element's local or inherited DataContext chain remain in `affectedElements`. ElementName, RelativeSource, explicit Source, or missing-DataContext cases are surfaced separately through `unsupportedElements` instead of being guessed as ViewModel impact.\n" +
         "VERIFICATION: Successful responses include explicit uncertainty metadata and should usually be followed by get_bindings for precise confirmation.\n\n" +
-        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -175,7 +172,6 @@ public static class BindingMcpTools
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
         "DO NOT USE: Before calling connect() - errors are only captured after injection; for validation rule errors use get_validation_errors.\n" +
         "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics. Compact mode is enabled by default to omit the verbose free-form message while preserving structured correlation fields; set `compact=false` when the full message text is required.\n\n" +
-        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

@@ -12,7 +12,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class PerformanceMcpTools
 {
-    private const string PerformanceMetadata = "CATEGORY: Performance | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+    private const string PerformanceMetadata = "CATEGORY: Performance\n\n";
     [McpServerTool(Name = "get_render_stats", Title = "Inspect WPF Render Stats", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect WPF render statistics when runtime UI performance feels slow.\n\n" +

@@ -59,7 +59,7 @@ public class McpToolAttributeTests
     }
 
     [Fact]
-    public void AllTools_ShouldIncludeStructuredCategoryAndSafetyMetadata_ForAiFriendlyDiscovery()
+    public void AllTools_ShouldIncludeStructuredCategoryMetadata_ForAiFriendlyDiscovery()
     {
         foreach (var (_, method, attr) in AllTools)
         {
@@ -68,8 +68,6 @@ public class McpToolAttributeTests
             description.Should().NotBeNull();
             description!.Description.Should().Contain("CATEGORY:",
                 $"tool '{attr.Name}' should expose a category header for AI-friendly discovery");
-            description.Description.Should().Contain("SAFETY:",
-                $"tool '{attr.Name}' should expose safety guidance in the description header");
         }
     }
 

@@ -13,8 +13,8 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class MvvmMcpTools
 {
-    private const string MvvmMetadata = "CATEGORY: MVVM | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
-    private const string RuntimeNavigationGuidance = "FOLLOW-UP GUIDANCE: Successful responses may include runtime-computed `navigation.recommended` plus compatibility field `nextSteps`; prefer `navigation.recommended` when present instead of ad hoc tool guessing.\n\n";
+    private const string MvvmMetadata = "CATEGORY: MVVM\n\n";
+
     [McpServerTool(Name = "get_viewmodel", Title = "Inspect WPF ViewModel", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect the current WPF ViewModel and runtime DataContext state for an element.\n\n" +
@@ -100,7 +100,6 @@ public static class MvvmMcpTools
         "DO NOT USE: When CanExecute is false (will fail); check with get_commands first.\n\n" +
         "WARNING: This triggers real application logic (saves data, navigates, etc.).\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core command result, use `minimal` for the most concise success confirmation, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -152,7 +151,6 @@ public static class MvvmMcpTools
         "errors from ALL logical and visual descendant elements are collected recursively (max depth: 50, max errors: 200). " +
         "This includes inactive TabItem content and other subtree content that may not currently be visible in the visual tree. " +
         "Each error includes elementType and elementName to identify the source element.\n\n" +
-        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -201,7 +199,6 @@ public static class MvvmMcpTools
         "DO NOT USE: For permanent changes (not persisted); when INotifyPropertyChanged is missing (UI won't update).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep the core mutation result, use `minimal` for success/property/newValue confirmation only, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        RuntimeNavigationGuidance +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

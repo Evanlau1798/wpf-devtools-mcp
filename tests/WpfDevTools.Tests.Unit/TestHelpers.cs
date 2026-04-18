@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Reflection;
 using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Tests.Unit;
@@ -30,12 +29,7 @@ public static class TestHelpers
     /// </summary>
     public static void DisableSessionManagerCleanupTimer(SessionManager sessionManager)
     {
-        var timerField = typeof(SessionManager).GetField("_cleanupTimer", BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("SessionManager cleanup timer field was not found.");
-        var timer = timerField.GetValue(sessionManager) as System.Threading.Timer
-            ?? throw new InvalidOperationException("SessionManager cleanup timer was not initialized.");
-
-        timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        sessionManager._cleanupTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     /// <summary>
@@ -44,17 +38,12 @@ public static class TestHelpers
     /// </summary>
     public static void ReplaceSessionManagerPipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
     {
-        var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("SessionManager pipe client cache field was not found.");
-        var pipeClients = field.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>
-            ?? throw new InvalidOperationException("SessionManager pipe client cache was not initialized.");
-
-        if (pipeClients.TryGetValue(processId, out var existingClient))
+        if (sessionManager._pipeClients.TryGetValue(processId, out var existingClient))
         {
             existingClient.Dispose();
         }
 
-        pipeClients[processId] = replacement;
+        sessionManager._pipeClients[processId] = replacement;
     }
 }
 

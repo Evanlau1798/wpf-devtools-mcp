@@ -74,24 +74,6 @@ public sealed class McpToolContractDescriptionTests
     }
 
     [Fact]
-    public void RuntimeNavigationToolDescriptions_ShouldMentionReturnedNextStepsGuidance()
-    {
-        foreach (var (toolType, methodName) in RuntimeNavigationTools)
-        {
-            var description = GetDescription(toolType, methodName);
-
-            description.Should().Contain("nextSteps",
-                $"{toolType.Name}.{methodName} should document runtime navigation guidance");
-            description.Should().Contain("navigation.recommended",
-                $"{toolType.Name}.{methodName} should prefer the richer navigation envelope");
-            description.Should().Contain("compatibility field",
-                $"{toolType.Name}.{methodName} should explain that nextSteps is retained for older clients");
-            description.Should().Contain("ad hoc tool guessing",
-                $"{toolType.Name}.{methodName} should direct agents to prefer returned guidance");
-        }
-    }
-
-    [Fact]
     public void RuntimeNavigationToolDescriptions_ShouldKeepNextStepsOutOfPayloadExamples()
     {
         foreach (var (toolType, methodName) in RuntimeNavigationTools)

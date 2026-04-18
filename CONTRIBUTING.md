@@ -50,7 +50,7 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
 ## Pull Request Process
 
 1. Fork the repository
-2. Create a feature branch from `main`
+2. Create a feature branch from `master`
 3. Write tests first (TDD)
 4. Implement feature/fix
 5. Ensure all tests pass and coverage is 80%+

@@ -13,7 +13,7 @@ public sealed partial class SessionManager : IDisposable
 {
     private volatile bool _isDisposed;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
-    private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
+    internal readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly Dictionary<int, Dictionary<string, StoredStateSnapshot>> _stateSnapshots = new();
     private ActiveProcessSelection? _activeProcessSelection;
     private readonly IRateLimiterManager _rateLimiter;
@@ -21,7 +21,7 @@ public sealed partial class SessionManager : IDisposable
     private readonly CertificateManager? _certManager;
     private readonly ILogger? _logger;
     private readonly object _lock = new();
-    private readonly System.Threading.Timer _cleanupTimer;
+    internal readonly System.Threading.Timer _cleanupTimer;
 
     /// <summary>
     /// Create a new SessionManager with dependency injection

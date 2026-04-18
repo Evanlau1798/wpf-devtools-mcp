@@ -12,7 +12,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class TreeMcpTools
 {
-    private const string TreeMetadata = "CATEGORY: Tree | SAFETY: Check the SDK ReadOnly and Destructive flags before invoking this tool.\n\n";
+    private const string TreeMetadata = "CATEGORY: Tree\n\n";
     [McpServerTool(Name = "get_visual_tree", Title = "Inspect WPF Visual Tree", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to inspect the runtime visual tree of a running WPF window or element.\n\n" +

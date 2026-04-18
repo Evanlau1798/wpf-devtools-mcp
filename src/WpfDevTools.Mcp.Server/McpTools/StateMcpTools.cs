@@ -5,6 +5,9 @@ using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
+/// <summary>
+/// MCP SDK wrapper for State Snapshot tools (5 tools).
+/// </summary>
 [McpServerToolType]
 public static class StateMcpTools
 {

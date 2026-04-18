@@ -69,7 +69,7 @@ public sealed class MetricsCollector
             errorCount = _errorCount;
             totalLatency = _totalLatency;
 
-            latencyArray = _latencies.GetItems().ToArray();
+            latencyArray = _latencies.ToArray();
 
             methodSnapshots = _methodMetrics.ToDictionary(
                 kvp => kvp.Key,
@@ -176,6 +176,28 @@ public sealed class MetricsCollector
             {
                 yield return _buffer[(start + i) % _buffer.Length];
             }
+        }
+
+        public T[] ToArray()
+        {
+            if (_count == 0)
+                return Array.Empty<T>();
+
+            var result = new T[_count];
+            int start = _count < _buffer.Length ? 0 : _head;
+
+            if (start + _count <= _buffer.Length)
+            {
+                Array.Copy(_buffer, start, result, 0, _count);
+            }
+            else
+            {
+                var firstPart = _buffer.Length - start;
+                Array.Copy(_buffer, start, result, 0, firstPart);
+                Array.Copy(_buffer, 0, result, firstPart, _count - firstPart);
+            }
+
+            return result;
         }
 
         public void Clear()

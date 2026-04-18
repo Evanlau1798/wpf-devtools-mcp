@@ -63,7 +63,15 @@ public sealed class FileLoggerProvider : ILoggerProvider, IAsyncDisposable, ISup
             _provider._scopeProvider.Push(state);
 
         public bool IsEnabled(LogLevel logLevel) =>
-            !_provider._disposed && logLevel >= LogLevel.Information;
+            !_provider._disposed && MapToFileLogLevel(logLevel) >= _fileLogger.MinimumLevel;
+
+        private static FileLogLevel MapToFileLogLevel(LogLevel logLevel) => logLevel switch
+        {
+            LogLevel.Trace or LogLevel.Debug => FileLogLevel.Debug,
+            LogLevel.Information => FileLogLevel.Info,
+            LogLevel.Warning => FileLogLevel.Warning,
+            _ => FileLogLevel.Error
+        };
 
         public void Log<TState>(
             LogLevel logLevel,

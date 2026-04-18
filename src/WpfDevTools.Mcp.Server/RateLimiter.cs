@@ -208,7 +208,7 @@ public sealed class RateLimiterManager : IRateLimiterManager, IRateLimiterStatus
     private readonly int _maxRequestsPerMinute;
     private readonly TimeSpan _interval;
     private readonly System.Threading.Timer _cleanupTimer;
-    private volatile bool _isDisposed;
+    private int _disposeState;
     private const int MaxEntries = 1000;
 
     /// <summary>
@@ -221,7 +221,7 @@ public sealed class RateLimiterManager : IRateLimiterManager, IRateLimiterStatus
         _interval = TimeSpan.FromMinutes(1);
         _cleanupTimer = new System.Threading.Timer(
             _ => RateLimiterCleanupGuard.Execute(
-                _isDisposed,
+                Volatile.Read(ref _disposeState) != 0,
                 cleanupAction: () => RemoveStaleEntries(TimeSpan.FromMinutes(30)),
                 onError: ex => System.Diagnostics.Debug.WriteLine(
                     $"RateLimiterManager cleanup failed: {ex.Message}")),
@@ -334,10 +334,12 @@ public sealed class RateLimiterManager : IRateLimiterManager, IRateLimiterStatus
         lock (_lock)
         {
             var cutoff = DateTimeOffset.UtcNow - staleDuration;
-            var staleKeys = _limiters
-                .Where(kvp => kvp.Value.LastAccessed < cutoff)
-                .Select(kvp => kvp.Key)
-                .ToList();
+            var staleKeys = new List<int>();
+            foreach (var kvp in _limiters)
+            {
+                if (kvp.Value.LastAccessed < cutoff)
+                    staleKeys.Add(kvp.Key);
+            }
 
             foreach (var key in staleKeys)
             {
@@ -353,16 +355,28 @@ public sealed class RateLimiterManager : IRateLimiterManager, IRateLimiterStatus
     /// </summary>
     private void EvictOldestEntries(int count)
     {
-        var keysToRemove = _limiters
-            .OrderBy(kvp => kvp.Value.LastAccessed)
-            .Take(count)
-            .Select(kvp => kvp.Key)
-            .ToList();
+        if (_limiters.Count == 0 || count <= 0)
+            return;
 
-        foreach (var key in keysToRemove)
+        var candidates = new List<(int Key, DateTimeOffset LastAccessed)>(count);
+        foreach (var kvp in _limiters)
         {
-            _limiters.Remove(key);
+            var ts = kvp.Value.LastAccessed;
+            if (candidates.Count < count)
+            {
+                candidates.Add((kvp.Key, ts));
+                if (candidates.Count == count)
+                    candidates.Sort((a, b) => b.LastAccessed.CompareTo(a.LastAccessed));
+            }
+            else if (ts < candidates[^1].LastAccessed)
+            {
+                candidates[^1] = (kvp.Key, ts);
+                candidates.Sort((a, b) => b.LastAccessed.CompareTo(a.LastAccessed));
+            }
         }
+
+        foreach (var (key, _) in candidates)
+            _limiters.Remove(key);
     }
 
     /// <summary>
@@ -370,7 +384,9 @@ public sealed class RateLimiterManager : IRateLimiterManager, IRateLimiterStatus
     /// </summary>
     public void Dispose()
     {
-        _isDisposed = true;
+        if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
+            return;
+
         _cleanupTimer?.Dispose();
     }
 }

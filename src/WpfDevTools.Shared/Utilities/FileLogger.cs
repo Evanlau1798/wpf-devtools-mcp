@@ -361,6 +361,11 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 #if NET48
         ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
+        {
+            return default;
+        }
+
         _logQueue.Writer.TryComplete();
 
         try
@@ -407,13 +412,15 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 
     private bool IsLevelEnabled(string level)
     {
-        var numericLevel = level.ToUpperInvariant() switch
+        var numericLevel = level switch
         {
-            "DEBUG" => FileLogLevel.Debug,
-            "INFO" or "INFORMATION" => FileLogLevel.Info,
-            "WARNING" or "WARN" => FileLogLevel.Warning,
-            "ERROR" => FileLogLevel.Error,
-            "REQUEST" => FileLogLevel.Info,
+            _ when level.Equals("DEBUG", StringComparison.OrdinalIgnoreCase) => FileLogLevel.Debug,
+            _ when level.Equals("INFO", StringComparison.OrdinalIgnoreCase) => FileLogLevel.Info,
+            _ when level.Equals("INFORMATION", StringComparison.OrdinalIgnoreCase) => FileLogLevel.Info,
+            _ when level.Equals("WARNING", StringComparison.OrdinalIgnoreCase) => FileLogLevel.Warning,
+            _ when level.Equals("WARN", StringComparison.OrdinalIgnoreCase) => FileLogLevel.Warning,
+            _ when level.Equals("ERROR", StringComparison.OrdinalIgnoreCase) => FileLogLevel.Error,
+            _ when level.Equals("REQUEST", StringComparison.OrdinalIgnoreCase) => FileLogLevel.Info,
             _ => FileLogLevel.Info
         };
         return numericLevel >= MinimumLevel;
@@ -425,8 +432,12 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 /// </summary>
 public enum FileLogLevel
 {
+    /// <summary>Debug level</summary>
     Debug = 0,
+    /// <summary>Informational level</summary>
     Info = 1,
+    /// <summary>Warning level</summary>
     Warning = 2,
+    /// <summary>Error level</summary>
     Error = 3
 }

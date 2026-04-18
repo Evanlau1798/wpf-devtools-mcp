@@ -136,10 +136,23 @@ public sealed partial class InspectorHost : IDisposable
         // CRITICAL FIX: Check Wait() return value and log timeout
         if (taskToWait != null)
         {
-            bool completed = taskToWait.Wait(InspectorConfig.ShutdownTimeout);
-            if (!completed)
+            try
             {
-                LogError($"Server task did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout");
+                bool completed = taskToWait.Wait(InspectorConfig.ShutdownTimeout);
+                if (!completed)
+                {
+                    LogError($"Server task did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout");
+                }
+            }
+            catch (AggregateException ex) when (
+                taskToWait.IsCanceled ||
+                ex.Flatten().InnerExceptions.All(static inner => inner is OperationCanceledException))
+            {
+                // Cancellation is the normal shutdown path for the server loop.
+            }
+            catch (AggregateException ex)
+            {
+                LogError($"Server task failed during shutdown: {ex.Flatten().Message}");
             }
         }
 

@@ -176,7 +176,9 @@ public sealed class ReleasePackagingContractTests
         content.Should().Contain("run-template.bat");
         content.Should().Contain("run.bat");
         content.Should().Contain("scripts\\online-installer.ps1");
+        content.Should().Contain("scripts\\installer");
         content.Should().Contain("bin\\install.ps1");
+        content.Should().Contain("Join-Path $binDir 'installer'");
         content.Should().NotContain("Setup-WpfDevTools.ps1");
         content.Should().NotContain("internal-install.ps1");
         content.Should().NotContain("Uninstall-WpfDevTools.ps1");
@@ -201,6 +203,127 @@ public sealed class ReleasePackagingContractTests
         content.Should().Contain("Invoke-ArchiveCreation");
         content.Should().Contain("Compress-Archive");
         content.Should().Contain("Start-Sleep");
+    }
+
+    [Fact]
+    public void PublishReleaseScript_WhenSkipBuildUsesFrameworkOnlyServerOutput_ShouldFailInsteadOfPackagingWrongArchitecture()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var repoRoot = Path.Combine(tempRoot, "repo");
+            var packagingRoot = Path.Combine(repoRoot, "scripts", "tools", "packaging");
+            var installerRoot = Path.Combine(repoRoot, "scripts", "installer");
+            var serverProjectRoot = Path.Combine(repoRoot, "src", "WpfDevTools.Mcp.Server");
+            var inspectorProjectRoot = Path.Combine(repoRoot, "src", "WpfDevTools.Inspector");
+            var bootstrapperProjectRoot = Path.Combine(repoRoot, "src", "WpfDevTools.Bootstrapper");
+            Directory.CreateDirectory(packagingRoot);
+            Directory.CreateDirectory(installerRoot);
+            Directory.CreateDirectory(serverProjectRoot);
+            Directory.CreateDirectory(inspectorProjectRoot);
+            Directory.CreateDirectory(bootstrapperProjectRoot);
+
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"),
+                Path.Combine(packagingRoot, "Publish-Release.ps1"),
+                overwrite: true);
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/run-template.bat"),
+                Path.Combine(packagingRoot, "run-template.bat"),
+                overwrite: true);
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                Path.Combine(repoRoot, "scripts", "online-installer.ps1"),
+                overwrite: true);
+
+            var manifestSource = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json");
+            File.Copy(manifestSource, Path.Combine(installerRoot, "installer-helpers.manifest.json"), overwrite: true);
+            using var helperManifest = JsonDocument.Parse(File.ReadAllText(manifestSource));
+            foreach (var helperFile in helperManifest.RootElement.GetProperty("helperFiles")
+                         .EnumerateArray()
+                         .Select(static entry => entry.ValueKind == JsonValueKind.Object
+                             ? entry.GetProperty("path").GetString()
+                             : entry.GetString())
+                         .Where(static entry => !string.IsNullOrWhiteSpace(entry))
+                         .Cast<string>())
+            {
+                File.Copy(
+                    ReleaseScriptTestHarness.GetRepoFilePath(Path.Combine("scripts", "installer", helperFile)),
+                    Path.Combine(installerRoot, helperFile),
+                    overwrite: true);
+            }
+
+            File.WriteAllText(
+                Path.Combine(serverProjectRoot, "WpfDevTools.Mcp.Server.csproj"),
+                """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <Version>1.2.3</Version>
+                  </PropertyGroup>
+                </Project>
+                """);
+            File.WriteAllText(Path.Combine(inspectorProjectRoot, "WpfDevTools.Inspector.csproj"), "<Project />");
+            File.WriteAllText(Path.Combine(bootstrapperProjectRoot, "WpfDevTools.Bootstrapper.vcxproj"), "<Project />");
+
+            var frameworkOutputDir = Path.Combine(serverProjectRoot, "bin", "Release", "net8.0");
+            Directory.CreateDirectory(frameworkOutputDir);
+            File.WriteAllText(Path.Combine(frameworkOutputDir, "WpfDevTools.Mcp.Server.exe"), "framework-apphost");
+
+            var inspectorNet8Dir = Path.Combine(inspectorProjectRoot, "bin", "Release", "net8.0-windows");
+            var inspectorNet48Dir = Path.Combine(inspectorProjectRoot, "bin", "Release", "net48");
+            Directory.CreateDirectory(inspectorNet8Dir);
+            Directory.CreateDirectory(inspectorNet48Dir);
+            File.WriteAllText(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), "net8");
+            File.WriteAllText(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), "net48");
+
+            var bootstrapperOutputDir = Path.Combine(repoRoot, "artifacts", "bootstrapper", "Release", "Win32");
+            Directory.CreateDirectory(bootstrapperOutputDir);
+            File.WriteAllText(Path.Combine(bootstrapperOutputDir, "WpfDevTools.Bootstrapper.x86.dll"), "bootstrapper");
+
+            var toolRoot = Path.Combine(tempRoot, "tools");
+            Directory.CreateDirectory(toolRoot);
+            var fakeDotnet = Path.Combine(toolRoot, "dotnet.cmd");
+            File.WriteAllText(fakeDotnet, "@echo off\r\nexit /b 0\r\n");
+            var fakeMsbuild = Path.Combine(toolRoot, "msbuild.cmd");
+            File.WriteAllText(fakeMsbuild, "@echo off\r\nexit /b 0\r\n");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                Path.Combine(packagingRoot, "Publish-Release.ps1"),
+                ["-Configuration", "Release", "-Architectures", "x86", "-OutputRoot", Path.Combine(tempRoot, "release"), "-SkipBuild"],
+                new Dictionary<string, string?>
+                {
+                    ["PATH"] = toolRoot + ";" + Environment.GetEnvironmentVariable("PATH"),
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuild
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("win-x86");
+            result.Stderr.Should().Contain("existing server output");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void ReleaseScriptTestHarness_CreatePackageArchive_ShouldIncludeInspectorAndBootstrapperPayloads()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "arm64");
+            var extractRoot = Path.Combine(tempRoot, "extract");
+            System.IO.Compression.ZipFile.ExtractToDirectory(archivePath, extractRoot);
+
+            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net48", "WpfDevTools.Inspector.dll")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "bootstrapper", "arm64", "WpfDevTools.Bootstrapper.arm64.dll")).Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
     }
 
     [Fact]

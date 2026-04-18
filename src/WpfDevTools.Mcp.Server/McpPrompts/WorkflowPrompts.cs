@@ -34,13 +34,13 @@ public static class WorkflowPrompts
         1. connect()
         2. get_binding_errors()
         3. Follow navigation.recommended or nextSteps from the latest diagnostic result
-        4. If the failing element is known, call get_element_snapshot(elementId) for one-call local context
+        4. If navigation is absent, or the failing element is already known, call get_element_snapshot(elementId) for one-call local context
         5. get_bindings(elementId)
         6. get_binding_value_chain(elementId, propertyName)
         7. get_datacontext_chain(elementId)
         8. get_validation_errors(elementId) when validation may be involved
 
-        Prefer these tools as a set. They describe different layers of the same binding story.
+        Prefer navigation.recommended first. Use the remaining tools when the next step still needs clarification across binding source, value chain, or validation state.
         """;
 
     [McpServerPrompt(Name = "debug_command_or_click", Title = "Debug Command Or Click")]

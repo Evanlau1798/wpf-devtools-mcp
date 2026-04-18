@@ -34,18 +34,21 @@ public class FileLoggerTests : IAsyncDisposable
         }
     }
 
+    private async Task<string> FlushAndReadLogAsync()
+    {
+        await _logger.DisposeAsync();
+        File.Exists(_testLogPath).Should().BeTrue();
+        return File.ReadAllText(_testLogPath);
+    }
+
     [Fact]
     public async Task LogInfo_ShouldWriteToFile()
     {
         // Act
         _logger.LogInfo("Test info message");
 
-        // Wait for background queue to process
-        await Task.Delay(100);
-
         // Assert
-        File.Exists(_testLogPath).Should().BeTrue();
-        var content = File.ReadAllText(_testLogPath);
+        var content = await FlushAndReadLogAsync();
         content.Should().Contain("[INFO]");
         content.Should().Contain("Test info message");
     }
@@ -56,12 +59,8 @@ public class FileLoggerTests : IAsyncDisposable
         // Act
         _logger.LogError("Test error message");
 
-        // Wait for background queue to process
-        await Task.Delay(100);
-
         // Assert
-        File.Exists(_testLogPath).Should().BeTrue();
-        var content = File.ReadAllText(_testLogPath);
+        var content = await FlushAndReadLogAsync();
         content.Should().Contain("[ERROR]");
         content.Should().Contain("Test error message");
     }
@@ -72,12 +71,8 @@ public class FileLoggerTests : IAsyncDisposable
         // Act
         _logger.LogDebug("Test debug message");
 
-        // Wait for background queue to process
-        await Task.Delay(100);
-
         // Assert
-        File.Exists(_testLogPath).Should().BeTrue();
-        var content = File.ReadAllText(_testLogPath);
+        var content = await FlushAndReadLogAsync();
         content.Should().Contain("[DEBUG]");
         content.Should().Contain("Test debug message");
     }
@@ -88,11 +83,8 @@ public class FileLoggerTests : IAsyncDisposable
         // Act
         _logger.LogInfo("Test message");
 
-        // Wait for background queue to process
-        await Task.Delay(100);
-
         // Assert
-        var content = File.ReadAllText(_testLogPath);
+        var content = await FlushAndReadLogAsync();
         // Timestamp format: yyyy-MM-dd HH:mm:ss.fff
         content.Should().MatchRegex(@"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}");
     }
@@ -105,11 +97,8 @@ public class FileLoggerTests : IAsyncDisposable
         _logger.LogInfo("Message 2");
         _logger.LogInfo("Message 3");
 
-        // Wait for background queue to process
-        await Task.Delay(200);
-
         // Assert
-        var content = File.ReadAllText(_testLogPath);
+        var content = await FlushAndReadLogAsync();
         content.Should().Contain("Message 1");
         content.Should().Contain("Message 2");
         content.Should().Contain("Message 3");
@@ -125,11 +114,8 @@ public class FileLoggerTests : IAsyncDisposable
 
         await Task.WhenAll(tasks);
 
-        // Wait for background queue to process
-        await Task.Delay(500);
-
         // Assert
-        var content = File.ReadAllText(_testLogPath);
+        var content = await FlushAndReadLogAsync();
         for (int i = 0; i < 10; i++)
         {
             content.Should().Contain($"Concurrent message {i}");
@@ -148,8 +134,7 @@ public class FileLoggerTests : IAsyncDisposable
             _logger.LogInfo(largeMessage);
         }
 
-        // Wait for background queue to process all messages
-        await Task.Delay(2000);
+        await _logger.DisposeAsync();
 
         // Assert - old file should exist
         File.Exists(_testLogPath + ".old").Should().BeTrue();
@@ -173,8 +158,7 @@ public class FileLoggerTests : IAsyncDisposable
             _logger.LogInfo(largeMessage);
         }
 
-        // Wait for background queue to process all messages
-        await Task.Delay(2000);
+        await _logger.DisposeAsync();
 
         // Assert - old file should be replaced
         File.Exists(_testLogPath + ".old").Should().BeTrue();

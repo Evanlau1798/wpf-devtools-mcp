@@ -10,6 +10,7 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 /// Contract tests ensuring rate-limit error responses are consistent
 /// across all tool paths and match ServerInstructions documentation.
 /// </summary>
+[Collection("TimingSensitive")]
 public class RateLimitContractTests
 {
     [Fact]
@@ -17,8 +18,9 @@ public class RateLimitContractTests
     {
         var sessionManager = new SessionManager(new FixedRateLimiterManager(availableTokens: 0, retryAfter: TimeSpan.FromSeconds(17)));
         var tool = new ConnectTool(sessionManager);
+        var processId = NextSyntheticProcessId();
 
-        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 
         var json = JsonSerializer.SerializeToElement(result);
         json.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -34,8 +36,9 @@ public class RateLimitContractTests
             monitoringTokens: 1,
             monitoringRetryAfter: TimeSpan.Zero));
         var tool = new ConnectTool(sessionManager);
+        var processId = NextSyntheticProcessId();
 
-        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 
         var json = JsonSerializer.SerializeToElement(result);
         json.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -50,7 +53,7 @@ public class RateLimitContractTests
         // Arrange
         var sessionManager = new SessionManager(maxRequestsPerMinute: 1);
         var tool = new ConnectTool(sessionManager);
-        var parameters = new { processId = 12345 };
+        var parameters = new { processId = NextSyntheticProcessId() };
 
         // Consume rate limit
         await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -72,7 +75,7 @@ public class RateLimitContractTests
         // Arrange
         var sessionManager = new SessionManager(maxRequestsPerMinute: 1);
         var tool = new ConnectTool(sessionManager);
-        var parameters = new { processId = 12345 };
+        var parameters = new { processId = NextSyntheticProcessId() };
 
         // Consume rate limit
         await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -93,7 +96,7 @@ public class RateLimitContractTests
         // Arrange
         var sessionManager = new SessionManager(maxRequestsPerMinute: 1);
         var tool = new ConnectTool(sessionManager);
-        var parameters = new { processId = 12345 };
+        var parameters = new { processId = NextSyntheticProcessId() };
 
         // Consume rate limit
         await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);

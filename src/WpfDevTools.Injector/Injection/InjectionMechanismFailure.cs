@@ -15,6 +15,8 @@ internal static class InjectionMechanismFailure
     internal const int WriteBootstrapParametersFailed = -105;
     internal const int StartBootstrapExportFailed = -106;
     internal const int InvokeBootstrapExportTimedOut = -107;
+    internal const int ReadBootstrapExitCodeFailed = -108;
+    internal const int ScheduleBootstrapCleanupFailed = -109;
 
     internal sealed class InterpretationResult
     {
@@ -60,6 +62,16 @@ internal static class InjectionMechanismFailure
             {
                 Stage = BootstrapStage.ManagedEntrypoint,
                 Message = "The bootstrap export thread did not complete before the timeout expired."
+            },
+            ReadBootstrapExitCodeFailed => new InterpretationResult
+            {
+                Stage = BootstrapStage.ManagedEntrypoint,
+                Message = "The bootstrap export thread completed, but its exit code could not be read."
+            },
+            ScheduleBootstrapCleanupFailed => new InterpretationResult
+            {
+                Stage = BootstrapStage.ManagedEntrypoint,
+                Message = "The bootstrap export thread did not complete, and deferred remote memory cleanup could not be scheduled."
             },
             _ => null
         };

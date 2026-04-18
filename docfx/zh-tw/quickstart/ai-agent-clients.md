@@ -6,18 +6,20 @@
 
 - Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
-- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)（維護者來源；請與你實際要執行的 release package 內版本相符的 `bin/install.ps1` 比對）
 
 建議的公開安裝路徑：
 
 ```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
+
+這支已審查的 installer 會解析對應版本的 release asset、在解壓前驗證 archive integrity，然後執行下載所得 release 內版本相符的 packaged installer。
 
 指定 client 的範例：
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 手動 package 的替代路徑：
@@ -26,25 +28,29 @@ irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/script
 2. 解壓縮套件。
 3. 執行 `run.bat`。
 
-本機腳本範例：
+`run.bat` 會在目前 shell 尚未提升權限時要求 elevation，然後啟動 packaged `bin/install.ps1`。如果你需要把安裝留在目前未提升權限的 shell 中，請設定 `WPFDEVTOOLS_SKIP_ELEVATION=1`。
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+Package-local 替代路徑：
+
+```text
+下載對應的 release_<version>_win-<arch>.zip，解壓後執行 run.bat。
 ```
 
 所有支援的 setup 路徑最後都應該啟動安裝後的執行檔，而不是 source tree 內的命令。
 
-預設安裝路徑範例：
+在沒有可沿用的既有 install root 時，回退路徑範例：
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
+%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
 線上安裝腳本與手動 package 安裝都會在下列位置產生 client-specific registration artifact：
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\client-registration\
+<InstallRoot>\<arch>\client-registration\
 ```
+
+如果未指定 `-InstallRoot`，installer 會先沿用最後一個仍有 live install evidence 的 install root；只有在沒有可沿用路徑時，才會回退到 `%APPDATA%\WpfDevToolsMcp`。請把產生的 `client-registration` artifact 視為最終輸出路徑的真源。
 
 ## 建議選擇
 
@@ -52,6 +58,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 | --- | --- | --- | --- |
 | Claude Code | 終端機導向的 agent workflow | installer 產生的 command | [Claude Code](claude-code.md) |
 | OpenAI Codex / Codex CLI | OpenAI CLI 與 agent workflow | installer 產生的 command | [OpenAI Codex 與 Codex CLI](openai-codex.md) |
+| Cursor | 編輯器或 Cursor CLI workflow | installer 產生的 JSON | [Cursor、VS Code 與 Visual Studio](cursor-vscode.md) |
 | Claude Desktop | 桌面聊天 workflow | installer 產生的 JSON config | [Claude Desktop](claude-desktop.md) |
 | VS Code / Visual Studio | 編輯器導向 workflow | installer 產生的 JSON config | [VS Code 與 Visual Studio](cursor-vscode.md) |
 
@@ -64,6 +71,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 3. `get_ui_summary(depthMode: "semantic")`
 4. 只有當 summary 還不夠時，才使用 `get_element_snapshot` 或 `get_visual_tree`
 5. 只有需要明確存活檢查時才呼叫 `ping`
+6. 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`，並把 `nextSteps` 視為舊版 client 的相容欄位
 
 ## WPF 特有提醒
 
@@ -72,5 +80,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 - server 與 bootstrapper 位元數必須和 target process 一致。
 - `client-registration` 產物是最可靠的 copy-paste 真源。
 - 在需要之前，先用 scene-level 工具，不要太早展開整棵 tree 或索取完整 screenshot。
+- 如果工具回應已提供 `navigation.recommended` 或 `nextSteps`，請先遵循這個執行期 guidance，再決定是否補其他工具。
 
 下一步：選擇你要使用的 client-specific 指南。

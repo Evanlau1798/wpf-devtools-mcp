@@ -68,3 +68,10 @@ CHANGELOG.md
 docfx/_site/
 docfx/api/
 docfx/obj/
+
+# Stray environment artifacts (PowerShell/NuGet cache dirs accidentally
+# created in the repo root when HOME/APPDATA env vars are restricted)
+/Microsoft/
+/NuGet/
+**/NuGet/Migrations/
+**/Microsoft/Windows/PowerShell/ModuleAnalysisCache

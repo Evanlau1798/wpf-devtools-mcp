@@ -30,7 +30,7 @@ public class InspectorHostLoggingTests : IDisposable
     public void InspectorHost_LogError_ShouldNotBlockCaller()
     {
         // Arrange - create host and measure time for high-frequency logging
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 
@@ -59,7 +59,7 @@ public class InspectorHostLoggingTests : IDisposable
         logger.LogError("test message from Inspector context");
 
         // Wait for async queue to flush
-        await Task.Delay(200);
+        await logger.DisposeAsync();
 
         // Assert
         File.Exists(logPath).Should().BeTrue();
@@ -88,7 +88,7 @@ public class InspectorHostLoggingTests : IDisposable
             "non-blocking async logging should return immediately");
 
         // Wait for background queue to process
-        await Task.Delay(2000);
+        await logger.DisposeAsync();
 
         // Verify all messages were written
         var content = File.ReadAllText(logPath);

@@ -19,7 +19,10 @@ public class McpDiscoveryContentTests
         content.Should().Contain("stdio");
         content.Should().Contain("slash commands");
         content.Should().Contain("@resource");
+        content.Should().Contain("portable discovery contract");
         content.Should().Contain("stateSnapshots");
+        content.Should().Contain("performance profiling");
+        content.Should().Contain("runtime state safety notes");
     }
 
     [Fact]
@@ -35,6 +38,8 @@ public class McpDiscoveryContentTests
 
         CapabilityResources.GetStateSafetyNotes().Should().Contain("Snapshot/restore");
         CapabilityResources.GetStateSafetyNotes().Should().Contain("capture_state_snapshot");
+        CapabilityResources.GetStateSafetyNotes().Should().Contain("Binding-backed DependencyProperties captured in the same session can be restored");
+        CapabilityResources.GetStateSafetyNotes().Should().Contain("non-Binding expressions are still surfaced as skipped capability boundaries");
         typeof(CapabilityResources)
             .GetMethod(nameof(CapabilityResources.GetStateSafetyNotes))!
             .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
@@ -51,9 +56,12 @@ public class McpDiscoveryContentTests
         WorkflowPrompts.DebugBindingIssue().Should().Contain("get_binding_errors");
         WorkflowPrompts.DebugBindingIssue().Should().Contain("get_element_snapshot");
         WorkflowPrompts.DebugBindingIssue().Should().Contain("navigation.recommended");
+        WorkflowPrompts.DebugBindingIssue().Should().Contain("Prefer navigation.recommended first");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("click_element");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("get_interaction_readiness");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("trace_routed_events(mode='get')");
+        WorkflowPrompts.ProfilePerformance().Should().Contain("get_render_stats");
+        WorkflowPrompts.ProfilePerformance().Should().Contain("measure_element_render_time");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("get_windows");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("connect()");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("windowFilter");
@@ -72,11 +80,25 @@ public class McpDiscoveryContentTests
         capabilities.Should().Contain("get_ui_summary");
         capabilities.Should().Contain("navigation.recommended");
         capabilities.Should().Contain("compatibility `nextSteps`");
+        capabilities.Should().Contain("portable discovery contract");
         capabilities.Should().NotContain("nextSteps / `navigation` guidance",
             "capability guidance should explicitly prefer navigation.recommended over the compatibility field");
+        bindingWorkflow.Should().Contain("connect()");
+        bindingWorkflow.Should().Contain("get_processes(windowFilter)");
         bindingWorkflow.Should().Contain("navigation.recommended");
         bindingWorkflow.Should().Contain("get_element_snapshot");
         bindingWorkflow.Should().NotContain("get_visual_tree or get_logical_tree",
             "binding workflow should not recommend tree expansion before scene-level diagnostics");
+    }
+
+    [Fact]
+    public void CapabilityResources_ShouldKeepSnapshotSummaryAlignedWithStateSafetyNotes()
+    {
+        var capabilities = CapabilityResources.GetCapabilities();
+        var stateSafety = CapabilityResources.GetStateSafetyNotes();
+
+        capabilities.Should().Contain("Binding-backed DependencyProperties captured in the same session",
+            "the summary resource should not understate rollback support compared with the detailed state-safety note");
+        stateSafety.Should().Contain("Binding-backed DependencyProperties captured in the same session");
     }
 }

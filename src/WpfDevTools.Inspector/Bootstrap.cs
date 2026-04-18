@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Threading;
 using System.IO;
@@ -150,27 +151,44 @@ public static class Bootstrap
 
         // Initialize InspectorHost with Named Pipe server
         var processId = System.Diagnostics.Process.GetCurrentProcess().Id;
+        var pipeName = config.TryGetValue("pipeName", out var configuredPipeName) && !string.IsNullOrWhiteSpace(configuredPipeName)
+            ? configuredPipeName
+            : $"WpfDevTools_{processId}";
 
         // Create security managers based on parameters
         var authEnabled = config.TryGetValue("auth", out var authVal)
             && string.Equals(authVal, "enabled", StringComparison.OrdinalIgnoreCase);
         var encryptionEnabled = config.TryGetValue("encryption", out var encVal)
             && string.Equals(encVal, "enabled", StringComparison.OrdinalIgnoreCase);
+        var authSecretBase64 = config.TryGetValue("authSecretBase64", out var authSecret)
+            && !string.IsNullOrWhiteSpace(authSecret)
+            ? authSecret
+            : null;
+        var certDirectory = config.TryGetValue("certDirectory", out var configuredCertDirectory)
+            && !string.IsNullOrWhiteSpace(configuredCertDirectory)
+            ? configuredCertDirectory
+            : null;
+
+        authEnabled = authEnabled || !string.IsNullOrWhiteSpace(authSecretBase64);
+        encryptionEnabled = encryptionEnabled || !string.IsNullOrWhiteSpace(certDirectory);
 
         var authManager = authEnabled
-            ? new Shared.Security.AuthenticationManager()
+            ? new Shared.Security.AuthenticationManager(() =>
+                authSecretBase64 ?? Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET"))
             : null;
         var certManager = encryptionEnabled
-            ? new Shared.Security.CertificateManager()
+            ? (string.IsNullOrWhiteSpace(certDirectory)
+                ? new Shared.Security.CertificateManager()
+                : new Shared.Security.CertificateManager(certDirectory))
             : null;
 
-        _host = new Host.InspectorHost(processId, authManager, certManager);
+        _host = new Host.InspectorHost(processId, pipeName, authManager, certManager);
         _host.Start();
 
         // Start capturing binding errors immediately after injection
         BindingErrorTraceListener.Install();
 
-        LogInfo($"Inspector initialized. Pipe: WpfDevTools_{processId}, Auth: {authEnabled}, TLS: {encryptionEnabled}");
+        LogInfo($"Inspector initialized. Pipe: {pipeName}, Auth: {authEnabled}, TLS: {encryptionEnabled}");
     }
 
     private static Dictionary<string, string> ParseParameters(string parameters)
@@ -184,13 +202,33 @@ public static class Bootstrap
 
         try
         {
-            var pairs = parameters.Split(';');
+            if (!LooksLikeKeyValueParameters(parameters) && parameters.Count(static ch => ch == ';') == 1)
+            {
+                var legacyParts = parameters.Split(';', 2);
+                if (legacyParts.Length == 2)
+                {
+                    result["inspectorDllPath"] = legacyParts[0].Trim();
+                    result["pipeName"] = legacyParts[1].Trim();
+                }
+
+                return result;
+            }
+
+            var pairs = parameters.Split(';', StringSplitOptions.RemoveEmptyEntries);
             foreach (var pair in pairs)
             {
-                var parts = pair.Split('=');
-                if (parts.Length == 2)
+                var separatorIndex = pair.IndexOf('=');
+                if (separatorIndex <= 0)
                 {
-                    result[parts[0].Trim()] = parts[1].Trim();
+                    continue;
+                }
+
+                var key = pair[..separatorIndex].Trim();
+                var value = pair[(separatorIndex + 1)..].Trim();
+
+                if (!string.IsNullOrWhiteSpace(key))
+                {
+                    result[key] = value;
                 }
             }
         }
@@ -200,6 +238,25 @@ public static class Bootstrap
         }
 
         return result;
+    }
+
+    private static bool LooksLikeKeyValueParameters(string parameters)
+    {
+        foreach (var pair in parameters.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = pair.Trim();
+            if (trimmed.StartsWith("inspectorDllPath=", StringComparison.Ordinal) ||
+                trimmed.StartsWith("pipeName=", StringComparison.Ordinal) ||
+                trimmed.StartsWith("auth=", StringComparison.Ordinal) ||
+                trimmed.StartsWith("authSecretBase64=", StringComparison.Ordinal) ||
+                trimmed.StartsWith("encryption=", StringComparison.Ordinal) ||
+                trimmed.StartsWith("certDirectory=", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void LogInfo(string message)

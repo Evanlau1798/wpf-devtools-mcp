@@ -13,12 +13,13 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public sealed class StateSnapshotRestoreContractTests
 {
     [Fact]
     public async Task RestoreStateSnapshot_ShouldSkipReadOnlyViewModelPropertiesWithoutFailing()
     {
-        const int processId = 51010;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch
@@ -76,7 +77,7 @@ public sealed class StateSnapshotRestoreContractTests
     [Fact]
     public async Task RestoreStateSnapshot_ShouldRemainFailedWhenWritablePropertyRestoreActuallyFails()
     {
-        const int processId = 51011;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch
@@ -133,7 +134,7 @@ public sealed class StateSnapshotRestoreContractTests
     [Fact]
     public async Task RestoreStateSnapshot_ShouldFailWhenSkippedReadOnlyPropertyCannotBeVerifiedAfterRestore()
     {
-        const int processId = 51012;
+        var processId = NextSyntheticProcessId();
         var getViewModelCallCount = 0;
         using var connected = await CreateConnectedSessionAsync(
             processId,
@@ -200,7 +201,7 @@ public sealed class StateSnapshotRestoreContractTests
     [Fact]
     public async Task RestoreStateSnapshot_ShouldClassifyComplexNullReferenceAsSkippedCapabilityBoundary()
     {
-        const int processId = 51013;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch
@@ -256,7 +257,7 @@ public sealed class StateSnapshotRestoreContractTests
     [Fact]
     public async Task RestoreStateSnapshot_WhenRestoringOlderSnapshot_ShouldKeepNewerActiveSnapshot()
     {
-        const int processId = 51014;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch

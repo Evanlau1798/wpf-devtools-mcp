@@ -16,6 +16,14 @@
 
 ## 最佳實務
 
+### 0. 讓 server instructions 保持 AI-friendly
+
+請依照官方 MCP 與 Anthropic 指南的同一套原則撰寫：
+
+- 詳細的工具描述應說明工具做什麼、適用時機、不適用時機，以及重要限制或 caveats。
+- JSON schema 與 SDK annotations 只幫助 discovery，並不等於執行期驗證；tool handler 仍必須在執行期明確驗證 untrusted arguments。
+- 撰寫公開 quickstart 時，優先使用真實 client workflow、prompts 與 resources，而不是 raw protocol walkthrough。
+
 ### 1. 先 discovery，再假設
 
 不要根據過時的 prompt、截圖或記憶去硬寫參數形狀。請依 server 真正暴露出的工具 metadata 與目前 schema 動態調整。
@@ -76,8 +84,10 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 另外，請優先使用 MCP 的 discovery 入口，而不是靠記憶硬猜：
 
-- prompts，例如 `/mcp__wpf-devtools__debug_binding_issue`
-- resources，例如 `@wpf-devtools:capabilities`
+- prompts，例如 `debug_binding_issue`
+- resources，例如 `wpf://capabilities`
+
+某些 client 可能會把它們顯示成 `/mcp__wpf-devtools__debug_binding_issue` 或 `@wpf-devtools:capabilities` 這類 client-specific shortcut，但可攜的標準契約仍然是 prompt 名稱與 resource URI 本身。
 
 當工具回應包含下列欄位時，也應一併解析：
 
@@ -89,7 +99,7 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 `nextSteps` 是相容舊版 client 的欄位；新的 client 應以 `navigation.recommended` 為主，再把 `alternatives` 視為人工判斷時的備選路徑。
 
-如果你已經知道下一步是什麼，可在該次工具呼叫傳入 `navigation=false`，省略 `nextSteps` 與 `navigation`，以減少 token 消耗。
+如果你已經知道下一步是什麼，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 呼叫傳入 `navigation=false`，省略該次回應中的 `nextSteps` 與 `navigation`，以減少 token 消耗；schema-driven client 可以在這個工具上依賴該 opt-out，因為它今天已經明確公告在 tool schema 中，但不應假設其他工具也支援它，除非 schema 也有明確公告。
 
 ### 6. 先用 scene-level 聚合，再考慮 screenshot 或大型 tree
 
@@ -114,7 +124,7 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 ## 容易成功的提示模式
 
-### 先看 tree 的提示詞
+### 先看 scene 的提示詞
 
 ```text
 先用 `connect()` 連線到 WPF 測試應用程式，呼叫 `get_ui_summary(depthMode: "semantic")` 建立語義上下文，只有在摘要不足時才展開 visual tree。

@@ -94,6 +94,44 @@ public sealed class GitHubPagesInstallerScriptTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldUsePackageManifestArchitectureForOfflineArchiveMetadataWhenArchitectureWasNotSpecified()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64");
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-PackageArchivePath", archivePath,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                },
+                new Dictionary<string, string?>
+                {
+                    ["PROCESSOR_ARCHITECTURE"] = "x86",
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["PATH"] = string.Empty
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("architecture").GetString().Should().Be("x64");
+            json.RootElement.GetProperty("downloadUri").GetString()
+                .Should().EndWith("/release_1.2.3_win-x64.zip");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldSurfaceReleaseArchiveMetadataAndResolvedVersion()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -117,6 +155,7 @@ public sealed class GitHubPagesInstallerScriptTests
 
             var archivePath = Path.Combine(tempRoot, "release_1.2.3_win-x64.zip");
             ZipFile.CreateFromDirectory(packageDir, archivePath);
+            ReleaseScriptTestHarness.WriteAdjacentReleaseMetadata(archivePath);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -143,7 +182,7 @@ public sealed class GitHubPagesInstallerScriptTests
             json.RootElement.GetProperty("resolvedVersion").GetString().Should().Be("1.2.3");
             json.RootElement.GetProperty("architecture").GetString().Should().Be("x64");
             json.RootElement.GetProperty("packageAssetName").GetString().Should().Be("release_1.2.3_win-x64.zip");
-            json.RootElement.GetProperty("downloadUri").GetString().Should().Contain("github.com/Evanlau1798/wpf-devtools-mcp/releases/download/1.2.3/release_1.2.3_win-x64.zip");
+            json.RootElement.GetProperty("downloadUri").GetString().Should().Contain("github.com/Evanlau1798/wpf-devtools-mcp/releases/download/v1.2.3/release_1.2.3_win-x64.zip");
         }
         finally
         {
@@ -190,6 +229,37 @@ public sealed class GitHubPagesInstallerScriptTests
             json.RootElement.GetProperty("mode").GetString().Should().NotBeNullOrWhiteSpace();
             json.RootElement.GetProperty("installedExecutable").GetString()
                 .Should().EndWith("x64\\current\\bin\\wpf-devtools-x64.exe");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackageArchive_ShouldContainAllInstallerHelpersNeededByTheCliFirstInstaller()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var extractRoot = Path.Combine(tempRoot, "extract");
+            ZipFile.ExtractToDirectory(archivePath, extractRoot);
+
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.ScreenModel.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Renderer.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Terminal.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Layout.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Input.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Flow.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Confirm.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Discovery.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Uninstall.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Release.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.PackageIntegrity.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.State.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Registration.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Actions.ps1")).Should().BeTrue();
         }
         finally
         {

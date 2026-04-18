@@ -25,6 +25,16 @@ public sealed class ReleaseReadinessDocumentationTests
 
         content.Should().Contain("Preflight-Release.ps1",
             "the release guide should document the local preflight script");
+        content.Should().Contain("scripts/tools/packaging/Preflight-Release.ps1",
+            "the release guide should point maintainers at the current preflight script path");
+        content.Should().Contain("scripts/tools/build-release.ps1",
+            "the release guide should point maintainers at the current package-generation entrypoint");
+        content.Should().Contain("scripts/tools/packaging/Publish-Release.ps1",
+            "the release guide should explain which packaging script the build wrapper delegates to today");
+        content.Should().Contain("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1",
+            "the release guide should explain which script stages GitHub Release upload metadata");
+        content.Should().NotContain("scripts/release/Preflight-Release.ps1",
+            "the guide should not reference the retired release script path");
         content.Should().Contain("workflow_dispatch",
             "the release guide should explain how to manually rerun the GitHub release workflow");
         content.Should().Contain("release.yml",
@@ -35,6 +45,27 @@ public sealed class ReleaseReadinessDocumentationTests
             "maintainers need the native bootstrapper toolchain prerequisites called out before running release packaging");
         content.Should().Contain("ARM64",
             "the guide should mention that ARM64 release packaging requires the ARM64 native build tools workload/components");
+    }
+
+    [Fact]
+    public void CodeSigningGuide_ShouldMatchCurrentToolPathsAndParameters()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("CODE_SIGNING.md"));
+
+        content.Should().Contain("scripts\\tools\\Create-SelfSignedCert.ps1",
+            "the code-signing guide should use the current self-signed certificate helper path");
+        content.Should().Contain("scripts\\tools\\Sign-Binaries.ps1",
+            "the code-signing guide should use the current signing script path");
+        content.Should().Contain("tmp/cert/WpfDevTools.pfx",
+            "the guide should document the current default output path for development certificates");
+        content.Should().Contain("CertificateThumbprint",
+            "the guide should document the supported certificate-store signing parameter");
+        content.Should().Contain("WPFDEVTOOLS_PFX_PASSWORD",
+            "the guide should describe the password environment variable used by the signing script");
+        content.Should().NotContain(".\\scripts\\Create-SelfSignedCert.ps1",
+            "the guide should not reference the retired root-level helper path");
+        content.Should().NotContain("-Password \"YourPassword\"",
+            "the guide should not describe a PFX password parameter that the current signing script does not expose");
     }
 
     private static string GetRepoFilePath(string relativePath)

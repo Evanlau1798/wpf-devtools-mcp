@@ -16,6 +16,14 @@ This server is explicitly intended for AI-assisted WPF debugging and testing. Th
 
 ## Best practices
 
+### 0. Keep the server instructions AI-friendly
+
+Follow the same authoring rules that the official MCP and Anthropic guidance emphasize:
+
+- Detailed `tool descriptions` should explain what a tool does, `when to use` it, `when not to use` it, and any important limits or caveats.
+- JSON schema and SDK annotations help discovery, but they are not `runtime validation`; tool handlers still need to validate untrusted arguments explicitly at runtime.
+- Prefer realistic client workflows, prompts, and resources over raw protocol walkthroughs when writing public quickstarts.
+
 ### 1. Discover before assuming
 
 Do not hard-code argument shapes from stale prompts or screenshots. Use the tool metadata exposed by the server and adapt to the current schema.
@@ -76,8 +84,10 @@ Check these fields when present:
 
 Also use MCP discovery surfaces instead of relying on memory:
 
-- prompts such as `/mcp__wpf-devtools__debug_binding_issue`
-- resources such as `@wpf-devtools:capabilities`
+- prompts such as `debug_binding_issue`
+- resources such as `wpf://capabilities`
+
+Some clients may render these as client-specific shortcuts such as `/mcp__wpf-devtools__debug_binding_issue` or `@wpf-devtools:capabilities`, but the standard prompt name and resource URI are the portable contract.
 
 When present, parse these follow-up fields as part of the contract:
 
@@ -89,7 +99,7 @@ When present, parse these follow-up fields as part of the contract:
 
 `nextSteps` remains the compatibility field for older clients. Newer clients should prefer `navigation.recommended` and treat `alternatives` as optional human-guided branches.
 
-If the next action is already obvious, pass `navigation=false` on that tool call to omit `nextSteps` and `navigation` from the response and save tokens.
+If the next action is already obvious, capable clients may pass `navigation=false` on `get_binding_errors` to omit `nextSteps` and `navigation` from that response and save tokens. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the `get_binding_errors` tool schema today, and should not assume other tools accept it unless their schema advertises it too.
 
 ### 6. Prefer scene-level aggregation before screenshots or tree dumps
 
@@ -114,7 +124,7 @@ When a workflow needs multiple ordered live mutations, prefer `batch_mutate` ove
 
 ## Prompt patterns that work well
 
-### Tree-first prompt
+### Scene-first prompt
 
 ```text
 Connect to the WPF test app with connect(), get_ui_summary(depthMode: "semantic"), then inspect the visual tree only if the summary is insufficient.

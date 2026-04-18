@@ -14,14 +14,14 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private readonly WatchEventBuffer? _watchEventBuffer;
-    private static readonly object _lock = new object();
-    private static readonly List<object> _eventTrace = new List<object>();
+    private readonly object _lock = new object();
+    private readonly List<object> _eventTrace = new List<object>();
     private const int MaxEventTraceEntries = 10000;
-    private static bool _isTracing = false;
-    private static CancellationTokenSource? _tracingCts = null;
-    private static ActiveTraceSession? _activeTraceSession = null;
-    private static TraceSessionMetadata? _lastTraceMetadata = null;
-    private static int _handlerInvocationCount = 0;
+    private bool _isTracing;
+    private CancellationTokenSource? _tracingCts;
+    private ActiveTraceSession? _activeTraceSession;
+    private TraceSessionMetadata? _lastTraceMetadata;
+    private int _handlerInvocationCount;
 
     /// <summary>
     /// Create a new EventAnalyzer instance

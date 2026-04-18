@@ -199,12 +199,16 @@ public class TraceRoutedEventsToolTests
             catch (EndOfStreamException)
             {
             }
+            catch (IOException)
+            {
+            }
             catch (ObjectDisposedException)
             {
             }
         });
 
         var sessionManager = new SessionManager();
+        DisableCleanupTimer(sessionManager);
         sessionManager.AddSession(processId);
         var client = new NamedPipeClient(processId, pipeName);
         (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
@@ -225,6 +229,14 @@ public class TraceRoutedEventsToolTests
         pipeClients[processId] = replacement;
     }
 
+    private static void DisableCleanupTimer(SessionManager sessionManager)
+    {
+        var timerField = typeof(SessionManager).GetField("_cleanupTimer", BindingFlags.Instance | BindingFlags.NonPublic);
+        var timer = timerField!.GetValue(sessionManager) as System.Threading.Timer;
+        timer.Should().NotBeNull();
+        timer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+    }
+
     private sealed class ConnectedTraceSession(SessionManager sessionManager, NamedPipeServerStream server, Task serverTask)
         : IDisposable
     {
@@ -236,7 +248,13 @@ public class TraceRoutedEventsToolTests
             {
                 SessionManager.Dispose();
                 server.Dispose();
-                serverTask.GetAwaiter().GetResult();
+                try
+                {
+                    serverTask.GetAwaiter().GetResult();
+                }
+                catch (IOException)
+                {
+                }
             }
             finally
             {

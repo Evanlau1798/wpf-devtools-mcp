@@ -4,47 +4,61 @@ Claude Code 是目前最直接的公開路徑，適合需要在終端機內以 a
 
 ## 1. 安裝 Claude Code
 
+請依照 Claude Code 官方安裝指引 <https://docs.claude.com/en/docs/claude-code/overview>。
+
+若選擇使用 Anthropic 的 PowerShell 安裝腳本，建議先下載再審查內容，再執行，以便稽核實際執行的指令：
+
 ```powershell
-irm https://claude.ai/install.ps1 | iex
+$installer = Join-Path $env:TEMP 'claude-install.ps1'
+Invoke-WebRequest -Uri 'https://claude.ai/install.ps1' -OutFile $installer -UseBasicParsing
+Get-Content $installer | Select-Object -First 60   # 審查後再執行
+& $installer
 ```
+
+> **資安提醒：** `irm <url> | iex` 一行式雖然方便，但會在未經檢視的情況下執行遠端程式；在未信任網路環境中，優先使用上述先下載再審查的流程。
 
 ## 2. 安裝 WPF DevTools
 
 建議的公開安裝路徑：
 
-1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`。
-2. 解壓縮套件。
-3. 執行 `run.bat`。
-
-如果你偏好腳本驅動安裝，請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 再於本機執行。
+1. 先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)，把它當成正式來源入口。
+2. 在本機執行已審查的 installer。
 
 範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
-安裝後的預設 executable 路徑是：
+package-local 回退路徑：
+
+1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`。
+2. 解壓縮套件。
+3. 執行 `run.bat`。
+
+`run.bat` 會在目前 shell 尚未提升權限時要求 elevation，然後啟動 packaged `bin/install.ps1`。如果你需要把安裝留在目前未提升權限的 shell 中，請設定 `WPFDEVTOOLS_SKIP_ELEVATION=1`。
+
+如果 installer 不能重用先前仍有效的 live install root，且你也沒有傳入 `-InstallRoot`，回退用的 executable 路徑會是：
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
+%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
 ## 3. 註冊 MCP server
 
-可直接使用 `client-registration\claude-code.txt` 中的命令，或手動執行：
+可直接使用 `client-registration\claude-code.txt` 中的命令，或依照同樣格式改成你的實際安裝後絕對路徑：
 
 ```powershell
-claude mcp add --transport stdio wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
+claude mcp add --transport stdio wpf-devtools -- "C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe"
 ```
 
 若要做 project scope 註冊，可使用：
 
 ```powershell
-claude mcp add --scope project --transport stdio wpf-devtools -- "$env:APPDATA\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe"
+claude mcp add --scope project --transport stdio wpf-devtools -- "C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe"
 ```
 
-installer 也會輸出 `client-registration\claude-code.txt`。把它當成已審核的命令來源；若你要 project scope，請在命令上手動加上 `--scope project`。
+installer 也會輸出 `client-registration\claude-code.txt`。把它當成已審核的命令來源，因為它已經反映真實的 install root 與 architecture；若你要 project scope，請在命令上手動加上 `--scope project`。
 
 ## 4. 驗證註冊結果
 
@@ -60,8 +74,8 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 
 ## 6. 在 Claude Code 內做 discovery
 
-- prompts 會以 `/mcp__wpf-devtools__connect_and_list_windows` 這類 slash commands 形式出現。
-- resources 會以 `@wpf-devtools:capabilities` 與 `@wpf-devtools:limitations/elevated-targets` 這類引用形式出現。
+- prompts 可能會以 `/mcp__wpf-devtools__connect_and_list_windows` 這類 slash commands 形式出現，但可攜的契約仍然是 prompt 名稱本身。
+- resources 可能會以 `@wpf-devtools:capabilities` 與 `@wpf-devtools:limitations/elevated-targets` 這類引用形式出現，但可攜的契約仍然是 resource URI。
 - 當 Claude Code 知道 server 已存在，但不容易挑到正確工具時，這些入口會比自由敘述更穩定。
 
 ## 注意事項
@@ -70,6 +84,7 @@ Connect to the running WPF app, auto-discover the target if there is only one vi
 - 不要在 `wpf-devtools-x64.exe` 外層再包會污染 `stdout` 的啟動器。
 - 一般情況先從 `connect()` 開始；只有 auto-discovery 回報多個候選，或你需要先拿到 target metadata 時才用 `get_processes(windowFilter)`。
 - 在 tree-heavy inspection 前，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`。
-- 如果你已經知道下一步工具，且希望回應更精簡，可在該次呼叫傳入 `navigation=false`。
+- 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`，並把 `nextSteps` 當成相容欄位。
+- 如果你已經知道下一步工具，且希望回應更精簡，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 呼叫傳入 `navigation=false`；schema-driven client 可以在這個工具上依賴這個 opt-out，因為它今天已經公告在 tool schema 中，但不應假設其他工具今天也有公開這個參數。
 - 若 `connect` 失敗，先一起檢查 server、bootstrapper 與 target 的 bitness。
 - 如果目標 app 是 elevated，請以系統管理員權限啟動 Claude Code，讓它透過 STDIO 拉起的 MCP server 能在相同完整性等級下 attach。

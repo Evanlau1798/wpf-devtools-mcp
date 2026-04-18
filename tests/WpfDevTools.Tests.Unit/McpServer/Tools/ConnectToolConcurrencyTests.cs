@@ -10,6 +10,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public sealed class ConnectToolConcurrencyTests : IDisposable
 {
     private string? _dummyBootstrapperPath;
@@ -44,6 +45,85 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             json.GetProperty("success").GetBoolean().Should().BeFalse();
             json.GetProperty("error").GetString().Should().Contain("Simulated injection failure");
         }
+    }
+
+    [Fact]
+    public async Task Execute_WhenOriginalCallerCancels_ShouldNotCancelOtherSingleFlightWaiters()
+    {
+        EnsureDummyBootstrapperExists();
+
+        using var sessionManager = new SessionManager();
+        using var injector = new BlockingFailureInjector();
+        var tool = new ConnectTool(
+            sessionManager,
+            injector,
+            new FakeProcessDetector(),
+            _ => { },
+            () => false);
+
+        using var firstCallCts = new CancellationTokenSource();
+        var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), firstCallCts.Token);
+        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+
+        var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        firstCallCts.Cancel();
+
+        Func<Task> cancelledWait = async () => await firstCall;
+        await cancelledWait.Should().ThrowAsync<OperationCanceledException>();
+
+        injector.Release();
+        var secondResult = await secondCall;
+
+        injector.InjectWithBootstrapCallCount.Should().Be(1);
+        var json = JsonSerializer.SerializeToElement(secondResult);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("error").GetString().Should().Contain("Simulated injection failure");
+    }
+
+    [Fact]
+    public async Task Execute_WhenAllSingleFlightWaitersCancel_ShouldCancelInjectorAndAllowFreshRetry()
+    {
+        EnsureDummyBootstrapperExists();
+
+        using var sessionManager = new SessionManager();
+        using var injector = new BlockingFailureInjector();
+        var tool = new ConnectTool(
+            sessionManager,
+            injector,
+            new FakeProcessDetector(),
+            _ => { },
+            () => false);
+
+        using var firstCallCts = new CancellationTokenSource();
+        using var secondCallCts = new CancellationTokenSource();
+
+        var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), firstCallCts.Token);
+        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+
+        var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), secondCallCts.Token);
+        await Task.Delay(50);
+
+        firstCallCts.Cancel();
+        secondCallCts.Cancel();
+
+        Func<Task> firstCancelledWait = async () => await firstCall;
+        Func<Task> secondCancelledWait = async () => await secondCall;
+        await firstCancelledWait.Should().ThrowAsync<OperationCanceledException>();
+        await secondCancelledWait.Should().ThrowAsync<OperationCanceledException>();
+
+        injector.CancellationObserved.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+
+        var thirdCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+        injector.AdditionalCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.Release();
+
+        var thirdResult = await thirdCall;
+
+        injector.InjectWithBootstrapCallCount.Should().Be(2);
+        var json = JsonSerializer.SerializeToElement(thirdResult);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("error").GetString().Should().Contain("Simulated injection failure");
     }
 
     public void Dispose()
@@ -87,6 +167,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         private readonly ManualResetEventSlim _release = new(false);
 
         public ManualResetEventSlim FirstCallStarted { get; } = new(false);
+        public ManualResetEventSlim AdditionalCallStarted { get; } = new(false);
+        public ManualResetEventSlim CancellationObserved { get; } = new(false);
 
         public int InjectWithBootstrapCallCount { get; private set; }
 
@@ -100,8 +182,25 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             CancellationToken cancellationToken = default)
         {
             InjectWithBootstrapCallCount++;
-            FirstCallStarted.Set();
-            _release.Wait(TimeSpan.FromSeconds(2), cancellationToken);
+            if (InjectWithBootstrapCallCount == 1)
+            {
+                FirstCallStarted.Set();
+            }
+            else
+            {
+                AdditionalCallStarted.Set();
+            }
+
+            try
+            {
+                _release.Wait(TimeSpan.FromSeconds(2), cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                CancellationObserved.Set();
+                throw;
+            }
+
             return InjectionResult.CreateFailure(
                 request.ProcessId,
                 InjectionError.BootstrapFailed,
@@ -114,6 +213,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         {
             _release.Dispose();
             FirstCallStarted.Dispose();
+            AdditionalCallStarted.Dispose();
+            CancellationObserved.Dispose();
         }
     }
 }

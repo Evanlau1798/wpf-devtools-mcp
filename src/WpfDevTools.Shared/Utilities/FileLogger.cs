@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using System.Text;
 using System.Text.Json;
 
 namespace WpfDevTools.Shared.Utilities;
@@ -16,6 +17,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     private readonly Task _processingTask;
     private readonly CancellationTokenSource _shutdownCts;
     private int _droppedEntries;
+    private int _disposeState;
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
     private const int MaxQueueCapacity = 10000;
 
@@ -182,11 +184,8 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
                     {
                         try
                         {
-                            RotateIfNeeded();
-                            using (var writer = new StreamWriter(_logFilePath, append: true))
-                            {
-                                await writer.WriteAsync(logEntry).ConfigureAwait(false);
-                            }
+                            var entries = DrainLogEntries(logEntry);
+                            await WriteEntriesAsync(entries, cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException)
                         {
@@ -200,9 +199,8 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
             {
                 try
                 {
-                    RotateIfNeeded();
-                    await File.AppendAllTextAsync(_logFilePath, logEntry, cancellationToken)
-                        .ConfigureAwait(false);
+                    var entries = DrainLogEntries(logEntry);
+                    await WriteEntriesAsync(entries, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -221,22 +219,90 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         }
     }
 
-    private void RotateIfNeeded()
+    private List<string> DrainLogEntries(string firstEntry)
+    {
+        var entries = new List<string> { firstEntry };
+        while (_logQueue.Reader.TryRead(out var queuedEntry))
+        {
+            entries.Add(queuedEntry);
+        }
+
+        return entries;
+    }
+
+    private async Task WriteEntriesAsync(IReadOnlyList<string> entries, CancellationToken cancellationToken)
+    {
+        StreamWriter? writer = null;
+        try
+        {
+            long currentFileBytes = File.Exists(_logFilePath)
+                ? new FileInfo(_logFilePath).Length
+                : 0;
+
+            foreach (var entry in entries)
+            {
+                var entryBytes = Encoding.UTF8.GetByteCount(entry);
+
+                if (currentFileBytes > 0 && currentFileBytes + entryBytes >= MaxFileSizeBytes)
+                {
+                    if (writer is not null)
+                    {
+                        await writer.FlushAsync().ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        writer.Dispose();
+                        writer = null;
+                    }
+
+                    RotateFile();
+                    currentFileBytes = 0;
+                }
+
+                writer ??= CreateStreamWriter();
+                await writer.WriteAsync(entry).ConfigureAwait(false);
+                currentFileBytes += entryBytes;
+
+                if (currentFileBytes >= MaxFileSizeBytes)
+                {
+                    await writer.FlushAsync().ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    writer.Dispose();
+                    writer = null;
+                    RotateFile();
+                    currentFileBytes = 0;
+                }
+            }
+
+            if (writer is not null)
+            {
+                await writer.FlushAsync().ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+        }
+        finally
+        {
+            writer?.Dispose();
+        }
+    }
+
+    private StreamWriter CreateStreamWriter()
+    {
+        return new StreamWriter(
+            new FileStream(_logFilePath, FileMode.Append, FileAccess.Write, FileShare.Read),
+            Encoding.UTF8);
+    }
+
+    private void RotateFile()
     {
         try
         {
             if (!File.Exists(_logFilePath))
                 return;
 
-            var fileInfo = new FileInfo(_logFilePath);
-            if (fileInfo.Length >= MaxFileSizeBytes)
-            {
-                var oldPath = _logFilePath + ".old";
-                if (File.Exists(oldPath))
-                    File.Delete(oldPath);
+            var oldPath = _logFilePath + ".old";
+            if (File.Exists(oldPath))
+                File.Delete(oldPath);
 
-                File.Move(_logFilePath, oldPath);
-            }
+            File.Move(_logFilePath, oldPath);
         }
         catch (Exception ex)
         {
@@ -254,6 +320,11 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     /// </summary>
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
+        {
+            return;
+        }
+
         _logQueue.Writer.TryComplete();
 
         try
@@ -298,6 +369,11 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 #else
         async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
+        {
+            return;
+        }
+
         _logQueue.Writer.TryComplete();
 
         try

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security.Cryptography;
 using FluentAssertions;
 using System.Text.Json;
 using WpfDevTools.Injector;
@@ -7,6 +8,7 @@ using WpfDevTools.Injector.Injection;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Security;
 using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 using Xunit.Abstractions;
@@ -87,6 +89,65 @@ public class BootstrapInjectionTests : IDisposable
             JsonSerializer.Serialize(pingResult));
         pingJson.GetProperty("success").GetBoolean().Should().BeTrue(
             "ping should succeed after connect");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ConnectTool_WithSecureIpcEnabled_ThenPingTool_ShouldSucceed()
+    {
+        BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
+            "the secure live bootstrap smoke test must fail fast when native bootstrapper artifacts are missing; " +
+            "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
+
+        _testApp = StartTestApp();
+
+        var secretBytes = new byte[32];
+        RandomNumberGenerator.Fill(secretBytes);
+        var authSecret = Convert.ToBase64String(secretBytes);
+        var certDirectory = Path.Combine(Path.GetTempPath(), $"WpfDevTools_SecureConnect_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(certDirectory);
+
+        try
+        {
+            var sessionManager = new SessionManager(
+                authManager: new AuthenticationManager(() => authSecret),
+                certManager: new CertificateManager(certDirectory));
+            var injector = new ProcessInjector();
+            var detector = new WpfProcessDetector();
+            var connectTool = new ConnectTool(sessionManager, injector, detector);
+            var pingTool = new PingTool(sessionManager);
+
+            var connectArgs = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(new { processId = _testApp.Id }));
+
+            var connectResult = await connectTool.ExecuteAsync(connectArgs, CancellationToken.None);
+            var connectJson = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(connectResult));
+            var connectError = connectJson.TryGetProperty("error", out var errorProp)
+                ? errorProp.GetString()
+                : null;
+            connectJson.GetProperty("success").GetBoolean().Should().BeTrue(
+                $"secure connect should succeed with auth+TLS enabled. Error={connectError ?? "<none>"}");
+
+            var pingArgs = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(new { processId = _testApp.Id }));
+            var pingResult = await pingTool.ExecuteAsync(pingArgs, CancellationToken.None);
+            var pingJson = JsonSerializer.Deserialize<JsonElement>(
+                JsonSerializer.Serialize(pingResult));
+            pingJson.GetProperty("success").GetBoolean().Should().BeTrue(
+                "ping should succeed after secure connect");
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(certDirectory, recursive: true);
+            }
+            catch
+            {
+                // Best-effort cleanup for integration temp assets.
+            }
+        }
     }
 
     [Fact]

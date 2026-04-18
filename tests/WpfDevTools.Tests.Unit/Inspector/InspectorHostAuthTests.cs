@@ -18,7 +18,7 @@ public class InspectorHostAuthTests
     public async Task AuthEnabled_ValidClient_ShouldAllowCommunication()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(
@@ -58,7 +58,7 @@ public class InspectorHostAuthTests
     public async Task AuthEnabled_InvalidSecret_ShouldDisconnectClient()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var serverSecret = new byte[32];
         RandomNumberGenerator.Fill(serverSecret);
         var authManager = new AuthenticationManager(
@@ -84,7 +84,7 @@ public class InspectorHostAuthTests
     public async Task AuthDisabled_ShouldAllowDirectCommunication()
     {
         // Arrange - no auth (backward compatibility)
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 
@@ -115,7 +115,7 @@ public class InspectorHostAuthTests
     public async Task AuthEnabled_ClientSendsGarbageResponse_ShouldDisconnect()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(

@@ -22,12 +22,24 @@ public sealed class ReleasePackagingIntegrationTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             var archivePath = Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Single();
+            File.Exists(Path.Combine(outputRoot, "SHA256SUMS.txt")).Should().BeTrue();
+            File.Exists(Path.Combine(outputRoot, "release-assets.json")).Should().BeTrue();
             var extractRoot = ReleasePackagingTestHarness.ExtractArchive(archivePath, tempRoot);
 
             File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.ScreenModel.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Renderer.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Input.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Flow.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Confirm.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Discovery.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Uninstall.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "manifest.json")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net48", "WpfDevTools.Inspector.dll")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "bootstrapper", "x64", "WpfDevTools.Bootstrapper.x64.dll")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "internal-install.ps1")).Should().BeFalse(
                 "the simplified package should not ship a second PowerShell installer chain");
 
@@ -70,27 +82,52 @@ public sealed class ReleasePackagingIntegrationTests
     }
 
     [Fact]
-    public void BuildReleaseScript_ReleaseMode_ShouldProduceX64X86AndArm64Archives()
+    public void BuildReleaseScript_ReleaseMode_ShouldFailWhenPayloadSigningRequirementsAreNotMet()
     {
         var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
         try
         {
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            var command = "& '" +
-                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1").Replace("'", "''") +
-                "' -Configuration Release -Architectures @('x64','x86','arm64') -OutputRoot '" +
-                outputRoot.Replace("'", "''") + "'";
-            var result = ReleasePackagingTestHarness.RunPowerShellCommand(command);
+            var result = ReleasePackagingTestHarness.RunPowerShellScript(
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
+                new[] { "-Configuration", "Release", "-Architectures", "x64", "-OutputRoot", outputRoot },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1",
+                    ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "NotSigned"
+                });
 
-            result.ExitCode.Should().Be(0, result.Stderr);
-            Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Should().ContainSingle();
-            Directory.GetFiles(outputRoot, "release_*_win-x86.zip").Should().ContainSingle();
-            var arm64ArchivePath = Directory.GetFiles(outputRoot, "release_*_win-arm64.zip").Should().ContainSingle().Subject;
-            var extractRoot = ReleasePackagingTestHarness.ExtractArchive(arm64ArchivePath, Path.Combine(tempRoot, "arm64-extract"));
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("signature",
+                "Release packaging should refuse to emit RequireAuthenticodeSignature packages when payloads are unsigned");
+            Directory.GetFiles(outputRoot, "release_*_win-*.zip").Should().BeEmpty();
+        }
+        finally
+        {
+            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
 
-            File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-arm64.exe")).Should().BeTrue();
+    [Fact]
+    public void BuildReleaseScript_ReleaseMode_ShouldRejectForcedSignatureStatusOutsideTestMode()
+    {
+        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
+        try
+        {
+            var outputRoot = Path.Combine(tempRoot, "release-output");
+            var result = ReleasePackagingTestHarness.RunPowerShellScript(
+                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
+                new[] { "-Configuration", "Release", "-Architectures", "x64", "-OutputRoot", outputRoot },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
+                    ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "Valid"
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("WPFDEVTOOLS_TEST_SIGNATURE_STATUS",
+                "production packaging must not honor test-only signature overrides");
+            Directory.GetFiles(outputRoot, "release_*_win-*.zip").Should().BeEmpty();
         }
         finally
         {

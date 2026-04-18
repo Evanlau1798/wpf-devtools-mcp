@@ -25,7 +25,7 @@ public class InspectorHostTests : IDisposable
 
     public InspectorHostTests()
     {
-        _testProcessId = Random.Shared.Next(100_000, 999_999);
+        _testProcessId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         _host = new InspectorHost(_testProcessId);
     }
 
@@ -94,7 +94,7 @@ public class InspectorHostTests : IDisposable
     public void Dispose_ShouldStopServer()
     {
         // Use a fresh host so _host is not double-disposed by the class Dispose()
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var localHost = new InspectorHost(pid);
         localHost.Start();
         localHost.IsRunning.Should().BeTrue(); // pre-condition
@@ -107,7 +107,7 @@ public class InspectorHostTests : IDisposable
     [Fact]
     public void Dispose_WhenNotStarted_ShouldNotThrow()
     {
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var localHost = new InspectorHost(pid);
         localHost.IsRunning.Should().BeFalse(); // pre-condition
 
@@ -120,7 +120,7 @@ public class InspectorHostTests : IDisposable
     [Fact]
     public async Task PingRequest_ShouldReturnPongResponse()
     {
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 
@@ -163,7 +163,7 @@ public class InspectorHostTests : IDisposable
     [Fact]
     public async Task UnknownMethod_ShouldReturnMethodNotFoundError()
     {
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 
@@ -208,7 +208,7 @@ public class InspectorHostTests : IDisposable
     [Fact]
     public async Task InvalidRequest_NullJson_ShouldReturnError()
     {
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 
@@ -241,7 +241,7 @@ public class InspectorHostTests : IDisposable
     [Fact]
     public async Task MultipleRequests_OnSameConnection_ShouldEachReceiveCorrectResponse()
     {
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 
@@ -282,7 +282,7 @@ public class InspectorHostTests : IDisposable
     [Fact]
     public async Task Response_IdShouldAlwaysMatchRequestId()
     {
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 
@@ -319,7 +319,7 @@ public class InspectorHostTests : IDisposable
     public async Task PipeName_ShouldFollowWpfDevToolsConvention()
     {
         // Verify that the pipe is actually reachable under the conventional name
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 

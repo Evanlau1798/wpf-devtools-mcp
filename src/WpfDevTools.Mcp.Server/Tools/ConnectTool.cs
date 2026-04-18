@@ -26,7 +26,9 @@ public sealed partial class ConnectTool
     private readonly Action<string> _dllPathValidator;
     private readonly Func<bool> _isCurrentProcessElevated;
     private readonly Func<int, long> _workingSetResolver;
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<object>> _inflightConnects = new();
+    private readonly Func<string, IEnumerable<string>> _inspectorCandidateResolver;
+    private readonly Func<string, IEnumerable<string>> _bootstrapperCandidateResolver;
+    private readonly ConcurrentDictionary<int, InflightConnectOperation> _inflightConnects = new();
 
     /// <summary>
     /// Create ConnectTool with dependency injection
@@ -37,7 +39,9 @@ public sealed partial class ConnectTool
         WpfProcessDetector? processDetector = null,
         Action<string>? dllPathValidator = null,
         Func<bool>? isCurrentProcessElevated = null,
-        Func<int, long>? workingSetResolver = null)
+        Func<int, long>? workingSetResolver = null,
+        Func<string, IEnumerable<string>>? inspectorCandidateResolver = null,
+        Func<string, IEnumerable<string>>? bootstrapperCandidateResolver = null)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _injector = injector ?? throw new ArgumentNullException(nameof(injector));
@@ -45,6 +49,8 @@ public sealed partial class ConnectTool
         _dllPathValidator = dllPathValidator ?? DllPathValidator.ValidateDllPath;
         _isCurrentProcessElevated = isCurrentProcessElevated ?? CurrentProcessElevationDetector.IsCurrentProcessElevated;
         _workingSetResolver = workingSetResolver ?? ResolveWorkingSetBytes;
+        _inspectorCandidateResolver = inspectorCandidateResolver ?? DllCandidateResolver.EnumerateInspectorCandidates;
+        _bootstrapperCandidateResolver = bootstrapperCandidateResolver ?? DllCandidateResolver.EnumerateBootstrapperCandidates;
     }
 
     /// <summary>
@@ -147,12 +153,13 @@ public sealed partial class ConnectTool
 
         return await RunSingleFlightAsync(
             processId.Value,
-            () => ExecuteForProcessAsync(
+            cancellationToken,
+            sharedCancellationToken => ExecuteForProcessAsync(
                 processId.Value,
                 explicitProcessSelection,
                 selectionStrategy,
                 autoDiscoveryResolution,
-                cancellationToken)).ConfigureAwait(false);
+                sharedCancellationToken)).ConfigureAwait(false);
     }
 
     private async Task<object> ExecuteForProcessAsync(
@@ -227,16 +234,18 @@ public sealed partial class ConnectTool
             };
         }
 
-        var inspectorCandidates = DllCandidateResolver.EnumerateInspectorCandidates(AppContext.BaseDirectory)
+        var inspectorCandidates = _inspectorCandidateResolver(AppContext.BaseDirectory)
             .Where(File.Exists)
             .ToArray();
-        var bootstrapperCandidates = DllCandidateResolver.EnumerateBootstrapperCandidates(AppContext.BaseDirectory)
+        var bootstrapperCandidates = _bootstrapperCandidateResolver(AppContext.BaseDirectory)
             .Where(File.Exists)
             .ToArray();
         var injectionRequest = InjectionPlanFactory.CreateRequest(
             processInfo,
             inspectorCandidates,
-            bootstrapperCandidates);
+            bootstrapperCandidates,
+            _sessionManager.GetAuthenticationSecretBase64(),
+            _sessionManager.GetCertificateDirectory());
 
         if (injectionRequest == null)
         {
@@ -401,42 +410,4 @@ public sealed partial class ConnectTool
         return null;
     }
 
-    private Task<object> RunSingleFlightAsync(int processId, Func<Task<object>> operationFactory)
-    {
-        ArgumentNullException.ThrowIfNull(operationFactory);
-
-        while (true)
-        {
-            if (_inflightConnects.TryGetValue(processId, out var existingOperation))
-            {
-                return existingOperation.Task;
-            }
-
-            var taskSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (_inflightConnects.TryAdd(processId, taskSource))
-            {
-                _ = Task.Run(() => CompleteSingleFlightAsync(processId, taskSource, operationFactory));
-                return taskSource.Task;
-            }
-        }
-    }
-
-    private async Task CompleteSingleFlightAsync(
-        int processId,
-        TaskCompletionSource<object> taskSource,
-        Func<Task<object>> operationFactory)
-    {
-        try
-        {
-            taskSource.SetResult(await operationFactory().ConfigureAwait(false));
-        }
-        catch (Exception ex)
-        {
-            taskSource.SetException(ex);
-        }
-        finally
-        {
-            _inflightConnects.TryRemove(new KeyValuePair<int, TaskCompletionSource<object>>(processId, taskSource));
-        }
-    }
 }

@@ -35,7 +35,9 @@ public sealed class ResponseContractVersionTests
         content.Should().Contain("navigation");
         content.Should().Contain("contextRefs");
         content.Should().Contain("navigation=false");
+        content.Should().Contain("get_binding_errors");
         content.Should().Contain("explicit opt-out");
+        content.Should().Contain("advertised in the tool schema today");
         content.Should().Contain("additive");
         content.Should().Contain("descriptive JSON");
     }
@@ -57,7 +59,9 @@ public sealed class ResponseContractVersionTests
         ServerInstructions.Value.Should().Contain("navigation");
         ServerInstructions.Value.Should().Contain("contextRef");
         ServerInstructions.Value.Should().Contain("navigation=false");
+        ServerInstructions.Value.Should().Contain("get_binding_errors");
         ServerInstructions.Value.Should().Contain("explicit opt-out");
+        ServerInstructions.Value.Should().Contain("advertised in the tool schema today");
         ServerInstructions.Value.Should().Contain("additive");
         ServerInstructions.Value.Should().Contain("compatibility field");
         ServerInstructions.Value.Should().Contain("descriptive JSON");

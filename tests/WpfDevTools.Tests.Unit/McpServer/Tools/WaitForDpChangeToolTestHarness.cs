@@ -179,6 +179,123 @@ internal static class WaitForDpChangeToolTestHarness
         return new ConnectedWaitSession(sessionManager, server, serverTask, requestMethods, requestPayloads);
     }
 
+    internal static async Task<ConnectedWaitSession> CreateDelayedTriggerSessionAsync(int processId, int mutationDelayMs)
+    {
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var requestMethods = new List<string>();
+        var state = new WaitServerState();
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            try
+            {
+                while (true)
+                {
+                    var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                    var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson)!;
+                    requestMethods.Add(request.Method);
+
+                    var result = await BuildDelayedTriggerResultAsync(request, state, mutationDelayMs);
+                    var response = new InspectorResponse
+                    {
+                        Id = request.Id,
+                        CorrelationId = request.CorrelationId,
+                        Result = JsonSerializer.SerializeToElement(result)
+                    };
+
+                    await MessageFraming.WriteMessageAsync(
+                        server,
+                        JsonSerializer.Serialize(response),
+                        CancellationToken.None);
+                }
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        return new ConnectedWaitSession(sessionManager, server, serverTask, requestMethods);
+    }
+
+    internal static async Task<ConnectedWaitSession> CreateDelayedAfterTriggerSnapshotSessionAsync(
+        int processId,
+        int mutationDelayMs,
+        int afterTriggerSnapshotDelayMs)
+    {
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var requestMethods = new List<string>();
+        var state = new DelayedAfterTriggerSnapshotState();
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            try
+            {
+                while (true)
+                {
+                    var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                    var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson)!;
+                    requestMethods.Add(request.Method);
+
+                    var result = await BuildDelayedAfterTriggerSnapshotResultAsync(
+                        request,
+                        state,
+                        mutationDelayMs,
+                        afterTriggerSnapshotDelayMs);
+                    var response = new InspectorResponse
+                    {
+                        Id = request.Id,
+                        CorrelationId = request.CorrelationId,
+                        Result = JsonSerializer.SerializeToElement(result)
+                    };
+
+                    await MessageFraming.WriteMessageAsync(
+                        server,
+                        JsonSerializer.Serialize(response),
+                        CancellationToken.None);
+                }
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        return new ConnectedWaitSession(sessionManager, server, serverTask, requestMethods);
+    }
+
     private static async Task<object> BuildResultAsync(InspectorRequest request, WaitServerState state)
     {
         switch (request.Method)
@@ -282,6 +399,75 @@ internal static class WaitForDpChangeToolTestHarness
         }
     }
 
+    private static async Task<object> BuildDelayedTriggerResultAsync(
+        InspectorRequest request,
+        WaitServerState state,
+        int mutationDelayMs)
+    {
+        switch (request.Method)
+        {
+            case "get_dp_value_source":
+                return new
+                {
+                    success = true,
+                    propertyName = "Text",
+                    baseValueSource = "Local",
+                    currentValue = state.CurrentValue,
+                    effectiveValue = state.CurrentValue
+                };
+            case "modify_viewmodel":
+                await Task.Delay(mutationDelayMs);
+                state.CurrentValue = ExtractRequestedValue(request.Params);
+                return new
+                {
+                    success = true,
+                    propertyName = "Name",
+                    oldValue = "before",
+                    newValue = state.CurrentValue
+                };
+            default:
+                return new { success = true };
+        }
+    }
+
+    private static async Task<object> BuildDelayedAfterTriggerSnapshotResultAsync(
+        InspectorRequest request,
+        DelayedAfterTriggerSnapshotState state,
+        int mutationDelayMs,
+        int afterTriggerSnapshotDelayMs)
+    {
+        switch (request.Method)
+        {
+            case "get_dp_value_source":
+                if (state.TriggerCompleted)
+                {
+                    await Task.Delay(afterTriggerSnapshotDelayMs);
+                }
+
+                return new
+                {
+                    success = true,
+                    propertyName = "Text",
+                    baseValueSource = "Local",
+                    currentValue = state.CurrentValue,
+                    effectiveValue = state.CurrentValue
+                };
+            case "modify_viewmodel":
+                await Task.Delay(mutationDelayMs);
+                state.CurrentValue = ExtractRequestedValue(request.Params);
+                state.TriggerCompleted = true;
+                return new
+                {
+                    success = true,
+                    propertyName = "Name",
+                    oldValue = "before",
+                    newValue = state.CurrentValue
+                };
+            default:
+                return new { success = true };
+        }
+    }
+
     private static bool HasSettleBindingsFlag(JsonElement? @params)
     {
         return @params.HasValue
@@ -366,5 +552,11 @@ internal static class WaitForDpChangeToolTestHarness
     {
         public string CurrentValue { get; set; } = "before";
         public int GetDpValueSourceCallCount { get; set; }
+    }
+
+    private sealed class DelayedAfterTriggerSnapshotState
+    {
+        public string CurrentValue { get; set; } = "before";
+        public bool TriggerCompleted { get; set; }
     }
 }

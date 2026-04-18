@@ -6,6 +6,7 @@ using static WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolTestHarne
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public sealed class WaitForDpChangeToolCompatibilityTests
 {
     [Fact]

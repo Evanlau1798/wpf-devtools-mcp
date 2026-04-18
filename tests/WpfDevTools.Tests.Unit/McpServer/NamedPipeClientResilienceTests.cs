@@ -11,7 +11,7 @@ public class NamedPipeClientResilienceTests
     [Fact]
     public async Task ConnectAsync_WhenPipeAccessIsDenied_ShouldReturnFalse()
     {
-        var processId = Random.Shared.Next(100_000, 999_999);
+        var processId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
         var currentUser = WindowsIdentity.GetCurrent().User;
 

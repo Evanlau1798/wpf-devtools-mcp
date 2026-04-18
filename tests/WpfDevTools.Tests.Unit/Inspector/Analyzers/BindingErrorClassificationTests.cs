@@ -12,16 +12,21 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-[Collection("BindingErrorTests")]
 public sealed class BindingErrorClassificationTests
 {
+    private static (BindingAnalyzer Analyzer, BindingErrorTraceListener Listener) CreateBindingErrorAnalyzer(
+        ElementFinder? finder = null)
+    {
+        var actualFinder = finder ?? new ElementFinder();
+        var listener = BindingErrorTraceListener.CreateForTesting();
+        return (new BindingAnalyzer(actualFinder, null, listener), listener);
+    }
+
     [StaFact]
     public void GetBindingErrors_WhenOnlyValidationErrorsExist_ShouldReturnNoBindingErrors()
     {
-        BindingErrorTraceListener.ResetInstance();
-
         var finder = new ElementFinder();
-        var analyzer = new BindingAnalyzer(finder);
+        var (analyzer, _) = CreateBindingErrorAnalyzer(finder);
         using var hostScope = WindowHostScope.Create();
         var hostWindow = hostScope.Window;
         var root = new StackPanel();
@@ -54,10 +59,8 @@ public sealed class BindingErrorClassificationTests
     [StaFact]
     public void GetBindingErrors_WhenTraceMessageMatchesActiveValidationError_ShouldFilterItOut()
     {
-        BindingErrorTraceListener.ResetInstance();
-
         var finder = new ElementFinder();
-        var analyzer = new BindingAnalyzer(finder);
+        var (analyzer, listener) = CreateBindingErrorAnalyzer(finder);
         using var hostScope = WindowHostScope.Create();
         var hostWindow = hostScope.Window;
         var root = new StackPanel();
@@ -76,7 +79,7 @@ public sealed class BindingErrorClassificationTests
         hostWindow.UpdateLayout();
         nameTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
 
-        BindingErrorTraceListener.Instance.TraceEvent(
+        listener.TraceEvent(
             null,
             "System.Windows.Data",
             TraceEventType.Error,

@@ -4,11 +4,25 @@ using System.Windows;
 using System.Windows.Controls;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Tests.Unit.Execution;
 
 namespace WpfDevTools.Tests.Unit;
 
-public class DependencyPropertyAnalyzerCleanupTests
+[Collection("DependencyPropertyMonitoring")]
+public class DependencyPropertyAnalyzerCleanupTests : IDisposable
 {
+    public DependencyPropertyAnalyzerCleanupTests()
+    {
+        DependencyPropertyAnalyzer.StopAllWatchers();
+        DependencyPropertyAnalyzer.ResetMonitoring();
+    }
+
+    public void Dispose()
+    {
+        DependencyPropertyAnalyzer.StopAllWatchers();
+        DependencyPropertyAnalyzer.ResetMonitoring();
+    }
+
     [StaFact]
     public void CleanupDeadWatchers_ShouldRemoveWatchersForGarbageCollectedElements()
     {

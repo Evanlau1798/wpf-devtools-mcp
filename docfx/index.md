@@ -8,9 +8,9 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 
 - Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
 - Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
-- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) (maintainer source; review the version-matched release artifact before executing a published package)
 - Release packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
-- Installed-layout source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Installed-layout sources: [scripts/installer/Installer.Actions.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Actions.ps1), [scripts/installer/Installer.Registration.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Registration.ps1)
 
 `scripts/` is the canonical source of truth for installer and release behavior. This DocFX site documents those scripts; it does not define them.
 
@@ -18,25 +18,29 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 
 ### Online installer path
 
-Review the canonical source first: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+Review the canonical maintainer source first: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1). The reviewed installer resolves the matching published release asset, validates archive integrity before extraction, and then runs the version-matched `bin/install.ps1` from that release.
 
-Default one-line install:
-
-```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
-```
-
-Client-specific example:
+Recommended example:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
+
+Client-specific automation example:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+```
+
+The repository entrypoint is still only the bootstrap layer; the actual install is performed by the packaged `bin/install.ps1` from the resolved release.
 
 ### Manual release package path
 
 1. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Extract the package.
 3. Run `run.bat` from the extracted folder.
+
+`run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 
 ## Choose your path
 
@@ -48,6 +52,7 @@ Client-specific example:
 | Use the server from Claude Code | [Claude Code setup](quickstart/claude-code.md) |
 | Use the server from OpenAI Codex or Codex CLI | [OpenAI Codex and Codex CLI setup](quickstart/openai-codex.md) |
 | Use the server from Claude Desktop | [Claude Desktop setup](quickstart/claude-desktop.md) |
+| Use the server from Cursor | [Cursor setup](quickstart/cursor-vscode.md) |
 | Use the server from VS Code or Visual Studio | [VS Code and Visual Studio setup](quickstart/cursor-vscode.md) |
 | Understand agent-safe workflows and response contracts | [AI Agent Guide](guides/ai-agent-guide.md) |
 | Review deployment and package layout contracts | [Deployment Guide](production/deployment.md) |

@@ -23,8 +23,8 @@ public static class CapabilityResources
         - Response contract version: `{ResponseContractVersion.Current}`
         - Transport: `stdio`
         - Tool surface: WPF process discovery, connection, exact-match element search, tree inspection, binding diagnostics, DependencyProperty analysis, MVVM inspection, style/template inspection, interaction, layout, performance, and routed-event diagnostics
-        - Prompt surface: workflow entry points for connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, and secondary-window inspection
-        - Resource surface: capability summary, workflow references, elevated-target limitations, and window/focus limitations
+        - Prompt surface: workflow entry points for connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, performance profiling, and secondary-window inspection
+        - Resource surface: capability summary, workflow references, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
         - Feature flags: `prompts=true`, `resources=true`, `stateSnapshots=true`, `diagnosticNormalization=true`, `elevatedTargetDiagnostics=true`
 
         ## Recommended workflow shape
@@ -36,10 +36,10 @@ public static class CapabilityResources
 
         ## Response contract notes
 
-        - Every tool response now includes a compatibility `nextSteps` field; tools without runtime-computable guidance return `nextSteps: []`.
-        - v3 also adds an additive `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
-        - `nextSteps` remains a compatibility field and is derived from `navigation.recommended`.
-        - Clients may request `navigation=false` as an explicit opt-out to omit both `navigation` and compatibility `nextSteps` from a response.
+        - By default, every tool response includes compatibility `nextSteps`; tools without runtime-computable guidance return `nextSteps: []`.
+        - By default, responses also include a `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
+        - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` unless `get_binding_errors` explicitly receives `navigation=false`.
+        - Clients may request `navigation=false` on `get_binding_errors` as an explicit opt-out to omit both `navigation` and compatibility `nextSteps` from a response. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the tool schema today; do not assume other tool schemas expose that parameter unless they advertise it explicitly.
         - v2 adds optional `preconditions`, `expectedOutcome`, `workflowId`, and `prefetchTools` fields on `nextSteps` entries.
         - `contextRefs` are descriptive JSON only; they are not executable handles or hidden server-side orchestration tokens.
         - `prefetchTools` is advisory only and contains tool names for clients that can load nearby schemas progressively.
@@ -59,6 +59,7 @@ public static class CapabilityResources
 
         - STDIO mode is request/response oriented.
         - Watchers and event traces should be treated as polling-oriented workflows, not true push subscriptions.
+        - Treat prompt names and resource URIs as the portable discovery contract across clients.
         - Prompt discovery can surface as slash commands in clients that support MCP prompts.
         - Resource discovery can surface through `@resource` references in clients that support MCP resources.
 
@@ -67,7 +68,7 @@ public static class CapabilityResources
         - Elevated targets require the MCP server itself to run as administrator.
         - Main-window targeting is the default when `elementId` is omitted.
         - Runtime mutations are not persisted to XAML.
-        - Snapshot restore currently supports DependencyProperty local values, scalar ViewModel values, and focus restoration.
+        - Snapshot restore currently supports DependencyProperty local values, Binding-backed DependencyProperties captured in the same session, scalar ViewModel values, and focus restoration.
         """;
 
     [McpServerResource(
@@ -82,13 +83,15 @@ public static class CapabilityResources
 
         Use this when UI data is blank, wrong, or stale.
 
-        1. `get_binding_errors`
-        2. Follow `navigation.recommended` or `nextSteps` from the latest diagnostic result
-        3. `get_element_snapshot` for one-call local context on the failing element
-        4. `get_bindings`
-        5. `get_binding_value_chain`
-        6. `get_datacontext_chain`
-        7. `get_validation_errors` when validation may block updates
+        1. `connect()`
+        2. If `connect()` reports multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`
+        3. `get_binding_errors`
+        4. Follow `navigation.recommended` or `nextSteps` from the latest diagnostic result
+        5. If the latest diagnostic still leaves the failing element ambiguous, call `get_element_snapshot` for one-call local context
+        6. `get_bindings`
+        7. `get_binding_value_chain`
+        8. `get_datacontext_chain`
+        9. `get_validation_errors` when validation may block updates
 
         Cross-tool semantics:
         - `get_binding_errors` reports failures captured by WPF binding tracing and returns compact payloads by default.
@@ -210,7 +213,7 @@ public static class CapabilityResources
         - Changes are process-local and reset on app restart.
         - Snapshot/restore is session-scoped, not durable persistence.
         - `capture_state_snapshot` can capture DependencyProperty local values, scalar ViewModel values, and focus state.
-        - Expression-backed DependencyProperties are captured for verification, but `restore_state_snapshot` reports them as skipped instead of pretending it can reconstruct the original expression.
+        - Binding-backed DependencyProperties captured in the same session can be restored through the saved restore handle; non-Binding expressions are still surfaced as skipped capability boundaries instead of pretending they can be reconstructed.
         - `restore_state_snapshot` can replay captured local-value DependencyProperties, scalar ViewModel values, and focus state in the same connected session.
         - Prefer minimal mutations and capture a snapshot before a debugging sequence when rollback matters.
 

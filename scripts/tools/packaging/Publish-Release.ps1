@@ -1,11 +1,8 @@
 param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
-
     [string[]]$Architectures = @('x64'),
-
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release'),
-
     [switch]$SkipBuild
 )
 
@@ -49,7 +46,6 @@ function Get-BootstrapperPlatform {
 
 function Get-PackageChannel {
     param([Parameter(Mandatory)] [string]$BuildConfiguration)
-
     if ($BuildConfiguration -eq 'Debug') {
         return 'dev'
     }
@@ -59,7 +55,6 @@ function Get-PackageChannel {
 
 function Get-SignaturePolicy {
     param([Parameter(Mandatory)] [string]$BuildConfiguration)
-
     if ($BuildConfiguration -eq 'Debug') {
         return 'DebugTrustedRootSkip'
     }
@@ -119,14 +114,30 @@ function Resolve-ServerOutputSource {
 
     $runtimeBuildDir = Join-Path $RepositoryRoot "src\WpfDevTools.Mcp.Server\bin\$BuildConfiguration\net8.0\$RuntimeId"
     if (Test-Path $runtimeBuildDir) {
-        return $runtimeBuildDir
+        return [ordered]@{
+            Path = $runtimeBuildDir
+        }
     }
 
+    $frameworkBuildDir = Join-Path $RepositoryRoot "src\WpfDevTools.Mcp.Server\bin\$BuildConfiguration\net8.0"
     if ($UseExistingBuildOutput) {
+        if (Test-Path (Join-Path $frameworkBuildDir 'WpfDevTools.Mcp.Server.exe')) {
+            throw "Expected existing server output was not found for runtime '$RuntimeId'. -SkipBuild requires RID-specific publish output under $runtimeBuildDir; framework-only output at $frameworkBuildDir cannot be repackaged safely."
+        }
+
         throw "Expected existing server output was not found for runtime '$RuntimeId': $runtimeBuildDir"
     }
 
     return $null
+}
+
+function Copy-ServerBuildOutput {
+    param(
+        [Parameter(Mandatory)] $SourceInfo,
+        [Parameter(Mandatory)] [string]$Destination
+    )
+
+    Copy-DirectoryContents -Source $SourceInfo.Path -Destination $Destination
 }
 
 function Copy-DirectoryFilesOnly {
@@ -145,12 +156,188 @@ function Copy-DirectoryFilesOnly {
     }
 }
 
+function Get-InstallerHelperFiles {
+    param([Parameter(Mandatory)] [string]$RepositoryRoot)
+
+    $manifestPath = Join-Path $RepositoryRoot 'scripts\installer\installer-helpers.manifest.json'
+    if (-not (Test-Path $manifestPath)) {
+        throw "Installer helper manifest was not found: $manifestPath"
+    }
+
+    $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+    $helperFiles = @(
+        $manifest.helperFiles |
+            ForEach-Object {
+                if ($_ -is [string]) {
+                    return [string]$_
+                }
+
+                return [string]$_.path
+            } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($helperFiles.Count -eq 0) {
+        throw "Installer helper manifest did not declare any helper files: $manifestPath"
+    }
+
+    return @($helperFiles)
+}
+
+function Copy-InstallerHelperFiles {
+    param(
+        [Parameter(Mandatory)] [string]$RepositoryRoot,
+        [Parameter(Mandatory)] [string]$Destination
+    )
+
+    $installerRoot = Join-Path $RepositoryRoot 'scripts\installer'
+    $manifestPath = Join-Path $installerRoot 'installer-helpers.manifest.json'
+
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+    Copy-Item -Path $manifestPath -Destination (Join-Path $Destination 'installer-helpers.manifest.json') -Force
+
+    foreach ($helperFile in @(Get-InstallerHelperFiles -RepositoryRoot $RepositoryRoot)) {
+        $sourcePath = Join-Path $installerRoot $helperFile
+        if (-not (Test-Path $sourcePath)) {
+            throw "Installer helper file declared in manifest was not found: $sourcePath"
+        }
+
+        Copy-Item -Path $sourcePath -Destination (Join-Path $Destination $helperFile) -Force
+    }
+}
+
 function Remove-PathIfExists {
     param([string]$Path)
 
     if (-not [string]::IsNullOrWhiteSpace($Path) -and (Test-Path $Path)) {
         Remove-Item -Path $Path -Recurse -Force
     }
+}
+
+function Test-InstallerTestModeEnabled {
+    return [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)
+}
+
+function Normalize-SignerThumbprint {
+    param([string]$Thumbprint)
+
+    if ([string]::IsNullOrWhiteSpace($Thumbprint)) {
+        return $null
+    }
+
+    return $Thumbprint.Replace(' ', '').ToUpperInvariant()
+}
+
+function Get-ReleaseSignerPin {
+    $thumbprint = Normalize-SignerThumbprint -Thumbprint ([string]$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)
+    $subject = [string]$env:WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT
+    return [ordered]@{
+        Thumbprint = $thumbprint
+        Subject = if ([string]::IsNullOrWhiteSpace($subject)) { $null } else { $subject }
+    }
+}
+
+function Get-FileAuthenticodeSignatureDetails {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    if (-not (Test-Path $Path)) {
+        throw "Signature validation target was not found: $Path"
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS)) {
+        if (-not (Test-InstallerTestModeEnabled)) {
+            throw 'WPFDEVTOOLS_TEST_SIGNATURE_STATUS is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+        }
+
+        $forcedStatus = [string]$env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS
+        if ([string]::Equals($forcedStatus, 'Valid', [System.StringComparison]::OrdinalIgnoreCase)) {
+            return [ordered]@{
+                Status = 'Valid'
+                Thumbprint = 'TESTSIGNER00000000000000000000000000000000'
+                Subject = 'CN=WPFDEVTOOLS TEST SIGNER'
+            }
+        }
+
+        throw "Release packaging requires an Authenticode-signed payload. '$Path' reported signature status '$forcedStatus'."
+    }
+
+    $signature = Get-AuthenticodeSignature -FilePath $Path
+    return [ordered]@{
+        Status = [string]$signature.Status
+        Thumbprint = if ($null -ne $signature.SignerCertificate) {
+            Normalize-SignerThumbprint -Thumbprint ([string]$signature.SignerCertificate.Thumbprint)
+        }
+        else {
+            $null
+        }
+        Subject = if ($null -ne $signature.SignerCertificate) {
+            [string]$signature.SignerCertificate.Subject
+        }
+        else {
+            $null
+        }
+    }
+}
+
+function Assert-FileAuthenticodeSignature {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [string]$ExpectedThumbprint,
+        [string]$ExpectedSubject
+    )
+
+    $signatureInfo = Get-FileAuthenticodeSignatureDetails -Path $Path
+    if ($signatureInfo.Status -ne 'Valid') {
+        throw "Release packaging requires an Authenticode-signed payload. '$Path' reported signature status '$($signatureInfo.Status)'."
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedThumbprint) -and
+        -not [string]::Equals([string]$signatureInfo.Thumbprint, $ExpectedThumbprint, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Release packaging requires signer thumbprint '$ExpectedThumbprint'. '$Path' reported signer '$([string]$signatureInfo.Thumbprint)'."
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedSubject) -and
+        -not [string]::Equals([string]$signatureInfo.Subject, $ExpectedSubject, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Release packaging requires signer subject '$ExpectedSubject'. '$Path' reported signer '$([string]$signatureInfo.Subject)'."
+    }
+
+    return $signatureInfo
+}
+
+function Assert-ReleasePayloadSignaturePolicy {
+    param(
+        [Parameter(Mandatory)] [string]$SignaturePolicy,
+        [Parameter(Mandatory)] [string[]]$PayloadPaths
+    )
+
+    if ($SignaturePolicy -ne 'RequireAuthenticodeSignature') {
+        return
+    }
+
+    $signerPin = Get-ReleaseSignerPin
+    if (-not (Test-InstallerTestModeEnabled) -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS)) {
+        throw 'WPFDEVTOOLS_TEST_SIGNATURE_STATUS is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+    }
+
+    if (-not (Test-InstallerTestModeEnabled) -and [string]::IsNullOrWhiteSpace([string]$signerPin.Thumbprint)) {
+        throw 'Release packaging requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT when signaturePolicy is RequireAuthenticodeSignature.'
+    }
+
+    $observedSigner = $null
+
+    foreach ($payloadPath in $PayloadPaths) {
+        $signatureInfo = Assert-FileAuthenticodeSignature -Path $payloadPath -ExpectedThumbprint ([string]$signerPin.Thumbprint) -ExpectedSubject ([string]$signerPin.Subject)
+        if ($null -eq $observedSigner) {
+            $observedSigner = $signatureInfo
+            continue
+        }
+
+        if (-not [string]::Equals([string]$observedSigner.Thumbprint, [string]$signatureInfo.Thumbprint, [System.StringComparison]::OrdinalIgnoreCase) -or
+            -not [string]::Equals([string]$observedSigner.Subject, [string]$signatureInfo.Subject, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Release packaging requires every signed payload to use the same signer. '$payloadPath' does not match the signer used by the rest of the package."
+        }
+    }
+
+    return $observedSigner
 }
 
 function Invoke-ArchiveCreation {
@@ -267,6 +454,22 @@ function Assert-ArchitectureToolchainAvailable {
     }
 }
 
+function Write-ReleaseSidecars {
+    param(
+        [Parameter(Mandatory)] [string]$PackagingScriptRoot,
+        [Parameter(Mandatory)] [string]$ArchiveRoot,
+        [Parameter(Mandatory)] [string]$Version
+    )
+
+    $sidecarWriter = Join-Path $PackagingScriptRoot 'Write-ReleaseSidecars.ps1'
+    if (-not (Test-Path $sidecarWriter)) {
+        throw "Write-ReleaseSidecars.ps1 was not found: $sidecarWriter"
+    }
+
+    $tag = if ($Version.StartsWith('v')) { $Version } else { "v$Version" }
+    & $sidecarWriter -ArchiveRoot $ArchiveRoot -Tag $tag | Out-Null
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj'
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
@@ -306,7 +509,7 @@ foreach ($architecture in $resolvedArchitectures) {
 
     try {
         if ($SkipBuild) {
-            Copy-DirectoryContents -Source $serverBuildSource -Destination $binDir
+            Copy-ServerBuildOutput -SourceInfo $serverBuildSource -Destination $binDir
         }
         else {
             Invoke-Step -FilePath 'dotnet' -Arguments @(
@@ -350,9 +553,18 @@ foreach ($architecture in $resolvedArchitectures) {
 
         Copy-DirectoryFilesOnly -Source $inspectorNet8BuildDir -Destination $inspectorNet8Dir
         Copy-DirectoryContents -Source $inspectorNet48BuildDir -Destination $inspectorNet48Dir
-        Copy-Item -Path $bootstrapperSource -Destination (Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)) -Force
+        $bootstrapperDestination = Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)
+        Copy-Item -Path $bootstrapperSource -Destination $bootstrapperDestination -Force
         Copy-Item -Path $installBatchTemplate -Destination (Join-Path $packageDir 'run.bat') -Force
         Copy-Item -Path $installScript -Destination (Join-Path $binDir 'install.ps1') -Force
+        Copy-InstallerHelperFiles -RepositoryRoot $repoRoot -Destination (Join-Path $binDir 'installer')
+
+        $payloadSigner = Assert-ReleasePayloadSignaturePolicy -SignaturePolicy $signaturePolicy -PayloadPaths @(
+            (Join-Path $binDir $packagedExecutableName)
+            (Join-Path $inspectorNet8Dir 'WpfDevTools.Inspector.dll')
+            (Join-Path $inspectorNet48Dir 'WpfDevTools.Inspector.dll')
+            $bootstrapperDestination
+        )
 
         $manifest = [ordered]@{
             name = 'wpf-devtools'
@@ -362,7 +574,6 @@ foreach ($architecture in $resolvedArchitectures) {
             channel = $channel
             buildConfiguration = $Configuration
             signaturePolicy = $signaturePolicy
-            createdUtc = [DateTime]::UtcNow.ToString('o')
             entryExecutable = "bin/$packagedExecutableName"
             runBatch = 'run.bat'
             installScript = 'bin\install.ps1'
@@ -371,6 +582,14 @@ foreach ($architecture in $resolvedArchitectures) {
                 net48 = 'bin/inspectors/net48/WpfDevTools.Inspector.dll'
             }
             bootstrapper = "bin/bootstrapper/$architecture/WpfDevTools.Bootstrapper.$architecture.dll"
+        }
+
+        if ($null -ne $payloadSigner -and -not [string]::IsNullOrWhiteSpace([string]$payloadSigner.Thumbprint)) {
+            $manifest.signerThumbprint = [string]$payloadSigner.Thumbprint
+        }
+
+        if ($null -ne $payloadSigner -and -not [string]::IsNullOrWhiteSpace([string]$payloadSigner.Subject)) {
+            $manifest.signerSubject = [string]$payloadSigner.Subject
         }
 
         $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $binDir 'manifest.json') -Encoding UTF8
@@ -384,3 +603,5 @@ foreach ($architecture in $resolvedArchitectures) {
         throw "Failed to package architecture $architecture. $($_.Exception.Message)"
     }
 }
+
+Write-ReleaseSidecars -PackagingScriptRoot $PSScriptRoot -ArchiveRoot $outputRootFullPath -Version $version

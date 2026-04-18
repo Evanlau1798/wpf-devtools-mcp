@@ -15,8 +15,10 @@ Published releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](h
 
 - Shipping transport is STDIO only. The server is wired through `WithStdioServerTransport()`.
 - The server bootstrap uses `Host.CreateEmptyApplicationBuilder(...)` so the process does not inherit default console logging that could pollute `stdout`.
-- MCP clients should treat tool discovery as the source of truth for detailed schemas; this README stays intentionally high level.
+- MCP clients should treat tool discovery as the source of truth for exposed request schemas; this README stays intentionally high level and may describe runtime conventions that are not universally discoverable from every client SDK.
 - HTTP/SSE work remains planned and is not part of the current server binary.
+- MCP schemas improve discovery, but runtime validation still happens inside tool handlers because generated schemas and SDK annotations are not a substitute for validating untrusted arguments.
+- Tool metadata is written for agent use: each tool description should state what the tool does, when to use it, when not to use it, and the limits of the returned data.
 
 ## Why This Server Exists
 
@@ -28,38 +30,42 @@ Published releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](h
 
 ### Prerequisites
 
-- Windows with .NET SDK 8.0+
+- Windows with the .NET runtime required by the published package
 - A target WPF application running under the same user account
 
-### Install from a published release
+If you are building from source instead of using a published release, install:
 
-For first-time setup, prefer the published release flow instead of launching from the source tree.
+- .NET SDK 8.0 or newer
+- Visual Studio 2022 Build Tools (or the full IDE) with the **Desktop development with C++** workload, so `msbuild` can build the native `WpfDevTools.Bootstrapper.vcxproj` bootstrapper for the target architectures (x64, x86, arm64)
 
-Fastest path on Windows:
+### Install with the reviewed online installer
 
-> **Security note**: This command downloads and executes a remote script. Review the [script source](scripts/online-installer.ps1) before running in sensitive environments.
+For first-time setup, prefer the reviewed installer flow instead of launching from the source tree or manually expanding a release archive.
+
+Preferred path on Windows:
+
+> **Security note**: Review [scripts/online-installer.ps1](scripts/online-installer.ps1) first. The online installer resolves the versioned GitHub Release asset, validates archive integrity before extraction, and then runs the version-matched packaged installer from that release.
 
 ```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
 
-That repository-hosted online installer downloads the matching `release_<version>_win-<arch>.zip` package from GitHub Releases and runs the same GUI-first installer logic that is packaged as `bin\install.ps1`.
-Maintainers should treat `scripts/online-installer.ps1` as the canonical source entrypoint for that installer flow.
+That script-first path keeps `scripts/online-installer.ps1` as the canonical source entrypoint while still installing from a published release package.
 
 If you want a single-command, non-interactive setup for a specific client and architecture, use:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual fallback:
 
 1. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` from Releases.
 2. Extract the archive.
-3. Run `run.bat` from the extracted package. It elevates when needed and launches the packaged `bin\install.ps1`.
+3. Run `run.bat` from the extracted package. It requests elevation when the current shell is not already elevated and launches the packaged `bin\install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 4. Register or verify the installed executable in your MCP client.
 
-The installer writes ready-to-copy registration snippets under `%APPDATA%\WpfDevToolsMcp\<arch>\client-registration\`.
+The installer writes ready-to-copy registration snippets under `<InstallRoot>\<arch>\client-registration\`. If you do not pass `-InstallRoot`, the installer reuses the last live install root when possible; otherwise it falls back to `%APPDATA%\WpfDevToolsMcp`.
 
 ### Build
 
@@ -93,7 +99,7 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 2. Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you intentionally need background / foreground filtering before connecting.
 3. Build initial context with `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before expanding full trees.
 4. Use tree tools only when scene-level summaries are insufficient and you need stable `elementId` values.
-5. After diagnostics, interaction, or mutation, prefer the returned `nextSteps` / `navigation` guidance over ad hoc tool guessing.
+5. After diagnostics, interaction, or mutation, prefer `navigation.recommended` first and treat `nextSteps` as the compatibility field for older clients instead of guessing the next tool.
 
 ## Maintainer Release Flow
 
@@ -122,22 +128,44 @@ Add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "wpf-devtools": {
-      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "type": "stdio",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
       "args": []
     }
   }
 }
 ```
 
-### VS Code / Cursor
+### VS Code
 
-Add to `.vscode/mcp.json`:
+Use the installer-generated `client-registration\vscode.json` artifact as the source of truth for the resolved executable path. By default, installer-managed VS Code registrations go to `%APPDATA%\Code\User\mcp.json`; use `.vscode\mcp.json` only when you intentionally want a manual project-scoped alternative.
+
+Example project-scoped configuration:
 
 ```json
 {
   "servers": {
     "wpf-devtools": {
-      "command": "%APPDATA%\\WpfDevToolsMcp\\x64\\current\\bin\\wpf-devtools-x64.exe",
+      "type": "stdio",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
+      "args": []
+    }
+  }
+}
+```
+
+### Cursor
+
+Use the installer-generated `client-registration\cursor.global.json` or `client-registration\cursor.project.json` artifact as the source of truth for the resolved executable path. By default, installer-managed global Cursor registrations go to `%USERPROFILE%\.cursor\mcp.json`; use `.cursor\mcp.json` only when you intentionally want a manual project-scoped alternative.
+
+Example project-scoped configuration:
+
+```json
+{
+  "mcpServers": {
+    "wpf-devtools": {
+      "type": "stdio",
+      "command": "C:\\Users\\<you>\\AppData\\Roaming\\WpfDevToolsMcp\\<arch>\\current\\bin\\wpf-devtools-<arch>.exe",
       "args": []
     }
   }
@@ -210,6 +238,8 @@ The server ships 63 MCP tools across 11 categories. Use MCP tool discovery for f
 
 - [MCP build-server guide (C#)](https://modelcontextprotocol.io/docs/develop/build-server#c)
 - [ModelContextProtocol C# SDK API](https://csharp.sdk.modelcontextprotocol.io/api/ModelContextProtocol.html)
+- [Anthropic tool-definition guidance](https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools)
+- [Anthropic tool design guidance](https://www.anthropic.com/engineering/writing-tools-for-agents)
 
 ## Development Notes
 

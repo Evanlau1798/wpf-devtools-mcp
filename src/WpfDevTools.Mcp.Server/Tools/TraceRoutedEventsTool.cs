@@ -9,6 +9,8 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
 {
+    private static readonly TimeSpan ReplayMergeGracePeriod = TimeSpan.FromSeconds(30);
+
     public TraceRoutedEventsTool(SessionManager sessionManager) : base(sessionManager) { }
 
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
@@ -182,7 +184,7 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         }
 
         var windowEndUtc = activeTrace.EffectiveDuration > TimeSpan.Zero
-            ? activeTrace.StartedAtUtc.Add(activeTrace.EffectiveDuration)
+            ? activeTrace.StartedAtUtc.Add(activeTrace.EffectiveDuration).Add(ReplayMergeGracePeriod)
             : DateTimeOffset.MaxValue;
 
         return pendingEvents.EnumerateArray()

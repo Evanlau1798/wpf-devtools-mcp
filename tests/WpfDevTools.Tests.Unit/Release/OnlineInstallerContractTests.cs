@@ -15,17 +15,18 @@ public sealed class OnlineInstallerContractTests
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldBeGuiFirstWhileKeepingAutomationFlags()
+    public void OnlineInstallerScript_ShouldBeTuiFirstWhileKeepingAutomationFlags()
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
-        content.Should().Contain("Add-Type -AssemblyName PresentationFramework");
+        content.Should().Contain("Start-TuiInstaller");
         content.Should().Contain("[switch]$NonInteractive");
         content.Should().Contain("[switch]$OutputJson");
-        content.Should().Contain("Show-InstallerWindow");
+        content.Should().Contain("Render-TuiScreen");
+        content.Should().Contain("Read-TuiKey");
         content.Should().Contain("Read-Host",
-            "the installer still needs a plain CLI fallback when WPF cannot be used");
+            "the installer still needs a plain CLI fallback when the full-screen TUI cannot be used");
     }
 
     [Fact]
@@ -53,6 +54,20 @@ public sealed class OnlineInstallerContractTests
         content.Should().Contain("Resolve-InstallerStatePath");
         content.Should().Contain("installer-state.json");
         content.Should().Contain("Save-InstallerState");
+        content.Should().Contain("Get-AvailableInstallerUpdates");
+        content.Should().Contain("Invoke-TuiUpdateAllOperation");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldDeclareTwoStepConfirmationAndFullUninstallContracts()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("ConfirmScreen");
+        content.Should().Contain("ConfirmationStep");
+        content.Should().Contain("Full Uninstall");
+        content.Should().Contain("full-uninstall");
     }
 
     [Fact]
@@ -77,5 +92,30 @@ public sealed class OnlineInstallerContractTests
         content.Should().NotContain("<Binding Path=\"{Binding}\" />");
         content.Should().NotContain("<DependencyProperty/>");
         content.Should().NotContain("Open docs homepage");
+        content.Should().NotContain("WindowChrome.WindowChrome");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldOffloadBootstrapUiHelpersIntoInstallerModules()
+    {
+        var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+        var content = File.ReadAllText(scriptPath);
+        var manifestContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
+
+        content.Should().Contain("Installer.BootstrapUi.ps1");
+        manifestContent.Should().Contain("Installer.BootstrapUi.ps1");
+        manifestContent.Should().Contain("Installer.Actions.ps1");
+        manifestContent.Should().Contain("Installer.Uninstall.ps1");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldNotHardRequireSharedModulesBeforeStandaloneNonInteractiveRemoval()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().NotContain("Assert-InstallerHelperRuntimeAvailable -ResolvedAction $ResolvedAction\r\n    foreach ($helperPath in @(Get-InstallerSharedModulePaths))",
+            "standalone noninteractive uninstall/full-uninstall must have a recovery path that does not hard-fail before it can inspect state or existing registration artifacts");
     }
 }

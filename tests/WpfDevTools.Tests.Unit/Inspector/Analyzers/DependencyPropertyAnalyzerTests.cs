@@ -8,8 +8,20 @@ using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-public class DependencyPropertyAnalyzerTests
+[Collection("DependencyPropertyMonitoring")]
+public class DependencyPropertyAnalyzerTests : IDisposable
 {
+    public DependencyPropertyAnalyzerTests()
+    {
+        DependencyPropertyAnalyzer.StopAllWatchers();
+        DependencyPropertyAnalyzer.ResetMonitoring();
+    }
+
+    public void Dispose()
+    {
+        DependencyPropertyAnalyzer.StopAllWatchers();
+        DependencyPropertyAnalyzer.ResetMonitoring();
+    }
 
     [StaFact]
     public void GetValueSource_WithValidProperty_ShouldReturnSource()

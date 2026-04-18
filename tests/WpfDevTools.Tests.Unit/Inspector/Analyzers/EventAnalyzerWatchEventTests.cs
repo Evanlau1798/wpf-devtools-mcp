@@ -7,7 +7,6 @@ using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-[Collection("EventTrace")]
 public sealed class EventAnalyzerWatchEventTests
 {
     [StaFact]

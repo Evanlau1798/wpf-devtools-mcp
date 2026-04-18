@@ -9,11 +9,13 @@ using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Security;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
-public class ConnectToolTests : IDisposable
+[Collection("TimingSensitive")]
+public partial class ConnectToolTests : IDisposable
 {
     private string? _dummyBootstrapperPath;
 
@@ -265,182 +267,37 @@ public class ConnectToolTests : IDisposable
     }
 
     [Fact]
-    public async Task Execute_AlreadyConnected_ShouldReturnSuccessImmediately()
-    {
-        var processId = Random.Shared.Next(100_000, 999_999);
-        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
-        using var server = new NamedPipeServerStream(
-            pipeName,
-            PipeDirection.InOut,
-            1,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
-        var acceptTask = Task.Run(async () => await server.WaitForConnectionAsync());
-
-        using var sessionManager = new SessionManager();
-        sessionManager.AddSession(processId);
-        using var pipeClient = new NamedPipeClient(processId, pipeName);
-
-        var connected = await pipeClient.ConnectAsync(
-            TimeSpan.FromSeconds(5),
-            maxRetries: 3,
-            cancellationToken: CancellationToken.None);
-        connected.Should().BeTrue();
-        await acceptTask;
-
-        ReplacePipeClient(sessionManager, processId, pipeClient);
-
-        var tool = CreateTool(sessionManager: sessionManager);
-        var parameters = new { processId };
-
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
-        resultJson.GetProperty("message").GetString().Should().Contain("Already connected");
-        sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
-        activeProcessId.Should().Be(processId);
-    }
-
-    [Fact]
-    public async Task Execute_BootstrapInjectionFailure_ShouldPropagateError()
+    public async Task Execute_WithSecureSessionConfiguration_ShouldForwardSecureBootstrapOptions()
     {
         EnsureDummyBootstrapperExists();
-        var injector = new FakeProcessInjector
+
+        var authSecret = Convert.ToBase64String(new byte[32]);
+        var authManager = new AuthenticationManager(() => authSecret);
+        var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-certs-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(certDirectory);
+        try
         {
-            ValidationResult = InjectionError.None,
-            ShouldFailInjection = true,
-            InjectionErrorMessage = "CLR hosting initialization failed",
-            FailedStage = BootstrapStage.ClrHosting,
-            FailedExitCode = 0x11
-        };
-        var tool = CreateTool(injector: injector);
-        var parameters = new { processId = 12345 };
+            using var sessionManager = new SessionManager(authManager: authManager, certManager: new CertificateManager(certDirectory));
+            var injector = new FakeProcessInjector
+            {
+                ShouldFailInjection = true,
+                InjectionErrorMessage = "stop after inspecting request",
+                FailedError = InjectionError.BootstrapFailed
+            };
+            var tool = CreateTool(sessionManager: sessionManager, injector: injector);
 
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+            var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("CLR hosting");
-        resultJson.GetProperty("stage").GetString().Should().Be("ClrHosting");
-    }
-
-    [Fact]
-    public async Task Execute_BootstrapPipeTimeout_ShouldReturnPipeError()
-    {
-        EnsureDummyBootstrapperExists();
-        var injector = new FakeProcessInjector
+            var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+            resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+            injector.LastInjectionRequest.Should().NotBeNull();
+            injector.LastInjectionRequest!.AuthenticationSecretBase64.Should().Be(authSecret);
+            injector.LastInjectionRequest.CertificateDirectory.Should().Be(certDirectory);
+        }
+        finally
         {
-            ValidationResult = InjectionError.None,
-            ShouldFailInjection = true,
-            InjectionErrorMessage = "Named Pipe did not become ready",
-            FailedStage = BootstrapStage.PipeReady,
-            FailedExitCode = 0,
-            FailedError = InjectionError.PipeReadyTimeout
-        };
-        var tool = CreateTool(injector: injector);
-        var parameters = new { processId = 12345 };
-
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("Pipe");
-    }
-
-    [Fact]
-    public async Task Execute_WhenPipeConnectionCancelled_ShouldCleanupSession()
-    {
-        EnsureDummyBootstrapperExists();
-        var sessionManager = new SessionManager();
-        var tool = CreateTool(sessionManager: sessionManager);
-        var parameters = new { processId = 12345 };
-
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
-
-        var act = () => tool.ExecuteAsync(ToJsonElement(parameters), cts.Token);
-        await act.Should().ThrowAsync<OperationCanceledException>();
-
-        sessionManager.HasSession(12345).Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task Execute_WhenPipeConnectionFails_ShouldCleanupSession()
-    {
-        var processId = Random.Shared.Next(700_000, 999_999);
-        var sessionManager = new SessionManager();
-        var tool = CreateTool(sessionManager: sessionManager);
-        var parameters = new { processId };
-
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        sessionManager.HasSession(processId).Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task Execute_WithDisconnectedStaleSession_ShouldRemoveItAndAttemptFreshInjection()
-    {
-        EnsureDummyBootstrapperExists();
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-
-        var injector = new FakeProcessInjector
-        {
-            ShouldFailInjection = true,
-            InjectionErrorMessage = "Fresh injection attempted"
-        };
-
-        var tool = CreateTool(sessionManager: sessionManager, injector: injector);
-
-        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
-
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("Fresh injection attempted");
-        sessionManager.HasSession(12345).Should().BeFalse();
-        injector.InjectWithBootstrapCallCount.Should().Be(1);
-    }
-
-    [Fact]
-    public async Task Execute_RateLimitExceeded_ShouldReturnError()
-    {
-        var sessionManager = new SessionManager(maxRequestsPerMinute: 2);
-        var tool = new ConnectTool(sessionManager);
-        var parameters = new { processId = 12345 };
-
-        await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-        await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("Rate limit");
-    }
-
-    [Fact]
-    public async Task Execute_ShouldForwardCancellationTokenToBootstrapInjector()
-    {
-        EnsureDummyBootstrapperExists();
-
-        var injector = new FakeProcessInjector
-        {
-            ShouldFailInjection = true,
-            InjectionErrorMessage = "Stop after injector call"
-        };
-        var tool = CreateTool(injector: injector);
-        using var cts = new CancellationTokenSource();
-
-        var result = await tool.ExecuteAsync(
-            ToJsonElement(new { processId = 12345 }),
-            cts.Token);
-
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        injector.InjectWithBootstrapCallCount.Should().Be(1);
-        injector.LastInjectWithBootstrapCancellationToken.Should().Be(cts.Token);
+            Directory.Delete(certDirectory, recursive: true);
+        }
     }
 
     private static string FindSolutionRoot()
@@ -508,6 +365,7 @@ public class ConnectToolTests : IDisposable
         public InjectionError FailedError { get; init; } = InjectionError.BootstrapFailed;
         public int InjectWithBootstrapCallCount { get; private set; }
         public CancellationToken LastInjectWithBootstrapCancellationToken { get; private set; }
+        public InjectionRequest? LastInjectionRequest { get; private set; }
 
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
         {
@@ -528,6 +386,7 @@ public class ConnectToolTests : IDisposable
             CancellationToken cancellationToken = default)
         {
             InjectWithBootstrapCallCount++;
+            LastInjectionRequest = request;
             LastInjectWithBootstrapCancellationToken = cancellationToken;
 
             if (ShouldFailInjection)

@@ -256,8 +256,7 @@ public class EventHandlers : IRequestHandler
             && isTracingProperty.GetBoolean();
         var getRequestedAtUtc = DateTimeOffset.UtcNow;
         var windowEndedAtUtc = traceMetadata?.StartedAtUtc.AddMilliseconds(traceMetadata.EffectiveDurationMs);
-        var windowExpiredBeforeGet = !isTracing
-            && windowEndedAtUtc.HasValue
+        var windowExpiredBeforeGet = windowEndedAtUtc.HasValue
             && getRequestedAtUtc > windowEndedAtUtc.Value;
         var expiredByMs = windowExpiredBeforeGet
             ? Math.Max(0, (int)Math.Round((getRequestedAtUtc - windowEndedAtUtc!.Value).TotalMilliseconds))
@@ -281,7 +280,7 @@ public class EventHandlers : IRequestHandler
             };
         }
 
-        if (isTracing)
+        if (isTracing && !windowExpiredBeforeGet)
         {
             var elapsedMs = traceMetadata is null
                 ? 0

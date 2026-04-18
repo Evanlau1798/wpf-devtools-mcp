@@ -117,7 +117,7 @@ public class ProcessInjector : IProcessInjector
                 $"Target validation failed: {validationError}");
         }
 
-        var parameters = $"{request.InspectorDllPath};{request.ExpectedPipeName}";
+        var parameters = request.ToBootstrapParameters();
 
         var hProcess = OpenProcess(
             PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |

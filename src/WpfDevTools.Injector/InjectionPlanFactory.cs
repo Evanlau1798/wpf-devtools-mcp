@@ -17,7 +17,9 @@ public static class InjectionPlanFactory
     public static InjectionRequest? CreateRequest(
         WpfProcessInfo processInfo,
         IReadOnlyList<string> inspectorCandidates,
-        IReadOnlyList<string> bootstrapperCandidates)
+        IReadOnlyList<string> bootstrapperCandidates,
+        string? authenticationSecretBase64 = null,
+        string? certificateDirectory = null)
     {
         var inspectorDll = RuntimeSelector.SelectInspectorDll(
             processInfo.Runtime, inspectorCandidates);
@@ -32,7 +34,9 @@ public static class InjectionPlanFactory
             ProcessId = processInfo.ProcessId,
             BootstrapperDllPath = bootstrapperDll,
             InspectorDllPath = inspectorDll,
-            ExpectedPipeName = InjectionRequest.CreatePipeName(processInfo.ProcessId)
+            ExpectedPipeName = InjectionRequest.CreatePipeName(processInfo.ProcessId),
+            AuthenticationSecretBase64 = authenticationSecretBase64,
+            CertificateDirectory = certificateDirectory
         };
     }
 }

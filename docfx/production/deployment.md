@@ -10,41 +10,37 @@ Installer and packaging behavior are defined in `scripts/`, not in the documenta
 
 - [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
 - [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
-- [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- [scripts/installer/Installer.Actions.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Actions.ps1)
 
 ## Recommended install modes
 
-### Public release package
+### Reviewed script-driven install
+
+Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the maintainer source first. The reviewed installer resolves the matching GitHub Release asset, validates archive integrity before extraction, and then runs the version-matched packaged `bin/install.ps1` from that release.
+
+Recommended example:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
+```
+
+Client-specific automation example:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+```
+
+### Public release package fallback
 
 1. Download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Extract the package.
 3. Run `run.bat`.
 
-### Script-driven install
-
-Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) first. Then choose either remote or local execution.
-
-Remote example:
-
-```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
-```
-
-Client-specific remote example:
-
-```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
-```
-
-Local example:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
-```
+`run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 
 ## Remote script execution is optional
 
-Any remote `irm | iex` flow is optional. Review the repository source first and treat the script in `scripts/` as the authoritative implementation.
+Any package-local bootstrap flow is optional. Review the repository source first and treat the script in `scripts/` as the authoritative implementation.
 
 ## Release layout matters
 
@@ -54,11 +50,13 @@ See [Release Layout](release-layout.md) for the exact folder contract.
 
 ## Installed executable contract
 
-The MCP client should launch the installed `wpf-devtools-x64.exe`, for example:
+The MCP client should launch the resolved installed `wpf-devtools-<arch>.exe` under the chosen install root, for example:
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
+<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
+
+If you do not pass `-InstallRoot`, the installer first reuses the last live install root when possible. Only when no reusable install root exists does it fall back to `%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe`.
 
 ## Production checklist
 

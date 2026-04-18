@@ -6,6 +6,8 @@ using WpfDevTools.Tests.Unit.Inspector;
 using WpfDevTools.Tests.Unit.Inspector.Analyzers;
 using WpfDevTools.Tests.Unit.Inspector.Utilities;
 using WpfDevTools.Tests.Unit.McpServer;
+using WpfDevTools.Tests.Unit.Release;
+using WpfDevTools.Tests.Unit.Security;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Execution;
@@ -21,7 +23,7 @@ public sealed class UnitTestParallelizationContractTests
         document.RootElement.GetProperty("parallelizeTestCollections").GetBoolean()
             .Should().BeTrue("the unit suite should parallelize independent test collections to avoid multi-minute serial runs");
         document.RootElement.GetProperty("maxParallelThreads").GetInt32()
-            .Should().Be(2, "the unit suite should cap collection fan-out to keep WPF and process-discovery tests stable");
+            .Should().Be(0, "the unit suite should scale collection fan-out with the host CPU count instead of pinning itself to two workers");
     }
 
     [Fact]
@@ -48,9 +50,9 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
-    public void BindingErrorClassificationTests_ShouldUseBindingErrorCollection()
+    public void BindingErrorTraceListenerTests_ShouldUseBindingErrorCollection()
     {
-        GetCollectionName(typeof(BindingErrorClassificationTests))
+        GetCollectionName(typeof(BindingErrorTraceListenerTests))
             .Should().Be("BindingErrorTests");
     }
 
@@ -61,11 +63,35 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
+    public void DependencyPropertyMonitoringTests_ShouldUseDependencyPropertyMonitoringCollection()
+    {
+        GetCollectionName(typeof(DependencyPropertyAnalyzerTests)).Should().Be("DependencyPropertyMonitoring");
+        GetCollectionName(typeof(DependencyPropertyAnalyzerCleanupTests)).Should().Be("DependencyPropertyMonitoring");
+        GetCollectionName(typeof(DependencyPropertyAnalyzerWatchEventTests)).Should().Be("DependencyPropertyMonitoring");
+    }
+
+    [Fact]
+    public void DependencyPropertyMonitoringCollection_ShouldDisableParallelization()
+    {
+        AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.DependencyPropertyMonitoringCollection");
+    }
+
+    [Fact]
     public void TimingSensitiveTests_ShouldUseTimingSensitiveCollection()
     {
         GetCollectionName(typeof(FileLoggerPerformanceTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(NamedPipeClientTimeoutBudgetTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostAuthTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolConcurrencyTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolCompatibilityTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.GetAffectedElementsToolTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolConcurrencyTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InstallerTuiRuntimeTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InstallerTuiInstallLocationEditorTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InstallerProcessLifecycleTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(EncryptedCommunicationTests)).Should().Be("TimingSensitive");
     }
 
     [Fact]
@@ -100,20 +126,6 @@ public sealed class UnitTestParallelizationContractTests
     public void ToolCallHelperStateCollection_ShouldDisableParallelization()
     {
         AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.ToolCallHelperStateCollection");
-    }
-
-    [Fact]
-    public void EventTraceTests_ShouldUseEventTraceCollection()
-    {
-        GetCollectionName(typeof(EventAnalyzerTests)).Should().Be("EventTrace");
-        GetCollectionName(typeof(EventAnalyzerConcurrencyTests)).Should().Be("EventTrace");
-        GetCollectionName(typeof(EventAnalyzerClickWorkflowGapTests)).Should().Be("EventTrace");
-    }
-
-    [Fact]
-    public void EventTraceCollection_ShouldDisableParallelization()
-    {
-        AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.EventTraceCollection");
     }
 
     [Fact]

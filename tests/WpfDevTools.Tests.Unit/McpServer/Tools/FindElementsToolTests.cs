@@ -75,25 +75,38 @@ public class FindElementsToolTests
         var serverTask = Task.Run(async () =>
         {
             await server.WaitForConnectionAsync();
-            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
-            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
-            var result = responder(request!);
-
-            var response = new InspectorResponse
+            try
             {
-                Id = request!.Id,
-                CorrelationId = request.CorrelationId,
-                Result = JsonSerializer.SerializeToElement(result),
-                Error = null
-            };
+                var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+                var result = responder(request!);
 
-            await MessageFraming.WriteMessageAsync(
-                server,
-                JsonSerializer.Serialize(response),
-                CancellationToken.None);
+                var response = new InspectorResponse
+                {
+                    Id = request!.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.SerializeToElement(result),
+                    Error = null
+                };
+
+                await MessageFraming.WriteMessageAsync(
+                    server,
+                    JsonSerializer.Serialize(response),
+                    CancellationToken.None);
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (IOException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         });
 
         var sessionManager = new SessionManager();
+        DisableCleanupTimer(sessionManager);
         sessionManager.AddSession(processId);
 
         var client = new NamedPipeClient(processId, pipeName);
@@ -101,6 +114,16 @@ public class FindElementsToolTests
         ReplacePipeClient(sessionManager, processId, client);
 
         return new ConnectedFindElementsSession(sessionManager, server, serverTask);
+    }
+
+    private static void DisableCleanupTimer(SessionManager sessionManager)
+    {
+        var timerField = typeof(SessionManager).GetField("_cleanupTimer", BindingFlags.Instance | BindingFlags.NonPublic);
+        timerField.Should().NotBeNull();
+
+        var timer = timerField!.GetValue(sessionManager) as System.Threading.Timer;
+        timer.Should().NotBeNull();
+        timer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
@@ -130,7 +153,21 @@ public class FindElementsToolTests
         {
             try
             {
-                serverTask.GetAwaiter().GetResult();
+                SessionManager.Dispose();
+                server.Dispose();
+                try
+                {
+                    serverTask.GetAwaiter().GetResult();
+                }
+                catch (EndOfStreamException)
+                {
+                }
+                catch (IOException)
+                {
+                }
+                catch (ObjectDisposedException)
+                {
+                }
             }
             finally
             {

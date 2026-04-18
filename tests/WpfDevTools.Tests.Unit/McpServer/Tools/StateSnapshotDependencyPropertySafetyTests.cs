@@ -12,12 +12,13 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public sealed class StateSnapshotDependencyPropertySafetyTests
 {
     [Fact]
     public async Task CaptureStateSnapshot_ShouldCaptureRestoreHandle_ForBindingBackedDependencyProperty()
     {
-        const int processId = 51020;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch
@@ -69,7 +70,7 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
     [Fact]
     public async Task RestoreStateSnapshot_ShouldRestoreBindingBackedDependencyProperty_WhenRestoreHandleWasCaptured()
     {
-        const int processId = 51021;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch
@@ -133,7 +134,7 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
     [Fact]
     public async Task CaptureStateSnapshot_ShouldKeepNonBindingExpressionAsSkippedCapabilityBoundary()
     {
-        const int processId = 51022;
+        var processId = NextSyntheticProcessId();
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request => request.Method switch
@@ -237,6 +238,7 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
         });
 
         var sessionManager = new SessionManager();
+        DisableCleanupTimer(sessionManager);
         sessionManager.AddSession(processId);
 
         var client = new NamedPipeClient(processId, pipeName);
@@ -262,6 +264,16 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
         pipeClients[processId] = replacement;
     }
 
+    private static void DisableCleanupTimer(SessionManager sessionManager)
+    {
+        var timerField = typeof(SessionManager).GetField("_cleanupTimer", BindingFlags.Instance | BindingFlags.NonPublic);
+        timerField.Should().NotBeNull();
+
+        var timer = timerField!.GetValue(sessionManager) as System.Threading.Timer;
+        timer.Should().NotBeNull();
+        timer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+    }
+
     private sealed class ConnectedStateSession(
         SessionManager sessionManager,
         NamedPipeServerStream server,
@@ -277,7 +289,16 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
             {
                 SessionManager.Dispose();
                 server.Dispose();
-                serverTask.GetAwaiter().GetResult();
+                try
+                {
+                    serverTask.GetAwaiter().GetResult();
+                }
+                catch (IOException)
+                {
+                }
+                catch (ObjectDisposedException)
+                {
+                }
             }
             finally
             {

@@ -23,7 +23,7 @@ public class SslStreamDiagnosticTests
     public async Task SslStream_WithInspectorHost_ShouldWork()
     {
         // Test InspectorHost with SslStream using raw client
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var tempDir = Path.Combine(Path.GetTempPath(), "SslTest_" + Guid.NewGuid());
         Directory.CreateDirectory(tempDir);
 

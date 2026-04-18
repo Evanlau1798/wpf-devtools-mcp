@@ -17,7 +17,7 @@ public class NamedPipeClientAuthTests
     public async Task ConnectAsync_WithMatchingSecret_ShouldSucceed()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(
@@ -40,7 +40,7 @@ public class NamedPipeClientAuthTests
     public async Task ConnectAsync_WithMismatchedSecret_ShouldReturnFalse()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var serverSecret = new byte[32];
         RandomNumberGenerator.Fill(serverSecret);
         var serverAuth = new AuthenticationManager(
@@ -67,7 +67,7 @@ public class NamedPipeClientAuthTests
     public async Task ConnectAsync_WithAuth_ThenSendRequest_ShouldWork()
     {
         // Arrange
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(
@@ -94,7 +94,7 @@ public class NamedPipeClientAuthTests
     public async Task ConnectAsync_NoAuth_BackwardCompatible_ShouldWork()
     {
         // Arrange - both sides without auth
-        var pid = Random.Shared.Next(100_000, 999_999);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         using var host = new InspectorHost(pid);
         host.Start();
 

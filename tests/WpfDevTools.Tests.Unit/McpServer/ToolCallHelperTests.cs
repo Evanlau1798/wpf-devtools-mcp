@@ -282,15 +282,15 @@ public class ToolCallHelperTests
     [Fact]
     public async Task ExecuteAndWrapAsync_WhenToolExceedsTimeout_ShouldReturnTimeoutError()
     {
-        // Arrange: Create a tool that takes 10 seconds (exceeds 5s timeout)
+        // Arrange: Create a tool that exceeds the configured timeout
         Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(10), ct);
+            await Task.Delay(TimeSpan.FromSeconds(2), ct);
             return new { success = true };
         };
 
         // Act: Execute with no external cancellation
-        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None);
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None, timeoutSeconds: 1);
 
         // Assert: Should return timeout error
         result.Should().NotBeNull();
@@ -298,7 +298,7 @@ public class ToolCallHelperTests
         var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
         textContent.Should().NotBeNull();
         textContent!.Text.Should().Contain("timed out");
-        textContent.Text.Should().Contain("5 seconds");
+        textContent.Text.Should().Contain("1 seconds");
     }
 
     [Fact]
@@ -452,12 +452,12 @@ public class ToolCallHelperTests
         Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
         {
             // Delay longer than the configured timeout
-            await Task.Delay(TimeSpan.FromSeconds(McpServerConfiguration.DefaultToolTimeoutSeconds + 1), ct);
+            await Task.Delay(TimeSpan.FromSeconds(2), ct);
             return new { success = true };
         };
 
         // Act
-        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None);
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None, timeoutSeconds: 1);
 
         // Assert: Should timeout
         result.IsError.Should().BeTrue();

@@ -2,28 +2,23 @@ using System.Diagnostics;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Utilities;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-[Collection("BindingErrorTests")]
-public sealed class BindingErrorWindowingTests : IDisposable
+public sealed class BindingErrorWindowingTests
 {
-    public BindingErrorWindowingTests()
+    private static (BindingAnalyzer Analyzer, BindingErrorTraceListener Listener) CreateBindingErrorAnalyzer()
     {
-        BindingErrorTraceListener.ResetInstance();
-    }
-
-    public void Dispose()
-    {
-        BindingErrorTraceListener.ResetInstance();
+        var listener = BindingErrorTraceListener.CreateForTesting();
+        return (new BindingAnalyzer(new ElementFinder(), null, listener), listener);
     }
 
     [Fact]
     public void GetBindingErrors_WithMaxErrors_ShouldTruncateNewestResults()
     {
-        var analyzer = new BindingAnalyzer();
-        var listener = BindingErrorTraceListener.Instance;
+        var (analyzer, listener) = CreateBindingErrorAnalyzer();
         listener.TraceEvent(null, "System.Windows.Data", TraceEventType.Error, 40, "First error");
         listener.TraceEvent(null, "System.Windows.Data", TraceEventType.Error, 40, "Second error");
 
@@ -37,8 +32,7 @@ public sealed class BindingErrorWindowingTests : IDisposable
     [Fact]
     public void GetBindingErrors_WithSinceTimestamp_ShouldReturnNewerErrorsOnly()
     {
-        var analyzer = new BindingAnalyzer();
-        var listener = BindingErrorTraceListener.Instance;
+        var (analyzer, listener) = CreateBindingErrorAnalyzer();
         listener.TraceEvent(null, "System.Windows.Data", TraceEventType.Error, 40, "Old error");
         var cutoff = DateTime.UtcNow.AddMilliseconds(10);
         Thread.Sleep(20);
@@ -55,7 +49,7 @@ public sealed class BindingErrorWindowingTests : IDisposable
     [Fact]
     public void GetBindingErrors_WithInvalidSinceTimestamp_ShouldReturnStructuredInvalidArgument()
     {
-        var analyzer = new BindingAnalyzer();
+        var (analyzer, _) = CreateBindingErrorAnalyzer();
 
         var result = JsonSerializer.SerializeToElement(
             analyzer.GetBindingErrors(sinceTimestamp: "not-a-timestamp"));

@@ -15,12 +15,12 @@ Code signing provides several benefits:
 ### Create Self-Signed Certificate
 
 ```powershell
-.\scripts\Create-SelfSignedCert.ps1
+.\scripts\tools\Create-SelfSignedCert.ps1 -Password "<YOUR_STRONG_PASSWORD>"
 ```
 
 This creates:
-- `cert/WpfDevTools.pfx` - Certificate with private key (for signing)
-- `cert/WpfDevTools.cer` - Public certificate (for distribution)
+- `tmp/cert/WpfDevTools.pfx` - Certificate with private key (for signing)
+- `tmp/cert/WpfDevTools.cer` - Public certificate (for distribution)
 
 ### Install Certificate (Required for Testing)
 
@@ -36,8 +36,10 @@ This creates:
 # Build in Release mode first
 dotnet build -c Release
 
-# Sign all binaries
-.\scripts\Sign-Binaries.ps1 -CertificatePath ".\cert\WpfDevTools.pfx" -Password "DevPassword123!"
+# Sign all binaries (replace the placeholder below with a strong local-only secret;
+# never reuse production passwords and never commit the secret to source control)
+$env:WPFDEVTOOLS_PFX_PASSWORD = "<YOUR_STRONG_PASSWORD>"
+.\scripts\tools\Sign-Binaries.ps1 -CertificatePath ".\tmp\cert\WpfDevTools.pfx"
 ```
 
 ### Limitations
@@ -91,11 +93,12 @@ Purchase a code signing certificate from a trusted Certificate Authority (CA):
 ### Sign with Commercial Certificate
 
 ```powershell
-# If certificate is in Windows certificate store
-.\scripts\Sign-Binaries.ps1 -CertificatePath "Cert:\CurrentUser\My\<THUMBPRINT>" -Password ""
+# If the certificate is already in the Windows certificate store
+.\scripts\tools\Sign-Binaries.ps1 -CertificateThumbprint "<THUMBPRINT>"
 
-# If certificate is in PFX file
-.\scripts\Sign-Binaries.ps1 -CertificatePath "C:\path\to\cert.pfx" -Password "YourPassword"
+# If certificate is in a PFX file
+$env:WPFDEVTOOLS_PFX_PASSWORD = "<PFX_PASSWORD>"
+.\scripts\tools\Sign-Binaries.ps1 -CertificatePath "C:\path\to\cert.pfx"
 ```
 
 ## Verify Signature
@@ -143,10 +146,11 @@ Add signing step to `.github/workflows/ci-cd.yml`:
 ```yaml
 - name: Sign binaries
   if: github.ref == 'refs/heads/master'
+  env:
+    WPFDEVTOOLS_PFX_PASSWORD: ${{ secrets.CERT_PASSWORD }}
   run: |
-    .\scripts\Sign-Binaries.ps1 `
-      -CertificatePath ${{ secrets.CERT_PATH }} `
-      -Password ${{ secrets.CERT_PASSWORD }}
+    .\scripts\tools\Sign-Binaries.ps1 `
+      -CertificatePath ${{ secrets.CERT_PATH }}
 ```
 
 ### Store Certificate Securely

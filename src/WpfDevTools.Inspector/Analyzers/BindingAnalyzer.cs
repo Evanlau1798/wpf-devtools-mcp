@@ -11,8 +11,10 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
+    private readonly BindingErrorTraceListener _bindingErrorTraceListener;
+    private readonly bool _usesSharedBindingErrorTraceListener;
 
-    internal BindingAnalyzer() : this(new ElementFinder(), null)
+    internal BindingAnalyzer() : this(new ElementFinder(), null, null)
     {
     }
 
@@ -21,16 +23,26 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public BindingAnalyzer(ElementFinder elementFinder)
-        : this(elementFinder, null)
+        : this(elementFinder, null, null)
     {
     }
 
     internal BindingAnalyzer(
         ElementFinder elementFinder,
         WatchEventBuffer? watchEventBuffer)
+        : this(elementFinder, watchEventBuffer, null)
+    {
+    }
+
+    internal BindingAnalyzer(
+        ElementFinder elementFinder,
+        WatchEventBuffer? watchEventBuffer,
+        BindingErrorTraceListener? bindingErrorTraceListener)
     {
         _elementFinder = elementFinder;
         _watchEventBuffer = watchEventBuffer;
+        _bindingErrorTraceListener = bindingErrorTraceListener ?? BindingErrorTraceListener.Instance;
+        _usesSharedBindingErrorTraceListener = ReferenceEquals(_bindingErrorTraceListener, BindingErrorTraceListener.Instance);
         ConfigureBindingEventBridge();
     }
 
@@ -102,9 +114,12 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
             var liveErrors = GetLiveBindingErrors();
 
             // Ensure trace listener is installed
-            BindingErrorTraceListener.Install();
+            if (_usesSharedBindingErrorTraceListener)
+            {
+                BindingErrorTraceListener.Install();
+            }
 
-            var traceErrors = BindingErrorTraceListener.Instance.GetErrors();
+            var traceErrors = _bindingErrorTraceListener.GetErrors();
             IReadOnlyList<BindingErrorInfo> errors = MergeBindingErrors(traceErrors, liveErrors);
 
             var filteredErrors = FilterOutValidationErrors(errors);
@@ -134,7 +149,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
 
             if (clearAfterRead)
             {
-                BindingErrorTraceListener.Instance.ClearErrors();
+                _bindingErrorTraceListener.ClearErrors();
             }
 
             return result;

@@ -109,6 +109,8 @@ public class ServerInstructionsTests
     public void Value_ShouldExplainHowToUseRuntimeNavigation()
     {
         ServerInstructions.Value.Should().Contain("preferred follow-up surface");
+        ServerInstructions.Value.Should().Contain("By default, tool responses include the additive `navigation` envelope");
+        ServerInstructions.Value.Should().Contain("By default, tool responses also include compatibility `nextSteps`");
         ServerInstructions.Value.Should().Contain("nextSteps: []");
         ServerInstructions.Value.Should().Contain("ad hoc tool guessing");
         ServerInstructions.Value.Should().Contain("session-aware");
@@ -119,7 +121,10 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("compatibility field");
         ServerInstructions.Value.Should().Contain("descriptive JSON");
         ServerInstructions.Value.Should().Contain("already know the next step");
-        ServerInstructions.Value.Should().Contain("pass navigation=false");
+        ServerInstructions.Value.Should().Contain("get_binding_errors accepts navigation=false");
+        ServerInstructions.Value.Should().Contain("Schema-driven clients can rely on that opt-out there");
+        ServerInstructions.Value.Should().NotContain("Every tool response includes the additive `navigation` envelope",
+            "navigation and nextSteps are default follow-up surfaces rather than unconditional fields on explicit opt-out calls");
         ServerInstructions.Value.Should().NotContain("use it as the preferred follow-up navigation field",
             "nextSteps should remain a compatibility field rather than the preferred navigation surface");
     }
@@ -150,6 +155,9 @@ public class ServerInstructionsTests
     {
         ServerInstructions.Value.Should().Contain("slash commands");
         ServerInstructions.Value.Should().Contain("@resource");
+        ServerInstructions.Value.Should().Contain("portable discovery contract");
+        ServerInstructions.Value.Should().Contain("prompt names");
+        ServerInstructions.Value.Should().Contain("resource URIs");
     }
 
     [Fact]

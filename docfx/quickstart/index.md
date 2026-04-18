@@ -18,18 +18,18 @@ This quickstart is optimized for the current public distribution model: use the 
 
 ## Step 1: Choose an install path
 
-### Online installer
+### Reviewed online installer
 
-Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1), then use the raw script:
+Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the canonical source first. That installer resolves the published release asset, validates archive integrity before extraction, and then runs the version-matched packaged `bin/install.ps1` from the downloaded release.
 
 ```powershell
-irm https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1 | iex
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
 ```
 
-Client-specific example:
+Client-specific automation example:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1'))) -Version latest -Architecture x64 -Client claude-code -Force
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### Manual release package
@@ -39,20 +39,18 @@ Client-specific example:
 3. Extract the archive.
 4. Run `run.bat` from the extracted folder.
 
+`run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
+
 ### Local script invocation
 
-If you prefer to run the same installer from a local clone instead of `irm | iex`, use:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -Force
-```
+If you prefer a package-local install instead of the reviewed script-first path, use the manual release package flow above.
 
 ## Step 2: Confirm the installed executable path
 
-After installation, the default executable path is typically:
+After installation, the fallback executable path when no previous live install root is reused is:
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\current\bin\wpf-devtools-x64.exe
+%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
 ## Step 3: Register the installed executable
@@ -60,10 +58,12 @@ After installation, the default executable path is typically:
 The installer writes ready-to-copy registration artifacts under:
 
 ```text
-%APPDATA%\WpfDevToolsMcp\x64\client-registration\
+<InstallRoot>\<arch>\client-registration\
 ```
 
-If you register manually, always point your client at the installed `wpf-devtools-x64.exe`, not a source-tree `dotnet run` command.
+If you omit `-InstallRoot`, the installer first reuses the last live install root when possible and falls back to `%APPDATA%\WpfDevToolsMcp` only when no reusable install root is available. Use the generated `client-registration` artifacts as the source of truth for the resolved path.
+
+If you register manually, always point your client at the installed `wpf-devtools-<arch>.exe` selected by the generated `client-registration` artifacts, not a source-tree `dotnet run` command.
 
 ## Step 4: Start or keep your WPF target running
 
@@ -78,6 +78,7 @@ Use this sequence in your MCP client:
 3. `get_ui_summary(depthMode: "semantic")`
 4. `get_element_snapshot` or `get_visual_tree` only if the summary is still insufficient
 5. `ping` only if you want an explicit health check
+6. After each diagnostic, interaction, or mutation, follow `navigation.recommended` first; use `nextSteps` as the compatibility fallback for clients that do not surface navigation yet
 
 Healthy first-run signs:
 

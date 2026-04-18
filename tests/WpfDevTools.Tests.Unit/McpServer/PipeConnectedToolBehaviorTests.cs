@@ -7,6 +7,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("TimingSensitive")]
 public class PipeConnectedToolBehaviorTests : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
@@ -19,7 +20,7 @@ public class PipeConnectedToolBehaviorTests : IDisposable
     [Fact]
     public async Task GenericPipeTool_Execute_WithConnectedSession_ShouldRefreshLastActivity()
     {
-        var processId = Random.Shared.Next(100_000, 999_999);
+        var processId = NextSyntheticProcessId();
         using var host = new InspectorHost(processId);
         host.Start();
 
@@ -42,7 +43,7 @@ public class PipeConnectedToolBehaviorTests : IDisposable
     [Fact]
     public async Task GenericPipeTool_Execute_WhenInspectorReturnsError_ShouldPreserveErrorCode()
     {
-        var processId = Random.Shared.Next(100_000, 999_999);
+        var processId = NextSyntheticProcessId();
         using var host = new InspectorHost(processId);
         host.Start();
 
@@ -64,7 +65,7 @@ public class PipeConnectedToolBehaviorTests : IDisposable
     [Fact]
     public async Task GenericPipeTool_Execute_WithDisconnectedPipe_ShouldReturnStructuredNotConnectedError()
     {
-        var processId = Random.Shared.Next(100_000, 999_999);
+        var processId = NextSyntheticProcessId();
         _sessionManager.AddSession(processId);
 
         var tool = new GenericPipeTool(_sessionManager, "ping");

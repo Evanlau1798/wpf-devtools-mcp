@@ -9,30 +9,42 @@ public sealed partial class SessionManager
     internal void SetActiveSnapshotId(int processId, string snapshotId)
     {
         ThrowIfDisposed();
-        EnsureSessionExists(processId);
-        _navigationStateStore.SetActiveSnapshotId(processId, snapshotId);
+        lock (_lock)
+        {
+            EnsureSessionExistsLocked(processId);
+            _navigationStateStore.SetActiveSnapshotId(processId, snapshotId);
+        }
     }
 
     internal void ClearActiveSnapshotId(int processId)
     {
         ThrowIfDisposed();
-        EnsureSessionExists(processId);
-        _navigationStateStore.SetActiveSnapshotId(processId, null);
+        lock (_lock)
+        {
+            EnsureSessionExistsLocked(processId);
+            _navigationStateStore.SetActiveSnapshotId(processId, null);
+        }
     }
 
     internal void SetActiveTraceState(int processId, ActiveTraceNavigationState traceState)
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(traceState);
-        EnsureSessionExists(processId);
-        _navigationStateStore.SetActiveTrace(processId, traceState);
+        lock (_lock)
+        {
+            EnsureSessionExistsLocked(processId);
+            _navigationStateStore.SetActiveTrace(processId, traceState);
+        }
     }
 
     internal void ClearActiveTraceState(int processId)
     {
         ThrowIfDisposed();
-        EnsureSessionExists(processId);
-        _navigationStateStore.SetActiveTrace(processId, null);
+        lock (_lock)
+        {
+            EnsureSessionExistsLocked(processId);
+            _navigationStateStore.SetActiveTrace(processId, null);
+        }
     }
 
     internal bool TryGetNavigationState(int processId, out NavigationSessionState? state)
@@ -59,10 +71,18 @@ public sealed partial class SessionManager
     {
         lock (_lock)
         {
-            if (!_sessions.ContainsKey(processId))
-            {
-                throw new InvalidOperationException($"Process {processId} is not connected. Connect first or choose an existing session.");
-            }
+            EnsureSessionExistsLocked(processId);
+        }
+    }
+
+    /// <summary>
+    /// Must be called while holding _lock to avoid TOCTOU races.
+    /// </summary>
+    private void EnsureSessionExistsLocked(int processId)
+    {
+        if (!_sessions.ContainsKey(processId))
+        {
+            throw new InvalidOperationException($"Process {processId} is not connected. Connect first or choose an existing session.");
         }
     }
 }

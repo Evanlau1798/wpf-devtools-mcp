@@ -66,10 +66,22 @@ public sealed partial class ConnectTool
         {
             if (!callerCancellationToken.CanBeCanceled)
             {
-                return _completion.Task;
+                return WaitAndDecrementAsync();
             }
 
             return WaitWithCallerCancellationAsync(callerCancellationToken);
+        }
+
+        private async Task<object> WaitAndDecrementAsync()
+        {
+            try
+            {
+                return await _completion.Task.ConfigureAwait(false);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _activeWaiters);
+            }
         }
 
         public void SetResult(object result)
@@ -89,12 +101,14 @@ public sealed partial class ConnectTool
 
         private async Task<object> WaitWithCallerCancellationAsync(CancellationToken callerCancellationToken)
         {
+            var decrementedInCatch = false;
             try
             {
                 return await _completion.Task.WaitAsync(callerCancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (callerCancellationToken.IsCancellationRequested)
             {
+                decrementedInCatch = true;
                 var lastWaiterCancelled = false;
                 if (!_completion.Task.IsCompleted && Interlocked.Decrement(ref _activeWaiters) == 0)
                 {
@@ -120,6 +134,13 @@ public sealed partial class ConnectTool
                 }
 
                 throw;
+            }
+            finally
+            {
+                if (!decrementedInCatch)
+                {
+                    Interlocked.Decrement(ref _activeWaiters);
+                }
             }
         }
     }

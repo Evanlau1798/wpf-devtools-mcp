@@ -283,7 +283,7 @@ public static class DependencyPropertyMcpTools
         [Description("Optional timeout in milliseconds. Default: 5000.")] int? timeoutMs = null,
         [Description("Optional polling interval in milliseconds. Default: 200.")] int? pollIntervalMs = null,
         [Description("Optional expected property value. Omit to stop on any value change.")] JsonElement? expectedValue = null,
-        [Description("Optional single mutation step, using the same shape as one batch_mutate item. Accepts either a raw JSON object or a stringified JSON object for compatibility. Use this when the client cannot send a concurrent mutation while wait_for_dp_change is running.")] object? triggerMutation = null,
+        [Description("Optional single mutation step as a JSON object, using the same shape as one batch_mutate item: { \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }. Use this when the client cannot send a concurrent mutation while wait_for_dp_change is running.")] JsonElement? triggerMutation = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

@@ -522,6 +522,6 @@ public class WpfProcessDetector
     private static string? NormalizeWindowTitle(string? title) =>
         string.IsNullOrWhiteSpace(title)
             ? null
-            : title.Trim();
+            : title!.Trim();
 }
 

@@ -15,6 +15,11 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public sealed class NamedPipeClient : IDisposable
 {
+    private static readonly JsonSerializerOptions IpcSerializerOptions = new()
+    {
+        MaxDepth = 32
+    };
+
     private readonly int _processId;
     private readonly string _pipeName;
     private readonly AuthenticationManager? _authManager;
@@ -406,12 +411,12 @@ public sealed class NamedPipeClient : IDisposable
             };
 
             // Serialize and send
-            var requestJson = JsonSerializer.Serialize(request);
+            var requestJson = JsonSerializer.Serialize(request, IpcSerializerOptions);
             await MessageFraming.WriteMessageAsync(commStream, requestJson, cancellationToken).ConfigureAwait(false);
 
             // Read response
             var responseJson = await MessageFraming.ReadMessageAsync(commStream, cancellationToken).ConfigureAwait(false);
-            var response = JsonSerializer.Deserialize<InspectorResponse>(responseJson)
+            var response = JsonSerializer.Deserialize<InspectorResponse>(responseJson, IpcSerializerOptions)
                 ?? throw new InvalidOperationException("Invalid response from Inspector");
 
             if (!string.Equals(response.Id, requestId, StringComparison.Ordinal))

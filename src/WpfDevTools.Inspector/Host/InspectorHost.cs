@@ -269,6 +269,12 @@ public sealed partial class InspectorHost : IDisposable
         }
     }
 
+    private static readonly JsonSerializerOptions IpcSerializerOptions = new()
+    {
+        MaxDepth = 32,
+        PropertyNameCaseInsensitive = true
+    };
+
     private async Task HandleClientAsync(
         Stream stream,
         CancellationToken cancellationToken)
@@ -280,8 +286,8 @@ public sealed partial class InspectorHost : IDisposable
                 // Read request
                 var requestJson = await MessageFraming.ReadMessageAsync(stream, cancellationToken).ConfigureAwait(false);
 
-                // Parse request
-                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+                // Parse request with shared options (includes MaxDepth protection)
+                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson, IpcSerializerOptions);
                 if (request == null)
                 {
                     await SendErrorResponseAsync(stream, "unknown", "Invalid request format", cancellationToken).ConfigureAwait(false);
@@ -302,7 +308,7 @@ public sealed partial class InspectorHost : IDisposable
                     response.Error?.Message);
 
                 // Send response
-                var responseJson = JsonSerializer.Serialize(response);
+                var responseJson = JsonSerializer.Serialize(response, IpcSerializerOptions);
                 await MessageFraming.WriteMessageAsync(stream, responseJson, cancellationToken).ConfigureAwait(false);
             }
         }

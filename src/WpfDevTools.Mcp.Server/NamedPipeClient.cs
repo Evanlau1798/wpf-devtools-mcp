@@ -13,6 +13,15 @@ namespace WpfDevTools.Mcp.Server;
 /// <summary>
 /// Named Pipe client for communicating with Inspector DLL
 /// </summary>
+internal enum NamedPipeConnectFailure
+{
+    None = 0,
+    Timeout = 1,
+    AuthenticationFailed = 2,
+    SecureTransportFailed = 3,
+    AccessDenied = 4
+}
+
 public sealed class NamedPipeClient : IDisposable
 {
     private static readonly JsonSerializerOptions IpcSerializerOptions = new()
@@ -29,6 +38,7 @@ public sealed class NamedPipeClient : IDisposable
     private readonly object _lock = new();
     private readonly SemaphoreSlim _pipeSemaphore = new(1, 1);
     private int _disposeState;
+    private int _lastConnectFailure;
 
     /// <summary>
     /// Initializes a new instance of the NamedPipeClient class without authentication
@@ -86,6 +96,9 @@ public sealed class NamedPipeClient : IDisposable
     /// </summary>
     public string PipeName => _pipeName;
 
+    internal NamedPipeConnectFailure LastConnectFailure =>
+        (NamedPipeConnectFailure)Volatile.Read(ref _lastConnectFailure);
+
     /// <summary>
     /// Check if connected
     /// </summary>
@@ -108,13 +121,17 @@ public sealed class NamedPipeClient : IDisposable
     /// <param name="cancellationToken">External cancellation token to abort the entire connect operation</param>
     public async Task<bool> ConnectAsync(TimeSpan timeout, int maxRetries = 3, CancellationToken cancellationToken = default)
     {
+        SetLastConnectFailure(NamedPipeConnectFailure.None);
         var timeoutBudget = Stopwatch.StartNew();
 
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
             var remainingTimeout = timeout - timeoutBudget.Elapsed;
             if (remainingTimeout <= TimeSpan.Zero)
+            {
+                SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
                 return false;
+            }
 
             try
             {
@@ -170,20 +187,24 @@ public sealed class NamedPipeClient : IDisposable
                     }
                 }
 
+                SetLastConnectFailure(NamedPipeConnectFailure.None);
                 return true;
             }
             catch (UnauthorizedAccessException)
             {
+                SetLastConnectFailure(NamedPipeConnectFailure.AccessDenied);
                 if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
                     return false;
             }
             catch (IOException)
             {
+                SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
                 if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
                     return false;
             }
             catch (TimeoutException)
             {
+                SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
                 if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
                     return false;
             }
@@ -194,11 +215,13 @@ public sealed class NamedPipeClient : IDisposable
             }
             catch (OperationCanceledException)
             {
+                SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
                 if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
                     return false;
             }
         }
 
+        SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
         return false;
     }
 
@@ -292,14 +315,17 @@ public sealed class NamedPipeClient : IDisposable
         }
         catch (OperationCanceledException)
         {
+            SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
             return null;
         }
         catch (AuthenticationException)
         {
+            SetLastConnectFailure(NamedPipeConnectFailure.SecureTransportFailed);
             return null;
         }
         catch (IOException)
         {
+            SetLastConnectFailure(NamedPipeConnectFailure.SecureTransportFailed);
             return null;
         }
     }
@@ -327,7 +353,11 @@ public sealed class NamedPipeClient : IDisposable
             while (totalRead < 32)
             {
                 var read = await pipe.ReadAsync(challenge, totalRead, 32 - totalRead, cancellationToken).ConfigureAwait(false);
-                if (read == 0) return false;
+                if (read == 0)
+                {
+                    SetLastConnectFailure(NamedPipeConnectFailure.AuthenticationFailed);
+                    return false;
+                }
                 totalRead += read;
             }
 
@@ -352,18 +382,35 @@ public sealed class NamedPipeClient : IDisposable
             // 4. Read 1-byte result from server (1=success, 0=failure)
             var resultBuf = new byte[1];
             var resultRead = await pipe.ReadAsync(resultBuf, 0, 1, cancellationToken).ConfigureAwait(false);
-            if (resultRead == 0) return false;
+            if (resultRead == 0)
+            {
+                SetLastConnectFailure(NamedPipeConnectFailure.AuthenticationFailed);
+                return false;
+            }
 
-            return resultBuf[0] == 1;
+            var authenticated = resultBuf[0] == 1;
+            if (!authenticated)
+            {
+                SetLastConnectFailure(NamedPipeConnectFailure.AuthenticationFailed);
+            }
+
+            return authenticated;
         }
         catch (OperationCanceledException)
         {
+            SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
             return false;
         }
         catch (IOException)
         {
+            SetLastConnectFailure(NamedPipeConnectFailure.AuthenticationFailed);
             return false;
         }
+    }
+
+    private void SetLastConnectFailure(NamedPipeConnectFailure failure)
+    {
+        Volatile.Write(ref _lastConnectFailure, (int)failure);
     }
 
     /// <summary>

@@ -346,13 +346,14 @@ public sealed partial class ConnectTool
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!connected)
             {
+                var pipeConnectFailure = DescribePipeConnectFailure(pipeClient.LastConnectFailure, processId);
                 _sessionManager.RemoveSession(processId);
                 return new
                 {
                     success = false,
-                    error = "Timeout connecting to Inspector Named Pipe",
-                    errorCode = "Timeout",
-                    hint = "The Inspector DLL may not have started its Named Pipe server. Check if the target process is frozen or if antivirus is blocking the pipe."
+                    error = pipeConnectFailure.Error,
+                    errorCode = pipeConnectFailure.ErrorCode,
+                    hint = pipeConnectFailure.Hint
                 };
             }
 
@@ -394,6 +395,31 @@ public sealed partial class ConnectTool
             _sessionManager.RemoveSession(processId);
             throw;
         }
+    }
+
+    internal static (string ErrorCode, string Error, string Hint) DescribePipeConnectFailure(
+        NamedPipeConnectFailure failure,
+        int processId)
+    {
+        return failure switch
+        {
+            NamedPipeConnectFailure.AuthenticationFailed => (
+                "SecurityError",
+                $"Authentication failed connecting to Inspector Named Pipe for process {processId}.",
+                "The shared secret used by the MCP server does not match the injected Inspector. Restart the target or reconnect after refreshing the secure session state."),
+            NamedPipeConnectFailure.SecureTransportFailed => (
+                "SecurityError",
+                $"Secure transport handshake failed connecting to Inspector Named Pipe for process {processId}.",
+                "Verify certificate or thumbprint configuration, then retry connect. A stale or mismatched certificate directory can cause this failure."),
+            NamedPipeConnectFailure.AccessDenied => (
+                "AccessDenied",
+                $"Access denied connecting to Inspector Named Pipe for process {processId}.",
+                "Ensure the MCP server and target process run under compatible privileges and user sessions before retrying connect."),
+            _ => (
+                "Timeout",
+                "Timeout connecting to Inspector Named Pipe",
+                "The Inspector DLL may not have started its Named Pipe server. Check if the target process is frozen or if antivirus is blocking the pipe.")
+        };
     }
 
     private static object? TryGetOptionalString(

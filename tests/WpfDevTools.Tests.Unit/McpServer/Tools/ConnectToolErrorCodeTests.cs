@@ -34,6 +34,30 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
         json.GetProperty("errorCode").GetString().Should().Be("Timeout");
     }
 
+    [Fact]
+    public void DescribePipeConnectFailure_WhenAuthenticationFails_ShouldReturnSecurityError()
+    {
+        var result = ConnectTool.DescribePipeConnectFailure(
+            NamedPipeConnectFailure.AuthenticationFailed,
+            processId: 12345);
+
+        result.ErrorCode.Should().Be("SecurityError");
+        result.Error.Should().Contain("Authentication failed");
+        result.Hint.Should().Contain("shared secret");
+    }
+
+    [Fact]
+    public void DescribePipeConnectFailure_WhenSecureTransportFails_ShouldReturnSecurityError()
+    {
+        var result = ConnectTool.DescribePipeConnectFailure(
+            NamedPipeConnectFailure.SecureTransportFailed,
+            processId: 12345);
+
+        result.ErrorCode.Should().Be("SecurityError");
+        result.Error.Should().Contain("Secure transport");
+        result.Hint.Should().Contain("certificate");
+    }
+
     public void Dispose()
     {
         if (_dummyBootstrapperPath != null && File.Exists(_dummyBootstrapperPath))

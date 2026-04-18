@@ -61,6 +61,7 @@ public class NamedPipeClientAuthTests
 
         // Assert
         connected.Should().BeFalse();
+        client.LastConnectFailure.Should().Be(NamedPipeConnectFailure.AuthenticationFailed);
     }
 
     [Fact]

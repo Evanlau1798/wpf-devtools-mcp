@@ -60,6 +60,7 @@ public class EncryptedCommunicationTests : IDisposable
 
         // Assert
         connected.Should().BeFalse("client should pin to its expected certificate thumbprint");
+        client.LastConnectFailure.Should().Be(NamedPipeConnectFailure.SecureTransportFailed);
     }
 
     [Fact]

@@ -35,6 +35,7 @@ Use one of these fixes:
 - restart Claude Code, Codex, or the MCP host as administrator so the server and target run at the same integrity level
 - retest against a non-elevated target process
 - if packaging blocks injection, start the target-side SDK host in SDK mode with `InspectorSdk.Initialize()` before calling `connect()`, and use matching transport settings including the same absolute `WPFDEVTOOLS_CERT_DIR` value when TLS is enabled
+- if `connect()` returns `CompatibilityError`, restart the target process so the MCP server can inject or reuse an Inspector host built from the same repo revision and compatibility contract
 - a legacy plaintext or otherwise unresponsive existing SDK host may still time out before the MCP server can prove a transport mismatch
 
 ## pipe readiness timeout

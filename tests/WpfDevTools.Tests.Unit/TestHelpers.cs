@@ -24,6 +24,9 @@ public static class TestHelpers
     public static int NextSyntheticProcessId() =>
         System.Threading.Interlocked.Increment(ref s_nextSyntheticProcessId);
 
+    public static string CreateUniquePipeName(string prefix = "WpfDevTools_Test") =>
+        $"{prefix}_{Guid.NewGuid():N}";
+
     public static string EnsureSharedDummyBootstrapperExists()
     {
         var bootstrapperPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");

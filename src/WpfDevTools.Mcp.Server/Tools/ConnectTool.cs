@@ -547,6 +547,14 @@ public sealed partial class ConnectTool
                 "SecurityError",
                 $"Secure transport handshake failed connecting to Inspector Named Pipe for process {processId}.",
                 "Verify certificate or thumbprint configuration, then retry connect. A stale or mismatched certificate directory can cause this failure."),
+            NamedPipeConnectFailure.ServerProcessMismatch => (
+                "SecurityError",
+                $"Connected Named Pipe server for process {processId} is not hosted by the requested target process.",
+                "A different local process is advertising the expected pipe name. Restart the target process, then retry connect so the MCP server can attach to the real Inspector host."),
+            NamedPipeConnectFailure.IncompatibleHost => (
+                "CompatibilityError",
+                $"Existing Inspector host for process {processId} is incompatible with the current MCP server build.",
+                "Restart the target process so connect() can inject or reuse an Inspector host that matches the current protocol and build."),
             NamedPipeConnectFailure.AccessDenied => (
                 "AccessDenied",
                 $"Access denied connecting to Inspector Named Pipe for process {processId}.",

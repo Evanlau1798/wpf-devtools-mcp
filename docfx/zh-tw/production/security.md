@@ -41,6 +41,7 @@
 - client 會驗證 subject，且可以 pin 預期的 thumbprint。
 - `WPFDEVTOOLS_CERT_THUMBPRINT` 可用來覆寫預期 thumbprint。
 - 若 target app 會呼叫 `InspectorSdk.Initialize()`，只要兩邊使用同一個 absolute `WPFDEVTOOLS_CERT_DIR` 值，`connect()` 就可以重用既有的 SDK-hosted Inspector。
+- 在重用既有 host 前，client 也會驗證 named-pipe server 確實屬於指定 target process，且該 host 回報的 protocol/build fingerprint 與目前 MCP server 相容。
 
 ### Pipe 存取限制與 server 端保護
 

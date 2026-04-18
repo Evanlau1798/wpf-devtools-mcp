@@ -10,6 +10,7 @@ using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
 using Xunit;
 using Xunit.Abstractions;
+using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.Security;
 
@@ -47,13 +48,14 @@ public class EncryptedCommunicationTests : IDisposable
     {
         // Arrange
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
         var serverCertManager = new CertificateManager(_tempCertDir);
         var clientCertManager = new CertificateManager(_otherTempCertDir);
 
-        using var host = new InspectorHost(pid, authManager: null, serverCertManager);
+        using var host = new InspectorHost(pid, pipeName, authManager: null, serverCertManager);
         host.Start();
 
-        using var client = new NamedPipeClient(pid, authManager: null, clientCertManager);
+        using var client = new NamedPipeClient(pid, pipeName, authManager: null, clientCertManager);
 
         // Act
         var connected = await client.ConnectAsync(TimeSpan.FromSeconds(10));
@@ -68,16 +70,17 @@ public class EncryptedCommunicationTests : IDisposable
     {
         // Arrange
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(
             envSecretProvider: () => Convert.ToBase64String(secret));
         var certManager = new CertificateManager(_tempCertDir);
 
-        using var host = new InspectorHost(pid, authManager, certManager);
+        using var host = new InspectorHost(pid, pipeName, authManager, certManager);
         host.Start();
 
-        using var client = new NamedPipeClient(pid, authManager, certManager);
+        using var client = new NamedPipeClient(pid, pipeName, authManager, certManager);
 
         // Act - connect with auth + encryption
         var connected = await client.ConnectAsync(TimeSpan.FromSeconds(10));
@@ -98,14 +101,15 @@ public class EncryptedCommunicationTests : IDisposable
     {
         // Arrange - encryption only, no auth
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
         var certManager = new CertificateManager(_tempCertDir);
         _output.WriteLine($"Pid={pid}, CertDir={_tempCertDir}");
 
-        using var host = new InspectorHost(pid, authManager: null, certManager);
+        using var host = new InspectorHost(pid, pipeName, authManager: null, certManager);
         host.Start();
         _output.WriteLine("Host started");
 
-        using var client = new NamedPipeClient(pid, authManager: null, certManager);
+        using var client = new NamedPipeClient(pid, pipeName, authManager: null, certManager);
 
         // Act
         _output.WriteLine("Connecting...");
@@ -129,12 +133,13 @@ public class EncryptedCommunicationTests : IDisposable
     {
         // Arrange
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
         var certManager = new CertificateManager(_tempCertDir);
 
-        using var host = new InspectorHost(pid, authManager: null, certManager);
+        using var host = new InspectorHost(pid, pipeName, authManager: null, certManager);
         host.Start();
 
-        using var client = new NamedPipeClient(pid, authManager: null, certManager);
+        using var client = new NamedPipeClient(pid, pipeName, authManager: null, certManager);
         var connected = await client.ConnectAsync(TimeSpan.FromSeconds(10));
         connected.Should().BeTrue();
 
@@ -169,16 +174,17 @@ public class EncryptedCommunicationTests : IDisposable
     {
         // Arrange
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(
             envSecretProvider: () => Convert.ToBase64String(secret));
         var certManager = new CertificateManager(_tempCertDir);
 
-        using var host = new InspectorHost(pid, authManager, certManager);
+        using var host = new InspectorHost(pid, pipeName, authManager, certManager);
         host.Start();
 
-        using var client = new NamedPipeClient(pid, authManager, certManager);
+        using var client = new NamedPipeClient(pid, pipeName, authManager, certManager);
         var connected = await client.ConnectAsync(TimeSpan.FromSeconds(10));
         connected.Should().BeTrue();
 

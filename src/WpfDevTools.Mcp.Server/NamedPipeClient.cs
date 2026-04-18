@@ -3,6 +3,8 @@ using System.IO.Pipes;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Text.Json;
+using Microsoft.Win32.SafeHandles;
+using System.Runtime.InteropServices;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
@@ -19,7 +21,9 @@ internal enum NamedPipeConnectFailure
     Timeout = 1,
     AuthenticationFailed = 2,
     SecureTransportFailed = 3,
-    AccessDenied = 4
+    AccessDenied = 4,
+    ServerProcessMismatch = 5,
+    IncompatibleHost = 6
 }
 
 public sealed class NamedPipeClient : IDisposable
@@ -33,12 +37,15 @@ public sealed class NamedPipeClient : IDisposable
     private readonly string _pipeName;
     private readonly AuthenticationManager? _authManager;
     private readonly CertificateManager? _certManager;
+    private readonly bool _enforceHostCompatibilityValidation;
     private NamedPipeClientStream? _pipeClient;
     private Stream? _communicationStream;
     private readonly object _lock = new();
     private readonly SemaphoreSlim _pipeSemaphore = new(1, 1);
     private int _disposeState;
     private int _lastConnectFailure;
+    private static readonly string CurrentBuildFingerprint =
+        InspectorCompatibilityContract.GetBuildFingerprint(typeof(NamedPipeClient));
 
     /// <summary>
     /// Initializes a new instance of the NamedPipeClient class without authentication
@@ -79,7 +86,8 @@ public sealed class NamedPipeClient : IDisposable
         int processId,
         string pipeName,
         AuthenticationManager? authManager,
-        CertificateManager? certManager)
+        CertificateManager? certManager,
+        bool? enforceHostCompatibilityValidation = null)
     {
         _processId = processId;
         _pipeName = string.IsNullOrWhiteSpace(pipeName)
@@ -87,6 +95,14 @@ public sealed class NamedPipeClient : IDisposable
             : pipeName;
         _authManager = authManager;
         _certManager = certManager;
+
+        var usesDefaultPipeName = string.Equals(
+            _pipeName,
+            BuildPipeName(processId),
+            StringComparison.Ordinal);
+        var usesSecureTransport = (_authManager?.IsAuthenticationEnabled == true) || _certManager != null;
+        _enforceHostCompatibilityValidation =
+            enforceHostCompatibilityValidation ?? (usesDefaultPipeName && usesSecureTransport);
     }
 
     private static string BuildPipeName(int processId) => $"WpfDevTools_{processId}";
@@ -184,6 +200,17 @@ public sealed class NamedPipeClient : IDisposable
                     lock (_lock)
                     {
                         _communicationStream = localClient;
+                    }
+                }
+
+                if (_enforceHostCompatibilityValidation)
+                {
+                    var compatibilityFailure = await ValidateConnectedHostAsync(localClient, cts.Token).ConfigureAwait(false);
+                    if (compatibilityFailure != NamedPipeConnectFailure.None)
+                    {
+                        SetLastConnectFailure(compatibilityFailure);
+                        ResetConnectionState();
+                        return false;
                     }
                 }
 
@@ -412,6 +439,112 @@ public sealed class NamedPipeClient : IDisposable
     {
         Volatile.Write(ref _lastConnectFailure, (int)failure);
     }
+
+    private async Task<NamedPipeConnectFailure> ValidateConnectedHostAsync(
+        NamedPipeClientStream pipe,
+        CancellationToken cancellationToken)
+    {
+        var serverProcessId = TryGetConnectedServerProcessId(pipe);
+        if (serverProcessId.HasValue && serverProcessId.Value != _processId)
+        {
+            return NamedPipeConnectFailure.ServerProcessMismatch;
+        }
+
+        try
+        {
+            var response = await SendRequestAsync(
+                "ping",
+                $"connect-verify-{Guid.NewGuid():N}",
+                new { },
+                cancellationToken).ConfigureAwait(false);
+
+            if (response.Error != null || response.Result is null)
+            {
+                return NamedPipeConnectFailure.IncompatibleHost;
+            }
+
+            var result = response.Result.Value;
+            if (!TryGetInt32Property(result, "processId", out var hostProcessId) || hostProcessId != _processId)
+            {
+                return NamedPipeConnectFailure.ServerProcessMismatch;
+            }
+
+            if (!TryGetInt32Property(result, "protocolVersion", out var protocolVersion) ||
+                protocolVersion != InspectorCompatibilityContract.ProtocolVersion)
+            {
+                return NamedPipeConnectFailure.IncompatibleHost;
+            }
+
+            if (!TryGetStringProperty(result, "buildFingerprint", out var buildFingerprint) ||
+                !string.Equals(buildFingerprint, CurrentBuildFingerprint, StringComparison.Ordinal))
+            {
+                return NamedPipeConnectFailure.IncompatibleHost;
+            }
+
+            return NamedPipeConnectFailure.None;
+        }
+        catch (OperationCanceledException)
+        {
+            return NamedPipeConnectFailure.Timeout;
+        }
+        catch (IOException)
+        {
+            return NamedPipeConnectFailure.IncompatibleHost;
+        }
+        catch (InvalidOperationException)
+        {
+            return NamedPipeConnectFailure.IncompatibleHost;
+        }
+        catch (JsonException)
+        {
+            return NamedPipeConnectFailure.IncompatibleHost;
+        }
+    }
+
+    private static bool TryGetInt32Property(JsonElement element, string propertyName, out int value)
+    {
+        value = 0;
+        return element.ValueKind == JsonValueKind.Object &&
+            element.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.Number &&
+            property.TryGetInt32(out value);
+    }
+
+    private static bool TryGetStringProperty(JsonElement element, string propertyName, out string? value)
+    {
+        value = null;
+        return element.ValueKind == JsonValueKind.Object &&
+            element.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(value = property.GetString());
+    }
+
+    private static int? TryGetConnectedServerProcessId(NamedPipeClientStream pipe)
+    {
+        try
+        {
+            return GetNamedPipeServerProcessId(pipe.SafePipeHandle, out var serverProcessId)
+                ? checked((int)serverProcessId)
+                : null;
+        }
+        catch (DllNotFoundException)
+        {
+            return null;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return null;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetNamedPipeServerProcessId(
+        SafePipeHandle pipe,
+        out uint serverProcessId);
 
     /// <summary>
     /// Send request and wait for response.

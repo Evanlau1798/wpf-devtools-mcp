@@ -38,6 +38,7 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 - The client validates the inspector certificate subject and pins the expected thumbprint.
 - `WPFDEVTOOLS_CERT_THUMBPRINT` can override the expected thumbprint explicitly.
 - `connect()` can reuse an existing SDK-hosted Inspector when the target app calls `InspectorSdk.Initialize()` with the same absolute `WPFDEVTOOLS_CERT_DIR` value.
+- Before reusing an existing host, the client verifies that the named-pipe server is owned by the requested target process and that the host reports a compatible protocol/build fingerprint.
 
 ### 4. Pipe access limits
 

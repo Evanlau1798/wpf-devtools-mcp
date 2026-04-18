@@ -203,6 +203,7 @@ public static class ServerInstructions
         - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
         - "timeout" -> process may be frozen; try ping() to verify connection
         - existing SDK host security mismatch that completes an incompatible authenticated/TLS handshake (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR, when set, is the same absolute path in both the MCP server and target app. For connect() reuse, hardened SDK mode requires setting both values together on both sides
+        - existing SDK host build/protocol mismatch (errorCode: CompatibilityError) -> restart the target process so connect() can inject or reuse an Inspector host built from the same repo revision and compatibility contract as the MCP server
         - existing plaintext or otherwise unresponsive SDK host may still surface as Timeout -> restart the target host or enable explicit matching transport settings before retrying connect. The default-hardened MCP server will not reuse a plaintext SDK host
         - "element not found" -> verify elementId from get_visual_tree/get_logical_tree
         - "property not found" -> verify propertyName spelling and element type

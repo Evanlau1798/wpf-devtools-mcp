@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.Utilities;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Events;
@@ -177,7 +179,15 @@ public sealed class RequestDispatcher : IDisposable
     private async Task<object> HandlePingAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         await Task.CompletedTask;
-        return new { success = true, status = "pong", timestamp = DateTime.UtcNow };
+        return new
+        {
+            success = true,
+            status = "pong",
+            timestamp = DateTime.UtcNow,
+            processId = Process.GetCurrentProcess().Id,
+            protocolVersion = InspectorCompatibilityContract.ProtocolVersion,
+            buildFingerprint = InspectorCompatibilityContract.GetBuildFingerprint(typeof(RequestDispatcher))
+        };
     }
 
     private void LogError(string message)

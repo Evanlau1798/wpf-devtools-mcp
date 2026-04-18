@@ -41,6 +41,7 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 - The client validates the subject and can pin the expected thumbprint.
 - `WPFDEVTOOLS_CERT_THUMBPRINT` can override the expected thumbprint.
 - `connect()` can reuse an existing SDK-hosted Inspector when the target app calls `InspectorSdk.Initialize()` with the same absolute `WPFDEVTOOLS_CERT_DIR` value.
+- Before reusing an existing host, the client verifies that the named-pipe server is owned by the requested target process and that the host reports a compatible protocol/build fingerprint.
 
 ### Pipe access limits and server-side controls
 

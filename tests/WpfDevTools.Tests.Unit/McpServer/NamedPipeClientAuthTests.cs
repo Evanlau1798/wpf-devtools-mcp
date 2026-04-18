@@ -8,6 +8,7 @@ using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
 using Xunit;
+using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -18,15 +19,16 @@ public class NamedPipeClientAuthTests
     {
         // Arrange
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(
             envSecretProvider: () => Convert.ToBase64String(secret));
 
-        using var host = new InspectorHost(pid, authManager);
+        using var host = new InspectorHost(pid, pipeName, authManager, null);
         host.Start();
 
-        using var client = new NamedPipeClient(pid, authManager);
+        using var client = new NamedPipeClient(pid, pipeName, authManager, null);
 
         // Act
         var connected = await client.ConnectAsync(TimeSpan.FromSeconds(5));
@@ -41,6 +43,7 @@ public class NamedPipeClientAuthTests
     {
         // Arrange
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
         var serverSecret = new byte[32];
         RandomNumberGenerator.Fill(serverSecret);
         var serverAuth = new AuthenticationManager(
@@ -51,10 +54,10 @@ public class NamedPipeClientAuthTests
         var clientAuth = new AuthenticationManager(
             envSecretProvider: () => Convert.ToBase64String(clientSecret));
 
-        using var host = new InspectorHost(pid, serverAuth);
+        using var host = new InspectorHost(pid, pipeName, serverAuth, null);
         host.Start();
 
-        using var client = new NamedPipeClient(pid, clientAuth);
+        using var client = new NamedPipeClient(pid, pipeName, clientAuth, null);
 
         // Act
         var connected = await client.ConnectAsync(TimeSpan.FromSeconds(5));
@@ -69,15 +72,16 @@ public class NamedPipeClientAuthTests
     {
         // Arrange
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
         var secret = new byte[32];
         RandomNumberGenerator.Fill(secret);
         var authManager = new AuthenticationManager(
             envSecretProvider: () => Convert.ToBase64String(secret));
 
-        using var host = new InspectorHost(pid, authManager);
+        using var host = new InspectorHost(pid, pipeName, authManager, null);
         host.Start();
 
-        using var client = new NamedPipeClient(pid, authManager);
+        using var client = new NamedPipeClient(pid, pipeName, authManager, null);
         var connected = await client.ConnectAsync(TimeSpan.FromSeconds(5));
         connected.Should().BeTrue();
 

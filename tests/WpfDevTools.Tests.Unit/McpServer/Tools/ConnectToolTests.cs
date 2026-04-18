@@ -360,7 +360,7 @@ public partial class ConnectToolTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
 
-        const int processId = 23456;
+        var processId = Environment.ProcessId;
         var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-reconnect-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
@@ -436,7 +436,7 @@ public partial class ConnectToolTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
 
-        const int processId = 24679;
+        var processId = Environment.ProcessId;
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-sdk-reuse-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
         var sharedSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
@@ -489,7 +489,7 @@ public partial class ConnectToolTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
 
-        const int processId = 24678;
+        var processId = Environment.ProcessId;
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-sdk-delayed-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
         var sharedSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));

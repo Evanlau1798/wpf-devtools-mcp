@@ -58,6 +58,30 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
         result.Hint.Should().Contain("certificate");
     }
 
+    [Fact]
+    public void DescribePipeConnectFailure_WhenServerProcessDoesNotMatch_ShouldReturnSecurityError()
+    {
+        var result = ConnectTool.DescribePipeConnectFailure(
+            NamedPipeConnectFailure.ServerProcessMismatch,
+            processId: 12345);
+
+        result.ErrorCode.Should().Be("SecurityError");
+        result.Error.Should().Contain("not hosted by the requested target process");
+        result.Hint.Should().Contain("different local process");
+    }
+
+    [Fact]
+    public void DescribePipeConnectFailure_WhenExistingHostIsIncompatible_ShouldReturnCompatibilityError()
+    {
+        var result = ConnectTool.DescribePipeConnectFailure(
+            NamedPipeConnectFailure.IncompatibleHost,
+            processId: 12345);
+
+        result.ErrorCode.Should().Be("CompatibilityError");
+        result.Error.Should().Contain("incompatible");
+        result.Hint.Should().Contain("current protocol and build");
+    }
+
     public void Dispose()
     {
     }

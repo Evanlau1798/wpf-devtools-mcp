@@ -294,7 +294,8 @@ You need to safely modify UI state and be able to revert changes if something go
   "params": {
     "name": "capture_state_snapshot",
     "arguments": {
-      "elementId": "Window_0"
+      "elementId": "Window_0",
+      "includeFocus": true
     }
   }
 }
@@ -581,7 +582,7 @@ Multiple WPF applications are running and you need to connect to a specific one.
 ### Solution
 
 ```json
-// 1. List processes with a window filter
+// 1. List processes with a process name filter
 {
   "jsonrpc": "2.0",
   "id": 1,
@@ -589,7 +590,7 @@ Multiple WPF applications are running and you need to connect to a specific one.
   "params": {
     "name": "get_processes",
     "arguments": {
-      "windowFilter": "MyApp"
+      "nameFilter": "MyApp"
     }
   }
 }
@@ -641,12 +642,12 @@ Use the `depth` parameter to minimize token usage:
 - Use `compact: true` where available to reduce response size
 
 ### Filtering Processes
-Use `windowFilter` on `get_processes` to narrow down results:
+Use `nameFilter` to narrow by process name, or `windowFilter` only with `visible`, `all`, or `foreground`:
 ```json
 {
   "name": "get_processes",
   "arguments": {
-    "windowFilter": "MyApp"
+    "nameFilter": "MyApp"
   }
 }
 ```

@@ -21,11 +21,15 @@ All new features and bug fixes MUST follow TDD workflow:
 4. **VERIFY**: Ensure 80%+ code coverage
 
 ```bash
-# Run tests in watch mode for TDD
-dotnet watch test --project tests/WpfDevTools.Tests.Unit/
+# Build the target unit test project first
+dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug
 
-# Check coverage
-dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+# Run unit tests without rebuilding
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-build
+
+# Check coverage after an explicit build
+dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release --no-build --settings coverlet.runsettings --collect:"XPlat Code Coverage"
 ```
 
 ## Branch Naming
@@ -97,11 +101,13 @@ dotnet build
 # Run all tests after build (separate step avoids file-lock issues)
 dotnet test --no-build
 
-# Run specific test project
-dotnet test tests/WpfDevTools.Tests.Unit/
+# Run a specific test project after building it explicitly
+dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-build
 
 # Run tests with coverage (IMPORTANT: Use coverlet.runsettings)
-dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage"
+dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-build --settings coverlet.runsettings --collect:"XPlat Code Coverage"
 
 # Build for release
 dotnet build -c Release

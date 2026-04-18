@@ -214,8 +214,11 @@ jobs:
           "/p:NetHostIncludeDir=$env:BOOTSTRAPPER_NATIVE_DIR" `
           "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR"
 
+    - name: Build unit tests for coverage
+      run: dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-restore -nodeReuse:false -p:UseSharedCompilation=false
+
     - name: Run tests with coverage
-      run: dotnet test --settings coverlet.runsettings --collect:"XPlat Code Coverage" --results-directory ./TestResults -nodeReuse:false -p:UseSharedCompilation=false
+      run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-build --settings coverlet.runsettings --collect:"XPlat Code Coverage" --results-directory ./TestResults -nodeReuse:false -p:UseSharedCompilation=false
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

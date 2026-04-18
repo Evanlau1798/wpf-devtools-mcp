@@ -15,7 +15,6 @@ public sealed class BindingErrorTraceListener : TraceListener
 
     private readonly ConcurrentQueue<BindingErrorInfo> _errors = new();
     private Action<BindingErrorInfo>? _watchEventSink;
-    private int _errorCount;
 
     /// <summary>
     /// Maximum number of errors to retain in the queue.
@@ -138,7 +137,7 @@ public sealed class BindingErrorTraceListener : TraceListener
     /// <summary>
     /// Returns the current number of captured errors
     /// </summary>
-    public int ErrorCount => _errorCount;
+    public int ErrorCount => _errors.Count;
 
     /// <summary>
     /// Clears all captured binding errors
@@ -146,7 +145,6 @@ public sealed class BindingErrorTraceListener : TraceListener
     public void ClearErrors()
     {
         while (_errors.TryDequeue(out _)) { }
-        Interlocked.Exchange(ref _errorCount, 0);
     }
 
     internal void SetWatchEventSink(Action<BindingErrorInfo>? sink)
@@ -157,14 +155,12 @@ public sealed class BindingErrorTraceListener : TraceListener
     private void EnqueueError(BindingErrorInfo error)
     {
         _errors.Enqueue(error);
-        Interlocked.Increment(ref _errorCount);
         var sink = _watchEventSink;
         sink?.Invoke(error);
 
         // Trim oldest errors when exceeding capacity
         while (_errors.Count > MaxErrors && _errors.TryDequeue(out _))
         {
-            Interlocked.Decrement(ref _errorCount);
         }
     }
 

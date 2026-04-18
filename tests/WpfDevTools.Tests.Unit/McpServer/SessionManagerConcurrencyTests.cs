@@ -23,12 +23,8 @@ public class SessionManagerConcurrencyTests
         // Verify session was added
         manager.HasSession(deadProcessId).Should().BeTrue();
 
-        // Act - Call cleanup method (to be implemented)
-        var cleanupMethod = typeof(SessionManager).GetMethod("CleanupDeadSessions",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-        cleanupMethod.Should().NotBeNull("CleanupDeadSessions method should exist");
-        cleanupMethod!.Invoke(manager, null);
+        // Act - Call cleanup method directly (internal via InternalsVisibleTo)
+        manager.CleanupDeadSessions();
 
         // Assert - Dead session should be removed
         manager.HasSession(deadProcessId).Should().BeFalse(
@@ -45,11 +41,8 @@ public class SessionManagerConcurrencyTests
         var currentProcessId = Process.GetCurrentProcess().Id;
         manager.AddSession(currentProcessId);
 
-        // Act - Call cleanup method
-        var cleanupMethod = typeof(SessionManager).GetMethod("CleanupDeadSessions",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-        cleanupMethod!.Invoke(manager, null);
+        // Act - Call cleanup method directly (internal via InternalsVisibleTo)
+        manager.CleanupDeadSessions();
 
         // Assert - Live session should be kept
         manager.HasSession(currentProcessId).Should().BeTrue(

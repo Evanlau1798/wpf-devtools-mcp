@@ -57,7 +57,7 @@ public static class WorkflowPrompts
         5. get_event_handlers(elementId, eventName='Click')
         6. trace_routed_events(elementId, eventName='Click', mode='start')
         7. click_element(elementId)
-        8. trace_routed_events(mode='get')
+        8. drain_events(eventTypes=['RoutedEvent'], elementId)
         9. get_state_diff(snapshotId, trigger='click_element(...)') when you need to summarize what changed
 
         If the control is disabled, diagnose CanExecute or style/trigger state before forcing interaction.

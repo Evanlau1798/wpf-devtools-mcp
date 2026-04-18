@@ -16,67 +16,73 @@
 
 ## 檢查 visual subtree
 
-1. `get_ui_summary`
-2. `find_elements`
-3. `get_visual_tree`
-4. `get_logical_tree`
-5. `get_namescope`
-6. `get_template_tree`
-7. `compare_trees`
+1. `connect`
+2. `get_ui_summary`
+3. `find_elements`
+4. `get_visual_tree`
+5. `get_logical_tree`
+6. `get_namescope`
+7. `get_template_tree`
+8. `compare_trees`
 
 當 template 產生的元素或 content presenter 讓 logical view 與 visual view 不一致時，這是最有效的工作流。先取得 scene summary，再決定是否真的需要展開 tree。
 
 ## 分析 dependency property 優先順序
 
-1. `get_dp_value_source`
-2. `get_dp_metadata`
-3. `get_applied_styles`
-4. `get_resource_chain`
-5. `get_triggers`
+1. `connect`
+2. `get_dp_value_source`
+3. `get_dp_metadata`
+4. `get_applied_styles`
+5. `get_resource_chain`
+6. `get_triggers`
 
 當某個屬性值不是從你預期的來源來時，請用這組工具交叉比對 precedence、style、resource 與 trigger。
 
 ## 安全的互動驗證
 
-1. 先用 `get_ui_summary`、`get_element_snapshot` 或 `get_interaction_readiness` 確認場景與目標
-2. 若有需要，再用 tree、binding 或 command 工具補足細節
-3. 使用 `click_element`、`simulate_keyboard` 或 `drag_and_drop`
-4. 優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`
-5. 若當前 session 有 active snapshot，通常應先呼叫 `get_state_diff`
-6. 若當前 session 有 buffered runtime event，第一個明確的 event verification 步驟是 `drain_events`
-7. 若沒有 snapshot，則用 `get_interaction_readiness`、`get_element_snapshot`、`get_dp_value_source` 或 scoped `get_ui_summary` 驗證結果
+1. `connect`
+2. 先用 `get_ui_summary`、`get_element_snapshot` 或 `get_interaction_readiness` 確認場景與目標
+3. 若有需要，再用 tree、binding 或 command 工具補足細節
+4. 使用 `click_element`、`simulate_keyboard` 或 `drag_and_drop`
+5. 優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`
+6. 若當前 session 有 active snapshot，通常應先呼叫 `get_state_diff`
+7. 若當前 session 有 buffered runtime event，第一個明確的 event verification 步驟是 `drain_events`
+8. 若沒有 snapshot，則用 `get_interaction_readiness`、`get_element_snapshot`、`get_dp_value_source` 或 scoped `get_ui_summary` 驗證結果
 
 ## 搭配 snapshot 的可回復 mutation 流程
 
-1. `capture_state_snapshot`
-2. 用 scene-level 工具或其他診斷工具確認目標
-3. 套用單一 mutation，例如 `set_dp_value`、`modify_viewmodel` 或 `override_style_setter`，或在需要有順序的多步驟時使用 `batch_mutate`
-4. 優先呼叫 `get_state_diff`
-5. 若需要明確讀出 buffered binding、DP 或 validation event，呼叫 `drain_events`
-6. 若工具回應提供更精確的 `navigation.recommended`，沿著該建議做補充驗證
-7. 如果需要回到原狀，呼叫 `restore_state_snapshot`
+1. `connect`
+2. `capture_state_snapshot`
+3. 用 scene-level 工具或其他診斷工具確認目標
+4. 套用單一 mutation，例如 `set_dp_value`、`modify_viewmodel` 或 `override_style_setter`，或在需要有順序的多步驟時使用 `batch_mutate`
+5. 優先呼叫 `get_state_diff`
+6. 若需要明確讀出 buffered binding、DP 或 validation event，呼叫 `drain_events`
+7. 若工具回應提供更精確的 `navigation.recommended`，沿著該建議做補充驗證
+8. 如果需要回到原狀，呼叫 `restore_state_snapshot`
 
 當你在正式環境除錯、示範或驗證時，希望實驗結束後讓 app 回到原始狀態，這是最穩健的流程。只要 snapshot 仍然 active，`get_state_diff` 應該是 mutation 後的第一優先驗證工具。
 
 ## 焦點敏感的多視窗工作流
 
-1. `get_windows`
-2. `get_focus_state`
-3. 對目前視窗或目標視窗呼叫 `get_visual_tree`
-4. 若目標控制項尚未取得焦點，先呼叫 `focus_element`
-5. 再做 `simulate_keyboard` 或其他依賴焦點的互動
-6. 用 `get_focus_state` 與其他診斷工具一起驗證結果
+1. `connect`
+2. `get_windows`
+3. `get_focus_state`
+4. 對目前視窗或目標視窗呼叫 `get_visual_tree`
+5. 若目標控制項尚未取得焦點，先呼叫 `focus_element`
+6. 再做 `simulate_keyboard` 或其他依賴焦點的互動
+7. 用 `get_focus_state` 與其他診斷工具一起驗證結果
 
 當快捷鍵、Enter/Tab 行為、預設按鈕或對話框焦點歸屬會影響結果時，請使用這個流程。
 
 ## Layout 與效能 triage
 
-1. `get_layout_info`
-2. `get_clipping_info`
-3. `invalidate_layout`
-4. `get_visual_count`
-5. `measure_element_render_time`
-6. `get_render_stats`
-7. `find_binding_leaks`
+1. `connect`
+2. `get_layout_info`
+3. `get_clipping_info`
+4. `invalidate_layout`
+5. `get_visual_count`
+6. `measure_element_render_time`
+7. `get_render_stats`
+8. `find_binding_leaks`
 
 當 UI 顯示錯亂、被裁切，或操作起來很卡時，建議依照這個順序逐步縮小問題範圍。

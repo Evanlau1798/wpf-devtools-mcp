@@ -151,7 +151,7 @@ public static class ServerInstructions
         connect() -> get_windows -> get_ui_summary(elementId=<windowElementId>, depthMode='semantic') -> get_visual_tree(elementId=<windowElementId>, depth=3) -> inspect subtree
 
         Workflow 6 - Debug Event Handling:
-        connect() -> get_processes(windowFilter) only if connect() reports multiple candidates -> get_event_handlers(elementId, eventName) -> trace_routed_events(mode="start", eventName) -> click_element(elementId) -> trace_routed_events(mode="get")
+        connect() -> get_processes(windowFilter) only if connect() reports multiple candidates -> get_event_handlers(elementId, eventName) -> trace_routed_events(mode="start", eventName) -> click_element(elementId) -> drain_events(eventTypes=['RoutedEvent'], elementId)
 
         Workflow 7 - Debug Validation Errors:
         connect() -> get_form_summary -> get_validation_errors() [root-scope aggregates all descendants] -> get_validation_errors(elementId) [narrow to specific element] -> get_bindings(elementId)
@@ -211,9 +211,12 @@ public static class ServerInstructions
 
         === RESPONSE FORMAT ===
         All tools return JSON: { success: boolean, ...fields }
-        On error: { success: false, error: string, errorCode?: string, errorData?: object }
+        On error: { success: false, error: string, errorCode?: string, errorData?: object, suggestedAction?: string, requiresReconnect?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string }
         - errorCode is the Inspector error enum name when the request reached the in-process Inspector
         - errorData is optional structured context for automated recovery logic
+        - suggestedAction is a human-readable recovery hint when the next step is deterministic
+        - requiresReconnect indicates the current pipe-backed session should be treated as stale before retrying
+        - retryAfterSeconds and retryAfter are additive rate-limit backoff hints when throttling occurs
 
         === LIMITATIONS ===
         - STDIO transport: Cannot push live watcher/event streams; use request-response diagnostics and polling workflows

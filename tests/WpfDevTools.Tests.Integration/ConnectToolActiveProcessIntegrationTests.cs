@@ -66,33 +66,13 @@ public sealed class ConnectToolActiveProcessIntegrationTests : IDisposable
 
     private static string FindTestAppExe()
     {
-        var solutionDir = FindSolutionRoot();
-        var candidates = new[]
-        {
-            Path.Combine(solutionDir, "tests", "WpfDevTools.Tests.TestApp",
-                "bin", "Debug", "net8.0-windows", "WpfDevTools.Tests.TestApp.exe"),
-            Path.Combine(solutionDir, "tests", "WpfDevTools.Tests.TestApp",
-                "bin", "Release", "net8.0-windows", "WpfDevTools.Tests.TestApp.exe")
-        };
-
-        return candidates.FirstOrDefault(File.Exists)
+        return IntegrationExecutableLocator.FindExecutable(
+                AppContext.BaseDirectory,
+                "tests",
+                "WpfDevTools.Tests.TestApp",
+                "net8.0-windows",
+                "WpfDevTools.Tests.TestApp.exe")
             ?? throw new InvalidOperationException(
-                "TestApp executable not found. Build tests/WpfDevTools.Tests.TestApp first.");
-    }
-
-    private static string FindSolutionRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "WpfDevTools.sln")))
-            {
-                return dir.FullName;
-            }
-
-            dir = dir.Parent;
-        }
-
-        throw new InvalidOperationException("Solution root not found");
+                "TestApp executable not found for the current test configuration. Build tests/WpfDevTools.Tests.TestApp first.");
     }
 }

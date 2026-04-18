@@ -78,31 +78,13 @@ public sealed class McpToolSearchMetadataE2eTests
 
     private static string FindServerExecutable()
     {
-        var solutionRoot = FindSolutionRoot();
-        var candidates = new[]
-        {
-            Path.Combine(solutionRoot, "src", "WpfDevTools.Mcp.Server", "bin", "Debug", "net8.0", "WpfDevTools.Mcp.Server.exe"),
-            Path.Combine(solutionRoot, "src", "WpfDevTools.Mcp.Server", "bin", "Release", "net8.0", "WpfDevTools.Mcp.Server.exe")
-        };
-
-        return candidates.FirstOrDefault(File.Exists)
-            ?? throw new InvalidOperationException("WpfDevTools.Mcp.Server.exe was not found. Build the MCP server first.");
-    }
-
-    private static string FindSolutionRoot()
-    {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-
-        while (current != null)
-        {
-            if (File.Exists(Path.Combine(current.FullName, "WpfDevTools.sln")))
-            {
-                return current.FullName;
-            }
-
-            current = current.Parent;
-        }
-
-        throw new InvalidOperationException("Solution root not found for MCP tool search integration test.");
+        return IntegrationExecutableLocator.FindExecutable(
+                AppContext.BaseDirectory,
+                "src",
+                "WpfDevTools.Mcp.Server",
+                "net8.0",
+                "WpfDevTools.Mcp.Server.exe")
+            ?? throw new InvalidOperationException(
+                "WpfDevTools.Mcp.Server.exe was not found for the current test configuration. Build the MCP server first.");
     }
 }

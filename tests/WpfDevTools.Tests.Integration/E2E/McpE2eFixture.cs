@@ -36,7 +36,7 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 
         if (serverExe == null)
         {
-            SkipReason = "MCP Server executable not found. Build src/WpfDevTools.Mcp.Server first.";
+            SkipReason = "MCP Server executable not found for the current test configuration. Build src/WpfDevTools.Mcp.Server first.";
             return;
         }
 
@@ -45,7 +45,7 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 
         if (testAppExe == null)
         {
-            SkipReason = "TestApp executable not found. Build tests/WpfDevTools.Tests.TestApp first.";
+            SkipReason = "TestApp executable not found for the current test configuration. Build tests/WpfDevTools.Tests.TestApp first.";
             return;
         }
 
@@ -155,51 +155,11 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
     private static string? FindExecutable(
         string projectDir, string projectName, string framework, string exeName)
     {
-        var solutionDir = FindSolutionRoot();
-        var candidates = GetPreferredBuildConfigurations(AppContext.BaseDirectory)
-            .Select(configuration => Path.Combine(solutionDir, projectDir, projectName, "bin", configuration, framework, exeName))
-            .ToArray();
-
-        return SelectPreferredExecutable(candidates);
-    }
-
-    internal static IReadOnlyList<string> GetPreferredBuildConfigurations(string appBaseDirectory)
-    {
-        var currentConfiguration = TryGetBuildConfiguration(appBaseDirectory);
-
-        return new[] { currentConfiguration, "Debug", "Release" }
-            .Where(configuration => !string.IsNullOrWhiteSpace(configuration))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray()!;
-    }
-
-    internal static string? SelectPreferredExecutable(params string[] candidates)
-    {
-        return candidates.FirstOrDefault(File.Exists);
-    }
-
-    private static string FindSolutionRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "WpfDevTools.sln")))
-                return dir.FullName;
-            dir = dir.Parent;
-        }
-
-        throw new InvalidOperationException("Solution root not found");
-    }
-
-    private static string? TryGetBuildConfiguration(string appBaseDirectory)
-    {
-        if (string.IsNullOrWhiteSpace(appBaseDirectory))
-        {
-            return null;
-        }
-
-        var baseDir = appBaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var targetFrameworkDir = new DirectoryInfo(baseDir);
-        return targetFrameworkDir.Parent?.Name;
+        return IntegrationExecutableLocator.FindExecutable(
+            AppContext.BaseDirectory,
+            projectDir,
+            projectName,
+            framework,
+            exeName);
     }
 }

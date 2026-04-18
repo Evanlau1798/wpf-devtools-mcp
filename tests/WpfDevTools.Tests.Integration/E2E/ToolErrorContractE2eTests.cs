@@ -30,31 +30,14 @@ public class ToolErrorContractE2eTests : IDisposable
 
     private static string FindServerExe()
     {
-        var solutionDir = FindSolutionRoot();
-        var candidates = new[]
-        {
-            Path.Combine(solutionDir, "src", "WpfDevTools.Mcp.Server", "bin", "Debug", "net8.0", "WpfDevTools.Mcp.Server.exe"),
-            Path.Combine(solutionDir, "src", "WpfDevTools.Mcp.Server", "bin", "Release", "net8.0", "WpfDevTools.Mcp.Server.exe")
-        };
-
-        return candidates.FirstOrDefault(File.Exists)
-            ?? throw new InvalidOperationException("MCP Server executable not found. Build src/WpfDevTools.Mcp.Server first.");
-    }
-
-    private static string FindSolutionRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "WpfDevTools.sln")))
-            {
-                return dir.FullName;
-            }
-
-            dir = dir.Parent;
-        }
-
-        throw new InvalidOperationException("Solution root not found");
+        return IntegrationExecutableLocator.FindExecutable(
+                AppContext.BaseDirectory,
+                "src",
+                "WpfDevTools.Mcp.Server",
+                "net8.0",
+                "WpfDevTools.Mcp.Server.exe")
+            ?? throw new InvalidOperationException(
+                "MCP Server executable not found for the current test configuration. Build src/WpfDevTools.Mcp.Server first.");
     }
 }
 

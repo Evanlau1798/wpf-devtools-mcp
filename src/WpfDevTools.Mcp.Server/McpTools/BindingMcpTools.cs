@@ -185,7 +185,7 @@ public static class BindingMcpTools
         "    sourceKind: 'BindingTrace' | 'BindingExpression',\n" +
         "    severity: 'Error',\n" +
         "    timestamp: string (ISO 8601),\n" +
-        "    message: string,\n" +
+        "    message?: string,\n" +
         "    eventType: string,\n" +
         "    sourceId: integer,\n" +
         "    elementId: string | null,\n" +
@@ -197,6 +197,7 @@ public static class BindingMcpTools
         "}\n\n" +
         "sourceKind='BindingTrace': error captured from WPF PresentationTraceSources.\n" +
         "sourceKind='BindingExpression': error detected from live BindingExpression status inspection.\n" +
+        "Compact mode omits the message field from each error; pass compact=false when you need the verbose trace text.\n" +
         "Empty errors array means no binding errors detected.\n" +
         "Validation rule errors belong in get_validation_errors, not get_binding_errors.\n" +
         "elementId is present when the failing DependencyObject can be identified directly. suggestedElementId is a best-effort match for trace-only errors.\n" +

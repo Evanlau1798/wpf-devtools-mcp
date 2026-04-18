@@ -199,6 +199,9 @@ public class TraceRoutedEventsToolTests
             catch (EndOfStreamException)
             {
             }
+            catch (IOException)
+            {
+            }
             catch (ObjectDisposedException)
             {
             }
@@ -245,7 +248,13 @@ public class TraceRoutedEventsToolTests
             {
                 SessionManager.Dispose();
                 server.Dispose();
-                serverTask.GetAwaiter().GetResult();
+                try
+                {
+                    serverTask.GetAwaiter().GetResult();
+                }
+                catch (IOException)
+                {
+                }
             }
             finally
             {

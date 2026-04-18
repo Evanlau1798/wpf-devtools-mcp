@@ -83,6 +83,6 @@ release_<version>_win-x64/
 - `bin/inspectors` and `bin/bootstrapper` are sidecar folders and must remain adjacent to the installed server content.
 - `bin/installer` is the integrity-checked helper bundle used by the packaged installer and standalone recovery flows; keep it adjacent to the packaged or installed server content.
 - `run.bat` is the package-root entrypoint for users who do not want to invoke PowerShell directly.
-- `bin/install.ps1` is the packaged copy of the canonical GUI-first installer script.
+- `bin/install.ps1` is the packaged copy of the canonical TUI-first installer script with CLI fallback.
 - `client-registration` is generated at install time and is the public copy-paste source for AI client setup.
 - If `-InstallRoot` is omitted, the installer reuses the last live install root when possible; `%APPDATA%\WpfDevToolsMcp` is only the fallback root when no reusable install root exists.

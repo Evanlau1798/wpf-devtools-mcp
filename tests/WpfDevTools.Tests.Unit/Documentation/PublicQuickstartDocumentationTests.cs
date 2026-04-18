@@ -66,6 +66,34 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void ClientQuickstartPages_ShouldPreferReviewedOnlineInstallerBeforeManualReleasePackage()
+    {
+        var files = new[]
+        {
+            "docfx/quickstart/claude-code.md",
+            "docfx/quickstart/openai-codex.md",
+            "docfx/quickstart/claude-desktop.md",
+            "docfx/quickstart/cursor-vscode.md",
+            "docfx/zh-tw/quickstart/claude-code.md",
+            "docfx/zh-tw/quickstart/openai-codex.md",
+            "docfx/zh-tw/quickstart/claude-desktop.md",
+            "docfx/zh-tw/quickstart/cursor-vscode.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            var installerIndex = content.IndexOf("scripts/online-installer.ps1", StringComparison.Ordinal);
+            var packageIndex = content.IndexOf("release_<version>_win-<arch>.zip", StringComparison.Ordinal);
+
+            installerIndex.Should().BeGreaterThanOrEqualTo(0,
+                $"{file} should mention the reviewed online installer entrypoint");
+            packageIndex.Should().BeGreaterThan(installerIndex,
+                $"{file} should present the release package as the fallback after the reviewed online installer path");
+        }
+    }
+
+    [Fact]
     public void DeploymentAndTroubleshootingDocs_ShouldCoverOnlineInstallerAndRunBatFallback()
     {
         var deployment = File.ReadAllText(GetRepoFilePath("docfx/production/deployment.md"));
@@ -90,6 +118,7 @@ public sealed class PublicQuickstartDocumentationTests
 
         content.Should().Contain("run.bat");
         content.Should().Contain("bin/install.ps1");
+        content.Should().Contain("TUI-first installer script");
         content.Should().Contain("bin/installer");
         content.Should().Contain("wpf-devtools-x64.exe");
         content.Should().Contain("client-registration");

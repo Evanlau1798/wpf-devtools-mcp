@@ -153,8 +153,6 @@ public class FileLoggerProviderTests : IDisposable
 
         logger.LogInformation("Hello from test {Id}", 42);
 
-        // FileLogger uses Channel-based async I/O; give it time to flush
-        await Task.Delay(200);
         _fileLogger.Dispose();
 
         var content = await File.ReadAllTextAsync(_logFilePath);
@@ -170,7 +168,6 @@ public class FileLoggerProviderTests : IDisposable
 
         logger.LogError(new InvalidOperationException("test-exception"), "Something failed");
 
-        await Task.Delay(200);
         _fileLogger.Dispose();
 
         var content = await File.ReadAllTextAsync(_logFilePath);
@@ -190,7 +187,6 @@ public class FileLoggerProviderTests : IDisposable
             logger.LogInformation("Scoped message");
         }
 
-        await Task.Delay(200);
         _fileLogger.Dispose();
 
         var content = await File.ReadAllTextAsync(_logFilePath);
@@ -208,7 +204,6 @@ public class FileLoggerProviderTests : IDisposable
         provider.Dispose();
         logger.LogInformation("Should not appear");
 
-        await Task.Delay(200);
         _fileLogger.Dispose();
 
         var content = File.Exists(_logFilePath) ? await File.ReadAllTextAsync(_logFilePath) : "";

@@ -12,7 +12,7 @@ public sealed partial class BindingAnalyzer
     {
         if (_watchEventBuffer is not null)
         {
-            BindingErrorTraceListener.SetWatchEventSink(EnqueueBindingError);
+            _bindingErrorTraceListener.SetWatchEventSink(EnqueueBindingError);
         }
     }
 

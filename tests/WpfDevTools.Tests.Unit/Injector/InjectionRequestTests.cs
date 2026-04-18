@@ -47,4 +47,45 @@ public class InjectionRequestTests
 
         pipeName.Should().Be("WpfDevTools_5678");
     }
+
+    [Fact]
+    public void ToBootstrapParameters_WithSecuritySettings_ShouldIncludeSecureFlagsAndValues()
+    {
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = @"C:\app\Bootstrapper.x64.dll",
+            InspectorDllPath = @"C:\app\net8.0-windows\Inspector.dll",
+            ExpectedPipeName = "WpfDevTools_1234",
+            AuthenticationSecretBase64 = "YWJjZA==",
+            CertificateDirectory = @"C:\secure certs"
+        };
+
+        var parameters = request.ToBootstrapParameters();
+
+        parameters.Should().Contain("inspectorDllPath=C:\\app\\net8.0-windows\\Inspector.dll");
+        parameters.Should().Contain("pipeName=WpfDevTools_1234");
+        parameters.Should().Contain("auth=enabled");
+        parameters.Should().Contain("authSecretBase64=YWJjZA==",
+            "base64 padding must survive parameter formatting");
+        parameters.Should().Contain("encryption=enabled");
+        parameters.Should().Contain("certDirectory=C:\\secure certs");
+    }
+
+    [Fact]
+    public void ToBootstrapParameters_WithSemicolonInValue_ShouldThrow()
+    {
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = @"C:\app\Bootstrapper.x64.dll",
+            InspectorDllPath = @"C:\app;bad\Inspector.dll",
+            ExpectedPipeName = "WpfDevTools_1234"
+        };
+
+        var act = () => request.ToBootstrapParameters();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*semicolon*");
+    }
 }

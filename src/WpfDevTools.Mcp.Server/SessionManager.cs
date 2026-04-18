@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Mcp.Server.State;
@@ -191,6 +192,29 @@ public sealed partial class SessionManager : IDisposable
         {
             return _pipeClients.TryGetValue(processId, out var client) ? client : null;
         }
+    }
+
+    internal string? GetAuthenticationSecretBase64()
+    {
+        if (_authManager == null || !_authManager.IsAuthenticationEnabled)
+        {
+            return null;
+        }
+
+        var secretBytes = _authManager.GetSharedSecret();
+        try
+        {
+            return Convert.ToBase64String(secretBytes);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(secretBytes);
+        }
+    }
+
+    internal string? GetCertificateDirectory()
+    {
+        return _certManager?.CertificateDirectory;
     }
 
     /// <summary>

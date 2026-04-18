@@ -59,6 +59,7 @@ public static class CapabilityResources
 
         - STDIO mode is request/response oriented.
         - Watchers and event traces should be treated as polling-oriented workflows, not true push subscriptions.
+        - Treat prompt names and resource URIs as the portable discovery contract across clients.
         - Prompt discovery can surface as slash commands in clients that support MCP prompts.
         - Resource discovery can surface through `@resource` references in clients that support MCP resources.
 
@@ -82,13 +83,15 @@ public static class CapabilityResources
 
         Use this when UI data is blank, wrong, or stale.
 
-        1. `get_binding_errors`
-        2. Follow `navigation.recommended` or `nextSteps` from the latest diagnostic result
-        3. `get_element_snapshot` for one-call local context on the failing element
-        4. `get_bindings`
-        5. `get_binding_value_chain`
-        6. `get_datacontext_chain`
-        7. `get_validation_errors` when validation may block updates
+        1. `connect()`
+        2. If `connect()` reports multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`
+        3. `get_binding_errors`
+        4. Follow `navigation.recommended` or `nextSteps` from the latest diagnostic result
+        5. If the latest diagnostic still leaves the failing element ambiguous, call `get_element_snapshot` for one-call local context
+        6. `get_bindings`
+        7. `get_binding_value_chain`
+        8. `get_datacontext_chain`
+        9. `get_validation_errors` when validation may block updates
 
         Cross-tool semantics:
         - `get_binding_errors` reports failures captured by WPF binding tracing and returns compact payloads by default.

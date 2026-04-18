@@ -45,6 +45,10 @@ Use them to explain precedence, local values, styles, inheritance, triggers, and
 
 Use `wait_for_dp_change` when you need a polling-friendly timeout-bounded wait over STDIO. It is the recommended fallback when `watch_dp_changes` can only register interest but cannot push live events.
 
+For serialized STDIO clients that need to mutate and then wait inside one bounded request, prefer `wait_for_dp_change(triggerMutation=...)` over improvising a manual polling loop. Treat that form as a destructive workflow because the server executes the supplied mutation before waiting.
+
+If `triggerMutation` itself exhausts the remaining timeout budget, `wait_for_dp_change` returns `completionReason: "TriggerMutationTimedOut"`, marks `stateAfterTimeoutUnknown: true`, and sets `requiresReconnect: true`. That means the server reset the pipe to avoid a stale in-flight response; reconnect and re-read state before assuming whether the mutation eventually landed.
+
 Use `drain_events` when you need a deterministic explicit read of buffered `DpChange`, `BindingError`, or validation events after a mutation, interaction, or watcher registration.
 
 ## Mutation warning

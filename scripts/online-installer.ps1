@@ -317,13 +317,22 @@ function Get-StandaloneInstallerStateSnapshot {
         return $null
     }
 
-    try {
-        return (Get-Content -Path $statePath -Raw | ConvertFrom-Json)
+    for ($attempt = 0; $attempt -lt 6; $attempt++) {
+        try {
+            return (Get-Content -Path $statePath -Raw | ConvertFrom-Json)
+        }
+        catch {
+            if ((Test-StandaloneTransientFileSystemError -Exception $_.Exception) -and $attempt -lt 5) {
+                Start-Sleep -Milliseconds ([Math]::Min(75 * ($attempt + 1), 400))
+                continue
+            }
+
+            Move-StandaloneCorruptInstallerStateFile -Path $statePath | Out-Null
+            return $null
+        }
     }
-    catch {
-        Move-StandaloneCorruptInstallerStateFile -Path $statePath | Out-Null
-        return $null
-    }
+
+    return $null
 }
 function Move-StandaloneCorruptInstallerStateFile {
     param([Parameter(Mandatory)] [string]$Path)
@@ -341,6 +350,40 @@ function Move-StandaloneCorruptInstallerStateFile {
     }
     catch {
         return $null
+    }
+}
+function Test-StandaloneTransientFileSystemError {
+    param([System.Exception]$Exception)
+
+    $candidate = $Exception
+    while ($null -ne $candidate) {
+        if ($candidate -is [System.IO.IOException] -or $candidate -is [System.UnauthorizedAccessException]) {
+            return $true
+        }
+
+        $candidate = $candidate.InnerException
+    }
+
+    return $false
+}
+function Move-StandalonePathWithRetry {
+    param(
+        [Parameter(Mandatory)] [string]$SourcePath,
+        [Parameter(Mandatory)] [string]$DestinationPath
+    )
+
+    for ($attempt = 0; $attempt -lt 6; $attempt++) {
+        try {
+            Move-Item -LiteralPath $SourcePath -Destination $DestinationPath -Force
+            return
+        }
+        catch {
+            if (-not (Test-StandaloneTransientFileSystemError -Exception $_.Exception) -or $attempt -ge 5) {
+                throw
+            }
+
+            Start-Sleep -Milliseconds ([Math]::Min(75 * ($attempt + 1), 400))
+        }
     }
 }
 function Resolve-StandaloneInstallerStatePath {
@@ -406,7 +449,7 @@ function Save-StandaloneInstallerState {
         if ($env:WPFDEVTOOLS_INSTALLER_TEST_FAIL_SAVE_STANDALONE_STATE -eq '1') {
             throw 'Simulated standalone state save failure.'
         }
-        Move-Item -Path $tempStatePath -Destination $statePath -Force
+        Move-StandalonePathWithRetry -SourcePath $tempStatePath -DestinationPath $statePath
     }
     finally {
         if (Test-Path $tempStatePath) {
@@ -1568,7 +1611,13 @@ function Invoke-StandaloneUninstallVerification {
             }
 
             if ($verificationTargets.Count -eq 0) {
-                $false
+                $recordedTarget = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('target', 'Target', 'RegistrationTarget')
+                if (-not [string]::IsNullOrWhiteSpace($recordedTarget) -and (Test-Path -LiteralPath $recordedTarget)) {
+                    $false
+                }
+                else {
+                    $true
+                }
             }
             else {
                 @($verificationTargets.ToArray()).Where({
@@ -1715,7 +1764,7 @@ function Invoke-StandaloneInstallerActionCore {
                 $installBase = [string]$installation.InstallBase
                 if (Test-Path $installBase) {
                     $rollbackPath = "$installBase.rollback-$([guid]::NewGuid().ToString('N'))"
-                    Move-Item -LiteralPath $installBase -Destination $rollbackPath -Force
+                    Move-StandalonePathWithRetry -SourcePath $installBase -DestinationPath $rollbackPath
                     $installationBackups += [ordered]@{
                         InstallBase = $installBase
                         RollbackPath = $rollbackPath
@@ -1773,7 +1822,7 @@ function Invoke-StandaloneInstallerActionCore {
             [array]::Reverse($backupsInReverse)
             foreach ($backup in $backupsInReverse) {
                 if (-not [string]::IsNullOrWhiteSpace([string]$backup.RollbackPath) -and (Test-Path ([string]$backup.RollbackPath))) {
-                    Move-Item -LiteralPath ([string]$backup.RollbackPath) -Destination ([string]$backup.InstallBase) -Force
+                    Move-StandalonePathWithRetry -SourcePath ([string]$backup.RollbackPath) -DestinationPath ([string]$backup.InstallBase)
                 }
             }
 
@@ -2379,7 +2428,7 @@ function Get-TuiHelperManifest {
             Write-TuiBootstrapScreen 'Preparing installer UI... (manifest)' | Out-Host
         }
         Invoke-WebRequest -Uri $manifestUri -OutFile $temporaryManifestPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
-        Move-Item -Path $temporaryManifestPath -Destination $manifestPath -Force
+        Move-StandalonePathWithRetry -SourcePath $temporaryManifestPath -DestinationPath $manifestPath
     }
     catch {
         Remove-PathIfExists -Path $temporaryManifestPath
@@ -2490,7 +2539,7 @@ function Ensure-TuiHelpersAvailable {
                 if ($helperRecordMap.ContainsKey($helperFile)) {
                     Assert-InstallerHelperFileRecord -HelperPath $temporaryPath -HelperRecord $helperRecordMap[$helperFile]
                 }
-                Move-Item -Path $temporaryPath -Destination $destinationPath -Force
+                Move-StandalonePathWithRetry -SourcePath $temporaryPath -DestinationPath $destinationPath
             }
             catch {
                 Remove-PathIfExists -Path $temporaryPath
@@ -2512,7 +2561,7 @@ function Ensure-TuiHelpersAvailable {
         }
 
         Invoke-WebRequest -Uri ([string]$archiveDownload.DownloadUri) -OutFile $temporaryArchivePath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
-        Move-Item -LiteralPath $temporaryArchivePath -Destination $archivePath -Force
+        Move-StandalonePathWithRetry -SourcePath $temporaryArchivePath -DestinationPath $archivePath
         Assert-TuiHelperArchiveIntegrity -ArchivePath $archivePath -DownloadDetails $archiveDownload
         Copy-InstallerHelperBundleFromArchive -ArchivePath $archivePath -DestinationRoot $runtimeRoot -HelperFiles $helperFiles
     }

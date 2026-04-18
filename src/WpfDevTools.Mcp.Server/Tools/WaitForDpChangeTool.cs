@@ -66,9 +66,11 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             return initialSnapshot.Error;
         }
 
+        var stopwatch = Stopwatch.StartNew();
+
         var matchedExpectedValueAtStart = expectedValue.HasValue &&
             JsonValueMatchesFormatted(expectedValue.Value, initialSnapshot.FormattedValue);
-        if (matchedExpectedValueAtStart)
+        if (matchedExpectedValueAtStart && !triggerMutation.HasValue)
         {
             return BuildWaitResult(
                 changed: false,
@@ -90,16 +92,51 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                 processId,
                 elementId,
                 triggerMutation.Value,
+                GetRemainingBudgetMs(effectiveTimeoutMs, stopwatch),
                 cancellationToken).ConfigureAwait(false);
             if (triggerResult.Error != null)
             {
                 return triggerResult.Error;
             }
 
+            if (triggerResult.TimedOut)
+            {
+                return BuildWaitResult(
+                    changed: false,
+                    timedOut: true,
+                    propertyName,
+                    elementId,
+                    initialSnapshot,
+                    initialSnapshot,
+                    elapsedMs: stopwatch.ElapsedMilliseconds,
+                    pollCount: 0,
+                    observedChange: false,
+                    matchedExpectedValueAtStart: false,
+                        completionReason: "TriggerMutationTimedOut",
+                        stateAfterTimeoutUnknown: true,
+                        requiresReconnect: true);
+            }
+
             var afterTriggerSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
             if (afterTriggerSnapshot.Error != null)
             {
                 return afterTriggerSnapshot.Error;
+            }
+
+            if (stopwatch.ElapsedMilliseconds >= effectiveTimeoutMs)
+            {
+                return BuildWaitResult(
+                    changed: false,
+                    timedOut: true,
+                    propertyName,
+                    elementId,
+                    initialSnapshot,
+                    afterTriggerSnapshot,
+                    elapsedMs: stopwatch.ElapsedMilliseconds,
+                    pollCount: 0,
+                    observedChange: HasObservedChange(initialSnapshot, afterTriggerSnapshot),
+                    matchedExpectedValueAtStart: false,
+                        completionReason: "TimedOut");
             }
 
             if (HasReachedTarget(initialSnapshot, afterTriggerSnapshot, expectedValue))
@@ -111,7 +148,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                     elementId,
                     initialSnapshot,
                     afterTriggerSnapshot,
-                    elapsedMs: 0,
+                    elapsedMs: stopwatch.ElapsedMilliseconds,
                     pollCount: 0,
                     observedChange: HasObservedChange(initialSnapshot, afterTriggerSnapshot),
                     matchedExpectedValueAtStart: false,
@@ -119,12 +156,17 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             }
         }
 
-        var stopwatch = Stopwatch.StartNew();
         var pollCount = 0;
         while (stopwatch.ElapsedMilliseconds < effectiveTimeoutMs)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Task.Delay(effectivePollIntervalMs, cancellationToken).ConfigureAwait(false);
+            var remainingDelay = effectiveTimeoutMs - (int)stopwatch.ElapsedMilliseconds;
+            if (remainingDelay <= 0)
+            {
+                break;
+            }
+
+            await Task.Delay(Math.Min(effectivePollIntervalMs, remainingDelay), cancellationToken).ConfigureAwait(false);
             pollCount++;
 
             var currentSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
@@ -222,19 +264,42 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         int processId,
         string? elementId,
         JsonElement triggerMutation,
+        int remainingBudgetMs,
         CancellationToken cancellationToken)
     {
+        if (remainingBudgetMs <= 0)
+        {
+            return TriggerMutationResult.Timeout;
+        }
+
         var batchArgs = BuildTriggerBatchArgs(processId, elementId, triggerMutation);
-        var result = await new BatchMutateTool(_sessionManager)
-            .ExecuteAsync(batchArgs, cancellationToken)
-            .ConfigureAwait(false);
-        var payload = result is JsonElement jsonElement
-            ? jsonElement
-            : JsonSerializer.SerializeToElement(result);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(remainingBudgetMs));
+
+        JsonElement payload;
+        try
+        {
+            var result = await new BatchMutateTool(_sessionManager)
+                .ExecuteAsync(batchArgs, timeoutCts.Token)
+                .ConfigureAwait(false);
+            payload = result is JsonElement jsonElement
+                ? jsonElement
+                : JsonSerializer.SerializeToElement(result);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeoutCts.IsCancellationRequested)
+        {
+            _sessionManager.GetPipeClient(processId)?.Dispose();
+            return TriggerMutationResult.Timeout;
+        }
 
         return IsSuccessfulSnapshotPayload(payload)
             ? TriggerMutationResult.Success
             : new TriggerMutationResult(payload.Clone());
+    }
+
+    private static int GetRemainingBudgetMs(int effectiveTimeoutMs, Stopwatch stopwatch)
+    {
+        return Math.Max(0, effectiveTimeoutMs - (int)stopwatch.ElapsedMilliseconds);
     }
 
     private static JsonElement BuildTriggerBatchArgs(int processId, string? elementId, JsonElement triggerMutation)
@@ -316,7 +381,9 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         int pollCount,
         bool observedChange,
         bool matchedExpectedValueAtStart,
-        string completionReason)
+        string completionReason,
+        bool stateAfterTimeoutUnknown = false,
+        bool requiresReconnect = false)
     {
         return new
         {
@@ -326,6 +393,8 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             observedChange,
             matchedExpectedValueAtStart,
             completionReason,
+            stateAfterTimeoutUnknown,
+            requiresReconnect,
             elementId,
             propertyName,
             initialValue = initialSnapshot.FormattedValue,
@@ -342,8 +411,10 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         public static DpSnapshot FromError(object error) => new(null, string.Empty, error);
     }
 
-    private readonly record struct TriggerMutationResult(object? Error = null)
+    private readonly record struct TriggerMutationResult(object? Error = null, bool TimedOut = false)
     {
         public static TriggerMutationResult Success => new();
+
+        public static TriggerMutationResult Timeout => new(TimedOut: true);
     }
 }

@@ -113,6 +113,77 @@ public sealed class InstallerUninstallBehaviorTests
     }
 
     [Fact]
+    public void StandaloneUninstallVerification_ShouldFailWhenRecordedOtherArtifactStillExists()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var artifactPath = Path.Combine(tempRoot, "install-root", "x64", "client-registration", "other.mcpServers.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(artifactPath)!);
+            File.WriteAllText(artifactPath, "{}\n");
+
+            var command = string.Join(" ; ",
+            [
+                "$repoScriptPath='" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1").Replace("'", "''") + "'",
+                "$scriptContent = Get-Content $repoScriptPath -Raw",
+                "$marker = '$selectionContext = Resolve-Selection'",
+                "$markerIndex = $scriptContent.LastIndexOf($marker)",
+                "if ($markerIndex -lt 0) { throw 'Main script marker not found.' }",
+                "$definitions = $scriptContent.Substring(0, $markerIndex)",
+                ". ([scriptblock]::Create($definitions)) -Action uninstall -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -WorkingRoot '" + Path.Combine(tempRoot, "working").Replace("'", "''") + "' -NonInteractive",
+                "$record = [ordered]@{ ClientId='other'; RegistrationMode='artifact-only'; RegistrationTarget='" + artifactPath.Replace("'", "''") + "'; InstallRoot='" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "'; Architecture='x64'; InstalledExecutable=$null }",
+                "$verification = Invoke-StandaloneUninstallVerification -SelectedClient other -RegistrationRecord $record -RegistrationChanges @()",
+                "$verification | ConvertTo-Json -Compress"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeFalse(result.Stdout);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void HelperUninstallVerification_ShouldFailWhenRecordedOtherArtifactStillExists()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var artifactPath = Path.Combine(tempRoot, "install-root", "x64", "client-registration", "other.mcpServers.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(artifactPath)!);
+            File.WriteAllText(artifactPath, "{}\n");
+
+            var command = string.Join(
+                Environment.NewLine,
+                [
+                    ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Verification.ps1").Replace("'", "''") + "'",
+                    "function Resolve-ClientBaseId { param([string]$ClientId) return [string]$ClientId }",
+                    "function Get-TrustedRecordedRegistrationTarget { param([string]$ClientBaseId, $RegistrationRecord) return $null }",
+                    "function Get-TrustedOtherRegistrationArtifactTargets { param($RegistrationRecord) return @() }",
+                    "function Add-TrustedRegistrationTargetCandidate { param([System.Collections.Generic.List[string]]$Targets, [string]$Candidate) if (-not [string]::IsNullOrWhiteSpace($Candidate) -and -not $Targets.Contains($Candidate)) { [void]$Targets.Add($Candidate) } }",
+                    "$record = [ordered]@{ ClientId='other'; RegistrationMode='artifact-only'; RegistrationTarget='" + artifactPath.Replace("'", "''") + "'; InstallRoot='" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "'; Architecture='x64'; InstalledExecutable=$null }",
+                    "$verification = Invoke-UninstallVerification -SelectedClient other -RegistrationRecord $record -RegistrationChanges @()",
+                    "$verification | ConvertTo-Json -Compress"
+                ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void InstallerReleaseModule_ShouldUseBoundedTimeoutForOnlineArchiveDownloads()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

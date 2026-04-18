@@ -449,5 +449,4 @@ public sealed class InstallerInteractiveUiScriptTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
-
 }

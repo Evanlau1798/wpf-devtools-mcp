@@ -43,6 +43,10 @@
 
 在 STDIO transport 下，若 `watch_dp_changes` 只能完成註冊而無法推送即時事件，請改用 `wait_for_dp_change`。它提供 polling-based、可設定 timeout 的等待流程，更適合 agent workflow。
 
+如果 serialized STDIO client 需要在單一 bounded request 內先做 mutation 再等待結果，請優先使用 `wait_for_dp_change(triggerMutation=...)`，不要自行拼接手寫 polling loop。這種形式屬於 destructive workflow，因為 server 會先執行你提供的 mutation 再開始等待。
+
+如果 `triggerMutation` 本身就耗盡剩餘 timeout budget，`wait_for_dp_change` 會回傳 `completionReason: "TriggerMutationTimedOut"`，並把 `stateAfterTimeoutUnknown` 設成 `true`、`requiresReconnect` 設成 `true`。這代表 server 為了避免留下 stale in-flight response，已經重置 pipe；你應先重新連線，再重新讀取狀態，不能直接假設 mutation 最終是否已經落地。
+
 如果你需要在 mutation、interaction 或 watcher 註冊後，明確讀出 buffered `DpChange`、`BindingError` 或 validation event，請使用 `drain_events`。
 
 ## Mutation 注意事項

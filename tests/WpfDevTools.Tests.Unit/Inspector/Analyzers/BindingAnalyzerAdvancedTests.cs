@@ -9,19 +9,8 @@ using System.Windows.Data;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-[Collection("BindingErrorTests")]
-public class BindingAnalyzerAdvancedTests : IDisposable
+public class BindingAnalyzerAdvancedTests
 {
-    public BindingAnalyzerAdvancedTests()
-    {
-        BindingErrorTraceListener.ResetInstance();
-    }
-
-    public void Dispose()
-    {
-        BindingErrorTraceListener.ResetInstance();
-    }
-
     [StaFact]
     public void GetBindingValueChain_WithNoBinding_ShouldReturnHasBindingFalse()
     {

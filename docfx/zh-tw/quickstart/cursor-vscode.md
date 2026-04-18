@@ -6,13 +6,22 @@ Cursor、VS Code 與 Visual Studio 最適合直接套用 installer 產生的 JSO
 
 建議的公開安裝路徑：
 
+1. 先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)，把它當成正式來源入口。
+2. 在本機執行已審查的 installer。
+
+範例：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client vscode -NonInteractive -Force -OutputJson
+```
+
+package-local 回退路徑：
+
 1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`。
 2. 解壓縮套件。
 3. 執行 `run.bat`。
 
 `run.bat` 會在目前 shell 尚未提升權限時要求 elevation，然後啟動 packaged `bin/install.ps1`。如果你需要把安裝留在目前未提升權限的 shell 中，請設定 `WPFDEVTOOLS_SKIP_ELEVATION=1`。
-
-如果你偏好腳本驅動安裝，請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 再於本機執行。
 
 安裝後，若沒有可沿用的既有 live install root，回退 executable 路徑會是：
 

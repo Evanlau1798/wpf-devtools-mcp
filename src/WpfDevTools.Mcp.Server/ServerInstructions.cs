@@ -64,8 +64,9 @@ public static class ServerInstructions
         === TOOL SEARCH ===
         - Clients with many MCP tools may rely on tool search instead of loading every tool eagerly
         - Prefer tool Title + Description matching over raw tool-name guessing
-        - MCP prompts may surface as slash commands in compatible clients; use them as workflow entry points
-        - MCP resources may surface through @resource references in compatible clients; use them for capability and limitation summaries
+        - Treat prompt names and resource URIs as the portable discovery contract across clients before relying on client-specific UI affordances
+        - MCP prompts may surface as slash commands in compatible clients; use that rendering as a convenience layer over the prompt name contract
+        - MCP resources may surface through @resource references in compatible clients; use that rendering as a convenience layer over the resource URI contract
         - Process discovery keywords: process, connect, session, WPF app
         - Tree keywords: visual tree, logical tree, namescope, template, windows, find elements, search element
         - Binding keywords: binding, DataContext, validation, value chain
@@ -106,8 +107,8 @@ public static class ServerInstructions
         - Prefer get_ui_summary(summaryOnly=true, depthMode='semantic') for initial scene orientation unless you already have a narrow element-centric question
         - Use depth=2-3 for initial tree exploration; increase only if needed
         - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
-        - Prefer slash commands from MCP prompts when you want a predefined workflow entry point
-        - Prefer @resource lookups when you need capability summaries, workflow references, or known limitations before acting
+        - Prefer prompt names and resource URIs as the portable discovery contract when you want a predefined workflow entry point or capability summary
+        - Some clients surface those prompt/resource contracts as slash commands or @resource lookups; use the client-specific rendering only as a convenience layer
         - Check IsEnabled with get_dp_value_source before click_element to avoid errors
         - Use get_binding_errors as first diagnostic step for data display issues; its default response is compact, so pass compact=false only when the full human-readable binding trace text is required
         - Treat returned runtime navigation as session-aware when you have already captured a snapshot or started a routed-event trace in the same connected process
@@ -127,6 +128,7 @@ public static class ServerInstructions
         - drag_and_drop: simulate drag-drop operations
         - invalidate_layout: force layout recalculation
         - focus_element, restore_state_snapshot: change focus or replay captured runtime state
+        - wait_for_dp_change with triggerMutation: executes one live mutation before waiting for the resulting property transition
 
         === COMMON WORKFLOWS ===
 

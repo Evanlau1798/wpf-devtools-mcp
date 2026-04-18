@@ -19,6 +19,7 @@ public class McpDiscoveryContentTests
         content.Should().Contain("stdio");
         content.Should().Contain("slash commands");
         content.Should().Contain("@resource");
+        content.Should().Contain("portable discovery contract");
         content.Should().Contain("stateSnapshots");
         content.Should().Contain("performance profiling");
         content.Should().Contain("runtime state safety notes");
@@ -55,6 +56,7 @@ public class McpDiscoveryContentTests
         WorkflowPrompts.DebugBindingIssue().Should().Contain("get_binding_errors");
         WorkflowPrompts.DebugBindingIssue().Should().Contain("get_element_snapshot");
         WorkflowPrompts.DebugBindingIssue().Should().Contain("navigation.recommended");
+        WorkflowPrompts.DebugBindingIssue().Should().Contain("Prefer navigation.recommended first");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("click_element");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("get_interaction_readiness");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("trace_routed_events(mode='get')");
@@ -78,8 +80,11 @@ public class McpDiscoveryContentTests
         capabilities.Should().Contain("get_ui_summary");
         capabilities.Should().Contain("navigation.recommended");
         capabilities.Should().Contain("compatibility `nextSteps`");
+        capabilities.Should().Contain("portable discovery contract");
         capabilities.Should().NotContain("nextSteps / `navigation` guidance",
             "capability guidance should explicitly prefer navigation.recommended over the compatibility field");
+        bindingWorkflow.Should().Contain("connect()");
+        bindingWorkflow.Should().Contain("get_processes(windowFilter)");
         bindingWorkflow.Should().Contain("navigation.recommended");
         bindingWorkflow.Should().Contain("get_element_snapshot");
         bindingWorkflow.Should().NotContain("get_visual_tree or get_logical_tree",

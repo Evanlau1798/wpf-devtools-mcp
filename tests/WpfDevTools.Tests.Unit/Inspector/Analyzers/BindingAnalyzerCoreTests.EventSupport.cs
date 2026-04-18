@@ -9,12 +9,14 @@ using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-[Collection("BindingErrorTests")]
-public sealed class BindingAnalyzerCoreTests_EventSupport : IDisposable
+public sealed class BindingAnalyzerCoreTests_EventSupport
 {
-    public BindingAnalyzerCoreTests_EventSupport()
+    private static (BindingAnalyzer Analyzer, BindingErrorTraceListener Listener) CreateBindingErrorAnalyzer(
+        ElementFinder finder,
+        WatchEventBuffer buffer)
     {
-        BindingErrorTraceListener.ResetInstance();
+        var listener = BindingErrorTraceListener.CreateForTesting();
+        return (new BindingAnalyzer(finder, buffer, listener), listener);
     }
 
     [Fact]
@@ -22,9 +24,9 @@ public sealed class BindingAnalyzerCoreTests_EventSupport : IDisposable
     {
         var finder = new ElementFinder();
         var buffer = new WatchEventBuffer(capacity: 16, new WatchEventDeduplicator());
-        var analyzer = new BindingAnalyzer(finder, buffer);
+        var (analyzer, listener) = CreateBindingErrorAnalyzer(finder, buffer);
 
-        BindingErrorTraceListener.Instance.TraceEvent(
+        listener.TraceEvent(
             null,
             "System.Windows.Data",
             TraceEventType.Error,
@@ -44,7 +46,7 @@ public sealed class BindingAnalyzerCoreTests_EventSupport : IDisposable
     {
         var finder = new ElementFinder();
         var buffer = new WatchEventBuffer(capacity: 16, new WatchEventDeduplicator());
-        var analyzer = new BindingAnalyzer(finder, buffer);
+        var (analyzer, _) = CreateBindingErrorAnalyzer(finder, buffer);
         var textBox = new TextBox
         {
             DataContext = new { Present = "ok" }
@@ -60,10 +62,5 @@ public sealed class BindingAnalyzerCoreTests_EventSupport : IDisposable
             record.EventType == "BindingError"
             && record.ElementId == elementId
             && record.PropertyName == "Text");
-    }
-
-    public void Dispose()
-    {
-        BindingErrorTraceListener.ResetInstance();
     }
 }

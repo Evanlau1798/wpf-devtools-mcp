@@ -238,7 +238,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "wait_for_dp_change", Title = "Wait For WPF DependencyProperty Change", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "wait_for_dp_change", Title = "Wait For WPF DependencyProperty Change", OpenWorld = false, ReadOnly = false, Destructive = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to wait for a WPF DependencyProperty to change over a bounded polling window.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Wait for a DependencyProperty change using polling. " +
@@ -246,7 +246,7 @@ public static class DependencyPropertyMcpTools
         "USE WHEN: You need to wait for a property transition after an interaction, command, or state mutation without implementing your own polling loop.\n" +
         "DO NOT USE: As a real-time push subscription. This tool polls get_dp_value_source-style state until timeout.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value. Omit it to stop on any value change.\n\n" +
-        "SERIALIZED-CLIENT WORKFLOW: Provide `triggerMutation` using the same shape as one `batch_mutate` step when your MCP client cannot issue concurrent tool calls on the same session. The server will execute that mutation first, then wait for the property transition.\n\n" +
+        "SERIALIZED-CLIENT WORKFLOW: Provide `triggerMutation` using the same shape as one `batch_mutate` step when your MCP client cannot issue concurrent tool calls on the same session. The server will execute that mutation first, then wait for the property transition. Treat that form as a destructive workflow because it mutates live runtime state before waiting.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -254,7 +254,9 @@ public static class DependencyPropertyMcpTools
         "  timedOut: boolean,\n" +
         "  observedChange: boolean,\n" +
         "  matchedExpectedValueAtStart: boolean,\n" +
-        "  completionReason: 'ExpectedValueAlreadySatisfied'|'ExpectedValueReached'|'ValueChanged'|'TimedOut',\n" +
+        "  completionReason: 'ExpectedValueAlreadySatisfied'|'ExpectedValueReached'|'ValueChanged'|'TimedOut'|'TriggerMutationTimedOut',\n" +
+        "  stateAfterTimeoutUnknown: boolean,\n" +
+        "  requiresReconnect: boolean,\n" +
         "  elementId: string|null,\n" +
         "  propertyName: string,\n" +
         "  initialValue,\n" +
@@ -264,6 +266,7 @@ public static class DependencyPropertyMcpTools
         "  elapsedMs: number,\n" +
         "  pollCount: number\n" +
         "}\n\n" +
+        "TRIGGER TIMEOUTS: If `triggerMutation` exceeds the remaining timeout budget, the tool returns `completionReason = 'TriggerMutationTimedOut'`, sets `stateAfterTimeoutUnknown = true`, and sets `requiresReconnect = true` because the server resets the pipe to avoid leaving a stale response queued. Reconnect and re-read state before assuming whether the mutation eventually landed.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +

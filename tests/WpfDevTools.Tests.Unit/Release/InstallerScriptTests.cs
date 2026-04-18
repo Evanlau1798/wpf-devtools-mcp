@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.IO.Compression;
 using FluentAssertions;
 using Xunit;
+using static WpfDevTools.Tests.Unit.Release.InstallerScriptTestSupport;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
@@ -536,36 +537,5 @@ public sealed partial class InstallerScriptTests
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
-    }
-
-    private static (int ExitCode, string Stdout, string Stderr) RunInstaller(
-        string tempRoot,
-        IReadOnlyList<string> arguments,
-        IReadOnlyDictionary<string, string?>? environmentOverrides = null)
-        => ReleaseScriptTestHarness.RunPowerShellScript(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
-            arguments,
-            CreateInstallerEnvironment(tempRoot, environmentOverrides));
-
-    private static Dictionary<string, string?> CreateInstallerEnvironment(
-        string tempRoot,
-        IReadOnlyDictionary<string, string?>? environmentOverrides = null)
-    {
-        var environment = new Dictionary<string, string?>
-        {
-            ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
-            ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
-            ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
-        };
-
-        if (environmentOverrides is not null)
-        {
-            foreach (var pair in environmentOverrides)
-            {
-                environment[pair.Key] = pair.Value;
-            }
-        }
-
-        return environment;
     }
 }

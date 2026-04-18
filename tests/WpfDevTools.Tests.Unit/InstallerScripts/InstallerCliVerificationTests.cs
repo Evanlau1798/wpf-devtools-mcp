@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Xunit;
+using static WpfDevTools.Tests.Unit.Release.InstallerScriptTestSupport;
 
 namespace WpfDevTools.Tests.Unit.Release;
 

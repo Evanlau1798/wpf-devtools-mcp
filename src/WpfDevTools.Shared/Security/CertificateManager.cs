@@ -52,6 +52,11 @@ public sealed class CertificateManager
     }
 
     /// <summary>
+    /// Gets the directory used to persist certificate files.
+    /// </summary>
+    public string CertificateDirectory => _certDirectory;
+
+    /// <summary>
     /// Gets or creates a self-signed server certificate.
     /// If a valid certificate exists on disk, it is loaded and returned.
     /// Otherwise, a new self-signed certificate is generated, saved, and returned.

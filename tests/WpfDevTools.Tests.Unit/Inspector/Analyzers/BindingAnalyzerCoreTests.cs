@@ -9,17 +9,14 @@ using System.Windows.Data;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-[Collection("BindingErrorTests")]
-public class BindingAnalyzerTests : IDisposable
+public class BindingAnalyzerTests
 {
-    public BindingAnalyzerTests()
+    private static (BindingAnalyzer Analyzer, BindingErrorTraceListener Listener) CreateBindingErrorAnalyzer(
+        ElementFinder? finder = null)
     {
-        BindingErrorTraceListener.ResetInstance();
-    }
-
-    public void Dispose()
-    {
-        BindingErrorTraceListener.ResetInstance();
+        var actualFinder = finder ?? new ElementFinder();
+        var listener = BindingErrorTraceListener.CreateForTesting();
+        return (new BindingAnalyzer(actualFinder, null, listener), listener);
     }
 
     [StaFact]
@@ -62,7 +59,7 @@ public class BindingAnalyzerTests : IDisposable
     public void GetBindingErrors_WhenNoErrors_ShouldReturnEmptyList()
     {
         // Arrange
-        var analyzer = new BindingAnalyzer();
+        var (analyzer, _) = CreateBindingErrorAnalyzer();
 
         // Act
         dynamic result = analyzer.GetBindingErrors();
@@ -76,8 +73,7 @@ public class BindingAnalyzerTests : IDisposable
     public void GetBindingErrors_WithCapturedErrors_ShouldReturnErrors()
     {
         // Arrange
-        var analyzer = new BindingAnalyzer();
-        var listener = BindingErrorTraceListener.Instance;
+        var (analyzer, listener) = CreateBindingErrorAnalyzer();
 
         // Simulate binding errors via TraceEvent
         listener.TraceEvent(null, "System.Windows.Data", TraceEventType.Error, 40,
@@ -98,8 +94,7 @@ public class BindingAnalyzerTests : IDisposable
     public void GetBindingErrors_WithClearAfterRead_ShouldClearErrors()
     {
         // Arrange
-        var analyzer = new BindingAnalyzer();
-        var listener = BindingErrorTraceListener.Instance;
+        var (analyzer, listener) = CreateBindingErrorAnalyzer();
         listener.TraceEvent(null, "System.Windows.Data", TraceEventType.Error, 40, "Error 1");
 
         // Act
@@ -117,8 +112,7 @@ public class BindingAnalyzerTests : IDisposable
     public void GetBindingErrors_WithoutClearAfterRead_ShouldRetainErrors()
     {
         // Arrange
-        var analyzer = new BindingAnalyzer();
-        var listener = BindingErrorTraceListener.Instance;
+        var (analyzer, listener) = CreateBindingErrorAnalyzer();
         listener.TraceEvent(null, "System.Windows.Data", TraceEventType.Error, 40, "Error 1");
 
         // Act

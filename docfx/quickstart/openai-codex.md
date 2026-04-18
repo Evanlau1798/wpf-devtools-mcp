@@ -12,17 +12,22 @@ npm install -g @openai/codex
 
 Preferred public path:
 
-1. Download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
-2. Extract the package.
-3. Run `run.bat`.
-
-If you prefer a script-first setup, review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) and run it locally.
+1. Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the canonical source entrypoint.
+2. Run the reviewed installer locally.
 
 Example:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex -NonInteractive -Force -OutputJson
 ```
+
+Package-local fallback:
+
+1. Download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
+2. Extract the package.
+3. Run `run.bat`.
+
+`run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 
 If the installer cannot reuse a previous live install root and you do not pass `-InstallRoot`, the fallback executable path is:
 

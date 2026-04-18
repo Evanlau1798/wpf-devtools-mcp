@@ -9,7 +9,6 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 /// <summary>
 /// Tests for EventAnalyzer concurrency issues
 /// </summary>
-[Collection("EventTrace")]
 public class EventAnalyzerConcurrencyTests
 {
     [StaFact]

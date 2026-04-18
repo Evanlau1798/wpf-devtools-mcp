@@ -9,12 +9,12 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class BindingErrorTraceListener : TraceListener
 {
-    private static Action<BindingErrorInfo>? _watchEventSink;
     private static Lazy<BindingErrorTraceListener> _instance =
         new Lazy<BindingErrorTraceListener>(() => new BindingErrorTraceListener(),
             LazyThreadSafetyMode.ExecutionAndPublication);
 
     private readonly ConcurrentQueue<BindingErrorInfo> _errors = new();
+    private Action<BindingErrorInfo>? _watchEventSink;
     private int _errorCount;
 
     /// <summary>
@@ -29,6 +29,11 @@ public sealed class BindingErrorTraceListener : TraceListener
     public static BindingErrorTraceListener Instance => _instance.Value;
 
     private BindingErrorTraceListener() { }
+
+    internal static BindingErrorTraceListener CreateForTesting()
+    {
+        return new BindingErrorTraceListener();
+    }
 
     /// <summary>
     /// Install the trace listener on PresentationTraceSources.DataBindingSource.
@@ -144,7 +149,7 @@ public sealed class BindingErrorTraceListener : TraceListener
         Interlocked.Exchange(ref _errorCount, 0);
     }
 
-    internal static void SetWatchEventSink(Action<BindingErrorInfo>? sink)
+    internal void SetWatchEventSink(Action<BindingErrorInfo>? sink)
     {
         _watchEventSink = sink;
     }
@@ -169,7 +174,6 @@ public sealed class BindingErrorTraceListener : TraceListener
     /// </summary>
     internal static void ResetInstance()
     {
-        _watchEventSink = null;
         // Uninstall the old instance first
         if (_instance.IsValueCreated)
         {

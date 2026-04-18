@@ -6,13 +6,22 @@ Cursor, VS Code, and Visual Studio are easiest to configure from the JSON artifa
 
 Preferred public path:
 
+1. Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the canonical source entrypoint.
+2. Run the reviewed installer locally.
+
+Example:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client vscode -NonInteractive -Force -OutputJson
+```
+
+Package-local fallback:
+
 1. Download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Extract the package.
 3. Run `run.bat`.
 
 `run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
-
-If you prefer a script-first setup, review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) and run it locally.
 
 After installation, the fallback executable path when no previous live install root is reused is:
 

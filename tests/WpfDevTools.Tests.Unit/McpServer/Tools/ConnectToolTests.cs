@@ -9,10 +9,12 @@ using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Security;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public partial class ConnectToolTests : IDisposable
 {
     private string? _dummyBootstrapperPath;
@@ -264,6 +266,40 @@ public partial class ConnectToolTests : IDisposable
         injector.InjectWithBootstrapCallCount.Should().Be(1);
     }
 
+    [Fact]
+    public async Task Execute_WithSecureSessionConfiguration_ShouldForwardSecureBootstrapOptions()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var authSecret = Convert.ToBase64String(new byte[32]);
+        var authManager = new AuthenticationManager(() => authSecret);
+        var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-certs-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(certDirectory);
+        try
+        {
+            using var sessionManager = new SessionManager(authManager: authManager, certManager: new CertificateManager(certDirectory));
+            var injector = new FakeProcessInjector
+            {
+                ShouldFailInjection = true,
+                InjectionErrorMessage = "stop after inspecting request",
+                FailedError = InjectionError.BootstrapFailed
+            };
+            var tool = CreateTool(sessionManager: sessionManager, injector: injector);
+
+            var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+            var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+            resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+            injector.LastInjectionRequest.Should().NotBeNull();
+            injector.LastInjectionRequest!.AuthenticationSecretBase64.Should().Be(authSecret);
+            injector.LastInjectionRequest.CertificateDirectory.Should().Be(certDirectory);
+        }
+        finally
+        {
+            Directory.Delete(certDirectory, recursive: true);
+        }
+    }
+
     private static string FindSolutionRoot()
     {
         var current = new DirectoryInfo(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
@@ -329,6 +365,7 @@ public partial class ConnectToolTests : IDisposable
         public InjectionError FailedError { get; init; } = InjectionError.BootstrapFailed;
         public int InjectWithBootstrapCallCount { get; private set; }
         public CancellationToken LastInjectWithBootstrapCancellationToken { get; private set; }
+        public InjectionRequest? LastInjectionRequest { get; private set; }
 
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
         {
@@ -349,6 +386,7 @@ public partial class ConnectToolTests : IDisposable
             CancellationToken cancellationToken = default)
         {
             InjectWithBootstrapCallCount++;
+            LastInjectionRequest = request;
             LastInjectWithBootstrapCancellationToken = cancellationToken;
 
             if (ShouldFailInjection)

@@ -91,7 +91,7 @@ function Invoke-InstallerFullUninstallCore {
             }
 
             $rollbackPath = "$installBase.rollback-$([guid]::NewGuid().ToString('N'))"
-            Move-Item -LiteralPath $installBase -Destination $rollbackPath -Force
+            Move-InstallerPathWithRetry -SourcePath $installBase -DestinationPath $rollbackPath
             $installationBackups += [ordered]@{
                 Installation = $installation
                 RollbackPath = $rollbackPath
@@ -171,7 +171,7 @@ function Invoke-InstallerFullUninstallCore {
 
             if (Test-Path -LiteralPath $rollbackPath) {
                 try {
-                    Move-Item -LiteralPath $rollbackPath -Destination $installBase -Force
+                    Move-InstallerPathWithRetry -SourcePath $rollbackPath -DestinationPath $installBase
                 }
                 catch {
                     $rollbackErrors.Add("Failed to restore installation root '$installBase'. $($_.Exception.Message)")

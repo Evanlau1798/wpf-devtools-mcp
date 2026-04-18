@@ -56,11 +56,11 @@ function Install-PackagePayload {
     New-Item -ItemType Directory -Force -Path $installBase | Out-Null
     if (Test-Path $currentDir) {
         $rollbackBackupCurrentDir = "$currentDir.rollback-$([guid]::NewGuid().ToString('N'))"
-        Move-Item -Path $currentDir -Destination $rollbackBackupCurrentDir -Force
+        Move-InstallerPathWithRetry -SourcePath $currentDir -DestinationPath $rollbackBackupCurrentDir
     }
     if (Test-Path $installManifestPath) {
         $rollbackBackupManifestPath = "$installManifestPath.rollback-$([guid]::NewGuid().ToString('N'))"
-        Move-Item -Path $installManifestPath -Destination $rollbackBackupManifestPath -Force
+        Move-InstallerPathWithRetry -SourcePath $installManifestPath -DestinationPath $rollbackBackupManifestPath
     }
 
     try {
@@ -87,7 +87,7 @@ function Install-PackagePayload {
 
         if (Test-Path $registrationArtifactsDir) {
             $rollbackBackupRegistrationDir = "$registrationArtifactsDir.rollback-$([guid]::NewGuid().ToString('N'))"
-            Move-Item -Path $registrationArtifactsDir -Destination $rollbackBackupRegistrationDir -Force
+            Move-InstallerPathWithRetry -SourcePath $registrationArtifactsDir -DestinationPath $rollbackBackupRegistrationDir
         }
 
         New-ClientRegistrationArtifacts -InstallBase $installBase -InstalledExecutable $installedExecutable
@@ -107,8 +107,59 @@ function Install-PackagePayload {
     catch {
         Restore-InstallerBackupDirectory -BackupPath $rollbackBackupRegistrationDir -TargetPath $registrationArtifactsDir -RemoveTargetWhenNoBackup
         Restore-InstallerBackupFile -BackupPath $rollbackBackupManifestPath -TargetPath $installManifestPath
-        Restore-InstallerBackupFile -BackupPath $rollbackBackupCurrentDir -TargetPath $currentDir
+        Restore-InstallerBackupDirectory -BackupPath $rollbackBackupCurrentDir -TargetPath $currentDir
         throw
+    }
+}
+
+function Test-InstallerTransientFileSystemError {
+    param([System.Exception]$Exception)
+
+    $candidate = $Exception
+    while ($null -ne $candidate) {
+        if ($candidate -is [System.IO.IOException] -or $candidate -is [System.UnauthorizedAccessException]) {
+            return $true
+        }
+
+        $candidate = $candidate.InnerException
+    }
+
+    return $false
+}
+
+function Move-InstallerPathWithRetry {
+    param(
+        [Parameter(Mandatory)] [string]$SourcePath,
+        [Parameter(Mandatory)] [string]$DestinationPath
+    )
+
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        try {
+            $sourceExists = Test-Path -LiteralPath $SourcePath
+            $destinationExists = Test-Path -LiteralPath $DestinationPath
+
+            if (-not $sourceExists -and $destinationExists) {
+                return
+            }
+
+            if ($sourceExists -and $destinationExists) {
+                Remove-Item -LiteralPath $DestinationPath -Recurse -Force
+            }
+
+            Move-Item -LiteralPath $SourcePath -Destination $DestinationPath -Force
+            return
+        }
+        catch {
+            if (-not (Test-Path -LiteralPath $SourcePath) -and (Test-Path -LiteralPath $DestinationPath)) {
+                return
+            }
+
+            if (-not (Test-InstallerTransientFileSystemError -Exception $_.Exception) -or $attempt -ge 19) {
+                throw
+            }
+
+            Start-Sleep -Milliseconds ([Math]::Min(150 * ($attempt + 1), 2000))
+        }
     }
 }
 
@@ -123,7 +174,7 @@ function Update-ClientRegistrationArtifactsTransactional {
     $rollbackBackupRegistrationDir = $null
     if (Test-Path $registrationArtifactsDir) {
         $rollbackBackupRegistrationDir = "$registrationArtifactsDir.rollback-$([guid]::NewGuid().ToString('N'))"
-        Move-Item -Path $registrationArtifactsDir -Destination $rollbackBackupRegistrationDir -Force
+        Move-InstallerPathWithRetry -SourcePath $registrationArtifactsDir -DestinationPath $rollbackBackupRegistrationDir
     }
 
     try {
@@ -159,7 +210,7 @@ function Restore-InstallerBackupFile {
         New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
     }
 
-    Move-Item -Path $BackupPath -Destination $TargetPath -Force
+    Move-InstallerPathWithRetry -SourcePath $BackupPath -DestinationPath $TargetPath
 }
 
 function Restore-InstallerBackupDirectory {
@@ -180,7 +231,7 @@ function Restore-InstallerBackupDirectory {
             New-Item -ItemType Directory -Force -Path $targetParent | Out-Null
         }
 
-        Move-Item -Path $BackupPath -Destination $TargetPath -Force
+        Move-InstallerPathWithRetry -SourcePath $BackupPath -DestinationPath $TargetPath
         return
     }
 
@@ -212,7 +263,7 @@ function Undo-InstalledPayload {
     Remove-PathIfExists -Path ([string]$InstallResult.currentDir)
     Remove-PathIfExists -Path ([string]$InstallResult.installManifestPath)
     Restore-InstallerBackupDirectory -BackupPath ([string]$InstallResult.rollbackBackupRegistrationDir) -TargetPath $registrationArtifactsPath -RemoveTargetWhenNoBackup
-    Restore-InstallerBackupFile -BackupPath ([string]$InstallResult.rollbackBackupCurrentDir) -TargetPath ([string]$InstallResult.currentDir)
+    Restore-InstallerBackupDirectory -BackupPath ([string]$InstallResult.rollbackBackupCurrentDir) -TargetPath ([string]$InstallResult.currentDir)
     Restore-InstallerBackupFile -BackupPath ([string]$InstallResult.rollbackBackupManifestPath) -TargetPath ([string]$InstallResult.installManifestPath)
 }
 
@@ -281,7 +332,7 @@ function Update-InstalledManifestManagedRegistrationTarget {
     $tempManifestPath = "$manifestPath.tmp-$([guid]::NewGuid().ToString('N'))"
     try {
         $updatedManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $tempManifestPath -Encoding UTF8
-        Move-Item -Path $tempManifestPath -Destination $manifestPath -Force
+        Move-InstallerPathWithRetry -SourcePath $tempManifestPath -DestinationPath $manifestPath
     }
     finally {
         if (Test-Path $tempManifestPath) {

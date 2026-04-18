@@ -456,6 +456,56 @@ if ($markerIndex -lt 0) { throw 'Main script marker not found.' }
 $definitions = $scriptContent.Substring(0, $markerIndex)
 . ([scriptblock]::Create($definitions)) -Action install -Version latest -Architecture x64 -Client other -InstallRoot '{{Path.Combine(tempRoot, "install-root").Replace("'", "''")}}' -WorkingRoot '{{workingRoot.Replace("'", "''")}}' -NonInteractive
 $global:latestCallCount = 0
+$script:TestArchiveBytes = $null
+$script:TestArchiveHash = $null
+function Get-TestArchiveBytes {
+    if ($null -ne $script:TestArchiveBytes) {
+        return $script:TestArchiveBytes
+    }
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $memoryStream = New-Object System.IO.MemoryStream
+    try {
+        $archive = New-Object System.IO.Compression.ZipArchive($memoryStream, [System.IO.Compression.ZipArchiveMode]::Create, $true)
+        try {
+            $entry = $archive.CreateEntry('bin/placeholder.txt')
+            $entry.LastWriteTime = [DateTimeOffset]'2024-01-01T00:00:00Z'
+            $writer = New-Object System.IO.StreamWriter($entry.Open())
+            try {
+                $writer.Write('stub')
+            }
+            finally {
+                $writer.Dispose()
+            }
+        }
+        finally {
+            $archive.Dispose()
+        }
+
+        $script:TestArchiveBytes = $memoryStream.ToArray()
+    }
+    finally {
+        $memoryStream.Dispose()
+    }
+
+    return $script:TestArchiveBytes
+}
+function Get-TestArchiveHash {
+    if ($null -ne $script:TestArchiveHash) {
+        return $script:TestArchiveHash
+    }
+
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $script:TestArchiveHash = (($sha256.ComputeHash((Get-TestArchiveBytes)) | ForEach-Object { $_.ToString('x2') }) -join '')
+    }
+    finally {
+        $sha256.Dispose()
+    }
+
+    return $script:TestArchiveHash
+}
 function Invoke-RestMethod {
     param([string]$Uri, $Headers, [int]$TimeoutSec)
     if ($Uri -like '*/releases/latest') {
@@ -496,7 +546,7 @@ function Invoke-RestMethod {
             assets = @(
                 [pscustomobject]@{
                     name = 'release_1.2.3_win-x64.zip'
-                    sha256 = '0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3'
+                    sha256 = (Get-TestArchiveHash)
                 }
             )
         }
@@ -506,7 +556,10 @@ function Invoke-RestMethod {
 }
 function Invoke-WebRequest {
     param([string]$Uri, [string]$OutFile, $Headers, [int]$TimeoutSec)
-    [System.IO.File]::WriteAllBytes($OutFile, [System.Text.Encoding]::UTF8.GetBytes('archive'))
+    [System.IO.File]::WriteAllBytes($OutFile, (Get-TestArchiveBytes))
+}
+Set-Item -Path function:Assert-ArchiveSafeEntries -Value {
+    param([string]$ArchivePath, [string]$DestinationPath)
 }
 function Expand-Archive {
     param([string]$Path, [string]$DestinationPath, [switch]$Force)

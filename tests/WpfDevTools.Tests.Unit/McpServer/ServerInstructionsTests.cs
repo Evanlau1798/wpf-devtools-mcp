@@ -155,6 +155,9 @@ public class ServerInstructionsTests
     {
         ServerInstructions.Value.Should().Contain("slash commands");
         ServerInstructions.Value.Should().Contain("@resource");
+        ServerInstructions.Value.Should().Contain("portable discovery contract");
+        ServerInstructions.Value.Should().Contain("prompt names");
+        ServerInstructions.Value.Should().Contain("resource URIs");
     }
 
     [Fact]

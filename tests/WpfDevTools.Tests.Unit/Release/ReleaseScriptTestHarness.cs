@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
 
@@ -9,6 +11,14 @@ internal static class ReleaseScriptTestHarness
 {
     private static readonly string RepoRoot = ResolveRepoRoot();
     private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromSeconds(60);
+    private static readonly ConcurrentDictionary<string, Lazy<CachedPackageArtifacts>> PackageArtifactCache = new(StringComparer.Ordinal);
+    private static readonly Lazy<(string Thumbprint, string Subject)> SignedPayloadSignerMetadata =
+        new(() => GetSignedPayloadSignerMetadata(Path.Combine("WindowsPowerShell", "v1.0", "powershell.exe")), LazyThreadSafetyMode.ExecutionAndPublication);
+
+    [DllImport("Kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool CreateHardLink(string fileName, string existingFileName, nint securityAttributes);
+
+    private sealed record CachedPackageArtifacts(string PackageDirectoryPath, string ArchivePath, string MetadataDirectoryPath);
 
     public static string CreateTempDirectory()
     {
@@ -24,6 +34,8 @@ internal static class ReleaseScriptTestHarness
             return;
         }
 
+        Exception? lastException = null;
+
         static void NormalizeAttributes(string root)
         {
             foreach (var entry in Directory.EnumerateFileSystemEntries(root, "*", SearchOption.AllDirectories))
@@ -38,87 +50,115 @@ internal static class ReleaseScriptTestHarness
         {
             try
             {
-                NormalizeAttributes(path);
+                if (attempt > 0)
+                {
+                    NormalizeAttributes(path);
+                }
+
                 Directory.Delete(path, recursive: true);
                 return;
             }
-            catch (IOException) when (attempt < 59)
+            catch (IOException ex)
             {
-                Thread.Sleep(250);
+                lastException = ex;
+                if (!Directory.Exists(path))
+                {
+                    return;
+                }
+
+                if (attempt == 0 && TryQuarantineDirectory(path))
+                {
+                    return;
+                }
+
+                if (attempt < 59)
+                {
+                    Thread.Sleep(250);
+                }
             }
-            catch (UnauthorizedAccessException) when (attempt < 59)
+            catch (UnauthorizedAccessException ex)
             {
-                Thread.Sleep(250);
+                lastException = ex;
+                if (!Directory.Exists(path))
+                {
+                    return;
+                }
+
+                if (attempt == 0 && TryQuarantineDirectory(path))
+                {
+                    return;
+                }
+
+                if (attempt < 59)
+                {
+                    Thread.Sleep(250);
+                }
             }
+        }
+
+        TryQuarantineDirectory(path);
+
+        if (Directory.Exists(path) && lastException is not null)
+        {
+            System.Diagnostics.Debug.WriteLine($"ReleaseScriptTestHarness: best-effort cleanup skipped for '{path}': {lastException.Message}");
+        }
+    }
+
+    private static bool TryQuarantineDirectory(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                return true;
+            }
+
+            var quarantineRoot = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-tests-pending-delete");
+            Directory.CreateDirectory(quarantineRoot);
+            var quarantinePath = Path.Combine(quarantineRoot, Path.GetFileName(path) + "-" + Guid.NewGuid().ToString("N"));
+            Directory.Move(path, quarantinePath);
+            return !Directory.Exists(path);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
     public static string CreatePackageDirectory(string tempRoot, string architecture = "x64", bool useSignedPayload = true)
     {
         var packageDir = Path.Combine(tempRoot, "package");
-        var binDir = Path.Combine(packageDir, "bin");
-        var helperDir = Path.Combine(binDir, "installer");
-        Directory.CreateDirectory(binDir);
-        Directory.CreateDirectory(helperDir);
-        var inspectorNet8Dir = Path.Combine(binDir, "inspectors", "net8.0-windows");
-        var inspectorNet48Dir = Path.Combine(binDir, "inspectors", "net48");
-        var bootstrapperDir = Path.Combine(binDir, "bootstrapper", architecture);
-        var signedPayloadSourceName = Path.Combine("WindowsPowerShell", "v1.0", "powershell.exe");
-        var signerMetadata = GetSignedPayloadSignerMetadata(signedPayloadSourceName);
-        Directory.CreateDirectory(inspectorNet8Dir);
-        Directory.CreateDirectory(inspectorNet48Dir);
-        Directory.CreateDirectory(bootstrapperDir);
-        WritePackagePayloadFile(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), signedPayloadSourceName, "stub", useSignedPayload);
-        WritePackagePayloadFile(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), signedPayloadSourceName, "net8-inspector", useSignedPayload);
-        WritePackagePayloadFile(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), signedPayloadSourceName, "net48-inspector", useSignedPayload);
-        WritePackagePayloadFile(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), signedPayloadSourceName, "bootstrapper", useSignedPayload);
-        File.WriteAllText(
-            Path.Combine(binDir, "manifest.json"),
-            JsonSerializer.Serialize(new
-            {
-                name = "wpf-devtools",
-                version = "1.2.3",
-                architecture,
-                runtimeId = architecture == "x86" ? "win-x86" : architecture == "arm64" ? "win-arm64" : "win-x64",
-                channel = "release",
-                buildConfiguration = "Release",
-                signaturePolicy = "RequireAuthenticodeSignature",
-                entryExecutable = $"bin/wpf-devtools-{architecture}.exe",
-                runBatch = "run.bat",
-                installScript = "bin/install.ps1",
-                signerThumbprint = signerMetadata.Thumbprint,
-                signerSubject = signerMetadata.Subject,
-                inspector = new
-                {
-                    net8 = "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
-                    net48 = "bin/inspectors/net48/WpfDevTools.Inspector.dll"
-                },
-                bootstrapper = $"bin/bootstrapper/{architecture}/WpfDevTools.Bootstrapper.{architecture}.dll"
-            }));
+        if (Directory.Exists(packageDir))
+        {
+            DeleteDirectory(packageDir);
+        }
 
-        CopyInstallerHelperFiles(helperDir);
-
+        var cachedArtifacts = GetCachedPackageArtifacts(architecture, useSignedPayload);
+        CopyDirectory(cachedArtifacts.PackageDirectoryPath, packageDir);
         return packageDir;
     }
 
-    public static string CreatePackageArchive(string tempRoot, string architecture = "x64", bool useSignedPayload = true)
+    public static string CreatePackageArchive(
+        string tempRoot,
+        string architecture = "x64",
+        bool useSignedPayload = true,
+        bool isolateArchiveContents = false)
     {
-        var packageDir = CreatePackageDirectory(tempRoot, architecture, useSignedPayload);
-        var binDir = Path.Combine(packageDir, "bin");
-        var helperDir = Path.Combine(binDir, "installer");
-        Directory.CreateDirectory(helperDir);
-        File.Copy(GetRepoFilePath("scripts/online-installer.ps1"), Path.Combine(binDir, "install.ps1"), overwrite: true);
-        File.Copy(GetRepoFilePath("scripts/tools/packaging/run-template.bat"), Path.Combine(packageDir, "run.bat"), overwrite: true);
-        CopyInstallerHelperFiles(helperDir);
-
         var archivePath = Path.Combine(tempRoot, $"release_1.2.3_win-{architecture}.zip");
-        if (File.Exists(archivePath))
-        {
-            File.Delete(archivePath);
-        }
-
-        ZipFile.CreateFromDirectory(packageDir, archivePath);
-        WriteAdjacentReleaseMetadata(archivePath);
+        var cachedArtifacts = GetCachedPackageArtifacts(architecture, useSignedPayload);
+        ReplicateFile(cachedArtifacts.ArchivePath, archivePath, preferHardLink: !isolateArchiveContents);
+        ReplicateFile(
+            Path.Combine(cachedArtifacts.MetadataDirectoryPath, "SHA256SUMS.txt"),
+            Path.Combine(tempRoot, "SHA256SUMS.txt"),
+            preferHardLink: true);
+        ReplicateFile(
+            Path.Combine(cachedArtifacts.MetadataDirectoryPath, "release-assets.json"),
+            Path.Combine(tempRoot, "release-assets.json"),
+            preferHardLink: true);
         return archivePath;
     }
 
@@ -166,6 +206,150 @@ internal static class ReleaseScriptTestHarness
         File.WriteAllText(Path.Combine(metadataRoot, "release-assets.json"), manifest);
     }
 
+    private static CachedPackageArtifacts GetCachedPackageArtifacts(string architecture, bool useSignedPayload)
+    {
+        var cacheKey = ComputePackageArtifactCacheKey(architecture, useSignedPayload);
+        var lazyArtifacts = PackageArtifactCache.GetOrAdd(
+            cacheKey,
+            _ => new Lazy<CachedPackageArtifacts>(
+                () => BuildCachedPackageArtifacts(cacheKey, architecture, useSignedPayload),
+                LazyThreadSafetyMode.ExecutionAndPublication));
+
+        return lazyArtifacts.Value;
+    }
+
+    private static string ComputePackageArtifactCacheKey(string architecture, bool useSignedPayload)
+    {
+        var inputs = new List<string>
+        {
+            architecture,
+            useSignedPayload ? "signed" : "unsigned",
+            GetFileContentHash(GetRepoFilePath("scripts/online-installer.ps1")),
+            GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "tools", "packaging", "run-template.bat"))),
+            GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", "installer-helpers.manifest.json")))
+        };
+
+        foreach (var helperFile in GetInstallerHelperFiles())
+        {
+            inputs.Add(GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", helperFile))));
+        }
+
+        var signerMetadata = SignedPayloadSignerMetadata.Value;
+        inputs.Add(signerMetadata.Thumbprint);
+        inputs.Add(signerMetadata.Subject);
+
+        var content = string.Join("\n", inputs);
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    private static CachedPackageArtifacts BuildCachedPackageArtifacts(string cacheKey, string architecture, bool useSignedPayload)
+    {
+        var cacheRoot = Path.Combine(GetRepoFilePath("tmp"), "release-script-harness-cache", cacheKey);
+        var packageDir = Path.Combine(cacheRoot, "package");
+        var archiveLayoutDir = Path.Combine(cacheRoot, "archive-layout");
+        var archivePath = Path.Combine(cacheRoot, $"release_1.2.3_win-{architecture}.zip");
+        var metadataDirectoryPath = cacheRoot;
+
+        if (Directory.Exists(packageDir) &&
+            File.Exists(archivePath) &&
+            File.Exists(Path.Combine(metadataDirectoryPath, "SHA256SUMS.txt")) &&
+            File.Exists(Path.Combine(metadataDirectoryPath, "release-assets.json")))
+        {
+            return new CachedPackageArtifacts(packageDir, archivePath, metadataDirectoryPath);
+        }
+
+        if (Directory.Exists(cacheRoot))
+        {
+            DeleteDirectory(cacheRoot);
+        }
+
+        Directory.CreateDirectory(cacheRoot);
+        BuildPackageDirectory(packageDir, architecture, useSignedPayload);
+        CopyDirectory(packageDir, archiveLayoutDir);
+
+        var archiveBinDir = Path.Combine(archiveLayoutDir, "bin");
+        File.Copy(GetRepoFilePath("scripts/online-installer.ps1"), Path.Combine(archiveBinDir, "install.ps1"), overwrite: true);
+        File.Copy(GetRepoFilePath("scripts/tools/packaging/run-template.bat"), Path.Combine(archiveLayoutDir, "run.bat"), overwrite: true);
+
+        ZipFile.CreateFromDirectory(archiveLayoutDir, archivePath);
+        WriteAdjacentReleaseMetadata(archivePath);
+        DeleteDirectory(archiveLayoutDir);
+
+        return new CachedPackageArtifacts(packageDir, archivePath, metadataDirectoryPath);
+    }
+
+    private static void BuildPackageDirectory(string packageDir, string architecture, bool useSignedPayload)
+    {
+        var binDir = Path.Combine(packageDir, "bin");
+        var helperDir = Path.Combine(binDir, "installer");
+        Directory.CreateDirectory(binDir);
+        Directory.CreateDirectory(helperDir);
+        var inspectorNet8Dir = Path.Combine(binDir, "inspectors", "net8.0-windows");
+        var inspectorNet48Dir = Path.Combine(binDir, "inspectors", "net48");
+        var bootstrapperDir = Path.Combine(binDir, "bootstrapper", architecture);
+        var signedPayloadSourceName = Path.Combine("WindowsPowerShell", "v1.0", "powershell.exe");
+        var signerMetadata = SignedPayloadSignerMetadata.Value;
+        Directory.CreateDirectory(inspectorNet8Dir);
+        Directory.CreateDirectory(inspectorNet48Dir);
+        Directory.CreateDirectory(bootstrapperDir);
+        WritePackagePayloadFile(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), signedPayloadSourceName, "stub", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), signedPayloadSourceName, "net8-inspector", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), signedPayloadSourceName, "net48-inspector", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), signedPayloadSourceName, "bootstrapper", useSignedPayload);
+        File.WriteAllText(
+            Path.Combine(binDir, "manifest.json"),
+            JsonSerializer.Serialize(new
+            {
+                name = "wpf-devtools",
+                version = "1.2.3",
+                architecture,
+                runtimeId = architecture == "x86" ? "win-x86" : architecture == "arm64" ? "win-arm64" : "win-x64",
+                channel = "release",
+                buildConfiguration = "Release",
+                signaturePolicy = "RequireAuthenticodeSignature",
+                entryExecutable = $"bin/wpf-devtools-{architecture}.exe",
+                runBatch = "run.bat",
+                installScript = "bin/install.ps1",
+                signerThumbprint = signerMetadata.Thumbprint,
+                signerSubject = signerMetadata.Subject,
+                inspector = new
+                {
+                    net8 = "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
+                    net48 = "bin/inspectors/net48/WpfDevTools.Inspector.dll"
+                },
+                bootstrapper = $"bin/bootstrapper/{architecture}/WpfDevTools.Bootstrapper.{architecture}.dll"
+            }));
+
+        CopyInstallerHelperFiles(helperDir);
+    }
+
+    private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+    {
+        Directory.CreateDirectory(destinationDirectory);
+
+        foreach (var directory in Directory.EnumerateDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(sourceDirectory, directory);
+            Directory.CreateDirectory(Path.Combine(destinationDirectory, relativePath));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(sourceDirectory, file);
+            var destinationPath = Path.Combine(destinationDirectory, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            File.Copy(file, destinationPath, overwrite: true);
+        }
+    }
+
+    private static string GetFileContentHash(string filePath)
+    {
+        using var stream = File.OpenRead(filePath);
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(stream);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
     public static string CreateFakeCommand(string directory, string commandName, string logPath)
     {
         Directory.CreateDirectory(directory);
@@ -191,11 +375,17 @@ internal static class ReleaseScriptTestHarness
         TimeSpan? timeout = null)
     {
         var argumentList = arguments.ToList();
+        var canReuseSharedEnvironmentRoot = string.Equals(Path.GetFileName(scriptPath), "online-installer.ps1", StringComparison.OrdinalIgnoreCase);
+        var (environmentRoot, ownsEnvironmentRoot) = canReuseSharedEnvironmentRoot
+            ? ResolveProcessEnvironmentRoot(environmentOverrides)
+            : (Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-env", Guid.NewGuid().ToString("N")), true);
         string? injectedWorkingRoot = null;
         if (string.Equals(Path.GetFileName(scriptPath), "online-installer.ps1", StringComparison.OrdinalIgnoreCase) &&
             !argumentList.Contains("-WorkingRoot", StringComparer.OrdinalIgnoreCase))
         {
-            injectedWorkingRoot = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-working-root", Guid.NewGuid().ToString("N"));
+            injectedWorkingRoot = ownsEnvironmentRoot
+                ? Path.Combine(environmentRoot, "wpf-devtools-working-root")
+                : Path.Combine(environmentRoot, "wpf-devtools-working-root", Guid.NewGuid().ToString("N"));
             argumentList.Add("-WorkingRoot");
             argumentList.Add(injectedWorkingRoot);
         }
@@ -229,6 +419,8 @@ internal static class ReleaseScriptTestHarness
             }
         }
 
+        EnsureIsolatedProcessEnvironment(startInfo, environmentRoot);
+
         if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
         {
             startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1";
@@ -240,9 +432,14 @@ internal static class ReleaseScriptTestHarness
         }
         finally
         {
-            if (!string.IsNullOrWhiteSpace(injectedWorkingRoot))
+            if (!string.IsNullOrWhiteSpace(injectedWorkingRoot) && !ownsEnvironmentRoot)
             {
                 DeleteDirectory(injectedWorkingRoot);
+            }
+
+            if (ownsEnvironmentRoot)
+            {
+                DeleteDirectory(environmentRoot);
             }
         }
     }
@@ -252,6 +449,7 @@ internal static class ReleaseScriptTestHarness
         IReadOnlyDictionary<string, string?>? environmentOverrides = null,
         TimeSpan? timeout = null)
     {
+        var isolatedEnvironmentRoot = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-env", Guid.NewGuid().ToString("N"));
         var startInfo = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -276,16 +474,131 @@ internal static class ReleaseScriptTestHarness
             }
         }
 
+        EnsureIsolatedProcessEnvironment(startInfo, isolatedEnvironmentRoot);
+
         if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
         {
             startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1";
         }
 
-        return RunProcess(startInfo, timeout);
+        try
+        {
+            return RunProcess(startInfo, timeout);
+        }
+        finally
+        {
+            DeleteDirectory(isolatedEnvironmentRoot);
+        }
     }
 
     public static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
+
+    private static (string EnvironmentRoot, bool OwnsEnvironmentRoot) ResolveProcessEnvironmentRoot(
+        IReadOnlyDictionary<string, string?>? environmentOverrides)
+    {
+        if (TryResolveSharedEnvironmentRoot(environmentOverrides, out var sharedEnvironmentRoot))
+        {
+            return (sharedEnvironmentRoot, false);
+        }
+
+        return (Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-env", Guid.NewGuid().ToString("N")), true);
+    }
+
+    private static bool TryResolveSharedEnvironmentRoot(
+        IReadOnlyDictionary<string, string?>? environmentOverrides,
+        out string sharedEnvironmentRoot)
+    {
+        sharedEnvironmentRoot = string.Empty;
+        if (environmentOverrides is null ||
+            !TryGetPathOverride(environmentOverrides, "APPDATA", out var appDataPath) ||
+            !TryGetPathOverride(environmentOverrides, "LOCALAPPDATA", out var localAppDataPath))
+        {
+            return false;
+        }
+
+        var appDataRoot = TryGetEnvironmentRootFromAppDataPath(appDataPath, "Roaming");
+        var localAppDataRoot = TryGetEnvironmentRootFromAppDataPath(localAppDataPath, "Local");
+        if (appDataRoot is null ||
+            localAppDataRoot is null ||
+            !string.Equals(appDataRoot, localAppDataRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (TryGetPathOverride(environmentOverrides, "USERPROFILE", out var userProfilePath))
+        {
+            var userProfileRoot = Directory.GetParent(userProfilePath)?.FullName;
+            if (string.IsNullOrWhiteSpace(userProfileRoot) ||
+                !string.Equals(appDataRoot, userProfileRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        sharedEnvironmentRoot = appDataRoot;
+        return true;
+    }
+
+    private static bool TryGetPathOverride(
+        IReadOnlyDictionary<string, string?> environmentOverrides,
+        string key,
+        out string path)
+    {
+        path = string.Empty;
+        if (!environmentOverrides.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        path = Path.GetFullPath(value);
+        return true;
+    }
+
+    private static string? TryGetEnvironmentRootFromAppDataPath(string appDataPath, string leafDirectoryName)
+    {
+        var leafDirectory = new DirectoryInfo(appDataPath);
+        if (!leafDirectory.Name.Equals(leafDirectoryName, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var appDataDirectory = leafDirectory.Parent;
+        if (appDataDirectory is null || !appDataDirectory.Name.Equals("AppData", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return appDataDirectory.Parent?.FullName;
+    }
+
+    private static void EnsureIsolatedProcessEnvironment(ProcessStartInfo startInfo, string environmentRoot)
+    {
+        var roamingAppData = Path.Combine(environmentRoot, "AppData", "Roaming");
+        var localAppData = Path.Combine(environmentRoot, "AppData", "Local");
+        var tempPath = Path.Combine(environmentRoot, "Temp");
+        Directory.CreateDirectory(roamingAppData);
+        Directory.CreateDirectory(localAppData);
+        Directory.CreateDirectory(tempPath);
+
+        if (!startInfo.Environment.ContainsKey("USERPROFILE"))
+        {
+            startInfo.Environment["USERPROFILE"] = environmentRoot;
+        }
+
+        if (!startInfo.Environment.ContainsKey("APPDATA"))
+        {
+            startInfo.Environment["APPDATA"] = roamingAppData;
+        }
+
+        if (!startInfo.Environment.ContainsKey("LOCALAPPDATA"))
+        {
+            startInfo.Environment["LOCALAPPDATA"] = localAppData;
+        }
+
+        startInfo.Environment["TEMP"] = tempPath;
+        startInfo.Environment["TMP"] = tempPath;
+    }
 
     private static void CopyInstallerHelperFiles(string destinationDirectory)
     {
@@ -318,6 +631,44 @@ internal static class ReleaseScriptTestHarness
             .Where(static entry => !string.IsNullOrWhiteSpace(entry))
             .Cast<string>()
             .ToArray();
+    }
+
+    private static void ReplicateFile(string sourcePath, string destinationPath, bool preferHardLink)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+
+        if (File.Exists(destinationPath))
+        {
+            File.Delete(destinationPath);
+        }
+
+        if (preferHardLink && TryCreateHardLink(destinationPath, sourcePath))
+        {
+            return;
+        }
+
+        File.Copy(sourcePath, destinationPath, overwrite: true);
+    }
+
+    private static bool TryCreateHardLink(string destinationPath, string sourcePath)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
+        try
+        {
+            return CreateHardLink(destinationPath, sourcePath, nint.Zero);
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
     }
 
     private static void WritePackagePayloadFile(string destinationPath, string signedSystemFileName, string unsignedContent, bool useSignedPayload)

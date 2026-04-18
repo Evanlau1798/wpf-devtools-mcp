@@ -300,6 +300,7 @@ public class McpToolAttributeTests
     [InlineData("focus_element")]
     [InlineData("simulate_keyboard")]
     [InlineData("force_binding_update")]
+    [InlineData("wait_for_dp_change")]
     [InlineData("scroll_to_element")]
     [InlineData("highlight_element")]
     [InlineData("restore_state_snapshot")]

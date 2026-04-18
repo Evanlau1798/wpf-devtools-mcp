@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text.Json;
 using FluentAssertions;
 using Xunit;
+using static WpfDevTools.Tests.Unit.Release.InstallerScriptTestSupport;
 
 namespace WpfDevTools.Tests.Unit.Release;
 

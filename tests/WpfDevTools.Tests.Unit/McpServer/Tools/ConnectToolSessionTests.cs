@@ -178,6 +178,8 @@ public partial class ConnectToolTests
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         injector.InjectWithBootstrapCallCount.Should().Be(1);
-        injector.LastInjectWithBootstrapCancellationToken.Should().Be(cts.Token);
+        injector.LastInjectWithBootstrapCancellationToken.CanBeCanceled.Should().BeTrue(
+            "single-flight connect should still give the injector a cancelable token even when the shared operation owns the actual cancellation source");
+        injector.LastInjectWithBootstrapCancellationToken.Should().NotBe(CancellationToken.None);
     }
 }

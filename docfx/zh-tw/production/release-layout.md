@@ -83,6 +83,6 @@ release_<version>_win-x64/
 - `bin/inspectors` 與 `bin/bootstrapper` 是 sidecar 目錄，必須與安裝後的 server 內容保持相對位置。
 - `bin/installer` 是經過完整性驗證的 helper bundle，供 packaged installer 與 standalone recovery flow 使用，必須與封裝或安裝後的 server 內容保持相對位置。
 - `run.bat` 是 package root 的使用者入口，適合不想直接執行 PowerShell 的使用者。
-- `bin/install.ps1` 是 canonical GUI-first installer 腳本在 package 內的複本。
+- `bin/install.ps1` 是 canonical TUI-first installer 腳本在 package 內的複本，並保留 CLI fallback。
 - `client-registration` 會在安裝時產生，並作為 AI client setup 的公開 copy-paste 來源。
 - 若省略 `-InstallRoot`，installer 會優先重用最後一個仍可存取的 live install root；只有沒有可重用途徑時，才會使用 `%APPDATA%\WpfDevToolsMcp` 作為回退根目錄。

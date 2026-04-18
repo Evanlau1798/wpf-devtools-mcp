@@ -243,7 +243,9 @@ public sealed partial class ConnectTool
         var injectionRequest = InjectionPlanFactory.CreateRequest(
             processInfo,
             inspectorCandidates,
-            bootstrapperCandidates);
+            bootstrapperCandidates,
+            _sessionManager.GetAuthenticationSecretBase64(),
+            _sessionManager.GetCertificateDirectory());
 
         if (injectionRequest == null)
         {

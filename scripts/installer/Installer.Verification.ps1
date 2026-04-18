@@ -627,7 +627,21 @@ function Invoke-UninstallVerification {
             }
 
             if ($verificationTargets.Count -eq 0) {
-                $false
+                $recordedTarget = if ($null -ne $RegistrationRecord) {
+                    if ($RegistrationRecord.Contains('target')) { [string]$RegistrationRecord.target }
+                    elseif ($RegistrationRecord.Contains('Target')) { [string]$RegistrationRecord.Target }
+                    else { [string]$RegistrationRecord.RegistrationTarget }
+                }
+                else {
+                    $null
+                }
+
+                if (-not [string]::IsNullOrWhiteSpace($recordedTarget) -and (Test-Path -LiteralPath $recordedTarget)) {
+                    $false
+                }
+                else {
+                    $true
+                }
             }
             else {
                 @($verificationTargets).Where({

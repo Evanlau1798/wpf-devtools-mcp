@@ -136,28 +136,40 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     [Fact]
     public async Task Execute_WithoutWindowFilter_ShouldDefaultAutoDiscoveryToVisible()
     {
+        EnsureDummyBootstrapperExists();
+        var sessionManager = new SessionManager();
         var processId = NextSyntheticProcessId();
+        using var server = CreateServer($"WpfDevTools_{processId}");
         var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp"));
-        var tool = CreateTool(detector: detector);
+        var tool = CreateTool(
+            sessionManager,
+            detector: detector,
+            injector: new FakeProcessInjector());
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
 
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
         detector.RequestedWindowFilters.Should().Contain(ProcessWindowFilter.Visible);
     }
 
     [Fact]
     public async Task Execute_WithWindowFilterAll_ShouldForwardAllFilter()
     {
+        EnsureDummyBootstrapperExists();
+        var sessionManager = new SessionManager();
         var processId = NextSyntheticProcessId();
+        using var server = CreateServer($"WpfDevTools_{processId}");
         var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp"));
-        var tool = CreateTool(detector: detector);
+        var tool = CreateTool(
+            sessionManager,
+            detector: detector,
+            injector: new FakeProcessInjector());
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { windowFilter = "all" }), CancellationToken.None);
 
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
         detector.RequestedWindowFilters.Should().Contain(ProcessWindowFilter.All);
     }
 

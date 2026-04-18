@@ -22,6 +22,12 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     private const int MaxQueueCapacity = 10000;
 
     /// <summary>
+    /// Minimum log level. Messages below this level are silently discarded.
+    /// Default: Info (Debug messages are skipped unless explicitly lowered).
+    /// </summary>
+    public FileLogLevel MinimumLevel { get; set; } = FileLogLevel.Info;
+
+    /// <summary>
     /// Create a new FileLogger instance
     /// </summary>
     /// <param name="logFilePath">Optional path to log file. If null, creates file in temp directory.</param>
@@ -84,6 +90,9 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     /// <param name="context">Additional structured context (serialized as JSON)</param>
     public void LogStructured(string level, string message, object? context = null)
     {
+        if (!IsLevelEnabled(level))
+            return;
+
         try
         {
             var logEntry = new
@@ -127,6 +136,9 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 
     private void Log(string level, string message)
     {
+        if (!IsLevelEnabled(level))
+            return;
+
         try
         {
             var logEntry = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}";
@@ -392,4 +404,29 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         _shutdownCts.Dispose();
     }
 #endif
+
+    private bool IsLevelEnabled(string level)
+    {
+        var numericLevel = level.ToUpperInvariant() switch
+        {
+            "DEBUG" => FileLogLevel.Debug,
+            "INFO" or "INFORMATION" => FileLogLevel.Info,
+            "WARNING" or "WARN" => FileLogLevel.Warning,
+            "ERROR" => FileLogLevel.Error,
+            "REQUEST" => FileLogLevel.Info,
+            _ => FileLogLevel.Info
+        };
+        return numericLevel >= MinimumLevel;
+    }
+}
+
+/// <summary>
+/// Log level threshold for FileLogger filtering.
+/// </summary>
+public enum FileLogLevel
+{
+    Debug = 0,
+    Info = 1,
+    Warning = 2,
+    Error = 3
 }

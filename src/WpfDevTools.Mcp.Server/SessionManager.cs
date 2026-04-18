@@ -496,6 +496,8 @@ public sealed partial class SessionManager : IDisposable
 
             _pipeClients.Clear();
             _sessions.Clear();
+            _stateSnapshots.Clear();
+            _pendingEventReplay.Clear();
             _navigationStateStore.Clear();
         }
     }

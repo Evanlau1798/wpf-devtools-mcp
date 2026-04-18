@@ -52,11 +52,16 @@ public static class McpServerConfiguration
     /// </summary>
     public const int RateLimitRequestsPerMinute = 300;
 
+    /// <summary>
+    /// Maximum allowed RPM override value. Prevents environment variable abuse.
+    /// </summary>
+    public const int MaxRateLimitRequestsPerMinute = 10000;
+
     public static int GetConfiguredRateLimitRequestsPerMinute()
     {
         var overrideValue = Environment.GetEnvironmentVariable(RateLimitRequestsPerMinuteEnvVar);
         return int.TryParse(overrideValue, out var parsed) && parsed > 0
-            ? parsed
+            ? Math.Min(parsed, MaxRateLimitRequestsPerMinute)
             : RateLimitRequestsPerMinute;
     }
 

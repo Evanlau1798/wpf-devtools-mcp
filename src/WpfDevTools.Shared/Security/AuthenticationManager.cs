@@ -15,7 +15,7 @@ public sealed class AuthenticationManager : IDisposable
 
     private readonly byte[]? _sharedSecret;
     private readonly bool _isEnabled;
-    private volatile bool _isDisposed;
+    private int _disposeState;
 
     /// <summary>
     /// Creates an AuthenticationManager that loads secret from environment or auto-generates one.
@@ -62,7 +62,7 @@ public sealed class AuthenticationManager : IDisposable
     /// <exception cref="InvalidOperationException">Thrown when authentication is disabled</exception>
     public byte[] GetSharedSecret()
     {
-        if (_isDisposed)
+        if (Volatile.Read(ref _disposeState) != 0)
             throw new ObjectDisposedException(nameof(AuthenticationManager));
 
         if (!_isEnabled)
@@ -108,10 +108,8 @@ public sealed class AuthenticationManager : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (_isDisposed)
+        if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
             return;
-
-        _isDisposed = true;
 
         if (_sharedSecret != null)
         {

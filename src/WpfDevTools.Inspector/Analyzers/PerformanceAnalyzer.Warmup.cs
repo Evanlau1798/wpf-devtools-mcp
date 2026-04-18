@@ -7,6 +7,7 @@ public sealed partial class PerformanceAnalyzer
     private static void WaitForRenderWarmUp(bool warmUp)
     {
         var waitStartUtc = DateTime.UtcNow;
+        var maxWait = TimeSpan.FromSeconds(10);
 
         while (true)
         {
@@ -21,7 +22,7 @@ public sealed partial class PerformanceAnalyzer
                       || monitoringElapsedMs >= DefaultRenderWarmUpWaitMs;
             }
 
-            if (completed)
+            if (completed || (DateTime.UtcNow - waitStartUtc) > maxWait)
             {
                 return;
             }

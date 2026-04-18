@@ -37,40 +37,25 @@ try
         new RateLimiterManager(McpServerConfiguration.GetConfiguredRateLimitRequestsPerMinute()));
     builder.Services.AddSingleton<MetricsCollector>();
 
-    // Security: Authentication and encryption (enabled when env vars are set)
-    // WPFDEVTOOLS_AUTH_SECRET -> base64-encoded shared secret for HMAC-SHA256 challenge-response auth
-    // WPFDEVTOOLS_CERT_DIR -> enables TLS encryption over Named Pipes
+    // Security: injection-based inspector sessions are hardened by default.
+    // WPFDEVTOOLS_AUTH_SECRET overrides the generated shared secret when a deterministic value is required.
+    // WPFDEVTOOLS_CERT_DIR overrides the default certificate directory when certificate storage must be pinned.
     var authSecretEnv = Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET");
     var certDirEnv = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR");
 
-    CertificateManager? certManager = null;
+    var transportSecurity = TransportSecurityConfiguration.Create(authSecretEnv, certDirEnv);
+    authManager = transportSecurity.AuthenticationManager;
+    authSecretEnv = null; // Clear secret from local scope to reduce memory residue
 
-    if (!string.IsNullOrWhiteSpace(authSecretEnv))
-    {
-        authManager = new AuthenticationManager(() => authSecretEnv);
-        authSecretEnv = null; // Clear secret from local scope to reduce memory residue
-        builder.Services.AddSingleton(authManager);
-        fileLogger.LogInfo("Authentication enabled via WPFDEVTOOLS_AUTH_SECRET");
-    }
-
-    if (!string.IsNullOrWhiteSpace(certDirEnv))
-    {
-        certManager = new CertificateManager(certDirEnv);
-        builder.Services.AddSingleton(certManager);
-        fileLogger.LogInfo($"TLS encryption enabled via WPFDEVTOOLS_CERT_DIR: {certDirEnv}");
-    }
-
-    if (authManager == null && certManager == null)
-    {
-        fileLogger.LogWarning(
-            "Neither authentication (WPFDEVTOOLS_AUTH_SECRET) nor TLS encryption (WPFDEVTOOLS_CERT_DIR) is configured. " +
-            "Named Pipe communication will be unprotected. Set these environment variables for production use.");
-    }
+    builder.Services.AddSingleton(authManager);
+    builder.Services.AddSingleton(transportSecurity.CertificateManager);
+    fileLogger.LogInfo(transportSecurity.GetAuthenticationLogMessage());
+    fileLogger.LogInfo(transportSecurity.GetEncryptionLogMessage());
 
     builder.Services.AddSingleton(sp => new SessionManager(
         sp.GetRequiredService<IRateLimiterManager>(),
         authManager,
-        certManager,
+        transportSecurity.CertificateManager,
         sp.GetRequiredService<ILoggerFactory>().CreateLogger<SessionManager>()));
 
     // MCP Server configuration

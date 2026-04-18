@@ -22,16 +22,22 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 
 ### 2. Named pipe authentication
 
-- Set `WPFDEVTOOLS_AUTH_SECRET` to enable HMAC challenge-response authentication.
+- Injection-based `connect` sessions use HMAC challenge-response authentication by default.
 - The shared secret must be base64 encoded.
-- If the variable is not set, authentication is disabled.
+- When `WPFDEVTOOLS_AUTH_SECRET` is not set, the server generates a default secret once and reuses it across server restarts for the current user profile.
+- Set `WPFDEVTOOLS_AUTH_SECRET` when you need to override the generated secret with a deterministic shared value.
+- For `connect()` to reuse an SDK-hosted Inspector, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR` together on both sides. The default-hardened MCP server will not reuse a plaintext SDK host.
+- `connect()` can reuse an existing SDK-hosted Inspector when the target app calls `InspectorSdk.Initialize()` with matching `WPFDEVTOOLS_AUTH_SECRET` values.
 
 ### 3. TLS over named pipes
 
-- Set `WPFDEVTOOLS_CERT_DIR` to enable TLS on the pipe connection.
+- Injection-based `connect` sessions use TLS on the pipe connection by default.
 - The server creates or reuses a certificate inside that directory.
+- If `WPFDEVTOOLS_CERT_DIR` is not set, the server uses the default certificate directory under `%APPDATA%\WpfDevTools\certs`.
+- If you set `WPFDEVTOOLS_CERT_DIR`, it must be an absolute path.
 - The client validates the inspector certificate subject and pins the expected thumbprint.
 - `WPFDEVTOOLS_CERT_THUMBPRINT` can override the expected thumbprint explicitly.
+- `connect()` can reuse an existing SDK-hosted Inspector when the target app calls `InspectorSdk.Initialize()` with the same absolute `WPFDEVTOOLS_CERT_DIR` value.
 
 ### 4. Pipe access limits
 
@@ -43,8 +49,8 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 
 | Variable | Effect | Recommended usage |
 | --- | --- | --- |
-| `WPFDEVTOOLS_AUTH_SECRET` | Enables HMAC authentication | Set in production and shared securely between server and inspector |
-| `WPFDEVTOOLS_CERT_DIR` | Enables TLS using a local certificate directory | Use a directory with restricted filesystem permissions |
+| `WPFDEVTOOLS_AUTH_SECRET` | Overrides the generated HMAC authentication secret | Set in production when you need deterministic secret rotation or SDK-mode coordination |
+| `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory | Use a shared absolute directory with restricted filesystem permissions when certificate storage must be pinned or shared with SDK mode |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Use when you need deterministic certificate selection |
 
 No other `WPFDEVTOOLS_*` environment variable is currently implemented by the shipping server.
@@ -53,9 +59,10 @@ No other `WPFDEVTOOLS_*` environment variable is currently implemented by the sh
 
 ### Recommended production posture
 
-1. Set `WPFDEVTOOLS_AUTH_SECRET`.
-2. Set `WPFDEVTOOLS_CERT_DIR`.
-3. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT` if certificate identity must be fixed explicitly.
+1. Keep the default injection-based transport hardening enabled.
+2. Set `WPFDEVTOOLS_AUTH_SECRET` when you need deterministic secret rotation or SDK-mode coordination.
+3. Set `WPFDEVTOOLS_CERT_DIR` to the same absolute directory in both processes when certificate storage must be deterministic or shared with SDK mode.
+4. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT` if certificate identity must be fixed explicitly.
 
 ### Secret handling
 
@@ -71,6 +78,6 @@ No other `WPFDEVTOOLS_*` environment variable is currently implemented by the sh
 
 ## Current Limitations
 
-- Authentication and TLS are opt-in, not automatic.
 - TLS uses locally managed certificates rather than OS-trusted PKI by default.
+- SDK-hosted inspectors require matching transport configuration before `connect()` can reuse the existing host, including the same absolute `WPFDEVTOOLS_CERT_DIR` value when TLS is enabled.
 - HTTP transport is not part of the current shipping server, so this document covers STDIO plus named-pipe inspector communication only.

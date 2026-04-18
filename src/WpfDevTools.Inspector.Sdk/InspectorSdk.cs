@@ -1,5 +1,6 @@
 using System.Windows;
 using WpfDevTools.Inspector.Host;
+using System.Diagnostics;
 
 namespace WpfDevTools.Inspector.Sdk;
 
@@ -9,8 +10,12 @@ namespace WpfDevTools.Inspector.Sdk;
 public static class InspectorSdk
 {
     private static InspectorHost? _host;
+    private static WpfDevTools.Shared.Security.AuthenticationManager? _authenticationManager;
+    private static WpfDevTools.Shared.Security.CertificateManager? _certificateManager;
     private static int _isInitializing; // 0 = not initializing, 1 = initializing (atomic guard)
     private static volatile bool _isInitialized;
+
+    public static Exception? LastInitializationError { get; private set; }
 
     /// <summary>
     /// Initialize the inspector SDK.
@@ -19,6 +24,8 @@ public static class InspectorSdk
     /// <param name="processId">Process ID (defaults to current process)</param>
     public static void Initialize(int? processId = null)
     {
+        LastInitializationError = null;
+
         if (_isInitialized)
             return;
 
@@ -54,7 +61,9 @@ public static class InspectorSdk
         }
         catch (Exception ex)
         {
+            LastInitializationError = ex;
             System.Diagnostics.Debug.WriteLine($"Failed to initialize WpfDevTools Inspector SDK: {ex.Message}");
+            Trace.TraceError($"Failed to initialize WpfDevTools Inspector SDK: {ex}");
         }
         finally
         {
@@ -64,9 +73,29 @@ public static class InspectorSdk
 
     private static void InitializeCore(int pid)
     {
-        _host = new InspectorHost(pid);
-        _host.Start();
-        _isInitialized = true;
+        var transportSecurity = InspectorSdkTransportSecurityConfiguration.Create(
+            Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET"),
+            Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR"));
+        var authenticationManager = transportSecurity.AuthenticationManager;
+        var certificateManager = transportSecurity.CertificateManager;
+        InspectorHost? host = null;
+
+        try
+        {
+            host = new InspectorHost(pid, authenticationManager, certificateManager);
+            host.Start();
+
+            _authenticationManager = authenticationManager;
+            _certificateManager = certificateManager;
+            _host = host;
+            _isInitialized = true;
+        }
+        catch
+        {
+            host?.Stop();
+            authenticationManager?.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
@@ -75,6 +104,8 @@ public static class InspectorSdk
     /// </summary>
     public static void Shutdown()
     {
+        LastInitializationError = null;
+
         if (!_isInitialized)
             return;
 
@@ -89,6 +120,9 @@ public static class InspectorSdk
 
             _host?.Stop();
             _host = null;
+            _authenticationManager?.Dispose();
+            _authenticationManager = null;
+            _certificateManager = null;
             _isInitialized = false;
         }
         catch (Exception ex)

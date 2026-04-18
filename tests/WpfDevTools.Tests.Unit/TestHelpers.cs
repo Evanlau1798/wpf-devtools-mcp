@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server;
 
@@ -22,6 +23,25 @@ public static class TestHelpers
 
     public static int NextSyntheticProcessId() =>
         System.Threading.Interlocked.Increment(ref s_nextSyntheticProcessId);
+
+    public static string EnsureSharedDummyBootstrapperExists()
+    {
+        var bootstrapperPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
+
+        try
+        {
+            using var stream = new FileStream(
+                bootstrapperPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.ReadWrite);
+        }
+        catch (IOException) when (File.Exists(bootstrapperPath))
+        {
+        }
+
+        return bootstrapperPath;
+    }
 
     /// <summary>
     /// Disable the SessionManager background cleanup timer in tests that need

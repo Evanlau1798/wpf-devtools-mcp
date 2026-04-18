@@ -59,7 +59,8 @@ public class McpDiscoveryContentTests
         WorkflowPrompts.DebugBindingIssue().Should().Contain("Prefer navigation.recommended first");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("click_element");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("get_interaction_readiness");
-        WorkflowPrompts.DebugCommandOrClick().Should().Contain("trace_routed_events(mode='get')");
+        WorkflowPrompts.DebugCommandOrClick().Should().Contain("drain_events(eventTypes=['RoutedEvent'], elementId)");
+        WorkflowPrompts.DebugCommandOrClick().Should().NotContain("trace_routed_events(mode='get')");
         WorkflowPrompts.ProfilePerformance().Should().Contain("get_render_stats");
         WorkflowPrompts.ProfilePerformance().Should().Contain("measure_element_render_time");
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("get_windows");

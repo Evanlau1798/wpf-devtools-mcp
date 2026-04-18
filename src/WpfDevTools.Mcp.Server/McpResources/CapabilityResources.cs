@@ -143,7 +143,7 @@ public static class CapabilityResources
 
         - Prefer matching architecture builds.
         - Run the MCP host as administrator for elevated targets.
-        - Use SDK mode or an opt-in integration path when packaging blocks injection.
+        - Use SDK mode by starting the target-side host with InspectorSdk.Initialize() and matching transport settings, including the same absolute WPFDEVTOOLS_CERT_DIR value when TLS is enabled. For connect() reuse, set WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR together on both sides; the default-hardened MCP server will not reuse a plaintext SDK host.
         """;
 
     [McpServerResource(

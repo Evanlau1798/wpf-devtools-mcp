@@ -34,7 +34,8 @@
 
 - 以系統管理員權限重新啟動 Claude Code、Codex 或 MCP host，讓 server 與 target 位於相同完整性等級
 - 改用非 elevated 的 target process 重新驗證
-- 如果目標 packaging 或部署型態不適合一般 injection 路徑，改用 SDK mode
+- 如果目標 packaging 或部署型態不適合一般 injection 路徑，請先在 target app 內呼叫 `InspectorSdk.Initialize()` 再呼叫 `connect()`；若啟用 TLS，也要使用相同的 transport config 與 absolute `WPFDEVTOOLS_CERT_DIR`
+- 若既有的 SDK host 仍是 legacy plaintext，或本身沒有正常回應，MCP server 仍可能先得到 Timeout，而不是先證明 transport mismatch
 
 ## pipe readiness timeout
 
@@ -46,4 +47,4 @@
 
 ## 不支援的封裝型態與 injection 限制
 
-若目標使用 trimmed deployment、self-contained single-file、native AOT 等不支援的封裝型態，標準 injection 路徑可能無法使用。這時請優先考慮 SDK mode 或改用受支援的桌面封裝方式。
+若目標使用 trimmed deployment、self-contained single-file、native AOT 等不支援的封裝型態，標準 injection 路徑可能無法使用。這時請優先考慮受支援的桌面封裝方式；若要用 SDK mode，請先在 target app 內呼叫 `InspectorSdk.Initialize()` 再呼叫 `connect()`。`connect()` 一定會先嘗試重用既有 SDK host，而 sidecar-free 的 executable layout 會得到最長的 reuse wait。

@@ -85,8 +85,11 @@ msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /p:Configu
 dotnet run --project src/WpfDevTools.Mcp.Server/
 ```
 
-> **Security note**: By default the server runs without authentication or encryption.
-> For production use, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR`.
+> **Security note**: By default, injection-based inspector sessions use a persisted local HMAC secret and TLS over named pipes.
+> Set `WPFDEVTOOLS_AUTH_SECRET` when you need a deterministic shared secret, and set `WPFDEVTOOLS_CERT_DIR` when you need to pin certificate storage to a specific directory.
+> `WPFDEVTOOLS_CERT_DIR` must be an absolute path when you set it explicitly.
+> For `connect()` to reuse an SDK-hosted Inspector, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR` together on both sides. The default-hardened MCP server will not reuse a plaintext SDK host.
+> `connect()` can also reuse an existing SDK-hosted Inspector when the target app calls `InspectorSdk.Initialize()` with matching transport settings, including the same absolute `WPFDEVTOOLS_CERT_DIR` value.
 > See [SECURITY.md](SECURITY.md) for details.
 > **Local development note**: Use a `Debug` build for local development and build the native bootstrapper for the same architecture as the target process.
 > Debug builds skip DLL signature verification only for trusted local DLL paths under the configured trusted-root policy, allowing unsigned local development without weakening public release guidance.
@@ -191,12 +194,12 @@ Example project-scoped configuration:
 
 ## Security
 
-The current implementation supports opt-in transport hardening through environment variables.
+The current implementation hardens the default injection-based transport and still supports explicit overrides through environment variables.
 
 | Variable | Purpose | Notes |
 | --- | --- | --- |
-| `WPFDEVTOOLS_AUTH_SECRET` | Enables HMAC challenge-response authentication | Use a base64 secret in production |
-| `WPFDEVTOOLS_CERT_DIR` | Enables TLS over named pipes using a local certificate store | Use a private directory per environment |
+| `WPFDEVTOOLS_AUTH_SECRET` | Overrides the generated HMAC challenge-response secret | Use a base64 secret when production deployments require deterministic credential rotation |
+| `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory for named pipes | Use a private directory per environment when certificate storage must be pinned |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected inspector certificate | Useful when you want strict certificate selection |
 
 Security deployment guidance lives in `SECURITY.md`.

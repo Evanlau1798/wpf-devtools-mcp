@@ -34,7 +34,8 @@ Use one of these fixes:
 
 - restart Claude Code, Codex, or the MCP host as administrator so the server and target run at the same integrity level
 - retest against a non-elevated target process
-- use SDK mode when the packaging or deployment model does not support the normal injection path
+- if packaging blocks injection, start the target-side SDK host in SDK mode with `InspectorSdk.Initialize()` before calling `connect()`, and use matching transport settings including the same absolute `WPFDEVTOOLS_CERT_DIR` value when TLS is enabled
+- a legacy plaintext or otherwise unresponsive existing SDK host may still time out before the MCP server can prove a transport mismatch
 
 ## pipe readiness timeout
 
@@ -46,7 +47,7 @@ If Claude Code cannot rediscover the server reliably, prefer the generated `clie
 
 ## unsupported packaging or injection limits
 
-If the target uses unsupported packaging, such as trimmed deployment, self-contained single-file distribution, or native AOT, the standard injector path may not be available. In those cases, prefer SDK mode or a supported desktop packaging model.
+If the target uses unsupported packaging, such as trimmed deployment, self-contained single-file distribution, or native AOT, the standard injector path may not be available. In those cases, prefer a supported desktop packaging model, or start the SDK host inside the target app with `InspectorSdk.Initialize()` before calling `connect()`. `connect()` always attempts to reuse an already running SDK host, and sidecar-free executable layouts receive the longest reuse wait.
 
 ## Where to look next
 

@@ -195,6 +195,46 @@ public sealed partial class SessionManager : IDisposable
         }
     }
 
+    internal NamedPipeClient CreateDetachedPipeClient(int processId)
+    {
+        ThrowIfDisposed();
+        return new NamedPipeClient(processId, _authManager, _certManager);
+    }
+
+    internal void AttachSession(int processId, NamedPipeClient pipeClient)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(pipeClient);
+
+        lock (_lock)
+        {
+            if (_sessions.Count >= McpServerConfiguration.MaxSessions)
+            {
+                throw new InvalidOperationException($"Maximum session limit ({McpServerConfiguration.MaxSessions}) reached. Remove existing sessions before adding new sessions.");
+            }
+
+            if (_sessions.ContainsKey(processId))
+            {
+                throw new InvalidOperationException($"Session for process {processId} already exists");
+            }
+
+            _sessions[processId] = new SessionInfo
+            {
+                ProcessId = processId,
+                LastActivity = DateTimeOffset.UtcNow
+            };
+
+            _pipeClients[processId] = pipeClient;
+            _stateSnapshots[processId] = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
+            _navigationStateStore.EnsureProcess(processId);
+            _activeProcessSelection ??= new ActiveProcessSelection
+            {
+                ProcessId = processId,
+                SelectedAtUtc = DateTimeOffset.UtcNow
+            };
+        }
+    }
+
     internal string? GetAuthenticationSecretBase64()
     {
         if (_authManager == null || !_authManager.IsAuthenticationEnabled)

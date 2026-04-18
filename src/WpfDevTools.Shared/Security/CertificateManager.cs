@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 
 namespace WpfDevTools.Shared.Security;
 
@@ -21,6 +22,7 @@ public sealed class CertificateManager
     private const string SubjectName = "CN=WpfDevTools-Inspector";
     private const int RsaKeySize = 2048;
     private const int PasswordLengthBytes = 32;
+    private static readonly TimeSpan MutexTimeout = TimeSpan.FromSeconds(30);
     private static readonly object SyncRoot = new();
 
     private readonly string _certDirectory;
@@ -37,8 +39,10 @@ public sealed class CertificateManager
             throw new ArgumentNullException(nameof(certDirectory));
         if (string.IsNullOrWhiteSpace(certDirectory))
             throw new ArgumentException("Certificate directory cannot be empty", nameof(certDirectory));
+        if (!IsAbsolutePath(certDirectory))
+            throw new ArgumentException("Certificate directory must be an absolute path", nameof(certDirectory));
 
-        _certDirectory = certDirectory;
+        _certDirectory = Path.GetFullPath(certDirectory);
     }
 
     /// <summary>
@@ -64,34 +68,59 @@ public sealed class CertificateManager
     /// <returns>X509Certificate2 with private key</returns>
     public X509Certificate2 GetOrCreateCertificate()
     {
-        lock (SyncRoot)
+        using var mutex = new Mutex(false, BuildMutexName(_certDirectory));
+        var lockTaken = false;
+        try
         {
-            Directory.CreateDirectory(_certDirectory);
-            var certPath = Path.Combine(_certDirectory, CertFileName);
-            var passwordPath = Path.Combine(_certDirectory, PasswordFileName);
-
-            if (File.Exists(certPath) && File.Exists(passwordPath))
+            try
             {
-                try
+                lockTaken = mutex.WaitOne(MutexTimeout);
+                if (!lockTaken)
                 {
-                    var password = LoadPassword(passwordPath);
-                    var loaded = new X509Certificate2(
-                        certPath, password,
-                        X509KeyStorageFlags.Exportable);
-
-                    if (loaded.NotAfter > DateTime.UtcNow)
-                        return loaded;
-
-                    // Certificate expired, regenerate
-                    loaded.Dispose();
-                }
-                catch (CryptographicException)
-                {
-                    // Corrupt file or password mismatch, regenerate
+                    throw new TimeoutException($"Timed out waiting to access certificate directory '{_certDirectory}'.");
                 }
             }
+            catch (AbandonedMutexException)
+            {
+                lockTaken = true;
+            }
 
-            return CreateAndSaveCertificate(certPath, passwordPath);
+            lock (SyncRoot)
+            {
+                Directory.CreateDirectory(_certDirectory);
+                var certPath = Path.Combine(_certDirectory, CertFileName);
+                var passwordPath = Path.Combine(_certDirectory, PasswordFileName);
+
+                if (File.Exists(certPath) && File.Exists(passwordPath))
+                {
+                    try
+                    {
+                        var password = LoadPassword(passwordPath);
+                        var loaded = new X509Certificate2(
+                            certPath, password,
+                            X509KeyStorageFlags.Exportable);
+
+                        if (loaded.NotAfter > DateTime.UtcNow)
+                            return loaded;
+
+                        // Certificate expired, regenerate
+                        loaded.Dispose();
+                    }
+                    catch (CryptographicException)
+                    {
+                        // Corrupt file or password mismatch, regenerate
+                    }
+                }
+
+                return CreateAndSaveCertificate(certPath, passwordPath);
+            }
+        }
+        finally
+        {
+            if (lockTaken)
+            {
+                mutex.ReleaseMutex();
+            }
         }
     }
 
@@ -176,5 +205,33 @@ public sealed class CertificateManager
         {
             Array.Clear(passwordBytes, 0, passwordBytes.Length);
         }
+    }
+
+    private static bool IsAbsolutePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        if (path.StartsWith("\\\\", StringComparison.Ordinal))
+            return true;
+
+        return path.Length >= 3
+            && char.IsLetter(path[0])
+            && path[1] == ':'
+            && (path[2] == Path.DirectorySeparatorChar || path[2] == Path.AltDirectorySeparatorChar);
+    }
+
+    private static string BuildMutexName(string certificateDirectory)
+    {
+        var normalizedPath = Path.GetFullPath(certificateDirectory).ToUpperInvariant();
+        var hash = ComputeSha256Hex(Encoding.UTF8.GetBytes(normalizedPath));
+        return $"Local\\WpfDevTools.CertDir.{hash}";
+    }
+
+    private static string ComputeSha256Hex(byte[] input)
+    {
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(input);
+        return BitConverter.ToString(hashBytes).Replace("-", string.Empty);
     }
 }

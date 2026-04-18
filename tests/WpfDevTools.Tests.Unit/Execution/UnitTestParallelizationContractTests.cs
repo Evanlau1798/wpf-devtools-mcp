@@ -8,6 +8,7 @@ using WpfDevTools.Tests.Unit.Inspector.Utilities;
 using WpfDevTools.Tests.Unit.McpServer;
 using WpfDevTools.Tests.Unit.Release;
 using WpfDevTools.Tests.Unit.Security;
+using WpfDevTools.Tests.Unit.InspectorSdk;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Execution;
@@ -30,6 +31,17 @@ public sealed class UnitTestParallelizationContractTests
     public void SignaturePolicyTests_ShouldUseProcessEnvironmentCollection()
     {
         var attributeData = typeof(SignaturePolicyTests).GetCustomAttributesData()
+            .SingleOrDefault(data => data.AttributeType == typeof(CollectionAttribute));
+
+        attributeData.Should().NotBeNull();
+        attributeData!.ConstructorArguments.Should().ContainSingle();
+        attributeData.ConstructorArguments[0].Value.Should().Be("ProcessEnvironment");
+    }
+
+    [Fact]
+    public void InspectorSdkInitializationTests_ShouldUseProcessEnvironmentCollection()
+    {
+        var attributeData = typeof(InspectorSdkInitializationTests).GetCustomAttributesData()
             .SingleOrDefault(data => data.AttributeType == typeof(CollectionAttribute));
 
         attributeData.Should().NotBeNull();

@@ -16,6 +16,8 @@ public sealed partial class ConnectTool
                 $"Access denied to process {processId} because the target is elevated. Restart the MCP server as administrator to connect or control this WPF process.",
             InjectionError.AccessDenied => $"Access denied to process {processId}. Try running as administrator.",
             InjectionError.ArchitectureMismatch => $"Architecture mismatch for process {processId}. Ensure the MCP server architecture matches the target process (both x64 or both x86).",
+            InjectionError.SingleFileApplication =>
+                $"Process {processId} appears to use packaging that does not support injection. Start the target-side SDK host with matching WPFDEVTOOLS_AUTH_SECRET and absolute WPFDEVTOOLS_CERT_DIR values, then retry connect().",
             _ => $"Validation failed: {error}"
         };
     }
@@ -27,6 +29,39 @@ public sealed partial class ConnectTool
     }
 
     internal static void ValidateDllPath(string dllPath) => DllPathValidator.ValidateDllPath(dllPath);
+
+    internal static bool IsLikelySdkOnlyPackaging(WpfProcessInfo processInfo)
+    {
+        if (processInfo.Runtime != TargetRuntime.NetCore || string.IsNullOrWhiteSpace(processInfo.ExecutablePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var executablePath = processInfo.ExecutablePath;
+            if (!Path.IsPathRooted(executablePath) || !File.Exists(executablePath))
+            {
+                return false;
+            }
+
+            var directory = Path.GetDirectoryName(executablePath);
+            var baseName = Path.GetFileNameWithoutExtension(executablePath);
+            if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(baseName))
+            {
+                return false;
+            }
+
+            var runtimeConfigPath = Path.Combine(directory, baseName + ".runtimeconfig.json");
+            var depsPath = Path.Combine(directory, baseName + ".deps.json");
+
+            return !File.Exists(runtimeConfigPath) && !File.Exists(depsPath);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 
     private AutoDiscoveryResolution TryResolveAutoDiscoveredProcess(
         ProcessDiscoverySelectionStrategy selectionStrategy,

@@ -28,6 +28,7 @@ public sealed partial class ConnectTool
     private readonly Func<int, long> _workingSetResolver;
     private readonly Func<string, IEnumerable<string>> _inspectorCandidateResolver;
     private readonly Func<string, IEnumerable<string>> _bootstrapperCandidateResolver;
+    private readonly PipeReadyProbe _pipeReadyProbe;
     private readonly ConcurrentDictionary<int, InflightConnectOperation> _inflightConnects = new();
 
     /// <summary>
@@ -41,7 +42,8 @@ public sealed partial class ConnectTool
         Func<bool>? isCurrentProcessElevated = null,
         Func<int, long>? workingSetResolver = null,
         Func<string, IEnumerable<string>>? inspectorCandidateResolver = null,
-        Func<string, IEnumerable<string>>? bootstrapperCandidateResolver = null)
+        Func<string, IEnumerable<string>>? bootstrapperCandidateResolver = null,
+        PipeReadyProbe? pipeReadyProbe = null)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _injector = injector ?? throw new ArgumentNullException(nameof(injector));
@@ -51,6 +53,7 @@ public sealed partial class ConnectTool
         _workingSetResolver = workingSetResolver ?? ResolveWorkingSetBytes;
         _inspectorCandidateResolver = inspectorCandidateResolver ?? DllCandidateResolver.EnumerateInspectorCandidates;
         _bootstrapperCandidateResolver = bootstrapperCandidateResolver ?? DllCandidateResolver.EnumerateBootstrapperCandidates;
+        _pipeReadyProbe = pipeReadyProbe ?? new PipeReadyProbe();
     }
 
     /// <summary>
@@ -220,20 +223,6 @@ public sealed partial class ConnectTool
             };
         }
 
-        var validationError = _injector.ValidateTarget(processId);
-        if (validationError != InjectionError.None)
-        {
-            return new
-            {
-                success = false,
-                error = GetErrorMessage(validationError, processId, processInfo),
-                errorCode = validationError.ToString(),
-                targetIsElevated = processInfo.IsElevated,
-                requiresElevationToConnect = access.RequiresElevationToConnect,
-                canConnectFromCurrentServer = access.CanConnectFromCurrentServer
-            };
-        }
-
         try
         {
             _sessionManager.EnsureSecureTransportArtifactsCreated();
@@ -245,6 +234,37 @@ public sealed partial class ConnectTool
                 success = false,
                 error = $"Failed to prepare secure transport artifacts: {ex.Message}",
                 errorCode = "SecureTransportInitializationFailed",
+                targetIsElevated = processInfo.IsElevated,
+                requiresElevationToConnect = access.RequiresElevationToConnect,
+                canConnectFromCurrentServer = access.CanConnectFromCurrentServer
+            };
+        }
+
+        var likelySdkOnlyPackaging = IsLikelySdkOnlyPackaging(processInfo);
+        var validationError = likelySdkOnlyPackaging
+            ? InjectionError.SingleFileApplication
+            : _injector.ValidateTarget(processId);
+
+        var preInjectionConnectAttempt = await TryConnectToExistingInspectorHostAsync(
+            processId,
+            explicitProcessSelection,
+            selectionStrategy,
+            autoDiscoveryResolution,
+            connectStopwatch.Elapsed,
+            likelySdkOnlyPackaging,
+            cancellationToken).ConfigureAwait(false);
+        if (preInjectionConnectAttempt is object preExistingHostResult)
+        {
+            return preExistingHostResult;
+        }
+
+        if (validationError != InjectionError.None)
+        {
+            return new
+            {
+                success = false,
+                error = GetErrorMessage(validationError, processId, processInfo),
+                errorCode = validationError.ToString(),
                 targetIsElevated = processInfo.IsElevated,
                 requiresElevationToConnect = access.RequiresElevationToConnect,
                 canConnectFromCurrentServer = access.CanConnectFromCurrentServer
@@ -395,6 +415,122 @@ public sealed partial class ConnectTool
             _sessionManager.RemoveSession(processId);
             throw;
         }
+    }
+
+    private async Task<object?> TryConnectToExistingInspectorHostAsync(
+        int processId,
+        bool explicitProcessSelection,
+        ProcessDiscoverySelectionStrategy selectionStrategy,
+        AutoDiscoveryResolution? autoDiscoveryResolution,
+        TimeSpan elapsedBeforeProbe,
+        bool exhaustiveProbe,
+        CancellationToken cancellationToken)
+    {
+        var remainingPipeConnectTimeout = GetRemainingPipeConnectTimeout(
+            elapsedBeforeProbe,
+            TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds));
+        if (remainingPipeConnectTimeout <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        var probeStopwatch = Stopwatch.StartNew();
+        while (true)
+        {
+            var remainingProbeBudget = remainingPipeConnectTimeout - probeStopwatch.Elapsed;
+            if (remainingProbeBudget <= TimeSpan.Zero)
+            {
+                return null;
+            }
+
+            var probeTimeout = exhaustiveProbe
+                ? remainingProbeBudget
+                : (remainingProbeBudget > TimeSpan.FromMilliseconds(250)
+                    ? TimeSpan.FromMilliseconds(250)
+                    : remainingProbeBudget);
+
+            if (_pipeReadyProbe.WaitForPipeReady($"WpfDevTools_{processId}", probeTimeout, cancellationToken))
+            {
+                break;
+            }
+
+            if (!exhaustiveProbe)
+            {
+                return null;
+            }
+        }
+
+        remainingPipeConnectTimeout -= probeStopwatch.Elapsed;
+        if (remainingPipeConnectTimeout <= TimeSpan.Zero)
+        {
+            return CreatePreInjectionConnectFailure(processId, NamedPipeConnectFailure.Timeout);
+        }
+
+        NamedPipeClient? detachedPipeClient = null;
+        try
+        {
+            detachedPipeClient = _sessionManager.CreateDetachedPipeClient(processId);
+            var connected = await detachedPipeClient.ConnectAsync(
+                remainingPipeConnectTimeout,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (!connected)
+            {
+                return CreatePreInjectionConnectFailure(
+                    processId,
+                    detachedPipeClient.LastConnectFailure);
+            }
+
+            _sessionManager.AttachSession(processId, detachedPipeClient);
+            detachedPipeClient = null;
+            _sessionManager.SetActiveProcess(processId);
+
+            if (!explicitProcessSelection &&
+                autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
+            {
+                return new
+                {
+                    success = true,
+                    message = "Connected to an existing Inspector host. You can now use inspection tools with this processId.",
+                    processId,
+                    processName = candidate.ProcessName,
+                    windowTitle = candidate.WindowTitle,
+                    autoDiscovered = true,
+                    autoSelected = autoDiscoveryResolution.AutoSelected,
+                    selectionReason = autoDiscoveryResolution.AutoSelected
+                        ? ProcessDiscoverySelectionStrategies.ToContractValue(selectionStrategy)
+                        : null,
+                    candidateCount = autoDiscoveryResolution.CandidateCount,
+                    processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray(),
+                    reusedExistingHost = true
+                };
+            }
+
+            return new
+            {
+                success = true,
+                message = "Connected to an existing Inspector host. You can now use inspection tools with this processId.",
+                processId,
+                reusedExistingHost = true
+            };
+        }
+        finally
+        {
+            detachedPipeClient?.Dispose();
+        }
+    }
+
+    private static object CreatePreInjectionConnectFailure(
+        int processId,
+        NamedPipeConnectFailure failure)
+    {
+        var pipeConnectFailure = DescribePipeConnectFailure(failure, processId);
+        return new
+        {
+            success = false,
+            error = pipeConnectFailure.Error,
+            errorCode = pipeConnectFailure.ErrorCode,
+            hint = pipeConnectFailure.Hint
+        };
     }
 
     internal static (string ErrorCode, string Error, string Hint) DescribePipeConnectFailure(

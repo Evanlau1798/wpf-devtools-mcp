@@ -232,10 +232,6 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
 
     public void Dispose()
     {
-        if (_dummyBootstrapperPath != null && File.Exists(_dummyBootstrapperPath))
-        {
-            try { File.Delete(_dummyBootstrapperPath); } catch { }
-        }
     }
 
     private static ConnectTool CreateTool(
@@ -255,11 +251,7 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
 
     private void EnsureDummyBootstrapperExists()
     {
-        _dummyBootstrapperPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
-        if (!File.Exists(_dummyBootstrapperPath))
-        {
-            File.WriteAllBytes(_dummyBootstrapperPath, Array.Empty<byte>());
-        }
+        _dummyBootstrapperPath = EnsureSharedDummyBootstrapperExists();
     }
 
     private static WpfProcessInfo CreateProcessInfo(int processId, string processName)

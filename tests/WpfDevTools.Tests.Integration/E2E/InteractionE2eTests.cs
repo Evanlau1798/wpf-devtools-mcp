@@ -54,11 +54,11 @@ public sealed class InteractionE2eTests
         E2eTestHelpers.AssertFixtureReady(_fixture);
         await ActivateBasicControlsTabAsync();
 
-        var buttonElementId = await E2eTestHelpers.FindElementByTypeAsync(
-            _fixture.Client, _fixture.TestAppProcessId, "Button");
+        var buttonElementId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client, _fixture.TestAppProcessId, "SaveButton");
 
         buttonElementId.Should().NotBeNull(
-            "TestApp should contain at least one Button element in its visual tree");
+            "TestApp should expose SaveButton through the root namescope");
 
         var result = await _fixture.Client.CallToolAsync(
             "click_element",
@@ -76,8 +76,9 @@ public sealed class InteractionE2eTests
         E2eTestHelpers.AssertFixtureReady(_fixture);
         await ActivateBasicControlsTabAsync();
 
-        var buttonElementId = await E2eTestHelpers.FindElementByTypeAsync(
-            _fixture.Client, _fixture.TestAppProcessId, "Button");
+        var buttonElementId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client, _fixture.TestAppProcessId, "SaveButton");
+        buttonElementId.Should().NotBeNull("TestApp should expose SaveButton through the root namescope");
 
         var watch = await _fixture.Client.CallToolAsync(
             "watch_dp_changes",
@@ -403,8 +404,9 @@ public sealed class InteractionE2eTests
         E2eTestHelpers.AssertFixtureReady(_fixture);
         await ActivateBasicControlsTabAsync();
 
-        var buttonElementId = await E2eTestHelpers.FindElementByTypeAsync(
-            _fixture.Client, _fixture.TestAppProcessId, "Button");
+        var buttonElementId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client, _fixture.TestAppProcessId, "SaveButton");
+        buttonElementId.Should().NotBeNull("TestApp should expose SaveButton through the root namescope");
 
         var capture = await _fixture.Client.CallToolAsync(
             "capture_state_snapshot",
@@ -432,11 +434,11 @@ public sealed class InteractionE2eTests
         E2eTestHelpers.AssertFixtureReady(_fixture);
         await ActivateBasicControlsTabAsync();
 
-        var textBoxId = await E2eTestHelpers.FindElementByTypeAsync(
-            _fixture.Client, _fixture.TestAppProcessId, "TextBox");
+        var textBoxId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client, _fixture.TestAppProcessId, "NameTextBox");
 
         textBoxId.Should().NotBeNull(
-            "TestApp should contain at least one TextBox element in its visual tree");
+            "TestApp should expose NameTextBox through the root namescope");
 
         var result = await _fixture.Client.CallToolAsync(
             "simulate_keyboard",

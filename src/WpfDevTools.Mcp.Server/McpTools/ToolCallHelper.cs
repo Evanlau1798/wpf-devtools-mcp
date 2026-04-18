@@ -34,6 +34,13 @@ public static partial class ToolCallHelper
     {
         "get_binding_errors"
     };
+    private static readonly HashSet<string> TimeoutReconnectOptOutTools = new(StringComparer.Ordinal)
+    {
+        "Connect",
+        "GetProcesses",
+        "GetActiveProcess",
+        "SelectActiveProcess"
+    };
     private static MetricsCollector? _metrics;
     private static ToolNavigationPlanner _navigationPlanner = new(new ToolNavigationRegistry());
 
@@ -136,15 +143,34 @@ public static partial class ToolCallHelper
             _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
 
             // Timeout occurred (our CTS was cancelled, but caller's token was not)
-            var timeoutPayload = EnsureNavigation(JsonSerializer.SerializeToElement(new
+            var timeoutRecovery = ResolveTimeoutRecovery(toolName, args);
+            var timeoutPayloadData = new Dictionary<string, object?>
             {
-                success = false,
-                error = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive.",
-                errorCode = "Timeout",
-                toolName,
-                timeoutSeconds = effectiveTimeoutSeconds,
-                suggestedAction = "Check target responsiveness, then retry the tool or reconnect if the session may be stale."
-            }, SerializerOptions), ToolNavigationEnvelope.Empty);
+                ["success"] = false,
+                ["error"] = $"Tool execution timed out after {effectiveTimeoutSeconds} seconds. Target process may be frozen or unresponsive.",
+                ["errorCode"] = "Timeout",
+                ["toolName"] = toolName,
+                ["timeoutSeconds"] = effectiveTimeoutSeconds,
+                ["suggestedAction"] = timeoutRecovery.RequiresReconnect
+                    ? timeoutRecovery.ProcessId is int processId
+                        ? $"Reconnect to process {processId} and retry after confirming the target is responsive."
+                        : "Reconnect and retry after confirming the target is responsive."
+                    : "Check target responsiveness, then retry the tool or reconnect if the session may be stale."
+            };
+
+            if (timeoutRecovery.RequiresReconnect)
+            {
+                timeoutPayloadData["requiresReconnect"] = true;
+            }
+
+            if (timeoutRecovery.ProcessId is int timedOutProcessId)
+            {
+                timeoutPayloadData["processId"] = timedOutProcessId;
+            }
+
+            var timeoutPayload = EnsureNavigation(
+                JsonSerializer.SerializeToElement(timeoutPayloadData, SerializerOptions),
+                ToolNavigationEnvelope.Empty);
             if (!includeNavigation)
             {
                 timeoutPayload = RemoveTopLevelProperties(timeoutPayload, "nextSteps", "navigation");
@@ -446,6 +472,17 @@ public static partial class ToolCallHelper
         }
 
         return processId;
+    }
+
+    private static (bool RequiresReconnect, int? ProcessId) ResolveTimeoutRecovery(string toolName, JsonElement? args)
+    {
+        var processId = TryGetProcessId(args);
+        if (processId is null || TimeoutReconnectOptOutTools.Contains(toolName))
+        {
+            return (false, null);
+        }
+
+        return (true, processId);
     }
 
     private static bool ShouldIncludeNavigation(string toolName, JsonElement? args)

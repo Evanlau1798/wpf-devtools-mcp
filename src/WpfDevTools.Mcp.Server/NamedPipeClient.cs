@@ -381,6 +381,7 @@ public sealed class NamedPipeClient : IDisposable
         CancellationToken cancellationToken)
     {
         await _pipeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var communicationStarted = false;
         try
         {
             // Re-check disposed state after acquiring semaphore
@@ -411,6 +412,7 @@ public sealed class NamedPipeClient : IDisposable
             };
 
             // Serialize and send
+            communicationStarted = true;
             var requestJson = JsonSerializer.Serialize(request, IpcSerializerOptions);
             await MessageFraming.WriteMessageAsync(commStream, requestJson, cancellationToken).ConfigureAwait(false);
 
@@ -434,9 +436,34 @@ public sealed class NamedPipeClient : IDisposable
 
             return response;
         }
-        catch (ObjectDisposedException)
+        catch (OperationCanceledException) when (communicationStarted)
         {
-            throw new InvalidOperationException("Pipe connection was closed during communication");
+            ResetConnectionState();
+            throw;
+        }
+        catch (IOException) when (communicationStarted)
+        {
+            ResetConnectionState();
+            throw;
+        }
+        catch (JsonException ex) when (communicationStarted)
+        {
+            ResetConnectionState();
+            throw new InvalidOperationException("Invalid response from Inspector", ex);
+        }
+        catch (InvalidOperationException) when (communicationStarted)
+        {
+            ResetConnectionState();
+            throw;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            if (communicationStarted)
+            {
+                ResetConnectionState();
+            }
+
+            throw new InvalidOperationException("Pipe connection was closed during communication", ex);
         }
         finally
         {

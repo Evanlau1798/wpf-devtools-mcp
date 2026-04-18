@@ -31,4 +31,31 @@ public class ToolCallHelperTimeoutContractTests
         structured.GetProperty("toolName").GetString().Should().Be("test_timeout_tool");
         structured.GetProperty("suggestedAction").GetString().Should().NotBeNullOrWhiteSpace();
     }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenPipeBackedToolTimesOut_ShouldRequireReconnect()
+    {
+        Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (_, ct) =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), ct);
+            return new { success = true };
+        };
+
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", 1234),
+            ("elementId", "RootWindow"));
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            slowTool,
+            args,
+            CancellationToken.None,
+            timeoutSeconds: 1,
+            toolName: "GetVisualTree");
+
+        result.IsError.Should().BeTrue();
+        var structured = result.StructuredContent!.Value;
+        structured.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        structured.GetProperty("processId").GetInt32().Should().Be(1234);
+        structured.GetProperty("suggestedAction").GetString().Should().ContainEquivalentOf("reconnect");
+    }
 }

@@ -89,7 +89,10 @@ cd wpf-devtools-mcp
 dotnet build
 
 # Build the native bootstrapper required by live bootstrap integration tests
-"C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /m /p:Configuration=Debug /p:Platform=x64 /p:NetHostIncludeDir="C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Host.win-x64\<version>\runtimes\win-x64\native" /p:NetHostLibDir="C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Host.win-x64\<version>\runtimes\win-x64\native"
+# Replace <DOTNET_VERSION> below with your installed .NET host pack version
+# (e.g. 8.0.22). Check available versions under:
+#   C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Host.win-x64\
+"C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj /m /p:Configuration=Debug /p:Platform=x64 /p:NetHostIncludeDir="C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Host.win-x64\<DOTNET_VERSION>\runtimes\win-x64\native" /p:NetHostLibDir="C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Host.win-x64\<DOTNET_VERSION>\runtimes\win-x64\native"
 
 # Run all tests after build (separate step avoids file-lock issues)
 dotnet test --no-build

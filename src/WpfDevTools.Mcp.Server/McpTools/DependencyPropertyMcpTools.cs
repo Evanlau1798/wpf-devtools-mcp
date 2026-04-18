@@ -199,12 +199,12 @@ public static class DependencyPropertyMcpTools
 
     [McpServerTool(Name = "watch_dp_changes", Title = "Watch WPF DependencyProperty Changes", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
-        "STDIO TRANSPORT LIMITATION: registration only. Change events are NOT pushed over STDIO; use wait_for_dp_change or poll get_dp_value_source to observe actual changes.\n\n" +
+        "CURRENT BEHAVIOR: No observable effect over STDIO transport. Registration is stored internally but change events are never delivered to the client. Use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
         "Use this tool to register WPF DependencyProperty watch state before polling for runtime changes.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Register a listener for property value changes. " +
-        "CURRENT STDIO BEHAVIOR: registration-only. Change events are NOT pushed to the client; use get_dp_value_source to poll for changes.\n\n" +
+        "Over STDIO, this is registration-only - events are not pushed.\n\n" +
         "USE WHEN: You are preparing for future push-capable transports, or you explicitly want watch registration state.\n" +
-        "DO NOT USE: Expecting real-time event delivery over STDIO - use polling instead.\n\n" +
+        "DO NOT USE: Expecting real-time event delivery over STDIO - use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -283,7 +283,7 @@ public static class DependencyPropertyMcpTools
         [Description("Optional timeout in milliseconds. Default: 5000.")] int? timeoutMs = null,
         [Description("Optional polling interval in milliseconds. Default: 200.")] int? pollIntervalMs = null,
         [Description("Optional expected property value. Omit to stop on any value change.")] JsonElement? expectedValue = null,
-        [Description("Optional single mutation step, using the same shape as one batch_mutate item. Accepts either a raw JSON object or a stringified JSON object for compatibility. Use this when the client cannot send a concurrent mutation while wait_for_dp_change is running.")] object? triggerMutation = null,
+        [Description("Optional single mutation step as a JSON object, using the same shape as one batch_mutate item: { \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }. Use this when the client cannot send a concurrent mutation while wait_for_dp_change is running.")] JsonElement? triggerMutation = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

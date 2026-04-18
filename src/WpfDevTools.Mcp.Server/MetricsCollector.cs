@@ -58,12 +58,20 @@ public sealed class MetricsCollector
     /// </summary>
     public MetricsSnapshot GetSnapshot()
     {
+        long[] latencyArray;
+        long totalRequests, successCount, errorCount, totalLatency;
+        Dictionary<string, MethodMetricsSnapshot> methodSnapshots;
+
         lock (_lock)
         {
-            var latencyArray = _latencies.GetItems().ToArray();
-            Array.Sort(latencyArray);
+            totalRequests = _totalRequests;
+            successCount = _successCount;
+            errorCount = _errorCount;
+            totalLatency = _totalLatency;
 
-            var methodSnapshots = _methodMetrics.ToDictionary(
+            latencyArray = _latencies.ToArray();
+
+            methodSnapshots = _methodMetrics.ToDictionary(
                 kvp => kvp.Key,
                 kvp => new MethodMetricsSnapshot
                 {
@@ -73,20 +81,23 @@ public sealed class MetricsCollector
                         ? (double)kvp.Value.TotalLatency / kvp.Value.TotalCalls
                         : 0
                 });
-
-            return new MetricsSnapshot
-            {
-                TotalRequests = _totalRequests,
-                SuccessCount = _successCount,
-                ErrorCount = _errorCount,
-                ErrorRate = _totalRequests > 0 ? (double)_errorCount / _totalRequests : 0,
-                AverageLatency = _totalRequests > 0 ? (double)_totalLatency / _totalRequests : 0,
-                P50Latency = CalculatePercentile(latencyArray, 0.50),
-                P95Latency = CalculatePercentile(latencyArray, 0.95),
-                P99Latency = CalculatePercentile(latencyArray, 0.99),
-                MethodMetrics = methodSnapshots
-            };
         }
+
+        // Sort and percentile calculation outside lock to reduce contention
+        Array.Sort(latencyArray);
+
+        return new MetricsSnapshot
+        {
+            TotalRequests = totalRequests,
+            SuccessCount = successCount,
+            ErrorCount = errorCount,
+            ErrorRate = totalRequests > 0 ? (double)errorCount / totalRequests : 0,
+            AverageLatency = totalRequests > 0 ? (double)totalLatency / totalRequests : 0,
+            P50Latency = CalculatePercentile(latencyArray, 0.50),
+            P95Latency = CalculatePercentile(latencyArray, 0.95),
+            P99Latency = CalculatePercentile(latencyArray, 0.99),
+            MethodMetrics = methodSnapshots
+        };
     }
 
     /// <summary>
@@ -165,6 +176,28 @@ public sealed class MetricsCollector
             {
                 yield return _buffer[(start + i) % _buffer.Length];
             }
+        }
+
+        public T[] ToArray()
+        {
+            if (_count == 0)
+                return Array.Empty<T>();
+
+            var result = new T[_count];
+            int start = _count < _buffer.Length ? 0 : _head;
+
+            if (start + _count <= _buffer.Length)
+            {
+                Array.Copy(_buffer, start, result, 0, _count);
+            }
+            else
+            {
+                var firstPart = _buffer.Length - start;
+                Array.Copy(_buffer, start, result, 0, firstPart);
+                Array.Copy(_buffer, 0, result, firstPart, _count - firstPart);
+            }
+
+            return result;
         }
 
         public void Clear()

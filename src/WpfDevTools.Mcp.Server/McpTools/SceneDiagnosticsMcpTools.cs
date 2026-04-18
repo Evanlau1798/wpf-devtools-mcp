@@ -5,6 +5,9 @@ using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
+/// <summary>
+/// MCP SDK wrapper for Scene Diagnostics tools (6 tools).
+/// </summary>
 [McpServerToolType]
 public static class SceneDiagnosticsMcpTools
 {

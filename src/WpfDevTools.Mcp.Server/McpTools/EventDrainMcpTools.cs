@@ -5,6 +5,9 @@ using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
+/// <summary>
+/// MCP SDK wrapper for Event Drain tools (2 tools).
+/// </summary>
 [McpServerToolType]
 public static class EventDrainMcpTools
 {

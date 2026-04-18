@@ -231,6 +231,9 @@ public static class TreeMcpTools
         "  windows: [{ index, title, type, isActive, isVisible, isMainWindow, elementId }]\n" +
         "}\n\n" +
         "NOTE: isActive is a point-in-time focus snapshot and may change between calls; use isVisible/isMainWindow to interpret transient focus timing.\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"pipe disconnected\" -> target app may have closed; reconnect\n\n" +
         "WORKFLOW:\n" +
         "1. Call get_windows to discover all open windows\n" +
         "2. Use the elementId from the desired window as elementId in get_visual_tree, get_logical_tree, etc.\n\n" +
@@ -318,6 +321,7 @@ public static class TreeMcpTools
         "Returns elements present in one tree but not the other.\n\n" +
         "USE WHEN: You need to understand which elements are template-generated vs XAML-defined.\n" +
         "DO NOT USE: On large apps without elementId scope (will be slow).\n\n" +
+        "PERFORMANCE: Scope with elementId for apps with >1000 elements. Full-tree comparison may exceed the tool timeout on complex UIs.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

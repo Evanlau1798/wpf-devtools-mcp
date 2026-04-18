@@ -6,6 +6,9 @@ using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
+/// <summary>
+/// MCP SDK wrapper for Mutation Batch tools (1 tool).
+/// </summary>
 [McpServerToolType]
 public static class MutationBatchMcpTools
 {
@@ -35,11 +38,25 @@ public static class MutationBatchMcpTools
         "SUPPORTED MUTATION TOOLS: modify_viewmodel, set_dp_value, clear_dp_value, execute_command, click_element, fire_routed_event, focus_element, scroll_to_element, simulate_keyboard, override_style_setter, drag_and_drop.\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, mutations: [{ tool: \"modify_viewmodel\", args: { propertyName: \"Name\", value: \"Alice\" } }, { tool: \"modify_viewmodel\", args: { propertyName: \"Age\", value: 30 } }] }\n" +
-        "- { processId: 12345, captureSnapshot: { propertyNames: [\"Text\"], viewModelPropertyNames: [\"Name\"] }, includeDiff: true, mutations: [{ tool: \"modify_viewmodel\", args: { propertyName: \"Name\", value: \"Batch User\" } }] }")]
+        "- { processId: 12345, captureSnapshot: { propertyNames: [\"Text\"], viewModelPropertyNames: [\"Name\"] }, includeDiff: true, mutations: [{ tool: \"modify_viewmodel\", args: { propertyName: \"Name\", value: \"Batch User\" } }] }\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  totalSteps: number,\n" +
+        "  completedSteps: number,\n" +
+        "  results: [{ step: string, success: boolean, error?: string }],\n" +
+        "  snapshotId?: string,\n" +
+        "  diff?: object\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- NoMutations: mutations array is empty or missing.\n" +
+        "- StepFailed: a mutation step returned success=false; completedSteps < totalSteps.\n" +
+        "- SnapshotFailed: captureSnapshot was requested but the snapshot call failed.\n" +
+        "- DiffFailed: includeDiff was true but get_state_diff failed after mutations succeeded.")]
     public static Task<CallToolResult> BatchMutate(
         SessionManager sessionManager,
-        [Description("Mutation steps encoded as a JSON array or a stringified JSON array for compatibility. Each step must include tool and may include label plus args.")] object? mutations = null,
-        [Description("Optional capture_state_snapshot request encoded as a raw JSON object or a stringified JSON object for compatibility. Required when includeDiff=true.")] object? captureSnapshot = null,
+        [Description("Mutation steps as a JSON array. Each step must include tool (string) and may include label (string) plus args (object). Example: [{ \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }]")] JsonElement? mutations = null,
+        [Description("Optional capture_state_snapshot request as a JSON object. Required when includeDiff=true. Example: { \"propertyNames\": [\"Text\"], \"viewModelPropertyNames\": [\"Name\"] }")] JsonElement? captureSnapshot = null,
         [Description("Optional flag to run get_state_diff after all mutations succeed. Requires captureSnapshot.")] bool includeDiff = false,
         [Description("Optional trigger label forwarded to get_state_diff. Defaults to 'batch_mutate'.")] string? trigger = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,

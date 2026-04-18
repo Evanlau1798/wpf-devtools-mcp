@@ -1,5 +1,6 @@
 using System;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace WpfDevTools.Shared.Security;
 
@@ -10,7 +11,7 @@ namespace WpfDevTools.Shared.Security;
 public sealed class ResponseCalculator : IDisposable
 {
     private readonly byte[] _sharedSecret;
-    private volatile bool _isDisposed;
+    private int _disposeState;
 
     /// <summary>
     /// Initializes a new instance of ResponseCalculator
@@ -75,16 +76,15 @@ public sealed class ResponseCalculator : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (_isDisposed)
+        if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
             return;
 
-        _isDisposed = true;
         Array.Clear(_sharedSecret, 0, _sharedSecret.Length);
     }
 
     private void ThrowIfDisposed()
     {
-        if (_isDisposed)
+        if (Volatile.Read(ref _disposeState) != 0)
             throw new ObjectDisposedException(nameof(ResponseCalculator));
     }
 }

@@ -68,6 +68,9 @@ public class FileLoggerTests : IAsyncDisposable
     [Fact]
     public async Task LogDebug_ShouldWriteToFile()
     {
+        // Arrange - lower minimum level to capture debug
+        _logger.MinimumLevel = FileLogLevel.Debug;
+
         // Act
         _logger.LogDebug("Test debug message");
 

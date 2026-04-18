@@ -237,7 +237,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "wait_for_dp_change", Title = "Wait For WPF DependencyProperty Change", OpenWorld = false, ReadOnly = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "wait_for_dp_change", Title = "Wait For WPF DependencyProperty Change", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to wait for a WPF DependencyProperty to change over a bounded polling window.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Wait for a DependencyProperty change using polling. " +

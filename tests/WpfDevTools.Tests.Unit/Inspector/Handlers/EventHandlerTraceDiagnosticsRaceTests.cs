@@ -20,20 +20,20 @@ public sealed class EventHandlerTraceDiagnosticsRaceTests
         var traceResult = new
         {
             success = true,
+            sessionId = "trace-session-1",
+            activeEventName = "Click",
+            resolvedElementId = "Button_1",
+            resolvedElementType = "Button",
+            traceStartedAtUtc = DateTimeOffset.UtcNow.AddMilliseconds(-600),
+            effectiveDurationMs = 100,
+            registrationCount = 1,
             eventCount = 0,
             isTracing = true,
             events = Array.Empty<object>(),
             handlerInvocationCount = 0
         };
-        var metadata = new TraceSessionMetadata(
-            EventName: "Click",
-            ElementId: "Button_1",
-            StartedAtUtc: DateTimeOffset.UtcNow.AddMilliseconds(-600),
-            EffectiveDurationMs: 100,
-            RegistrationCount: 1,
-            ResolvedElementType: "Button");
 
-        var diagnostics = method!.Invoke(null, [traceResult, metadata, null]);
+        var diagnostics = method!.Invoke(null, [traceResult, null]);
 
         var payload = JsonSerializer.SerializeToElement(diagnostics);
         payload.GetProperty("reasonCode").GetString().Should().Be("eventNotRaised");

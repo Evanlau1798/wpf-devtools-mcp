@@ -141,7 +141,8 @@ public sealed class EventHandlersContractTests : IDisposable
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().BeOneOf(
             "captureWindowTooShort",
             "eventNotRaised",
-            "filterMismatch");
+            "filterMismatch",
+            "cleanupFailed");
     }
 
     private sealed class TestRelayCommand : System.Windows.Input.ICommand

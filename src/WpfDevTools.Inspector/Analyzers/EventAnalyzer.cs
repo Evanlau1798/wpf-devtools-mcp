@@ -1,6 +1,8 @@
+using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Threading;
 using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 
@@ -10,34 +12,96 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes and traces WPF RoutedEvents
 /// </summary>
-public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
+public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
 {
+    internal sealed record TraceSessionHandle(CancellationTokenSource TokenSource, TraceSessionMetadata Metadata);
+
+    internal sealed record TraceStartOutcome(object Result, TraceSessionHandle? Session);
+
     private readonly ElementFinder _elementFinder;
     private readonly WatchEventBuffer? _watchEventBuffer;
+    private readonly Func<Dispatcher?, Action, Exception?>? _cleanupInvoker;
+    private readonly Action<UIElement, RoutedEvent, RoutedEventHandler, string, List<HandlerRegistration>>? _registrationInvoker;
     private readonly object _lock = new object();
     private readonly List<object> _eventTrace = new List<object>();
+    private readonly Dictionary<string, CompletedTraceSnapshot> _completedTraceSnapshots = new Dictionary<string, CompletedTraceSnapshot>();
+    private readonly Queue<string> _completedTraceSnapshotOrder = new Queue<string>();
     private const int MaxEventTraceEntries = 10000;
+    private const int MaxCompletedTraceSnapshots = 16;
     private bool _isTracing;
     private CancellationTokenSource? _tracingCts;
     private ActiveTraceSession? _activeTraceSession;
     private TraceSessionMetadata? _lastTraceMetadata;
+    private TraceCleanupFailure? _lastTraceCleanupFailure;
     private int _handlerInvocationCount;
+    private bool _isTraceAcceptingEvents;
+    private bool _isCleanupInProgress;
+    private Dispatcher? _cleanupTransitionDispatcher;
+    private bool _isStartTransitionInProgress;
+    private Dispatcher? _startTransitionDispatcher;
+    private bool _cancelStartTransitionRequested;
 
     /// <summary>
     /// Create a new EventAnalyzer instance
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public EventAnalyzer(ElementFinder elementFinder)
-        : this(elementFinder, null)
+        : this(elementFinder, null, null)
     {
     }
 
     internal EventAnalyzer(
         ElementFinder elementFinder,
-        WatchEventBuffer? watchEventBuffer)
+        WatchEventBuffer? watchEventBuffer,
+        Func<Dispatcher?, Action, Exception?>? cleanupInvoker = null,
+        Action<UIElement, RoutedEvent, RoutedEventHandler, string, List<HandlerRegistration>>? registrationInvoker = null)
     {
         _elementFinder = elementFinder;
         _watchEventBuffer = watchEventBuffer;
+        _cleanupInvoker = cleanupInvoker;
+        _registrationInvoker = registrationInvoker;
+    }
+
+    /// <summary>
+    /// Stops any active trace session and unregisters its handlers.
+    /// </summary>
+    public void Dispose()
+    {
+        if (CleanupActiveTraceSession(out var cleanupException))
+        {
+            return;
+        }
+
+        if (IsStartTransitionInProgressException(cleanupException))
+        {
+            CancelPendingTraceStart();
+            if (WaitForStartTransitionCompletion(TimeSpan.FromSeconds(1))
+                && CleanupActiveTraceSession(out cleanupException))
+            {
+                return;
+            }
+
+            cleanupException ??= new TimeoutException("Timed out waiting for routed event trace startup cancellation to complete during dispose.");
+        }
+
+        if (IsCleanupInProgressException(cleanupException)
+            && WaitForCleanupCompletion(TimeSpan.FromSeconds(1))
+            && CleanupActiveTraceSession(out cleanupException))
+        {
+            return;
+        }
+
+        if (cleanupException != null)
+        {
+            LogCleanupFailure(cleanupException);
+            if (ShouldAbandonActiveTraceSessionAfterDisposeFailure(cleanupException))
+            {
+                AbandonActiveTraceSession();
+                return;
+            }
+
+            ExceptionDispatchInfo.Capture(cleanupException).Throw();
+        }
     }
 
     /// <summary>
@@ -45,9 +109,25 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object TraceRoutedEvents(string? elementId, string eventName, int duration)
     {
+        return StartTraceRoutedEvents(elementId, eventName, duration, scheduleAutoStop: true).Result;
+    }
+
+    internal TraceStartOutcome StartTraceRoutedEvents(
+        string? elementId,
+        string eventName,
+        int duration,
+        bool scheduleAutoStop = true)
+    {
+        if (duration < 0)
+        {
+            return new TraceStartOutcome(
+                ToolErrorFactory.InvalidArgument("duration must be non-negative", "duration"),
+                null);
+        }
+
         var cappedDuration = Math.Min(duration, 60000); // Max 60 seconds
 
-        return InvokeOnUIThread<object>(() =>
+        return InvokeOnUIThread(() =>
         {
             var element = elementId == null
                 ? _elementFinder.GetRootElement()
@@ -55,64 +135,163 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
 
             if (element == null)
             {
-                return ToolErrorFactory.ElementNotFound(elementId);
+                return new TraceStartOutcome(ToolErrorFactory.ElementNotFound(elementId), null);
             }
 
             if (element is not UIElement uiElement)
             {
-                return ToolErrorFactory.InvalidArgument(
-                    "Element is not a UIElement",
-                    "Choose a UIElement target from get_visual_tree before tracing routed events.");
+                return new TraceStartOutcome(
+                    ToolErrorFactory.InvalidArgument(
+                        "Element is not a UIElement",
+                        "Choose a UIElement target from get_visual_tree before tracing routed events."),
+                    null);
             }
 
             var routedEvent = FindRoutedEvent(uiElement, eventName);
             if (routedEvent == null)
             {
                 var availableEvents = RoutedEventDiscovery.EnumerateAvailableRoutedEvents(uiElement.GetType());
-                return ToolErrorFactory.EventNotFound(eventName, availableEvents);
+                return new TraceStartOutcome(ToolErrorFactory.EventNotFound(eventName, availableEvents), null);
             }
 
-            CleanupPreviousSession();
+            lock (_lock)
+            {
+                if (_activeTraceSession == null && _isTracing)
+                {
+                    return new TraceStartOutcome(
+                        ToolErrorFactory.OperationFailed(
+                            "start routed event trace",
+                            new InvalidOperationException("Another routed event trace transition is still in progress."),
+                            "Wait for the current trace cleanup or startup transition to finish, then retry."),
+                        null);
+                }
+            }
+
+            if (!CleanupPreviousSession(out var cleanupException))
+            {
+                return new TraceStartOutcome(
+                    ToolErrorFactory.OperationFailed(
+                        "stop existing event trace",
+                        cleanupException ?? new InvalidOperationException("Previous trace cleanup is still pending."),
+                        "Wait for the target UI thread to become responsive, then retry starting routed event tracing."),
+                    null);
+            }
 
             CancellationTokenSource localCts;
             lock (_lock)
             {
                 _eventTrace.Clear();
+                _lastTraceMetadata = null;
                 _isTracing = true;
+                _isTraceAcceptingEvents = false;
+                _isStartTransitionInProgress = true;
+                _cancelStartTransitionRequested = false;
                 _handlerInvocationCount = 0;
+                _lastTraceCleanupFailure = null;
                 _tracingCts = new CancellationTokenSource();
                 localCts = _tracingCts;
                 _activeTraceSession = null;
+                _startTransitionDispatcher = uiElement.Dispatcher;
             }
 
-            // Build handler and register on multiple points for robustness
-            var traceElementId = elementId ?? _elementFinder.GenerateElementId(uiElement);
-            var handler = CreateTraceHandler(traceElementId);
-            var registrations = RegisterTraceHandlers(uiElement, routedEvent, handler, eventName);
-            var traceMetadata = new TraceSessionMetadata(
-                eventName,
-                traceElementId,
-                DateTimeOffset.UtcNow,
-                cappedDuration,
-                registrations.Count,
-                uiElement.GetType().Name);
+            var registrations = new List<HandlerRegistration>();
 
-            lock (_lock)
+            try
             {
-                _lastTraceMetadata = traceMetadata;
-                _activeTraceSession = new ActiveTraceSession(registrations, localCts, traceMetadata);
+                // Build handler and register on multiple points for robustness
+                var traceElementId = elementId ?? _elementFinder.GenerateElementId(uiElement);
+                var traceSessionId = Guid.NewGuid().ToString("N");
+                var handler = CreateTraceHandler(traceElementId, traceSessionId);
+                if (_registrationInvoker != null)
+                {
+                    _registrationInvoker(uiElement, routedEvent, handler, eventName, registrations);
+                }
+                else
+                {
+                    RegisterTraceHandlers(uiElement, routedEvent, handler, eventName, registrations);
+                }
+
+                if (localCts.IsCancellationRequested)
+                {
+                    return AbortPendingTraceStart(registrations, localCts);
+                }
+
+                var traceMetadata = new TraceSessionMetadata(
+                    traceSessionId,
+                    eventName,
+                    traceElementId,
+                    DateTimeOffset.UtcNow,
+                    cappedDuration,
+                    registrations.Count,
+                    uiElement.GetType().Name);
+                var sessionHandle = new TraceSessionHandle(localCts, traceMetadata);
+                var canceledBeforeCommit = false;
+
+                lock (_lock)
+                {
+                    canceledBeforeCommit = _cancelStartTransitionRequested || localCts.IsCancellationRequested;
+                    if (!canceledBeforeCommit)
+                    {
+                        _lastTraceMetadata = traceMetadata;
+                        _activeTraceSession = new ActiveTraceSession(registrations, localCts, traceMetadata);
+                        _isTraceAcceptingEvents = true;
+                    }
+
+                    _isStartTransitionInProgress = false;
+                    _startTransitionDispatcher = null;
+                    _cancelStartTransitionRequested = false;
+                }
+
+                if (canceledBeforeCommit)
+                {
+                    return AbortPendingTraceStart(registrations, localCts);
+                }
+
+                if (scheduleAutoStop)
+                {
+                    ScheduleAutoStop(sessionHandle, cappedDuration);
+                }
+
+                return new TraceStartOutcome(
+                    new
+                    {
+                        success = true,
+                        message = $"Started tracing '{eventName}' for {cappedDuration}ms",
+                        eventName,
+                        duration = cappedDuration,
+                        registrationCount = registrations.Count
+                    },
+                    sessionHandle);
             }
-
-            ScheduleAutoStop(localCts, cappedDuration);
-
-            return new
+            catch (Exception ex)
             {
-                success = true,
-                message = $"Started tracing '{eventName}' for {cappedDuration}ms",
-                eventName,
-                duration = cappedDuration,
-                registrationCount = registrations.Count
-            };
+                TryRollbackPartialRegistrations(registrations);
+                lock (_lock)
+                {
+                    if (ReferenceEquals(_tracingCts, localCts))
+                    {
+                        _tracingCts = null;
+                    }
+
+                    _activeTraceSession = null;
+                    _isTracing = false;
+                    _isTraceAcceptingEvents = false;
+                    _isStartTransitionInProgress = false;
+                    _startTransitionDispatcher = null;
+                    _cancelStartTransitionRequested = false;
+                    _handlerInvocationCount = 0;
+                    _eventTrace.Clear();
+                }
+
+                localCts.Dispose();
+
+                return new TraceStartOutcome(
+                    ToolErrorFactory.OperationFailed(
+                        "start routed event trace",
+                        ex,
+                        "Verify the target UI thread is responsive and retry tracing."),
+                    null);
+            }
         });
     }
 
@@ -121,25 +300,44 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object GetEventTrace(string? requestedEventName = null)
     {
-        lock (_lock)
-        {
-            var events = GetTraceSnapshotEvents(requestedEventName);
-            return new
-            {
-                success = true,
-                isTracing = _isTracing,
-                eventCount = events.Count,
-                events,
-                handlerInvocationCount = _handlerInvocationCount
-            };
-        }
+        return GetEventTrace(null, requestedEventName);
     }
 
-    internal TraceSessionMetadata? GetLatestTraceMetadata()
+    internal object GetEventTrace(TraceSessionHandle? requestedSession, string? requestedEventName = null)
     {
         lock (_lock)
         {
-            return _lastTraceMetadata;
+            var isActiveSession = requestedSession == null
+                ? _activeTraceSession != null
+                : _activeTraceSession != null
+                    && ReferenceEquals(_activeTraceSession.TokenSource, requestedSession.TokenSource)
+                    && ReferenceEquals(_activeTraceSession.Metadata, requestedSession.Metadata);
+            var isCurrentSession = isActiveSession && _isTracing && _isTraceAcceptingEvents;
+            var traceMetadata = requestedSession?.Metadata ?? _lastTraceMetadata;
+            var requestedEventMatches = IsRequestedEventMatch(traceMetadata, requestedEventName);
+            var completedSnapshot = ResolveCompletedSnapshot(requestedSession, requestedEventName);
+            var cleanupFailure = ResolveCleanupFailure(requestedSession, traceMetadata);
+            var events = GetTraceSnapshotEvents(requestedSession, requestedEventName);
+            return new
+            {
+                success = true,
+                sessionId = traceMetadata?.SessionId,
+                activeEventName = traceMetadata?.EventName,
+                resolvedElementId = traceMetadata?.ElementId,
+                resolvedElementType = traceMetadata?.ResolvedElementType,
+                traceStartedAtUtc = traceMetadata?.StartedAtUtc,
+                effectiveDurationMs = traceMetadata?.EffectiveDurationMs ?? 0,
+                registrationCount = traceMetadata?.RegistrationCount ?? 0,
+                isTracing = isCurrentSession,
+                eventCount = completedSnapshot?.Events.Count ?? events.Count,
+                events = completedSnapshot?.Events ?? events,
+                handlerInvocationCount = isActiveSession && requestedEventMatches
+                    ? _handlerInvocationCount
+                    : completedSnapshot?.HandlerInvocationCount ?? 0,
+                cleanupFailed = cleanupFailure != null,
+                cleanupFailureMessage = cleanupFailure?.Message,
+                cleanupFailureType = cleanupFailure?.ExceptionType
+            };
         }
     }
 
@@ -252,15 +450,15 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    private RoutedEventHandler CreateTraceHandler(string tracedElementId)
+    private RoutedEventHandler CreateTraceHandler(string tracedElementId, string traceSessionId)
     {
         return (sender, e) =>
         {
             lock (_lock)
             {
-                _handlerInvocationCount++;
-                if (_isTracing)
+                if (_isTraceAcceptingEvents)
                 {
+                    _handlerInvocationCount++;
                     var senderType = sender?.GetType().Name;
                     var senderName = (sender as FrameworkElement)?.Name;
                     var routingStrategy = e.RoutedEvent.RoutingStrategy.ToString();
@@ -286,7 +484,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
                         senderName,
                         routingStrategy,
                         originalSourceType,
-                        $"event:{tracedElementId}:{e.RoutedEvent.Name}:{_handlerInvocationCount}");
+                        $"event:{traceSessionId}:{tracedElementId}:{e.RoutedEvent.Name}:{_handlerInvocationCount}");
 
                     // Trim oldest entries if over limit
                     if (_eventTrace.Count > MaxEventTraceEntries)
@@ -298,42 +496,47 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
         };
     }
 
-    private static List<HandlerRegistration> RegisterTraceHandlers(
+    private static void RegisterTraceHandlers(
         UIElement targetElement,
         RoutedEvent routedEvent,
         RoutedEventHandler handler,
-        string eventName)
+        string eventName,
+        List<HandlerRegistration> registrations)
     {
-        var registrations = new List<HandlerRegistration>();
-
-        // 1. Register on the target element
-        targetElement.AddHandler(routedEvent, handler, handledEventsToo: true);
-        registrations.Add(new HandlerRegistration(targetElement, routedEvent, handler));
-
-        // 2. Register on root window for bubble/tunnel capture
         try
         {
-            var rootWindow = Window.GetWindow(targetElement);
-            if (rootWindow != null && !ReferenceEquals(rootWindow, targetElement))
+            // 1. Register on the target element
+            targetElement.AddHandler(routedEvent, handler, handledEventsToo: true);
+            registrations.Add(new HandlerRegistration(targetElement, routedEvent, handler));
+
+            // 2. Register on root window for bubble/tunnel capture
+            try
             {
-                rootWindow.AddHandler(routedEvent, handler, handledEventsToo: true);
-                registrations.Add(new HandlerRegistration(rootWindow, routedEvent, handler));
+                var rootWindow = Window.GetWindow(targetElement);
+                if (rootWindow != null && !ReferenceEquals(rootWindow, targetElement))
+                {
+                    rootWindow.AddHandler(routedEvent, handler, handledEventsToo: true);
+                    registrations.Add(new HandlerRegistration(rootWindow, routedEvent, handler));
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Window.GetWindow may fail with cross-thread access; safe to skip
+            }
+
+            // 3. Try to find and register the Preview (tunneling) variant
+            var previewEvent = FindPreviewRoutedEvent(targetElement, eventName);
+            if (previewEvent != null)
+            {
+                targetElement.AddHandler(previewEvent, handler, handledEventsToo: true);
+                registrations.Add(new HandlerRegistration(targetElement, previewEvent, handler));
             }
         }
-        catch (InvalidOperationException)
+        catch
         {
-            // Window.GetWindow may fail with cross-thread access; safe to skip
+            TryRollbackPartialRegistrations(registrations);
+            throw;
         }
-
-        // 3. Try to find and register the Preview (tunneling) variant
-        var previewEvent = FindPreviewRoutedEvent(targetElement, eventName);
-        if (previewEvent != null)
-        {
-            targetElement.AddHandler(previewEvent, handler, handledEventsToo: true);
-            registrations.Add(new HandlerRegistration(targetElement, previewEvent, handler));
-        }
-
-        return registrations;
     }
 
     private static RoutedEvent? FindPreviewRoutedEvent(UIElement element, string eventName)
@@ -346,58 +549,642 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase
         return RoutedEventDiscovery.FindRoutedEvent(element.GetType(), "Preview" + eventName);
     }
 
-    private void CleanupPreviousSession()
+    private bool CleanupPreviousSession(out Exception? cleanupException)
     {
-        ActiveTraceSession? previousSession;
+        return CleanupTraceSessionCore(null, out cleanupException);
+    }
+
+    internal bool CleanupActiveTraceSession(out Exception? cleanupException)
+    {
+        return CleanupTraceSessionCore(null, out cleanupException);
+    }
+
+    internal bool CleanupTraceSession(TraceSessionHandle expectedSession, out Exception? cleanupException)
+    {
+        return CleanupTraceSessionCore(expectedSession, out cleanupException);
+    }
+
+    private bool CleanupTraceSessionCore(TraceSessionHandle? expectedSession, out Exception? cleanupException)
+    {
+        ActiveTraceSession? sessionToClean = null;
+        CompletedTraceSnapshot? completedSnapshot = null;
+        cleanupException = null;
+
         lock (_lock)
         {
-            previousSession = _activeTraceSession;
-            if (previousSession != null)
+            if (_activeTraceSession == null)
             {
-                previousSession.TokenSource.Cancel();
-                previousSession.TokenSource.Dispose();
-                _activeTraceSession = null;
+                if (_isStartTransitionInProgress)
+                {
+                    cleanupException = new InvalidOperationException("Routed event trace startup is still in progress.");
+                    return false;
+                }
+
+                return true;
             }
+
+            if (_isCleanupInProgress)
+            {
+                cleanupException = new InvalidOperationException("Routed event trace cleanup is already in progress.");
+                return false;
+            }
+
+            if (expectedSession != null
+                && (!ReferenceEquals(_activeTraceSession.TokenSource, expectedSession.TokenSource)
+                    || !ReferenceEquals(_activeTraceSession.Metadata, expectedSession.Metadata)))
+            {
+                return true;
+            }
+
+            sessionToClean = _activeTraceSession;
+            _isCleanupInProgress = true;
+            _isTraceAcceptingEvents = false;
+            _cleanupTransitionDispatcher = sessionToClean.Registrations.Count > 0
+                ? sessionToClean.Registrations[0].Element.Dispatcher
+                : Application.Current?.Dispatcher;
+            completedSnapshot = new CompletedTraceSnapshot(_eventTrace.ToList(), _handlerInvocationCount);
         }
 
-        if (previousSession != null)
+        var removalSucceeded = TryCancelAndRemoveTraceSession(sessionToClean, out cleanupException);
+
+        lock (_lock)
         {
-            RemoveAllHandlers(previousSession.Registrations);
+            if (removalSucceeded)
+            {
+                StoreCompletedSnapshot(sessionToClean.Metadata.SessionId, completedSnapshot);
+                if (_lastTraceCleanupFailure != null
+                    && string.Equals(_lastTraceCleanupFailure.SessionId, sessionToClean.Metadata.SessionId, StringComparison.Ordinal))
+                {
+                    _lastTraceCleanupFailure = null;
+                }
+
+                if (ReferenceEquals(_activeTraceSession, sessionToClean))
+                {
+                    _activeTraceSession = null;
+                }
+
+                if (ReferenceEquals(_tracingCts, sessionToClean.TokenSource))
+                {
+                    _tracingCts = null;
+                }
+
+                if (_activeTraceSession == null)
+                {
+                    _isTracing = false;
+                    _isTraceAcceptingEvents = false;
+                    _isStartTransitionInProgress = false;
+                    _startTransitionDispatcher = null;
+                }
+
+                _isCleanupInProgress = false;
+                _cleanupTransitionDispatcher = null;
+
+                return true;
+            }
+
+            _lastTraceCleanupFailure = new TraceCleanupFailure(
+                sessionToClean.Metadata.SessionId,
+                sessionToClean.Metadata.EventName,
+                cleanupException?.GetType().Name ?? nameof(InvalidOperationException),
+                cleanupException?.Message ?? "Routed event trace cleanup failed.");
+
+            _isCleanupInProgress = false;
+            _cleanupTransitionDispatcher = null;
+            _isTracing = true;
+            _isTraceAcceptingEvents = false;
+
+            return false;
+        }
+    }
+
+    private bool TryCancelAndRemoveTraceSession(ActiveTraceSession session, out Exception? cleanupException)
+    {
+        cleanupException = null;
+
+        try
+        {
+            session.TokenSource.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        var dispatcher = session.Registrations.Count > 0
+            ? session.Registrations[0].Element.Dispatcher
+            : Application.Current?.Dispatcher;
+
+        try
+        {
+            if (_cleanupInvoker != null)
+            {
+                cleanupException = _cleanupInvoker(dispatcher, () => RemoveAllHandlers(session.Registrations));
+                if (cleanupException != null)
+                {
+                    LogCleanupFailure(cleanupException);
+                    if (ShouldTreatAsTerminalCleanup(dispatcher, cleanupException))
+                    {
+                        session.TokenSource.Dispose();
+                        cleanupException = null;
+                        return true;
+                    }
+
+                    return false;
+                }
+            }
+            else
+            {
+                InvokeOnDispatcher(dispatcher, () => RemoveAllHandlers(session.Registrations));
+            }
+
+            session.TokenSource.Dispose();
+            return true;
+        }
+        catch (TimeoutException ex)
+        {
+            cleanupException = ex;
+            LogCleanupFailure(ex);
+            return false;
+        }
+        catch (InvalidOperationException ex)
+        {
+            cleanupException = ex;
+            LogCleanupFailure(ex);
+            if (ShouldTreatAsTerminalCleanup(dispatcher, ex))
+            {
+                session.TokenSource.Dispose();
+                cleanupException = null;
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            cleanupException = ex;
+            LogCleanupFailure(ex);
+            if (ShouldTreatAsTerminalCleanup(dispatcher, ex))
+            {
+                session.TokenSource.Dispose();
+                cleanupException = null;
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    private static bool ShouldTreatAsTerminalCleanup(Dispatcher? dispatcher, Exception exception)
+    {
+        if (dispatcher?.HasShutdownStarted == true || dispatcher?.HasShutdownFinished == true)
+        {
+            return true;
+        }
+
+        if (exception is AggregateException aggregateException)
+        {
+            return aggregateException.InnerExceptions.Count > 0
+                && aggregateException.InnerExceptions.All(inner => ShouldTreatAsTerminalCleanup(dispatcher, inner));
+        }
+
+        if (exception is InvalidOperationException invalidOperationException)
+        {
+            return IsDispatcherShutdownMessage(invalidOperationException.Message)
+                || (invalidOperationException.InnerException != null
+                    && ShouldTreatAsTerminalCleanup(dispatcher, invalidOperationException.InnerException));
+        }
+
+        if (exception is ObjectDisposedException)
+        {
+            return true;
+        }
+
+        if (exception.InnerException != null)
+        {
+            return ShouldTreatAsTerminalCleanup(dispatcher, exception.InnerException);
+        }
+
+        return false;
+    }
+
+    private static bool IsDispatcherShutdownMessage(string? message)
+    {
+        return !string.IsNullOrWhiteSpace(message)
+            && message.Contains("dispatcher", StringComparison.OrdinalIgnoreCase)
+            && (message.Contains("shut down", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("shutdown", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("unavailable", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void LogCleanupFailure(Exception exception)
+    {
+        switch (exception)
+        {
+            case TimeoutException timeoutException:
+                System.Diagnostics.Trace.TraceWarning($"Timed out while removing routed event trace handlers: {timeoutException.Message}");
+                break;
+            case InvalidOperationException invalidOperationException:
+                System.Diagnostics.Trace.TraceWarning($"Skipped routed event trace handler removal because the dispatcher was unavailable during teardown: {invalidOperationException.Message}");
+                break;
+            default:
+                System.Diagnostics.Trace.TraceError($"Unexpected failure while removing routed event trace handlers during teardown: {exception}");
+                break;
         }
     }
 
     private static void RemoveAllHandlers(List<HandlerRegistration> registrations)
     {
+        List<Exception>? failures = null;
+
         foreach (var reg in registrations)
         {
             try
             {
                 reg.Element.RemoveHandler(reg.RoutedEvent, reg.Handler);
             }
-            catch
+            catch (Exception ex)
             {
-                // Element may have been disposed; safe to ignore
+                failures ??= new List<Exception>();
+                failures.Add(new InvalidOperationException(
+                    $"Failed to remove routed event handler '{reg.RoutedEvent.Name}' from '{reg.Element.GetType().Name}'.",
+                    ex));
             }
+        }
+
+        if (failures is { Count: > 0 })
+        {
+            throw new AggregateException("One or more routed event trace handlers could not be removed.", failures);
         }
     }
 
-    private void ScheduleAutoStop(CancellationTokenSource localCts, int cappedDuration)
+    private CompletedTraceSnapshot? ResolveCompletedSnapshot(TraceSessionHandle? requestedSession, string? requestedEventName)
     {
-        Task.Delay(cappedDuration, localCts.Token).ContinueWith(_ =>
+        var traceMetadata = requestedSession?.Metadata ?? _lastTraceMetadata;
+        if (!IsRequestedEventMatch(traceMetadata, requestedEventName))
         {
-            InvokeOnUIThread(() =>
+            return null;
+        }
+
+        if (requestedSession != null)
+        {
+            return _completedTraceSnapshots.TryGetValue(requestedSession.Metadata.SessionId, out var requestedSnapshot)
+                ? requestedSnapshot
+                : null;
+        }
+
+        return _lastTraceMetadata != null
+            && _completedTraceSnapshots.TryGetValue(_lastTraceMetadata.SessionId, out var latestSnapshot)
+                ? latestSnapshot
+                : null;
+    }
+
+    private TraceCleanupFailure? ResolveCleanupFailure(
+        TraceSessionHandle? requestedSession,
+        TraceSessionMetadata? traceMetadata)
+    {
+        if (_lastTraceCleanupFailure == null || traceMetadata == null)
+        {
+            return null;
+        }
+
+        return string.Equals(_lastTraceCleanupFailure.SessionId, traceMetadata.SessionId, StringComparison.Ordinal)
+            ? _lastTraceCleanupFailure
+            : null;
+    }
+
+    private static bool IsRequestedEventMatch(TraceSessionMetadata? traceMetadata, string? requestedEventName)
+    {
+        return string.IsNullOrWhiteSpace(requestedEventName)
+            || traceMetadata == null
+            || string.Equals(requestedEventName, traceMetadata.EventName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void AbandonActiveTraceSession()
+    {
+        CancellationTokenSource? tokenSourceToDispose = null;
+
+        lock (_lock)
+        {
+            if (_activeTraceSession != null)
+            {
+                tokenSourceToDispose = _activeTraceSession.TokenSource;
+            }
+
+            _activeTraceSession = null;
+            _tracingCts = null;
+            _lastTraceCleanupFailure = null;
+            _isTracing = false;
+            _isTraceAcceptingEvents = false;
+            _isCleanupInProgress = false;
+            _cleanupTransitionDispatcher = null;
+        }
+
+        if (tokenSourceToDispose != null)
+        {
+            try
+            {
+                tokenSourceToDispose.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            tokenSourceToDispose.Dispose();
+        }
+    }
+
+    private void AbandonPendingStartTransition()
+    {
+        CancellationTokenSource? tokenSourceToDispose = null;
+
+        lock (_lock)
+        {
+            tokenSourceToDispose = _tracingCts;
+            _tracingCts = null;
+            _activeTraceSession = null;
+            _lastTraceCleanupFailure = null;
+            _isTracing = false;
+            _isTraceAcceptingEvents = false;
+            _isStartTransitionInProgress = false;
+            _startTransitionDispatcher = null;
+            _cancelStartTransitionRequested = false;
+        }
+
+        if (tokenSourceToDispose != null)
+        {
+            try
+            {
+                tokenSourceToDispose.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            tokenSourceToDispose.Dispose();
+        }
+    }
+
+    private static bool IsCleanupInProgressException(Exception? exception)
+    {
+        return exception is InvalidOperationException invalidOperationException
+            && string.Equals(
+                invalidOperationException.Message,
+                "Routed event trace cleanup is already in progress.",
+                StringComparison.Ordinal);
+    }
+
+    private static bool IsStartTransitionInProgressException(Exception? exception)
+    {
+        return exception is InvalidOperationException invalidOperationException
+            && string.Equals(
+                invalidOperationException.Message,
+                "Routed event trace startup is still in progress.",
+                StringComparison.Ordinal);
+    }
+
+    private bool ShouldAbandonActiveTraceSessionAfterDisposeFailure(Exception cleanupException)
+    {
+        ActiveTraceSession? activeTraceSession;
+        lock (_lock)
+        {
+            activeTraceSession = _activeTraceSession;
+        }
+
+        if (activeTraceSession == null)
+        {
+            return true;
+        }
+
+        var dispatcher = activeTraceSession.Registrations.Count > 0
+            ? activeTraceSession.Registrations[0].Element.Dispatcher
+            : Application.Current?.Dispatcher;
+        return ShouldTreatAsTerminalCleanup(dispatcher, cleanupException);
+    }
+
+    private void CancelPendingTraceStart()
+    {
+        CancellationTokenSource? tokenSource;
+
+        lock (_lock)
+        {
+            if (_isStartTransitionInProgress)
+            {
+                _cancelStartTransitionRequested = true;
+                tokenSource = _tracingCts;
+            }
+            else
+            {
+                tokenSource = null;
+            }
+        }
+
+        if (tokenSource == null)
+        {
+            return;
+        }
+
+        try
+        {
+            tokenSource.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private TraceStartOutcome AbortPendingTraceStart(
+        List<HandlerRegistration> registrations,
+        CancellationTokenSource localCts)
+    {
+        TryRollbackPartialRegistrations(registrations);
+        lock (_lock)
+        {
+            if (ReferenceEquals(_tracingCts, localCts))
+            {
+                _tracingCts = null;
+            }
+
+            _activeTraceSession = null;
+            _isTracing = false;
+            _isTraceAcceptingEvents = false;
+            _isStartTransitionInProgress = false;
+            _startTransitionDispatcher = null;
+            _cancelStartTransitionRequested = false;
+        }
+
+        localCts.Dispose();
+
+        return new TraceStartOutcome(
+            ToolErrorFactory.OperationFailed(
+                "start routed event trace",
+                new OperationCanceledException("Routed event trace startup was canceled before activation."),
+                "Retry tracing after the current shutdown or cleanup finishes."),
+            null);
+    }
+
+    private bool WaitForStartTransitionCompletion(TimeSpan timeout)
+    {
+        Dispatcher? transitionDispatcher;
+        lock (_lock)
+        {
+            transitionDispatcher = _startTransitionDispatcher;
+        }
+
+        if (transitionDispatcher != null && transitionDispatcher.CheckAccess())
+        {
+            var deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline)
             {
                 lock (_lock)
                 {
-                    if (_activeTraceSession != null &&
-                        ReferenceEquals(_activeTraceSession.TokenSource, localCts))
+                    if (!_isStartTransitionInProgress)
                     {
-                        RemoveAllHandlers(_activeTraceSession.Registrations);
-                        _activeTraceSession = null;
-                        _isTracing = false;
+                        return true;
                     }
                 }
-            });
+
+                if (transitionDispatcher.HasShutdownStarted || transitionDispatcher.HasShutdownFinished)
+                {
+                    AbandonPendingStartTransition();
+                    return true;
+                }
+
+                try
+                {
+                    var frame = new DispatcherFrame();
+                    _ = transitionDispatcher.BeginInvoke(
+                        DispatcherPriority.Background,
+                        new Action(() => frame.Continue = false));
+                    Dispatcher.PushFrame(frame);
+                }
+                catch (InvalidOperationException ex) when (ShouldTreatAsTerminalCleanup(transitionDispatcher, ex))
+                {
+                    AbandonPendingStartTransition();
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        var waitUntil = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < waitUntil)
+        {
+            lock (_lock)
+            {
+                if (!_isStartTransitionInProgress)
+                {
+                    return true;
+                }
+            }
+
+            if (transitionDispatcher?.HasShutdownStarted == true || transitionDispatcher?.HasShutdownFinished == true)
+            {
+                AbandonPendingStartTransition();
+                return true;
+            }
+
+            Thread.Sleep(10);
+        }
+
+        return false;
+    }
+
+    private bool WaitForCleanupCompletion(TimeSpan timeout)
+    {
+        Dispatcher? cleanupDispatcher;
+        lock (_lock)
+        {
+            cleanupDispatcher = _cleanupTransitionDispatcher;
+        }
+
+        if (cleanupDispatcher != null && cleanupDispatcher.CheckAccess())
+        {
+            var deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline)
+            {
+                lock (_lock)
+                {
+                    if (!_isCleanupInProgress)
+                    {
+                        return true;
+                    }
+                }
+
+                if (cleanupDispatcher.HasShutdownStarted || cleanupDispatcher.HasShutdownFinished)
+                {
+                    AbandonActiveTraceSession();
+                    return true;
+                }
+
+                try
+                {
+                    var frame = new DispatcherFrame();
+                    cleanupDispatcher.BeginInvoke(
+                        DispatcherPriority.Background,
+                        new Action(() => frame.Continue = false));
+                    Dispatcher.PushFrame(frame);
+                }
+                catch (InvalidOperationException ex) when (ShouldTreatAsTerminalCleanup(cleanupDispatcher, ex))
+                {
+                    AbandonActiveTraceSession();
+                    return true;
+                }
+            }
+
+            lock (_lock)
+            {
+                return !_isCleanupInProgress;
+            }
+        }
+
+        return SpinWait.SpinUntil(() =>
+        {
+            if (cleanupDispatcher?.HasShutdownStarted == true || cleanupDispatcher?.HasShutdownFinished == true)
+            {
+                AbandonActiveTraceSession();
+                return true;
+            }
+
+            lock (_lock)
+            {
+                return !_isCleanupInProgress;
+            }
+        }, timeout);
+    }
+
+    private void StoreCompletedSnapshot(string sessionId, CompletedTraceSnapshot completedSnapshot)
+    {
+        _completedTraceSnapshots[sessionId] = completedSnapshot;
+        _completedTraceSnapshotOrder.Enqueue(sessionId);
+
+        while (_completedTraceSnapshots.Count > MaxCompletedTraceSnapshots && _completedTraceSnapshotOrder.Count > 0)
+        {
+            var oldestSessionId = _completedTraceSnapshotOrder.Dequeue();
+            _completedTraceSnapshots.Remove(oldestSessionId);
+        }
+    }
+
+    private static void TryRollbackPartialRegistrations(List<HandlerRegistration> registrations)
+    {
+        if (registrations.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            RemoveAllHandlers(registrations);
+        }
+        catch
+        {
+        }
+    }
+
+    private void ScheduleAutoStop(TraceSessionHandle sessionHandle, int cappedDuration)
+    {
+        Task.Delay(cappedDuration, sessionHandle.TokenSource.Token).ContinueWith(completedDelay =>
+        {
+            CleanupTraceSessionCore(sessionHandle, out _);
         }, TaskContinuationOptions.OnlyOnRanToCompletion);
     }
 

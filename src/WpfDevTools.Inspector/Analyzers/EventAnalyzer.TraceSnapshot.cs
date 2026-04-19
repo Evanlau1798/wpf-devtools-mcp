@@ -4,27 +4,33 @@ namespace WpfDevTools.Inspector.Analyzers;
 
 public sealed partial class EventAnalyzer
 {
-    private IReadOnlyList<object> GetTraceSnapshotEvents(string? requestedEventName)
+    private IReadOnlyList<object> GetTraceSnapshotEvents(TraceSessionHandle? requestedSession, string? requestedEventName)
     {
-        if (_eventTrace.Count > 0)
+        var traceMetadata = requestedSession?.Metadata ?? _lastTraceMetadata;
+        var isCurrentSession = requestedSession == null
+            ? _activeTraceSession != null
+            : _activeTraceSession != null
+                && ReferenceEquals(_activeTraceSession.TokenSource, requestedSession.TokenSource)
+                && ReferenceEquals(_activeTraceSession.Metadata, requestedSession.Metadata);
+
+        if (!IsRequestedEventMatch(traceMetadata, requestedEventName))
+        {
+            return Array.Empty<object>();
+        }
+
+        if (_eventTrace.Count > 0 && isCurrentSession)
         {
             return _eventTrace.ToList();
         }
 
-        if (_watchEventBuffer == null || _lastTraceMetadata == null)
+        if (_watchEventBuffer == null || traceMetadata == null)
         {
             return Array.Empty<object>();
         }
 
-        if (!string.IsNullOrWhiteSpace(requestedEventName)
-            && !string.Equals(requestedEventName, _lastTraceMetadata.EventName, StringComparison.OrdinalIgnoreCase))
-        {
-            return Array.Empty<object>();
-        }
-
-        var windowEndUtc = _lastTraceMetadata.StartedAtUtc.AddMilliseconds(_lastTraceMetadata.EffectiveDurationMs);
+        var windowEndUtc = traceMetadata.StartedAtUtc.AddMilliseconds(traceMetadata.EffectiveDurationMs);
         return _watchEventBuffer.GetSnapshot()
-            .Where(record => IsMatchingTraceBufferRecord(record, _lastTraceMetadata, windowEndUtc))
+            .Where(record => IsMatchingTraceBufferRecord(record, traceMetadata, windowEndUtc))
             .Select(CreateTraceSnapshotEvent)
             .Cast<object>()
             .ToList();
@@ -36,6 +42,7 @@ public sealed partial class EventAnalyzer
         DateTimeOffset windowEndUtc)
     {
         return string.Equals(record.EventType, "RoutedEvent", StringComparison.Ordinal)
+            && record.SourceKey.StartsWith($"event:{traceMetadata.SessionId}:", StringComparison.Ordinal)
             && string.Equals(record.ElementId, traceMetadata.ElementId, StringComparison.Ordinal)
             && string.Equals(record.EventName, traceMetadata.EventName, StringComparison.Ordinal)
             && record.TimestampUtc >= traceMetadata.StartedAtUtc

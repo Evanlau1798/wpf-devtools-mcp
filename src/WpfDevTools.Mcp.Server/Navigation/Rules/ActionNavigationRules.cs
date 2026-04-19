@@ -208,7 +208,9 @@ internal static class ActionNavigationRules
     private static bool TryGetActiveTrace(NavigationSessionState? sessionState, out ActiveTraceNavigationState? traceState)
     {
         traceState = sessionState?.ActiveTrace;
-        if (traceState is null || traceState.HasExpired(DateTimeOffset.UtcNow))
+        if (traceState is null
+            || traceState.HasExpired(DateTimeOffset.UtcNow)
+            || traceState.FollowUpExpiresAtUtc.HasValue)
         {
             traceState = null;
             return false;

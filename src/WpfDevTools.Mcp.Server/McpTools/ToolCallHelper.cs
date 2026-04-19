@@ -348,8 +348,15 @@ public static partial class ToolCallHelper
 
         if (state.ActiveTrace is { } activeTrace && activeTrace.HasExpired(DateTimeOffset.UtcNow))
         {
-            sessionManager.ClearActiveTraceState(processId.Value);
-            return state with { ActiveTrace = null };
+            var endedSessionId = activeTrace.FollowUpExpiresAtUtc.HasValue
+                ? activeTrace.SessionId
+                : null;
+            sessionManager.ClearActiveTraceState(processId.Value, endedSessionId);
+            return state with
+            {
+                ActiveTrace = null,
+                LastEndedTraceSessionId = endedSessionId
+            };
         }
 
         return state;

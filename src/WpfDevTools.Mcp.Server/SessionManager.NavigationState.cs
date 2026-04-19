@@ -37,13 +37,13 @@ public sealed partial class SessionManager
         }
     }
 
-    internal void ClearActiveTraceState(int processId)
+    internal void ClearActiveTraceState(int processId, string? endedSessionId = null)
     {
         ThrowIfDisposed();
         lock (_lock)
         {
             EnsureSessionExistsLocked(processId);
-            _navigationStateStore.SetActiveTrace(processId, null);
+            _navigationStateStore.SetActiveTrace(processId, null, endedSessionId);
         }
     }
 

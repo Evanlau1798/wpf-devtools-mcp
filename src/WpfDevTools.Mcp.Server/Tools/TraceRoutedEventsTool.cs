@@ -9,7 +9,15 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
 {
-    private static readonly TimeSpan ReplayMergeGracePeriod = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan CleanupFailedFollowUpGracePeriod = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan ReplayTimestampFallbackGracePeriod = TimeSpan.FromSeconds(1);
+
+    private enum TraceNavigationSyncResult
+    {
+        NoChange,
+        ClearedMatchingActiveTrace,
+        StateSynchronized
+    }
 
     public TraceRoutedEventsTool(SessionManager sessionManager) : base(sessionManager) { }
 
@@ -31,21 +39,34 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         var duration = ParseIntParam(arguments, "duration");
         var allowShortStartDuration = ParseBoolParam(arguments, "allowShortStartDuration") ?? false;
 
+        if (duration is < 0)
+        {
+            return CreateInvalidParamError("duration must be non-negative");
+        }
+
         if (mode != "get" && string.IsNullOrEmpty(eventName))
         {
             return CreateMissingParamError("eventName");
         }
 
-        var response = await SendInspectorRequestAsync(
+        var response = await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "trace_routed_events",
             new { elementId, eventName, duration, mode, allowShortStartDuration },
             cancellationToken);
+        _sessionManager.TryGetNavigationState(processId, out var preSyncState);
+        var replayTraceSnapshot = mode == "get"
+            ? preSyncState?.ActiveTrace
+            : null;
+        var syncResult = SynchronizeTraceNavigationState(processId, elementId, eventName, duration, mode, response);
         response = mode == "get"
-            ? MergePendingReplayIntoTraceResult(processId, response)
+            ? MergePendingReplayIntoTraceResult(
+                processId,
+                response,
+                replayTraceSnapshot,
+                allowPreSyncFallback: syncResult == TraceNavigationSyncResult.ClearedMatchingActiveTrace)
             : response;
 
-        SynchronizeTraceNavigationState(processId, elementId, eventName, mode, response);
         return response;
     }
 
@@ -65,35 +86,112 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         };
     }
 
-    private void SynchronizeTraceNavigationState(
+    private TraceNavigationSyncResult SynchronizeTraceNavigationState(
         int processId,
         string? elementId,
         string? eventName,
+        int? requestedDurationMs,
         string mode,
         object response)
     {
         var payload = JsonSerializer.SerializeToElement(response);
         if (!IsSuccess(payload))
         {
-            return;
+            return TraceNavigationSyncResult.NoChange;
         }
 
-        if (mode == "start" && IsTracing(payload))
+        var responseSessionId = GetOptionalString(payload, "sessionId");
+        _sessionManager.TryGetNavigationState(processId, out var existingState);
+        var existingTrace = existingState?.ActiveTrace;
+        if (existingTrace is not null && existingTrace.HasExpired(DateTimeOffset.UtcNow))
         {
-            _sessionManager.SetActiveTraceState(
-                processId,
-                new ActiveTraceNavigationState(
-                    eventName ?? GetOptionalString(payload, "eventName") ?? string.Empty,
-                    elementId,
-                    DateTimeOffset.UtcNow,
-                    GetEffectiveDuration(payload)));
-            return;
+            var endedSessionId = existingTrace.FollowUpExpiresAtUtc.HasValue
+                ? existingTrace.SessionId
+                : null;
+            _sessionManager.ClearActiveTraceState(processId, endedSessionId);
+            if (existingState is not null)
+            {
+                existingState = existingState with
+                {
+                    ActiveTrace = null,
+                    LastEndedTraceSessionId = endedSessionId
+                };
+            }
+
+            existingTrace = null;
         }
 
-        if (mode == "get" && !IsTracing(payload))
+        if (IsMissingSessionIdForSessionAwareTrace(existingTrace, responseSessionId, mode))
         {
-            _sessionManager.ClearActiveTraceState(processId);
+            return TraceNavigationSyncResult.NoChange;
         }
+
+        if (IsStaleTraceResponse(existingTrace, responseSessionId, mode))
+        {
+            return TraceNavigationSyncResult.NoChange;
+        }
+
+        var isFrozenFollowUpState = HasDiagnosticsReasonCode(payload, "cleanupFailed");
+        var isTracing = IsTracing(payload);
+        if (!isTracing && !isFrozenFollowUpState)
+        {
+            var clearedMatchingActiveTrace = existingTrace is not null;
+            _sessionManager.ClearActiveTraceState(processId, responseSessionId);
+            return clearedMatchingActiveTrace
+                ? TraceNavigationSyncResult.ClearedMatchingActiveTrace
+                : TraceNavigationSyncResult.NoChange;
+        }
+
+        var rehydrateFromGet = mode == "get"
+            && existingTrace is null
+            && CanRehydrateTraceStateFromGet(existingState, responseSessionId);
+
+        if (mode == "get" && existingTrace is null && !rehydrateFromGet)
+        {
+            return TraceNavigationSyncResult.NoChange;
+        }
+
+        var topLevelActiveEventName = GetOptionalString(payload, "activeEventName");
+        var topLevelResolvedElementId = GetOptionalString(payload, "resolvedElementId");
+        var resolvedEventName = mode == "get"
+            ? topLevelActiveEventName
+                ?? GetDiagnosticsString(payload, "activeEventName")
+                ?? existingTrace?.EventName
+                ?? GetOptionalString(payload, "eventName")
+            : eventName
+                ?? GetOptionalString(payload, "eventName")
+                ?? existingTrace?.EventName;
+        if (string.IsNullOrWhiteSpace(resolvedEventName))
+        {
+            return TraceNavigationSyncResult.NoChange;
+        }
+
+        var followUpExpiresAtUtc = ResolveFollowUpExpiry(existingTrace, isFrozenFollowUpState);
+        var resolvedDuration = ResolveTraceDuration(payload, requestedDurationMs, existingTrace);
+        var resolvedElementId = mode == "get"
+            ? topLevelResolvedElementId
+                ?? GetDiagnosticsString(payload, "resolvedElementId")
+                ?? existingTrace?.ElementId
+            : elementId ?? existingTrace?.ElementId;
+        var startedAtUtc = ResolveTraceStartedAtUtc(
+            mode,
+            payload,
+            resolvedDuration,
+            existingTrace,
+            requestedDurationMs,
+            isFrozenFollowUpState);
+
+        _sessionManager.SetActiveTraceState(
+            processId,
+            new ActiveTraceNavigationState(
+                resolvedEventName,
+                resolvedElementId,
+                startedAtUtc,
+                resolvedDuration,
+                responseSessionId,
+                isFrozenFollowUpState,
+                followUpExpiresAtUtc));
+            return TraceNavigationSyncResult.StateSynchronized;
     }
 
     private static bool IsSuccess(JsonElement payload) =>
@@ -110,24 +208,180 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             ? TimeSpan.FromMilliseconds(milliseconds)
             : TimeSpan.Zero;
 
+    private static TimeSpan ResolveTraceDuration(
+        JsonElement payload,
+        int? durationFallbackMs,
+        ActiveTraceNavigationState? existingTrace)
+    {
+        var effectiveDuration = GetEffectiveDuration(payload);
+        if (effectiveDuration > TimeSpan.Zero)
+        {
+            return effectiveDuration;
+        }
+
+        if (payload.TryGetProperty("duration", out var durationProperty)
+            && durationProperty.ValueKind == JsonValueKind.Number
+            && durationProperty.TryGetInt32(out var reportedDurationMs)
+            && reportedDurationMs > 0)
+        {
+            return TimeSpan.FromMilliseconds(reportedDurationMs);
+        }
+
+        if (payload.TryGetProperty("effectiveDurationMs", out var effectiveDurationMsProperty)
+            && effectiveDurationMsProperty.ValueKind == JsonValueKind.Number
+            && effectiveDurationMsProperty.TryGetInt32(out var reportedEffectiveDurationMs)
+            && reportedEffectiveDurationMs > 0)
+        {
+            return TimeSpan.FromMilliseconds(reportedEffectiveDurationMs);
+        }
+
+        if (durationFallbackMs is > 0)
+        {
+            return TimeSpan.FromMilliseconds(durationFallbackMs.Value);
+        }
+
+        return existingTrace?.EffectiveDuration ?? TimeSpan.Zero;
+    }
+
+    private static DateTimeOffset ResolveTraceStartedAtUtc(
+        string mode,
+        JsonElement payload,
+        TimeSpan resolvedDuration,
+        ActiveTraceNavigationState? existingTrace,
+        int? requestedDurationMs,
+        bool isFrozenFollowUpState)
+    {
+        if (mode == "get" && existingTrace is not null)
+        {
+            return existingTrace.StartedAtUtc;
+        }
+
+        if (payload.TryGetProperty("traceStartedAtUtc", out var traceStartedAtProperty)
+            && traceStartedAtProperty.ValueKind == JsonValueKind.String
+            && DateTimeOffset.TryParse(traceStartedAtProperty.GetString(), out var traceStartedAtUtc))
+        {
+            return traceStartedAtUtc;
+        }
+
+        if (mode == "capture" && IsTracing(payload))
+        {
+            if (resolvedDuration > TimeSpan.Zero)
+            {
+                return DateTimeOffset.UtcNow - resolvedDuration;
+            }
+
+            if (requestedDurationMs is > 0)
+            {
+                return DateTimeOffset.UtcNow - TimeSpan.FromMilliseconds(requestedDurationMs.Value);
+            }
+        }
+
+        if (mode == "capture" && HasDiagnosticsReasonCode(payload, "cleanupFailed"))
+        {
+            if (resolvedDuration > TimeSpan.Zero)
+            {
+                return DateTimeOffset.UtcNow - resolvedDuration;
+            }
+
+            if (requestedDurationMs is > 0)
+            {
+                return DateTimeOffset.UtcNow - TimeSpan.FromMilliseconds(requestedDurationMs.Value);
+            }
+        }
+
+        return DateTimeOffset.UtcNow;
+    }
+
     private static string? GetOptionalString(JsonElement payload, string propertyName) =>
         payload.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
 
-    private object MergePendingReplayIntoTraceResult(int processId, object response)
+    private static string? GetDiagnosticsString(JsonElement payload, string propertyName)
+    {
+        return payload.TryGetProperty("diagnostics", out var diagnostics)
+            && diagnostics.ValueKind == JsonValueKind.Object
+            && diagnostics.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : null;
+    }
+
+    private static bool HasDiagnosticsReasonCode(JsonElement payload, string reasonCode)
+    {
+        return payload.TryGetProperty("diagnostics", out var diagnostics)
+            && diagnostics.ValueKind == JsonValueKind.Object
+            && diagnostics.TryGetProperty("reasonCode", out var reasonCodeProperty)
+            && reasonCodeProperty.ValueKind == JsonValueKind.String
+            && string.Equals(reasonCodeProperty.GetString(), reasonCode, StringComparison.Ordinal);
+    }
+
+    private static DateTimeOffset? ResolveFollowUpExpiry(
+        ActiveTraceNavigationState? existingTrace,
+        bool isFrozenFollowUpState)
+    {
+        if (!isFrozenFollowUpState)
+        {
+            return null;
+        }
+
+        return existingTrace?.FollowUpExpiresAtUtc
+            ?? DateTimeOffset.UtcNow.Add(CleanupFailedFollowUpGracePeriod);
+    }
+
+    private static bool IsStaleTraceResponse(
+        ActiveTraceNavigationState? existingTrace,
+        string? responseSessionId,
+        string mode)
+    {
+        return mode != "start"
+            && existingTrace?.SessionId is not null
+            && responseSessionId is not null
+            && !string.Equals(existingTrace.SessionId, responseSessionId, StringComparison.Ordinal);
+    }
+
+    private static bool IsMissingSessionIdForSessionAwareTrace(
+        ActiveTraceNavigationState? existingTrace,
+        string? responseSessionId,
+        string mode)
+    {
+        return mode != "start"
+            && existingTrace?.SessionId is not null
+            && string.IsNullOrWhiteSpace(responseSessionId);
+    }
+
+    private static bool CanRehydrateTraceStateFromGet(
+        NavigationSessionState? existingState,
+        string? responseSessionId)
+    {
+        return !string.IsNullOrWhiteSpace(responseSessionId)
+            && !string.Equals(existingState?.LastEndedTraceSessionId, responseSessionId, StringComparison.Ordinal)
+            && !(existingState?.RecentlyEndedTraceSessionIds?.Contains(responseSessionId, StringComparer.Ordinal) ?? false);
+    }
+
+    private object MergePendingReplayIntoTraceResult(
+        int processId,
+        object response,
+        ActiveTraceNavigationState? replayTraceSnapshot,
+        bool allowPreSyncFallback)
     {
         var payload = JsonSerializer.SerializeToElement(response);
+        var responseSessionId = GetOptionalString(payload, "sessionId");
         if (!IsSuccess(payload)
             || GetEventCount(payload) > 0
-            || !_sessionManager.TryGetNavigationState(processId, out var navigationState)
-            || navigationState?.ActiveTrace is null
+            || HasNonMergeableDiagnostics(payload)
             || !_sessionManager.TryPeekPendingEventReplayMetadata(processId, out var replayPayload, out var replaySavedAtUtc))
         {
             return response;
         }
 
-        var replayEvents = GetMatchingReplayEvents(replayPayload, navigationState.ActiveTrace, replaySavedAtUtc);
+        var activeTrace = ResolveReplayTraceState(processId, responseSessionId, replayTraceSnapshot, allowPreSyncFallback);
+        if (activeTrace is null)
+        {
+            return response;
+        }
+
+        var replayEvents = GetMatchingReplayEvents(replayPayload, activeTrace, replaySavedAtUtc);
         if (replayEvents.Count == 0)
         {
             return response;
@@ -136,12 +390,13 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         var buffer = new ArrayBufferWriter<byte>();
         using var writer = new Utf8JsonWriter(buffer);
         writer.WriteStartObject();
+        var keepDiagnostics = ShouldKeepDiagnosticsAfterReplayMerge(payload);
 
         foreach (var property in payload.EnumerateObject())
         {
             if (property.NameEquals("eventCount")
                 || property.NameEquals("events")
-                || property.NameEquals("diagnostics"))
+                || (property.NameEquals("diagnostics") && !keepDiagnostics))
             {
                 continue;
             }
@@ -165,12 +420,56 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         return document.RootElement.Clone();
     }
 
+    private static bool ShouldKeepDiagnosticsAfterReplayMerge(JsonElement payload)
+    {
+        return payload.TryGetProperty("diagnostics", out var diagnostics)
+            && diagnostics.ValueKind == JsonValueKind.Object
+            && diagnostics.TryGetProperty("reasonCode", out var reasonCode)
+            && reasonCode.ValueKind == JsonValueKind.String
+            && string.Equals(reasonCode.GetString(), "cleanupFailed", StringComparison.Ordinal);
+    }
+
+    private ActiveTraceNavigationState? ResolveReplayTraceState(
+        int processId,
+        string? responseSessionId,
+        ActiveTraceNavigationState? replayTraceSnapshot,
+        bool allowPreSyncFallback)
+    {
+        if (_sessionManager.TryGetNavigationState(processId, out var navigationState)
+            && navigationState?.ActiveTrace is not null
+            && !IsMissingSessionIdForSessionAwareTrace(navigationState.ActiveTrace, responseSessionId, "get")
+            && !IsStaleTraceResponse(navigationState.ActiveTrace, responseSessionId, "get"))
+        {
+            return navigationState.ActiveTrace;
+        }
+
+        if (!allowPreSyncFallback
+            || replayTraceSnapshot is null
+            || IsMissingSessionIdForSessionAwareTrace(replayTraceSnapshot, responseSessionId, "get")
+            || replayTraceSnapshot.HasExpired(DateTimeOffset.UtcNow)
+            || IsStaleTraceResponse(replayTraceSnapshot, responseSessionId, "get"))
+        {
+            return null;
+        }
+
+        return replayTraceSnapshot;
+    }
+
     private static int GetEventCount(JsonElement payload) =>
         payload.TryGetProperty("eventCount", out var eventCount)
         && eventCount.ValueKind == JsonValueKind.Number
         && eventCount.TryGetInt32(out var count)
             ? count
             : 0;
+
+    private static bool HasNonMergeableDiagnostics(JsonElement payload) =>
+        payload.TryGetProperty("diagnostics", out var diagnostics)
+        && diagnostics.ValueKind == JsonValueKind.Object
+        && ((diagnostics.TryGetProperty("reasonCode", out var reasonCode)
+                && reasonCode.ValueKind == JsonValueKind.String
+                && string.Equals(reasonCode.GetString(), "filterMismatch", StringComparison.Ordinal))
+            || (diagnostics.TryGetProperty("requestedEventMismatch", out var requestedEventMismatch)
+                && requestedEventMismatch.ValueKind == JsonValueKind.True));
 
     private static List<JsonElement> GetMatchingReplayEvents(
         JsonElement replayPayload,
@@ -183,12 +482,20 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             return new List<JsonElement>();
         }
 
-        var windowEndUtc = activeTrace.EffectiveDuration > TimeSpan.Zero
-            ? activeTrace.StartedAtUtc.Add(activeTrace.EffectiveDuration).Add(ReplayMergeGracePeriod)
+        var traceWindowEndUtc = activeTrace.EffectiveDuration > TimeSpan.Zero
+            ? activeTrace.StartedAtUtc.Add(activeTrace.EffectiveDuration)
             : DateTimeOffset.MaxValue;
+        var fallbackWindowEndUtc = traceWindowEndUtc == DateTimeOffset.MaxValue
+            ? DateTimeOffset.MaxValue
+            : traceWindowEndUtc.Add(ReplayTimestampFallbackGracePeriod);
 
         return pendingEvents.EnumerateArray()
-            .Where(pendingEvent => MatchesActiveTrace(pendingEvent, activeTrace, replaySavedAtUtc, windowEndUtc))
+            .Where(pendingEvent => MatchesActiveTrace(
+                pendingEvent,
+                activeTrace,
+                replaySavedAtUtc,
+                traceWindowEndUtc,
+                fallbackWindowEndUtc))
             .Select(pendingEvent => pendingEvent.Clone())
             .ToList();
     }
@@ -197,7 +504,8 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         JsonElement pendingEvent,
         ActiveTraceNavigationState activeTrace,
         DateTimeOffset replaySavedAtUtc,
-        DateTimeOffset windowEndUtc)
+        DateTimeOffset traceWindowEndUtc,
+        DateTimeOffset fallbackWindowEndUtc)
     {
         if (!pendingEvent.TryGetProperty("eventType", out var eventType)
             || eventType.ValueKind != JsonValueKind.String
@@ -221,20 +529,14 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             return false;
         }
 
-        if (!IsWithinTraceWindow(replaySavedAtUtc, activeTrace.StartedAtUtc, windowEndUtc))
+        if (pendingEvent.TryGetProperty("timestampUtc", out var timestampProperty)
+            && timestampProperty.ValueKind == JsonValueKind.String
+            && DateTimeOffset.TryParse(timestampProperty.GetString(), out var timestamp))
         {
-            return false;
+            return IsWithinTraceWindow(timestamp, activeTrace.StartedAtUtc, traceWindowEndUtc);
         }
 
-        if (!pendingEvent.TryGetProperty("timestampUtc", out var timestampProperty)
-            || timestampProperty.ValueKind != JsonValueKind.String
-            || !DateTimeOffset.TryParse(timestampProperty.GetString(), out var timestamp))
-        {
-            return true;
-        }
-
-        return IsWithinTraceWindow(timestamp, activeTrace.StartedAtUtc, windowEndUtc)
-            || IsWithinTraceWindow(replaySavedAtUtc, activeTrace.StartedAtUtc, windowEndUtc);
+        return IsWithinTraceWindow(replaySavedAtUtc, activeTrace.StartedAtUtc, fallbackWindowEndUtc);
     }
 
     private static bool IsWithinTraceWindow(

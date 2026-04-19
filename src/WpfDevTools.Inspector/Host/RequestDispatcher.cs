@@ -8,6 +8,8 @@ using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Inspector.Host.Handlers;
+using System.Windows.Threading;
+using System.Runtime.ExceptionServices;
 
 namespace WpfDevTools.Inspector.Host;
 
@@ -20,12 +22,20 @@ public sealed class RequestDispatcher : IDisposable
     private readonly Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>> _simpleHandlers;
     private readonly FileLogger _logger;
     private readonly ElementFinder _elementFinder;
+    private readonly EventAnalyzer _eventAnalyzer;
 
     /// <summary>
     /// Create a new RequestDispatcher instance and initialize all handlers
     /// </summary>
     /// <param name="logger">Logger for error reporting</param>
     public RequestDispatcher(FileLogger logger)
+        : this(logger, null)
+    {
+    }
+
+    internal RequestDispatcher(
+        FileLogger logger,
+        Func<Dispatcher?, Action, Exception?>? eventTraceCleanupInvoker)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -45,7 +55,7 @@ public sealed class RequestDispatcher : IDisposable
         var layoutAnalyzer = new LayoutAnalyzer(elementFinder);
         var interactionAnalyzer = new InteractionAnalyzer(elementFinder, watchEventBuffer);
         var styleAnalyzer = new StyleAnalyzer(elementFinder);
-        var eventAnalyzer = new EventAnalyzer(elementFinder, watchEventBuffer);
+        _eventAnalyzer = new EventAnalyzer(elementFinder, watchEventBuffer, eventTraceCleanupInvoker);
         var performanceAnalyzer = new PerformanceAnalyzer(elementFinder);
         var uiSummaryAnalyzer = new UiSummaryAnalyzer(elementFinder);
         var formSummaryAnalyzer = new FormSummaryAnalyzer(elementFinder);
@@ -61,7 +71,7 @@ public sealed class RequestDispatcher : IDisposable
             new LayoutHandlers(layoutAnalyzer),
             new InteractionHandlers(interactionAnalyzer),
             new StyleHandlers(styleAnalyzer),
-            new EventHandlers(eventAnalyzer),
+            new EventHandlers(_eventAnalyzer),
             new PerformanceHandlers(performanceAnalyzer),
             new SceneSummaryHandlers(uiSummaryAnalyzer, formSummaryAnalyzer)
         };
@@ -200,6 +210,24 @@ public sealed class RequestDispatcher : IDisposable
     /// </summary>
     public void Dispose()
     {
-        _elementFinder.Dispose();
+        Exception? disposeException = null;
+
+        try
+        {
+            _eventAnalyzer.Dispose();
+        }
+        catch (Exception ex)
+        {
+            disposeException = ex;
+        }
+        finally
+        {
+            _elementFinder.Dispose();
+        }
+
+        if (disposeException != null)
+        {
+            ExceptionDispatchInfo.Capture(disposeException).Throw();
+        }
     }
 }

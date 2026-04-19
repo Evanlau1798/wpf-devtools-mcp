@@ -32,6 +32,7 @@ public sealed partial class InspectorHost : IDisposable
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _serverTask;
     private volatile bool _isRunning;
+    private int _disposeState;
     private readonly object _lock = new object();
 
     /// <summary>
@@ -383,14 +384,53 @@ public sealed partial class InspectorHost : IDisposable
     /// </summary>
     public bool IsRunning => _isRunning;
 
+    internal bool IsDisposed => System.Threading.Volatile.Read(ref _disposeState) == 2;
+
     /// <summary>
     /// Dispose resources and stop the Inspector server
     /// </summary>
     public void Dispose()
     {
-        Stop(); // Stop() disposes _pipeServer and _cancellationTokenSource
-        _dispatcher.Dispose();
-        _logger.Dispose();
+        if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
+        {
+            return;
+        }
+
+        Exception? cleanupError = null;
+
+        try
+        {
+            Stop(); // Stop() disposes _pipeServer and _cancellationTokenSource
+        }
+        catch (Exception ex)
+        {
+            cleanupError = ex;
+        }
+
+        try
+        {
+            _dispatcher.Dispose();
+        }
+        catch (Exception ex)
+        {
+            cleanupError = cleanupError == null ? ex : new AggregateException(cleanupError, ex);
+        }
+
+        try
+        {
+            _logger.Dispose();
+        }
+        catch (Exception ex)
+        {
+            cleanupError = cleanupError == null ? ex : new AggregateException(cleanupError, ex);
+        }
+
+        Interlocked.Exchange(ref _disposeState, cleanupError == null ? 2 : 3);
+
+        if (cleanupError != null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanupError).Throw();
+        }
     }
 }
 

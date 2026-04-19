@@ -185,6 +185,79 @@ function Resolve-ClaudeDesktopConfigPath {
     return (Join-Path $env:APPDATA 'Claude\claude_desktop_config.json')
 }
 
+function Test-InstallerRunningElevated {
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED)) {
+        $overrideValue = ([string]$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED).Trim().ToLowerInvariant()
+        return @('1', 'true', 'yes', 'on') -contains $overrideValue
+    }
+
+    try {
+        $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+        if ($null -eq $identity) {
+            return $false
+        }
+
+        $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
+        return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+    }
+    catch {
+        return $false
+    }
+}
+
+function Get-TrustedCliCommandPathEnvVarName {
+    param([Parameter(Mandatory)] [string]$Command)
+
+    switch ($Command.ToLowerInvariant()) {
+        'claude' { return 'WPFDEVTOOLS_CLAUDE_COMMAND_PATH' }
+        'codex' { return 'WPFDEVTOOLS_CODEX_COMMAND_PATH' }
+        default { return $null }
+    }
+}
+
+function Resolve-TrustedCliCommandPath {
+    param([Parameter(Mandatory)] [string]$Command)
+
+    $envVarName = Get-TrustedCliCommandPathEnvVarName -Command $Command
+    if ([string]::IsNullOrWhiteSpace($envVarName)) {
+        return $null
+    }
+
+    $configuredPath = [Environment]::GetEnvironmentVariable($envVarName)
+    if ([string]::IsNullOrWhiteSpace($configuredPath)) {
+        return $null
+    }
+
+    if (-not [System.IO.Path]::IsPathRooted($configuredPath)) {
+        throw "$envVarName must be an absolute path when provided."
+    }
+
+    $resolvedPath = [System.IO.Path]::GetFullPath($configuredPath)
+    if (-not (Test-Path -LiteralPath $resolvedPath)) {
+        throw "$envVarName points to a command path that does not exist: $resolvedPath"
+    }
+
+    return $resolvedPath
+}
+
+function Get-ElevatedCliCommandBlockMessage {
+    param(
+        [Parameter(Mandatory)] [string]$Command,
+        [Parameter(Mandatory)] [string]$ClientName,
+        [Parameter(Mandatory)] [string]$OperationName
+    )
+
+    $envVarName = Get-TrustedCliCommandPathEnvVarName -Command $Command
+    $overrideHint = if (-not [string]::IsNullOrWhiteSpace($envVarName)) {
+        " or provide a trusted absolute path via $envVarName."
+    }
+    else {
+        "."
+    }
+
+    return "Automatic $ClientName $OperationName is blocked while the installer is elevated because resolving '$Command' from PATH is unsafe. Rerun the packaged launcher with WPFDEVTOOLS_SKIP_ELEVATION=1, complete the CLI step from an unelevated shell, or register manually after install$overrideHint"
+}
+
 function Add-TrustedRegistrationTargetCandidate {
     param(
         [System.Collections.Generic.List[string]]$Targets,
@@ -655,8 +728,13 @@ function Invoke-RegistrationCommand {
         [Parameter(Mandatory)] [string]$ClientName
     )
 
-    $resolvedCommandPath = Resolve-ExecutableCommandPath -Command $Command
+    $isElevated = Test-InstallerRunningElevated
+    $resolvedCommandPath = Resolve-ExecutableCommandPath -Command $Command -AllowPathResolution:(-not $isElevated)
     if ([string]::IsNullOrWhiteSpace($resolvedCommandPath)) {
+        if ($isElevated) {
+            throw (Get-ElevatedCliCommandBlockMessage -Command $Command -ClientName $ClientName -OperationName 'registration')
+        }
+
         throw "$Command is not installed. Cannot register $ClientName automatically."
     }
 
@@ -676,8 +754,18 @@ function Invoke-RegistrationCommand {
 
 function Resolve-ExecutableCommandPath {
     param(
-        [Parameter(Mandatory)] [string]$Command
+        [Parameter(Mandatory)] [string]$Command,
+        [bool]$AllowPathResolution = $true
     )
+
+    $trustedCommandPath = Resolve-TrustedCliCommandPath -Command $Command
+    if (-not [string]::IsNullOrWhiteSpace($trustedCommandPath)) {
+        return $trustedCommandPath
+    }
+
+    if (-not $AllowPathResolution) {
+        return $null
+    }
 
     $resolvedCommands = @(Get-Command $Command -All -CommandType Application,ExternalScript -ErrorAction SilentlyContinue)
     foreach ($resolvedCommand in $resolvedCommands) {
@@ -709,8 +797,13 @@ function Invoke-OptionalRemovalCommand {
         [Parameter(Mandatory)] [string]$ClientName
     )
 
-    $resolvedCommandPath = Resolve-ExecutableCommandPath -Command $Command
+    $isElevated = Test-InstallerRunningElevated
+    $resolvedCommandPath = Resolve-ExecutableCommandPath -Command $Command -AllowPathResolution:(-not $isElevated)
     if ([string]::IsNullOrWhiteSpace($resolvedCommandPath)) {
+        if ($isElevated) {
+            throw (Get-ElevatedCliCommandBlockMessage -Command $Command -ClientName $ClientName -OperationName 'removal')
+        }
+
         return [ordered]@{
             client = $ClientName
             mode = 'cli'

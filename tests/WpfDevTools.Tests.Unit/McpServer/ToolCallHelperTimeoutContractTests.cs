@@ -8,6 +8,38 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public class ToolCallHelperTimeoutContractTests
 {
     [Fact]
+    public void ResolveExecutionTimeoutSeconds_WhenWaitForDpChangeRequestsLongerBudget_ShouldAddHeadroom()
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", 1234),
+            ("propertyName", "Text"),
+            ("timeoutMs", 6000));
+
+        var timeoutSeconds = ToolCallHelper.ResolveExecutionTimeoutSeconds(
+            "WaitForDpChange",
+            args,
+            timeoutSeconds: null);
+
+        timeoutSeconds.Should().Be(8);
+    }
+
+    [Fact]
+    public void ResolveExecutionTimeoutSeconds_WhenExplicitOverrideProvided_ShouldPreferOverride()
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", 1234),
+            ("propertyName", "Text"),
+            ("timeoutMs", 6000));
+
+        var timeoutSeconds = ToolCallHelper.ResolveExecutionTimeoutSeconds(
+            "WaitForDpChange",
+            args,
+            timeoutSeconds: 3);
+
+        timeoutSeconds.Should().Be(3);
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_WhenToolTimesOut_ShouldReturnStableTimeoutContract()
     {
         Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (_, ct) =>

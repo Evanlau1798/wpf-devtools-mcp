@@ -32,7 +32,18 @@ internal sealed class ActiveTraceSession
     public TraceSessionMetadata Metadata { get; }
 }
 
+internal sealed record CompletedTraceSnapshot(
+    IReadOnlyList<object> Events,
+    int HandlerInvocationCount);
+
+internal sealed record TraceCleanupFailure(
+    string SessionId,
+    string EventName,
+    string ExceptionType,
+    string Message);
+
 internal sealed record TraceSessionMetadata(
+    string SessionId,
     string EventName,
     string ElementId,
     DateTimeOffset StartedAtUtc,

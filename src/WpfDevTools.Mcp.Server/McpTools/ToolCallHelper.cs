@@ -29,6 +29,8 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 /// </remarks>
 public static partial class ToolCallHelper
 {
+    private const int WaitForDpChangeTimeoutHeadroomSeconds = 2;
+
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
     private static readonly HashSet<string> NavigationOptOutTools = new(StringComparer.Ordinal)
     {
@@ -105,7 +107,7 @@ public static partial class ToolCallHelper
         NavigationSessionState? navigationState = null,
         [System.Runtime.CompilerServices.CallerMemberName] string toolName = "unknown")
     {
-        var effectiveTimeoutSeconds = timeoutSeconds ?? McpServerConfiguration.DefaultToolTimeoutSeconds;
+        var effectiveTimeoutSeconds = ResolveExecutionTimeoutSeconds(toolName, args, timeoutSeconds);
         var includeNavigation = ShouldIncludeNavigation(toolName, args);
 
         // CRITICAL FIX: Enforce timeout on all tool executions
@@ -212,6 +214,51 @@ public static partial class ToolCallHelper
         }
     }
 
+    internal static int ResolveExecutionTimeoutSeconds(
+        string toolName,
+        JsonElement? args,
+        int? timeoutSeconds)
+    {
+        if (timeoutSeconds.HasValue)
+        {
+            return timeoutSeconds.Value;
+        }
+
+        if (IsWaitForDpChangeTool(toolName)
+            && TryGetPositiveIntArg(args, "timeoutMs", out var timeoutMs))
+        {
+            var requestedTimeoutSeconds = (int)Math.Ceiling(timeoutMs / 1000d);
+            return Math.Max(
+                McpServerConfiguration.DefaultToolTimeoutSeconds,
+                requestedTimeoutSeconds + WaitForDpChangeTimeoutHeadroomSeconds);
+        }
+
+        return McpServerConfiguration.DefaultToolTimeoutSeconds;
+    }
+
+    private static bool IsWaitForDpChangeTool(string toolName)
+    {
+        return string.Equals(toolName, "WaitForDpChange", StringComparison.Ordinal)
+            || string.Equals(toolName, "wait_for_dp_change", StringComparison.Ordinal);
+    }
+
+    private static bool TryGetPositiveIntArg(JsonElement? args, string propertyName, out int value)
+    {
+        value = 0;
+
+        if (!args.HasValue
+            || !args.Value.TryGetProperty(propertyName, out var property)
+            || property.ValueKind != JsonValueKind.Number
+            || !property.TryGetInt32(out var parsed)
+            || parsed <= 0)
+        {
+            return false;
+        }
+
+        value = parsed;
+        return true;
+    }
+
     /// <summary>
     /// Classify an exception into a stable error code and sanitized message.
     /// Prevents localized OS text or internal implementation details from leaking to clients.
@@ -301,8 +348,15 @@ public static partial class ToolCallHelper
 
         if (state.ActiveTrace is { } activeTrace && activeTrace.HasExpired(DateTimeOffset.UtcNow))
         {
-            sessionManager.ClearActiveTraceState(processId.Value);
-            return state with { ActiveTrace = null };
+            var endedSessionId = activeTrace.FollowUpExpiresAtUtc.HasValue
+                ? activeTrace.SessionId
+                : null;
+            sessionManager.ClearActiveTraceState(processId.Value, endedSessionId);
+            return state with
+            {
+                ActiveTrace = null,
+                LastEndedTraceSessionId = endedSessionId
+            };
         }
 
         return state;

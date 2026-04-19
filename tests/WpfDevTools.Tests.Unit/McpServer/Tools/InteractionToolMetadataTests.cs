@@ -391,6 +391,36 @@ public sealed class InteractionToolMetadataTests : IDisposable
         nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
     }
 
+    [Fact]
+    public async Task FireRoutedEvent_Navigation_WithFrozenCleanupFailedTrace_ShouldNotSuggestTraceRetrieval()
+    {
+        var frozenTrace = new ActiveTraceNavigationState(
+            "Click",
+            "SaveButton",
+            DateTimeOffset.UtcNow,
+            TimeSpan.FromMilliseconds(150),
+            SessionId: "trace-cleanup-failed",
+            IgnoreExpiry: true,
+            FollowUpExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(2));
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState(null, frozenTrace),
+            toolName: "fire_routed_event");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
+    }
+
     private sealed class InteractionMetadataProbe : PipeConnectedToolBase
     {
         private InteractionMetadataProbe() : base(new SessionManager())

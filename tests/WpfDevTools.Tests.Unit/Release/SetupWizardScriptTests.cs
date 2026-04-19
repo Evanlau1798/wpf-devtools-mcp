@@ -93,6 +93,45 @@ public sealed class SetupWizardScriptTests
     }
 
     [Fact]
+    public void OnlineInstaller_ShouldRejectElevatedCliRegistrationWithoutTrustedAbsolutePath()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var fakeBin = Path.Combine(tempRoot, "bin");
+            var codexLog = Path.Combine(tempRoot, "codex.log");
+            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "codex", codexLog);
+
+            var environment = CreateInstallerEnvironment(tempRoot, fakeBin);
+            environment["WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED"] = "1";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "codex",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                },
+                environment);
+
+            result.ExitCode.Should().NotBe(0);
+            File.Exists(codexLog).Should().BeFalse();
+            result.Stderr.Should().Contain("WPFDEVTOOLS_SKIP_ELEVATION=1");
+            result.Stderr.Should().Contain("WPFDEVTOOLS_CODEX_COMMAND_PATH");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_ShouldMergeVsCodeConfigAndCreateBackup()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

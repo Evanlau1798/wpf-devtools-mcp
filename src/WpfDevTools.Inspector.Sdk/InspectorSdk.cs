@@ -16,6 +16,7 @@ public static class InspectorSdk
     private static volatile bool _isInitialized;
 
     public static Exception? LastInitializationError { get; private set; }
+    public static Exception? LastShutdownError { get; private set; }
 
     /// <summary>
     /// Initialize the inspector SDK.
@@ -25,6 +26,7 @@ public static class InspectorSdk
     public static void Initialize(int? processId = null)
     {
         LastInitializationError = null;
+        LastShutdownError = null;
 
         if (_isInitialized)
             return;
@@ -105,6 +107,7 @@ public static class InspectorSdk
     public static void Shutdown()
     {
         LastInitializationError = null;
+        LastShutdownError = null;
 
         if (!_isInitialized)
             return;
@@ -118,16 +121,28 @@ public static class InspectorSdk
             if (!_isInitialized)
                 return;
 
-            _host?.Stop();
+            var host = _host;
+            var authenticationManager = _authenticationManager;
+
             _host = null;
-            _authenticationManager?.Dispose();
             _authenticationManager = null;
             _certificateManager = null;
             _isInitialized = false;
+
+            try
+            {
+                host?.Dispose();
+            }
+            finally
+            {
+                authenticationManager?.Dispose();
+            }
         }
         catch (Exception ex)
         {
+            LastShutdownError = ex;
             System.Diagnostics.Debug.WriteLine($"Failed to shutdown WpfDevTools Inspector SDK: {ex.Message}");
+            Trace.TraceError($"Failed to shutdown WpfDevTools Inspector SDK: {ex}");
         }
         finally
         {

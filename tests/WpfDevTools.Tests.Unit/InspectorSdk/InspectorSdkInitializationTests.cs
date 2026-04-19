@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using FluentAssertions;
+using WpfDevTools.Inspector.Host;
 using WpfDevTools.Inspector.Sdk;
 using SdkInspector = WpfDevTools.Inspector.Sdk.InspectorSdk;
 
@@ -124,5 +125,80 @@ public sealed class InspectorSdkInitializationTests
                 Directory.Delete(certDirectory, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public void Shutdown_ShouldDisposeHostResources()
+    {
+        SdkInspector.Shutdown();
+
+        var host = new InspectorHost(processId: 12345);
+
+        try
+        {
+            SetInspectorSdkState(host, isInitialized: true, isInitializing: 0);
+
+            SdkInspector.Shutdown();
+
+            SdkInspector.IsInitialized.Should().BeFalse();
+            SdkInspector.LastShutdownError.Should().BeNull();
+            GetInspectorSdkHost().Should().BeNull();
+            host.IsDisposed.Should().BeTrue();
+        }
+        finally
+        {
+            SetInspectorSdkState(host: null, isInitialized: false, isInitializing: 0);
+            if (!host.IsDisposed)
+            {
+                host.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public void Shutdown_WhenCleanupFails_ShouldExposeShutdownError()
+    {
+        var invalidHost = (InspectorHost)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(InspectorHost));
+
+        try
+        {
+            SetInspectorSdkState(invalidHost, isInitialized: true, isInitializing: 0);
+
+            SdkInspector.Shutdown();
+
+            SdkInspector.IsInitialized.Should().BeFalse();
+            SdkInspector.LastShutdownError.Should().NotBeNull();
+            GetInspectorSdkHost().Should().BeNull();
+        }
+        finally
+        {
+            SetInspectorSdkState(host: null, isInitialized: false, isInitializing: 0);
+        }
+    }
+
+    private static void SetInspectorSdkState(InspectorHost? host, bool isInitialized, int isInitializing)
+    {
+        typeof(SdkInspector)
+            .GetField("_host", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .SetValue(null, host);
+        typeof(SdkInspector)
+            .GetField("_authenticationManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .SetValue(null, null);
+        typeof(SdkInspector)
+            .GetField("_certificateManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .SetValue(null, null);
+        typeof(SdkInspector)
+            .GetField("_isInitialized", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .SetValue(null, isInitialized);
+        typeof(SdkInspector)
+            .GetField("_isInitializing", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .SetValue(null, isInitializing);
+    }
+
+    private static InspectorHost? GetInspectorSdkHost()
+    {
+        return (InspectorHost?)typeof(SdkInspector)
+            .GetField("_host", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .GetValue(null);
     }
 }

@@ -236,4 +236,152 @@ public class NamedPipeClientProtocolTests
         allowServerCompletion.SetResult();
         await serverTask;
     }
+
+    [Fact]
+    public async Task Dispose_WhenRequestIsInFlight_ShouldWaitForResponseBeforeClosingPipe()
+    {
+        var processId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var requestReceived = new TaskCompletionSource<InspectorRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowServerCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+
+            request.Should().NotBeNull();
+            requestReceived.SetResult(request!);
+
+            await allowServerCompletion.Task;
+
+            var response = new InspectorResponse
+            {
+                Id = request!.Id,
+                CorrelationId = request.CorrelationId,
+                Result = JsonSerializer.SerializeToElement(new { success = true }),
+                Error = null
+            };
+
+            await MessageFraming.WriteMessageAsync(
+                server,
+                JsonSerializer.Serialize(response),
+                CancellationToken.None);
+        });
+
+        using var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+
+        var sendTask = client.SendRequestAsync(
+            "ping",
+            "dispose-in-flight",
+            new { },
+            CancellationToken.None);
+
+        await requestReceived.Task;
+
+        var disposeTask = Task.Run(client.Dispose);
+        await Task.Yield();
+
+        allowServerCompletion.SetResult();
+
+        var response = await sendTask;
+        response.Error.Should().BeNull();
+
+        await disposeTask;
+        client.IsConnected.Should().BeFalse();
+        await serverTask;
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WhenReconnectStartsDuringInFlightRequest_ShouldNotAbortCurrentRequest()
+    {
+        var processId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var requestReceived = new TaskCompletionSource<InspectorRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowFirstResponse = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var firstServer = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            2,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        using var secondServer = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            2,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var firstServerTask = Task.Run(async () =>
+        {
+            await firstServer.WaitForConnectionAsync();
+            var requestJson = await MessageFraming.ReadMessageAsync(firstServer, CancellationToken.None);
+            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+
+            request.Should().NotBeNull();
+            requestReceived.SetResult(request!);
+
+            await allowFirstResponse.Task;
+
+            try
+            {
+                var response = new InspectorResponse
+                {
+                    Id = request!.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.SerializeToElement(new { success = true }),
+                    Error = null
+                };
+
+                await MessageFraming.WriteMessageAsync(
+                    firstServer,
+                    JsonSerializer.Serialize(response),
+                    CancellationToken.None);
+            }
+            catch (IOException)
+            {
+                // Reconnect on the current implementation tears down the active pipe.
+            }
+        });
+
+        var secondServerTask = Task.Run(async () =>
+        {
+            await secondServer.WaitForConnectionAsync();
+        });
+
+        using var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+
+        var sendTask = client.SendRequestAsync(
+            "ping",
+            "reconnect-in-flight",
+            new { },
+            CancellationToken.None);
+
+        await requestReceived.Task;
+
+        var reconnectTask = client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1);
+        await Task.Yield();
+
+        allowFirstResponse.SetResult();
+
+        var response = await sendTask;
+        response.Error.Should().BeNull();
+
+        var reconnected = await reconnectTask;
+        reconnected.Should().BeTrue();
+
+        await Task.WhenAll(firstServerTask, secondServerTask);
+    }
 }

@@ -136,10 +136,11 @@ public sealed partial class InspectorHost
     private async Task<SslStream?> CreateServerSslStreamAsync(
         NamedPipeServerStream pipe, CancellationToken cancellationToken)
     {
+        SslStream? sslStream = null;
         try
         {
             var certificate = _certManager!.GetOrCreateCertificate();
-            var sslStream = new SslStream(pipe, leaveInnerStreamOpen: true);
+            sslStream = new SslStream(pipe, leaveInnerStreamOpen: true);
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
@@ -172,17 +173,26 @@ public sealed partial class InspectorHost
         }
         catch (OperationCanceledException)
         {
+            sslStream?.Dispose();
             LogError("TLS handshake timed out");
             return null;
         }
         catch (AuthenticationException ex)
         {
+            sslStream?.Dispose();
             LogError($"TLS handshake failed: {ex.Message}");
             return null;
         }
         catch (IOException ex)
         {
+            sslStream?.Dispose();
             LogError($"TLS I/O error: {ex.Message}");
+            return null;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            sslStream?.Dispose();
+            LogError($"TLS stream disposed during handshake: {ex.Message}");
             return null;
         }
     }

@@ -137,119 +137,141 @@ public sealed class NamedPipeClient : IDisposable
     /// <param name="cancellationToken">External cancellation token to abort the entire connect operation</param>
     public async Task<bool> ConnectAsync(TimeSpan timeout, int maxRetries = 3, CancellationToken cancellationToken = default)
     {
-        SetLastConnectFailure(NamedPipeConnectFailure.None);
-        var timeoutBudget = Stopwatch.StartNew();
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        await _pipeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var remainingTimeout = timeout - timeoutBudget.Elapsed;
-            if (remainingTimeout <= TimeSpan.Zero)
-            {
-                SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
-                return false;
-            }
+            SetLastConnectFailure(NamedPipeConnectFailure.None);
+            var timeoutBudget = Stopwatch.StartNew();
 
-            try
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                NamedPipeClientStream localClient;
-                lock (_lock)
+                var remainingTimeout = timeout - timeoutBudget.Elapsed;
+                if (remainingTimeout <= TimeSpan.Zero)
                 {
+                    SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
+                    return false;
+                }
+
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    // A reconnect must tear down both the previous pipe and any wrapped SslStream
+                    // before publishing a new transport.
+                    ResetConnectionState();
+
+                    NamedPipeClientStream localClient;
+                    lock (_lock)
+                    {
+                        if (Volatile.Read(ref _disposeState) != 0)
+                            return false;
+
+                        _pipeClient = new NamedPipeClientStream(
+                            ".",
+                            _pipeName,
+                            PipeDirection.InOut,
+                            PipeOptions.Asynchronous);
+                        localClient = _pipeClient;
+                    }
+
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    cts.CancelAfter(remainingTimeout);
+                    await localClient.ConnectAsync(cts.Token).ConfigureAwait(false);
+
+                    if (_authManager != null && _authManager.IsAuthenticationEnabled)
+                    {
+                        if (!await AuthenticateToInspectorAsync(localClient, cts.Token).ConfigureAwait(false))
+                        {
+                            ResetConnectionState();
+                            return false;
+                        }
+                    }
+
+                    if (_certManager != null)
+                    {
+                        var sslStream = await CreateClientSslStreamAsync(localClient, cts.Token).ConfigureAwait(false);
+                        if (sslStream == null)
+                        {
+                            ResetConnectionState();
+                            return false;
+                        }
+
+                        lock (_lock)
+                        {
+                            _communicationStream = sslStream;
+                        }
+                    }
+                    else
+                    {
+                        lock (_lock)
+                        {
+                            _communicationStream = localClient;
+                        }
+                    }
+
                     if (Volatile.Read(ref _disposeState) != 0)
-                        return false;
-
-                    _pipeClient?.Dispose();
-                    _pipeClient = new NamedPipeClientStream(
-                        ".",
-                        _pipeName,
-                        PipeDirection.InOut,
-                        PipeOptions.Asynchronous);
-                    localClient = _pipeClient;
-                }
-
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(remainingTimeout);
-                await localClient.ConnectAsync(cts.Token).ConfigureAwait(false);
-
-                if (_authManager != null && _authManager.IsAuthenticationEnabled)
-                {
-                    if (!await AuthenticateToInspectorAsync(localClient, cts.Token).ConfigureAwait(false))
-                    {
-                        ResetConnectionState();
-                        return false;
-                    }
-                }
-
-                if (_certManager != null)
-                {
-                    var sslStream = await CreateClientSslStreamAsync(localClient, cts.Token).ConfigureAwait(false);
-                    if (sslStream == null)
                     {
                         ResetConnectionState();
                         return false;
                     }
 
-                    lock (_lock)
+                    if (_enforceHostCompatibilityValidation)
                     {
-                        _communicationStream = sslStream;
+                        var compatibilityFailure = await ValidateConnectedHostAsync(localClient, cts.Token).ConfigureAwait(false);
+                        if (compatibilityFailure != NamedPipeConnectFailure.None)
+                        {
+                            SetLastConnectFailure(compatibilityFailure);
+                            ResetConnectionState();
+                            return false;
+                        }
                     }
-                }
-                else
-                {
-                    lock (_lock)
-                    {
-                        _communicationStream = localClient;
-                    }
-                }
 
-                if (_enforceHostCompatibilityValidation)
+                    SetLastConnectFailure(NamedPipeConnectFailure.None);
+                    return true;
+                }
+                catch (UnauthorizedAccessException)
                 {
-                    var compatibilityFailure = await ValidateConnectedHostAsync(localClient, cts.Token).ConfigureAwait(false);
-                    if (compatibilityFailure != NamedPipeConnectFailure.None)
-                    {
-                        SetLastConnectFailure(compatibilityFailure);
-                        ResetConnectionState();
+                    SetLastConnectFailure(NamedPipeConnectFailure.AccessDenied);
+                    if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
                         return false;
-                    }
                 }
+                catch (IOException)
+                {
+                    SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
+                    if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
+                        return false;
+                }
+                catch (TimeoutException)
+                {
+                    SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
+                    if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
+                        return false;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    ResetConnectionState();
+                    throw;
+                }
+                catch (OperationCanceledException)
+                {
+                    SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
+                    if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
+                        return false;
+                }
+                catch (ObjectDisposedException)
+                {
+                    ResetConnectionState();
+                    return false;
+                }
+            }
 
-                SetLastConnectFailure(NamedPipeConnectFailure.None);
-                return true;
-            }
-            catch (UnauthorizedAccessException)
-            {
-                SetLastConnectFailure(NamedPipeConnectFailure.AccessDenied);
-                if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
-                    return false;
-            }
-            catch (IOException)
-            {
-                SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
-                if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
-                    return false;
-            }
-            catch (TimeoutException)
-            {
-                SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
-                if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
-                    return false;
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                ResetConnectionState();
-                throw;
-            }
-            catch (OperationCanceledException)
-            {
-                SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
-                if (!await HandleConnectRetryAsync(attempt, maxRetries, timeout, timeoutBudget, cancellationToken).ConfigureAwait(false))
-                    return false;
-            }
+            SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
+            return false;
         }
-
-        SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
-        return false;
+        finally
+        {
+            _pipeSemaphore.Release();
+        }
     }
 
     private async Task<bool> HandleConnectRetryAsync(
@@ -302,10 +324,11 @@ public sealed class NamedPipeClient : IDisposable
     private async Task<SslStream?> CreateClientSslStreamAsync(
         NamedPipeClientStream pipe, CancellationToken cancellationToken)
     {
+        SslStream? sslStream = null;
         try
         {
             var expectedThumbprint = GetExpectedServerThumbprint();
-            var sslStream = new SslStream(pipe, leaveInnerStreamOpen: true,
+            sslStream = new SslStream(pipe, leaveInnerStreamOpen: true,
                 (sender, cert, chain, errors) =>
                 {
                     if (cert == null) return false;
@@ -342,16 +365,25 @@ public sealed class NamedPipeClient : IDisposable
         }
         catch (OperationCanceledException)
         {
+            sslStream?.Dispose();
             SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
             return null;
         }
         catch (AuthenticationException)
         {
+            sslStream?.Dispose();
             SetLastConnectFailure(NamedPipeConnectFailure.SecureTransportFailed);
             return null;
         }
         catch (IOException)
         {
+            sslStream?.Dispose();
+            SetLastConnectFailure(NamedPipeConnectFailure.SecureTransportFailed);
+            return null;
+        }
+        catch (ObjectDisposedException)
+        {
+            sslStream?.Dispose();
             SetLastConnectFailure(NamedPipeConnectFailure.SecureTransportFailed);
             return null;
         }
@@ -452,7 +484,7 @@ public sealed class NamedPipeClient : IDisposable
 
         try
         {
-            var response = await SendRequestAsync(
+            var response = await SendRequestCoreAsync(
                 "ping",
                 $"connect-verify-{Guid.NewGuid():N}",
                 new { },
@@ -490,6 +522,10 @@ public sealed class NamedPipeClient : IDisposable
         catch (IOException)
         {
             return NamedPipeConnectFailure.IncompatibleHost;
+        }
+        catch (ObjectDisposedException)
+        {
+            return NamedPipeConnectFailure.Timeout;
         }
         catch (InvalidOperationException)
         {
@@ -561,6 +597,22 @@ public sealed class NamedPipeClient : IDisposable
         CancellationToken cancellationToken)
     {
         await _pipeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await SendRequestCoreAsync(method, requestId, requestParams, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _pipeSemaphore.Release();
+        }
+    }
+
+    private async Task<InspectorResponse> SendRequestCoreAsync(
+        string method,
+        string requestId,
+        object? requestParams,
+        CancellationToken cancellationToken)
+    {
         var communicationStarted = false;
         try
         {
@@ -645,10 +697,6 @@ public sealed class NamedPipeClient : IDisposable
 
             throw new InvalidOperationException("Pipe connection was closed during communication", ex);
         }
-        finally
-        {
-            _pipeSemaphore.Release();
-        }
     }
 
     /// <summary>
@@ -656,27 +704,20 @@ public sealed class NamedPipeClient : IDisposable
     /// </summary>
     public void Dispose()
     {
-        NamedPipeClientStream? pipeToDispose = null;
-        Stream? streamToDispose = null;
-
-        lock (_lock)
+        if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
         {
-            if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
-                return;
-
-            streamToDispose = _communicationStream;
-            pipeToDispose = _pipeClient;
-            _communicationStream = null;
-            _pipeClient = null;
+            return;
         }
 
-        // Dispose SslStream first (if separate from pipe), then pipe
-        // SslStream.Dispose may throw if pipe is already broken (e.g., server disconnected)
-        if (streamToDispose != null && streamToDispose != pipeToDispose)
+        _pipeSemaphore.Wait();
+        try
         {
-            try { streamToDispose.Dispose(); } catch (IOException) { }
+            ResetConnectionState();
         }
-        try { pipeToDispose?.Dispose(); } catch (IOException) { }
+        finally
+        {
+            _pipeSemaphore.Release();
+        }
 
         // NOTE: _pipeSemaphore is intentionally NOT disposed here.
         // A concurrent SendRequestAsync may still be holding/awaiting the semaphore.

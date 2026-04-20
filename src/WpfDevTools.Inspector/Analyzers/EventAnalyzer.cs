@@ -768,11 +768,17 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
 
     private static bool IsDispatcherShutdownMessage(string? message)
     {
-        return !string.IsNullOrWhiteSpace(message)
-            && message.Contains("dispatcher", StringComparison.OrdinalIgnoreCase)
-            && (message.Contains("shut down", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("shutdown", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("unavailable", StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return false;
+        }
+
+        var dispatcherMessage = message!;
+
+        return dispatcherMessage.IndexOf("dispatcher", StringComparison.OrdinalIgnoreCase) >= 0
+            && (dispatcherMessage.IndexOf("shut down", StringComparison.OrdinalIgnoreCase) >= 0
+                || dispatcherMessage.IndexOf("shutdown", StringComparison.OrdinalIgnoreCase) >= 0
+                || dispatcherMessage.IndexOf("unavailable", StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     private static void LogCleanupFailure(Exception exception)

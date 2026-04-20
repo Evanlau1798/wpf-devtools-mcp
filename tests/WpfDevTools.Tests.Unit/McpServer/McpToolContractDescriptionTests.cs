@@ -118,6 +118,18 @@ public sealed class McpToolContractDescriptionTests
             $"{toolType.Name}.{methodName} should include negative selection guidance for AI clients");
     }
 
+    [Fact]
+    public void ConnectDescription_ShouldGuideSceneFirstFollowUps_AndDirectAutoDiscoveryOverrides()
+    {
+        var description = GetDescription(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect));
+
+        description.Should().Contain("get_ui_summary");
+        description.Should().Contain("get_element_snapshot");
+        description.Should().Contain("get_form_summary");
+        description.Should().Contain("connect(windowFilter='all')");
+        description.Should().Contain("connect(selectionStrategy='largest_working_set', windowFilter='all')");
+    }
+
     private static string GetDescription(Type toolType, string methodName)
     {
         var method = toolType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);

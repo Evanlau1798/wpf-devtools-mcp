@@ -100,8 +100,11 @@ public static class ServerInstructions
 
         === AI AGENT BEST PRACTICES ===
         - Start with connect() unless you already know you need a specific processId or non-default windowFilter
+        - After connect() succeeds, immediately build context with get_ui_summary, get_element_snapshot, or get_form_summary before tree-heavy inspection or screenshots
         - When connect() reports multiple candidates, use get_processes(windowFilter) to disambiguate and retry
         - Do not call get_processes before connect() as a default habit; treat it as a disambiguation or filtering tool
+        - When hidden or background targets matter, prefer connect(windowFilter='all') instead of listing processes first just to widen auto-discovery
+        - When multiple WPF processes are expected and largest-target auto-selection is intentional, prefer connect(selectionStrategy='largest_working_set', windowFilter='all') instead of a separate get_processes round trip
         - Store processId in conversation context after successful connect()
         - Prefer get_ui_summary/get_element_snapshot/get_form_summary before tree-heavy inspection
         - Prefer get_ui_summary(summaryOnly=true, depthMode='semantic') for initial scene orientation unless you already have a narrow element-centric question

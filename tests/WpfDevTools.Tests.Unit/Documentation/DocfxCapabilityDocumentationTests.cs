@@ -48,6 +48,48 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/process-and-connection.md")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
+    public void ProcessReferencePages_ShouldDocumentDirectConnectOverrideExamples(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("connect(windowFilter='all')",
+            "process reference pages should show the direct auto-discovery override for hidden or background targets");
+        content.Should().Contain("connect(selectionStrategy='largest_working_set', windowFilter='all')",
+            "process reference pages should show the explicit multi-process auto-selection override instead of only describing it abstractly");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/index.md", "3. `get_ui_summary`, `get_element_snapshot`, or `get_form_summary`")]
+    [InlineData("docfx/zh-tw/reference/tools/index.md", "3. `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`")]
+    public void ToolOverviewPages_ShouldListSceneFirstTriadInRecommendedStepThree(
+        string relativePath,
+        string expectedStep)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(expectedStep,
+            "tool overview pages should present get_ui_summary, get_element_snapshot, and get_form_summary as the same scene-first entry step");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/index.md", "inspect background or foreground-only windows explicitly", "connect(windowFilter='all')")]
+    [InlineData("docfx/zh-tw/reference/tools/index.md", "需要明確查看背景或前景視窗", "connect(windowFilter='all')")]
+    public void ToolOverviewPages_ShouldNotTreatBroaderAutoDiscoveryAsGetProcessesDefaultUseCase(
+        string relativePath,
+        string staleGuidance,
+        string directConnectOverride)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().NotContain(staleGuidance,
+            "overview pages should not steer clients toward get_processes when they only need to widen connect auto-discovery scope");
+        content.Should().Contain(directConnectOverride,
+            "overview pages should point clients at the direct connect override when broader auto-discovery is the real goal");
+    }
+
+    [Theory]
     [InlineData("docfx/reference/tools/interaction-events-layout.md")]
     [InlineData("docfx/zh-tw/reference/tools/interaction-events-layout.md")]
     public void InteractionReferencePages_ShouldDocumentFocusAndStateTools(string relativePath)

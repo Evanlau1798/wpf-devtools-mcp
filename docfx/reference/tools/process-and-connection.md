@@ -11,6 +11,8 @@
 ## When to use which
 
 - Use `connect()` first for the common case. It auto-discovers a single visible WPF target and connects in one step.
+- Use `connect(windowFilter='all')` when hidden or background WPF windows should participate in auto-discovery without a separate process-listing step.
+- Use `connect(selectionStrategy='largest_working_set', windowFilter='all')` when multiple WPF targets are expected and you intentionally want the largest candidate instead of a list-then-connect disambiguation round trip.
 - Use `get_processes(windowFilter)` when auto-discovery is ambiguous, when you need architecture/elevation details up front, or when you want to inspect background targets.
 - Use `connect(processId)` to create a live inspector session for a specific process after explicit discovery.
 - Use `select_active_process` after connecting multiple targets when later calls should omit `processId`.
@@ -30,6 +32,18 @@
 
 ```text
 connect -> get_ui_summary -> get_element_snapshot
+```
+
+```text
+connect -> get_ui_summary -> get_form_summary
+```
+
+```text
+connect(windowFilter='all') -> get_ui_summary -> get_element_snapshot
+```
+
+```text
+connect(selectionStrategy='largest_working_set', windowFilter='all') -> get_ui_summary -> get_form_summary
 ```
 
 ```text

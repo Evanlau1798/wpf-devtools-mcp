@@ -18,8 +18,8 @@ public static class ProcessMcpTools
         "Use this tool to resolve target ambiguity after connect() reports multiple candidates, or when you explicitly need process metadata before connecting.\n\n" +
         ProcessMetadata + "[Process] List all running WPF processes available for inspection. " +
         "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion, runtime, isElevated, requiresElevationToConnect, canConnectFromCurrentServer, connectionWarning.\n\n" +
-        "USE WHEN: connect() reports multiple candidates; you need architecture/elevation/window metadata before choosing a target; you want explicit visible/all/foreground filtering before connecting.\n" +
-        "DO NOT USE: As the default first step when connect() auto-discovery can already resolve the target, or repeatedly in a loop (process list changes infrequently).\n\n" +
+        "USE WHEN: connect() reports multiple candidates; you need architecture/elevation/window metadata before choosing a target; you need an explicit visible/all/foreground candidate list before choosing a specific processId.\n" +
+        "DO NOT USE: As the default first step when connect() auto-discovery can already resolve the target, repeatedly in a loop (process list changes infrequently), or when connect(windowFilter='all') already expresses the broader auto-discovery scope you need.\n\n" +
         "WINDOW FILTERS:\n" +
         "- Omit windowFilter for the visible-only default\n" +
         "- Use windowFilter='all' to include background or hidden WPF windows\n" +
@@ -114,7 +114,7 @@ public static class ProcessMcpTools
         "Use this tool to connect to a running WPF process before any inspection tool is used.\n\n" +
         ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +
-        "USE WHEN: Before using any inspection tools. If processId is omitted, connect auto-discovers the target when exactly one WPF process is running under the chosen window filter.\n" +
+        "USE WHEN: Before using any inspection tools. If processId is omitted, connect auto-discovers the target when exactly one WPF process is running under the chosen window filter. After connect succeeds, build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees or relying on screenshots.\n" +
         "DO NOT USE: On already-connected processes (returns immediately with success=true).\n\n" +
         "TIMEOUT: Connection attempt times out after 30 seconds.\n\n" +
         "RESPONSE FORMAT:\n" +
@@ -150,12 +150,15 @@ public static class ProcessMcpTools
         "- Use windowFilter='all' to include background or hidden WPF windows during auto-discovery\n" +
         "- Use windowFilter='foreground' to restrict auto-discovery to the active foreground WPF window\n" +
         "- Use selectionStrategy='largest_working_set' to auto-select the largest candidate when multiple WPF processes are present\n" +
-        "- Keep the safe default by omitting selectionStrategy or using selectionStrategy='single_only'\n\n" +
+        "- Keep the safe default by omitting selectionStrategy or using selectionStrategy='single_only'\n" +
+        "- Call connect(windowFilter='all') when hidden/background targets must participate in auto-discovery without a separate process listing step\n" +
+        "- Call connect(selectionStrategy='largest_working_set', windowFilter='all') when multiple WPF processes are expected and you intentionally want the largest candidate instead of a list-then-connect disambiguation round trip\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +
         "- { processId: 12345 }\n" +
         "- { selectionStrategy: \"largest_working_set\" }\n" +
-        "- { windowFilter: \"all\" }")]
+        "- { windowFilter: \"all\" }\n" +
+        "- { selectionStrategy: \"largest_working_set\", windowFilter: \"all\" }")]
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
         [Description("Optional target WPF process ID returned by get_processes. Omit to auto-discover when exactly one WPF process is running.")] int? processId = null,

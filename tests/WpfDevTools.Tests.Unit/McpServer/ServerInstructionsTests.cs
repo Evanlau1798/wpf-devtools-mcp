@@ -69,6 +69,17 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldGuideSceneFirstContextAndDirectConnectOverrides()
+    {
+        ServerInstructions.Value.Should().Contain("get_ui_summary, get_element_snapshot, or get_form_summary",
+            "server instructions should explicitly tie successful connect flows to the scene-first context tools");
+        ServerInstructions.Value.Should().Contain("connect(windowFilter='all')",
+            "server instructions should show the direct hidden/background auto-discovery override");
+        ServerInstructions.Value.Should().Contain("connect(selectionStrategy='largest_working_set', windowFilter='all')",
+            "server instructions should show the explicit multi-process auto-selection override for advanced disambiguation");
+    }
+
+    [Fact]
     public void Value_ShouldDescribeSnapshotPrerequisite_BeforeGetStateDiffWorkflow()
     {
         ServerInstructions.Value.Should().Contain("capture_state_snapshot",

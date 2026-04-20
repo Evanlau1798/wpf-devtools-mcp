@@ -22,7 +22,7 @@
 
 1. `connect()` 使用預設 auto-discovery 路徑
 2. `get_active_process`
-3. `get_ui_summary` 或 `get_element_snapshot`
+3. `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 作為 scene-first context
 4. 聚焦式 diagnostics
 5. interaction 或 mutation
 6. verification
@@ -31,8 +31,10 @@
 只有在下列情況才優先使用 `get_processes(windowFilter)`：
 
 - 同時存在多個 WPF target
-- 需要明確查看背景或前景視窗
+- 需要在連線前先取得架構、權限或明確候選清單
 - 想在連線前先選定 `processId`
+
+如果你只是想放寬 auto-discovery 範圍，優先使用 `connect(windowFilter='all')`；`get_processes(windowFilter)` 應保留給明確的 disambiguation 或 metadata-first selection。
 
 ## 類別速覽
 

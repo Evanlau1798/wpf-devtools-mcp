@@ -11,6 +11,8 @@
 ## 什麼時候用哪一個
 
 - 一般情況先用 `connect()`。它會自動發現單一可見的 WPF 目標並直接建立連線。
+- 當 hidden 或 background 的 WPF 視窗也必須參與 auto-discovery，但你不想先多做一次 process listing 時，使用 `connect(windowFilter='all')`。
+- 當你預期同時有多個 WPF target，且你是有意識地要直接挑選最大 working set 候選者時，使用 `connect(selectionStrategy='largest_working_set', windowFilter='all')`，而不是先 list 再 connect。
 - 當 auto-discovery 有歧義、你想先看架構/權限資訊，或你需要把背景目標也列出來時，再用 `get_processes(windowFilter)`。
 - 當你已明確知道要連哪個程序時，用 `connect(processId)` 為指定程序建立 live inspector session。
 - 當你已連上多個目標，且後續工具想省略 `processId` 時，使用 `select_active_process` 明確指定預設目標。
@@ -30,6 +32,18 @@
 
 ```text
 connect -> get_ui_summary -> get_element_snapshot
+```
+
+```text
+connect -> get_ui_summary -> get_form_summary
+```
+
+```text
+connect(windowFilter='all') -> get_ui_summary -> get_element_snapshot
+```
+
+```text
+connect(selectionStrategy='largest_working_set', windowFilter='all') -> get_ui_summary -> get_form_summary
 ```
 
 ```text

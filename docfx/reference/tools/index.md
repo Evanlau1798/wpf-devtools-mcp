@@ -22,7 +22,7 @@ Most real sessions should follow this progression:
 
 1. `connect()` for the default auto-discovery path
 2. `get_active_process`
-3. `get_ui_summary` or `get_element_snapshot`
+3. `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` for scene-first context
 4. Focused diagnostics
 5. Interaction or mutation
 6. Verification
@@ -31,8 +31,10 @@ Most real sessions should follow this progression:
 Use `get_processes(windowFilter)` only when:
 
 - more than one WPF target is available
-- you need to inspect background or foreground-only windows explicitly
+- you need architecture/elevation details or an explicit candidate list before connecting
 - you want to choose a specific `processId` before connecting
+
+If you only need broader auto-discovery, prefer `connect(windowFilter='all')` and keep `get_processes(windowFilter)` for explicit disambiguation or metadata-first selection.
 
 ## Categories at a glance
 

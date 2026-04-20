@@ -154,11 +154,11 @@ internal static class ReleaseScriptTestHarness
         ReplicateFile(
             Path.Combine(cachedArtifacts.MetadataDirectoryPath, "SHA256SUMS.txt"),
             Path.Combine(tempRoot, "SHA256SUMS.txt"),
-            preferHardLink: true);
+            preferHardLink: !isolateArchiveContents);
         ReplicateFile(
             Path.Combine(cachedArtifacts.MetadataDirectoryPath, "release-assets.json"),
             Path.Combine(tempRoot, "release-assets.json"),
-            preferHardLink: true);
+            preferHardLink: !isolateArchiveContents);
         return archivePath;
     }
 
@@ -206,6 +206,59 @@ internal static class ReleaseScriptTestHarness
         File.WriteAllText(Path.Combine(metadataRoot, "release-assets.json"), manifest);
     }
 
+    public static void WriteAdjacentReleaseMetadata(
+        string archivePath,
+        string? signerThumbprint,
+        string? signerSubject,
+        string? publishedAssetName = null)
+    {
+        var archiveFile = new FileInfo(archivePath);
+        if (!archiveFile.Exists)
+        {
+            throw new FileNotFoundException("Archive for release metadata was not found.", archivePath);
+        }
+
+        var assetName = string.IsNullOrWhiteSpace(publishedAssetName)
+            ? archiveFile.Name
+            : publishedAssetName;
+        var versionMatch = System.Text.RegularExpressions.Regex.Match(
+            assetName,
+            @"^release_(?<version>.+)_win-(?<architecture>x64|x86|arm64)\.zip$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var tag = versionMatch.Success
+            ? "v" + versionMatch.Groups["version"].Value
+            : "vtest";
+        var sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(archivePath)))
+            .ToLowerInvariant();
+        var metadataRoot = archiveFile.DirectoryName!;
+
+        File.WriteAllText(
+            Path.Combine(metadataRoot, "SHA256SUMS.txt"),
+            $"{sha256}  {assetName}{Environment.NewLine}");
+
+        var manifest = JsonSerializer.Serialize(
+            new
+            {
+                tag,
+                assetCount = 1,
+                assets = new[]
+                {
+                    new
+                    {
+                        name = assetName,
+                        sizeBytes = archiveFile.Length,
+                        sha256,
+                        signerThumbprint,
+                        signerSubject
+                    }
+                }
+            });
+        File.WriteAllText(Path.Combine(metadataRoot, "release-assets.json"), manifest);
+    }
+
+    public static (string Thumbprint, string Subject) GetSignedPayloadSigner()
+        => SignedPayloadSignerMetadata.Value;
+
     private static CachedPackageArtifacts GetCachedPackageArtifacts(string architecture, bool useSignedPayload)
     {
         var cacheKey = ComputePackageArtifactCacheKey(architecture, useSignedPayload);
@@ -222,6 +275,7 @@ internal static class ReleaseScriptTestHarness
     {
         var inputs = new List<string>
         {
+            "release-cache-v3",
             architecture,
             useSignedPayload ? "signed" : "unsigned",
             GetFileContentHash(GetRepoFilePath("scripts/online-installer.ps1")),

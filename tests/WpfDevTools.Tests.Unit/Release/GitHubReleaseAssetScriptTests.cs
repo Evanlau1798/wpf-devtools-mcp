@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.IO.Compression;
 using FluentAssertions;
 using Xunit;
 
@@ -109,6 +110,48 @@ public sealed class GitHubReleaseAssetScriptTests
             asset.TryGetProperty("path", out _).Should().BeFalse();
             manifest.RootElement.TryGetProperty("generatedUtc", out _).Should().BeFalse();
             manifest.RootElement.TryGetProperty("outputRoot", out _).Should().BeFalse();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void ExportGitHubReleaseAssets_ShouldIncludeSignerMetadataForEachPackageAsset()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var inputRoot = Path.Combine(tempRoot, "release-input");
+            var outputRoot = Path.Combine(tempRoot, "release-output");
+            Directory.CreateDirectory(inputRoot);
+
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64", useSignedPayload: true, isolateArchiveContents: true);
+            var archiveFileName = Path.GetFileName(archivePath);
+            var stagedArchivePath = Path.Combine(inputRoot, archiveFileName);
+            File.Copy(archivePath, stagedArchivePath, overwrite: true);
+
+            string? expectedThumbprint;
+            string? expectedSubject;
+            using (var archive = ZipFile.OpenRead(stagedArchivePath))
+            using (var stream = archive.GetEntry("bin/manifest.json")!.Open())
+            using (var reader = new StreamReader(stream))
+            using (var document = JsonDocument.Parse(reader.ReadToEnd()))
+            {
+                expectedThumbprint = document.RootElement.GetProperty("signerThumbprint").GetString();
+                expectedSubject = document.RootElement.GetProperty("signerSubject").GetString();
+            }
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Write-ReleaseSidecars.ps1"),
+                new[] { "-ArchiveRoot", inputRoot, "-Tag", "v1.2.3", "-OutputJson" });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(inputRoot, "release-assets.json")));
+            var asset = manifest.RootElement.GetProperty("assets")[0];
+            asset.GetProperty("signerThumbprint").GetString().Should().Be(expectedThumbprint);
+            asset.GetProperty("signerSubject").GetString().Should().Be(expectedSubject);
         }
         finally
         {

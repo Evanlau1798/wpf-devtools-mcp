@@ -72,9 +72,14 @@ function Get-ReleaseAssetRecordsFromManifestObject {
             continue
         }
 
+        $signerThumbprint = Normalize-SignerThumbprint -Thumbprint ([string]$asset.signerThumbprint)
+        $signerSubject = if ([string]::IsNullOrWhiteSpace([string]$asset.signerSubject)) { $null } else { [string]$asset.signerSubject }
+
         $records += ,([ordered]@{
                 AssetName = $assetName
                 Sha256 = $sha256.ToLowerInvariant()
+                SignerThumbprint = $signerThumbprint
+                SignerSubject = $signerSubject
             })
     }
 
@@ -283,6 +288,8 @@ function Assert-ArchiveIntegrity {
             ResolvedVersion = if ($null -ne $finalIdentity) { [string]$finalIdentity.ResolvedVersion } else { $ResolvedVersion }
             ResolvedArchitecture = if ($null -ne $finalIdentity) { [string]$finalIdentity.ResolvedArchitecture } else { $ResolvedArchitecture }
             Sha256 = $archiveHash
+            TrustedSignerThumbprint = [string]$releaseRecord.SignerThumbprint
+            TrustedSignerSubject = [string]$releaseRecord.SignerSubject
         }
     }
 
@@ -292,6 +299,8 @@ function Assert-ArchiveIntegrity {
         ResolvedVersion = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.ResolvedVersion } else { $ResolvedVersion }
         ResolvedArchitecture = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.ResolvedArchitecture } else { $ResolvedArchitecture }
         Sha256 = $archiveHash
+        TrustedSignerThumbprint = $null
+        TrustedSignerSubject = $null
     }
 }
 
@@ -400,20 +409,24 @@ function Normalize-SignerThumbprint {
 }
 
 function Get-PackageExpectedSignerMetadata {
-    param([Parameter(Mandatory)] [psobject]$PackageManifest)
+    param(
+        [Parameter(Mandatory)] [psobject]$PackageManifest,
+        [string]$TrustedSignerThumbprint,
+        [string]$TrustedSignerSubject
+    )
 
     $thumbprint = if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
         [string]$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT
     }
     else {
-        [string]$PackageManifest.signerThumbprint
+        [string]$TrustedSignerThumbprint
     }
 
     $subject = if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT)) {
         [string]$env:WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT
     }
     else {
-        [string]$PackageManifest.signerSubject
+        [string]$TrustedSignerSubject
     }
 
     return [ordered]@{
@@ -481,6 +494,8 @@ function Assert-PackagePayloadIntegrity {
     param(
         [Parameter(Mandatory)] [string]$PackageDirectory,
         [Parameter(Mandatory)] [psobject]$PackageManifest,
+        [string]$TrustedSignerThumbprint,
+        [string]$TrustedSignerSubject,
         [switch]$TrustedArchiveManifestPolicy
     )
 
@@ -515,11 +530,14 @@ function Assert-PackagePayloadIntegrity {
         throw 'Package payload signature verification could not locate any executable payloads.'
     }
 
-    $expectedSigner = Get-PackageExpectedSignerMetadata -PackageManifest $PackageManifest
+    $expectedSigner = Get-PackageExpectedSignerMetadata `
+        -PackageManifest $PackageManifest `
+        -TrustedSignerThumbprint $TrustedSignerThumbprint `
+        -TrustedSignerSubject $TrustedSignerSubject
     if (-not (Test-InstallerTestModeEnabled) -and
         [string]::IsNullOrWhiteSpace([string]$expectedSigner.Thumbprint) -and
         [string]::IsNullOrWhiteSpace([string]$expectedSigner.Subject)) {
-        throw 'Package payload signature verification requires pinned signer metadata in manifest.json or WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+        throw 'Package payload signature verification requires pinned signer metadata from release metadata or WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
     }
 
     foreach ($targetPath in $targets) {

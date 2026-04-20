@@ -83,6 +83,8 @@ function Resolve-PackageSession {
             SessionRoot = $sessionRoot
             CleanupSession = $true
             TrustedArchiveManifestPolicy = $true
+            TrustedSignerThumbprint = [string]$integrity.TrustedSignerThumbprint
+            TrustedSignerSubject = [string]$integrity.TrustedSignerSubject
             DownloadSource = 'local-package'
             DownloadUri = [string]$integrity.DownloadUri
             PackageAssetName = [string]$integrity.PackageAssetName
@@ -100,6 +102,8 @@ function Resolve-PackageSession {
             SessionRoot = $null
             CleanupSession = $false
             TrustedArchiveManifestPolicy = $false
+            TrustedSignerThumbprint = $null
+            TrustedSignerSubject = $null
             DownloadSource = 'local-package'
             DownloadUri = $null
             PackageAssetName = $null
@@ -123,6 +127,8 @@ function Resolve-PackageSession {
         SessionRoot = $sessionRoot
         CleanupSession = $true
         TrustedArchiveManifestPolicy = $true
+        TrustedSignerThumbprint = [string]$integrity.TrustedSignerThumbprint
+        TrustedSignerSubject = [string]$integrity.TrustedSignerSubject
         DownloadSource = 'github-release'
         DownloadUri = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.DownloadUri)) { [string]$integrity.DownloadUri } else { [string]$downloadDetails.DownloadUri }
         PackageAssetName = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.PackageAssetName)) { [string]$integrity.PackageAssetName } else { [string]$downloadDetails.AssetName }

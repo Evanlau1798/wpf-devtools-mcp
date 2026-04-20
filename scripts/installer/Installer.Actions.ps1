@@ -14,11 +14,18 @@ function Install-PackagePayload {
         [Parameter(Mandatory)] [string]$ResolvedArchitecture,
         [Parameter(Mandatory)] [string]$ResolvedInstallRoot,
         [Parameter(Mandatory)] [string]$ResolvedVersion,
+        [string]$TrustedSignerThumbprint,
+        [string]$TrustedSignerSubject,
         [switch]$TrustedArchiveManifestPolicy
     )
 
     $packageExecutable = Resolve-PackageExecutable -PackageDirectory $PackageDirectory -ResolvedArchitecture $ResolvedArchitecture
-    Assert-PackagePayloadIntegrity -PackageDirectory $PackageDirectory -PackageManifest $PackageManifest -TrustedArchiveManifestPolicy:$TrustedArchiveManifestPolicy
+    Assert-PackagePayloadIntegrity `
+        -PackageDirectory $PackageDirectory `
+        -PackageManifest $PackageManifest `
+        -TrustedSignerThumbprint $TrustedSignerThumbprint `
+        -TrustedSignerSubject $TrustedSignerSubject `
+        -TrustedArchiveManifestPolicy:$TrustedArchiveManifestPolicy
 
     $installRootFullPath = Resolve-AbsoluteDirectory -Path $ResolvedInstallRoot
     $installBase = Join-Path $installRootFullPath $ResolvedArchitecture
@@ -698,7 +705,15 @@ function Invoke-InstallerActionCore {
             [string]$session.DownloadUri
         }
 
-        $installResult = Install-PackagePayload -PackageDirectory $session.PackageDirectory -PackageManifest $packageManifest -ResolvedArchitecture $resolvedArchitecture -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedVersion $resolvedVersion -TrustedArchiveManifestPolicy:([bool]$session.TrustedArchiveManifestPolicy)
+        $installResult = Install-PackagePayload `
+            -PackageDirectory $session.PackageDirectory `
+            -PackageManifest $packageManifest `
+            -ResolvedArchitecture $resolvedArchitecture `
+            -ResolvedInstallRoot $ResolvedInstallRoot `
+            -ResolvedVersion $resolvedVersion `
+            -TrustedSignerThumbprint ([string]$session.TrustedSignerThumbprint) `
+            -TrustedSignerSubject ([string]$session.TrustedSignerSubject) `
+            -TrustedArchiveManifestPolicy:([bool]$session.TrustedArchiveManifestPolicy)
         $registrations = @(Invoke-ClientRegistration -SelectedClient $ResolvedClient -InstalledExecutable $installResult.installedExecutable -InstallBase $installResult.installBase)
         $verification = Invoke-InstallVerification -SelectedClient $ResolvedClient -ResolvedVersion $resolvedVersion -InstalledExecutable $installResult.installedExecutable -Registration $registrations[0]
         if (-not $verification.Succeeded) {

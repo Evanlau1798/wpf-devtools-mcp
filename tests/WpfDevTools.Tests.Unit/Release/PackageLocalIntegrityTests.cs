@@ -69,7 +69,7 @@ public sealed class PackageLocalIntegrityTests
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 Path.Combine(extractRoot, "bin", "install.ps1"),
                 ["-InstallRoot", Path.Combine(tempRoot, "install-root"), "-Client", "other", "-NonInteractive", "-Force", "-OutputJson"],
-                CreateInstallerEnvironment(tempRoot));
+                CreateInstallerEnvironment(tempRoot, includeTrustedSignerOverride: true, enforceProductionMode: true));
 
             result.ExitCode.Should().Be(0, result.Stderr);
         }
@@ -80,7 +80,7 @@ public sealed class PackageLocalIntegrityTests
     }
 
     [Fact]
-    public void PackageLocalInstaller_ShouldRejectPayloadWhenManifestSignerThumbprintDoesNotMatch()
+    public void PackageLocalInstaller_ShouldRequireTrustedSignerOverrideWhenPackageIsNotArchiveBacked()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -97,11 +97,11 @@ public sealed class PackageLocalIntegrityTests
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 Path.Combine(extractRoot, "bin", "install.ps1"),
                 ["-InstallRoot", Path.Combine(tempRoot, "install-root"), "-Client", "other", "-NonInteractive", "-Force", "-OutputJson"],
-                CreateInstallerEnvironment(tempRoot));
+                CreateInstallerEnvironment(tempRoot, enforceProductionMode: true));
 
             result.ExitCode.Should().NotBe(0);
             (result.Stdout + Environment.NewLine + result.Stderr)
-                .Should().Contain("Expected signer thumbprint", "package-local installs must pin payload signatures to the shipped signer");
+                .Should().Contain("requires pinned signer metadata", "package-local installs must not trust signer metadata embedded inside the package");
         }
         finally
         {
@@ -156,11 +156,30 @@ public sealed class PackageLocalIntegrityTests
         }
     }
 
-    private static IReadOnlyDictionary<string, string?> CreateInstallerEnvironment(string tempRoot)
-        => new Dictionary<string, string?>
+    private static IReadOnlyDictionary<string, string?> CreateInstallerEnvironment(
+        string tempRoot,
+        bool includeTrustedSignerOverride = false,
+        bool enforceProductionMode = false)
+    {
+        var environment = new Dictionary<string, string?>
         {
             ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
             ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
             ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
         };
+
+        if (enforceProductionMode)
+        {
+            environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0";
+        }
+
+        if (includeTrustedSignerOverride)
+        {
+            var signer = ReleaseScriptTestHarness.GetSignedPayloadSigner();
+            environment["WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"] = signer.Thumbprint;
+            environment["WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT"] = signer.Subject;
+        }
+
+        return environment;
+    }
 }

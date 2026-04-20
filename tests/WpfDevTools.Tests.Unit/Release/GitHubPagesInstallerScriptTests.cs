@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Xunit;
 
@@ -183,6 +184,61 @@ public sealed class GitHubPagesInstallerScriptTests
             json.RootElement.GetProperty("architecture").GetString().Should().Be("x64");
             json.RootElement.GetProperty("packageAssetName").GetString().Should().Be("release_1.2.3_win-x64.zip");
             json.RootElement.GetProperty("downloadUri").GetString().Should().Contain("github.com/Evanlau1798/wpf-devtools-mcp/releases/download/v1.2.3/release_1.2.3_win-x64.zip");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldIgnoreTamperedInnerManifestSignerMetadata_WhenReleaseAssetMetadataPinsSigner()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64", useSignedPayload: true, isolateArchiveContents: true);
+            var extractRoot = Path.Combine(tempRoot, "tampered-package");
+            ZipFile.ExtractToDirectory(archivePath, extractRoot);
+
+            var manifestPath = Path.Combine(extractRoot, "bin", "manifest.json");
+            var manifestNode = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+            var trustedThumbprint = manifestNode["signerThumbprint"]?.GetValue<string>();
+            var trustedSubject = manifestNode["signerSubject"]?.GetValue<string>();
+            manifestNode["signerThumbprint"] = "0000000000000000000000000000000000000000";
+            manifestNode["signerSubject"] = "CN=Tampered Release Signer";
+            File.WriteAllText(manifestPath, manifestNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+
+            var tamperedArchivePath = Path.Combine(tempRoot, "release_1.2.3_win-x64.zip");
+            if (File.Exists(tamperedArchivePath))
+            {
+                File.Delete(tamperedArchivePath);
+            }
+
+            ZipFile.CreateFromDirectory(extractRoot, tamperedArchivePath);
+            ReleaseScriptTestHarness.WriteAdjacentReleaseMetadata(tamperedArchivePath, trustedThumbprint, trustedSubject);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-PackageArchivePath", tamperedArchivePath,
+                    "-InstallRoot", Path.Combine(tempRoot, "install-root"),
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                },
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["PATH"] = string.Empty,
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+                });
+
+            result.ExitCode.Should().Be(0, result.Stdout + Environment.NewLine + result.Stderr);
         }
         finally
         {

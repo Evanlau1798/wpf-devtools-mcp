@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "cacheKey":  "sha256:6eb409639476bdf4e1af93b6dc7cb5ebf25108bad90f2239f8f74d23ac3f4061",
+    "cacheKey":  "sha256:734b91ee66839fce173ab241707d7375b3918e7fc07bacf621cf33a7c48cfaff",
     "helperFiles":  [
                         {
                             "path":  "Installer.BootstrapUi.ps1",
@@ -94,13 +94,13 @@
                         },
                         {
                             "path":  "Installer.Release.ps1",
-                            "sha256":  "c762bcc8926550cd7deb73f7eec61024f9f3991495b705c1959e805607a65564",
-                            "sizeBytes":  7539
+                            "sha256":  "a82cb1ba5caa78c410ab337d603dd270bee7b5b7447e5fe61753ce00185d4280",
+                            "sizeBytes":  7934
                         },
                         {
                             "path":  "Installer.PackageIntegrity.ps1",
-                            "sha256":  "53026057ed8144422353135f6ed3cf929511426f8e312aef42f9ebb3a0062b9f",
-                            "sizeBytes":  22010
+                            "sha256":  "b9f8340557c9db4aae3c3b104bced410be4a49a1c0369204228478fa9ed99bd9",
+                            "sizeBytes":  22881
                         },
                         {
                             "path":  "Installer.State.ps1",
@@ -119,8 +119,8 @@
                         },
                         {
                             "path":  "Installer.Actions.ps1",
-                            "sha256":  "863381d53386f0f87853eb8635202bcae516167cf6a6f698dce2cb3eb808562a",
-                            "sizeBytes":  38663
+                            "sha256":  "019be88f9d937ebd9d16122441927b18e03b6ccc3e3c14d09db2aaa7e44d462b",
+                            "sizeBytes":  39145
                         }
                     ]
 }

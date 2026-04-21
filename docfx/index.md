@@ -64,7 +64,7 @@ The repository entrypoint is still only the bootstrap layer; the actual install 
 - **WPF-native visibility**: inspect `BindingOperations`, dependency property sources, namescopes, templates, routed events, and layout state that out-of-process tools cannot reach.
 - **Agent-oriented contracts**: tool metadata lives in code, scene-first workflows are documented explicitly, and runtime follow-up guidance is returned through `navigation` and compatibility `nextSteps`.
 - **Production-grade diagnostics**: the current surface includes compact binding triage, state snapshots, sequential batch mutation, buffered runtime-event draining, and scene-level summaries.
-- **Hardened packaging**: the repository ships release packaging, installer generation, optional security controls, and validation steps suitable for public distribution.
+- **Hardened packaging**: the repository ships release packaging, installer generation, default-hardened injection transport, and validation steps suitable for public distribution.
 
 ## What you can do today
 
@@ -82,7 +82,7 @@ The repository entrypoint is still only the bootstrap layer; the actual install 
 - **Target UI stack**: WPF only.
 - **Injection model**: native bootstrapper plus managed inspector.
 - **Persistence**: runtime mutations do not write back to XAML.
-- **Security posture**: authentication and TLS are opt-in; Debug and Release builds differ in DLL validation policy.
+- **Security posture**: injection-based `connect` sessions use a persisted local HMAC secret and TLS over named pipes by default. Deterministic overrides remain available through `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR`; SDK-host reuse requires both values to match. Debug and Release builds differ in DLL validation policy.
 
 ## Architecture at a glance
 

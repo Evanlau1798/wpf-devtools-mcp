@@ -30,4 +30,4 @@ WPF inspection features such as binding introspection, dependency property prece
 - Preserve low-latency local communication.
 - Minimize false-positive "connected" states.
 - Make runtime and architecture selection explicit.
-- Keep production hardening opt-in but real.
+- Keep the shipping injection path hardened by default, while requiring explicit transport coordination for SDK-host reuse.

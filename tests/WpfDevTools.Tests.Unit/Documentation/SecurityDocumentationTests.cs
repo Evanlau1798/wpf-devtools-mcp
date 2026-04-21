@@ -9,6 +9,7 @@ public class SecurityDocumentationTests
     [InlineData("WPFDEVTOOLS_AUTH_SECRET")]
     [InlineData("WPFDEVTOOLS_CERT_DIR")]
     [InlineData("WPFDEVTOOLS_CERT_THUMBPRINT")]
+    [InlineData("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS")]
     public void Documentation_ShouldMentionSupportedEnvironmentVariables(string variableName)
     {
         var content = ReadDocumentation();
@@ -49,12 +50,34 @@ public class SecurityDocumentationTests
     [InlineData("SECURITY.md", "injection-based")]
     [InlineData("docfx/production/security.md", "Injection-based")]
     [InlineData("docfx/zh-tw/production/security.md", "injection")]
+    [InlineData("docfx/index.md", "persisted local HMAC secret and TLS")]
+    [InlineData("docfx/zh-tw/index.md", "持久化的本機 HMAC secret 與 named-pipe TLS")]
+    [InlineData("docfx/architecture/overview.md", "shipping injection path hardened by default")]
+    [InlineData("docfx/zh-tw/architecture/overview.md", "正式發佈的 injection path 預設即為 hardened")]
     public void Documentation_ShouldDescribeDefaultInjectionTransportHardening(string relativePath, string expectedPhrase)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
         content.Should().Contain(expectedPhrase,
             $"{relativePath} should explain that default hardening applies to the injection-based connect path");
+    }
+
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
+    public void Documentation_ShouldDescribeRawInjectionOptInErrorContract(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS",
+            $"{relativePath} should document the explicit raw injection allowlist");
+        content.Should().Contain("SecurityError",
+            $"{relativePath} should mention the security error surface for blocked raw injection");
+        content.Should().Contain("requiresExplicitTargetOptIn",
+            $"{relativePath} should document the machine-readable opt-in signal for blocked raw injection");
     }
 
     [Theory]
@@ -140,8 +163,22 @@ public class SecurityDocumentationTests
         var security = File.ReadAllText(GetRepoFilePath("SECURITY.md"));
         var productionSecurity = File.ReadAllText(GetRepoFilePath("docfx/production/security.md"));
         var zhTwProductionSecurity = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/production/security.md"));
+        var docfxIndex = File.ReadAllText(GetRepoFilePath("docfx/index.md"));
+        var zhTwDocfxIndex = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/index.md"));
+        var architectureOverview = File.ReadAllText(GetRepoFilePath("docfx/architecture/overview.md"));
+        var zhTwArchitectureOverview = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/architecture/overview.md"));
         var sdkReadme = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector.Sdk/README.md"));
-        return string.Join(Environment.NewLine, readme, security, productionSecurity, zhTwProductionSecurity, sdkReadme);
+        return string.Join(
+            Environment.NewLine,
+            readme,
+            security,
+            productionSecurity,
+            zhTwProductionSecurity,
+            docfxIndex,
+            zhTwDocfxIndex,
+            architectureOverview,
+            zhTwArchitectureOverview,
+            sdkReadme);
     }
 
     private static string GetRepoFilePath(string relativePath)

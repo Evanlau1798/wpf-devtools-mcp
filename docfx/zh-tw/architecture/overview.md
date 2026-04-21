@@ -30,4 +30,4 @@ Target WPF application
 - 保持低延遲的本機通訊。
 - 盡量降低「看似已連線、其實尚未 ready」的假成功狀態。
 - 讓 runtime 與架構選擇顯式可見。
-- 讓生產環境加固是 opt-in，但確實存在。
+- 讓正式發佈的 injection path 預設即為 hardened，而 SDK-host reuse 需要明確協調 transport 設定。

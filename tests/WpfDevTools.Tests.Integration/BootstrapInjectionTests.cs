@@ -34,16 +34,7 @@ public class BootstrapInjectionTests : IDisposable
 
     private System.Diagnostics.Process StartTestApp()
     {
-        var testAppPath = FindTestAppExe();
-        var process = System.Diagnostics.Process.Start(
-            new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = testAppPath,
-                UseShellExecute = true
-            });
-        Assert.NotNull(process);
-        Thread.Sleep(3000);
-        return process!;
+        return TestAppProcessLauncher.StartAndWaitForMainWindow(TestAppProcessLauncher.FindTestAppExe());
     }
 
     [Fact]
@@ -59,7 +50,7 @@ public class BootstrapInjectionTests : IDisposable
         var sessionManager = new SessionManager();
         var injector = new ProcessInjector();
         var detector = new WpfProcessDetector();
-        var connectTool = new ConnectTool(sessionManager, injector, detector);
+        var connectTool = new ConnectTool(sessionManager, injector, detector, isRawInjectionTargetAllowed: _ => true);
         var pingTool = new PingTool(sessionManager);
 
         var connectArgs = JsonSerializer.Deserialize<JsonElement>(
@@ -114,7 +105,7 @@ public class BootstrapInjectionTests : IDisposable
                 certManager: new CertificateManager(certDirectory));
             var injector = new ProcessInjector();
             var detector = new WpfProcessDetector();
-            var connectTool = new ConnectTool(sessionManager, injector, detector);
+            var connectTool = new ConnectTool(sessionManager, injector, detector, isRawInjectionTargetAllowed: _ => true);
             var pingTool = new PingTool(sessionManager);
 
             var connectArgs = JsonSerializer.Deserialize<JsonElement>(
@@ -167,7 +158,7 @@ public class BootstrapInjectionTests : IDisposable
 
         // Use FakeProcessDetector to avoid starting a real TestApp
         var connectTool = new ConnectTool(
-            sessionManager, faultInjector, new FakeProcessDetector());
+            sessionManager, faultInjector, new FakeProcessDetector(), isRawInjectionTargetAllowed: _ => true);
 
         var args = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(new { processId = 12345 }));
@@ -192,14 +183,7 @@ public class BootstrapInjectionTests : IDisposable
 
     private static string FindTestAppExe()
     {
-        return IntegrationExecutableLocator.FindExecutable(
-                AppContext.BaseDirectory,
-                "tests",
-                "WpfDevTools.Tests.TestApp",
-                "net8.0-windows",
-                "WpfDevTools.Tests.TestApp.exe")
-            ?? throw new InvalidOperationException(
-                "TestApp executable not found for the current test configuration. Build tests/WpfDevTools.Tests.TestApp first.");
+        return TestAppProcessLauncher.FindTestAppExe();
     }
 
     private sealed class FakeProcessDetector : WpfProcessDetector

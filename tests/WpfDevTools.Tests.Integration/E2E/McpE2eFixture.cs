@@ -1,8 +1,6 @@
 using System;
-using System.Linq;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using WpfDevTools.Tests.Integration.TestSupport;
 
@@ -57,13 +55,7 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 
         try
         {
-            _testApp = StartTestApp(testAppExe);
-
-            if (!WaitForMainWindow(_testApp, TimeSpan.FromSeconds(15)))
-            {
-                SkipReason = "TestApp main window did not appear within 15 seconds.";
-                return;
-            }
+            _testApp = TestAppProcessLauncher.StartAndWaitForMainWindow(testAppExe, TimeSpan.FromSeconds(15));
 
             _client = new McpStdioClient();
             await _client.StartAsync(serverExe);
@@ -124,34 +116,6 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             }
         }
     }
-
-    private static Process StartTestApp(string testAppExe)
-    {
-        var process = Process.Start(new ProcessStartInfo
-        {
-            FileName = testAppExe,
-            UseShellExecute = true
-        });
-
-        return process ?? throw new InvalidOperationException("Failed to start TestApp process");
-    }
-
-    private static bool WaitForMainWindow(Process process, TimeSpan timeout)
-    {
-        var sw = Stopwatch.StartNew();
-
-        while (sw.Elapsed < timeout)
-        {
-            process.Refresh();
-            if (process.MainWindowHandle != IntPtr.Zero)
-                return true;
-
-            Thread.Sleep(250);
-        }
-
-        return false;
-    }
-
     private static string? FindExecutable(
         string projectDir, string projectName, string framework, string exeName)
     {

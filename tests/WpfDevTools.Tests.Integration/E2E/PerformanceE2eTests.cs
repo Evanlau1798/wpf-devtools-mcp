@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -52,7 +53,7 @@ public sealed class PerformanceE2eTests
     }
 
     [Fact]
-    public async Task GetRenderStats_SecondCall_ShouldHaveFrameData()
+    public async Task GetRenderStats_FollowUpCalls_ShouldEventuallyHaveFrameData()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
 
@@ -62,16 +63,16 @@ public sealed class PerformanceE2eTests
             new { processId = _fixture.TestAppProcessId },
             timeoutMs: 10000);
 
-        // Brief wait for frame data to accumulate
-        await Task.Delay(500);
+        var result = await ConditionWaiter.WaitForAsync(
+            () => _fixture.Client.CallToolAsync(
+                "get_render_stats",
+                new { processId = _fixture.TestAppProcessId },
+                timeoutMs: 10000),
+            payload => payload.GetProperty("totalFrames").GetInt32() > 0,
+            TimeSpan.FromSeconds(5),
+            "Timed out waiting for get_render_stats to report warmed-up frame data on a follow-up call.");
 
-        // Second call should have actual data
-        var result = await _fixture.Client.CallToolAsync(
-            "get_render_stats",
-            new { processId = _fixture.TestAppProcessId },
-            timeoutMs: 10000);
-
-        _output.WriteLine($"Render stats (2nd call): {result.GetRawText()}");
+        _output.WriteLine($"Render stats (follow-up): {result.GetRawText()}");
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
 

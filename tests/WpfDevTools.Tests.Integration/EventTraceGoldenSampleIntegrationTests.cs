@@ -6,6 +6,7 @@ using System.Windows.Media;
 using FluentAssertions;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Tests.TestApp;
+using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
@@ -95,17 +96,21 @@ public sealed class EventTraceGoldenSampleIntegrationTests
             visualState.IsChecked.Should().BeTrue();
             visualState.Foreground.Should().Be(Colors.Red.ToString());
 
-            await Task.Delay(100);
-
-            var getResponse = await dispatcher.DispatchAsync(
-                new InspectorRequest
-                {
-                    Id = "trace-get-1",
-                    Method = "trace_routed_events",
-                    Params = JsonSerializer.SerializeToElement(new { mode = "get" }),
-                    CorrelationId = "corr-trace-get-1"
-                },
-                CancellationToken.None);
+            var getResponse = await ConditionWaiter.WaitForAsync(
+                () => dispatcher.DispatchAsync(
+                    new InspectorRequest
+                    {
+                        Id = "trace-get-1",
+                        Method = "trace_routed_events",
+                        Params = JsonSerializer.SerializeToElement(new { mode = "get" }),
+                        CorrelationId = "corr-trace-get-1"
+                    },
+                    CancellationToken.None),
+                response => response.Result.HasValue
+                    && response.Result.Value.TryGetProperty("eventCount", out var eventCount)
+                    && eventCount.GetInt32() > 0,
+                TimeSpan.FromSeconds(2),
+                "Timed out waiting for trace_routed_events(mode='get') to return the captured golden-sample click event.");
 
             getResponse.Error.Should().BeNull();
             getResponse.Result!.Value.GetProperty("success").GetBoolean().Should().BeTrue();

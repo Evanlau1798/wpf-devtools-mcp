@@ -6,6 +6,7 @@ using System.Windows.Data;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
@@ -94,7 +95,10 @@ public sealed class BindingAnalyzerLateInstallIntegrationTests : IDisposable
                 "System.Windows.Data Error: 40 : BindingExpression path error: 'LegacyName' property not found on 'object' ''TestViewModel'.");
 
             var cutoff = DateTime.UtcNow.AddMilliseconds(50);
-            Thread.Sleep(75);
+            ConditionWaiter.WaitUntil(
+                () => DateTime.UtcNow >= cutoff,
+                TimeSpan.FromMilliseconds(250),
+                "Timed out waiting for the sinceTimestamp cutoff to pass before reading live binding errors.");
 
             var analyzer = new BindingAnalyzer(new ElementFinder());
             return JsonSerializer.SerializeToElement(

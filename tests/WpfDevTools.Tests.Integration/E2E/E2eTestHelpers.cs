@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Tests.Integration.TestSupport;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
@@ -162,6 +163,24 @@ public static class E2eTestHelpers
         }
 
         return null;
+    }
+
+    public static async Task<JsonElement> WaitForTraceEventAsync(
+        McpStdioClient client,
+        int processId,
+        TimeSpan timeout)
+    {
+        return await ConditionWaiter.WaitForAsync(
+            () => client.CallToolAsync(
+                "trace_routed_events",
+                new
+                {
+                    processId,
+                    mode = "get"
+                }),
+            result => result.GetProperty("eventCount").GetInt32() > 0,
+            timeout,
+            "Timed out waiting for trace_routed_events(mode='get') to observe a routed event.");
     }
 
     public static async Task ResetTestAppStateAsync(McpStdioClient client, int processId)

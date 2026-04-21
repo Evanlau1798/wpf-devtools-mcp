@@ -28,7 +28,7 @@ public sealed class ConnectToolActiveProcessIntegrationTests : IDisposable
         using var sessionManager = new SessionManager();
         sessionManager.AddSession(54321);
 
-        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector());
+        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(), isRawInjectionTargetAllowed: _ => true);
         var connectArgs = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(new { processId = _testApp.Id }));
 
@@ -52,27 +52,11 @@ public sealed class ConnectToolActiveProcessIntegrationTests : IDisposable
 
     private static Process StartTestApp()
     {
-        var testAppPath = FindTestAppExe();
-        var process = Process.Start(
-            new ProcessStartInfo
-            {
-                FileName = testAppPath,
-                UseShellExecute = true
-            });
-        process.Should().NotBeNull();
-        Thread.Sleep(3000);
-        return process!;
+        return TestAppProcessLauncher.StartAndWaitForMainWindow(TestAppProcessLauncher.FindTestAppExe());
     }
 
     private static string FindTestAppExe()
     {
-        return IntegrationExecutableLocator.FindExecutable(
-                AppContext.BaseDirectory,
-                "tests",
-                "WpfDevTools.Tests.TestApp",
-                "net8.0-windows",
-                "WpfDevTools.Tests.TestApp.exe")
-            ?? throw new InvalidOperationException(
-                "TestApp executable not found for the current test configuration. Build tests/WpfDevTools.Tests.TestApp first.");
+        return TestAppProcessLauncher.FindTestAppExe();
     }
 }

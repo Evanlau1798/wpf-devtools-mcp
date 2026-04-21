@@ -6,6 +6,7 @@ using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Host.Handlers;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
@@ -57,7 +58,6 @@ public class EventTraceWorkflowIntegrationTests
         payload.GetProperty("mode").GetString().Should().Be("start");
         payload.GetProperty("isTracing").GetBoolean().Should().BeTrue();
 
-        await Task.Delay(550);
     }
 
     [Fact]
@@ -87,25 +87,23 @@ public class EventTraceWorkflowIntegrationTests
 
         var startParameters = JsonSerializer.SerializeToElement(new { elementId, eventName = "Click", duration = 500, mode = "start" });
         var fireParameters = JsonSerializer.SerializeToElement(new { elementId, eventName = "Click" });
-        var getParameters = JsonSerializer.SerializeToElement(new { mode = "get" });
-
         var startResult = await handler.HandleAsync("trace_routed_events", startParameters, CancellationToken.None);
         JsonSerializer.SerializeToElement(startResult).GetProperty("success").GetBoolean().Should().BeTrue();
 
         var fireResult = await handler.HandleAsync("fire_routed_event", fireParameters, CancellationToken.None);
         JsonSerializer.SerializeToElement(fireResult).GetProperty("success").GetBoolean().Should().BeTrue();
 
-        await Task.Delay(50);
-
-        var traceResult = await handler.HandleAsync("trace_routed_events", getParameters, CancellationToken.None);
-        var tracePayload = JsonSerializer.SerializeToElement(traceResult);
+        var tracePayload = await WaitForTracePayloadAsync(
+            handler,
+            payload => payload.GetProperty("eventCount").GetInt32() > 0,
+            TimeSpan.FromSeconds(2),
+            "Timed out waiting for trace_routed_events(mode='get') to observe the fired routed event.");
 
         tracePayload.GetProperty("success").GetBoolean().Should().BeTrue(tracePayload.GetRawText());
         tracePayload.GetProperty("mode").GetString().Should().Be("get");
         tracePayload.GetProperty("eventCount").GetInt32().Should().BeGreaterThan(0);
         tracePayload.GetProperty("events")[0].GetProperty("handled").GetBoolean().Should().BeFalse();
 
-        await Task.Delay(550);
     }
 
     [Fact]
@@ -151,7 +149,12 @@ public class EventTraceWorkflowIntegrationTests
         payload.GetProperty("effectiveDuration").GetInt32().Should().Be(requestedDuration);
         payload.GetProperty("shortDurationOverrideUsed").GetBoolean().Should().BeTrue();
 
-        await Task.Delay(requestedDuration + 50);
+        var completedPayload = await WaitForTracePayloadAsync(
+            handler,
+            payload => !payload.GetProperty("isTracing").GetBoolean(),
+            TimeSpan.FromSeconds(2),
+            "Timed out waiting for the short-duration trace window to close.");
+        completedPayload.GetProperty("success").GetBoolean().Should().BeTrue(completedPayload.GetRawText());
     }
 
     [Fact]
@@ -192,18 +195,39 @@ public class EventTraceWorkflowIntegrationTests
             CancellationToken.None);
 
         JsonSerializer.SerializeToElement(startResult).GetProperty("success").GetBoolean().Should().BeTrue();
-        await Task.Delay(220);
-
-        var getResult = await handler.HandleAsync(
-            "trace_routed_events",
-            JsonSerializer.SerializeToElement(new { mode = "get" }),
-            CancellationToken.None);
-        var payload = JsonSerializer.SerializeToElement(getResult);
+        var payload = await WaitForTracePayloadAsync(
+            handler,
+            tracePayload =>
+                tracePayload.TryGetProperty("diagnostics", out var diagnostics)
+                && diagnostics.TryGetProperty("reasonCode", out var reasonCode)
+                && string.Equals(reasonCode.GetString(), "eventNotRaised", StringComparison.Ordinal),
+            TimeSpan.FromSeconds(2),
+            "Timed out waiting for trace_routed_events(mode='get') to report the expired no-interaction diagnostics.");
 
         payload.GetProperty("success").GetBoolean().Should().BeTrue(payload.GetRawText());
         payload.GetProperty("eventCount").GetInt32().Should().Be(0);
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("eventNotRaised");
         payload.GetProperty("diagnostics").GetProperty("windowExpiredBeforeGet").GetBoolean().Should().BeTrue();
         payload.GetProperty("diagnostics").GetProperty("expiredByMs").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    private static async Task<JsonElement> WaitForTracePayloadAsync(
+        EventHandlers handler,
+        Func<JsonElement, bool> condition,
+        TimeSpan timeout,
+        string failureMessage)
+    {
+        return await ConditionWaiter.WaitForAsync(
+            async () =>
+            {
+                var result = await handler.HandleAsync(
+                    "trace_routed_events",
+                    JsonSerializer.SerializeToElement(new { mode = "get" }),
+                    CancellationToken.None);
+                return JsonSerializer.SerializeToElement(result);
+            },
+            condition,
+            timeout,
+            failureMessage);
     }
 }

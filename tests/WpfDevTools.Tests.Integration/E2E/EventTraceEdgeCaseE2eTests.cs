@@ -6,12 +6,13 @@ namespace WpfDevTools.Tests.Integration.E2E;
 
 [Collection("McpE2E")]
 [Trait("Category", "E2E")]
-public sealed class EventTraceEdgeCaseE2eTests
+public sealed class EventTraceEdgeCaseE2eTests : SharedStateMcpE2eTestBase
 {
     private readonly McpE2eFixture _fixture;
     private readonly ITestOutputHelper _output;
 
     public EventTraceEdgeCaseE2eTests(McpE2eFixture fixture, ITestOutputHelper output)
+        : base(fixture)
     {
         _fixture = fixture;
         _output = output;
@@ -51,15 +52,10 @@ public sealed class EventTraceEdgeCaseE2eTests
             });
         click.GetProperty("success").GetBoolean().Should().BeTrue(click.GetRawText());
 
-        await Task.Delay(150);
-
-        var trace = await _fixture.Client.CallToolAsync(
-            "trace_routed_events",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                mode = "get"
-            });
+        var trace = await E2eTestHelpers.WaitForTraceEventAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            TimeSpan.FromSeconds(2));
         _output.WriteLine(trace.GetRawText());
 
         trace.GetProperty("success").GetBoolean().Should().BeTrue(trace.GetRawText());
@@ -101,15 +97,10 @@ public sealed class EventTraceEdgeCaseE2eTests
             });
         fire.GetProperty("success").GetBoolean().Should().BeTrue(fire.GetRawText());
 
-        await Task.Delay(150);
-
-        var trace = await _fixture.Client.CallToolAsync(
-            "trace_routed_events",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                mode = "get"
-            });
+        var trace = await E2eTestHelpers.WaitForTraceEventAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            TimeSpan.FromSeconds(2));
         _output.WriteLine(trace.GetRawText());
 
         trace.GetProperty("success").GetBoolean().Should().BeTrue(trace.GetRawText());

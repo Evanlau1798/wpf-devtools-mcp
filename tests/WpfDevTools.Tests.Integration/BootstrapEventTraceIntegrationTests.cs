@@ -32,9 +32,10 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 
         _testApp = StartTestApp();
         var sessionManager = new SessionManager();
-        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector());
+        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(), isRawInjectionTargetAllowed: _ => true);
         var getLogicalTreeTool = new GetLogicalTreeTool(sessionManager);
         var getNamescopeTool = new GenericPipeTool(sessionManager, "get_namescope");
+        var getInteractionReadinessTool = new GetInteractionReadinessTool(sessionManager);
         var clickTool = new ClickElementTool(sessionManager);
         var traceTool = new TraceRoutedEventsTool(sessionManager);
 
@@ -58,14 +59,12 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
             new { processId = _testApp.Id, elementId = stylesTabId });
 
         clickTabResult.GetProperty("success").GetBoolean().Should().BeTrue(clickTabResult.GetRawText());
-        await Task.Delay(250);
-
         var namescope = await ExecuteToolAsync(
             getNamescopeTool,
             new { processId = _testApp.Id });
-
         var checkBoxId = GetNamedElementId(namescope, "EnableHighlightCheckBox");
         checkBoxId.Should().NotBeNullOrEmpty(namescope.GetRawText());
+        await WaitForInteractionReadinessAsync(getInteractionReadinessTool, _testApp.Id, checkBoxId!);
         _output.WriteLine($"EnableHighlightCheckBox id: {checkBoxId}");
 
         var traceStart = await ExecuteToolAsync(
@@ -79,11 +78,7 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
             new { processId = _testApp.Id, elementId = checkBoxId });
 
         clickCheckBox.GetProperty("success").GetBoolean().Should().BeTrue(clickCheckBox.GetRawText());
-        await Task.Delay(150);
-
-        var traceGet = await ExecuteToolAsync(
-            traceTool,
-            new { processId = _testApp.Id, mode = "get" });
+        var traceGet = await WaitForTraceEventAsync(traceTool, _testApp.Id);
 
         _output.WriteLine(traceGet.GetRawText());
         traceGet.GetProperty("success").GetBoolean().Should().BeTrue(traceGet.GetRawText());
@@ -99,8 +94,9 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 
         _testApp = StartTestApp();
         var sessionManager = new SessionManager();
-        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector());
+        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(), isRawInjectionTargetAllowed: _ => true);
         var getNamescopeTool = new GenericPipeTool(sessionManager, "get_namescope");
+        var getInteractionReadinessTool = new GetInteractionReadinessTool(sessionManager);
         var clickTool = new ClickElementTool(sessionManager);
         var traceTool = new TraceRoutedEventsTool(sessionManager);
 
@@ -113,20 +109,14 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 
         var tabId = GetNamedElementId(namescope, "EventTraceLabTab");
         tabId.Should().NotBeNullOrEmpty(namescope.GetRawText());
+        var buttonId = GetNamedElementId(namescope, "EventStormButton");
+        buttonId.Should().NotBeNullOrEmpty(namescope.GetRawText());
 
         var clickTabResult = await ExecuteToolAsync(
             clickTool,
             new { processId = _testApp.Id, elementId = tabId });
         clickTabResult.GetProperty("success").GetBoolean().Should().BeTrue(clickTabResult.GetRawText());
-
-        await Task.Delay(250);
-
-        namescope = await ExecuteToolAsync(
-            getNamescopeTool,
-            new { processId = _testApp.Id });
-
-        var buttonId = GetNamedElementId(namescope, "EventStormButton");
-        buttonId.Should().NotBeNullOrEmpty(namescope.GetRawText());
+        await WaitForInteractionReadinessAsync(getInteractionReadinessTool, _testApp.Id, buttonId!);
 
         var traceStart = await ExecuteToolAsync(
             traceTool,
@@ -138,14 +128,29 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
             new { processId = _testApp.Id, elementId = buttonId });
         clickButton.GetProperty("success").GetBoolean().Should().BeTrue(clickButton.GetRawText());
 
-        await Task.Delay(150);
-
-        var traceGet = await ExecuteToolAsync(
-            traceTool,
-            new { processId = _testApp.Id, mode = "get" });
+        var traceGet = await WaitForTraceEventAsync(traceTool, _testApp.Id);
 
         traceGet.GetProperty("success").GetBoolean().Should().BeTrue(traceGet.GetRawText());
         traceGet.GetProperty("eventCount").GetInt32().Should().BeGreaterThan(0, traceGet.GetRawText());
+    }
+
+    private async Task<JsonElement> WaitForInteractionReadinessAsync(object getInteractionReadinessTool, int processId, string elementId)
+    {
+        return await ConditionWaiter.WaitForAsync(
+            () => ExecuteToolAsync(getInteractionReadinessTool, new { processId, elementId, interactionType = "Click" }),
+            readinessPayload => readinessPayload.GetProperty("success").GetBoolean()
+                && readinessPayload.GetProperty("isReady").GetBoolean(),
+            TimeSpan.FromSeconds(5),
+            $"Timed out waiting for get_interaction_readiness to report element {elementId} as ready after activating the target tab.");
+    }
+
+    private async Task<JsonElement> WaitForTraceEventAsync(object traceTool, int processId)
+    {
+        return await ConditionWaiter.WaitForAsync(
+            () => ExecuteToolAsync(traceTool, new { processId, mode = "get" }),
+            payload => payload.GetProperty("eventCount").GetInt32() > 0,
+            TimeSpan.FromSeconds(2),
+            "Timed out waiting for trace_routed_events(mode='get') to capture the fired event.");
     }
 
     private async Task<JsonElement> ExecuteToolAsync(object tool, object args)
@@ -201,27 +206,12 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 
     private static string FindTestAppExe()
     {
-        return IntegrationExecutableLocator.FindExecutable(
-                AppContext.BaseDirectory,
-                "tests",
-                "WpfDevTools.Tests.TestApp",
-                "net8.0-windows",
-                "WpfDevTools.Tests.TestApp.exe")
-            ?? throw new InvalidOperationException(
-                "TestApp executable not found for the current test configuration. Build tests/WpfDevTools.Tests.TestApp first.");
+        return TestAppProcessLauncher.FindTestAppExe();
     }
 
     private static Process StartTestApp()
     {
-        var process = Process.Start(new ProcessStartInfo
-        {
-            FileName = FindTestAppExe(),
-            UseShellExecute = true
-        });
-
-        process.Should().NotBeNull();
-        Thread.Sleep(3000);
-        return process!;
+        return TestAppProcessLauncher.StartAndWaitForMainWindow(FindTestAppExe());
     }
 
     public void Dispose()

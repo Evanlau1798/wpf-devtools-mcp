@@ -1,83 +1,19 @@
+using System.IO;
 using System.Diagnostics;
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 
-namespace WpfDevTools.Tests.Unit.Release;
+namespace WpfDevTools.Tests.Integration;
 
-[Collection("TimingSensitive")]
-public sealed class InstallerProcessLifecycleTests
+[Collection("PackagingIntegration")]
+public sealed class ReleasePackagingTestHarnessIntegrationTests
 {
     [Fact]
-    public void ReleaseScriptTestHarness_RunPowerShellCommand_ShouldTimeoutAndKillProcessTree()
-        => AssertTimedOutProcessTreeIsTerminated(forceTaskKillFallback: false);
-
-    [Fact]
-    public void ReleaseScriptTestHarness_RunPowerShellCommand_WhenManagedKillFails_ShouldFallbackToTaskKillAndKillProcessTree()
-        => AssertTimedOutProcessTreeIsTerminated(forceTaskKillFallback: true);
-
-    private static void AssertTimedOutProcessTreeIsTerminated(bool forceTaskKillFallback)
+    public void RunPowerShellScript_WithOnlineInstallerScript_ShouldInjectWorkingRootAndIsolatedEnvironment()
     {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        var originalForceTaskKillFallback = ReleaseScriptTestHarness.ForceTaskKillFallbackForTesting;
-        ReleaseScriptTestHarness.ForceTaskKillFallbackForTesting = forceTaskKillFallback;
-        try
-        {
-            var parentPidPath = Path.Combine(tempRoot, "timed-out-parent.pid");
-            var childPidPath = Path.Combine(tempRoot, "timed-out-child.pid");
-            var grandchildPidPath = Path.Combine(tempRoot, "timed-out-grandchild.pid");
-            var childScriptPath = Path.Combine(tempRoot, "hang-child.ps1");
-            File.WriteAllText(
-                childScriptPath,
-                "param([string]$ChildPidPath, [string]$GrandchildPidPath)\n" +
-                "$PID | Set-Content -Path $ChildPidPath\n" +
-                "$grandchild = Start-Process powershell.exe -ArgumentList '-NoProfile', '-Command', 'Start-Sleep -Seconds 60' -PassThru\n" +
-                "$grandchild.Id | Set-Content -Path $GrandchildPidPath\n" +
-                "Start-Sleep -Seconds 60\n");
-
-            var command = string.Join(" ; ",
-            [
-                "$parentPidPath = '" + parentPidPath.Replace("'", "''") + "'",
-                "$childPidPath = '" + childPidPath.Replace("'", "''") + "'",
-                "$grandchildPidPath = '" + grandchildPidPath.Replace("'", "''") + "'",
-                "$childScriptPath = '" + childScriptPath.Replace("'", "''") + "'",
-                "$PID | Set-Content -Path $parentPidPath",
-                "$child = Start-Process powershell.exe -ArgumentList '-NoProfile', '-File', $childScriptPath, '-ChildPidPath', $childPidPath, '-GrandchildPidPath', $grandchildPidPath -PassThru",
-                "while (!(Test-Path $childPidPath) -or !(Test-Path $grandchildPidPath)) { Start-Sleep -Milliseconds 50 }",
-                "Start-Sleep -Seconds 60"
-            ]);
-
-            var act = () => ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(3));
-
-            act.Should().Throw<TimeoutException>();
-            WaitUntil(
-                () => File.Exists(parentPidPath) && File.Exists(childPidPath) && File.Exists(grandchildPidPath),
-                TimeSpan.FromSeconds(5),
-                "Timed out waiting for timeout regression pid files to be written.");
-
-            var processIds = new[]
-            {
-                int.Parse(File.ReadAllText(parentPidPath).Trim()),
-                int.Parse(File.ReadAllText(childPidPath).Trim()),
-                int.Parse(File.ReadAllText(grandchildPidPath).Trim())
-            };
-
-            WaitUntil(
-                () => processIds.All(pid => !IsProcessRunning(pid)),
-                TimeSpan.FromSeconds(5),
-                $"Timed out waiting for process tree {string.Join(", ", processIds)} to exit after harness timeout.");
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.ForceTaskKillFallbackForTesting = originalForceTaskKillFallback;
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void ReleaseScriptTestHarness_RunPowerShellScript_WithOnlineInstallerScript_ShouldInjectWorkingRootAndIsolatedEnvironment()
-    {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
         try
         {
             var scriptPath = Path.Combine(tempRoot, "online-installer.ps1");
@@ -97,7 +33,7 @@ public sealed class InstallerProcessLifecycleTests
                 "  Tmp = $env:TMP\n" +
                 "} | ConvertTo-Json -Compress\n");
 
-            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+            var result = ReleasePackagingTestHarness.RunPowerShellScript(
                 scriptPath,
                 Array.Empty<string>(),
                 timeout: TimeSpan.FromSeconds(5));
@@ -122,18 +58,18 @@ public sealed class InstallerProcessLifecycleTests
             tempPath.Should().Be(Path.Combine(resolvedUserProfile, "Temp"));
             tmpPath.Should().Be(tempPath);
             workingRoot.Should().StartWith(resolvedUserProfile);
-            resolvedUserProfile.Should().StartWith(ReleaseScriptTestHarness.GetRepoFilePath("tmp"));
+            resolvedUserProfile.Should().StartWith(ReleasePackagingTestHarness.GetRepoFilePath("tmp"));
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
         }
     }
 
     [Fact]
-    public void ReleaseScriptTestHarness_RunPowerShellScript_WithSharedEnvironmentOverrides_ShouldReuseCallerRootWithoutDeletingIt()
+    public void RunPowerShellScript_WithSharedEnvironmentOverrides_ShouldReuseCallerRootWithoutDeletingIt()
     {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
         try
         {
             var sharedRoot = Path.Combine(tempRoot, "caller-root");
@@ -161,7 +97,7 @@ public sealed class InstallerProcessLifecycleTests
                 "  LocalAppData = $env:LOCALAPPDATA\n" +
                 "} | ConvertTo-Json -Compress\n");
 
-            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+            var result = ReleasePackagingTestHarness.RunPowerShellScript(
                 scriptPath,
                 Array.Empty<string>(),
                 new Dictionary<string, string?>
@@ -192,14 +128,14 @@ public sealed class InstallerProcessLifecycleTests
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
         }
     }
 
     [Fact]
-    public void ReleaseScriptTestHarness_RunPowerShellScript_WithMismatchedUserProfileOverride_ShouldUseOwnedIsolatedWorkingRootAndTemp()
+    public void RunPowerShellScript_WithMismatchedUserProfileOverride_ShouldUseOwnedIsolatedWorkingRootAndTemp()
     {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
         try
         {
             var sharedRoot = Path.Combine(tempRoot, "caller-root");
@@ -230,7 +166,7 @@ public sealed class InstallerProcessLifecycleTests
                 "  Tmp = $env:TMP\n" +
                 "} | ConvertTo-Json -Compress\n");
 
-            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+            var result = ReleasePackagingTestHarness.RunPowerShellScript(
                 scriptPath,
                 Array.Empty<string>(),
                 new Dictionary<string, string?>
@@ -265,75 +201,133 @@ public sealed class InstallerProcessLifecycleTests
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
         }
     }
 
     [Fact]
-    public void OnlineInstaller_TuiTestMode_ShouldFailFastWhenKeyQueueIsExhausted()
+    public void RunPowerShellScript_WithSharedEnvironmentOverridesForNonInstallerScript_ShouldNotReuseCallerRootForTemp()
     {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
         try
         {
-            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
-            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var sharedRoot = Path.Combine(tempRoot, "caller-root");
+            var userProfile = Path.Combine(sharedRoot, "UserProfile");
+            var appData = Path.Combine(sharedRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(sharedRoot, "AppData", "Local");
+            Directory.CreateDirectory(userProfile);
             Directory.CreateDirectory(appData);
             Directory.CreateDirectory(localAppData);
-            Directory.CreateDirectory(userProfile);
 
-            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
-            var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
-            var command = string.Join(" ; ",
-            [
-                "$env:APPDATA='" + appData.Replace("'", "''") + "'",
-                "$env:LOCALAPPDATA='" + localAppData.Replace("'", "''") + "'",
-                "$env:USERPROFILE='" + userProfile.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
-                "Set-Location '" + tempRoot.Replace("'", "''") + "'",
-                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
-            ]);
+            var scriptPath = Path.Combine(tempRoot, "echo-temp.ps1");
+            File.WriteAllText(
+                scriptPath,
+                "[ordered]@{\n" +
+                "  Temp = $env:TEMP\n" +
+                "  UserProfile = $env:USERPROFILE\n" +
+                "  AppData = $env:APPDATA\n" +
+                "  LocalAppData = $env:LOCALAPPDATA\n" +
+                "} | ConvertTo-Json -Compress\n");
 
-            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(10));
+            var result = ReleasePackagingTestHarness.RunPowerShellScript(
+                scriptPath,
+                Array.Empty<string>(),
+                new Dictionary<string, string?>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["APPDATA"] = appData,
+                    ["LOCALAPPDATA"] = localAppData
+                },
+                timeout: TimeSpan.FromSeconds(5));
 
-            result.ExitCode.Should().NotBe(0);
-            result.Stderr.Should().Contain("TUI test key queue exhausted");
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var payload = JsonDocument.Parse(result.Stdout);
+            var root = payload.RootElement;
+            var tempPath = root.GetProperty("Temp").GetString();
+
+            root.GetProperty("UserProfile").GetString().Should().Be(userProfile);
+            root.GetProperty("AppData").GetString().Should().Be(appData);
+            root.GetProperty("LocalAppData").GetString().Should().Be(localAppData);
+            tempPath.Should().NotStartWith(sharedRoot, "non-installer scripts should not reuse the caller-owned shared root as the harness environment root");
+            tempPath.Should().StartWith(ReleasePackagingTestHarness.GetRepoFilePath("tmp"));
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
         }
     }
 
     [Fact]
-    public void TuiFlow_ShouldDeclareLatestVersionRefreshTeardown()
-    {
-        var flowContent = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.Flow.ps1"));
-        var installerContent = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+    public void RunPowerShellScript_WhenProcessTimesOut_ShouldTerminateChildProcessTree()
+        => AssertTimedOutProcessTreeIsTerminated(forceTaskKillFallback: false);
 
-        flowContent.Should().Contain("Stop-TuiLatestVersionRefreshCore");
-        installerContent.Should().Contain("Stop-LatestInstallerVersionRefresh");
-    }
+    [Fact]
+    public void RunPowerShellScript_WhenManagedKillFails_ShouldFallbackToTaskKillAndTerminateChildProcessTree()
+        => AssertTimedOutProcessTreeIsTerminated(forceTaskKillFallback: true);
 
-    private static void WaitUntil(Func<bool> condition, TimeSpan timeout, string failureMessage)
+    private static void AssertTimedOutProcessTreeIsTerminated(bool forceTaskKillFallback)
     {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
+        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
+        var originalForceTaskKillFallback = ReleasePackagingTestHarness.ForceTaskKillFallbackForTesting;
+        ReleasePackagingTestHarness.ForceTaskKillFallbackForTesting = forceTaskKillFallback;
+        try
         {
-            if (condition())
+            var parentPidPath = Path.Combine(tempRoot, "parent.pid");
+            var childPidPath = Path.Combine(tempRoot, "child.pid");
+            var grandchildPidPath = Path.Combine(tempRoot, "grandchild.pid");
+            var childScriptPath = Path.Combine(tempRoot, "hang-child.ps1");
+            File.WriteAllText(
+                childScriptPath,
+                "param([string]$ChildPidPath, [string]$GrandchildPidPath)\n" +
+                "$PID | Set-Content -Path $ChildPidPath\n" +
+                "$grandchild = Start-Process powershell.exe -ArgumentList '-NoProfile', '-Command', 'Start-Sleep -Seconds 60' -PassThru\n" +
+                "$grandchild.Id | Set-Content -Path $GrandchildPidPath\n" +
+                "Start-Sleep -Seconds 60\n");
+
+            var scriptPath = Path.Combine(tempRoot, "hang.ps1");
+            File.WriteAllText(
+                scriptPath,
+                "param([string]$ParentPidPath, [string]$ChildPidPath, [string]$GrandchildPidPath, [string]$ChildScriptPath)\n" +
+                "$PID | Set-Content -Path $ParentPidPath\n" +
+                "$child = Start-Process powershell.exe -ArgumentList '-NoProfile', '-File', $ChildScriptPath, '-ChildPidPath', $ChildPidPath, '-GrandchildPidPath', $GrandchildPidPath -PassThru\n" +
+                "while (!(Test-Path $ChildPidPath) -or !(Test-Path $GrandchildPidPath)) { Start-Sleep -Milliseconds 50 }\n" +
+                "Start-Sleep -Seconds 60\n");
+
+            Action act = () => ReleasePackagingTestHarness.RunPowerShellScript(
+                scriptPath,
+                [
+                    "-ParentPidPath", parentPidPath,
+                    "-ChildPidPath", childPidPath,
+                    "-GrandchildPidPath", grandchildPidPath,
+                    "-ChildScriptPath", childScriptPath
+                ],
+                timeout: TimeSpan.FromSeconds(3));
+
+            act.Should().Throw<TimeoutException>();
+            ConditionWaiter.WaitUntil(
+                () => File.Exists(parentPidPath) && File.Exists(childPidPath) && File.Exists(grandchildPidPath),
+                TimeSpan.FromSeconds(5),
+                "Timed out waiting for timeout regression pid files to be written.",
+                TimeSpan.FromMilliseconds(100));
+
+            var processIds = new[]
             {
-                return;
-            }
+                int.Parse(File.ReadAllText(parentPidPath).Trim()),
+                int.Parse(File.ReadAllText(childPidPath).Trim()),
+                int.Parse(File.ReadAllText(grandchildPidPath).Trim())
+            };
 
-            Thread.Sleep(TimeSpan.FromMilliseconds(100));
+            ConditionWaiter.WaitUntil(
+                () => processIds.All(pid => !IsProcessRunning(pid)),
+                TimeSpan.FromSeconds(5),
+                $"Timed out waiting for process tree {string.Join(", ", processIds)} to exit after harness timeout.",
+                TimeSpan.FromMilliseconds(100));
         }
-
-        condition().Should().BeTrue(failureMessage);
+        finally
+        {
+            ReleasePackagingTestHarness.ForceTaskKillFallbackForTesting = originalForceTaskKillFallback;
+            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
+        }
     }
 
     private static bool IsProcessRunning(int processId)

@@ -15,6 +15,8 @@ internal static class ReleaseScriptTestHarness
     private static readonly Lazy<(string Thumbprint, string Subject)> SignedPayloadSignerMetadata =
         new(() => GetSignedPayloadSignerMetadata(Path.Combine("WindowsPowerShell", "v1.0", "powershell.exe")), LazyThreadSafetyMode.ExecutionAndPublication);
 
+    internal static bool ForceTaskKillFallbackForTesting { get; set; }
+
     [DllImport("Kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CreateHardLink(string fileName, string existingFileName, nint securityAttributes);
 
@@ -473,7 +475,7 @@ internal static class ReleaseScriptTestHarness
             }
         }
 
-        EnsureIsolatedProcessEnvironment(startInfo, environmentRoot);
+        EnsureIsolatedProcessEnvironment(startInfo, environmentRoot, environmentOverrides);
 
         if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
         {
@@ -528,7 +530,7 @@ internal static class ReleaseScriptTestHarness
             }
         }
 
-        EnsureIsolatedProcessEnvironment(startInfo, isolatedEnvironmentRoot);
+        EnsureIsolatedProcessEnvironment(startInfo, isolatedEnvironmentRoot, environmentOverrides);
 
         if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
         {
@@ -566,7 +568,8 @@ internal static class ReleaseScriptTestHarness
         sharedEnvironmentRoot = string.Empty;
         if (environmentOverrides is null ||
             !TryGetPathOverride(environmentOverrides, "APPDATA", out var appDataPath) ||
-            !TryGetPathOverride(environmentOverrides, "LOCALAPPDATA", out var localAppDataPath))
+            !TryGetPathOverride(environmentOverrides, "LOCALAPPDATA", out var localAppDataPath) ||
+            !TryGetPathOverride(environmentOverrides, "USERPROFILE", out var userProfilePath))
         {
             return false;
         }
@@ -580,14 +583,11 @@ internal static class ReleaseScriptTestHarness
             return false;
         }
 
-        if (TryGetPathOverride(environmentOverrides, "USERPROFILE", out var userProfilePath))
+        var userProfileRoot = Directory.GetParent(userProfilePath)?.FullName;
+        if (string.IsNullOrWhiteSpace(userProfileRoot) ||
+            !string.Equals(appDataRoot, userProfileRoot, StringComparison.OrdinalIgnoreCase))
         {
-            var userProfileRoot = Directory.GetParent(userProfilePath)?.FullName;
-            if (string.IsNullOrWhiteSpace(userProfileRoot) ||
-                !string.Equals(appDataRoot, userProfileRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+            return false;
         }
 
         sharedEnvironmentRoot = appDataRoot;
@@ -626,7 +626,10 @@ internal static class ReleaseScriptTestHarness
         return appDataDirectory.Parent?.FullName;
     }
 
-    private static void EnsureIsolatedProcessEnvironment(ProcessStartInfo startInfo, string environmentRoot)
+    private static void EnsureIsolatedProcessEnvironment(
+        ProcessStartInfo startInfo,
+        string environmentRoot,
+        IReadOnlyDictionary<string, string?>? environmentOverrides)
     {
         var roamingAppData = Path.Combine(environmentRoot, "AppData", "Roaming");
         var localAppData = Path.Combine(environmentRoot, "AppData", "Local");
@@ -635,23 +638,21 @@ internal static class ReleaseScriptTestHarness
         Directory.CreateDirectory(localAppData);
         Directory.CreateDirectory(tempPath);
 
-        if (!startInfo.Environment.ContainsKey("USERPROFILE"))
-        {
-            startInfo.Environment["USERPROFILE"] = environmentRoot;
-        }
-
-        if (!startInfo.Environment.ContainsKey("APPDATA"))
-        {
-            startInfo.Environment["APPDATA"] = roamingAppData;
-        }
-
-        if (!startInfo.Environment.ContainsKey("LOCALAPPDATA"))
-        {
-            startInfo.Environment["LOCALAPPDATA"] = localAppData;
-        }
-
-        startInfo.Environment["TEMP"] = tempPath;
-        startInfo.Environment["TMP"] = tempPath;
+        startInfo.Environment["USERPROFILE"] = environmentOverrides is not null && TryGetPathOverride(environmentOverrides, "USERPROFILE", out var userProfileOverride)
+            ? userProfileOverride
+            : environmentRoot;
+        startInfo.Environment["APPDATA"] = environmentOverrides is not null && TryGetPathOverride(environmentOverrides, "APPDATA", out var appDataOverride)
+            ? appDataOverride
+            : roamingAppData;
+        startInfo.Environment["LOCALAPPDATA"] = environmentOverrides is not null && TryGetPathOverride(environmentOverrides, "LOCALAPPDATA", out var localAppDataOverride)
+            ? localAppDataOverride
+            : localAppData;
+        startInfo.Environment["TEMP"] = environmentOverrides is not null && TryGetPathOverride(environmentOverrides, "TEMP", out var tempOverride)
+            ? tempOverride
+            : tempPath;
+        startInfo.Environment["TMP"] = environmentOverrides is not null && TryGetPathOverride(environmentOverrides, "TMP", out var tmpOverride)
+            ? tmpOverride
+            : startInfo.Environment["TEMP"];
     }
 
     private static void CopyInstallerHelperFiles(string destinationDirectory)
@@ -813,10 +814,20 @@ internal static class ReleaseScriptTestHarness
         var timeoutMilliseconds = effectiveTimeout.TotalMilliseconds > int.MaxValue
             ? int.MaxValue
             : (int)Math.Ceiling(effectiveTimeout.TotalMilliseconds);
+        var timeoutMessage = $"PowerShell command timed out after {effectiveTimeout.TotalSeconds:0.###} second(s).";
 
         if (!process.WaitForExit(timeoutMilliseconds))
         {
-            TryKillProcessTree(process);
+            string? cleanupFailure = null;
+            try
+            {
+                TryKillProcessTree(process);
+            }
+            catch (Exception ex)
+            {
+                cleanupFailure = ex.Message;
+            }
+
             try
             {
                 process.WaitForExit(2000);
@@ -826,7 +837,9 @@ internal static class ReleaseScriptTestHarness
             }
 
             throw new TimeoutException(
-                $"PowerShell command timed out after {effectiveTimeout.TotalSeconds:0.###} second(s).");
+                string.IsNullOrWhiteSpace(cleanupFailure)
+                    ? timeoutMessage
+                    : timeoutMessage + " Cleanup failed: " + cleanupFailure);
         }
 
         return (
@@ -837,41 +850,105 @@ internal static class ReleaseScriptTestHarness
 
     private static void TryKillProcessTree(Process process)
     {
+        if (process.HasExited)
+        {
+            return;
+        }
+
+        Exception? managedKillFailure = null;
         try
         {
-            if (process.HasExited)
+            if (ForceTaskKillFallbackForTesting)
+            {
+                throw new InvalidOperationException("Forced taskkill fallback for testing.");
+            }
+
+            process.Kill(entireProcessTree: true);
+            if (WaitForExit(process, 5000))
             {
                 return;
             }
 
-            process.Kill(entireProcessTree: true);
+            managedKillFailure = new InvalidOperationException(
+                $"Managed process-tree kill did not terminate PID {process.Id} within 5000 ms.");
+        }
+        catch (InvalidOperationException) when (process.HasExited)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            managedKillFailure = ex;
+        }
+
+        if (TryTaskKillProcessTree(process, out var fallbackFailure) && WaitForExit(process, 5000))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            string.IsNullOrWhiteSpace(fallbackFailure)
+                ? $"Failed to terminate timed-out PowerShell process tree for PID {process.Id}."
+                : $"Failed to terminate timed-out PowerShell process tree for PID {process.Id}. {fallbackFailure}",
+            managedKillFailure);
+    }
+
+    private static bool TryTaskKillProcessTree(Process process, out string failureMessage)
+    {
+        failureMessage = string.Empty;
+        if (process.HasExited)
+        {
+            return true;
+        }
+
+        try
+        {
+            using var taskKill = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "taskkill.exe",
+                    Arguments = $"/PID {process.Id} /T /F",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                }
+            };
+
+            taskKill.Start();
+            if (!taskKill.WaitForExit(5000))
+            {
+                failureMessage = "taskkill.exe did not exit within 5000 ms.";
+                return false;
+            }
+
+            var stdout = taskKill.StandardOutput.ReadToEnd().Trim();
+            var stderr = taskKill.StandardError.ReadToEnd().Trim();
+            if (taskKill.ExitCode != 0 && !process.HasExited)
+            {
+                failureMessage = $"taskkill.exe exited with code {taskKill.ExitCode}. stdout: {stdout}; stderr: {stderr}";
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            failureMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private static bool WaitForExit(Process process, int milliseconds)
+    {
+        try
+        {
+            return process.HasExited || process.WaitForExit(milliseconds);
         }
         catch (InvalidOperationException)
         {
-        }
-        catch
-        {
-            try
-            {
-                using var taskKill = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "taskkill.exe",
-                        Arguments = $"/PID {process.Id} /T /F",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true
-                    }
-                };
-
-                taskKill.Start();
-                taskKill.WaitForExit(5000);
-            }
-            catch
-            {
-            }
+            return true;
         }
     }
 }

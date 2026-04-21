@@ -4,7 +4,7 @@ namespace WpfDevTools.Tests.Integration;
 
 /// <summary>
 /// Collection definition to ensure all WPF integration tests share the same Application instance
-/// and run sequentially (not in parallel)
+/// and remain serialized within this collection while other safe collections may run in parallel.
 /// </summary>
 [CollectionDefinition("WpfIntegration")]
 public class WpfIntegrationCollection : ICollectionFixture<WpfApplicationFixture>

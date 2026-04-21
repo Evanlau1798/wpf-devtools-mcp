@@ -17,15 +17,16 @@
 
 ## Known unsupported or constrained scenarios
 
-| Scenario | Status | Why |
-| --- | --- | --- |
-| Self-contained single-file WPF apps | Not supported | Native injection path cannot rely on the expected assembly layout |
-| Native AOT | Not supported | The managed runtime hosting assumptions do not apply |
-| Trimmed apps | Partial / risky | Required types may be removed |
-| Non-WPF desktop UI stacks | Not supported | This server is WPF-specific |
+| Scenario | Raw injection path | Overall support posture | Notes |
+| --- | --- | --- | --- |
+| Self-contained single-file WPF apps | Not supported | Supported through SDK-host reuse | The native injection path cannot rely on the expected assembly layout. Call `InspectorSdk.Initialize()` in the target app with matching transport settings so `connect()` can reuse the existing host. |
+| Native AOT | Not supported | Supported through SDK-host reuse | The standard managed runtime hosting assumptions do not apply to raw injection. Use a target-side SDK host instead of the injection path. |
+| Trimmed apps | Risky / partial | Prefer SDK-host reuse | Required types may be removed, making raw injection or inspector startup unreliable. |
+| Non-WPF desktop UI stacks | Not supported | Not supported | This server is WPF-specific. |
 
 ## Practical guidance
 
 - Use `get_processes` as the runtime architecture truth source.
 - Treat x86 and x64 as separate deployment targets.
+- If packaging or publish mode blocks raw injection, start the target-side SDK host with `InspectorSdk.Initialize()` and matching transport settings so `connect()` can reuse it.
 - Validate bootstrapper and inspector selection before calling `connect` in automation.

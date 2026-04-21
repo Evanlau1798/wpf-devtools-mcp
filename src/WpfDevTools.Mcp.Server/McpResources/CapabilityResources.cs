@@ -136,15 +136,16 @@ public static class CapabilityResources
         - `architecture mismatch`: MCP server / injector and target process bitness do not match.
         - `access denied`: target privilege is higher than the MCP host process.
         - `timeout`: target process is hung, blocked, or the inspector pipe never became available.
-        - `unsupported packaging`: single-file, trimmed, or Native AOT targets may reject injection.
+        - `injection-constrained packaging`: single-file and Native AOT targets cannot use raw injection. Trimmed targets remain risky because publish trimming may remove required types needed by either raw injection or SDK-host startup.
         - `security software interference`: AV / endpoint controls may block DLL injection or named pipes.
 
         Current mitigation guidance:
 
         - Prefer matching architecture builds.
         - Run the MCP host as administrator for elevated targets.
-        - Use SDK mode by starting the target-side host with InspectorSdk.Initialize() and matching transport settings, including the same absolute WPFDEVTOOLS_CERT_DIR value when TLS is enabled. For connect() reuse, set WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR together on both sides; the default-hardened MCP server will not reuse a plaintext SDK host.
+        - Use SDK mode by starting the target-side host with InspectorSdk.Initialize() and matching transport settings, including the same absolute WPFDEVTOOLS_CERT_DIR value when TLS is enabled. Set WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR together on both sides before initialization; if either value is missing, SDK startup now fails closed. This keeps the overall WPF DevTools workflow available for single-file and Native AOT packaging; for trimmed apps it remains the preferred fallback, not a guarantee, and the default-hardened MCP server will not reuse a plaintext SDK host.
         """;
+
 
     [McpServerResource(
         Name = "wpf_window_focus_limitations",

@@ -17,7 +17,7 @@ public static class ServerInstructions
         Use this server for runtime desktop UI diagnostics, WPF element lookup, exact-match element search, XAML structure inspection, multi-window investigation, and safe temporary automation against a connected WPF process.
 
         === MANDATORY WORKFLOW ===
-        1. connect() -> try auto-discovery against visible WPF apps and inject Inspector DLL
+        1. connect() -> try auto-discovery against visible WPF apps, then reuse a compatible existing SDK host or apply the raw-injection target policy before injecting Inspector DLL
         2. If connect() reports multiple candidates, call get_processes(windowFilter) and retry connect(processId)
         3. Build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees
         4. Use focused inspection/interaction tools against the connected process
@@ -102,6 +102,7 @@ public static class ServerInstructions
         - Start with connect() unless you already know you need a specific processId or non-default windowFilter
         - After connect() succeeds, immediately build context with get_ui_summary, get_element_snapshot, or get_form_summary before tree-heavy inspection or screenshots
         - When connect() reports multiple candidates, use get_processes(windowFilter) to disambiguate and retry
+        - If connect() returns SecurityError with requiresExplicitTargetOptIn=true, prefer SDK-hosted reuse first. Only use WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS for explicitly reviewed external executables.
         - Do not call get_processes before connect() as a default habit; treat it as a disambiguation or filtering tool
         - When hidden or background targets matter, prefer connect(windowFilter='all') instead of listing processes first just to widen auto-discovery
         - When multiple WPF processes are expected and largest-target auto-selection is intentional, prefer connect(selectionStrategy='largest_working_set', windowFilter='all') instead of a separate get_processes round trip
@@ -205,8 +206,10 @@ public static class ServerInstructions
         - "Architecture mismatch" -> MCP server and target process must have matching architectures (both x64 or both x86). Use a package/build whose server, bootstrapper, and Inspector sidecar all match the target bitness
         - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
         - "timeout" -> process may be frozen; try ping() to verify connection
-        - existing SDK host security mismatch that completes an incompatible authenticated/TLS handshake (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR, when set, is the same absolute path in both the MCP server and target app. For connect() reuse, hardened SDK mode requires setting both values together on both sides
+        - existing SDK host security mismatch that completes an incompatible authenticated/TLS handshake (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR is the same absolute path in both the MCP server and target app. For connect() reuse, hardened SDK mode requires setting both values together before calling InspectorSdk.Initialize()
+        - connect() returns SecurityError with requiresExplicitTargetOptIn=true -> the target executable is outside the default trusted project scope. Prefer InspectorSdk.Initialize() for target-side reuse, or explicitly allowlist the exact absolute executable path in WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS before retrying.
         - existing SDK host build/protocol mismatch (errorCode: CompatibilityError) -> restart the target process so connect() can inject or reuse an Inspector host built from the same repo revision and compatibility contract as the MCP server
+        - SDK startup fails closed before host reuse is possible -> set both WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR before calling InspectorSdk.Initialize(); partial or unset SDK transport configuration is no longer accepted by default
         - existing plaintext or otherwise unresponsive SDK host may still surface as Timeout -> restart the target host or enable explicit matching transport settings before retrying connect. The default-hardened MCP server will not reuse a plaintext SDK host
         - "element not found" -> verify elementId from get_visual_tree/get_logical_tree
         - "property not found" -> verify propertyName spelling and element type
@@ -226,7 +229,8 @@ public static class ServerInstructions
 
         === LIMITATIONS ===
         - STDIO transport: Cannot push live watcher/event streams; use request-response diagnostics and polling workflows
-        - Self-contained single-file apps and Native AOT apps: Cannot inject; start the target-side SDK host with matching transport settings so connect() can reuse the existing pipe-backed InspectorHost
+        - Self-contained single-file apps and Native AOT apps: raw injection is unavailable, but the overall WPF DevTools workflow remains available through the target-side SDK host; start InspectorSdk.Initialize() with matching transport settings so connect() can reuse the existing pipe-backed InspectorHost
+        - some trimmed apps: publish trimming may remove required types, making raw injection or SDK-host startup unreliable; prefer SDK-host reuse as the fallback, but do not assume it restores full compatibility
         - elevated targets: a non-administrator MCP server cannot inject into or control an administrator-launched WPF process
         - Changes are NOT persisted to XAML files
         """;

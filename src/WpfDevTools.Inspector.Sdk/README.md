@@ -2,6 +2,8 @@
 
 `WpfDevTools.Inspector.Sdk` is the Opt-in SDK for the WPF DevTools MCP Server. It enables inspection without DLL injection.
 
+Single-file and Native AOT packaging constraints affect raw injection, not the overall WPF DevTools support posture. When the target app starts `InspectorSdk.Initialize()` with matching transport settings, `connect()` can reuse the SDK-hosted Inspector instead of injecting a DLL. Trimmed apps are still risky because required inspector types may be removed, so SDK-host reuse is the preferred fallback rather than a guarantee.
+
 ## Installation
 
 ```bash
@@ -9,6 +11,8 @@ dotnet add package WpfDevTools.Inspector.Sdk
 ```
 
 ## Usage
+
+Before using the sample below, set matching `WPFDEVTOOLS_AUTH_SECRET` and the same absolute `WPFDEVTOOLS_CERT_DIR` in both the MCP server process and the target application environment. `InspectorSdk.Initialize()` fails closed if either value is missing or if both are left unset.
 
 ### Basic Usage
 
@@ -70,11 +74,11 @@ The SDK starts the Inspector host during application startup and exposes the sam
 
 The MCP server now hardens the standard injection-based transport by default. SDK mode does not receive that generated handoff automatically.
 
-If you need hardened transport for SDK mode, set matching values for `WPFDEVTOOLS_AUTH_SECRET` and the same absolute `WPFDEVTOOLS_CERT_DIR` in both the MCP server process and the target application before calling `InspectorSdk.Initialize()`. Relative certificate paths are rejected. Without those explicit settings, the SDK helper still starts the pipe without additional transport hardening.
+If you need SDK mode, set matching values for `WPFDEVTOOLS_AUTH_SECRET` and the same absolute `WPFDEVTOOLS_CERT_DIR` in both the MCP server process and the target application before calling `InspectorSdk.Initialize()`. Relative certificate paths are rejected.
 
 If you set either `WPFDEVTOOLS_AUTH_SECRET` or `WPFDEVTOOLS_CERT_DIR` for SDK mode, you must set both. Partial SDK transport configuration is rejected during `InspectorSdk.Initialize()`.
 
-If you leave both unset, the SDK host stays plaintext. The default-hardened MCP server will not reuse that plaintext host through `connect()`.
+If you leave both unset, `InspectorSdk.Initialize()` now fails closed instead of starting a plaintext SDK host. The default-hardened MCP server will not reuse a plaintext SDK host left behind by older versions.
 
 Current requirement: `connect()` can reuse an already running SDK-hosted pipe, but only when the MCP server and target app share matching transport settings, including the same absolute `WPFDEVTOOLS_CERT_DIR` value when TLS is enabled. If the existing host responds with an incompatible authenticated or TLS handshake, `connect()` returns a security error instead of silently reusing the host; legacy plaintext or otherwise unresponsive existing hosts can still time out.
 

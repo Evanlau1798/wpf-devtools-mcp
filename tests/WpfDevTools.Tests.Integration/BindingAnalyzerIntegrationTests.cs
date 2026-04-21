@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Controls;
 using System.ComponentModel;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -13,13 +14,19 @@ namespace WpfDevTools.Tests.Integration;
 /// Integration tests for BindingAnalyzer requiring full WPF Application context
 /// </summary>
 [Collection("WpfIntegration")]
-public class BindingAnalyzerIntegrationTests
+public sealed class BindingAnalyzerIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;
 
     public BindingAnalyzerIntegrationTests(WpfApplicationFixture fixture)
     {
         _fixture = fixture;
+        BindingErrorTraceListener.ResetInstance();
+    }
+
+    public void Dispose()
+    {
+        BindingErrorTraceListener.ResetInstance();
     }
 
     [Fact]
@@ -34,19 +41,25 @@ public class BindingAnalyzerIntegrationTests
             var textBox = new TextBox();
             var binding = new Binding("TestProperty")
             {
-                Mode = BindingMode.TwoWay,
+                Source = new { TestProperty = "Bound Value" },
+                Mode = BindingMode.OneWay,
                 UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
             };
             textBox.SetBinding(TextBox.TextProperty, binding);
 
             Application.Current.MainWindow.Content = textBox;
+            var elementId = elementFinder.GenerateElementId(textBox);
 
             // Act
-            return analyzer.GetBindings(null);
+            return JsonSerializer.SerializeToElement(analyzer.GetBindings(elementId));
         });
 
         // Assert
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("bindings").GetArrayLength().Should().Be(1);
+        result.GetProperty("bindings")[0].GetProperty("propertyName").GetString().Should().Be("Text");
+        result.GetProperty("bindings")[0].GetProperty("path").GetString().Should().Be("TestProperty");
+        result.GetProperty("bindings")[0].GetProperty("currentValue").GetString().Should().Be("Bound Value");
     }
 
     [Fact]
@@ -69,11 +82,18 @@ public class BindingAnalyzerIntegrationTests
             // Force binding evaluation (synchronous)
             textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
 
-            return analyzer.GetBindingErrors(clearAfterRead: false);
+            return JsonSerializer.SerializeToElement(analyzer.GetBindingErrors(clearAfterRead: false));
         });
 
         // Assert
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("errors").EnumerateArray()
+            .Select(error => error.GetProperty("bindingPath").GetString())
+            .Should().Contain("NonExistentProperty");
+        result.GetProperty("errors").EnumerateArray()
+            .Select(error => error.GetProperty("propertyName").GetString())
+            .Should().Contain("Text");
     }
 
     [Fact]
@@ -104,34 +124,63 @@ public class BindingAnalyzerIntegrationTests
             stackPanel.Children.Add(border);
             Application.Current.MainWindow.Content = stackPanel;
 
-            return analyzer.GetDataContextChain(null);
+            var elementId = elementFinder.GenerateElementId(textBox);
+            return JsonSerializer.SerializeToElement(analyzer.GetDataContextChain(elementId));
         });
 
         // Assert
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("chain").GetArrayLength().Should().BeGreaterThanOrEqualTo(3);
+        result.GetProperty("chain")[0].GetProperty("elementType").GetString().Should().Be("TextBox");
+        result.GetProperty("chain")[1].GetProperty("elementType").GetString().Should().Be("Border");
+        result.GetProperty("chain")[2].GetProperty("elementType").GetString().Should().Be("StackPanel");
+        result.GetProperty("chain")[0].GetProperty("hasDataContext").GetBoolean().Should().BeTrue();
+        result.GetProperty("chain")[1].GetProperty("hasDataContext").GetBoolean().Should().BeTrue();
+        result.GetProperty("chain")[2].GetProperty("hasDataContext").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
     public void ForceBindingUpdate_ShouldExecuteSuccessfully()
     {
         // Arrange & Act
+        string? valueBeforeUpdate = null;
+        string? valueAfterUpdate = null;
+        string? targetValueBeforeUpdate = null;
         var result = _fixture.RunOnUIThread(() =>
         {
             var elementFinder = new ElementFinder();
             var analyzer = new BindingAnalyzer(elementFinder);
 
             var textBox = new TextBox();
-            var binding = new Binding("TestProperty");
+            var binding = new Binding("TestProperty")
+            {
+                Mode = BindingMode.TwoWay,
+                UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+            };
             textBox.SetBinding(TextBox.TextProperty, binding);
-            textBox.DataContext = new TestDataContext();
+            var viewModel = new TestDataContext();
+            textBox.DataContext = viewModel;
 
             Application.Current.MainWindow.Content = textBox;
+            Application.Current.MainWindow.UpdateLayout();
+            var elementId = elementFinder.GenerateElementId(textBox);
+            textBox.Text = "Updated";
+            valueBeforeUpdate = viewModel.TestProperty;
+            targetValueBeforeUpdate = textBox.Text;
 
-            return analyzer.ForceBindingUpdate(elementId: null, propertyName: "Text", direction: "Source");
+            var updateResult = JsonSerializer.SerializeToElement(
+                analyzer.ForceBindingUpdate(elementId, propertyName: "Text", direction: "Source"));
+            valueAfterUpdate = viewModel.TestProperty;
+            return updateResult;
         });
 
         // Assert
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("direction").GetString().Should().Be("Source");
+        result.GetProperty("propertyName").GetString().Should().Be("Text");
+        valueBeforeUpdate.Should().Be("Initial");
+        targetValueBeforeUpdate.Should().Be("Updated");
+        valueAfterUpdate.Should().Be("Updated");
     }
 
     private class TestDataContext : INotifyPropertyChanged

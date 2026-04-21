@@ -60,13 +60,14 @@ public sealed class BindingAnalyzerLateInstallIntegrationTests : IDisposable
             BindingErrorTraceListener.Instance.GetErrors().Should().BeEmpty();
 
             var analyzer = new BindingAnalyzer(new ElementFinder());
-            return analyzer.GetBindingErrors(clearAfterRead: false);
+            return JsonSerializer.SerializeToElement(analyzer.GetBindingErrors(clearAfterRead: false));
         });
 
-        result.Should().NotBeNull();
-        dynamic bindingErrors = result;
-        ((bool)bindingErrors.success).Should().BeTrue();
-        ((int)bindingErrors.errorCount).Should().BeGreaterThan(0);
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().BeGreaterThanOrEqualTo(2);
+        result.GetProperty("errors").EnumerateArray()
+            .Select(error => error.GetProperty("bindingPath").GetString())
+            .Should().Contain(new[] { "NonExistentProperty", "Name" });
     }
 
     [Fact]
@@ -109,8 +110,10 @@ public sealed class BindingAnalyzerLateInstallIntegrationTests : IDisposable
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("errorCount").GetInt32().Should().BeGreaterThan(0);
-        result.GetProperty("errors").EnumerateArray()
+        var bindingPaths = result.GetProperty("errors").EnumerateArray()
             .Select(error => error.GetProperty("bindingPath").GetString())
-            .Should().Contain("MissingDetailName");
+            .ToArray();
+        bindingPaths.Should().Contain("MissingDetailName");
+        bindingPaths.Should().NotContain("LegacyName");
     }
 }

@@ -3,7 +3,9 @@ using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Threading;
 using System.IO;
+using System.Threading.Tasks;
 using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector;
 
@@ -19,6 +21,16 @@ public static class Bootstrap
     private static int _isInitializing; // 0 = not initializing, 1 = initializing
     private static readonly object _lock = new object();
     private static Host.InspectorHost? _host;
+    internal static Action BindingErrorTraceListenerInstallAction { get; set; } = static () => BindingErrorTraceListener.Install();
+    internal static Action BindingErrorTraceListenerUninstallAction { get; set; } = static () => BindingErrorTraceListener.Uninstall();
+    internal static Func<int, string, Shared.Security.AuthenticationManager?, Shared.Security.CertificateManager?, Host.InspectorHost> HostFactory { get; set; }
+        = static (processId, pipeName, authManager, certManager) => new Host.InspectorHost(processId, pipeName, authManager, certManager);
+    internal static Action<Host.InspectorHost> HostStartAction { get; set; } = static host => host.Start();
+    internal static Action<Host.InspectorHost>? HostStartedCallback { get; set; }
+    internal static Action<Shared.Security.AuthenticationManager?>? AuthenticationManagerCreatedCallback { get; set; }
+    internal static Func<Dispatcher?> DispatcherResolver { get; set; } = ResolveDispatcher;
+    internal static Action<Action> BackgroundInitializationScheduler { get; set; } = static action => _ = Task.Run(action);
+    internal static TimeSpan DispatcherFinalizeTimeout { get; set; } = InspectorConfig.ShutdownTimeout;
 
     // Cached once at startup to avoid calling Process.GetCurrentProcess().Id on every log entry
     private static readonly string _logFilePath = Path.Combine(
@@ -38,6 +50,8 @@ public static class Bootstrap
             return;
         }
 
+        Dispatcher? dispatcher;
+
         lock (_lock)
         {
             if (_isInitialized)
@@ -47,59 +61,53 @@ public static class Bootstrap
                 return;
             }
 
-            var beginInvokeCalled = false;
-
             try
             {
-                // Find WPF Application instance
-                var app = FindWpfApplication();
-                if (app == null)
+                dispatcher = DispatcherResolver();
+                if (dispatcher == null)
                 {
                     LogError("Failed to find WPF Application instance");
-                    return; // finally resets _isInitializing
+                    Interlocked.Exchange(ref _isInitializing, 0);
+                    return;
                 }
-
-                // Marshal to UI thread
-                var dispatcher = app.Dispatcher ?? Dispatcher.CurrentDispatcher;
-
-                dispatcher.BeginInvoke(new Action(() =>
-                {
-                    try
-                    {
-                        InitializeOnUiThread(parameters);
-                        lock (_lock)
-                        {
-                            _isInitialized = true;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        LogError($"Failed to initialize on UI thread: {ex}");
-                    }
-                    finally
-                    {
-                        // Reset _isInitializing only after UI thread work completes
-                        Interlocked.Exchange(ref _isInitializing, 0);
-                    }
-                }), DispatcherPriority.Normal);
-
-                // BeginInvoke was called successfully - the callback's finally will reset _isInitializing
-                beginInvokeCalled = true;
             }
             catch (Exception ex)
             {
                 LogError($"Bootstrap initialization failed: {ex}");
+                Interlocked.Exchange(ref _isInitializing, 0);
+                return;
             }
-            finally
+        }
+
+        try
+        {
+            BackgroundInitializationScheduler(() =>
             {
-                // Reset _isInitializing only if BeginInvoke was NOT called.
-                // When BeginInvoke succeeded, the callback's finally handles the reset.
-                if (!beginInvokeCalled)
+                try
+                {
+                    InitializeOnUiThread(parameters, dispatcher);
+                }
+                catch (Exception ex)
+                {
+                    LogError($"Failed to initialize inspector: {ex}");
+                }
+                finally
                 {
                     Interlocked.Exchange(ref _isInitializing, 0);
                 }
-            }
+            });
         }
+        catch (Exception ex)
+        {
+            LogError($"Bootstrap background scheduling failed: {ex}");
+            Interlocked.Exchange(ref _isInitializing, 0);
+        }
+    }
+
+    private static Dispatcher? ResolveDispatcher()
+    {
+        var app = FindWpfApplication();
+        return app?.Dispatcher ?? (Application.Current != null ? Dispatcher.CurrentDispatcher : null);
     }
 
     private static Application? FindWpfApplication()
@@ -144,7 +152,7 @@ public static class Bootstrap
         return null;
     }
 
-    private static void InitializeOnUiThread(string parameters)
+    private static void InitializeOnUiThread(string parameters, Dispatcher? dispatcher = null)
     {
         // Parse parameters
         var config = ParseParameters(parameters);
@@ -172,23 +180,93 @@ public static class Bootstrap
         authEnabled = authEnabled || !string.IsNullOrWhiteSpace(authSecretBase64);
         encryptionEnabled = encryptionEnabled || !string.IsNullOrWhiteSpace(certDirectory);
 
-        var authManager = authEnabled
-            ? new Shared.Security.AuthenticationManager(() =>
-                authSecretBase64 ?? Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET"))
-            : null;
-        var certManager = encryptionEnabled
-            ? (string.IsNullOrWhiteSpace(certDirectory)
-                ? new Shared.Security.CertificateManager()
-                : new Shared.Security.CertificateManager(certDirectory!))
-            : null;
+        Shared.Security.AuthenticationManager? authManager = null;
+        Shared.Security.CertificateManager? certManager = null;
+        Host.InspectorHost? host = null;
 
-        _host = new Host.InspectorHost(processId, pipeName, authManager, certManager);
-        _host.Start();
+        try
+        {
+            authManager = authEnabled
+                ? new Shared.Security.AuthenticationManager(() =>
+                    authSecretBase64 ?? Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET"))
+                : null;
+            AuthenticationManagerCreatedCallback?.Invoke(authManager);
 
-        // Start capturing binding errors immediately after injection
-        BindingErrorTraceListener.Install();
+            certManager = encryptionEnabled
+                ? (string.IsNullOrWhiteSpace(certDirectory)
+                    ? new Shared.Security.CertificateManager()
+                    : new Shared.Security.CertificateManager(certDirectory!))
+                : null;
 
-        LogInfo($"Inspector initialized. Pipe: {pipeName}, Auth: {authEnabled}, TLS: {encryptionEnabled}");
+            host = HostFactory(processId, pipeName, authManager, certManager);
+
+            var rollbackRequested = 0;
+
+            RunOnDispatcher(dispatcher, () =>
+            {
+                // Start capturing binding errors only after transport startup succeeds.
+                BindingErrorTraceListenerInstallAction();
+
+                if (Volatile.Read(ref rollbackRequested) != 0)
+                {
+                    BindingErrorTraceListenerUninstallAction();
+                    return;
+                }
+
+                lock (_lock)
+                {
+                    if (Volatile.Read(ref rollbackRequested) != 0)
+                    {
+                        BindingErrorTraceListenerUninstallAction();
+                        return;
+                    }
+                }
+            }, () => Interlocked.Exchange(ref rollbackRequested, 1));
+
+            HostStartAction(host);
+            HostStartedCallback?.Invoke(host);
+
+            lock (_lock)
+            {
+                _host = host;
+                _isInitialized = true;
+            }
+
+            LogInfo($"Inspector initialized. Pipe: {pipeName}, Auth: {authEnabled}, TLS: {encryptionEnabled}");
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                CleanupFailedInitialization(host, authManager);
+            }
+            catch (Exception cleanupError)
+            {
+                ex.Data["CleanupFailure"] = cleanupError;
+                System.Diagnostics.Trace.TraceError($"Bootstrap cleanup after initialization failure also failed: {cleanupError}");
+            }
+
+            throw;
+        }
+    }
+
+    private static void RunOnDispatcher(Dispatcher? dispatcher, Action action, Action? onTimeout = null)
+    {
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        var operation = dispatcher.InvokeAsync(action, DispatcherPriority.Normal);
+        if (!operation.Task.Wait(DispatcherFinalizeTimeout))
+        {
+            onTimeout?.Invoke();
+            operation.Abort();
+            throw new TimeoutException($"Timed out after {DispatcherFinalizeTimeout.TotalMilliseconds}ms while finalizing Bootstrap on the dispatcher thread.");
+        }
+
+        operation.Task.GetAwaiter().GetResult();
     }
 
     private static Dictionary<string, string> ParseParameters(string parameters)
@@ -299,4 +377,78 @@ public static class Bootstrap
     /// Check if Inspector is initialized
     /// </summary>
     public static bool IsInitialized => _isInitialized;
+
+    internal static Host.InspectorHost? CurrentHostForTesting => _host;
+
+    internal static void InitializeOnUiThreadForTesting(string parameters)
+    {
+        InitializeOnUiThread(parameters);
+    }
+
+    internal static void ResetForTesting()
+    {
+        try
+        {
+            CleanupFailedInitialization(_host, authManager: null);
+        }
+        catch
+        {
+        }
+
+        _host = null;
+        _isInitialized = false;
+        Interlocked.Exchange(ref _isInitializing, 0);
+        BindingErrorTraceListenerInstallAction = static () => BindingErrorTraceListener.Install();
+        BindingErrorTraceListenerUninstallAction = static () => BindingErrorTraceListener.Uninstall();
+        HostFactory = static (processId, pipeName, authManager, certManager) => new Host.InspectorHost(processId, pipeName, authManager, certManager);
+        HostStartAction = static host => host.Start();
+        HostStartedCallback = null;
+        AuthenticationManagerCreatedCallback = null;
+        DispatcherResolver = ResolveDispatcher;
+        BackgroundInitializationScheduler = static action => _ = Task.Run(action);
+        DispatcherFinalizeTimeout = InspectorConfig.ShutdownTimeout;
+    }
+
+    private static void CleanupFailedInitialization(
+        Host.InspectorHost? host,
+        Shared.Security.AuthenticationManager? authManager)
+    {
+        Exception? cleanupError = null;
+
+        try
+        {
+            BindingErrorTraceListenerUninstallAction();
+        }
+        catch (Exception ex)
+        {
+            cleanupError = ex;
+        }
+
+        try
+        {
+            host?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            cleanupError = cleanupError == null
+                ? ex
+                : new AggregateException(cleanupError, ex);
+        }
+
+        try
+        {
+            authManager?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            cleanupError = cleanupError == null
+                ? ex
+                : new AggregateException(cleanupError, ex);
+        }
+
+        if (cleanupError != null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanupError).Throw();
+        }
+    }
 }

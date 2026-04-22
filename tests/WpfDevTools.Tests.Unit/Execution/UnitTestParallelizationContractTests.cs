@@ -73,6 +73,19 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
+    public void BootstrapStateTests_ShouldUseBootstrapStateCollection()
+    {
+        GetCollectionName(typeof(BootstrapConcurrencyTests)).Should().Be("BootstrapState");
+        GetCollectionName(typeof(BootstrapInitializationRollbackTests)).Should().Be("BootstrapState");
+    }
+
+    [Fact]
+    public void BootstrapStateCollection_ShouldDisableParallelization()
+    {
+        AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.BootstrapStateCollection");
+    }
+
+    [Fact]
     public void DependencyPropertyMonitoringTests_ShouldUseDependencyPropertyMonitoringCollection()
     {
         GetCollectionName(typeof(DependencyPropertyAnalyzerTests)).Should().Be("DependencyPropertyMonitoring");

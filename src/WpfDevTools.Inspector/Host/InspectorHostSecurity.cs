@@ -15,6 +15,11 @@ public sealed partial class InspectorHost
 {
     private NamedPipeServerStream CreateSecurePipeServer()
     {
+        if (_pipeServerFactory != null)
+        {
+            return _pipeServerFactory();
+        }
+
         var pipeSecurity = new PipeSecurity();
 
         // Allow current user

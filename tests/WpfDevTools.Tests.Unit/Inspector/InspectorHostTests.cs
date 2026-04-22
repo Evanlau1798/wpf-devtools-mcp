@@ -7,6 +7,7 @@ using WpfDevTools.Inspector.Host;
 using WpfDevTools.Shared.Serialization;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Tests.Unit.Inspector;
 
@@ -113,6 +114,25 @@ public class InspectorHostTests : IDisposable
 
         var act = () => localHost.Dispose();
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Start_WhenPipeServerCreationFails_ShouldThrowAndLeaveHostStopped()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        using var host = new InspectorHost(
+            pid,
+            $"WpfDevTools_{pid}",
+            authManager: null,
+            certManager: null,
+            FileLogLevel.Warning,
+            pipeServerFactory: () => throw new IOException("pipe create failed"),
+            startupTimeout: TimeSpan.FromMilliseconds(250));
+
+        Action act = () => host.Start();
+
+        act.Should().Throw<IOException>().WithMessage("pipe create failed");
+        host.IsRunning.Should().BeFalse();
     }
 
     // ── Roundtrip: ping ───────────────────────────────────────────────────────

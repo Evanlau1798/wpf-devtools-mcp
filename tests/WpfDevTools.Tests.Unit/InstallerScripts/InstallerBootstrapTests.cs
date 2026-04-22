@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Diagnostics;
 using FluentAssertions;
+using WpfDevTools.Tests.Unit;
 using Xunit;
 using Xunit.Sdk;
 
@@ -62,6 +63,74 @@ public sealed class InstallerBootstrapTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldKeepDefinitionBoundaryMarkerImmediatelyAboveMainEntrypoint()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var marker = TestHelpers.OnlineInstallerDefinitionBoundaryMarker;
+
+        var markerIndex = content.IndexOf(marker, StringComparison.Ordinal);
+        markerIndex.Should().BeGreaterThanOrEqualTo(0);
+        content.LastIndexOf(marker, StringComparison.Ordinal).Should().Be(markerIndex,
+            "definition-only loading must rely on a single unambiguous boundary marker");
+
+        var entrypointIndex = content.IndexOf(
+            "$selectionContext = Resolve-Selection",
+            markerIndex + marker.Length,
+            StringComparison.Ordinal);
+        entrypointIndex.Should().BeGreaterThan(markerIndex);
+
+        var separator = content.Substring(markerIndex + marker.Length, entrypointIndex - (markerIndex + marker.Length));
+        separator.Should().MatchRegex("^\\r?\\n$",
+            "the boundary marker should stay immediately above the main entrypoint");
+    }
+
+    [Fact]
+    public void OnlineInstallerDefinitionLoader_ShouldPreserveScriptRootContext()
+    {
+        var scriptsRoot = ReleaseScriptTestHarness.GetRepoFilePath("scripts");
+        var command = $$"""
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Architecture x64 -Client other -NonInteractive")}}
+Resolve-InstallerScriptRoot
+""";
+
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        result.Stdout.Trim().Should().Be(scriptsRoot);
+    }
+
+    [Fact]
+    public void OnlineInstallerDefinitionLoader_ShouldSupportWildcardCharactersInScriptPath()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var wildcardRepoRoot = Path.Combine(tempRoot, "repo[1]");
+            var wildcardScriptsRoot = Path.Combine(wildcardRepoRoot, "scripts");
+            Directory.CreateDirectory(wildcardScriptsRoot);
+
+            var sourceScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var wildcardScriptPath = Path.Combine(wildcardScriptsRoot, "online-installer.ps1");
+            File.Copy(sourceScriptPath, wildcardScriptPath, overwrite: true);
+
+            var command = $$"""
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Architecture x64 -Client other -NonInteractive", wildcardScriptPath)}}
+Resolve-InstallerScriptRoot
+""";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be(wildcardScriptsRoot);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldRejectHelperOverrideOutsideTestMode()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -71,7 +140,7 @@ public sealed class InstallerBootstrapTests
             var command = string.Join(" ; ",
             [
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                ". ([scriptblock]::Create((Get-Content '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1").Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other -NonInteractive",
+                ". ([scriptblock]::Create((Get-Content -LiteralPath '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1").Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other -NonInteractive",
                 "Get-TuiHelperOverrideDirectory"
             ]);
 
@@ -100,17 +169,10 @@ public sealed class InstallerBootstrapTests
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
         {
-            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
             var command = string.Join(" ; ",
             [
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI='http://127.0.0.1:9/installer'",
-                "$scriptPath='" + repoScriptPath.Replace("'", "''") + "'",
-                "$scriptContent = Get-Content $scriptPath -Raw",
-                "$marker = '$selectionContext = Resolve-Selection'",
-                "$markerIndex = $scriptContent.LastIndexOf($marker)",
-                "if ($markerIndex -lt 0) { throw 'Main script marker not found.' }",
-                "$definitions = $scriptContent.Substring(0, $markerIndex)",
-                ". ([scriptblock]::Create($definitions)) -Action install -Architecture x64 -Client other -NonInteractive",
+                OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Architecture x64 -Client other -NonInteractive"),
                 "Resolve-TuiHelperDownloadBaseUri"
             ]);
 
@@ -240,18 +302,11 @@ public sealed class InstallerBootstrapTests
             manifestNode["helperFiles"] = filteredHelperFiles;
             File.WriteAllText(manifestPath, manifestNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 
-            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
             var command = $$"""
 $env:APPDATA='{{Path.Combine(tempRoot, "AppData", "Roaming").Replace("'", "''")}}'
 $env:LOCALAPPDATA='{{Path.Combine(tempRoot, "AppData", "Local").Replace("'", "''")}}'
 $env:USERPROFILE='{{Path.Combine(tempRoot, "UserProfile").Replace("'", "''")}}'
-$scriptPath='{{repoScriptPath.Replace("'", "''")}}'
-$scriptContent = Get-Content $scriptPath -Raw
-$marker = '$selectionContext = Resolve-Selection'
-$markerIndex = $scriptContent.LastIndexOf($marker)
-if ($markerIndex -lt 0) { throw 'Main script marker not found.' }
-$definitions = $scriptContent.Substring(0, $markerIndex)
-. ([scriptblock]::Create($definitions)) -Action install -Version latest -Architecture x64 -Client other -NonInteractive
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Version latest -Architecture x64 -Client other -NonInteractive")}}
 $manifest = Read-TuiHelperManifest -ManifestPath '{{manifestPath.Replace("'", "''")}}' -HelperDirectory '{{helperRoot.Replace("'", "''")}}'
 Assert-InstallerHelperManifestIntegrity -HelperDirectory '{{helperRoot.Replace("'", "''")}}' -Manifest $manifest
 """;
@@ -295,7 +350,7 @@ Assert-InstallerHelperManifestIntegrity -HelperDirectory '{{helperRoot.Replace("
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES='uninstall||x64||other||" + installRootResponse.Replace("'", "''") + "'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
-                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action uninstall -Architecture x64 -Client other"
+                "& ([scriptblock]::Create((Get-Content -LiteralPath '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action uninstall -Architecture x64 -Client other"
             ]);
 
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
@@ -342,19 +397,12 @@ Assert-InstallerHelperManifestIntegrity -HelperDirectory '{{helperRoot.Replace("
         {
             var quotedTempRoot = Path.Combine(tempRoot, "user's-temp");
             Directory.CreateDirectory(quotedTempRoot);
-            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
             var command = $$"""
 $env:APPDATA='{{Path.Combine(tempRoot, "AppData", "Roaming").Replace("'", "''")}}'
 $env:LOCALAPPDATA='{{Path.Combine(tempRoot, "AppData", "Local").Replace("'", "''")}}'
 $env:USERPROFILE='{{Path.Combine(tempRoot, "UserProfile").Replace("'", "''")}}'
 $env:TEMP='{{quotedTempRoot.Replace("'", "''")}}'
-$scriptPath='{{repoScriptPath.Replace("'", "''")}}'
-$scriptContent = Get-Content $scriptPath -Raw
-$marker = '$selectionContext = Resolve-Selection'
-$markerIndex = $scriptContent.LastIndexOf($marker)
-if ($markerIndex -lt 0) { throw 'Main script marker not found.' }
-$definitions = $scriptContent.Substring(0, $markerIndex)
-. ([scriptblock]::Create($definitions)) -Action install -Version latest -Architecture x64 -Client other -InstallRoot '{{Path.Combine(tempRoot, "install-root").Replace("'", "''")}}' -WorkingRoot '{{Path.Combine(tempRoot, "working").Replace("'", "''")}}' -NonInteractive
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Version latest -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -WorkingRoot '" + Path.Combine(tempRoot, "working").Replace("'", "''") + "' -NonInteractive")}}
 function Get-GitHubReleaseApiUri { param([string]$ResolvedVersion) return 'https://example.invalid/releases/o''clock' }
 function ConvertTo-PowerShellEncodedCommand {
     param([string]$CommandText)
@@ -395,18 +443,11 @@ finally {
             Directory.CreateDirectory(localAppData);
             Directory.CreateDirectory(userProfile);
 
-            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
             var command = $$"""
 $env:APPDATA='{{appData.Replace("'", "''")}}'
 $env:LOCALAPPDATA='{{localAppData.Replace("'", "''")}}'
 $env:USERPROFILE='{{userProfile.Replace("'", "''")}}'
-$scriptPath='{{repoScriptPath.Replace("'", "''")}}'
-$scriptContent = Get-Content $scriptPath -Raw
-$marker = '$selectionContext = Resolve-Selection'
-$markerIndex = $scriptContent.LastIndexOf($marker)
-if ($markerIndex -lt 0) { throw 'Main script marker not found.' }
-$definitions = $scriptContent.Substring(0, $markerIndex)
-. ([scriptblock]::Create($definitions)) -Action install -Version latest -Architecture x64 -Client other -InstallRoot '{{Path.Combine(tempRoot, "install-root").Replace("'", "''")}}' -WorkingRoot '{{Path.Combine(tempRoot, "working").Replace("'", "''")}}' -NonInteractive
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Version latest -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -WorkingRoot '" + Path.Combine(tempRoot, "working").Replace("'", "''") + "' -NonInteractive")}}
 $null = Get-LatestInstallerVersion -UseCacheOnly
 [ordered]@{
     stateRootExists = Test-Path (Join-Path $env:APPDATA 'WpfDevToolsMcp')
@@ -441,20 +482,13 @@ $null = Get-LatestInstallerVersion -UseCacheOnly
             Directory.CreateDirectory(userProfile);
             Directory.CreateDirectory(workingRoot);
 
-            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
             var command = $$"""
 $env:APPDATA='{{appData.Replace("'", "''")}}'
 $env:LOCALAPPDATA='{{localAppData.Replace("'", "''")}}'
 $env:USERPROFILE='{{userProfile.Replace("'", "''")}}'
 $env:TEMP='{{tempRoot.Replace("'", "''")}}'
 $env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='{{ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer").Replace("'", "''")}}'
-$scriptPath='{{repoScriptPath.Replace("'", "''")}}'
-$scriptContent = Get-Content $scriptPath -Raw
-$marker = '$selectionContext = Resolve-Selection'
-$markerIndex = $scriptContent.LastIndexOf($marker)
-if ($markerIndex -lt 0) { throw 'Main script marker not found.' }
-$definitions = $scriptContent.Substring(0, $markerIndex)
-. ([scriptblock]::Create($definitions)) -Action install -Version latest -Architecture x64 -Client other -InstallRoot '{{Path.Combine(tempRoot, "install-root").Replace("'", "''")}}' -WorkingRoot '{{workingRoot.Replace("'", "''")}}' -NonInteractive
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Version latest -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -WorkingRoot '" + workingRoot.Replace("'", "''") + "' -NonInteractive")}}
 $global:latestCallCount = 0
 $script:TestArchiveBytes = $null
 $script:TestArchiveHash = $null
@@ -619,7 +653,7 @@ $session = Resolve-PackageSession -Mode online -ResolvedVersion latest -Resolved
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='28'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
-                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
+                "& ([scriptblock]::Create((Get-Content -LiteralPath '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
             ]);
 
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);

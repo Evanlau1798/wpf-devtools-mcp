@@ -84,14 +84,9 @@ public sealed class InstallerUninstallBehaviorTests
 
             var command = string.Join(" ; ",
             [
-                "$repoScriptPath='" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1").Replace("'", "''") + "'",
-                "$scriptContent = Get-Content $repoScriptPath -Raw",
-                "$marker = '" + TestHelpers.OnlineInstallerDefinitionBoundaryMarker.Replace("'", "''") + "'",
-                "$markerIndex = $scriptContent.LastIndexOf($marker)",
-                "if ($markerIndex -lt 0) { throw 'Main script marker not found.' }",
-                "$definitions = $scriptContent.Substring(0, $markerIndex)",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
-                ". ([scriptblock]::Create($definitions)) -Action uninstall -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -NonInteractive -Force -OutputJson | Out-Null",
+                OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
+                    "-Action uninstall -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -NonInteractive -Force -OutputJson"),
                 "Remove-PathIfExists -Path '" + targetPath.Replace("'", "''") + "'",
                 "@{ TargetExists = (Test-Path -LiteralPath '" + targetPath.Replace("'", "''") + "'); SiblingExists = (Test-Path -LiteralPath '" + siblingPath.Replace("'", "''") + "') } | ConvertTo-Json -Compress"
             ]);
@@ -129,13 +124,8 @@ public sealed class InstallerUninstallBehaviorTests
 
             var command = string.Join(" ; ",
             [
-                "$repoScriptPath='" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1").Replace("'", "''") + "'",
-                "$scriptContent = Get-Content $repoScriptPath -Raw",
-                "$marker = '$selectionContext = Resolve-Selection'",
-                "$markerIndex = $scriptContent.LastIndexOf($marker)",
-                "if ($markerIndex -lt 0) { throw 'Main script marker not found.' }",
-                "$definitions = $scriptContent.Substring(0, $markerIndex)",
-                ". ([scriptblock]::Create($definitions)) -Action uninstall -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -WorkingRoot '" + Path.Combine(tempRoot, "working").Replace("'", "''") + "' -NonInteractive",
+                OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
+                    "-Action uninstall -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -WorkingRoot '" + Path.Combine(tempRoot, "working").Replace("'", "''") + "' -NonInteractive"),
                 "$record = [ordered]@{ ClientId='other'; RegistrationMode='artifact-only'; RegistrationTarget='" + artifactPath.Replace("'", "''") + "'; InstallRoot='" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "'; Architecture='x64'; InstalledExecutable=$null }",
                 "$verification = Invoke-StandaloneUninstallVerification -SelectedClient other -RegistrationRecord $record -RegistrationChanges @()",
                 "$verification | ConvertTo-Json -Compress"

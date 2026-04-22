@@ -40,12 +40,20 @@ public sealed partial class InspectorHost : IDisposable
     /// </summary>
     /// <param name="processId">Process ID of the target WPF application</param>
     public InspectorHost(int processId)
-        : this(processId, CreatePipeName(processId), null, null)
+        : this(processId, CreatePipeName(processId), null, null, FileLogLevel.Warning)
     {
     }
 
     internal InspectorHost(int processId, string pipeName)
-        : this(processId, pipeName, null, null)
+        : this(processId, pipeName, null, null, FileLogLevel.Warning)
+    {
+    }
+
+    /// <summary>
+    /// Create a new InspectorHost instance with an explicit minimum log level.
+    /// </summary>
+    public InspectorHost(int processId, FileLogLevel minimumLogLevel)
+        : this(processId, CreatePipeName(processId), null, null, minimumLogLevel)
     {
     }
 
@@ -55,7 +63,7 @@ public sealed partial class InspectorHost : IDisposable
     /// <param name="processId">Process ID of the target WPF application</param>
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     public InspectorHost(int processId, AuthenticationManager? authManager)
-        : this(processId, CreatePipeName(processId), authManager, null)
+        : this(processId, CreatePipeName(processId), authManager, null, FileLogLevel.Warning)
     {
     }
 
@@ -66,7 +74,15 @@ public sealed partial class InspectorHost : IDisposable
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     /// <param name="certManager">Certificate manager for SslStream encryption (null to disable encryption)</param>
     public InspectorHost(int processId, AuthenticationManager? authManager, CertificateManager? certManager)
-        : this(processId, CreatePipeName(processId), authManager, certManager)
+        : this(processId, CreatePipeName(processId), authManager, certManager, FileLogLevel.Warning)
+    {
+    }
+
+    /// <summary>
+    /// Create a new InspectorHost instance with optional authentication, encryption, and explicit log level.
+    /// </summary>
+    public InspectorHost(int processId, AuthenticationManager? authManager, CertificateManager? certManager, FileLogLevel minimumLogLevel)
+        : this(processId, CreatePipeName(processId), authManager, certManager, minimumLogLevel)
     {
     }
 
@@ -74,14 +90,18 @@ public sealed partial class InspectorHost : IDisposable
         int processId,
         string pipeName,
         AuthenticationManager? authManager,
-        CertificateManager? certManager)
+        CertificateManager? certManager,
+        FileLogLevel minimumLogLevel = FileLogLevel.Warning)
     {
         _processId = processId;
         _pipeName = string.IsNullOrWhiteSpace(pipeName)
             ? CreatePipeName(processId)
             : pipeName;
         var logPath = Path.Combine(Path.GetTempPath(), $"WpfDevTools_Inspector_{processId}.log");
-        _logger = new FileLogger(logPath);
+        _logger = new FileLogger(logPath)
+        {
+            MinimumLevel = minimumLogLevel
+        };
         _dispatcher = new RequestDispatcher(_logger);
         _authManager = authManager;
         _certManager = certManager;
@@ -295,18 +315,25 @@ public sealed partial class InspectorHost : IDisposable
                     continue;
                 }
 
-                var stopwatch = Stopwatch.StartNew();
+                var requestLoggingEnabled = _logger.IsEnabled(FileLogLevel.Info);
+                Stopwatch? requestLogStopwatch = requestLoggingEnabled
+                    ? Stopwatch.StartNew()
+                    : null;
+
                 // Process request
                 var response = await ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
-                stopwatch.Stop();
 
-                _logger.LogRequest(
-                    request.Method,
-                    request.CorrelationId,
-                    _processId,
-                    stopwatch.ElapsedMilliseconds,
-                    response.Error == null,
-                    response.Error?.Message);
+                if (requestLogStopwatch != null)
+                {
+                    requestLogStopwatch.Stop();
+                    _logger.LogRequest(
+                        request.Method,
+                        request.CorrelationId,
+                        _processId,
+                        requestLogStopwatch.ElapsedMilliseconds,
+                        response.Error == null,
+                        response.Error?.Message);
+                }
 
                 // Send response
                 var responseJson = JsonSerializer.Serialize(response, IpcSerializerOptions);

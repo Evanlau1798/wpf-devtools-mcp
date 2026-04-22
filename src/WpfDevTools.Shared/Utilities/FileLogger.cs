@@ -28,6 +28,11 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     public FileLogLevel MinimumLevel { get; set; } = FileLogLevel.Info;
 
     /// <summary>
+    /// Returns true when the provided level would be written by this logger.
+    /// </summary>
+    public bool IsEnabled(FileLogLevel level) => level >= MinimumLevel;
+
+    /// <summary>
     /// Create a new FileLogger instance
     /// </summary>
     /// <param name="logFilePath">Optional path to log file. If null, creates file in temp directory.</param>

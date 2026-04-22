@@ -237,10 +237,11 @@ public sealed partial class ConnectTool
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is not ObjectDisposedException)
             {
+                Trace.WriteLine($"ConnectTool secure transport initialization failed for process {processId}: {ex}");
                 return new
                 {
                     success = false,
-                    error = $"Failed to prepare secure transport artifacts: {ex.Message}",
+                    error = "Failed to prepare secure transport artifacts. Check server logs for details.",
                     errorCode = "SecureTransportInitializationFailed",
                     targetIsElevated = processInfo.IsElevated,
                     requiresElevationToConnect = access.RequiresElevationToConnect,
@@ -350,22 +351,18 @@ public sealed partial class ConnectTool
                         targetIsElevated = processInfo.IsElevated,
                         requiresElevationToConnect = access.RequiresElevationToConnect,
                         canConnectFromCurrentServer = access.CanConnectFromCurrentServer,
-                        stage = injectionResult.FailedAtStage?.ToString(),
-                        exitCode = injectionResult.BootstrapExitCode
+                        stage = injectionResult.FailedAtStage?.ToString()
                     };
                 }
+
+                var injectionFailure = DescribeInjectionFailure(injectionResult, processId, processInfo);
 
                 return new
                 {
                     success = false,
-                    error = injectionResult.ErrorMessage ?? "Injection failed",
-                    errorCode = injectionResult.Error switch
-                    {
-                        InjectionError.Timeout or InjectionError.PipeReadyTimeout => "Timeout",
-                        _ => injectionResult.Error.ToString()
-                    },
-                    stage = injectionResult.FailedAtStage?.ToString(),
-                    exitCode = injectionResult.BootstrapExitCode
+                    error = injectionFailure.Error,
+                    errorCode = injectionFailure.ErrorCode,
+                    stage = injectionResult.FailedAtStage?.ToString()
                 };
             }
 
@@ -666,10 +663,11 @@ public sealed partial class ConnectTool
 
         if (exception.Message.Contains("Maximum session limit", StringComparison.Ordinal))
         {
+            Trace.WriteLine($"ConnectTool session limit prevented attach for process {processId}: {exception}");
             return new
             {
                 success = false,
-                error = exception.Message,
+                error = "The MCP server has reached its maximum number of active sessions.",
                 errorCode = "SessionLimitExceeded",
                 hint = "Disconnect an existing session before connecting another target process."
             };
@@ -686,12 +684,63 @@ public sealed partial class ConnectTool
             };
         }
 
+        Trace.WriteLine($"ConnectTool session connection failure for process {processId}: {exception}");
+
         return new
         {
             success = false,
-            error = exception.Message,
+            error = "Connect could not attach the new session because the server encountered an internal error.",
             errorCode = "InternalError",
             hint = "Retry connect. If the problem persists, restart the MCP server."
+        };
+    }
+
+    private static (string ErrorCode, string Error) DescribeInjectionFailure(
+        InjectionResult injectionResult,
+        int processId,
+        WpfProcessInfo processInfo)
+    {
+        var errorCode = injectionResult.Error switch
+        {
+            InjectionError.Timeout or InjectionError.PipeReadyTimeout => "Timeout",
+            _ => injectionResult.Error.ToString()
+        };
+
+        var error = injectionResult.Error switch
+        {
+            InjectionError.ProcessNotFound or
+            InjectionError.NotWpfApplication or
+            InjectionError.ArchitectureMismatch or
+            InjectionError.SingleFileApplication => GetErrorMessage(injectionResult.Error, processId, processInfo),
+            InjectionError.AccessDenied => "Access denied while starting the injected inspector.",
+            InjectionError.AllocationFailed => "Failed to allocate remote memory during injection.",
+            InjectionError.WriteFailed => "Failed to write injector payload into the target process.",
+            InjectionError.CreateThreadFailed => "Failed to start the remote injection thread.",
+            InjectionError.Timeout => "Injection timed out before the target process became ready.",
+            InjectionError.PipeReadyTimeout => "Bootstrap completed, but the Inspector Named Pipe did not become ready before the timeout expired.",
+            InjectionError.BootstrapFailed => DescribeBootstrapFailureMessage(injectionResult),
+            InjectionError.Unknown => "Injection failed due to an unexpected internal error. Check server logs for details.",
+            _ => "Injection failed"
+        };
+
+        Trace.WriteLine(
+            $"ConnectTool injection failure for process {processId}: error={injectionResult.Error}; " +
+            $"stage={injectionResult.FailedAtStage}; exitCode={injectionResult.BootstrapExitCode}; " +
+            $"detail={injectionResult.ErrorMessage}");
+
+        return (errorCode, error);
+    }
+
+    private static string DescribeBootstrapFailureMessage(InjectionResult injectionResult)
+    {
+        return injectionResult.FailedAtStage switch
+        {
+            BootstrapStage.ClrDetection => "Bootstrap failed during CLR detection.",
+            BootstrapStage.ClrHosting => "Bootstrap failed during CLR hosting initialization.",
+            BootstrapStage.ManagedEntrypoint => "Bootstrap failed while invoking the managed bootstrap entrypoint.",
+            BootstrapStage.LoadLibrary => "Bootstrap failed while loading the inspector DLL.",
+            BootstrapStage.PipeReady => "Bootstrap completed, but the Inspector Named Pipe did not become ready before the timeout expired.",
+            _ => "Bootstrap failed while starting the injected inspector."
         };
     }
 

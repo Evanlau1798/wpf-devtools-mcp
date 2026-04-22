@@ -254,7 +254,8 @@ public partial class ConnectToolTests : IDisposable
 
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("Expected downstream injection failure");
+                resultJson.GetProperty(""errorCode"").GetString().Should().Be(""BootstrapFailed"");
+        resultJson.GetProperty(""error"").GetString().Should().Contain(""Bootstrap failed"");
         injector.InjectWithBootstrapCallCount.Should().Be(1);
     }
 

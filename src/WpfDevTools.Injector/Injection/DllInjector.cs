@@ -122,10 +122,11 @@ public class DllInjector
 
             if (hProcess == IntPtr.Zero || hProcess == new IntPtr(-1))
             {
-                return InjectionResult.CreateFailure(
+                return CreateSanitizedFailure(
                     processId,
                     InjectionError.AccessDenied,
-                    $"Failed to open process. Error: {_api.GetLastError()}");
+                    "Failed to open target process for injection",
+                    $"OpenProcess failed with Win32 error {_api.GetLastError()}.");
             }
 
             // Get LoadLibraryW address
@@ -152,33 +153,39 @@ public class DllInjector
             return invocationResult.Status switch
             {
                 RemoteThreadInvocationStatus.Completed => InjectionResult.CreateSuccess(processId, dllPath),
-                RemoteThreadInvocationStatus.AllocationFailed => InjectionResult.CreateFailure(
+                RemoteThreadInvocationStatus.AllocationFailed => CreateSanitizedFailure(
                     processId,
                     InjectionError.AllocationFailed,
-                    $"Failed to allocate memory. Error: {invocationResult.LastError}"),
-                RemoteThreadInvocationStatus.WriteFailed => InjectionResult.CreateFailure(
+                    "Failed to allocate remote memory for injection",
+                    $"VirtualAllocEx failed with Win32 error {invocationResult.LastError}."),
+                RemoteThreadInvocationStatus.WriteFailed => CreateSanitizedFailure(
                     processId,
                     InjectionError.WriteFailed,
-                    $"Failed to write memory. Error: {invocationResult.LastError}"),
-                RemoteThreadInvocationStatus.ThreadCreationFailed => InjectionResult.CreateFailure(
+                    "Failed to write injector payload into target process",
+                    $"WriteProcessMemory failed with Win32 error {invocationResult.LastError}."),
+                RemoteThreadInvocationStatus.ThreadCreationFailed => CreateSanitizedFailure(
                     processId,
                     InjectionError.CreateThreadFailed,
-                    $"Failed to create remote thread. Error: {invocationResult.LastError}"),
+                    "Failed to start remote injection thread",
+                    $"CreateRemoteThread failed with Win32 error {invocationResult.LastError}."),
                 RemoteThreadInvocationStatus.TimedOut => InjectionResult.CreateFailure(
                     processId,
                     InjectionError.Timeout,
                     "Injection timed out"),
-                RemoteThreadInvocationStatus.WaitFailed => InjectionResult.CreateFailure(
+                RemoteThreadInvocationStatus.WaitFailed => CreateSanitizedFailure(
                     processId,
                     InjectionError.Unknown,
-                    $"WaitForSingleObject failed with error: {invocationResult.LastError}"),
-                RemoteThreadInvocationStatus.UnexpectedWaitResult => InjectionResult.CreateFailure(
+                    "The injector could not confirm remote thread completion",
+                    $"WaitForSingleObject failed with Win32 error {invocationResult.LastError}."),
+                RemoteThreadInvocationStatus.UnexpectedWaitResult => CreateSanitizedFailure(
                     processId,
                     InjectionError.Unknown,
-                    $"Unexpected wait result: 0x{invocationResult.WaitResult:X8}"),
-                RemoteThreadInvocationStatus.DeferredCleanupSchedulingFailed => InjectionResult.CreateFailure(
+                    "The injector could not confirm remote thread completion",
+                    $"Unexpected wait result 0x{invocationResult.WaitResult:X8}."),
+                RemoteThreadInvocationStatus.DeferredCleanupSchedulingFailed => CreateSanitizedFailure(
                     processId,
                     InjectionError.Unknown,
+                    "The injector could not confirm remote thread completion",
                     "Remote thread did not complete, and deferred remote buffer cleanup could not be scheduled."),
                 _ => InjectionResult.CreateFailure(
                     processId,
@@ -188,10 +195,11 @@ public class DllInjector
         }
         catch (Exception ex)
         {
-            return InjectionResult.CreateFailure(
+            return CreateSanitizedFailure(
                 processId,
                 InjectionError.Unknown,
-                $"Unexpected error: {ex.Message}");
+                "Unexpected injection failure",
+                ex);
         }
         finally
         {
@@ -298,6 +306,26 @@ public class DllInjector
             InjectionError.Timeout => "Injection operation timed out",
             _ => "Unknown error"
         };
+    }
+
+    private static InjectionResult CreateSanitizedFailure(
+        int processId,
+        InjectionError error,
+        string publicMessage,
+        string diagnosticMessage)
+    {
+        Trace.WriteLine($"DllInjector sensitive failure for process {processId}: {diagnosticMessage}");
+        return InjectionResult.CreateFailure(processId, error, publicMessage);
+    }
+
+    private static InjectionResult CreateSanitizedFailure(
+        int processId,
+        InjectionError error,
+        string publicMessage,
+        Exception exception)
+    {
+        Trace.WriteLine($"DllInjector sensitive failure for process {processId}: {exception}");
+        return InjectionResult.CreateFailure(processId, error, publicMessage);
     }
 
 }

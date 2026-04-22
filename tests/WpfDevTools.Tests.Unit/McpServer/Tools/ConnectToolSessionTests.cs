@@ -181,7 +181,8 @@ public partial class ConnectToolTests
 
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("Fresh injection attempted");
+        resultJson.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+        resultJson.GetProperty("error").GetString().Should().Contain("Bootstrap failed");
         sessionManager.HasSession(12345).Should().BeFalse();
         injector.InjectWithBootstrapCallCount.Should().Be(1);
     }
@@ -223,6 +224,8 @@ public partial class ConnectToolTests
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("errorCode").GetString().Should().Be("SessionLimitExceeded");
+        resultJson.GetProperty("error").GetString().Should().Be("The MCP server has reached its maximum number of active sessions.");
+        resultJson.GetProperty("error").GetString().Should().NotContain(McpServerConfiguration.MaxSessions.ToString());
     }
 
     [Fact]
@@ -254,6 +257,8 @@ public partial class ConnectToolTests
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("errorCode").GetString().Should().Be("SessionLimitExceeded");
+        resultJson.GetProperty("error").GetString().Should().Be("The MCP server has reached its maximum number of active sessions.");
+        resultJson.GetProperty("error").GetString().Should().NotContain(McpServerConfiguration.MaxSessions.ToString());
     }
 
     [Fact]

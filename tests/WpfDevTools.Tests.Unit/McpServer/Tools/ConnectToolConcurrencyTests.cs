@@ -45,7 +45,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         {
             var json = JsonSerializer.SerializeToElement(result);
             json.GetProperty("success").GetBoolean().Should().BeFalse();
-            json.GetProperty("error").GetString().Should().Contain("Simulated injection failure");
+            json.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+            json.GetProperty("error").GetString().Should().Contain("Bootstrap failed");
         }
     }
 
@@ -81,7 +82,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         injector.InjectWithBootstrapCallCount.Should().Be(1);
         var json = JsonSerializer.SerializeToElement(secondResult);
         json.GetProperty("success").GetBoolean().Should().BeFalse();
-        json.GetProperty("error").GetString().Should().Contain("Simulated injection failure");
+        json.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+        json.GetProperty("error").GetString().Should().Contain("Bootstrap failed");
     }
 
     [Fact]
@@ -127,7 +129,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         injector.InjectWithBootstrapCallCount.Should().Be(2);
         var json = JsonSerializer.SerializeToElement(thirdResult);
         json.GetProperty("success").GetBoolean().Should().BeFalse();
-        json.GetProperty("error").GetString().Should().Contain("Simulated injection failure");
+        json.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+        json.GetProperty("error").GetString().Should().Contain("Bootstrap failed");
     }
 
     [Fact]
@@ -166,7 +169,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         {
             var json = JsonSerializer.SerializeToElement(result);
             json.GetProperty("success").GetBoolean().Should().BeFalse();
-            json.GetProperty("error").GetString().Should().Contain("Simulated injection failure");
+            json.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+            json.GetProperty("error").GetString().Should().Contain("Bootstrap failed");
         }
     }
 
@@ -252,7 +256,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         var freshResult = JsonSerializer.SerializeToElement(await freshCall);
         injector.InjectWithBootstrapCallCount.Should().Be(2);
         freshResult.GetProperty("success").GetBoolean().Should().BeFalse();
-        freshResult.GetProperty("error").GetString().Should().Contain("Simulated injection failure");
+        freshResult.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+        freshResult.GetProperty("error").GetString().Should().Contain("Bootstrap failed");
     }
 
     public void Dispose()

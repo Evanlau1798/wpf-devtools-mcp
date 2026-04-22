@@ -21,6 +21,8 @@ public class McpDiscoveryContentTests
         content.Should().Contain("@resource");
         content.Should().Contain("portable discovery contract");
         content.Should().Contain("stateSnapshots");
+        content.Should().Contain("wpf://contracts/response");
+        content.Should().Contain("response contract JSON");
         content.Should().Contain("performance profiling");
         content.Should().Contain("runtime state safety notes");
     }

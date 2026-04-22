@@ -29,8 +29,11 @@ public sealed class ResponseContractVersionTests
         content.Should().Contain("detail=minimal");
         content.Should().Contain("detail=verbose");
         content.Should().Contain("standard");
+        content.Should().Contain("wpf://contracts/response");
         content.Should().Contain("nextSteps");
         content.Should().Contain("preconditions");
+        content.Should().Contain("whyNow");
+        content.Should().Contain("confidence");
         content.Should().Contain("prefetchTools");
         content.Should().Contain("navigation");
         content.Should().Contain("contextRefs");
@@ -52,12 +55,13 @@ public sealed class ResponseContractVersionTests
         ServerInstructions.Value.Should().Contain("detail=minimal");
         ServerInstructions.Value.Should().Contain("detail=verbose");
         ServerInstructions.Value.Should().Contain("standard");
+        ServerInstructions.Value.Should().Contain("wpf://contracts/response");
         ServerInstructions.Value.Should().Contain("nextSteps");
         ServerInstructions.Value.Should().Contain("preconditions");
         ServerInstructions.Value.Should().Contain("workflowId");
         ServerInstructions.Value.Should().Contain("prefetchTools");
         ServerInstructions.Value.Should().Contain("navigation");
-        ServerInstructions.Value.Should().Contain("contextRef");
+        ServerInstructions.Value.Should().Contain("contextRefs");
         ServerInstructions.Value.Should().Contain("navigation=false");
         ServerInstructions.Value.Should().Contain("get_binding_errors");
         ServerInstructions.Value.Should().Contain("explicit opt-out");

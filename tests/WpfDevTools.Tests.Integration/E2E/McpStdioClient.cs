@@ -102,11 +102,43 @@ public sealed class McpStdioClient : IDisposable
     }
 
     /// <summary>
+    /// Call an MCP tool and return the raw JSON-RPC response envelope.
+    /// </summary>
+    public async Task<JsonElement> CallToolEnvelopeAsync(
+        string toolName,
+        object? arguments = null,
+        int timeoutMs = 30000,
+        CancellationToken ct = default)
+    {
+        return await SendRequestAsync("tools/call", new
+        {
+            name = toolName,
+            arguments = arguments ?? new { }
+        }, timeoutMs, ct);
+    }
+
+    /// <summary>
     /// List all available MCP tools.
     /// </summary>
     public async Task<JsonElement> ListToolsAsync(CancellationToken ct = default)
     {
         return await SendRequestAsync("tools/list", new { }, 30000, ct);
+    }
+
+    /// <summary>
+    /// List all available MCP resources.
+    /// </summary>
+    public async Task<JsonElement> ListResourcesAsync(CancellationToken ct = default)
+    {
+        return await SendRequestAsync("resources/list", new { }, 30000, ct);
+    }
+
+    /// <summary>
+    /// Read an MCP resource by URI.
+    /// </summary>
+    public async Task<JsonElement> ReadResourceAsync(string uri, CancellationToken ct = default)
+    {
+        return await SendRequestAsync("resources/read", new { uri }, 30000, ct);
     }
 
     private async Task<JsonElement> SendRequestAsync(

@@ -196,6 +196,19 @@ public sealed class DocfxCapabilityDocumentationTests
             "tool overview pages should make the Claude compatibility tradeoff explicit for non-Claude clients");
     }
 
+    [Theory]
+    [InlineData("docfx/reference/tools/index.md")]
+    [InlineData("docfx/zh-tw/reference/tools/index.md")]
+    public void ToolOverviewPages_ShouldPointToMachineReadableResponseContractResource(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("wpf://contracts/response",
+            "tool overview pages should point clients at the machine-readable response contract resource when tools/list omits outputSchema");
+        content.Should().Contain("JSON",
+            "tool overview pages should clarify that the fallback contract surface is machine-readable JSON rather than prose alone");
+    }
+
     private static int CountOccurrences(string content, string value)
     {
         var count = 0;

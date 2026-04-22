@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
@@ -64,8 +65,74 @@ public sealed class McpToolSearchMetadataE2eTests
 
         text.Should().Contain("navigation");
         text.Should().Contain("nextSteps");
-        text.Should().Contain("contextRef");
+        text.Should().Contain("contextRefs");
         text.Should().Contain("prefetchTools");
+        text.Should().Contain("wpf://contracts/response");
+    }
+
+    [Fact]
+    public async Task ResourcesList_ShouldExposeMachineReadableResponseContractResource()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ListResourcesAsync();
+        var resources = response.GetProperty("result").GetProperty("resources");
+        var resource = resources.EnumerateArray()
+            .Single(item => item.GetProperty("uri").GetString() == "wpf://contracts/response");
+
+        resource.GetProperty("name").GetString().Should().Be("wpf_response_contract");
+        resource.GetProperty("title").GetString().Should().Be("Response Contract");
+        resource.GetProperty("mimeType").GetString().Should().Be("application/json");
+    }
+
+    [Fact]
+    public async Task ReadResource_ShouldReturnMachineReadableResponseContractJson()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ReadResourceAsync("wpf://contracts/response");
+        var contents = response.GetProperty("result").GetProperty("contents");
+        var content = contents.EnumerateArray().Single();
+
+        content.GetProperty("uri").GetString().Should().Be("wpf://contracts/response");
+        content.GetProperty("mimeType").GetString().Should().Be("application/json");
+
+        using var document = JsonDocument.Parse(content.GetProperty("text").GetString()!);
+        var root = document.RootElement;
+
+        root.GetProperty("responseContractVersion").GetString().Should().Be(ResponseContractVersion.Current);
+        root.GetProperty("toolPayload").GetProperty("canonicalField").GetString().Should().Be("structuredContent");
+        root.GetProperty("navigation").GetProperty("field").GetString().Should().Be("navigation");
+        root.GetProperty("nextSteps").GetProperty("derivedFrom").GetString().Should().Be("navigation.recommended");
+        root.GetProperty("compatibility").GetProperty("toolListOutputSchema").GetString().Should().Be("omitted");
+    }
+
+    [Fact]
+    public async Task RawToolCallEnvelope_ShouldMatchPublishedResponseContractForErrorAnnotations()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.CallToolEnvelopeAsync("ping");
+        var result = response.GetProperty("result");
+
+        result.TryGetProperty("structuredContent", out var structuredContent).Should().BeTrue();
+        structuredContent.GetProperty("success").GetBoolean().Should().BeFalse();
+
+        var content = result.GetProperty("content");
+        var textBlock = content.EnumerateArray().Single();
+        textBlock.TryGetProperty("text", out var text).Should().BeTrue();
+        JsonDocument.Parse(text.GetString()!).RootElement.GetProperty("hasStructuredContent").GetBoolean().Should().BeTrue();
+        textBlock.TryGetProperty("annotations", out var annotations).Should().BeTrue();
+        annotations.GetProperty("priority").GetDouble().Should().Be(1.0d);
     }
 
     private static void AssertTitle(JsonElement tools, string toolName, string expectedTitle)

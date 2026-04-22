@@ -114,6 +114,7 @@ public class McpPromptAndResourceAttributeTests
 
     [Theory]
     [InlineData("wpf_capabilities", "wpf://capabilities")]
+    [InlineData("wpf_response_contract", "wpf://contracts/response")]
     [InlineData("wpf_binding_workflow", "wpf://workflows/binding-debug")]
     [InlineData("wpf_elevated_target_limitations", "wpf://limitations/elevated-targets")]
     [InlineData("wpf_injection_failure_limitations", "wpf://limitations/injection-failures")]

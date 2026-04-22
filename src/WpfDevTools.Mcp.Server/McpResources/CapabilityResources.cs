@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Schema;
 
@@ -7,6 +8,13 @@ namespace WpfDevTools.Mcp.Server.McpResources;
 [McpServerResourceType]
 public static class CapabilityResources
 {
+    private const string ResponseContractResourceUri = "wpf://contracts/response";
+
+    private static readonly JsonSerializerOptions JsonResourceSerializerOptions = new()
+    {
+        WriteIndented = true
+    };
+
     [McpServerResource(
         Name = "wpf_capabilities",
         Title = "WPF Capabilities",
@@ -24,7 +32,7 @@ public static class CapabilityResources
         - Transport: `stdio`
         - Tool surface: WPF process discovery, connection, exact-match element search, tree inspection, binding diagnostics, DependencyProperty analysis, MVVM inspection, style/template inspection, interaction, layout, performance, and routed-event diagnostics
         - Prompt surface: workflow entry points for connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, performance profiling, and secondary-window inspection
-        - Resource surface: capability summary, workflow references, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
+        - Resource surface: capability summary, response contract JSON, workflow references, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
         - Feature flags: `prompts=true`, `resources=true`, `stateSnapshots=true`, `diagnosticNormalization=true`, `elevatedTargetDiagnostics=true`
 
         ## Recommended workflow shape
@@ -36,11 +44,12 @@ public static class CapabilityResources
 
         ## Response contract notes
 
+        - Machine-readable JSON contract resource: `wpf://contracts/response`. Read it when clients need stable field-level metadata for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, and the `get_binding_errors` `navigation=false` opt-out without relying on prose alone.
         - By default, every tool response includes compatibility `nextSteps`; tools without runtime-computable guidance return `nextSteps: []`.
         - By default, responses also include a `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
         - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` unless `get_binding_errors` explicitly receives `navigation=false`.
         - Clients may request `navigation=false` on `get_binding_errors` as an explicit opt-out to omit both `navigation` and compatibility `nextSteps` from a response. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the tool schema today; do not assume other tool schemas expose that parameter unless they advertise it explicitly.
-        - v2 adds optional `preconditions`, `expectedOutcome`, `workflowId`, and `prefetchTools` fields on `nextSteps` entries.
+        - v2 adds optional `preconditions`, `expectedOutcome`, `workflowId`, `prefetchTools`, `whyNow`, and `confidence` fields on `nextSteps` entries.
         - `contextRefs` are descriptive JSON only; they are not executable handles or hidden server-side orchestration tokens.
         - `prefetchTools` is advisory only and contains tool names for clients that can load nearby schemas progressively.
         - Compatibility aliases remain in the current response contract to avoid breaking existing clients.
@@ -70,6 +79,102 @@ public static class CapabilityResources
         - Runtime mutations are not persisted to XAML.
         - Snapshot restore currently supports DependencyProperty local values, Binding-backed DependencyProperties captured in the same session, scalar ViewModel values, and focus restoration.
         """;
+
+    [McpServerResource(
+        Name = "wpf_response_contract",
+        Title = "Response Contract",
+        UriTemplate = ResponseContractResourceUri,
+        MimeType = "application/json")]
+    [Description("Machine-readable JSON contract for structuredContent, navigation, nextSteps, contextRefs, and Claude-compatible tools/list behavior.")]
+    public static string GetResponseContract()
+    {
+        var nextStepEntry = new
+        {
+            tool = new { type = "string" },
+            @params = new { type = "object" },
+            reason = new { type = "string" },
+            kind = new
+            {
+                type = "integer",
+                allowedValues = new[]
+                {
+                    new { name = nameof(ToolNextStepKind.Diagnostic), value = (int)ToolNextStepKind.Diagnostic },
+                    new { name = nameof(ToolNextStepKind.Action), value = (int)ToolNextStepKind.Action },
+                    new { name = nameof(ToolNextStepKind.Verification), value = (int)ToolNextStepKind.Verification },
+                    new { name = nameof(ToolNextStepKind.Navigation), value = (int)ToolNextStepKind.Navigation }
+                }
+            },
+            priority = new { type = "integer" },
+            preconditions = new { type = "string[]", optional = true },
+            expectedOutcome = new { type = "string", optional = true },
+            workflowId = new { type = "string", optional = true },
+            prefetchTools = new { type = "string[]", optional = true },
+            whyNow = new { type = "string", optional = true },
+            confidence = new { type = "string", optional = true }
+        };
+
+        var contract = new
+        {
+            server = "wpf-devtools-mcp",
+            resourceUri = ResponseContractResourceUri,
+            schemaVersion = ServerMetadata.GetSchemaVersion(),
+            responseContractVersion = ResponseContractVersion.Current,
+            toolCallResult = new
+            {
+                structuredContentField = "result.structuredContent",
+                textFallbackField = "result.content[0].text",
+                annotationsField = "result.content[0].annotations",
+                structuredContentPreferred = true
+            },
+            toolPayload = new
+            {
+                canonicalField = "structuredContent",
+                requiredBaseFields = new[] { "success" },
+                additiveFields = new[] { "nextSteps", "navigation", "pendingEvents" }
+            },
+            navigation = new
+            {
+                field = "navigation",
+                includedByDefault = true,
+                properties = new
+                {
+                    recommended = new { type = "ToolNextStep[]" },
+                    alternatives = new { type = "ToolNextStep[]" },
+                    prefetchTools = new { type = "string[]" },
+                    contextRefs = new { type = "ToolNavigationReference[]" }
+                },
+                optOut = new
+                {
+                    tool = "get_binding_errors",
+                    parameter = "navigation",
+                    falseValueOmits = new[] { "navigation", "nextSteps" }
+                }
+            },
+            nextSteps = new
+            {
+                field = "nextSteps",
+                derivedFrom = "navigation.recommended",
+                entry = nextStepEntry
+            },
+            contextRefs = new
+            {
+                field = "navigation.contextRefs",
+                entry = new
+                {
+                    type = new { type = "string" },
+                    additionalProperties = new { type = "json" }
+                }
+            },
+            compatibility = new
+            {
+                toolListOutputSchema = "omitted",
+                toolListOutputSchemaReason = "Claude tools/list compatibility while structuredContent remains canonical",
+                deprecatedAliases = ResponseContractVersion.DeprecatedAliases
+            }
+        };
+
+        return JsonSerializer.Serialize(contract, JsonResourceSerializerOptions);
+    }
 
     [McpServerResource(
         Name = "wpf_binding_workflow",

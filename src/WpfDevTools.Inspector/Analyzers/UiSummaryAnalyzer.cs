@@ -59,11 +59,12 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             var rootType = root.GetType().Name;
             var rootName = SceneSummaryElementHelpers.GetElementName(root);
             var (scopeVisibility, isCurrentlyVisible) = SceneSummaryElementHelpers.GetScopeVisibilityMetadata(root);
-            var nodes = new List<object>();
+            var nodes = summaryOnly ? null : new List<object>();
             var summary = new StringBuilder();
             var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
+            var semanticNodeCount = 0;
 
-            Traverse(root, currentDepth: 0, maxDepth, traversalDepthMode, nodes, summary, visited);
+            Traverse(root, currentDepth: 0, maxDepth, traversalDepthMode, nodes, summary, visited, ref semanticNodeCount);
 
             return summaryOnly
                 ? new
@@ -76,7 +77,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                     depthMode = SceneTraversalDepthModes.ToContractValue(traversalDepthMode),
                     scopeVisibility,
                     isCurrentlyVisible,
-                    semanticNodeCount = nodes.Count,
+                    semanticNodeCount,
                     summaryText = summary.ToString().TrimEnd()
                 }
                 : new
@@ -89,9 +90,9 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                     depthMode = SceneTraversalDepthModes.ToContractValue(traversalDepthMode),
                     scopeVisibility,
                     isCurrentlyVisible,
-                    semanticNodeCount = nodes.Count,
+                    semanticNodeCount,
                     summaryText = summary.ToString().TrimEnd(),
-                    nodes
+                    nodes = nodes ?? []
                 };
         });
     }
@@ -101,9 +102,10 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         int currentDepth,
         int maxDepth,
         SceneTraversalDepthMode depthMode,
-        List<object> nodes,
+        List<object>? nodes,
         StringBuilder summary,
-        HashSet<DependencyObject> visited)
+        HashSet<DependencyObject> visited,
+        ref int semanticNodeCount)
     {
         if (currentDepth > maxDepth || !visited.Add(current))
         {
@@ -113,28 +115,28 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         if (SceneSummaryElementHelpers.IsSemanticElement(current)
             && (currentDepth > 0 || current is FrameworkElement))
         {
-            AppendSemanticNode(current, currentDepth, nodes, summary);
+            AppendSemanticNode(current, currentDepth, nodes, summary, ref semanticNodeCount);
         }
 
         foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(current))
         {
             var nextDepth = SceneSummaryElementHelpers.GetNextTraversalDepth(child, currentDepth, depthMode);
-            Traverse(child, nextDepth, maxDepth, depthMode, nodes, summary, visited);
+            Traverse(child, nextDepth, maxDepth, depthMode, nodes, summary, visited, ref semanticNodeCount);
         }
     }
 
     private void AppendSemanticNode(
         DependencyObject element,
         int depth,
-        List<object> nodes,
-        StringBuilder summary)
+        List<object>? nodes,
+        StringBuilder summary,
+        ref int semanticNodeCount)
     {
         if (element is not FrameworkElement frameworkElement)
         {
             return;
         }
 
-        var elementId = _elementFinder.GenerateElementId(frameworkElement);
         var elementType = frameworkElement.GetType().Name;
         var elementName = SceneSummaryElementHelpers.GetElementName(frameworkElement);
         var text = SceneSummaryElementHelpers.GetDisplayText(frameworkElement);
@@ -147,17 +149,22 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             return;
         }
 
-        nodes.Add(new
+        semanticNodeCount++;
+
+        if (nodes != null)
         {
-            elementId,
-            elementType,
-            elementName,
-            kind,
-            depth,
-            text,
-            currentValue,
-            annotations
-        });
+            nodes.Add(new
+            {
+                elementId = _elementFinder.GenerateElementId(frameworkElement),
+                elementType,
+                elementName,
+                kind,
+                depth,
+                text,
+                currentValue,
+                annotations
+            });
+        }
 
         var indent = new string(' ', depth * 2);
         var nameSegment = string.IsNullOrWhiteSpace(elementName) ? string.Empty : $" {elementName}";

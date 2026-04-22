@@ -47,11 +47,11 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
             var hasPrimaryCommand = false;
             var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
 
-            foreach (var descendant in EnumerateDescendantsAndSelf(root, visited))
+            TraverseDescendantsAndSelf(root, visited, descendant =>
             {
                 if (descendant is not FrameworkElement frameworkElement)
                 {
-                    continue;
+                    return;
                 }
 
                 var includeElement = SceneSummaryElementHelpers.ShouldIncludeFormSummaryElement(
@@ -88,7 +88,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                         }
                     }
                 }
-            }
+            });
 
             var validationSubmittable = validationErrorCount == 0;
             var interactionSubmittable = hasReadyPrimaryCommand || (!hasPrimaryCommand && hasReadyFallbackCommand);
@@ -153,23 +153,21 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
         }, isReady, isPrimary);
     }
 
-    private static IEnumerable<DependencyObject> EnumerateDescendantsAndSelf(
+    private static void TraverseDescendantsAndSelf(
         DependencyObject root,
-        HashSet<DependencyObject> visited)
+        HashSet<DependencyObject> visited,
+        Action<DependencyObject> visit)
     {
         if (!visited.Add(root))
         {
-            yield break;
+            return;
         }
 
-        yield return root;
+        visit(root);
 
         foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(root))
         {
-            foreach (var descendant in EnumerateDescendantsAndSelf(child, visited))
-            {
-                yield return descendant;
-            }
+            TraverseDescendantsAndSelf(child, visited, visit);
         }
     }
 }

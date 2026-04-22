@@ -33,62 +33,62 @@ public sealed class GetElementSnapshotToolTests : IDisposable
                 JsonSerializer.Serialize(new
                 {
                     success = true,
-                    tree = new
+                    elementId = "TextBox_1",
+                    elementType = "TextBox",
+                    elementName = "NameTextBox",
+                    dataContextType = "TestViewModel",
+                    properties = new
                     {
-                        elementId = "TextBox_1",
-                        type = "TextBox",
-                        name = "NameTextBox",
-                        childCount = 0
-                    }
-                }),
-                JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    chain = new[]
-                    {
-                        new { dataContextType = "TestViewModel" }
-                    }
-                }),
-                JsonSerializer.Serialize(new
-                {
-                    success = true,
+                        Text = new
+                        {
+                            currentValue = "Alice",
+                            baseValueSource = "LocalValue",
+                            isExpression = true,
+                            localValueKind = "Expression"
+                        },
+                        Visibility = new
+                        {
+                            currentValue = "Visible",
+                            baseValueSource = "Default"
+                        },
+                        IsEnabled = new
+                        {
+                            currentValue = "True",
+                            baseValueSource = "Default"
+                        },
+                        Opacity = new
+                        {
+                            currentValue = "1",
+                            baseValueSource = "Default"
+                        }
+                    },
                     bindings = new[]
                     {
                         new { propertyName = "Text", path = "Name", status = "Active", currentValue = "Alice" }
-                    }
-                }),
-                JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    errorCount = 1,
-                    errors = new[]
+                    },
+                    validationErrors = new[]
                     {
                         new { errorContent = "Name is required", elementType = "TextBox", elementName = "NameTextBox" }
-                    }
-                }),
-                JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    hasStyle = true,
-                    styleCount = 1,
-                    styles = new[]
+                    },
+                    style = new
                     {
-                        new { styleType = "Implicit", targetType = "TextBox", setterCount = 3 }
+                        success = true,
+                        hasStyle = true,
+                        styleCount = 1,
+                        styles = new[]
+                        {
+                            new { styleType = "Implicit", targetType = "TextBox", setterCount = 3 }
+                        }
+                    },
+                    layout = new
+                    {
+                        success = true,
+                        actualWidth = 120.0,
+                        actualHeight = 24.0,
+                        horizontalAlignment = "Stretch",
+                        verticalAlignment = "Top"
                     }
-                }),
-                JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    actualWidth = 120.0,
-                    actualHeight = 24.0,
-                    horizontalAlignment = "Stretch",
-                    verticalAlignment = "Top"
-                }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "Text", currentValue = "Alice", baseValueSource = "LocalValue", isExpression = true, localValueKind = "Expression" }),
-                JsonSerializer.Serialize(new { success = false, error = "DependencyProperty 'Content' not found", errorCode = "PropertyNotFound", hint = "Verify the propertyName is valid for the target element type." }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "Visibility", currentValue = "Visible", baseValueSource = "Default" }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "IsEnabled", currentValue = "True", baseValueSource = "Default" }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "Opacity", currentValue = "1", baseValueSource = "Default" })
+                })
             },
             observedMethods);
 
@@ -109,21 +109,7 @@ public sealed class GetElementSnapshotToolTests : IDisposable
         result.GetProperty("properties").GetProperty("Text").GetProperty("currentValue").GetString().Should().Be("Alice");
         result.GetProperty("properties").GetProperty("Text").GetProperty("isExpression").GetBoolean().Should().BeTrue();
         result.GetProperty("properties").GetProperty("Text").GetProperty("localValueKind").GetString().Should().Be("Expression");
-        observedMethods.Should().BeEquivalentTo(
-            [
-                "get_visual_tree",
-                "get_datacontext_chain",
-                "get_bindings",
-                "get_validation_errors",
-                "get_applied_styles",
-                "get_layout_info",
-                "get_dp_value_source",
-                "get_dp_value_source",
-                "get_dp_value_source",
-                "get_dp_value_source",
-                "get_dp_value_source"
-            ],
-            options => options.WithStrictOrdering());
+        observedMethods.Should().Equal("get_element_snapshot");
     }
 
     [Fact]
@@ -137,7 +123,8 @@ public sealed class GetElementSnapshotToolTests : IDisposable
                 JsonSerializer.Serialize(new
                 {
                     success = false,
-                    error = "Element not found: 'TextBox_1'",
+                    failedStep = "get_visual_tree",
+                    error = "Failed during get_visual_tree while building element snapshot. Element not found: 'TextBox_1'",
                     errorCode = "ElementNotFound",
                     hint = "Call get_visual_tree first to confirm the target elementId."
                 })
@@ -151,6 +138,38 @@ public sealed class GetElementSnapshotToolTests : IDisposable
         }), CancellationToken.None));
 
         result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("failedStep").GetString().Should().Be("get_visual_tree");
+        result.GetProperty("error").GetString().Should().Contain("Failed during get_visual_tree while building element snapshot.");
+        result.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenAggregatedPropertyLookupFails_ShouldReturnStructuredError()
+    {
+        const int processId = 51033;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            new[]
+            {
+                JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    failedStep = "get_dp_value_source",
+                    error = "Failed during get_dp_value_source while building element snapshot. Element not found: 'TextBox_1'",
+                    errorCode = "ElementNotFound",
+                    hint = "Refresh the tree and retry the property lookup."
+                })
+            });
+
+        var tool = new GetElementSnapshotTool(connected.SessionManager);
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "TextBox_1"
+        }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("failedStep").GetString().Should().Be("get_dp_value_source");
         result.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
     }
 
@@ -166,32 +185,40 @@ public sealed class GetElementSnapshotToolTests : IDisposable
                 JsonSerializer.Serialize(new
                 {
                     success = true,
-                    tree = new
+                    elementId = "EnabledCheckBox_1",
+                    elementType = "CheckBox",
+                    elementName = "EnabledCheckBox",
+                    dataContextType = "TestViewModel",
+                    properties = new
                     {
-                        elementId = "EnabledCheckBox_1",
-                        type = "CheckBox",
-                        name = "EnabledCheckBox",
-                        childCount = 0
-                    }
-                }),
-                JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    chain = new[]
-                    {
-                        new { dataContextType = "TestViewModel" }
-                    }
-                }),
-                JsonSerializer.Serialize(new { success = true, bindings = Array.Empty<object>() }),
-                JsonSerializer.Serialize(new { success = true, errorCount = 0, errors = Array.Empty<object>() }),
-                JsonSerializer.Serialize(new { success = true, hasStyle = false, styleCount = 0, styles = Array.Empty<object>() }),
-                JsonSerializer.Serialize(new { success = true, actualWidth = 120.0, actualHeight = 24.0 }),
-                JsonSerializer.Serialize(new { success = false, error = "DependencyProperty 'Text' not found", errorCode = "PropertyNotFound", hint = "Verify the propertyName is valid for the target element type." }),
-                JsonSerializer.Serialize(new { success = false, error = "DependencyProperty 'Content' not found", errorCode = "PropertyNotFound", hint = "Verify the propertyName is valid for the target element type." }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "Visibility", currentValue = "Visible", baseValueSource = "Default" }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "IsEnabled", currentValue = "True", baseValueSource = "Default" }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "Opacity", currentValue = "1", baseValueSource = "Default" }),
-                JsonSerializer.Serialize(new { success = true, propertyName = "IsChecked", currentValue = "True", baseValueSource = "LocalValue", isExpression = false, localValueKind = "ManualOverride" })
+                        Visibility = new
+                        {
+                            currentValue = "Visible",
+                            baseValueSource = "Default"
+                        },
+                        IsEnabled = new
+                        {
+                            currentValue = "True",
+                            baseValueSource = "Default"
+                        },
+                        Opacity = new
+                        {
+                            currentValue = "1",
+                            baseValueSource = "Default"
+                        },
+                        IsChecked = new
+                        {
+                            currentValue = "True",
+                            baseValueSource = "LocalValue",
+                            isExpression = false,
+                            localValueKind = "ManualOverride"
+                        }
+                    },
+                    bindings = Array.Empty<object>(),
+                    validationErrors = Array.Empty<object>(),
+                    style = new { success = true, hasStyle = false, styleCount = 0, styles = Array.Empty<object>() },
+                    layout = new { success = true, actualWidth = 120.0, actualHeight = 24.0 }
+                })
             },
             observedPropertyNames: observedPropertyNames);
 
@@ -200,7 +227,7 @@ public sealed class GetElementSnapshotToolTests : IDisposable
         {
             processId,
             elementId = "EnabledCheckBox_1",
-            includeProperties = new[] { "IsChecked", "Text", "IsChecked" }
+            includeProperties = new[] { " IsChecked ", "Text", "", "  ", "IsChecked" }
         }), CancellationToken.None));
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
@@ -265,12 +292,18 @@ public sealed class GetElementSnapshotToolTests : IDisposable
                         throw new InvalidOperationException("Expected a valid InspectorRequest payload.");
                     }
                     observedMethods?.Add(request.Method);
-                    if (request.Method == "get_dp_value_source"
+                    if (request.Method == "get_element_snapshot"
                         && request.Params.HasValue
-                        && request.Params.Value.TryGetProperty("propertyName", out var propertyName)
-                        && propertyName.ValueKind == JsonValueKind.String)
+                        && request.Params.Value.TryGetProperty("propertyNames", out var propertyNames)
+                        && propertyNames.ValueKind == JsonValueKind.Array)
                     {
-                        observedPropertyNames?.Add(propertyName.GetString()!);
+                        foreach (var propertyName in propertyNames.EnumerateArray())
+                        {
+                            if (propertyName.ValueKind == JsonValueKind.String)
+                            {
+                                observedPropertyNames?.Add(propertyName.GetString()!);
+                            }
+                        }
                     }
                     var response = new InspectorResponse
                     {

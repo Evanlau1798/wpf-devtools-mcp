@@ -61,19 +61,39 @@ public sealed class RequestDispatcher : IDisposable
         var formSummaryAnalyzer = new FormSummaryAnalyzer(elementFinder);
 
         // Initialize handlers
+        var treeHandlers = new TreeHandlers(visualTreeAnalyzer, logicalTreeAnalyzer, xamlSerializer, elementFinder);
+        var elementSearchHandlers = new ElementSearchHandlers(elementSearchAnalyzer);
+        var bindingHandlers = new BindingHandlers(bindingAnalyzer, elementFinder);
+        var mvvmHandlers = new MvvmHandlers(mvvmAnalyzer);
+        var dependencyPropertyHandlers = new DependencyPropertyHandlers(dependencyPropertyAnalyzer);
+        var layoutHandlers = new LayoutHandlers(layoutAnalyzer);
+        var interactionHandlers = new InteractionHandlers(interactionAnalyzer);
+        var styleHandlers = new StyleHandlers(styleAnalyzer);
+        var eventHandlers = new EventHandlers(_eventAnalyzer, dependencyPropertyAnalyzer.ClearTransientWatchers);
+        var performanceHandlers = new PerformanceHandlers(performanceAnalyzer);
+        var sceneSummaryHandlers = new SceneSummaryHandlers(uiSummaryAnalyzer, formSummaryAnalyzer);
+        var elementSnapshotHandlers = new ElementSnapshotHandlers(
+            treeHandlers,
+            bindingHandlers,
+            mvvmHandlers,
+            styleHandlers,
+            layoutHandlers,
+            dependencyPropertyHandlers);
+
         var handlers = new IRequestHandler[]
         {
-            new TreeHandlers(visualTreeAnalyzer, logicalTreeAnalyzer, xamlSerializer, elementFinder),
-            new ElementSearchHandlers(elementSearchAnalyzer),
-            new BindingHandlers(bindingAnalyzer, elementFinder),
-            new MvvmHandlers(mvvmAnalyzer),
-            new DependencyPropertyHandlers(dependencyPropertyAnalyzer),
-            new LayoutHandlers(layoutAnalyzer),
-            new InteractionHandlers(interactionAnalyzer),
-            new StyleHandlers(styleAnalyzer),
-            new EventHandlers(_eventAnalyzer),
-            new PerformanceHandlers(performanceAnalyzer),
-            new SceneSummaryHandlers(uiSummaryAnalyzer, formSummaryAnalyzer)
+            treeHandlers,
+            elementSearchHandlers,
+            bindingHandlers,
+            mvvmHandlers,
+            dependencyPropertyHandlers,
+            layoutHandlers,
+            interactionHandlers,
+            styleHandlers,
+            eventHandlers,
+            performanceHandlers,
+            sceneSummaryHandlers,
+            elementSnapshotHandlers
         };
 
         // Build handler map

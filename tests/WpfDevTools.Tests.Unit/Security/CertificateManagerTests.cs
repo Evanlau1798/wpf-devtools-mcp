@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using FluentAssertions;
 using WpfDevTools.Shared.Security;
 using Xunit;
@@ -188,5 +190,66 @@ public class CertificateManagerTests : IDisposable
 
         // Assert
         act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Constructor_WithUncPath_ShouldThrow()
+    {
+        var act = () => new CertificateManager(@"\\server\share\wpfdevtools-certs");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*local path*");
+    }
+
+    [Fact]
+    public void Constructor_WithExtendedLocalPath_ShouldNormalizeAndAccept()
+    {
+        var localPath = Path.Combine(Path.GetTempPath(), "WpfDevTools_Test_" + Guid.NewGuid());
+        var extendedLocalPath = @"\\?\" + localPath;
+
+        var manager = new CertificateManager(extendedLocalPath);
+
+        manager.CertificateDirectory.Should().Be(Path.GetFullPath(localPath));
+    }
+
+    [Fact]
+    public void GetOrCreateCertificate_ShouldRemoveBroadWriteAccessFromDirectoryAndFiles()
+    {
+        var everyoneSid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+        GrantEveryoneModifyAccess(_tempDir, everyoneSid);
+        var manager = new CertificateManager(_tempDir);
+
+        using var cert = manager.GetOrCreateCertificate();
+
+        HasBroadWriteAccess(_tempDir, everyoneSid).Should().BeFalse();
+        HasBroadWriteAccess(Path.Combine(_tempDir, "server.pfx"), everyoneSid).Should().BeFalse();
+        HasBroadWriteAccess(Path.Combine(_tempDir, "server.pwd"), everyoneSid).Should().BeFalse();
+    }
+
+    private static void GrantEveryoneModifyAccess(string path, SecurityIdentifier everyoneSid)
+    {
+        var directoryInfo = new DirectoryInfo(path);
+        var directorySecurity = directoryInfo.GetAccessControl();
+        directorySecurity.AddAccessRule(new FileSystemAccessRule(
+            everyoneSid,
+            FileSystemRights.Modify,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+        directoryInfo.SetAccessControl(directorySecurity);
+    }
+
+    private static bool HasBroadWriteAccess(string path, SecurityIdentifier everyoneSid)
+    {
+        var accessRules = File.GetAttributes(path).HasFlag(FileAttributes.Directory)
+            ? new DirectoryInfo(path).GetAccessControl().GetAccessRules(true, true, typeof(SecurityIdentifier))
+            : new FileInfo(path).GetAccessControl().GetAccessRules(true, true, typeof(SecurityIdentifier));
+
+        return accessRules
+            .OfType<FileSystemAccessRule>()
+            .Any(rule =>
+                rule.AccessControlType == AccessControlType.Allow
+                && Equals(rule.IdentityReference, everyoneSid)
+                && (rule.FileSystemRights & (FileSystemRights.Write | FileSystemRights.Modify | FileSystemRights.FullControl)) != 0);
     }
 }

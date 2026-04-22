@@ -80,6 +80,25 @@ public sealed class TransportSecurityConfigurationTests
     }
 
     [Fact]
+    public void Create_WithUncCertificateDirectory_ShouldThrowClearError()
+    {
+        var act = () => TransportSecurityConfiguration.Create(null, @"\\server\share\wpfdevtools-certs");
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*WPFDEVTOOLS_CERT_DIR*local path*");
+    }
+
+    [Fact]
+    public void Create_WithMalformedAbsoluteCertificateDirectory_ShouldThrowClearError()
+    {
+        var malformedPath = string.Concat(Path.GetPathRoot(Path.GetTempPath()), "bad", '\0', "name");
+        var act = () => TransportSecurityConfiguration.Create(null, malformedPath);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*WPFDEVTOOLS_CERT_DIR*valid absolute path*");
+    }
+
+    [Fact]
     public void Create_WhenPersistedSecretFileIsLocked_ShouldWrapClearStartupError()
     {
         var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");

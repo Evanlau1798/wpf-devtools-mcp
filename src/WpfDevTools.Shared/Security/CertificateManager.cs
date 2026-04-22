@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Runtime.Versioning;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -37,12 +38,7 @@ public sealed class CertificateManager
     {
         if (certDirectory == null)
             throw new ArgumentNullException(nameof(certDirectory));
-        if (string.IsNullOrWhiteSpace(certDirectory))
-            throw new ArgumentException("Certificate directory cannot be empty", nameof(certDirectory));
-        if (!IsAbsolutePath(certDirectory))
-            throw new ArgumentException("Certificate directory must be an absolute path", nameof(certDirectory));
-
-        _certDirectory = Path.GetFullPath(certDirectory);
+        _certDirectory = CertificateStorageSecurity.ResolveAndValidateLocalPath(certDirectory, nameof(certDirectory));
     }
 
     /// <summary>
@@ -87,9 +83,11 @@ public sealed class CertificateManager
 
             lock (SyncRoot)
             {
-                Directory.CreateDirectory(_certDirectory);
+                CertificateStorageSecurity.PrepareDirectory(_certDirectory);
                 var certPath = Path.Combine(_certDirectory, CertFileName);
                 var passwordPath = Path.Combine(_certDirectory, PasswordFileName);
+                CertificateStorageSecurity.PrepareExistingFile(certPath, "certificate file");
+                CertificateStorageSecurity.PrepareExistingFile(passwordPath, "certificate password file");
 
                 if (File.Exists(certPath) && File.Exists(passwordPath))
                 {
@@ -152,10 +150,12 @@ public sealed class CertificateManager
         // Generate random password and protect with DPAPI
         var password = GenerateRandomPassword();
         SavePassword(passwordPath, password);
+        CertificateStorageSecurity.ApplyFileSecurity(passwordPath);
 
         // Export and re-import to make the private key persistable
         var pfxBytes = cert.Export(X509ContentType.Pfx, password);
         File.WriteAllBytes(certPath, pfxBytes);
+        CertificateStorageSecurity.ApplyFileSecurity(certPath);
         cert.Dispose();
 
         return new X509Certificate2(
@@ -206,21 +206,6 @@ public sealed class CertificateManager
             Array.Clear(passwordBytes, 0, passwordBytes.Length);
         }
     }
-
-    private static bool IsAbsolutePath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return false;
-
-        if (path.StartsWith("\\\\", StringComparison.Ordinal))
-            return true;
-
-        return path.Length >= 3
-            && char.IsLetter(path[0])
-            && path[1] == ':'
-            && (path[2] == Path.DirectorySeparatorChar || path[2] == Path.AltDirectorySeparatorChar);
-    }
-
     private static string BuildMutexName(string certificateDirectory)
     {
         var normalizedPath = Path.GetFullPath(certificateDirectory).ToUpperInvariant();

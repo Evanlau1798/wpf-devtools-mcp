@@ -67,12 +67,6 @@ function Get-CertificatePassword {
     param([Parameter(Mandatory = $true)] [string]$EnvironmentVariableName)
 
     $passwordValue = [Environment]::GetEnvironmentVariable($EnvironmentVariableName, 'Process')
-    if ([string]::IsNullOrWhiteSpace($passwordValue)) {
-        $passwordValue = [Environment]::GetEnvironmentVariable($EnvironmentVariableName, 'User')
-    }
-    if ([string]::IsNullOrWhiteSpace($passwordValue)) {
-        $passwordValue = [Environment]::GetEnvironmentVariable($EnvironmentVariableName, 'Machine')
-    }
 
     if (-not [string]::IsNullOrWhiteSpace($passwordValue)) {
         return (ConvertTo-SecureString -String $passwordValue -AsPlainText -Force)
@@ -81,21 +75,32 @@ function Get-CertificatePassword {
     return (Read-Host -Prompt "Enter the PFX password for $CertificatePath" -AsSecureString)
 }
 
+function Get-CurrentUserMyCertificateThumbprints {
+    return @(
+        Get-ChildItem -Path 'Cert:\CurrentUser\My' -ErrorAction SilentlyContinue |
+            ForEach-Object { [string]$_.Thumbprint } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+}
+
 function Import-SigningCertificate {
     param(
         [Parameter(Mandatory = $true)] [string]$Path,
-        [Parameter(Mandatory = $true)] [securestring]$Password
+        [Parameter(Mandatory = $true)] [securestring]$Password,
+        [string[]]$ExistingThumbprints = @()
     )
 
-    $importedCertificates = @(Import-PfxCertificate -FilePath $Path -CertStoreLocation 'Cert:\CurrentUser\My' -Password $Password -Exportable)
+    $importedCertificates = @(Import-PfxCertificate -FilePath $Path -CertStoreLocation 'Cert:\CurrentUser\My' -Password $Password)
     if ($importedCertificates.Count -eq 0) {
         throw "Import-PfxCertificate did not return an imported certificate."
     }
 
     $primaryCertificate = $importedCertificates | Select-Object -First 1
+    $importedThumbprints = @($importedCertificates | ForEach-Object { [string]$_.Thumbprint } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $cleanupThumbprints = @($importedThumbprints | Where-Object { $_ -notin $ExistingThumbprints })
     return [ordered]@{
         Thumbprint = [string]$primaryCertificate.Thumbprint
-        ImportedThumbprints = @($importedCertificates | ForEach-Object { [string]$_.Thumbprint } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        ImportedThumbprints = $cleanupThumbprints
     }
 }
 
@@ -134,7 +139,8 @@ try {
         }
 
         $certificatePassword = Get-CertificatePassword -EnvironmentVariableName $PasswordEnvironmentVariable
-        $importResult = Import-SigningCertificate -Path $CertificatePath -Password $certificatePassword
+        $existingStoreThumbprints = Get-CurrentUserMyCertificateThumbprints
+        $importResult = Import-SigningCertificate -Path $CertificatePath -Password $certificatePassword -ExistingThumbprints $existingStoreThumbprints
         $activeThumbprint = [string]$importResult.Thumbprint
         $importedCertificateThumbprints = @($importResult.ImportedThumbprints)
     }

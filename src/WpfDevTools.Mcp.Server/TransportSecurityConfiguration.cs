@@ -120,9 +120,24 @@ internal sealed class TransportSecurityConfiguration
                     $"WPFDEVTOOLS_CERT_DIR must be an absolute path. Received '{certificateDirectory}'.");
             }
 
-            return Path.GetFullPath(certificateDirectory);
+            return CertificateStorageSecurity.ResolveAndValidateLocalPath(
+                certificateDirectory,
+                nameof(certificateDirectory));
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (ArgumentException ex)
+        {
+            if (string.Equals(ex.ParamName, nameof(certificateDirectory), StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"WPFDEVTOOLS_CERT_DIR must be a local path. Network paths are not allowed. Received '{certificateDirectory}'.",
+                    ex);
+            }
+
+            throw new InvalidOperationException(
+                $"WPFDEVTOOLS_CERT_DIR must resolve to a valid absolute path. Received '{certificateDirectory}'.",
+                ex);
+        }
+        catch (Exception ex) when (ex is NotSupportedException or PathTooLongException)
         {
             throw new InvalidOperationException(
                 $"WPFDEVTOOLS_CERT_DIR must resolve to a valid absolute path. Received '{certificateDirectory}'.",
@@ -137,7 +152,20 @@ internal sealed class TransportSecurityConfiguration
             return false;
         }
 
-        if (path.StartsWith("\\\\", StringComparison.Ordinal))
+        if (path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (path.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase))
+        {
+            return path.Length >= 7
+                && char.IsLetter(path[4])
+                && path[5] == ':'
+                && (path[6] == Path.DirectorySeparatorChar || path[6] == Path.AltDirectorySeparatorChar);
+        }
+
+        if (IsNetworkPath(certificateDirectory: path))
         {
             return true;
         }
@@ -146,5 +174,23 @@ internal sealed class TransportSecurityConfiguration
             && char.IsLetter(path[0])
             && path[1] == ':'
             && (path[2] == Path.DirectorySeparatorChar || path[2] == Path.AltDirectorySeparatorChar);
+    }
+
+    private static bool IsNetworkPath(string certificateDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(certificateDirectory))
+        {
+            return false;
+        }
+
+        if (certificateDirectory.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase)
+            && !certificateDirectory.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return certificateDirectory.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)
+            || certificateDirectory.StartsWith(@"\\", StringComparison.Ordinal)
+            || certificateDirectory.StartsWith("//", StringComparison.Ordinal);
     }
 }

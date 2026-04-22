@@ -1,9 +1,9 @@
-using System.IO.Pipes;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
+using WpfDevTools.Inspector.Host;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
@@ -20,32 +20,24 @@ public sealed class ConnectToolActiveProcessTests : IDisposable
     public async Task Execute_WhenFreshConnectionSucceeds_ShouldSelectConnectedProcessAsActive()
     {
         var existingProcessId = NextSyntheticProcessId();
-        var connectedProcessId = NextSyntheticProcessId();
+        var connectedProcessId = Environment.ProcessId;
         EnsureDummyBootstrapperExists();
 
         using var sessionManager = new SessionManager();
         sessionManager.AddSession(existingProcessId);
-
-        using var server = new NamedPipeServerStream(
-            $"WpfDevTools_{connectedProcessId}",
-            PipeDirection.InOut,
-            1,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
-        var acceptTask = server.WaitForConnectionAsync();
+        using var injector = new BootstrapStartsPipeInjector();
 
         var tool = new ConnectTool(
             sessionManager,
-            new FakeProcessInjector(),
+            injector,
             new FakeProcessDetector(),
             _ => { },
-            () => false);
+            () => false,
+            isRawInjectionTargetAllowed: _ => true);
 
         var result = await tool.ExecuteAsync(
             ToJsonElement(new { processId = connectedProcessId }),
             CancellationToken.None);
-
-        await acceptTask;
 
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         json.GetProperty("success").GetBoolean().Should().BeTrue();
@@ -77,14 +69,14 @@ public sealed class ConnectToolActiveProcessTests : IDisposable
         }
     }
 
-    private sealed class FakeProcessInjector : IProcessInjector
+    private class FakeProcessInjector : IProcessInjector
     {
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
             => throw new NotSupportedException();
 
         public InjectionError ValidateTarget(int processId) => InjectionError.None;
 
-        public InjectionResult InjectWithBootstrap(
+        public virtual InjectionResult InjectWithBootstrap(
             InjectionRequest request,
             CancellationToken cancellationToken = default)
         {
@@ -93,6 +85,31 @@ public sealed class ConnectToolActiveProcessTests : IDisposable
                 request.InspectorDllPath,
                 bootstrapExitCode: 0,
                 pipeName: request.ExpectedPipeName);
+        }
+    }
+
+    private sealed class BootstrapStartsPipeInjector : FakeProcessInjector, IDisposable
+    {
+        private readonly List<InspectorHost> _hosts = [];
+
+        public override InjectionResult InjectWithBootstrap(
+            InjectionRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var host = new InspectorHost(request.ProcessId);
+            host.Start();
+            _hosts.Add(host);
+
+            return base.InjectWithBootstrap(request, cancellationToken);
+        }
+
+        public void Dispose()
+        {
+            foreach (var host in _hosts)
+            {
+                host.Stop();
+                host.Dispose();
+            }
         }
     }
 }

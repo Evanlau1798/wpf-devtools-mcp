@@ -1,10 +1,10 @@
 using System.Reflection;
 using System.Text.Json;
-using System.IO.Pipes;
 using FluentAssertions;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
+using WpfDevTools.Inspector.Host;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
@@ -16,19 +16,19 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 public sealed class ConnectToolAutoDiscoveryTests : IDisposable
 {
     private string? _dummyBootstrapperPath;
+    private readonly List<SessionManager> _trackedSessionManagers = [];
 
     [Fact]
     public async Task Execute_WithoutProcessId_AndSingleWpfProcess_ShouldAutoConnect()
     {
         EnsureDummyBootstrapperExists();
-        var sessionManager = new SessionManager();
-        var processId = NextSyntheticProcessId();
-        var pipeName = $"WpfDevTools_{processId}";
-        using var server = CreateServer(pipeName);
+        using var sessionManager = new SessionManager();
+        var processId = Environment.ProcessId;
+        using var injector = new BootstrapStartsPipeInjector();
         var tool = CreateTool(
             sessionManager,
             detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp")),
-            injector: new FakeProcessInjector());
+            injector: injector);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
 
@@ -73,17 +73,16 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     public async Task Execute_WithoutProcessId_AndLargestWorkingSetStrategy_ShouldAutoSelectLargestCandidate()
     {
         EnsureDummyBootstrapperExists();
-        var sessionManager = new SessionManager();
+        using var sessionManager = new SessionManager();
         var smallProcessId = NextSyntheticProcessId();
-        var largeProcessId = NextSyntheticProcessId();
-        var pipeName = $"WpfDevTools_{largeProcessId}";
-        using var server = CreateServer(pipeName);
+        var largeProcessId = Environment.ProcessId;
+        using var injector = new BootstrapStartsPipeInjector();
         var tool = CreateTool(
             sessionManager,
             detector: new FakeAutoDiscoveryProcessDetector(
                 CreateProcessInfo(smallProcessId, "SmallApp"),
                 CreateProcessInfo(largeProcessId, "LargeApp")),
-            injector: new FakeProcessInjector(),
+            injector: injector,
             workingSetResolver: processId => processId == largeProcessId ? 500_000_000 : 10_000_000);
 
         var result = await tool.ExecuteAsync(
@@ -137,14 +136,14 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     public async Task Execute_WithoutWindowFilter_ShouldDefaultAutoDiscoveryToVisible()
     {
         EnsureDummyBootstrapperExists();
-        var sessionManager = new SessionManager();
-        var processId = NextSyntheticProcessId();
-        using var server = CreateServer($"WpfDevTools_{processId}");
+        using var sessionManager = new SessionManager();
+        var processId = Environment.ProcessId;
+        using var injector = new BootstrapStartsPipeInjector();
         var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp"));
         var tool = CreateTool(
             sessionManager,
             detector: detector,
-            injector: new FakeProcessInjector());
+            injector: injector);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
 
@@ -157,14 +156,14 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     public async Task Execute_WithWindowFilterAll_ShouldForwardAllFilter()
     {
         EnsureDummyBootstrapperExists();
-        var sessionManager = new SessionManager();
-        var processId = NextSyntheticProcessId();
-        using var server = CreateServer($"WpfDevTools_{processId}");
+        using var sessionManager = new SessionManager();
+        var processId = Environment.ProcessId;
+        using var injector = new BootstrapStartsPipeInjector();
         var detector = new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "SingleApp"));
         var tool = CreateTool(
             sessionManager,
             detector: detector,
-            injector: new FakeProcessInjector());
+            injector: injector);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { windowFilter = "all" }), CancellationToken.None);
 
@@ -209,17 +208,17 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     public async Task Execute_WithoutProcessId_ShouldUseInitialAutoDiscoveryResolutionForSuccessPayload()
     {
         EnsureDummyBootstrapperExists();
-        var sessionManager = new SessionManager();
-        var initialProcessId = NextSyntheticProcessId();
+        using var sessionManager = new SessionManager();
+        var initialProcessId = Environment.ProcessId;
         var changedProcessId = NextSyntheticProcessId();
-        using var server = CreateServer($"WpfDevTools_{initialProcessId}");
+        using var injector = new BootstrapStartsPipeInjector();
         var detector = new SequencedProcessDetector(
             [CreateProcessInfo(initialProcessId, "InitialApp")],
             [CreateProcessInfo(changedProcessId, "ChangedApp")]);
         var tool = CreateTool(
             sessionManager,
             detector: detector,
-            injector: new FakeProcessInjector());
+            injector: injector);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
 
@@ -232,21 +231,33 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
 
     public void Dispose()
     {
+        foreach (var sessionManager in _trackedSessionManagers)
+        {
+            sessionManager.Dispose();
+        }
     }
 
-    private static ConnectTool CreateTool(
+    private ConnectTool CreateTool(
         SessionManager? sessionManager = null,
         WpfProcessDetector? detector = null,
         FakeProcessInjector? injector = null,
         Func<int, long>? workingSetResolver = null)
     {
         return new ConnectTool(
-            sessionManager ?? new SessionManager(),
+            sessionManager ?? TrackSessionManager(new SessionManager()),
             injector ?? new FakeProcessInjector(),
             detector ?? new FakeAutoDiscoveryProcessDetector(),
             _ => { },
             () => false,
-            workingSetResolver);
+                workingSetResolver,
+            pipeReadyProbe: new PipeReadyProbe((_, _) => false, () => DateTime.UtcNow, _ => { }),
+                isRawInjectionTargetAllowed: _ => true);
+    }
+
+    private SessionManager TrackSessionManager(SessionManager sessionManager)
+    {
+        _trackedSessionManagers.Add(sessionManager);
+        return sessionManager;
     }
 
     private void EnsureDummyBootstrapperExists()
@@ -267,24 +278,6 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
             IsWpfApplication = true,
             IsElevated = false
         };
-    }
-
-    private static NamedPipeServerStream CreateServer(string pipeName)
-    {
-        var server = new NamedPipeServerStream(
-            pipeName,
-            PipeDirection.InOut,
-            1,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
-
-        _ = Task.Run(async () =>
-        {
-            await server.WaitForConnectionAsync();
-            await Task.Delay(TimeSpan.FromSeconds(5));
-        });
-
-        return server;
     }
 
     private sealed class FakeAutoDiscoveryProcessDetector(params WpfProcessInfo[] processes) : WpfProcessDetector
@@ -323,18 +316,45 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
         }
     }
 
-    private sealed class FakeProcessInjector : IProcessInjector
+    private class FakeProcessInjector : IProcessInjector
     {
         public InjectionError ValidateTarget(int processId) => InjectionError.None;
 
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
             => InjectionResult.CreateSuccess(processId, dllPath);
 
-        public InjectionResult InjectWithBootstrap(InjectionRequest request, CancellationToken cancellationToken = default)
+        public virtual InjectionResult InjectWithBootstrap(InjectionRequest request, CancellationToken cancellationToken = default)
             => InjectionResult.CreateSuccess(
                 request.ProcessId,
                 request.InspectorDllPath,
                 bootstrapExitCode: 0,
                 pipeName: request.ExpectedPipeName);
+    }
+
+    private sealed class BootstrapStartsPipeInjector : FakeProcessInjector, IDisposable
+    {
+        private readonly List<InspectorHost> _hosts = [];
+
+        public override InjectionResult InjectWithBootstrap(InjectionRequest request, CancellationToken cancellationToken = default)
+        {
+            var host = new InspectorHost(request.ProcessId);
+            host.Start();
+            _hosts.Add(host);
+
+            return InjectionResult.CreateSuccess(
+                request.ProcessId,
+                request.InspectorDllPath,
+                bootstrapExitCode: 0,
+                pipeName: request.ExpectedPipeName);
+        }
+
+        public void Dispose()
+        {
+            foreach (var host in _hosts)
+            {
+                host.Stop();
+                host.Dispose();
+            }
+        }
     }
 }

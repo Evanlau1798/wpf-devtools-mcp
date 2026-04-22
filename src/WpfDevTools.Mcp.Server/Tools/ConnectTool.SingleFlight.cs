@@ -10,27 +10,36 @@ public sealed partial class ConnectTool
         Func<CancellationToken, Task<object>> operationFactory)
     {
         ArgumentNullException.ThrowIfNull(operationFactory);
+        var operationKey = new ConnectOperationKey(_sessionManager, processId);
 
         while (true)
         {
-            if (_inflightConnects.TryGetValue(processId, out var existingOperation))
+            if (GlobalInflightConnects.TryGetValue(operationKey, out var existingOperation))
             {
-                existingOperation.AddWaiter();
-                return existingOperation.WaitAsync(callerCancellationToken);
+                if (existingOperation.TryAddWaiter())
+                {
+                    return existingOperation.WaitAsync(callerCancellationToken);
+                }
+
+                return WaitForClosingOperationAndRetryAsync(
+                    processId,
+                    existingOperation,
+                    callerCancellationToken,
+                    operationFactory);
             }
 
             var operation = new InflightConnectOperation();
             operation.AddWaiter();
-            if (_inflightConnects.TryAdd(processId, operation))
+            if (GlobalInflightConnects.TryAdd(operationKey, operation))
             {
-                _ = Task.Run(() => CompleteSingleFlightAsync(processId, operation, operationFactory));
+                _ = Task.Run(() => CompleteSingleFlightAsync(operationKey, operation, operationFactory));
                 return operation.WaitAsync(callerCancellationToken);
             }
         }
     }
 
     private async Task CompleteSingleFlightAsync(
-        int processId,
+        ConnectOperationKey operationKey,
         InflightConnectOperation operation,
         Func<CancellationToken, Task<object>> operationFactory)
     {
@@ -44,22 +53,53 @@ public sealed partial class ConnectTool
         }
         finally
         {
-            _inflightConnects.TryRemove(new KeyValuePair<int, InflightConnectOperation>(processId, operation));
+            GlobalInflightConnects.TryRemove(new KeyValuePair<ConnectOperationKey, InflightConnectOperation>(operationKey, operation));
             operation.Dispose();
         }
     }
+
+    private async Task<object> WaitForClosingOperationAndRetryAsync(
+        int processId,
+        InflightConnectOperation operation,
+        CancellationToken callerCancellationToken,
+        Func<CancellationToken, Task<object>> operationFactory)
+    {
+        await operation.WaitForSettlementAsync(callerCancellationToken).ConfigureAwait(false);
+        return await RunSingleFlightAsync(processId, callerCancellationToken, operationFactory).ConfigureAwait(false);
+    }
+
+    private readonly record struct ConnectOperationKey(SessionManager SessionManager, int ProcessId);
 
     private sealed class InflightConnectOperation : IDisposable
     {
         private readonly TaskCompletionSource<object> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly CancellationTokenSource _cancellationSource = new();
+        private readonly object _waiterLock = new();
         private int _activeWaiters;
+        private bool _acceptingWaiters = true;
 
         public CancellationToken CancellationToken => _cancellationSource.Token;
 
         public void AddWaiter()
         {
-            Interlocked.Increment(ref _activeWaiters);
+            lock (_waiterLock)
+            {
+                _activeWaiters++;
+            }
+        }
+
+        public bool TryAddWaiter()
+        {
+            lock (_waiterLock)
+            {
+                if (!_acceptingWaiters)
+                {
+                    return false;
+                }
+
+                _activeWaiters++;
+                return true;
+            }
         }
 
         public Task<object> WaitAsync(CancellationToken callerCancellationToken)
@@ -80,7 +120,7 @@ public sealed partial class ConnectTool
             }
             finally
             {
-                Interlocked.Decrement(ref _activeWaiters);
+                RemoveWaiter();
             }
         }
 
@@ -99,6 +139,21 @@ public sealed partial class ConnectTool
             _cancellationSource.Dispose();
         }
 
+        public async Task WaitForSettlementAsync(CancellationToken callerCancellationToken)
+        {
+            try
+            {
+                await _completion.Task.WaitAsync(callerCancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (callerCancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+            }
+        }
+
         private async Task<object> WaitWithCallerCancellationAsync(CancellationToken callerCancellationToken)
         {
             var decrementedInCatch = false;
@@ -109,26 +164,14 @@ public sealed partial class ConnectTool
             catch (OperationCanceledException) when (callerCancellationToken.IsCancellationRequested)
             {
                 decrementedInCatch = true;
-                var lastWaiterCancelled = false;
-                if (!_completion.Task.IsCompleted && Interlocked.Decrement(ref _activeWaiters) == 0)
+                var lastWaiterCancelled = RemoveWaiterAndCloseIfLast();
+                if (lastWaiterCancelled)
                 {
-                    lastWaiterCancelled = true;
                     try
                     {
                         _cancellationSource.Cancel();
                     }
                     catch (ObjectDisposedException)
-                    {
-                    }
-                }
-
-                if (lastWaiterCancelled)
-                {
-                    try
-                    {
-                        await _completion.Task.ConfigureAwait(false);
-                    }
-                    catch
                     {
                     }
                 }
@@ -139,8 +182,31 @@ public sealed partial class ConnectTool
             {
                 if (!decrementedInCatch)
                 {
-                    Interlocked.Decrement(ref _activeWaiters);
+                    RemoveWaiter();
                 }
+            }
+        }
+
+        private void RemoveWaiter()
+        {
+            lock (_waiterLock)
+            {
+                _activeWaiters--;
+            }
+        }
+
+        private bool RemoveWaiterAndCloseIfLast()
+        {
+            lock (_waiterLock)
+            {
+                _activeWaiters--;
+                if (!_completion.Task.IsCompleted && _activeWaiters == 0)
+                {
+                    _acceptingWaiters = false;
+                    return true;
+                }
+
+                return false;
             }
         }
     }

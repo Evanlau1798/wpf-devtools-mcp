@@ -6,6 +6,7 @@ using WpfDevTools.Tests.Unit.Inspector;
 using WpfDevTools.Tests.Unit.Inspector.Analyzers;
 using WpfDevTools.Tests.Unit.Inspector.Utilities;
 using WpfDevTools.Tests.Unit.McpServer;
+using WpfDevTools.Tests.Unit.McpServer.Tools;
 using WpfDevTools.Tests.Unit.Release;
 using WpfDevTools.Tests.Unit.Security;
 using WpfDevTools.Tests.Unit.InspectorSdk;
@@ -39,14 +40,11 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
-    public void InspectorSdkInitializationTests_ShouldUseProcessEnvironmentCollection()
+    public void InspectorSdkInitializationTestClasses_ShouldUseProcessEnvironmentCollection()
     {
-        var attributeData = typeof(InspectorSdkInitializationTests).GetCustomAttributesData()
-            .SingleOrDefault(data => data.AttributeType == typeof(CollectionAttribute));
-
-        attributeData.Should().NotBeNull();
-        attributeData!.ConstructorArguments.Should().ContainSingle();
-        attributeData.ConstructorArguments[0].Value.Should().Be("ProcessEnvironment");
+        GetCollectionName(typeof(InspectorSdkInitializationConfigurationTests)).Should().Be("ProcessEnvironment");
+        GetCollectionName(typeof(InspectorSdkCleanupTests)).Should().Be("ProcessEnvironment");
+        GetCollectionName(typeof(InspectorSdkDispatcherLifecycleTests)).Should().Be("ProcessEnvironment");
     }
 
     [Fact]
@@ -118,6 +116,7 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(TraceAuditLoggerTests)).Should().Be("TraceState");
         GetCollectionName(typeof(AuditLoggerStaticTests)).Should().Be("TraceState");
         GetCollectionName(typeof(EventLogAuditLoggerTests)).Should().Be("TraceState");
+        GetCollectionName(typeof(ConnectToolLoggingTests)).Should().Be("TraceState");
     }
 
     [Fact]

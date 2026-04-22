@@ -21,6 +21,7 @@ public sealed partial class SessionManager : IDisposable
     private readonly CertificateManager? _certManager;
     private readonly ILogger? _logger;
     private readonly object _lock = new();
+    private readonly object _shutdownGuard = new();
     internal readonly System.Threading.Timer _cleanupTimer;
 
     /// <summary>
@@ -201,6 +202,68 @@ public sealed partial class SessionManager : IDisposable
         return new NamedPipeClient(processId, _authManager, _certManager);
     }
 
+    internal async Task<NamedPipeConnectFailure> ConnectInjectedSessionAsync(
+        int processId,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+
+        EnsureSessionSlotAvailable(processId);
+
+        NamedPipeClient? detachedPipeClient = null;
+        try
+        {
+            detachedPipeClient = CreateDetachedPipeClient(processId);
+            var connected = await detachedPipeClient.ConnectAsync(
+                timeout,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (!connected)
+            {
+                return detachedPipeClient.LastConnectFailure;
+            }
+
+            AttachSession(processId, detachedPipeClient);
+            detachedPipeClient = null;
+            SetActiveProcess(processId);
+            return NamedPipeConnectFailure.None;
+        }
+        finally
+        {
+            detachedPipeClient?.Dispose();
+        }
+    }
+
+    internal async Task<NamedPipeConnectFailure> ConnectExistingHostSessionAsync(
+        int processId,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+
+        NamedPipeClient? detachedPipeClient = null;
+        try
+        {
+            detachedPipeClient = CreateDetachedPipeClient(processId);
+            var connected = await detachedPipeClient.ConnectAsync(
+                timeout,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (!connected)
+            {
+                return detachedPipeClient.LastConnectFailure;
+            }
+
+            AttachSession(processId, detachedPipeClient);
+            detachedPipeClient = null;
+            SetActiveProcess(processId);
+            return NamedPipeConnectFailure.None;
+        }
+        finally
+        {
+            detachedPipeClient?.Dispose();
+        }
+    }
+
     internal void AttachSession(int processId, NamedPipeClient pipeClient)
     {
         ThrowIfDisposed();
@@ -235,8 +298,27 @@ public sealed partial class SessionManager : IDisposable
         }
     }
 
+    private void EnsureSessionSlotAvailable(int processId)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (_sessions.Count >= McpServerConfiguration.MaxSessions)
+            {
+                throw new InvalidOperationException($"Maximum session limit ({McpServerConfiguration.MaxSessions}) reached. Remove existing sessions before adding new sessions.");
+            }
+
+            if (_sessions.ContainsKey(processId))
+            {
+                throw new InvalidOperationException($"Session for process {processId} already exists");
+            }
+        }
+    }
+
     internal string? GetAuthenticationSecretBase64()
     {
+        ThrowIfDisposed();
+
         if (_authManager == null || !_authManager.IsAuthenticationEnabled)
         {
             return null;
@@ -255,7 +337,19 @@ public sealed partial class SessionManager : IDisposable
 
     internal string? GetCertificateDirectory()
     {
+        ThrowIfDisposed();
         return _certManager?.CertificateDirectory;
+    }
+
+    internal T ExecuteWithShutdownGuard<T>(Func<T> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        lock (_shutdownGuard)
+        {
+            ThrowIfDisposed();
+            return action();
+        }
     }
 
     /// <summary>
@@ -392,6 +486,28 @@ public sealed partial class SessionManager : IDisposable
         }
     }
 
+    internal bool TryActivateConnectedSession(int processId)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (!_sessions.ContainsKey(processId) ||
+                !_pipeClients.TryGetValue(processId, out var pipeClient) ||
+                !pipeClient.IsConnected)
+            {
+                return false;
+            }
+
+            _activeProcessSelection = new ActiveProcessSelection
+            {
+                ProcessId = processId,
+                SelectedAtUtc = DateTimeOffset.UtcNow
+            };
+
+            return true;
+        }
+    }
+
     /// <summary>
     /// Try to get the active process ID for process-id omission workflows.
     /// </summary>
@@ -508,35 +624,38 @@ public sealed partial class SessionManager : IDisposable
         if (Volatile.Read(ref _disposeState) != 0)
             return;
 
-        lock (_lock)
+        lock (_shutdownGuard)
         {
-            if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
-                return;
-
-            // Dispose cleanup timer
-            _cleanupTimer.Dispose();
-
-            // Dispose rate limiter manager
-            (_rateLimiter as IDisposable)?.Dispose();
-
-            // Dispose all pipe clients
-            foreach (var client in _pipeClients.Values)
+            lock (_lock)
             {
-                try
-                {
-                    client.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to dispose pipe client: {ex.Message}");
-                }
-            }
+                if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
+                    return;
 
-            _pipeClients.Clear();
-            _sessions.Clear();
-            _stateSnapshots.Clear();
-            _pendingEventReplay.Clear();
-            _navigationStateStore.Clear();
+                // Dispose cleanup timer
+                _cleanupTimer.Dispose();
+
+                // Dispose rate limiter manager
+                (_rateLimiter as IDisposable)?.Dispose();
+
+                // Dispose all pipe clients
+                foreach (var client in _pipeClients.Values)
+                {
+                    try
+                    {
+                        client.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to dispose pipe client: {ex.Message}");
+                    }
+                }
+
+                _pipeClients.Clear();
+                _sessions.Clear();
+                _stateSnapshots.Clear();
+                _pendingEventReplay.Clear();
+                _navigationStateStore.Clear();
+            }
         }
     }
 }

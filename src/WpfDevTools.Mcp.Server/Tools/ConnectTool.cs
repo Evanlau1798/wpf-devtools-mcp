@@ -20,6 +20,8 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public sealed partial class ConnectTool
 {
+    private static readonly ConcurrentDictionary<ConnectOperationKey, InflightConnectOperation> GlobalInflightConnects = new();
+
     private readonly IProcessInjector _injector;
     private readonly SessionManager _sessionManager;
     private readonly WpfProcessDetector _processDetector;
@@ -29,7 +31,7 @@ public sealed partial class ConnectTool
     private readonly Func<string, IEnumerable<string>> _inspectorCandidateResolver;
     private readonly Func<string, IEnumerable<string>> _bootstrapperCandidateResolver;
     private readonly PipeReadyProbe _pipeReadyProbe;
-    private readonly ConcurrentDictionary<int, InflightConnectOperation> _inflightConnects = new();
+    private readonly Func<WpfProcessInfo, bool> _isRawInjectionTargetAllowed;
 
     /// <summary>
     /// Create ConnectTool with dependency injection
@@ -43,7 +45,8 @@ public sealed partial class ConnectTool
         Func<int, long>? workingSetResolver = null,
         Func<string, IEnumerable<string>>? inspectorCandidateResolver = null,
         Func<string, IEnumerable<string>>? bootstrapperCandidateResolver = null,
-        PipeReadyProbe? pipeReadyProbe = null)
+        PipeReadyProbe? pipeReadyProbe = null,
+        Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _injector = injector ?? throw new ArgumentNullException(nameof(injector));
@@ -54,6 +57,7 @@ public sealed partial class ConnectTool
         _inspectorCandidateResolver = inspectorCandidateResolver ?? DllCandidateResolver.EnumerateInspectorCandidates;
         _bootstrapperCandidateResolver = bootstrapperCandidateResolver ?? DllCandidateResolver.EnumerateBootstrapperCandidates;
         _pipeReadyProbe = pipeReadyProbe ?? new PipeReadyProbe();
+        _isRawInjectionTargetAllowed = isRawInjectionTargetAllowed ?? RawInjectionTargetPolicy.IsAllowed;
     }
 
     /// <summary>
@@ -154,276 +158,289 @@ public sealed partial class ConnectTool
             };
         }
 
-        return await RunSingleFlightAsync(
+        var connectResult = await RunSingleFlightAsync(
             processId.Value,
             cancellationToken,
             sharedCancellationToken => ExecuteForProcessAsync(
                 processId.Value,
-                explicitProcessSelection,
-                selectionStrategy,
-                autoDiscoveryResolution,
                 sharedCancellationToken)).ConfigureAwait(false);
+
+        return CreateConnectResponse(
+            connectResult,
+            processId.Value,
+            explicitProcessSelection,
+            selectionStrategy,
+            autoDiscoveryResolution);
     }
 
     private async Task<object> ExecuteForProcessAsync(
         int processId,
-        bool explicitProcessSelection,
-        ProcessDiscoverySelectionStrategy selectionStrategy,
-        AutoDiscoveryResolution? autoDiscoveryResolution,
         CancellationToken cancellationToken)
     {
         var connectStopwatch = Stopwatch.StartNew();
-
-        var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId);
-        if (!rateLimitStatus.Allowed)
-        {
-            return RateLimitResponseFactory.Create(
-                rateLimitStatus,
-                "Rate limit exceeded for connect operations. Please slow down your requests.");
-        }
-
-        if (_sessionManager.HasSession(processId))
-        {
-            var existingPipeClient = _sessionManager.GetPipeClient(processId);
-            if (existingPipeClient?.IsConnected == true)
-            {
-                _sessionManager.SetActiveProcess(processId);
-                return new { success = true, message = "Already connected to process", processId };
-            }
-
-            _sessionManager.RemoveSession(processId);
-        }
-
-        var processInfo = _processDetector.GetProcessInfo(processId);
-        if (processInfo == null)
-        {
-            return new
-            {
-                success = false,
-                error = $"Could not detect process info for {processId}",
-                errorCode = "ProcessNotFound"
-            };
-        }
-
-        var access = ProcessConnectionAccessEvaluator.Evaluate(
-            processId,
-            processInfo.IsElevated,
-            _isCurrentProcessElevated());
-        if (access.RequiresElevationToConnect)
-        {
-            return new
-            {
-                success = false,
-                error = access.ConnectionWarning,
-                errorCode = InjectionError.AccessDenied.ToString(),
-                targetIsElevated = processInfo.IsElevated,
-                requiresElevationToConnect = access.RequiresElevationToConnect,
-                canConnectFromCurrentServer = access.CanConnectFromCurrentServer,
-                suggestedAction = "Restart the MCP server as administrator and retry connect."
-            };
-        }
-
         try
         {
-            _sessionManager.EnsureSecureTransportArtifactsCreated();
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            return new
+            if (_sessionManager.HasSession(processId))
             {
-                success = false,
-                error = $"Failed to prepare secure transport artifacts: {ex.Message}",
-                errorCode = "SecureTransportInitializationFailed",
-                targetIsElevated = processInfo.IsElevated,
-                requiresElevationToConnect = access.RequiresElevationToConnect,
-                canConnectFromCurrentServer = access.CanConnectFromCurrentServer
-            };
-        }
+                if (_sessionManager.TryActivateConnectedSession(processId))
+                {
+                    return ConnectOperationResult.AlreadyConnected;
+                }
 
-        var likelySdkOnlyPackaging = IsLikelySdkOnlyPackaging(processInfo);
-        var validationError = likelySdkOnlyPackaging
-            ? InjectionError.SingleFileApplication
-            : _injector.ValidateTarget(processId);
+                _sessionManager.RemoveSession(processId);
+            }
 
-        var preInjectionConnectAttempt = await TryConnectToExistingInspectorHostAsync(
-            processId,
-            explicitProcessSelection,
-            selectionStrategy,
-            autoDiscoveryResolution,
-            connectStopwatch.Elapsed,
-            likelySdkOnlyPackaging,
-            cancellationToken).ConfigureAwait(false);
-        if (preInjectionConnectAttempt is object preExistingHostResult)
-        {
-            return preExistingHostResult;
-        }
-
-        if (validationError != InjectionError.None)
-        {
-            return new
+            var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId);
+            if (!rateLimitStatus.Allowed)
             {
-                success = false,
-                error = GetErrorMessage(validationError, processId, processInfo),
-                errorCode = validationError.ToString(),
-                targetIsElevated = processInfo.IsElevated,
-                requiresElevationToConnect = access.RequiresElevationToConnect,
-                canConnectFromCurrentServer = access.CanConnectFromCurrentServer
-            };
-        }
+                return RateLimitResponseFactory.Create(
+                    rateLimitStatus,
+                    "Rate limit exceeded for connect operations. Please slow down your requests.");
+            }
 
-        var inspectorCandidates = _inspectorCandidateResolver(AppContext.BaseDirectory)
-            .Where(File.Exists)
-            .ToArray();
-        var bootstrapperCandidates = _bootstrapperCandidateResolver(AppContext.BaseDirectory)
-            .Where(File.Exists)
-            .ToArray();
-        var injectionRequest = InjectionPlanFactory.CreateRequest(
-            processInfo,
-            inspectorCandidates,
-            bootstrapperCandidates,
-            _sessionManager.GetAuthenticationSecretBase64(),
-            _sessionManager.GetCertificateDirectory());
-
-        if (injectionRequest == null)
-        {
-            return new
-            {
-                success = false,
-                error = "No matching Inspector or Bootstrapper DLL found for target process. " +
-                    $"Runtime: {processInfo.Runtime}, Architecture: {processInfo.Architecture}",
-                errorCode = "FileNotFound",
-                hint = "Verify that the server was built for the correct architecture and that Inspector/Bootstrapper DLLs exist in the output directory."
-            };
-        }
-
-        _dllPathValidator(injectionRequest.InspectorDllPath);
-        _dllPathValidator(injectionRequest.BootstrapperDllPath);
-
-        var injectionResult = _injector.InjectWithBootstrap(injectionRequest, cancellationToken);
-        if (!injectionResult.Success)
-        {
-            if (injectionResult.Error == InjectionError.AccessDenied && processInfo.IsElevated)
+            var processInfo = _processDetector.GetProcessInfo(processId);
+            if (processInfo == null)
             {
                 return new
                 {
                     success = false,
-                    error = GetErrorMessage(InjectionError.AccessDenied, processId, processInfo),
+                    error = $"Could not detect process info for {processId}",
+                    errorCode = "ProcessNotFound"
+                };
+            }
+
+            var access = ProcessConnectionAccessEvaluator.Evaluate(
+                processId,
+                processInfo.IsElevated,
+                _isCurrentProcessElevated());
+            if (access.RequiresElevationToConnect)
+            {
+                return new
+                {
+                    success = false,
+                    error = access.ConnectionWarning,
                     errorCode = InjectionError.AccessDenied.ToString(),
                     targetIsElevated = processInfo.IsElevated,
                     requiresElevationToConnect = access.RequiresElevationToConnect,
                     canConnectFromCurrentServer = access.CanConnectFromCurrentServer,
+                    suggestedAction = "Restart the MCP server as administrator and retry connect."
+                };
+            }
+
+            try
+            {
+                _sessionManager.EnsureSecureTransportArtifactsCreated();
+            }
+            catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
+            {
+                return CreateSessionManagerDisposedFailure();
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is not ObjectDisposedException)
+            {
+                return new
+                {
+                    success = false,
+                    error = $"Failed to prepare secure transport artifacts: {ex.Message}",
+                    errorCode = "SecureTransportInitializationFailed",
+                    targetIsElevated = processInfo.IsElevated,
+                    requiresElevationToConnect = access.RequiresElevationToConnect,
+                    canConnectFromCurrentServer = access.CanConnectFromCurrentServer
+                };
+            }
+
+            var likelySdkOnlyPackaging = IsLikelySdkOnlyPackaging(processInfo);
+            var isRawInjectionTargetAllowed = _isRawInjectionTargetAllowed(processInfo);
+            var existingHostProbeBudget = likelySdkOnlyPackaging
+                ? (isRawInjectionTargetAllowed
+                    ? TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds)
+                    : McpServerConfiguration.ExternalSdkHostReuseGracePeriod)
+                : TimeSpan.FromMilliseconds(250);
+
+            var preInjectionConnectAttempt = await TryConnectToExistingInspectorHostAsync(
+                processId,
+                connectStopwatch.Elapsed,
+                existingHostProbeBudget,
+                cancellationToken).ConfigureAwait(false);
+            if (preInjectionConnectAttempt is object preExistingHostResult)
+            {
+                return preExistingHostResult;
+            }
+
+            if (!isRawInjectionTargetAllowed)
+            {
+                var authorization = RawInjectionTargetPolicy.Authorize(processInfo);
+                return new
+                {
+                    success = false,
+                    error = authorization.Error,
+                    errorCode = "SecurityError",
+                    hint = authorization.Hint,
+                    requiresExplicitTargetOptIn = true,
+                    allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
+                    targetExecutablePath = processInfo.ExecutablePath,
+                    targetProcessName = processInfo.ProcessName
+                };
+            }
+
+            var validationError = likelySdkOnlyPackaging
+                ? InjectionError.SingleFileApplication
+                : _injector.ValidateTarget(processId);
+
+            if (validationError != InjectionError.None)
+            {
+                return new
+                {
+                    success = false,
+                    error = GetErrorMessage(validationError, processId, processInfo),
+                    errorCode = validationError.ToString(),
+                    targetIsElevated = processInfo.IsElevated,
+                    requiresElevationToConnect = access.RequiresElevationToConnect,
+                    canConnectFromCurrentServer = access.CanConnectFromCurrentServer
+                };
+            }
+
+            var inspectorCandidates = _inspectorCandidateResolver(AppContext.BaseDirectory)
+                .Where(File.Exists)
+                .ToArray();
+            var bootstrapperCandidates = _bootstrapperCandidateResolver(AppContext.BaseDirectory)
+                .Where(File.Exists)
+                .ToArray();
+            var injectionRequest = InjectionPlanFactory.CreateRequest(
+                processInfo,
+                inspectorCandidates,
+                bootstrapperCandidates,
+                _sessionManager.GetAuthenticationSecretBase64(),
+                _sessionManager.GetCertificateDirectory());
+
+            if (injectionRequest == null)
+            {
+                return new
+                {
+                    success = false,
+                    error = "No matching Inspector or Bootstrapper DLL found for target process. " +
+                        $"Runtime: {processInfo.Runtime}, Architecture: {processInfo.Architecture}",
+                    errorCode = "FileNotFound",
+                    hint = "Verify that the server was built for the correct architecture and that Inspector/Bootstrapper DLLs exist in the output directory."
+                };
+            }
+
+            _dllPathValidator(injectionRequest.InspectorDllPath);
+            _dllPathValidator(injectionRequest.BootstrapperDllPath);
+
+            InjectionResult injectionResult;
+            try
+            {
+                injectionResult = _sessionManager.ExecuteWithShutdownGuard(
+                    () => _injector.InjectWithBootstrap(injectionRequest, cancellationToken));
+            }
+            catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
+            {
+                return CreateSessionManagerDisposedFailure();
+            }
+
+            if (!injectionResult.Success)
+            {
+                if (injectionResult.Error == InjectionError.AccessDenied && processInfo.IsElevated)
+                {
+                    return new
+                    {
+                        success = false,
+                        error = GetErrorMessage(InjectionError.AccessDenied, processId, processInfo),
+                        errorCode = InjectionError.AccessDenied.ToString(),
+                        targetIsElevated = processInfo.IsElevated,
+                        requiresElevationToConnect = access.RequiresElevationToConnect,
+                        canConnectFromCurrentServer = access.CanConnectFromCurrentServer,
+                        stage = injectionResult.FailedAtStage?.ToString(),
+                        exitCode = injectionResult.BootstrapExitCode
+                    };
+                }
+
+                return new
+                {
+                    success = false,
+                    error = injectionResult.ErrorMessage ?? "Injection failed",
+                    errorCode = injectionResult.Error switch
+                    {
+                        InjectionError.Timeout or InjectionError.PipeReadyTimeout => "Timeout",
+                        _ => injectionResult.Error.ToString()
+                    },
                     stage = injectionResult.FailedAtStage?.ToString(),
                     exitCode = injectionResult.BootstrapExitCode
                 };
             }
 
-            return new
+            try
             {
-                success = false,
-                error = injectionResult.ErrorMessage ?? "Injection failed",
-                errorCode = injectionResult.Error switch
+                var remainingPipeConnectTimeout = GetRemainingPipeConnectTimeout(
+                    connectStopwatch.Elapsed,
+                    TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds));
+                if (remainingPipeConnectTimeout <= TimeSpan.Zero)
                 {
-                    InjectionError.Timeout or InjectionError.PipeReadyTimeout => "Timeout",
-                    _ => injectionResult.Error.ToString()
-                },
-                stage = injectionResult.FailedAtStage?.ToString(),
-                exitCode = injectionResult.BootstrapExitCode
-            };
-        }
+                    return new
+                    {
+                        success = false,
+                        error = "Connect timed out before the final Inspector Named Pipe handshake could start",
+                        errorCode = "Timeout",
+                        hint = "The injection phase consumed the full timeout budget. Target process may be slow to load the Inspector DLL."
+                    };
+                }
 
-        _sessionManager.AddSession(processId);
-        try
-        {
-            var pipeClient = _sessionManager.GetPipeClient(processId);
-            if (pipeClient == null)
-            {
-                _sessionManager.RemoveSession(processId);
-                return new
+                NamedPipeConnectFailure pipeConnectFailure;
+                try
                 {
-                    success = false,
-                    error = "Failed to create Named Pipe client",
-                    errorCode = "InternalError"
-                };
+                    pipeConnectFailure = await _sessionManager.ConnectInjectedSessionAsync(
+                        processId,
+                        remainingPipeConnectTimeout,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
+                {
+                    return CreateSessionManagerDisposedFailure();
+                }
+                catch (InvalidOperationException ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    return CreateSessionConnectionFailure(processId, ex);
+                }
+
+                if (pipeConnectFailure != NamedPipeConnectFailure.None)
+                {
+                    var describedFailure = DescribePipeConnectFailure(pipeConnectFailure, processId);
+                    return new
+                    {
+                        success = false,
+                        error = describedFailure.Error,
+                        errorCode = describedFailure.ErrorCode,
+                        hint = describedFailure.Hint
+                    };
+                }
+
+                return ConnectOperationResult.FreshConnect;
             }
-
-            var remainingPipeConnectTimeout = GetRemainingPipeConnectTimeout(
-                connectStopwatch.Elapsed,
-                TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds));
-            if (remainingPipeConnectTimeout <= TimeSpan.Zero)
+            catch (Exception ex)
             {
-                _sessionManager.RemoveSession(processId);
-                return new
-                {
-                    success = false,
-                    error = "Connect timed out before the final Inspector Named Pipe handshake could start",
-                    errorCode = "Timeout",
-                    hint = "The injection phase consumed the full timeout budget. Target process may be slow to load the Inspector DLL."
-                };
-            }
-
-            var connected = await pipeClient.ConnectAsync(
-                remainingPipeConnectTimeout,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!connected)
-            {
-                var pipeConnectFailure = DescribePipeConnectFailure(pipeClient.LastConnectFailure, processId);
-                _sessionManager.RemoveSession(processId);
-                return new
-                {
-                    success = false,
-                    error = pipeConnectFailure.Error,
-                    errorCode = pipeConnectFailure.ErrorCode,
-                    hint = pipeConnectFailure.Hint
-                };
-            }
-
-            _sessionManager.SetActiveProcess(processId);
-            if (!explicitProcessSelection &&
-                autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
-            {
-                return new
-                {
-                    success = true,
-                    message = "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.",
+                Trace.TraceWarning(
+                    "ConnectTool cleanup triggered for process {0} after pipe handshake failure: {1}: {2}",
                     processId,
-                    processName = candidate.ProcessName,
-                    windowTitle = candidate.WindowTitle,
-                    autoDiscovered = true,
-                    autoSelected = autoDiscoveryResolution.AutoSelected,
-                    selectionReason = autoDiscoveryResolution.AutoSelected
-                        ? ProcessDiscoverySelectionStrategies.ToContractValue(selectionStrategy)
-                        : null,
-                    candidateCount = autoDiscoveryResolution.CandidateCount,
-                    processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray()
-                };
+                    ex.GetType().Name,
+                    ex.Message);
+                throw;
             }
-
-            return new
-            {
-                success = true,
-                message = "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.",
-                processId
-            };
         }
-        catch (Exception ex)
+        catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
         {
-            Trace.TraceWarning(
-                "ConnectTool cleanup triggered for process {0} after pipe handshake failure: {1}: {2}",
-                processId,
-                ex.GetType().Name,
-                ex.Message);
-            _sessionManager.RemoveSession(processId);
-            throw;
+            return CreateSessionManagerDisposedFailure();
         }
+    }
+
+    private static bool IsSessionManagerDisposed(ObjectDisposedException exception)
+    {
+        return string.Equals(exception.ObjectName, nameof(SessionManager), StringComparison.Ordinal);
     }
 
     private async Task<object?> TryConnectToExistingInspectorHostAsync(
         int processId,
-        bool explicitProcessSelection,
-        ProcessDiscoverySelectionStrategy selectionStrategy,
-        AutoDiscoveryResolution? autoDiscoveryResolution,
         TimeSpan elapsedBeforeProbe,
-        bool exhaustiveProbe,
+        TimeSpan probeBudget,
         CancellationToken cancellationToken)
     {
         var remainingPipeConnectTimeout = GetRemainingPipeConnectTimeout(
@@ -434,29 +451,26 @@ public sealed partial class ConnectTool
             return null;
         }
 
+        var effectiveProbeBudget = probeBudget < remainingPipeConnectTimeout
+            ? probeBudget
+            : remainingPipeConnectTimeout;
+
         var probeStopwatch = Stopwatch.StartNew();
         while (true)
         {
-            var remainingProbeBudget = remainingPipeConnectTimeout - probeStopwatch.Elapsed;
+            var remainingProbeBudget = effectiveProbeBudget - probeStopwatch.Elapsed;
             if (remainingProbeBudget <= TimeSpan.Zero)
             {
                 return null;
             }
 
-            var probeTimeout = exhaustiveProbe
-                ? remainingProbeBudget
-                : (remainingProbeBudget > TimeSpan.FromMilliseconds(250)
-                    ? TimeSpan.FromMilliseconds(250)
-                    : remainingProbeBudget);
+            var probeTimeout = remainingProbeBudget > TimeSpan.FromMilliseconds(250)
+                ? TimeSpan.FromMilliseconds(250)
+                : remainingProbeBudget;
 
             if (_pipeReadyProbe.WaitForPipeReady($"WpfDevTools_{processId}", probeTimeout, cancellationToken))
             {
                 break;
-            }
-
-            if (!exhaustiveProbe)
-            {
-                return null;
             }
         }
 
@@ -466,31 +480,119 @@ public sealed partial class ConnectTool
             return CreatePreInjectionConnectFailure(processId, NamedPipeConnectFailure.Timeout);
         }
 
-        NamedPipeClient? detachedPipeClient = null;
+        NamedPipeConnectFailure pipeConnectFailure;
         try
         {
-            detachedPipeClient = _sessionManager.CreateDetachedPipeClient(processId);
-            var connected = await detachedPipeClient.ConnectAsync(
+            pipeConnectFailure = await _sessionManager.ConnectExistingHostSessionAsync(
+                processId,
                 remainingPipeConnectTimeout,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!connected)
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
+        {
+            return CreateSessionManagerDisposedFailure();
+        }
+        catch (InvalidOperationException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            return CreateSessionConnectionFailure(processId, ex);
+        }
+
+        if (pipeConnectFailure != NamedPipeConnectFailure.None)
+        {
+            return CreatePreInjectionConnectFailure(processId, pipeConnectFailure);
+        }
+
+        return ConnectOperationResult.ReusedExistingHost;
+    }
+
+    private static object CreateConnectResponse(
+        object connectResult,
+        int processId,
+        bool explicitProcessSelection,
+        ProcessDiscoverySelectionStrategy selectionStrategy,
+        AutoDiscoveryResolution? autoDiscoveryResolution)
+    {
+        if (connectResult is not ConnectOperationResult result)
+        {
+            return connectResult;
+        }
+
+        return result.SuccessKind switch
+        {
+            ConnectSuccessKind.AlreadyConnected => CreateAlreadyConnectedResponse(
+                processId,
+                explicitProcessSelection,
+                selectionStrategy,
+                autoDiscoveryResolution),
+            ConnectSuccessKind.ReusedExistingHost => CreateSuccessfulConnectResponse(
+                processId,
+                explicitProcessSelection,
+                selectionStrategy,
+                autoDiscoveryResolution,
+                reusedExistingHost: true),
+            _ => CreateSuccessfulConnectResponse(
+                processId,
+                explicitProcessSelection,
+                selectionStrategy,
+                autoDiscoveryResolution,
+                reusedExistingHost: false)
+        };
+    }
+
+    private static object CreateAlreadyConnectedResponse(
+        int processId,
+        bool explicitProcessSelection,
+        ProcessDiscoverySelectionStrategy selectionStrategy,
+        AutoDiscoveryResolution? autoDiscoveryResolution)
+    {
+        if (!explicitProcessSelection &&
+            autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
+        {
+            return new
             {
-                return CreatePreInjectionConnectFailure(
-                    processId,
-                    detachedPipeClient.LastConnectFailure);
-            }
+                success = true,
+                message = "Already connected to process",
+                processId,
+                processName = candidate.ProcessName,
+                windowTitle = candidate.WindowTitle,
+                autoDiscovered = true,
+                autoSelected = autoDiscoveryResolution.AutoSelected,
+                selectionReason = autoDiscoveryResolution.AutoSelected
+                    ? ProcessDiscoverySelectionStrategies.ToContractValue(selectionStrategy)
+                    : null,
+                candidateCount = autoDiscoveryResolution.CandidateCount,
+                processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray()
+            };
+        }
 
-            _sessionManager.AttachSession(processId, detachedPipeClient);
-            detachedPipeClient = null;
-            _sessionManager.SetActiveProcess(processId);
+        return new
+        {
+            success = true,
+            message = "Already connected to process",
+            processId
+        };
+    }
 
-            if (!explicitProcessSelection &&
-                autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
+    private static object CreateSuccessfulConnectResponse(
+        int processId,
+        bool explicitProcessSelection,
+        ProcessDiscoverySelectionStrategy selectionStrategy,
+        AutoDiscoveryResolution? autoDiscoveryResolution,
+        bool reusedExistingHost)
+    {
+        var message = reusedExistingHost
+            ? "Connected to an existing Inspector host. You can now use inspection tools with this processId."
+            : "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.";
+
+        if (!explicitProcessSelection &&
+            autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
+        {
+            if (reusedExistingHost)
             {
                 return new
                 {
                     success = true,
-                    message = "Connected to an existing Inspector host. You can now use inspection tools with this processId.",
+                    message,
                     processId,
                     processName = candidate.ProcessName,
                     windowTitle = candidate.WindowTitle,
@@ -508,15 +610,37 @@ public sealed partial class ConnectTool
             return new
             {
                 success = true,
-                message = "Connected to an existing Inspector host. You can now use inspection tools with this processId.",
+                message,
+                processId,
+                processName = candidate.ProcessName,
+                windowTitle = candidate.WindowTitle,
+                autoDiscovered = true,
+                autoSelected = autoDiscoveryResolution.AutoSelected,
+                selectionReason = autoDiscoveryResolution.AutoSelected
+                    ? ProcessDiscoverySelectionStrategies.ToContractValue(selectionStrategy)
+                    : null,
+                candidateCount = autoDiscoveryResolution.CandidateCount,
+                processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray()
+            };
+        }
+
+        if (reusedExistingHost)
+        {
+            return new
+            {
+                success = true,
+                message,
                 processId,
                 reusedExistingHost = true
             };
         }
-        finally
+
+        return new
         {
-            detachedPipeClient?.Dispose();
-        }
+            success = true,
+            message,
+            processId
+        };
     }
 
     private static object CreatePreInjectionConnectFailure(
@@ -531,6 +655,69 @@ public sealed partial class ConnectTool
             errorCode = pipeConnectFailure.ErrorCode,
             hint = pipeConnectFailure.Hint
         };
+    }
+
+    private object CreateSessionConnectionFailure(int processId, InvalidOperationException exception)
+    {
+        if (_sessionManager.TryActivateConnectedSession(processId))
+        {
+            return ConnectOperationResult.AlreadyConnected;
+        }
+
+        if (exception.Message.Contains("Maximum session limit", StringComparison.Ordinal))
+        {
+            return new
+            {
+                success = false,
+                error = exception.Message,
+                errorCode = "SessionLimitExceeded",
+                hint = "Disconnect an existing session before connecting another target process."
+            };
+        }
+
+        if (exception.Message.Contains("already exists", StringComparison.Ordinal))
+        {
+            return new
+            {
+                success = false,
+                error = $"A session for process {processId} was created concurrently before connect could finish attaching.",
+                errorCode = "SessionConflict",
+                hint = "Retry connect, or reuse the existing session if it is already connected."
+            };
+        }
+
+        return new
+        {
+            success = false,
+            error = exception.Message,
+            errorCode = "InternalError",
+            hint = "Retry connect. If the problem persists, restart the MCP server."
+        };
+    }
+
+    private static object CreateSessionManagerDisposedFailure()
+    {
+        return new
+        {
+            success = false,
+            error = "Connect cannot continue because the session manager is shutting down.",
+            errorCode = "ServerShuttingDown",
+            hint = "Wait for the MCP server to finish shutting down or restart it before retrying connect."
+        };
+    }
+
+    private sealed record ConnectOperationResult(ConnectSuccessKind SuccessKind)
+    {
+        public static readonly ConnectOperationResult AlreadyConnected = new(ConnectSuccessKind.AlreadyConnected);
+        public static readonly ConnectOperationResult FreshConnect = new(ConnectSuccessKind.FreshConnect);
+        public static readonly ConnectOperationResult ReusedExistingHost = new(ConnectSuccessKind.ReusedExistingHost);
+    }
+
+    private enum ConnectSuccessKind
+    {
+        AlreadyConnected,
+        FreshConnect,
+        ReusedExistingHost
     }
 
     internal static (string ErrorCode, string Error, string Hint) DescribePipeConnectFailure(

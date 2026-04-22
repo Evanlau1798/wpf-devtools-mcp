@@ -12,6 +12,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TraceState")]
 public class ConnectToolLoggingTests : IDisposable
 {
     private string? _dummyBootstrapperPath;
@@ -25,7 +26,8 @@ public class ConnectToolLoggingTests : IDisposable
             sessionManager,
             new SuccessfulProcessInjector(),
             new FakeProcessDetector(),
-            _ => { });
+            _ => { },
+            isRawInjectionTargetAllowed: _ => true);
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
         using var listener = new CapturingTraceListener();
 
@@ -36,11 +38,17 @@ public class ConnectToolLoggingTests : IDisposable
 
             await act.Should().ThrowAsync<OperationCanceledException>();
 
+            SpinWait.SpinUntil(
+                () => listener.Messages.Any(message =>
+                    message.Contains("ConnectTool cleanup triggered", StringComparison.Ordinal) &&
+                    message.Contains("12345", StringComparison.Ordinal)),
+                TimeSpan.FromSeconds(2)).Should().BeTrue();
+
             Trace.Flush();
             listener.Messages.Should().ContainSingle(message =>
                 message.Contains("ConnectTool cleanup triggered", StringComparison.Ordinal) &&
                 message.Contains("12345", StringComparison.Ordinal));
-            sessionManager.HasSession(12345).Should().BeFalse();
+            SpinWait.SpinUntil(() => !sessionManager.HasSession(12345), TimeSpan.FromSeconds(2)).Should().BeTrue();
         }
         finally
         {

@@ -36,7 +36,7 @@ public sealed class GetBindingErrorsTool : PipeConnectedToolBase
             ? compactProperty.GetBoolean()
             : (bool?)null;
 
-        return await SendInspectorRequestAsync(processId, "get_binding_errors",
+        return await SendInspectorRequestWithPiggybackAsync(processId, "get_binding_errors",
             // Keep full binding messages in the pipe payload so navigation can classify
             // trace-only errors before compact trimming is applied to the client response.
             new { maxErrors, sinceTimestamp, compact = false }, cancellationToken);

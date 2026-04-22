@@ -174,7 +174,7 @@ public abstract partial class PipeConnectedToolBase
         string method,
         object? parameters,
         CancellationToken ct,
-        bool piggybackPendingEvents = true)
+        bool piggybackPendingEvents = false)
     {
         var result = await SendInspectorRequestCoreAsync(processId, method, parameters, ct).ConfigureAwait(false);
         if (!piggybackPendingEvents)
@@ -184,6 +184,13 @@ public abstract partial class PipeConnectedToolBase
 
         return await TryPiggybackPendingEventsAsync(processId, method, result, ct).ConfigureAwait(false);
     }
+
+    protected Task<object> SendInspectorRequestWithPiggybackAsync(
+        int processId,
+        string method,
+        object? parameters,
+        CancellationToken ct) =>
+        SendInspectorRequestAsync(processId, method, parameters, ct, piggybackPendingEvents: true);
 
     protected Task<object> SendInspectorRequestWithoutPiggybackAsync(
         int processId,
@@ -286,7 +293,9 @@ public abstract partial class PipeConnectedToolBase
 
         var pendingEventCount = GetIntProperty(drainPayload, "pendingEventCount");
         var droppedEventCount = GetIntProperty(drainPayload, "droppedEventCount");
-        if (pendingEventCount <= 0 && droppedEventCount <= 0)
+        if (pendingEventCount <= 0
+            && droppedEventCount <= 0
+            && !HasCleanupIncompleteDiagnostics(drainPayload))
         {
             return result;
         }
@@ -455,6 +464,8 @@ public abstract partial class PipeConnectedToolBase
             writer.WritePropertyName("droppedEventCount");
             droppedEventCount.WriteTo(writer);
         }
+
+        WriteCleanupDiagnostics(writer, drainPayload);
 
         writer.WriteString("pendingEventsOrigin", "piggybackSharedBuffer");
         writer.WriteBoolean("pendingEventsMayIncludePriorContext", true);

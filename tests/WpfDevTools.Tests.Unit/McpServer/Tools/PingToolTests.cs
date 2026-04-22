@@ -91,4 +91,33 @@ public class PingToolTests
         resultJson.GetProperty("errorCode").GetString().Should().Be("NotConnected");
         resultJson.GetProperty("hint").GetString().Should().Contain("connect");
     }
+
+    [Fact]
+    public async Task Execute_WithSuccessfulPing_ShouldNotPiggybackDrainEvents()
+    {
+        const int processId = 24567;
+        using var connected = await ConnectedWaitSessionBuilder.CreateAsync(
+            processId,
+            new object(),
+            static (request, _) => Task.FromResult<object>(request.Method switch
+            {
+                "ping" => new { success = true, pong = true },
+                "drain_events" => new
+                {
+                    success = true,
+                    pendingEventCount = 0,
+                    droppedEventCount = 0,
+                    pendingEvents = Array.Empty<object>()
+                },
+                _ => new { success = true }
+            }));
+        var tool = new PingTool(connected.SessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.SerializeToElement(result);
+
+        resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        connected.RequestMethods.Should().Equal("ping");
+    }
 }

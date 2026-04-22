@@ -257,8 +257,8 @@ public class ToolCallHelperTests
         textContent.Should().NotBeNull();
         var textPayload = JsonSerializer.Deserialize<JsonElement>(textContent!.Text);
         textPayload.GetProperty("success").GetBoolean().Should().BeTrue();
+        textPayload.GetProperty("count").GetInt64().Should().Be(42);
         textPayload.GetProperty("hasStructuredContent").GetBoolean().Should().BeTrue();
-        textPayload.TryGetProperty("count", out _).Should().BeFalse();
     }
 
     [Fact]
@@ -368,6 +368,7 @@ public class ToolCallHelperTests
         result.IsError.Should().BeFalse();
         var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
         textContent!.Text.Should().Contain("\"hasStructuredContent\":true");
+        textContent.Text.Should().Contain("\"itemsCount\":10000");
         textContent.Text.Should().NotContain("Item_9999");
     }
 

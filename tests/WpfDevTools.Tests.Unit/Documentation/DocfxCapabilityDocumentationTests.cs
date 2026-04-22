@@ -209,6 +209,18 @@ public sealed class DocfxCapabilityDocumentationTests
             "tool overview pages should clarify that the fallback contract surface is machine-readable JSON rather than prose alone");
     }
 
+    [Fact]
+    public void ToolOverviewPages_ShouldDescribeTextFallbackAsHighSignalSummary()
+    {
+        var english = File.ReadAllText(GetRepoFilePath("docfx/reference/tools/index.md"));
+        var traditionalChinese = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/reference/tools/index.md"));
+
+        english.Should().Contain("high-signal top-level scalar fields");
+        english.Should().Contain("collection counts");
+        traditionalChinese.Should().Contain("高訊號");
+        traditionalChinese.Should().Contain("集合計數");
+    }
+
     private static int CountOccurrences(string content, string value)
     {
         var count = 0;

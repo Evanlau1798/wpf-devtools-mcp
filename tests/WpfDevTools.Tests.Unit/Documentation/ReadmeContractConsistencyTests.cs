@@ -60,9 +60,10 @@ public sealed class ReadmeContractConsistencyTests
         var textFallbackHelper = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools/ToolCallHelper.TextFallback.cs"));
 
         helper.Should().Contain("StructuredContent = jsonElement");
+        textFallbackHelper.Should().Contain("AppendHighSignalFallbackFields");
         textFallbackHelper.Should().Contain("Annotations = isError ? ErrorAnnotations : null");
         textFallbackHelper.Should().Contain("hasStructuredContent");
-        readme.Should().Contain("Structured content: `StructuredContent` is populated on all tool results; object/array `Content.Text` is a compact fallback summary when structured payload is present, and error results include `Annotations`.");
+        readme.Should().Contain("Structured content: `StructuredContent` is populated on all tool results; object/array `Content.Text` preserves high-signal top-level scalar fields and collection counts as a compact fallback summary when structured payload is present, and error results include `Annotations`.");
         readme.Should().NotContain("Structured content: `StructuredContent` and `Annotations` populated on all tool results");
     }
 

@@ -89,8 +89,12 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 > **Security note**: By default, injection-based inspector sessions use a persisted local HMAC secret and TLS over named pipes.
 > Set `WPFDEVTOOLS_AUTH_SECRET` when you need a deterministic shared secret, and set `WPFDEVTOOLS_CERT_DIR` when you need to pin certificate storage to a specific directory.
 > `WPFDEVTOOLS_CERT_DIR` must be an absolute path when you set it explicitly.
-> For `connect()` to reuse an SDK-hosted Inspector, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR` together on both sides. The default-hardened MCP server will not reuse a plaintext SDK host.
+> For `connect()` to reuse an SDK-hosted Inspector, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR` together on both sides before calling `InspectorSdk.Initialize()`. The default-hardened MCP server will not reuse a plaintext SDK host.
+> If either value is missing, or both are unset, `InspectorSdk.Initialize()` now fails closed instead of starting a plaintext SDK host. Legacy plaintext or otherwise unresponsive existing hosts can still surface as timeout during reuse detection.
 > `connect()` can also reuse an existing SDK-hosted Inspector when the target app calls `InspectorSdk.Initialize()` with matching transport settings, including the same absolute `WPFDEVTOOLS_CERT_DIR` value.
+> Raw DLL injection into arbitrary same-user WPF processes is blocked by default. The shipping server only trusts project-scoped targets discovered under the current repository root unless you explicitly allowlist an external executable path through `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`.
+> `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` accepts a semicolon-separated list of exact absolute executable paths. Prefer the SDK-hosted reuse path first, and use the allowlist only when raw injection into a specific external target is an intentional production decision.
+> When `connect()` blocks raw injection for an external target, it returns `errorCode: SecurityError` together with `requiresExplicitTargetOptIn: true` so clients can distinguish this policy boundary from packaging or transport failures.
 > See [SECURITY.md](SECURITY.md) for details.
 > **Local development note**: Use a `Debug` build for local development and build the native bootstrapper for the same architecture as the target process.
 > Debug builds skip DLL signature verification only for trusted local DLL paths under the configured trusted-root policy, allowing unsigned local development without weakening public release guidance.
@@ -202,6 +206,7 @@ The current implementation hardens the default injection-based transport and sti
 | `WPFDEVTOOLS_AUTH_SECRET` | Overrides the generated HMAC challenge-response secret | Use a base64 secret when production deployments require deterministic credential rotation |
 | `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory for named pipes | Use a private directory per environment when certificate storage must be pinned |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected inspector certificate | Useful when you want strict certificate selection |
+| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Explicitly allowlists external raw-injection targets | Use a semicolon-separated list of exact absolute executable paths when SDK-hosted reuse is not possible |
 
 Security deployment guidance lives in `SECURITY.md`.
 
@@ -291,5 +296,5 @@ MIT. DLL injection code includes Snoop-based components under Ms-PL attribution.
 - STDIO transport: in use
 - HTTP transport: planned
 - Tool metadata: maintained in code
-- Structured content: `StructuredContent` is populated on all tool results; object/array `Content.Text` is a compact fallback summary when structured payload is present, and error results include `Annotations`.
+- Structured content: `StructuredContent` is populated on all tool results; object/array `Content.Text` preserves high-signal top-level scalar fields and collection counts as a compact fallback summary when structured payload is present, and error results include `Annotations`.
 - README tool catalog: intentionally minimized to prevent schema drift

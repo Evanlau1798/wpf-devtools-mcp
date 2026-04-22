@@ -8,7 +8,24 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public sealed class WaitForDpChangeTool : PipeConnectedToolBase
 {
-    public WaitForDpChangeTool(SessionManager sessionManager) : base(sessionManager) { }
+    private readonly Func<JsonElement, CancellationToken, Task<object>> _triggerMutationExecutor;
+    private readonly bool _triggerMutationTimeoutRequiresReconnect;
+
+    public WaitForDpChangeTool(SessionManager sessionManager)
+        : this(sessionManager, triggerMutationExecutor: null, triggerMutationTimeoutRequiresReconnect: true)
+    {
+    }
+
+    internal WaitForDpChangeTool(
+        SessionManager sessionManager,
+        Func<JsonElement, CancellationToken, Task<object>>? triggerMutationExecutor,
+        bool triggerMutationTimeoutRequiresReconnect = true)
+        : base(sessionManager)
+    {
+        _triggerMutationExecutor = triggerMutationExecutor
+            ?? ((batchArgs, cancellationToken) => new BatchMutateTool(sessionManager).ExecuteAsync(batchArgs, cancellationToken));
+        _triggerMutationTimeoutRequiresReconnect = triggerMutationTimeoutRequiresReconnect;
+    }
 
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
@@ -60,16 +77,16 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             return CreateInvalidParamError("pollIntervalMs must be between 50 and 5000.");
         }
 
+        var stopwatch = Stopwatch.StartNew();
         var initialSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
         if (initialSnapshot.Error != null)
         {
             return initialSnapshot.Error;
         }
 
-        var stopwatch = Stopwatch.StartNew();
-
         var matchedExpectedValueAtStart = expectedValue.HasValue &&
             JsonValueMatchesFormatted(expectedValue.Value, initialSnapshot.FormattedValue);
+        var observedChangeSinceStart = false;
         if (matchedExpectedValueAtStart && !triggerMutation.HasValue)
         {
             return BuildWaitResult(
@@ -110,11 +127,11 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                     initialSnapshot,
                     elapsedMs: stopwatch.ElapsedMilliseconds,
                     pollCount: 0,
-                    observedChange: false,
-                    matchedExpectedValueAtStart: matchedExpectedValueAtStart,
-                        completionReason: "TriggerMutationTimedOut",
-                        stateAfterTimeoutUnknown: true,
-                        requiresReconnect: true);
+                    observedChange: observedChangeSinceStart,
+                    matchedExpectedValueAtStart,
+                    completionReason: "TriggerMutationTimedOut",
+                    stateAfterTimeoutUnknown: triggerResult.StateAfterTimeoutUnknown,
+                    requiresReconnect: triggerResult.RequiresReconnect);
             }
 
             var afterTriggerSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
@@ -122,6 +139,8 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             {
                 return afterTriggerSnapshot.Error;
             }
+
+            observedChangeSinceStart |= HasObservedChange(initialSnapshot, afterTriggerSnapshot);
 
             if (stopwatch.ElapsedMilliseconds >= effectiveTimeoutMs)
             {
@@ -134,12 +153,12 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                     afterTriggerSnapshot,
                     elapsedMs: stopwatch.ElapsedMilliseconds,
                     pollCount: 0,
-                    observedChange: HasObservedChange(initialSnapshot, afterTriggerSnapshot),
-                    matchedExpectedValueAtStart: matchedExpectedValueAtStart,
-                        completionReason: "TimedOut");
+                    observedChange: observedChangeSinceStart,
+                    matchedExpectedValueAtStart,
+                    completionReason: "TimedOut");
             }
 
-            if (HasReachedTarget(initialSnapshot, afterTriggerSnapshot, expectedValue))
+            if (HasReachedTarget(initialSnapshot, afterTriggerSnapshot, expectedValue, matchedExpectedValueAtStart, observedChangeSinceStart))
             {
                 return BuildWaitResult(
                     changed: true,
@@ -150,8 +169,8 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                     afterTriggerSnapshot,
                     elapsedMs: stopwatch.ElapsedMilliseconds,
                     pollCount: 0,
-                    observedChange: HasObservedChange(initialSnapshot, afterTriggerSnapshot),
-                    matchedExpectedValueAtStart: matchedExpectedValueAtStart,
+                    observedChange: observedChangeSinceStart,
+                    matchedExpectedValueAtStart,
                     completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
             }
         }
@@ -175,7 +194,9 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                 return currentSnapshot.Error;
             }
 
-            if (HasReachedTarget(initialSnapshot, currentSnapshot, expectedValue))
+            observedChangeSinceStart |= HasObservedChange(initialSnapshot, currentSnapshot);
+
+            if (HasReachedTarget(initialSnapshot, currentSnapshot, expectedValue, matchedExpectedValueAtStart, observedChangeSinceStart))
             {
                 return BuildWaitResult(
                     changed: true,
@@ -186,8 +207,8 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                     currentSnapshot,
                     stopwatch.ElapsedMilliseconds,
                     pollCount,
-                    observedChange: HasObservedChange(initialSnapshot, currentSnapshot),
-                    matchedExpectedValueAtStart: matchedExpectedValueAtStart,
+                    observedChange: observedChangeSinceStart,
+                    matchedExpectedValueAtStart,
                     completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
             }
         }
@@ -198,7 +219,9 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             return finalSnapshot.Error;
         }
 
-        if (HasReachedTarget(initialSnapshot, finalSnapshot, expectedValue))
+        observedChangeSinceStart |= HasObservedChange(initialSnapshot, finalSnapshot);
+
+        if (HasReachedTarget(initialSnapshot, finalSnapshot, expectedValue, matchedExpectedValueAtStart, observedChangeSinceStart))
         {
             return BuildWaitResult(
                 changed: true,
@@ -209,8 +232,8 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                 finalSnapshot,
                 stopwatch.ElapsedMilliseconds,
                 pollCount,
-                observedChange: HasObservedChange(initialSnapshot, finalSnapshot),
-                matchedExpectedValueAtStart: matchedExpectedValueAtStart,
+                observedChange: observedChangeSinceStart,
+                matchedExpectedValueAtStart,
                 completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
         }
 
@@ -223,8 +246,8 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             finalSnapshot,
             stopwatch.ElapsedMilliseconds,
             pollCount,
-            observedChange: HasObservedChange(initialSnapshot, finalSnapshot),
-                matchedExpectedValueAtStart: matchedExpectedValueAtStart,
+                observedChange: observedChangeSinceStart,
+                matchedExpectedValueAtStart,
             completionReason: "TimedOut");
     }
 
@@ -269,7 +292,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
     {
         if (remainingBudgetMs <= 0)
         {
-            return TriggerMutationResult.Timeout;
+            return TriggerMutationResult.Timeout(stateAfterTimeoutUnknown: false, requiresReconnect: false);
         }
 
         var batchArgs = BuildTriggerBatchArgs(processId, elementId, triggerMutation);
@@ -279,8 +302,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         JsonElement payload;
         try
         {
-            var result = await new BatchMutateTool(_sessionManager)
-                .ExecuteAsync(batchArgs, timeoutCts.Token)
+            var result = await _triggerMutationExecutor(batchArgs, timeoutCts.Token)
                 .ConfigureAwait(false);
             payload = result is JsonElement jsonElement
                 ? jsonElement
@@ -288,8 +310,12 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeoutCts.IsCancellationRequested)
         {
-            _sessionManager.GetPipeClient(processId)?.Dispose();
-            return TriggerMutationResult.Timeout;
+            if (_triggerMutationTimeoutRequiresReconnect)
+            {
+                _sessionManager.GetPipeClient(processId)?.Dispose();
+            }
+
+            return TriggerMutationResult.Timeout(stateAfterTimeoutUnknown: true, requiresReconnect: _triggerMutationTimeoutRequiresReconnect);
         }
 
         return IsSuccessfulSnapshotPayload(payload)
@@ -341,11 +367,17 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                 : null;
     }
 
-    private static bool HasReachedTarget(DpSnapshot initialSnapshot, DpSnapshot currentSnapshot, JsonElement? expectedValue)
+    private static bool HasReachedTarget(
+        DpSnapshot initialSnapshot,
+        DpSnapshot currentSnapshot,
+        JsonElement? expectedValue,
+        bool matchedExpectedValueAtStart,
+        bool observedChangeSinceStart)
     {
         if (expectedValue.HasValue)
         {
-            return JsonValueMatchesFormatted(expectedValue.Value, currentSnapshot.FormattedValue);
+            return JsonValueMatchesFormatted(expectedValue.Value, currentSnapshot.FormattedValue)
+                && (!matchedExpectedValueAtStart || observedChangeSinceStart);
         }
 
         return HasObservedChange(initialSnapshot, currentSnapshot);
@@ -411,10 +443,15 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         public static DpSnapshot FromError(object error) => new(null, string.Empty, error);
     }
 
-    private readonly record struct TriggerMutationResult(object? Error = null, bool TimedOut = false)
+    private readonly record struct TriggerMutationResult(
+        object? Error = null,
+        bool TimedOut = false,
+        bool StateAfterTimeoutUnknown = false,
+        bool RequiresReconnect = false)
     {
         public static TriggerMutationResult Success => new();
 
-        public static TriggerMutationResult Timeout => new(TimedOut: true);
+        public static TriggerMutationResult Timeout(bool stateAfterTimeoutUnknown, bool requiresReconnect) =>
+            new(TimedOut: true, StateAfterTimeoutUnknown: stateAfterTimeoutUnknown, RequiresReconnect: requiresReconnect);
     }
 }

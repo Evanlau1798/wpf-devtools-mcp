@@ -63,6 +63,34 @@ public class ToolCallHelperTests
     }
 
     [Fact]
+    public void CachedTool_WithoutTestScope_ShouldReuseProcessWideInstance()
+    {
+        var cacheKey = $"global-cache-{Guid.NewGuid():N}";
+
+        var first = ToolCallHelper.CachedTool<object>(cacheKey, static () => new object());
+        var second = ToolCallHelper.CachedTool<object>(cacheKey, static () => new object());
+
+        second.Should().BeSameAs(first);
+    }
+
+    [Fact]
+    public void CachedTool_WhenNestedTestScopeDisposes_ShouldRestoreOuterScopedCache()
+    {
+        var cacheKey = $"scoped-cache-{Guid.NewGuid():N}";
+        using var outerScope = ToolCallHelper.BeginTestScope();
+        var outerInstance = ToolCallHelper.CachedTool<object>(cacheKey, static () => new object());
+
+        using (ToolCallHelper.BeginTestScope())
+        {
+            var innerInstance = ToolCallHelper.CachedTool<object>(cacheKey, static () => new object());
+            innerInstance.Should().NotBeSameAs(outerInstance);
+        }
+
+        var restoredOuterInstance = ToolCallHelper.CachedTool<object>(cacheKey, static () => new object());
+        restoredOuterInstance.Should().BeSameAs(outerInstance);
+    }
+
+    [Fact]
     public void BuildJsonArgs_WithMixedNullAndNonNull_ShouldExcludeNulls()
     {
         var result = ToolCallHelper.BuildJsonArgs(
@@ -198,7 +226,8 @@ public class ToolCallHelperTests
                     ("propertyName", "Text"),
                     ("diagnosis", "PathMismatch"))
             ]));
-        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(registry));
+        using var toolCallHelperScope = ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(registry));
 
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
             (_, _) => Task.FromResult<object>(new { success = true, errorCount = 1 }),
@@ -232,7 +261,8 @@ public class ToolCallHelperTests
             [],
             [],
             []));
-        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(registry));
+        using var toolCallHelperScope = ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(registry));
 
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
             (_, _) => Task.FromResult<object>(new { success = true }),

@@ -6,11 +6,13 @@ using WpfDevTools.Mcp.Server.McpTools;
 namespace WpfDevTools.Tests.Unit.McpServer;
 
 [Collection("ToolCallHelperState")]
-public sealed class ToolCallHelperTextFallbackTests
+public sealed class ToolCallHelperTextFallbackTests : IDisposable
 {
-    public ToolCallHelperTextFallbackTests()
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
+
+    public void Dispose()
     {
-        ToolCallHelper.ResetCacheForTesting();
+        _toolCallHelperScope.Dispose();
     }
 
     [Fact]

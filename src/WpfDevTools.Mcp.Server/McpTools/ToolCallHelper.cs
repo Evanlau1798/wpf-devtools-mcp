@@ -32,7 +32,10 @@ public static partial class ToolCallHelper
     private const int WaitForDpChangeTimeoutHeadroomSeconds = 2;
     private const int WaitForDpChangeDefaultTimeoutMs = 5000;
 
-    private static readonly ConcurrentDictionary<string, object> ToolCache = new();
+    private static readonly ConcurrentDictionary<string, object> GlobalToolCache = new();
+    private static readonly AsyncLocal<ConcurrentDictionary<string, object>?> ToolCacheOverride = new();
+    private static readonly AsyncLocal<MetricsCollector?> MetricsCollectorOverride = new();
+    private static readonly AsyncLocal<ToolNavigationPlanner?> NavigationPlannerOverride = new();
     private static readonly HashSet<string> NavigationOptOutTools = new(StringComparer.Ordinal)
     {
         "get_binding_errors"
@@ -44,8 +47,8 @@ public static partial class ToolCallHelper
         "GetActiveProcess",
         "SelectActiveProcess"
     };
+    private static readonly ToolNavigationPlanner DefaultNavigationPlanner = new(new ToolNavigationRegistry());
     private static MetricsCollector? _metrics;
-    private static ToolNavigationPlanner _navigationPlanner = new(new ToolNavigationRegistry());
 
     private static readonly Annotations ErrorAnnotations = new() { Priority = 1.0f };
 
@@ -59,7 +62,69 @@ public static partial class ToolCallHelper
     /// Set the MetricsCollector instance for recording tool execution metrics.
     /// Called once during DI initialization from Program.cs.
     /// </summary>
-    internal static void SetMetricsCollector(MetricsCollector metrics) => _metrics = metrics;
+    internal static void SetMetricsCollector(MetricsCollector metrics)
+    {
+        if (ToolCacheOverride.Value is not null)
+        {
+            MetricsCollectorOverride.Value = metrics;
+            return;
+        }
+
+        _metrics = metrics;
+    }
+
+    /// <summary>
+    /// Begin a test-local ToolCallHelper scope that isolates cache entries and optional overrides.
+    /// </summary>
+    internal static IDisposable BeginTestScope(
+        ToolNavigationPlanner? navigationPlanner = null,
+        MetricsCollector? metricsCollector = null)
+    {
+        var previousToolCache = ToolCacheOverride.Value;
+        var previousMetricsCollector = MetricsCollectorOverride.Value;
+        var previousNavigationPlanner = NavigationPlannerOverride.Value;
+
+        ToolCacheOverride.Value = new ConcurrentDictionary<string, object>();
+        MetricsCollectorOverride.Value = metricsCollector ?? previousMetricsCollector;
+        NavigationPlannerOverride.Value = navigationPlanner ?? previousNavigationPlanner;
+
+        return new TestScopeRestorer(
+            previousToolCache,
+            previousMetricsCollector,
+            previousNavigationPlanner);
+    }
+
+    private static ConcurrentDictionary<string, object> CurrentToolCache =>
+        ToolCacheOverride.Value ?? GlobalToolCache;
+
+    private static MetricsCollector? CurrentMetricsCollector =>
+        ToolCacheOverride.Value is not null
+            ? MetricsCollectorOverride.Value
+            : _metrics;
+
+    private static ToolNavigationPlanner CurrentNavigationPlanner =>
+        NavigationPlannerOverride.Value ?? DefaultNavigationPlanner;
+
+    private sealed class TestScopeRestorer(
+        ConcurrentDictionary<string, object>? previousToolCache,
+        MetricsCollector? previousMetricsCollector,
+        ToolNavigationPlanner? previousNavigationPlanner) : IDisposable
+    {
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            ToolCacheOverride.Value = previousToolCache;
+            MetricsCollectorOverride.Value = previousMetricsCollector;
+            NavigationPlannerOverride.Value = previousNavigationPlanner;
+            _disposed = true;
+        }
+    }
 
     /// <summary>
     /// Build a JsonElement from a dictionary of named parameters.
@@ -110,6 +175,7 @@ public static partial class ToolCallHelper
     {
         var effectiveTimeoutSeconds = ResolveExecutionTimeoutSeconds(toolName, args, timeoutSeconds);
         var includeNavigation = ShouldIncludeNavigation(toolName, args);
+        var metricsCollector = CurrentMetricsCollector;
 
         // CRITICAL FIX: Enforce timeout on all tool executions
         // Prevents server hang if target process is frozen or unresponsive
@@ -124,14 +190,14 @@ public static partial class ToolCallHelper
             var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
             if (includeNavigation)
             {
-                var navigation = _navigationPlanner.PlanEnvelope(toolName, jsonElement, args, navigationState);
+                var navigation = CurrentNavigationPlanner.PlanEnvelope(toolName, jsonElement, args, navigationState);
                 jsonElement = EnsureNavigation(jsonElement, navigation);
             }
             jsonElement = ApplyToolSpecificContracts(toolName, args, jsonElement);
             jsonElement = NormalizePendingEventsContract(jsonElement);
             var isError = IsToolResultError(jsonElement);
 
-            _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, !isError);
+            metricsCollector?.RecordRequest(toolName, sw.ElapsedMilliseconds, !isError);
 
             return new CallToolResult()
             {
@@ -143,7 +209,7 @@ public static partial class ToolCallHelper
         catch (OperationCanceledException) when (cts.Token.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
             sw.Stop();
-            _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
+            metricsCollector?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
 
             // Timeout occurred (our CTS was cancelled, but caller's token was not)
             var timeoutRecovery = ResolveTimeoutRecovery(toolName, args);
@@ -189,7 +255,7 @@ public static partial class ToolCallHelper
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             sw.Stop();
-            _metrics?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
+            metricsCollector?.RecordRequest(toolName, sw.ElapsedMilliseconds, false);
 
             // Classify exception into stable error code and sanitized message
             // to prevent localized OS text or internal details from leaking to clients
@@ -340,20 +406,27 @@ public static partial class ToolCallHelper
     /// <param name="key">Unique cache key (typically the MCP tool name)</param>
     /// <param name="factory">Factory to create the tool if not cached</param>
     internal static T CachedTool<T>(string key, Func<T> factory) where T : class
-        => (T)ToolCache.GetOrAdd(key, _ => factory());
+        => (T)CurrentToolCache.GetOrAdd(key, _ => factory());
 
     /// <summary>
     /// Clear the tool cache and metrics. Only for use in tests to ensure test isolation.
     /// </summary>
     internal static void ResetCacheForTesting()
     {
-        ToolCache.Clear();
+        if (ToolCacheOverride.Value is not null)
+        {
+            ToolCacheOverride.Value = new ConcurrentDictionary<string, object>();
+            return;
+        }
+
+        GlobalToolCache.Clear();
         _metrics = null;
-        _navigationPlanner = new ToolNavigationPlanner(new ToolNavigationRegistry());
+        MetricsCollectorOverride.Value = null;
+        NavigationPlannerOverride.Value = null;
     }
 
     internal static void SetNavigationPlannerForTesting(ToolNavigationPlanner planner) =>
-        _navigationPlanner = planner ?? throw new ArgumentNullException(nameof(planner));
+        NavigationPlannerOverride.Value = planner ?? throw new ArgumentNullException(nameof(planner));
 
     internal static NavigationSessionState? ResolveNavigationState(SessionManager sessionManager, JsonElement? args)
     {

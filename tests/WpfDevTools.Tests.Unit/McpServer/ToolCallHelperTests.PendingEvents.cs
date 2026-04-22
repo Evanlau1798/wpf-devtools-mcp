@@ -7,9 +7,11 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 [Collection("ToolCallHelperState")]
 public sealed class ToolCallHelperTests_PendingEventsContract : IDisposable
 {
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
+
     public void Dispose()
     {
-        ToolCallHelper.ResetCacheForTesting();
+        _toolCallHelperScope.Dispose();
     }
 
     [Fact]

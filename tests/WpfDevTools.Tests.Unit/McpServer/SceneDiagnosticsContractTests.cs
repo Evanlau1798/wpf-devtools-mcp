@@ -8,9 +8,11 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 [Collection("ToolCallHelperState")]
 public sealed class SceneDiagnosticsContractTests : IDisposable
 {
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
+
     public void Dispose()
     {
-        ToolCallHelper.ResetCacheForTesting();
+        _toolCallHelperScope.Dispose();
     }
 
     [Fact]

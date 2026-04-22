@@ -9,16 +9,14 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 [Collection("ToolCallHelperState")]
 public sealed class ToolCallHelperNavigationOptOutTests : IDisposable
 {
-    public ToolCallHelperNavigationOptOutTests()
-    {
-        ToolCallHelper.ResetCacheForTesting();
-    }
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
 
     [Fact]
     public async Task ExecuteAndWrapAsync_WhenNavigationOptOutRequested_ShouldOmitNavigationAndNextSteps()
     {
         var registry = CreateRegistryWithRecommendedStep();
-        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(registry));
+        using var plannerScope = ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(registry));
         registry.Register("get_binding_errors", _ => ToolNavigationEnvelope.FromRecommended(
             [
                 new ToolNextStep(
@@ -45,7 +43,8 @@ public sealed class ToolCallHelperNavigationOptOutTests : IDisposable
     public async Task ExecuteAndWrapAsync_WhenNavigationOptOutOmitted_ShouldKeepNavigationAndNextSteps()
     {
         var registry = CreateRegistryWithRecommendedStep();
-        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(registry));
+        using var plannerScope = ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(registry));
 
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
             (_, _) => Task.FromResult<object>(new { success = true, errorCount = 1 }),
@@ -62,7 +61,8 @@ public sealed class ToolCallHelperNavigationOptOutTests : IDisposable
     public async Task ExecuteAndWrapAsync_WhenNavigationOptOutRequestedForToolWithoutAdvertisedSupport_ShouldKeepNavigationAndNextSteps()
     {
         var registry = CreateRegistryWithRecommendedStep();
-        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(registry));
+        using var plannerScope = ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(registry));
 
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
             (_, _) => Task.FromResult<object>(new { success = true, errorCount = 1 }),
@@ -77,7 +77,7 @@ public sealed class ToolCallHelperNavigationOptOutTests : IDisposable
 
     public void Dispose()
     {
-        ToolCallHelper.ResetCacheForTesting();
+        _toolCallHelperScope.Dispose();
     }
 
     private static ToolNavigationRegistry CreateRegistryWithRecommendedStep()

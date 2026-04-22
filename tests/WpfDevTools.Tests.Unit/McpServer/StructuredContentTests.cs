@@ -11,11 +11,13 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 /// and Annotations properties for improved AI-client discoverability.
 /// </summary>
 [Collection("ToolCallHelperState")]
-public class StructuredContentTests
+public class StructuredContentTests : IDisposable
 {
-    public StructuredContentTests()
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
+
+    public void Dispose()
     {
-        ToolCallHelper.ResetCacheForTesting();
+        _toolCallHelperScope.Dispose();
     }
 
     [Fact]

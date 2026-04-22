@@ -14,11 +14,12 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public class McpToolsWrapperTests : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
 
     public void Dispose()
     {
         _sessionManager.Dispose();
-        ToolCallHelper.ResetCacheForTesting();
+        _toolCallHelperScope.Dispose();
     }
 
     // === Process Tools ===

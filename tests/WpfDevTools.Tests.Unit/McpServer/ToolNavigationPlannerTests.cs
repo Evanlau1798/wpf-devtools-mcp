@@ -9,9 +9,11 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 [Collection("ToolCallHelperState")]
 public sealed class ToolNavigationPlannerTests : IDisposable
 {
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
+
     public void Dispose()
     {
-        ToolCallHelper.ResetCacheForTesting();
+        _toolCallHelperScope.Dispose();
     }
 
     [Fact]
@@ -33,7 +35,8 @@ public sealed class ToolNavigationPlannerTests : IDisposable
             ];
         });
 
-        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(registry));
+                using var plannerScope = ToolCallHelper.BeginTestScope(
+                    navigationPlanner: new ToolNavigationPlanner(registry));
         var args = ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "TextBox_1"));
 
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
@@ -60,7 +63,8 @@ public sealed class ToolNavigationPlannerTests : IDisposable
     [Fact]
     public async Task ExecuteAndWrapAsync_WithUnknownToolPlanner_ShouldFallbackToEmptyNextSteps()
     {
-        ToolCallHelper.SetNavigationPlannerForTesting(new ToolNavigationPlanner(new ToolNavigationRegistry()));
+        using var plannerScope = ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(new ToolNavigationRegistry()));
 
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
             (_, _) => Task.FromResult<object>(new { success = true }),
@@ -69,6 +73,45 @@ public sealed class ToolNavigationPlannerTests : IDisposable
             toolName: "unknown_tool");
 
         result.StructuredContent!.Value.GetProperty("nextSteps").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenNestedPlannerScopeDisposes_ShouldRestoreOuterPlanner()
+    {
+        var outerRegistry = new ToolNavigationRegistry();
+        outerRegistry.Register("known_tool", _ =>
+        [
+            new ToolNextStep("outer_step", NavigationParamBuilders.Create(), "Outer step", ToolNextStepKind.Diagnostic, 1)
+        ]);
+
+        using var outerScope = ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(outerRegistry));
+
+        var innerRegistry = new ToolNavigationRegistry();
+        innerRegistry.Register("known_tool", _ =>
+        [
+            new ToolNextStep("inner_step", NavigationParamBuilders.Create(), "Inner step", ToolNextStepKind.Diagnostic, 1)
+        ]);
+
+        using (ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(innerRegistry)))
+        {
+            var innerResult = await ToolCallHelper.ExecuteAndWrapAsync(
+                (_, _) => Task.FromResult<object>(new { success = true }),
+                null,
+                CancellationToken.None,
+                toolName: "known_tool");
+
+            innerResult.StructuredContent!.Value.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("inner_step");
+        }
+
+        var outerResult = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true }),
+            null,
+            CancellationToken.None,
+            toolName: "known_tool");
+
+        outerResult.StructuredContent!.Value.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("outer_step");
     }
 
     [Fact]

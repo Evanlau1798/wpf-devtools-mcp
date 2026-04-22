@@ -11,9 +11,11 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 [Collection("ToolCallHelperState")]
 public sealed class InteractionToolMetadataTests : IDisposable
 {
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
+
     public void Dispose()
     {
-        ToolCallHelper.ResetCacheForTesting();
+        _toolCallHelperScope.Dispose();
     }
 
     [Fact]

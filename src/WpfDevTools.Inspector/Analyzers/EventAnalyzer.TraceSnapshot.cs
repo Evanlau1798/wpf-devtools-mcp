@@ -20,7 +20,7 @@ public sealed partial class EventAnalyzer
 
         if (_eventTrace.Count > 0 && isCurrentSession)
         {
-            return _eventTrace.ToList();
+            return _eventTrace.GetSnapshot();
         }
 
         if (_watchEventBuffer == null || traceMetadata == null)

@@ -23,7 +23,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
     private readonly Func<Dispatcher?, Action, Exception?>? _cleanupInvoker;
     private readonly Action<UIElement, RoutedEvent, RoutedEventHandler, string, List<HandlerRegistration>>? _registrationInvoker;
     private readonly object _lock = new object();
-    private readonly List<object> _eventTrace = new List<object>();
+    private readonly TraceEventRingBuffer _eventTrace = new(MaxEventTraceEntries);
     private readonly Dictionary<string, CompletedTraceSnapshot> _completedTraceSnapshots = new Dictionary<string, CompletedTraceSnapshot>();
     private readonly Queue<string> _completedTraceSnapshotOrder = new Queue<string>();
     private const int MaxEventTraceEntries = 10000;
@@ -485,12 +485,6 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                         routingStrategy,
                         originalSourceType,
                         $"event:{traceSessionId}:{tracedElementId}:{e.RoutedEvent.Name}:{_handlerInvocationCount}");
-
-                    // Trim oldest entries if over limit
-                    if (_eventTrace.Count > MaxEventTraceEntries)
-                    {
-                        _eventTrace.RemoveRange(0, _eventTrace.Count - MaxEventTraceEntries);
-                    }
                 }
             }
         };
@@ -602,7 +596,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             _cleanupTransitionDispatcher = sessionToClean.Registrations.Count > 0
                 ? sessionToClean.Registrations[0].Element.Dispatcher
                 : Application.Current?.Dispatcher;
-            completedSnapshot = new CompletedTraceSnapshot(_eventTrace.ToList(), _handlerInvocationCount);
+            completedSnapshot = new CompletedTraceSnapshot(_eventTrace.GetSnapshot(), _handlerInvocationCount);
         }
 
         var removalSucceeded = TryCancelAndRemoveTraceSession(sessionToClean, out cleanupException);

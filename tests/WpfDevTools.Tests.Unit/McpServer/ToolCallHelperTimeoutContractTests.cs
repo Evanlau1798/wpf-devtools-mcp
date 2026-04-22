@@ -24,6 +24,54 @@ public class ToolCallHelperTimeoutContractTests
     }
 
     [Fact]
+    public void ResolveExecutionTimeoutSeconds_WhenWaitForDpChangeOmitsTimeoutMs_ShouldStillAddDefaultHeadroom()
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", 1234),
+            ("propertyName", "Text"));
+
+        var timeoutSeconds = ToolCallHelper.ResolveExecutionTimeoutSeconds(
+            "WaitForDpChange",
+            args,
+            timeoutSeconds: null);
+
+        timeoutSeconds.Should().Be(7);
+    }
+
+    [Fact]
+    public void ResolveExecutionTimeoutSeconds_WhenWaitForDpChangeAfterMutationRequestsLongerBudget_ShouldAddHeadroom()
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", 1234),
+            ("propertyName", "Text"),
+            ("timeoutMs", 6000),
+            ("triggerMutation", new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Ready" } }));
+
+        var timeoutSeconds = ToolCallHelper.ResolveExecutionTimeoutSeconds(
+            "WaitForDpChangeAfterMutation",
+            args,
+            timeoutSeconds: null);
+
+        timeoutSeconds.Should().Be(8);
+    }
+
+    [Fact]
+    public void ResolveExecutionTimeoutSeconds_WhenWaitForDpChangeAfterMutationOmitsTimeoutMs_ShouldStillAddDefaultHeadroom()
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", 1234),
+            ("propertyName", "Text"),
+            ("triggerMutation", new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Ready" } }));
+
+        var timeoutSeconds = ToolCallHelper.ResolveExecutionTimeoutSeconds(
+            "WaitForDpChangeAfterMutation",
+            args,
+            timeoutSeconds: null);
+
+        timeoutSeconds.Should().Be(7);
+    }
+
+    [Fact]
     public void ResolveExecutionTimeoutSeconds_WhenExplicitOverrideProvided_ShouldPreferOverride()
     {
         var args = ToolCallHelper.BuildJsonArgs(

@@ -30,6 +30,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static partial class ToolCallHelper
 {
     private const int WaitForDpChangeTimeoutHeadroomSeconds = 2;
+    private const int WaitForDpChangeDefaultTimeoutMs = 5000;
 
     private static readonly ConcurrentDictionary<string, object> ToolCache = new();
     private static readonly HashSet<string> NavigationOptOutTools = new(StringComparer.Ordinal)
@@ -214,6 +215,29 @@ public static partial class ToolCallHelper
         }
     }
 
+    internal static CallToolResult CreateStructuredErrorResult(
+        string error,
+        string errorCode,
+        string? hint = null,
+        string? suggestedAction = null)
+    {
+        var payload = EnsureNavigation(JsonSerializer.SerializeToElement(new
+        {
+            success = false,
+            error,
+            errorCode,
+            hint,
+            suggestedAction
+        }, SerializerOptions), ToolNavigationEnvelope.Empty);
+
+        return new CallToolResult()
+        {
+            Content = [CreateTextContentBlock(payload, isError: true)],
+            StructuredContent = payload,
+            IsError = true
+        };
+    }
+
     internal static int ResolveExecutionTimeoutSeconds(
         string toolName,
         JsonElement? args,
@@ -225,9 +249,12 @@ public static partial class ToolCallHelper
         }
 
         if (IsWaitForDpChangeTool(toolName)
-            && TryGetPositiveIntArg(args, "timeoutMs", out var timeoutMs))
+            )
         {
-            var requestedTimeoutSeconds = (int)Math.Ceiling(timeoutMs / 1000d);
+            var requestedTimeoutMs = TryGetPositiveIntArg(args, "timeoutMs", out var timeoutMs)
+                ? timeoutMs
+                : WaitForDpChangeDefaultTimeoutMs;
+            var requestedTimeoutSeconds = (int)Math.Ceiling(requestedTimeoutMs / 1000d);
             return Math.Max(
                 McpServerConfiguration.DefaultToolTimeoutSeconds,
                 requestedTimeoutSeconds + WaitForDpChangeTimeoutHeadroomSeconds);
@@ -239,7 +266,9 @@ public static partial class ToolCallHelper
     private static bool IsWaitForDpChangeTool(string toolName)
     {
         return string.Equals(toolName, "WaitForDpChange", StringComparison.Ordinal)
-            || string.Equals(toolName, "wait_for_dp_change", StringComparison.Ordinal);
+            || string.Equals(toolName, "wait_for_dp_change", StringComparison.Ordinal)
+            || string.Equals(toolName, "WaitForDpChangeAfterMutation", StringComparison.Ordinal)
+            || string.Equals(toolName, "wait_for_dp_change_after_mutation", StringComparison.Ordinal);
     }
 
     private static bool TryGetPositiveIntArg(JsonElement? args, string propertyName, out int value)

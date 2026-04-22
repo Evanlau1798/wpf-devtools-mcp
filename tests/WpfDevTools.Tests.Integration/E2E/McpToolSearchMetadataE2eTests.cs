@@ -24,6 +24,7 @@ public sealed class McpToolSearchMetadataE2eTests
         AssertTitle(tools, "get_visual_tree", "Inspect WPF Visual Tree");
         AssertTitle(tools, "get_binding_errors", "Diagnose WPF Binding Errors");
         AssertTitle(tools, "get_viewmodel", "Inspect WPF ViewModel");
+        AssertTitle(tools, "wait_for_dp_change_after_mutation", "Wait For WPF DependencyProperty Change After Mutation");
     }
 
     [Fact]
@@ -50,6 +51,65 @@ public sealed class McpToolSearchMetadataE2eTests
                     $"tool '{tool.GetProperty("name").GetString()}' should not include outputSchema.properties.structuredContent because Claude rejects it during tools/list validation");
             }
         }
+    }
+
+    [Fact]
+    public async Task ToolsList_ShouldClassifyWaitForDpChangeAndMutationVariantSeparately()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ListToolsAsync();
+        var tools = response.GetProperty("result").GetProperty("tools");
+        var readOnlyTool = tools.EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == "wait_for_dp_change");
+        var mutationTool = tools.EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == "wait_for_dp_change_after_mutation");
+
+        readOnlyTool.TryGetProperty("annotations", out var readOnlyAnnotations).Should().BeTrue(
+            "tools/list should expose MCP hint annotations for AI-friendly tool selection");
+        readOnlyAnnotations.TryGetProperty("readOnlyHint", out var readOnlyHint).Should().BeTrue(
+            "wait_for_dp_change is now the public read-only wait contract");
+        readOnlyHint.GetBoolean().Should().BeTrue();
+        readOnlyAnnotations.TryGetProperty("destructiveHint", out var readOnlyDestructiveHint).Should().BeTrue(
+            "the SDK currently emits an explicit non-destructive hint alongside read-only MCP metadata");
+        readOnlyDestructiveHint.GetBoolean().Should().BeFalse();
+
+        mutationTool.TryGetProperty("annotations", out var mutationAnnotations).Should().BeTrue(
+            "the mutation variant should also expose MCP hint annotations");
+        mutationAnnotations.TryGetProperty("destructiveHint", out var destructiveHint).Should().BeTrue(
+            "wait_for_dp_change_after_mutation executes one live mutation before waiting");
+        destructiveHint.GetBoolean().Should().BeTrue();
+        mutationAnnotations.TryGetProperty("readOnlyHint", out _).Should().BeFalse(
+            "the mutation variant should not advertise the opposite MCP hint");
+    }
+
+    [Fact]
+    public async Task ToolsList_ShouldExposeSeparatedWaitInputSchemas()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ListToolsAsync();
+        var tools = response.GetProperty("result").GetProperty("tools");
+        var readOnlyTool = tools.EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == "wait_for_dp_change");
+        var mutationTool = tools.EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == "wait_for_dp_change_after_mutation");
+
+        var readOnlyProperties = readOnlyTool.GetProperty("inputSchema").GetProperty("properties");
+        readOnlyProperties.TryGetProperty("triggerMutation", out _).Should().BeFalse(
+            "the public read-only wait tool should not advertise the mutation step in its schema");
+
+        var mutationSchema = mutationTool.GetProperty("inputSchema");
+        var mutationProperties = mutationSchema.GetProperty("properties");
+        mutationProperties.TryGetProperty("triggerMutation", out _).Should().BeTrue(
+            "the serialized mutation-plus-wait tool should require the mutation step in its schema");
+        mutationSchema.GetProperty("required").EnumerateArray().Select(item => item.GetString()).Should().Contain("triggerMutation");
     }
 
     [Fact]

@@ -199,12 +199,12 @@ public static class DependencyPropertyMcpTools
 
     [McpServerTool(Name = "watch_dp_changes", Title = "Watch WPF DependencyProperty Changes", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
-        "CURRENT BEHAVIOR: No observable effect over STDIO transport. Registration is stored internally but change events are never delivered to the client. Use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
+        "CURRENT BEHAVIOR: No observable effect over STDIO transport. Registration is stored internally only until the next successful drain_events readback or piggyback cycle, and change events are never pushed to the client. Use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
         "Use this tool to register WPF DependencyProperty watch state before polling for runtime changes.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Register a listener for property value changes. " +
-        "Over STDIO, this is registration-only - events are not pushed.\n\n" +
+        "Over STDIO, this is registration-only - events are not pushed, and the registration is intentionally transient so shared-session state does not accumulate stale watchers. Any successful drain_events readback ends that transient watch cycle, even when no DpChange payload is returned.\n\n" +
         "USE WHEN: You are preparing for future push-capable transports, or you explicitly want watch registration state.\n" +
-        "DO NOT USE: Expecting real-time event delivery over STDIO - use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
+        "DO NOT USE: Expecting real-time event delivery over STDIO or expecting watch state to survive unrelated drain_events reads - use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -237,15 +237,16 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "wait_for_dp_change", Title = "Wait For WPF DependencyProperty Change", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "wait_for_dp_change", Title = "Wait For WPF DependencyProperty Change", OpenWorld = false, ReadOnly = true, Destructive = false, UseStructuredContent = false)]
     [Description(
         "Use this tool to wait for a WPF DependencyProperty to change over a bounded polling window.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Wait for a DependencyProperty change using polling. " +
         "This tool is designed for STDIO transports where push notifications are not available.\n\n" +
         "USE WHEN: You need to wait for a property transition after an interaction, command, or state mutation without implementing your own polling loop.\n" +
         "DO NOT USE: As a real-time push subscription. This tool polls get_dp_value_source-style state until timeout.\n\n" +
+        "READ-ONLY MODE: This call only polls existing runtime state and does not mutate the application.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value. Omit it to stop on any value change.\n\n" +
-        "SERIALIZED-CLIENT WORKFLOW: Provide `triggerMutation` using the same shape as one `batch_mutate` step when your MCP client cannot issue concurrent tool calls on the same session. The server will execute that mutation first, then wait for the property transition. Treat that form as a destructive workflow because it mutates live runtime state before waiting.\n\n" +
+        "SERIALIZED-CLIENT WORKFLOW: If your MCP client cannot issue a concurrent mutation while this wait is running, use `wait_for_dp_change_after_mutation` for the destructive mutation-plus-wait workflow instead of overloading this read-only tool.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -253,7 +254,67 @@ public static class DependencyPropertyMcpTools
         "  timedOut: boolean,\n" +
         "  observedChange: boolean,\n" +
         "  matchedExpectedValueAtStart: boolean,\n" +
-        "  completionReason: 'ExpectedValueAlreadySatisfied'|'ExpectedValueReached'|'ValueChanged'|'TimedOut'|'TriggerMutationTimedOut',\n" +
+        "  completionReason: 'ExpectedValueAlreadySatisfied'|'ExpectedValueReached'|'ValueChanged'|'TimedOut',\n" +
+        "  stateAfterTimeoutUnknown: boolean,\n" +
+        "  requiresReconnect: boolean,\n" +
+        "  elementId: string|null,\n" +
+        "  propertyName: string,\n" +
+        "  initialValue,\n" +
+        "  initialBaseValueSource,\n" +
+        "  currentValue,\n" +
+        "  baseValueSource,\n" +
+        "  elapsedMs: number,\n" +
+        "  pollCount: number\n" +
+        "}\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
+        "- \"invalid argument\" -> verify timeoutMs/pollIntervalMs are within allowed bounds\n\n" +
+        "EXAMPLES:\n" +
+        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", timeoutMs: 5000 }\n" +
+        "- { processId: 12345, elementId: \"StatusText\", propertyName: \"Text\", expectedValue: \"Complete\", timeoutMs: 10000 }\n" +
+        "- { elementId: \"NameTextBox\", propertyName: \"Text\", pollIntervalMs: 100, timeoutMs: 2000 }")]
+    public static Task<CallToolResult> WaitForDpChange(
+        SessionManager sessionManager,
+        [Description("DependencyProperty name to monitor for changes.")] string propertyName,
+        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
+        [Description("Optional timeout in milliseconds. Default: 5000.")] int? timeoutMs = null,
+        [Description("Optional polling interval in milliseconds. Default: 200.")] int? pollIntervalMs = null,
+        [Description("Optional expected property value. Omit to stop on any value change.")] JsonElement? expectedValue = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("processId", processId),
+            ("elementId", elementId),
+            ("propertyName", propertyName),
+            ("timeoutMs", timeoutMs),
+            ("pollIntervalMs", pollIntervalMs),
+            ("expectedValue", expectedValue));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (a, ct) => ToolCallHelper.CachedTool<WaitForDpChangeTool>("WaitForDpChangeTool", () => new WaitForDpChangeTool(sessionManager)).ExecuteAsync(a, ct),
+            args,
+            cancellationToken);
+    }
+
+    [McpServerTool(Name = "wait_for_dp_change_after_mutation", Title = "Wait For WPF DependencyProperty Change After Mutation", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [Description(
+        "Use this tool to execute one live runtime mutation and then wait for a WPF DependencyProperty to change over a bounded polling window.\n\n" +
+        DependencyPropertyMetadata + "[DependencyProperty] Execute one serialized mutation step, then wait for the resulting DependencyProperty transition using polling. " +
+        "This tool is designed for STDIO transports where push notifications are not available and the client cannot issue concurrent calls on the same session.\n\n" +
+        "USE WHEN: Your MCP client must mutate and then wait inside one bounded request without sending a second concurrent tool call.\n" +
+        "DO NOT USE: For plain read-only waits. Use wait_for_dp_change when you only need to observe existing runtime state.\n\n" +
+        "MUTATION STEP: Provide `triggerMutation` using the same shape as one `batch_mutate` step. The server will execute that mutation first, then wait for the property transition. This workflow is destructive because it mutates live runtime state before waiting.\n\n" +
+        "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value after the mutation. Omit it to stop on any value change.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  changed: boolean,\n" +
+        "  timedOut: boolean,\n" +
+        "  observedChange: boolean,\n" +
+        "  matchedExpectedValueAtStart: boolean,\n" +
+        "  completionReason: 'ExpectedValueReached'|'ValueChanged'|'TimedOut'|'TriggerMutationTimedOut',\n" +
         "  stateAfterTimeoutUnknown: boolean,\n" +
         "  requiresReconnect: boolean,\n" +
         "  elementId: string|null,\n" +
@@ -271,19 +332,17 @@ public static class DependencyPropertyMcpTools
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
         "- \"invalid argument\" -> verify timeoutMs/pollIntervalMs are within allowed bounds\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", timeoutMs: 5000 }\n" +
-        "- { processId: 12345, elementId: \"StatusText\", propertyName: \"Text\", expectedValue: \"Complete\", timeoutMs: 10000 }\n" +
-        "- { elementId: \"NameTextBox\", propertyName: \"Text\", pollIntervalMs: 100, timeoutMs: 2000 }\n" +
-        "- { elementId: \"SearchProbeTextBox\", propertyName: \"Text\", expectedValue: \"Ready\", triggerMutation: { tool: \"modify_viewmodel\", args: { propertyName: \"SearchText\", value: \"Ready\" } } }")]
-    public static Task<CallToolResult> WaitForDpChange(
+        "- { elementId: \"SearchProbeTextBox\", propertyName: \"Text\", expectedValue: \"Ready\", triggerMutation: { tool: \"modify_viewmodel\", args: { propertyName: \"SearchText\", value: \"Ready\" } } }\n" +
+        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", triggerMutation: { tool: \"execute_command\", args: { commandName: \"RefreshCommand\" } }, timeoutMs: 5000 }")]
+    public static Task<CallToolResult> WaitForDpChangeAfterMutation(
         SessionManager sessionManager,
-        [Description("DependencyProperty name to monitor for changes.")] string propertyName,
+        [Description("DependencyProperty name to monitor for changes after the mutation runs.")] string propertyName,
+        [Description("Single mutation step as a JSON object, using the same shape as one batch_mutate item: { \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }.")] JsonElement triggerMutation,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         [Description("Optional timeout in milliseconds. Default: 5000.")] int? timeoutMs = null,
         [Description("Optional polling interval in milliseconds. Default: 200.")] int? pollIntervalMs = null,
         [Description("Optional expected property value. Omit to stop on any value change.")] JsonElement? expectedValue = null,
-        [Description("Optional single mutation step as a JSON object, using the same shape as one batch_mutate item: { \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }. Use this when the client cannot send a concurrent mutation while wait_for_dp_change is running.")] JsonElement? triggerMutation = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

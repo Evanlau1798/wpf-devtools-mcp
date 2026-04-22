@@ -2,6 +2,7 @@ using System.Runtime.Versioning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpPrompts;
 using WpfDevTools.Mcp.Server.McpResources;
@@ -65,6 +66,25 @@ try
         options.ServerInstructions = ServerInstructions.Value;
     })
     .WithStdioServerTransport()
+    .WithRequestFilters(filters =>
+    {
+        filters.AddCallToolFilter(next => async (request, cancellationToken) =>
+        {
+            var parameters = request.Params;
+            if (parameters is not null
+                && string.Equals(parameters.Name, "wait_for_dp_change", StringComparison.Ordinal)
+                && parameters.Arguments?.ContainsKey("triggerMutation") == true)
+            {
+                return ToolCallHelper.CreateStructuredErrorResult(
+                    "wait_for_dp_change no longer accepts triggerMutation. Use wait_for_dp_change_after_mutation instead.",
+                    "InvalidArgument",
+                    hint: "Retry with wait_for_dp_change_after_mutation and the same triggerMutation payload.",
+                    suggestedAction: "Retry with wait_for_dp_change_after_mutation and the same triggerMutation payload.");
+            }
+
+            return await next(request, cancellationToken);
+        });
+    })
     .WithToolsFromAssembly()
     .WithPromptsFromAssembly(typeof(WorkflowPrompts).Assembly)
     .WithResourcesFromAssembly(typeof(CapabilityResources).Assembly);

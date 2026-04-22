@@ -111,7 +111,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                     elapsedMs: stopwatch.ElapsedMilliseconds,
                     pollCount: 0,
                     observedChange: false,
-                    matchedExpectedValueAtStart: false,
+                    matchedExpectedValueAtStart: matchedExpectedValueAtStart,
                         completionReason: "TriggerMutationTimedOut",
                         stateAfterTimeoutUnknown: true,
                         requiresReconnect: true);
@@ -135,7 +135,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                     elapsedMs: stopwatch.ElapsedMilliseconds,
                     pollCount: 0,
                     observedChange: HasObservedChange(initialSnapshot, afterTriggerSnapshot),
-                    matchedExpectedValueAtStart: false,
+                    matchedExpectedValueAtStart: matchedExpectedValueAtStart,
                         completionReason: "TimedOut");
             }
 
@@ -151,7 +151,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                     elapsedMs: stopwatch.ElapsedMilliseconds,
                     pollCount: 0,
                     observedChange: HasObservedChange(initialSnapshot, afterTriggerSnapshot),
-                    matchedExpectedValueAtStart: false,
+                    matchedExpectedValueAtStart: matchedExpectedValueAtStart,
                     completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
             }
         }
@@ -187,7 +187,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                     stopwatch.ElapsedMilliseconds,
                     pollCount,
                     observedChange: HasObservedChange(initialSnapshot, currentSnapshot),
-                    matchedExpectedValueAtStart: false,
+                    matchedExpectedValueAtStart: matchedExpectedValueAtStart,
                     completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
             }
         }
@@ -210,7 +210,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                 stopwatch.ElapsedMilliseconds,
                 pollCount,
                 observedChange: HasObservedChange(initialSnapshot, finalSnapshot),
-                matchedExpectedValueAtStart: false,
+                matchedExpectedValueAtStart: matchedExpectedValueAtStart,
                 completionReason: expectedValue.HasValue ? "ExpectedValueReached" : "ValueChanged");
         }
 
@@ -224,7 +224,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             stopwatch.ElapsedMilliseconds,
             pollCount,
             observedChange: HasObservedChange(initialSnapshot, finalSnapshot),
-            matchedExpectedValueAtStart: false,
+                matchedExpectedValueAtStart: matchedExpectedValueAtStart,
             completionReason: "TimedOut");
     }
 

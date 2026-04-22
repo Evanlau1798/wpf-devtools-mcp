@@ -188,6 +188,7 @@ public sealed class WaitForDpChangeToolConcurrencyTests
 
         waitJson.GetProperty("success").GetBoolean().Should().BeTrue();
         waitJson.GetProperty("completionReason").GetString().Should().NotBe("ExpectedValueAlreadySatisfied");
+        waitJson.GetProperty("matchedExpectedValueAtStart").GetBoolean().Should().BeTrue();
         connected.RequestMethods.Should().Contain("modify_viewmodel");
     }
 

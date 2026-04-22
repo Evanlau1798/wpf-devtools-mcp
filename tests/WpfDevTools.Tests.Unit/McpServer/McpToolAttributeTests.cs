@@ -184,6 +184,7 @@ public class McpToolAttributeTests
     [InlineData("clear_dp_value")]
     [InlineData("watch_dp_changes")]
     [InlineData("wait_for_dp_change")]
+    [InlineData("wait_for_dp_change_after_mutation")]
     public void DependencyPropertyTools_ShouldExist(string toolName)
     {
         AllTools.Should().Contain(t => t.Attr.Name == toolName);
@@ -277,6 +278,7 @@ public class McpToolAttributeTests
     [InlineData("get_layout_info")]
     [InlineData("get_viewmodel")]
     [InlineData("get_render_stats")]
+    [InlineData("wait_for_dp_change")]
     public void ReadOnlyTools_ShouldBeMarkedReadOnly(string toolName)
     {
         var tool = AllTools.First(t => t.Attr.Name == toolName);
@@ -298,7 +300,7 @@ public class McpToolAttributeTests
     [InlineData("focus_element")]
     [InlineData("simulate_keyboard")]
     [InlineData("force_binding_update")]
-    [InlineData("wait_for_dp_change")]
+    [InlineData("wait_for_dp_change_after_mutation")]
     [InlineData("scroll_to_element")]
     [InlineData("highlight_element")]
     [InlineData("restore_state_snapshot")]

@@ -38,6 +38,7 @@ public static class ServerInstructions
         === TIMEOUTS ===
         - connect(): 30 seconds (DLL injection + IPC handshake)
         - ping(): 5 seconds
+        - wait_for_dp_change and wait_for_dp_change_after_mutation: default bounded wait window is 5 seconds; larger timeoutMs values are supported and the server adds a small execution headroom above the requested polling budget
         - All other tools: 5 seconds (UI thread operations)
         - If timeout occurs, process may be frozen or unresponsive
 
@@ -118,6 +119,7 @@ public static class ServerInstructions
         - Treat returned runtime navigation as session-aware when you have already captured a snapshot or started a routed-event trace in the same connected process
         - When you already know the next step and do not need server guidance, get_binding_errors accepts navigation=false to omit navigation and compatibility nextSteps on that specific call; schema-driven clients may rely on that opt-out there because the parameter is advertised in the tool schema today. Do not generalize that opt-out to other tools unless their schema explicitly advertises it too.
         - In STDIO transport, prefer polling workflows over push-style watcher/event streaming expectations
+        - wait_for_dp_change is now read-only; if you need the old triggerMutation-style serialized mutation-plus-wait flow, use wait_for_dp_change_after_mutation instead
         - Avoid calling performance tools (get_render_stats, measure_element_render_time) in loops
         - When debugging, start broad (get_binding_errors) then narrow (get_bindings on specific element)
         - For MVVM apps, inspect ViewModel first (get_viewmodel, get_commands) before modifying
@@ -132,7 +134,7 @@ public static class ServerInstructions
         - drag_and_drop: simulate drag-drop operations
         - invalidate_layout: force layout recalculation
         - focus_element, restore_state_snapshot: change focus or replay captured runtime state
-        - wait_for_dp_change with triggerMutation: executes one live mutation before waiting for the resulting property transition
+        - wait_for_dp_change_after_mutation: executes one live mutation before waiting for the resulting property transition
         - batch_mutate: execute multiple mutations in ordered sequence
         - scroll_to_element: change scroll position to bring element into view
         - highlight_element: add temporary visual overlay adorner

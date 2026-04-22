@@ -5,19 +5,19 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public class BuildConfigurationTests
 {
     [Fact]
-    public void DirectoryBuildProps_ShouldDisableParallelBuilds_ForDeterministicProjectReferenceResolution()
+    public void DirectoryBuildProps_ShouldNotGloballyDisableParallelBuilds()
     {
         var content = File.ReadAllText(GetRepoFilePath("Directory.Build.props"));
 
-        content.Should().Contain("<BuildInParallel>false</BuildInParallel>");
+        content.Should().NotContain("<BuildInParallel>false</BuildInParallel>");
     }
 
     [Fact]
-    public void DirectoryBuildProps_ShouldDisableParallelRestoreGraph_ForDeterministicRestore()
+    public void DirectoryBuildProps_ShouldNotGloballyDisableParallelRestoreGraph()
     {
         var content = File.ReadAllText(GetRepoFilePath("Directory.Build.props"));
 
-        content.Should().Contain("<RestoreBuildInParallel>false</RestoreBuildInParallel>");
+        content.Should().NotContain("<RestoreBuildInParallel>false</RestoreBuildInParallel>");
     }
 
     [Fact]
@@ -41,11 +41,13 @@ public class BuildConfigurationTests
     }
 
     [Fact]
-    public void MsBuildResponseFile_ShouldForceSingleNodeBuilds_ForDeterministicSolutionBuilds()
+    public void RepoResponseFiles_ShouldNotForceSingleNodeBuilds()
     {
-        var content = File.ReadAllText(GetRepoFilePath("msbuild.rsp"));
+        var msbuildRsp = ReadResponseFileOptions("msbuild.rsp");
+        var directoryBuildRsp = ReadResponseFileOptions("Directory.Build.rsp");
 
-        content.Should().Contain("-maxCpuCount:1");
+        AssertResponseFileKeepsNodeReuseSuppressionWithoutSingleNodeThrottle(msbuildRsp);
+        AssertResponseFileKeepsNodeReuseSuppressionWithoutSingleNodeThrottle(directoryBuildRsp);
     }
 
     [Fact]
@@ -76,5 +78,26 @@ public class BuildConfigurationTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string[] ReadResponseFileOptions(string relativePath)
+    {
+        return File.ReadAllLines(GetRepoFilePath(relativePath))
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .ToArray();
+    }
+
+    private static void AssertResponseFileKeepsNodeReuseSuppressionWithoutSingleNodeThrottle(string[] options)
+    {
+        options.Should().Contain("-nodeReuse:false");
+        options.Any(IsSingleNodeThrottleOption).Should().BeFalse();
+    }
+
+    private static bool IsSingleNodeThrottleOption(string option)
+    {
+        var normalized = option.TrimStart('-', '/');
+        return string.Equals(normalized, "maxCpuCount:1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "m:1", StringComparison.OrdinalIgnoreCase);
+    }
 }
 

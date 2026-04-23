@@ -21,6 +21,8 @@ public static class Bootstrap
     private static int _isInitializing; // 0 = not initializing, 1 = initializing
     private static readonly object _lock = new object();
     private static Host.InspectorHost? _host;
+    private static Shared.Security.AuthenticationManager? _authenticationManager;
+    private static Shared.Security.CertificateManager? _certificateManager;
     internal static Action BindingErrorTraceListenerInstallAction { get; set; } = static () => BindingErrorTraceListener.Install();
     internal static Action BindingErrorTraceListenerUninstallAction { get; set; } = static () => BindingErrorTraceListener.Uninstall();
     internal static Func<int, string, Shared.Security.AuthenticationManager?, Shared.Security.CertificateManager?, Host.InspectorHost> HostFactory { get; set; }
@@ -229,6 +231,8 @@ public static class Bootstrap
             lock (_lock)
             {
                 _host = host;
+                _authenticationManager = authManager;
+                _certificateManager = certManager;
                 _isInitialized = true;
             }
 
@@ -389,13 +393,15 @@ public static class Bootstrap
     {
         try
         {
-            CleanupFailedInitialization(_host, authManager: null);
+            CleanupFailedInitialization(_host, _authenticationManager);
         }
         catch
         {
         }
 
         _host = null;
+        _authenticationManager = null;
+        _certificateManager = null;
         _isInitialized = false;
         Interlocked.Exchange(ref _isInitializing, 0);
         BindingErrorTraceListenerInstallAction = static () => BindingErrorTraceListener.Install();
@@ -414,6 +420,7 @@ public static class Bootstrap
         Shared.Security.AuthenticationManager? authManager)
     {
         Exception? cleanupError = null;
+        var hostCleanupFailed = false;
 
         try
         {
@@ -430,6 +437,7 @@ public static class Bootstrap
         }
         catch (Exception ex)
         {
+            hostCleanupFailed = true;
             cleanupError = cleanupError == null
                 ? ex
                 : new AggregateException(cleanupError, ex);
@@ -437,7 +445,10 @@ public static class Bootstrap
 
         try
         {
-            authManager?.Dispose();
+            if (host == null || hostCleanupFailed || !host.OwnsAuthenticationManager(authManager))
+            {
+                authManager?.Dispose();
+            }
         }
         catch (Exception ex)
         {

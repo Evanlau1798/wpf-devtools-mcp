@@ -153,6 +153,40 @@ public class EncryptedCommunicationTests : IDisposable
     }
 
     [Fact]
+    public async Task EncryptedPipe_ShouldDisposeLoadedServerCertificateAfterHandshake()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
+        var certManager = new CertificateManager(_tempCertDir);
+        X509Certificate2? loadedCertificate = null;
+
+        InspectorHost.ServerCertificateLoadedCallback = certificate => loadedCertificate = certificate;
+
+        try
+        {
+            using var host = new InspectorHost(pid, pipeName, authManager: null, certManager);
+            host.Start();
+
+            using var client = new NamedPipeClient(pid, pipeName, authManager: null, certManager);
+            var connected = await client.ConnectAsync(TimeSpan.FromSeconds(10));
+            connected.Should().BeTrue();
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await client.SendRequestAsync(
+                "ping", "enc-cert-dispose", new { }, cts.Token);
+
+            response.Error.Should().BeNull();
+            loadedCertificate.Should().NotBeNull();
+            SpinWait.SpinUntil(() => loadedCertificate!.Handle == IntPtr.Zero, 2_000)
+                .Should().BeTrue("the temporary server certificate should be disposed after TLS setup completes");
+        }
+        finally
+        {
+            InspectorHost.ServerCertificateLoadedCallback = null;
+        }
+    }
+
+    [Fact]
     public async Task NoEncryption_BackwardCompatible_ShouldStillWork()
     {
         // Arrange - no auth, no encryption (backward compatible)

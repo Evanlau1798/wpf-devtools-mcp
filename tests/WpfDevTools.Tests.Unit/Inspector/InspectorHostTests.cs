@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Xunit;
@@ -8,6 +9,7 @@ using WpfDevTools.Shared.Serialization;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Utilities;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Tests.Unit.Inspector;
 
@@ -114,6 +116,20 @@ public class InspectorHostTests : IDisposable
 
         var act = () => localHost.Dispose();
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Dispose_ShouldDisposeAuthenticationManager()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        using var authenticationManager = new AuthenticationManager(
+            () => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        var localHost = new InspectorHost(pid, authenticationManager);
+
+        localHost.Dispose();
+
+        Action getSecret = () => authenticationManager.GetSharedSecret();
+        getSecret.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]

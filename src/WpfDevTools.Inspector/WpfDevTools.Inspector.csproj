@@ -17,6 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="WpfDevTools.Inspector.Sdk" />
     <InternalsVisibleTo Include="WpfDevTools.Tests.Unit" />
     <InternalsVisibleTo Include="WpfDevTools.Tests.Integration" />
   </ItemGroup>

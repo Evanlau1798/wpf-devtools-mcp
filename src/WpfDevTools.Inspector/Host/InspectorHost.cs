@@ -74,7 +74,10 @@ public sealed partial class InspectorHost : IDisposable
     /// Create a new InspectorHost instance with optional authentication
     /// </summary>
     /// <param name="processId">Process ID of the target WPF application</param>
-    /// <param name="authManager">Authentication manager (null to disable authentication)</param>
+    /// <param name="authManager">
+    /// Authentication manager (null to disable authentication).
+    /// Ownership is transferred to the host and the manager is disposed when the host is disposed.
+    /// </param>
     public InspectorHost(int processId, AuthenticationManager? authManager)
         : this(processId, CreatePipeName(processId), authManager, null, FileLogLevel.Warning)
     {
@@ -84,7 +87,10 @@ public sealed partial class InspectorHost : IDisposable
     /// Create a new InspectorHost instance with optional authentication and encryption
     /// </summary>
     /// <param name="processId">Process ID of the target WPF application</param>
-    /// <param name="authManager">Authentication manager (null to disable authentication)</param>
+    /// <param name="authManager">
+    /// Authentication manager (null to disable authentication).
+    /// Ownership is transferred to the host and the manager is disposed when the host is disposed.
+    /// </param>
     /// <param name="certManager">Certificate manager for SslStream encryption (null to disable encryption)</param>
     public InspectorHost(int processId, AuthenticationManager? authManager, CertificateManager? certManager)
         : this(processId, CreatePipeName(processId), authManager, certManager, FileLogLevel.Warning)
@@ -744,6 +750,11 @@ public sealed partial class InspectorHost : IDisposable
 
     internal bool IsDisposed => System.Threading.Volatile.Read(ref _disposeState) == 2;
 
+    internal bool OwnsAuthenticationManager(AuthenticationManager? authenticationManager)
+    {
+        return ReferenceEquals(_authManager, authenticationManager);
+    }
+
     /// <summary>
     /// Dispose resources and stop the Inspector server
     /// </summary>
@@ -777,6 +788,15 @@ public sealed partial class InspectorHost : IDisposable
         try
         {
             _logger.Dispose();
+        }
+        catch (Exception ex)
+        {
+            cleanupError = cleanupError == null ? ex : new AggregateException(cleanupError, ex);
+        }
+
+        try
+        {
+            _authManager?.Dispose();
         }
         catch (Exception ex)
         {

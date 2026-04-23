@@ -1,6 +1,10 @@
 using System.Windows;
+using System.Windows.Threading;
 using WpfDevTools.Inspector.Host;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
+using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Inspector.Sdk;
 
@@ -14,6 +18,11 @@ public static class InspectorSdk
     private static WpfDevTools.Shared.Security.CertificateManager? _certificateManager;
     private static int _isInitializing; // 0 = not initializing, 1 = initializing (atomic guard)
     private static volatile bool _isInitialized;
+
+    internal static Func<Dispatcher?> DispatcherResolver { get; set; } = static () => Application.Current?.Dispatcher;
+    internal static Action? InitializationQueuedCallback { get; set; }
+    internal static Action? BeforeAbortPendingInitializationCallback { get; set; }
+    internal static Action<InspectorHost>? HostStartedCallback { get; set; }
 
     public static Exception? LastInitializationError { get; private set; }
     public static Exception? LastShutdownError { get; private set; }
@@ -43,20 +52,11 @@ public static class InspectorSdk
             var pid = processId ?? Environment.ProcessId;
 
             // Must run on UI thread
-            if (Application.Current?.Dispatcher?.CheckAccess() == false)
+            var dispatcher = DispatcherResolver();
+            if (dispatcher != null && !dispatcher.CheckAccess())
             {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    try
-                    {
-                        InitializeCore(pid);
-                    }
-                    finally
-                    {
-                        Interlocked.Exchange(ref _isInitializing, 0);
-                    }
-                });
-                return; // finally in Dispatcher.Invoke handles reset
+                InvokeInitializeOnDispatcher(dispatcher, pid);
+                return;
             }
 
             InitializeCore(pid);
@@ -86,16 +86,26 @@ public static class InspectorSdk
         {
             host = new InspectorHost(pid, authenticationManager, certificateManager);
             host.Start();
+            HostStartedCallback?.Invoke(host);
 
             _authenticationManager = authenticationManager;
             _certificateManager = certificateManager;
             _host = host;
             _isInitialized = true;
         }
-        catch
+        catch (Exception ex)
         {
-            host?.Stop();
-            authenticationManager?.Dispose();
+            try
+            {
+                CleanupHostResources(host, authenticationManager);
+            }
+            catch (Exception cleanupError)
+            {
+                ex.Data["CleanupFailure"] = cleanupError;
+                Trace.TraceError($"InspectorSdk cleanup after initialization failure also failed: {cleanupError}");
+            }
+
+            ExceptionDispatchInfo.Capture(ex).Throw();
             throw;
         }
     }
@@ -129,14 +139,7 @@ public static class InspectorSdk
             _certificateManager = null;
             _isInitialized = false;
 
-            try
-            {
-                host?.Dispose();
-            }
-            finally
-            {
-                authenticationManager?.Dispose();
-            }
+            CleanupHostResources(host, authenticationManager);
         }
         catch (Exception ex)
         {
@@ -154,4 +157,137 @@ public static class InspectorSdk
     /// Gets whether the SDK is initialized
     /// </summary>
     public static bool IsInitialized => _isInitialized;
+
+    internal static void CleanupHostResources(InspectorHost? host, AuthenticationManager? authenticationManager)
+    {
+        Exception? cleanupError = null;
+        var hostCleanupFailed = false;
+
+        try
+        {
+            host?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            hostCleanupFailed = true;
+            cleanupError = ex;
+        }
+
+        try
+        {
+            if (host == null || hostCleanupFailed || !host.OwnsAuthenticationManager(authenticationManager))
+            {
+                authenticationManager?.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            cleanupError = cleanupError == null
+                ? ex
+                : new AggregateException(cleanupError, ex);
+        }
+
+        if (cleanupError != null)
+        {
+            ExceptionDispatchInfo.Capture(cleanupError).Throw();
+        }
+    }
+
+    internal static void InvokeInitializeOnDispatcher(
+        Dispatcher dispatcher,
+        int processId,
+        TimeSpan? timeout = null)
+    {
+        ArgumentNullException.ThrowIfNull(dispatcher);
+
+        if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+        {
+            throw new InvalidOperationException("Cannot initialize WpfDevTools Inspector SDK because the UI dispatcher is shutting down.");
+        }
+
+        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
+        var initializationStarted = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var operation = dispatcher.InvokeAsync(
+            () =>
+            {
+                initializationStarted.TrySetResult(null);
+                InitializeCore(processId);
+            },
+            DispatcherPriority.Normal,
+            CancellationToken.None);
+        InitializationQueuedCallback?.Invoke();
+
+        var completedTask = Task.WhenAny(
+            initializationStarted.Task,
+            operation.Task,
+            Task.Delay(actualTimeout)).GetAwaiter().GetResult();
+
+        if (ReferenceEquals(completedTask, operation.Task))
+        {
+            if (operation.Status == DispatcherOperationStatus.Aborted || operation.Task.IsCanceled ||
+                dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+            {
+                throw new InvalidOperationException("Cannot initialize WpfDevTools Inspector SDK because the UI dispatcher shut down before initialization could start.");
+            }
+
+            operation.Task.GetAwaiter().GetResult();
+            return;
+        }
+
+        if (ReferenceEquals(completedTask, initializationStarted.Task))
+        {
+            operation.Task.GetAwaiter().GetResult();
+            return;
+        }
+
+        if (initializationStarted.Task.IsCompleted || operation.Status == DispatcherOperationStatus.Executing)
+        {
+            operation.Task.GetAwaiter().GetResult();
+            return;
+        }
+
+        if (operation.Status == DispatcherOperationStatus.Aborted || operation.Task.IsCanceled ||
+            dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+        {
+            throw new InvalidOperationException("Cannot initialize WpfDevTools Inspector SDK because the UI dispatcher shut down before initialization could start.");
+        }
+
+        if (operation.Status == DispatcherOperationStatus.Pending)
+        {
+            BeforeAbortPendingInitializationCallback?.Invoke();
+
+            if (initializationStarted.Task.IsCompleted || operation.Status == DispatcherOperationStatus.Executing || operation.Task.IsCompleted)
+            {
+                operation.Task.GetAwaiter().GetResult();
+                return;
+            }
+
+            if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+            {
+                throw new InvalidOperationException("Cannot initialize WpfDevTools Inspector SDK because the UI dispatcher shut down before initialization could start.");
+            }
+
+            operation.Abort();
+
+            if (initializationStarted.Task.IsCompleted || operation.Status == DispatcherOperationStatus.Executing)
+            {
+                operation.Task.GetAwaiter().GetResult();
+                return;
+            }
+
+            if (operation.Status == DispatcherOperationStatus.Aborted || operation.Task.IsCanceled)
+            {
+                throw new TimeoutException(
+                    $"Timed out after {actualTimeout.TotalMilliseconds}ms while marshaling WpfDevTools Inspector SDK initialization to the UI dispatcher.");
+            }
+
+            if (operation.Task.IsCompleted)
+            {
+                operation.Task.GetAwaiter().GetResult();
+                return;
+            }
+        }
+
+        operation.Task.GetAwaiter().GetResult();
+    }
 }

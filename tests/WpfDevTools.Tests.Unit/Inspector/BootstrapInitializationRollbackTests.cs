@@ -124,6 +124,22 @@ public sealed class BootstrapInitializationRollbackTests : IDisposable
     }
 
     [Fact]
+    public void ResetForTesting_AfterSuccessfulAuthEnabledInitialization_ShouldDisposeAuthenticationManager()
+    {
+        var secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+        Bootstrap.InitializeOnUiThreadForTesting(
+            $"pipeName=WpfDevTools_BootstrapAuthCleanup_{Guid.NewGuid():N};auth=enabled;authSecretBase64={secret}");
+
+        _authenticationManager.Should().NotBeNull();
+
+        Bootstrap.ResetForTesting();
+
+        Action getSecret = () => _authenticationManager!.GetSharedSecret();
+        getSecret.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
     public async Task Initialize_WhenHostStartupTimesOutThenPipeCreationSucceeds_ShouldNotPublishInitializedState()
     {
         using var dispatcherThread = new DispatcherThreadContext();

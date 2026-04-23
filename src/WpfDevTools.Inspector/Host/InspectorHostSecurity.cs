@@ -13,6 +13,8 @@ namespace WpfDevTools.Inspector.Host;
 /// </summary>
 public sealed partial class InspectorHost
 {
+    internal static Action<System.Security.Cryptography.X509Certificates.X509Certificate2>? ServerCertificateLoadedCallback { get; set; }
+
     private NamedPipeServerStream CreateSecurePipeServer()
     {
         if (_pipeServerFactory != null)
@@ -142,9 +144,10 @@ public sealed partial class InspectorHost
         NamedPipeServerStream pipe, CancellationToken cancellationToken)
     {
         SslStream? sslStream = null;
+        var certificate = _certManager!.GetOrCreateCertificate();
         try
         {
-            var certificate = _certManager!.GetOrCreateCertificate();
+            ServerCertificateLoadedCallback?.Invoke(certificate);
             sslStream = new SslStream(pipe, leaveInnerStreamOpen: true);
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -199,6 +202,10 @@ public sealed partial class InspectorHost
             sslStream?.Dispose();
             LogError($"TLS stream disposed during handshake: {ex.Message}");
             return null;
+        }
+        finally
+        {
+            certificate.Dispose();
         }
     }
 }

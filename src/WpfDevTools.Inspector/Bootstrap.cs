@@ -33,8 +33,10 @@ public static class Bootstrap
     internal static Func<Dispatcher?> DispatcherResolver { get; set; } = ResolveDispatcher;
     internal static Action<Action> BackgroundInitializationScheduler { get; set; } = static action => _ = Task.Run(action);
     internal static TimeSpan DispatcherFinalizeTimeout { get; set; } = InspectorConfig.ShutdownTimeout;
+    internal static Func<bool> FileLogOptInEvaluator { get; set; } = IsTempFileLoggingOptedIn;
+    internal static Action<string> FileLogAppendAction { get; set; } = AppendFileLogEntry;
 
-    // Cached once at startup to avoid calling Process.GetCurrentProcess().Id on every log entry
+    // Cached once at startup to avoid calling Process.GetCurrentProcess().Id on every opt-in log entry
     private static readonly string _logFilePath = Path.Combine(
         Path.GetTempPath(),
         $"WpfDevTools_Inspector_{System.Diagnostics.Process.GetCurrentProcess().Id}.log");
@@ -369,12 +371,37 @@ public static class Bootstrap
     {
         try
         {
-            File.AppendAllText(_logFilePath, $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}");
+            if (!FileLogOptInEvaluator())
+            {
+                System.Diagnostics.Debug.WriteLine($"Bootstrap: {message}");
+                return;
+            }
+
+            FileLogAppendAction($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}");
         }
         catch (Exception logEx)
         {
             System.Diagnostics.Debug.WriteLine($"Bootstrap: Failed to write log file: {logEx.Message}");
         }
+    }
+
+    private static void AppendFileLogEntry(string entry)
+    {
+        File.AppendAllText(_logFilePath, entry);
+    }
+
+    private static bool IsTempFileLoggingOptedIn()
+    {
+        var value = Environment.GetEnvironmentVariable("WPFDEVTOOLS_BOOTSTRAP_FILE_LOG");
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
+            || (bool.TryParse(value, out var enabled) && enabled);
     }
 
     /// <summary>
@@ -413,6 +440,8 @@ public static class Bootstrap
         DispatcherResolver = ResolveDispatcher;
         BackgroundInitializationScheduler = static action => _ = Task.Run(action);
         DispatcherFinalizeTimeout = InspectorConfig.ShutdownTimeout;
+        FileLogOptInEvaluator = IsTempFileLoggingOptedIn;
+        FileLogAppendAction = AppendFileLogEntry;
     }
 
     private static void CleanupFailedInitialization(

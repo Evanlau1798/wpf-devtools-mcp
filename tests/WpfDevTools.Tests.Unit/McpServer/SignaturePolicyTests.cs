@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Reflection;
 using Xunit;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Tools;
@@ -13,6 +14,7 @@ public class SignaturePolicyTests
     // Policy contract: trusted-root-only model
     //   - Release builds ALWAYS verify signatures
     //   - Debug builds skip verification (path already validated as trusted root)
+    //   - Trusted non-Release workspace builds require explicit opt-in before skipping
 
     [Fact]
     public void Evaluate_ReleaseBuild_ShouldAlwaysVerify()
@@ -33,14 +35,41 @@ public class SignaturePolicyTests
     }
 
     [Fact]
-    public void Evaluate_TrustedLocalDevelopmentBuild_ShouldSkip()
+    public void Evaluate_ShouldPreserveTwoParameterOverloadForBinaryCompatibility()
+    {
+        var overload = typeof(SignaturePolicy).GetMethod(
+            nameof(SignaturePolicy.Evaluate),
+            BindingFlags.Public | BindingFlags.Static,
+            binder: null,
+            types: [typeof(bool), typeof(bool)],
+            modifiers: null);
+
+        overload.Should().NotBeNull(
+            "existing compiled callers still bind to the original two-parameter SignaturePolicy.Evaluate overload");
+    }
+
+    [Fact]
+    public void Evaluate_TrustedLocalDevelopmentBuildWithoutExplicitOptIn_ShouldVerify()
     {
         var result = SignaturePolicy.Evaluate(
             isDebugBuild: false,
-            isTrustedLocalDevelopmentBuild: true);
+            isTrustedLocalDevelopmentBuild: true,
+            isTrustedLocalDevelopmentSkipOptIn: false);
+
+        result.Should().Be(SignaturePolicy.Action.Verify,
+            "trusted non-Release workspace builds must not auto-skip signature verification without an explicit opt-in");
+    }
+
+    [Fact]
+    public void Evaluate_TrustedLocalDevelopmentBuildWithExplicitOptIn_ShouldSkip()
+    {
+        var result = SignaturePolicy.Evaluate(
+            isDebugBuild: false,
+            isTrustedLocalDevelopmentBuild: true,
+            isTrustedLocalDevelopmentSkipOptIn: true);
 
         result.Should().Be(SignaturePolicy.Action.Skip,
-            "trusted non-Release workspace builds should remain usable for local development");
+            "trusted non-Release workspace builds may skip verification only after an explicit local opt-in");
     }
 
     // === Revocation mode tests ===
@@ -65,14 +94,41 @@ public class SignaturePolicyTests
     }
 
     [Fact]
-    public void GetRevocationMode_TrustedLocalDevelopmentBuild_ShouldReturnOffline()
+    public void GetRevocationMode_ShouldPreserveTwoParameterOverloadForBinaryCompatibility()
+    {
+        var overload = typeof(SignaturePolicy).GetMethod(
+            nameof(SignaturePolicy.GetRevocationMode),
+            BindingFlags.Public | BindingFlags.Static,
+            binder: null,
+            types: [typeof(bool), typeof(bool)],
+            modifiers: null);
+
+        overload.Should().NotBeNull(
+            "existing compiled callers still bind to the original two-parameter SignaturePolicy.GetRevocationMode overload");
+    }
+
+    [Fact]
+    public void GetRevocationMode_TrustedLocalDevelopmentBuildWithoutExplicitOptIn_ShouldReturnOnline()
     {
         var mode = SignaturePolicy.GetRevocationMode(
             isDebugBuild: false,
-            isTrustedLocalDevelopmentBuild: true);
+            isTrustedLocalDevelopmentBuild: true,
+            isTrustedLocalDevelopmentSkipOptIn: false);
+
+        mode.Should().Be(X509RevocationMode.Online,
+            "trusted local workspace builds must keep production-style revocation checks until an explicit opt-in is present");
+    }
+
+    [Fact]
+    public void GetRevocationMode_TrustedLocalDevelopmentBuildWithExplicitOptIn_ShouldReturnOffline()
+    {
+        var mode = SignaturePolicy.GetRevocationMode(
+            isDebugBuild: false,
+            isTrustedLocalDevelopmentBuild: true,
+            isTrustedLocalDevelopmentSkipOptIn: true);
 
         mode.Should().Be(X509RevocationMode.Offline,
-            "trusted local workspace builds should avoid production-style signature network checks");
+            "trusted local workspace builds may avoid production-style revocation checks only after an explicit opt-in");
     }
 
 
@@ -222,6 +278,70 @@ public class SignaturePolicyTests
         var configuration = DllPathValidator.TryGetBuildConfiguration(baseDirectory);
 
         configuration.Should().Be("Release");
+    }
+
+    [Fact]
+    public void IsTrustedLocalDevelopmentSignatureSkipOptInEnabled_WithoutEnvVar_ShouldReturnFalse()
+    {
+        var previousValue = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
+        var baseDirectory = CreateWorkspaceBuildBaseDirectory();
+
+        try
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", null);
+
+            var enabled = DllPathValidator.IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(baseDirectory);
+
+            enabled.Should().BeFalse(
+                "trusted non-Release workspace builds must not relax signature verification unless the local developer opts in explicitly");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", previousValue);
+            Directory.Delete(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(baseDirectory)!)!)!)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void IsTrustedLocalDevelopmentSignatureSkipOptInEnabled_WithEnvVar_ShouldReturnTrue()
+    {
+        var previousValue = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
+        var baseDirectory = CreateWorkspaceBuildBaseDirectory();
+
+        try
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", "1");
+
+            var enabled = DllPathValidator.IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(baseDirectory);
+
+            enabled.Should().BeTrue(
+                "trusted non-Release workspace builds may relax signature verification after an explicit local opt-in");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", previousValue);
+            Directory.Delete(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(baseDirectory)!)!)!)!, recursive: true);
+        }
+    }
+
+    private static string CreateWorkspaceBuildBaseDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var mainRoot = Path.Combine(root, "repo");
+        var worktreeRoot = Path.Combine(mainRoot, ".worktrees", "feature-branch");
+        var baseDirectory = Path.Combine(
+            worktreeRoot,
+            "src",
+            "WpfDevTools.Mcp.Server",
+            "bin",
+            "Checked",
+            "net8.0-windows");
+
+        Directory.CreateDirectory(baseDirectory);
+        File.WriteAllText(Path.Combine(mainRoot, "WpfDevTools.sln"), string.Empty);
+        File.WriteAllText(Path.Combine(worktreeRoot, "WpfDevTools.sln"), string.Empty);
+
+        return baseDirectory;
     }
 }
 

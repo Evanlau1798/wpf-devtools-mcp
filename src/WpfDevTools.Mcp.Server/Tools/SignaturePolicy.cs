@@ -35,8 +35,30 @@ public static class SignaturePolicy
     public static Action Evaluate(
         bool isDebugBuild,
         bool isTrustedLocalDevelopmentBuild = false)
+        => Evaluate(
+            isDebugBuild,
+            isTrustedLocalDevelopmentBuild,
+            isTrustedLocalDevelopmentSkipOptIn: false);
+
+    /// <summary>
+    /// Evaluate the signature verification policy for a DLL.
+    /// Called only after path validation confirms the DLL is under a trusted root.
+    /// </summary>
+    /// <param name="isDebugBuild">Whether this is a DEBUG build</param>
+    /// <param name="isTrustedLocalDevelopmentBuild">Whether this is a trusted non-Release workspace build used for local development</param>
+    /// <param name="isTrustedLocalDevelopmentSkipOptIn">Whether local development has explicitly opted in to skipping signature verification</param>
+    /// <returns>Whether to verify or skip signature verification</returns>
+    public static Action Evaluate(
+        bool isDebugBuild,
+        bool isTrustedLocalDevelopmentBuild,
+        bool isTrustedLocalDevelopmentSkipOptIn = false)
     {
-        if (isDebugBuild || isTrustedLocalDevelopmentBuild)
+        if (isDebugBuild)
+        {
+            return Action.Skip;
+        }
+
+        if (isTrustedLocalDevelopmentBuild && isTrustedLocalDevelopmentSkipOptIn)
         {
             return Action.Skip;
         }
@@ -55,8 +77,26 @@ public static class SignaturePolicy
     public static X509RevocationMode GetRevocationMode(
         bool isDebugBuild,
         bool isTrustedLocalDevelopmentBuild = false)
+        => GetRevocationMode(
+            isDebugBuild,
+            isTrustedLocalDevelopmentBuild,
+            isTrustedLocalDevelopmentSkipOptIn: false);
+
+    /// <summary>
+    /// Determine the certificate revocation check mode based on build configuration.
+    /// Debug uses Offline to prevent network blocking during development.
+    /// Release uses Online for maximum security.
+    /// </summary>
+    /// <param name="isDebugBuild">Whether this is a DEBUG build</param>
+    /// <param name="isTrustedLocalDevelopmentBuild">Whether this is a trusted non-Release workspace build used for local development</param>
+    /// <param name="isTrustedLocalDevelopmentSkipOptIn">Whether local development has explicitly opted in to skipping signature verification</param>
+    /// <returns>The revocation mode to use for certificate chain validation</returns>
+    public static X509RevocationMode GetRevocationMode(
+        bool isDebugBuild,
+        bool isTrustedLocalDevelopmentBuild,
+        bool isTrustedLocalDevelopmentSkipOptIn = false)
     {
-        return Evaluate(isDebugBuild, isTrustedLocalDevelopmentBuild) == Action.Skip
+        return Evaluate(isDebugBuild, isTrustedLocalDevelopmentBuild, isTrustedLocalDevelopmentSkipOptIn) == Action.Skip
             ? X509RevocationMode.Offline
             : X509RevocationMode.Online;
     }

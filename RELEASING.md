@@ -13,6 +13,18 @@ Before running packaging locally, install the native prerequisites used by the b
 
 The managed projects build with the .NET SDK, but `WpfDevTools.Bootstrapper.vcxproj` still requires the native Visual C++ toolchain for every release architecture.
 
+For signed `Release` packaging, set the signer pin plus either a PFX path or an already-installed certificate thumbprint before running preflight:
+
+```powershell
+$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT = '<THUMBPRINT>'
+$env:WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH = '.\tmp\cert\WpfDevTools.pfx'
+$env:WPFDEVTOOLS_PFX_PASSWORD = '<PFX_PASSWORD>'
+```
+
+If the signing certificate is already installed in `Cert:\CurrentUser\My`, you can omit `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` and let `Publish-Release.ps1` sign by thumbprint.
+
+In CI, `WPFDEVTOOLS_PFX_PASSWORD` must be present and non-empty when `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` points at a PFX file. `Publish-Release.ps1` now fails fast instead of prompting.
+
 Run the release preflight script from the repository root:
 
 ```powershell
@@ -60,7 +72,9 @@ Before publishing a public Release channel build, confirm:
 - The working tree is clean
 - The version tag is final
 - Release packages were produced from the tagged revision
-- Authenticode signing inputs are ready for the Inspector DLLs used in Release builds
+- `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` is set to the expected release signer
+- `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` or an installed certificate thumbprint is available to `Publish-Release.ps1`
+- `WPFDEVTOOLS_PFX_PASSWORD` is available when the signing certificate is supplied as a PFX file
 - The repository online installer source remains available at `https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1`
 - The raw installer URL still resolves to `https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1`
 
@@ -76,9 +90,12 @@ Trigger modes:
 The workflow will:
 
 1. Check out the tagged revision
-2. Rebuild release packages for `x64`, `x86`, and `arm64`
-3. Stage checksums and metadata
-4. Execute the generated upload helper to attach assets to the GitHub Release
+2. Materialize `WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64` into `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH`
+3. Rebuild and sign release packages for `x64`, `x86`, and `arm64` using `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`
+4. Stage checksums and metadata
+5. Execute the generated upload helper to attach assets to the GitHub Release
+
+The CI smoke lane in `./.github/workflows/ci-cd.yml` does not use the production certificate. Instead, it sets `WPFDEVTOOLS_INSTALLER_TEST_MODE=1`, `WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA=1`, and `WPFDEVTOOLS_TEST_SIGNATURE_STATUS=Valid` so `Publish-Release.ps1` exercises the release-signature contract deterministically on hosted runners while local archive smoke installs still trust the freshly generated release sidecars only through the explicit test hook.
 
 ## 5. Recommended publish sequence
 

@@ -108,6 +108,10 @@ jobs:
 
   release-packaging-smoke:
     runs-on: windows-latest
+    env:
+      WPFDEVTOOLS_INSTALLER_TEST_MODE: '1'
+      WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA: '1'
+      WPFDEVTOOLS_TEST_SIGNATURE_STATUS: 'Valid'
 
     strategy:
       matrix:
@@ -159,12 +163,24 @@ jobs:
     - name: Uninstall published package smoke test
       shell: pwsh
       run: |
-        & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+        $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path '${{ matrix.architecture }}\current\bin\install.ps1'
+
+        if (-not (Test-Path $installedScript)) {
+          throw "Could not locate installed package-local installer at $installedScript"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
 
     - name: Uninstall online installer smoke test
       shell: pwsh
       run: |
-        & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+        $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path '${{ matrix.architecture }}\current\bin\install.ps1'
+
+        if (-not (Test-Path $installedScript)) {
+          throw "Could not locate installed online-installer payload at $installedScript"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
   code-coverage:
     runs-on: windows-latest
 

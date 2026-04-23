@@ -76,13 +76,15 @@ function Resolve-PackageSession {
         New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
         Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
         Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
-        # Extracted archives can trust DebugTrustedRootSkip only after the archive
-        # itself passes checksum and zip-slip validation above.
+        # Shipping PackageArchivePath installs accept trusted archive provenance
+        # only when release metadata can be resolved from the trusted release
+        # source. Archive-adjacent release-assets.json/SHA256SUMS.txt remain a
+        # test-only emulation path and are not a production trust root.
         return [ordered]@{
             PackageDirectory = $extractRoot
             SessionRoot = $sessionRoot
             CleanupSession = $true
-            TrustedArchiveManifestPolicy = $true
+            TrustedArchiveManifestPolicy = [bool]$integrity.HasTrustedReleaseMetadata
             TrustedSignerThumbprint = [string]$integrity.TrustedSignerThumbprint
             TrustedSignerSubject = [string]$integrity.TrustedSignerSubject
             DownloadSource = 'local-package'

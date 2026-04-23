@@ -257,12 +257,22 @@ function Assert-ArchiveIntegrity {
     $archiveIdentity = Get-ReleaseArchiveIdentity -ArchivePath $ArchivePath -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture
     $canonicalAssetName = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.AssetName } else { $null }
 
-    $releaseRecord = Get-ReleaseAssetRecordFromDirectory `
-        -DirectoryPath (Split-Path -Parent $ArchivePath) `
-        -AssetName $canonicalAssetName `
-        -ArchiveHash $archiveHash
+    if ($DownloadSource -eq 'local-package' -and [string]::IsNullOrWhiteSpace($canonicalAssetName)) {
+        throw "Archive integrity could not be verified for local package archive '$ArchivePath' because the canonical release asset identity could not be resolved from the archive name."
+    }
 
-    if ($null -eq $releaseRecord -and $DownloadSource -eq 'github-release' -and $null -ne $archiveIdentity) {
+    $releaseRecord = $null
+    if ($DownloadSource -eq 'github-release' -or
+        ($DownloadSource -eq 'local-package' -and (Test-AllowLocalArchiveReleaseMetadataInTestMode))) {
+        $releaseRecord = Get-ReleaseAssetRecordFromDirectory `
+            -DirectoryPath (Split-Path -Parent $ArchivePath) `
+            -AssetName $canonicalAssetName `
+            -ArchiveHash $archiveHash
+    }
+
+    if ($null -eq $releaseRecord -and
+        ($DownloadSource -eq 'github-release' -or $DownloadSource -eq 'local-package') -and
+        $null -ne $archiveIdentity) {
         $releaseRecord = Get-ReleaseAssetRecordFromGitHub `
             -ResolvedVersion ([string]$archiveIdentity.ResolvedVersion) `
             -AssetName $canonicalAssetName `
@@ -283,6 +293,7 @@ function Assert-ArchiveIntegrity {
         $recordIdentity = Get-ReleaseAssetIdentity -AssetName ([string]$releaseRecord.AssetName)
         $finalIdentity = if ($null -ne $recordIdentity) { $recordIdentity } else { $archiveIdentity }
         return [ordered]@{
+            HasTrustedReleaseMetadata = $true
             PackageAssetName = [string]$releaseRecord.AssetName
             DownloadUri = if ($null -ne $finalIdentity) { Get-ReleaseDownloadUri -ResolvedVersion ([string]$finalIdentity.ResolvedVersion) -ResolvedArchitecture ([string]$finalIdentity.ResolvedArchitecture) } else { $null }
             ResolvedVersion = if ($null -ne $finalIdentity) { [string]$finalIdentity.ResolvedVersion } else { $ResolvedVersion }
@@ -294,6 +305,7 @@ function Assert-ArchiveIntegrity {
     }
 
     return [ordered]@{
+        HasTrustedReleaseMetadata = $false
         PackageAssetName = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.AssetName } else { (Split-Path -Leaf $ArchivePath) }
         DownloadUri = if ($null -ne $archiveIdentity) { Get-ReleaseDownloadUri -ResolvedVersion ([string]$archiveIdentity.ResolvedVersion) -ResolvedArchitecture ([string]$archiveIdentity.ResolvedArchitecture) } else { $null }
         ResolvedVersion = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.ResolvedVersion } else { $ResolvedVersion }
@@ -398,6 +410,11 @@ function Test-InstallerTestModeEnabled {
     return [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)
 }
 
+function Test-AllowLocalArchiveReleaseMetadataInTestMode {
+    return (Test-InstallerTestModeEnabled) -and
+        [string]::Equals([string]$env:WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA, '1', [System.StringComparison]::Ordinal)
+}
+
 function Normalize-SignerThumbprint {
     param([string]$Thumbprint)
 
@@ -433,6 +450,34 @@ function Get-PackageExpectedSignerMetadata {
         Thumbprint = Normalize-SignerThumbprint -Thumbprint $thumbprint
         Subject = if ([string]::IsNullOrWhiteSpace($subject)) { $null } else { $subject }
     }
+}
+
+function Get-PackagePayloadSignature {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS)) {
+        if (-not (Test-InstallerTestModeEnabled)) {
+            throw 'WPFDEVTOOLS_TEST_SIGNATURE_STATUS is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+        }
+
+        $forcedStatus = [string]$env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS
+        if ([string]::Equals($forcedStatus, 'Valid', [System.StringComparison]::OrdinalIgnoreCase)) {
+            return [pscustomobject]@{
+                Status = [System.Management.Automation.SignatureStatus]::Valid
+                SignerCertificate = [pscustomobject]@{
+                    Thumbprint = 'TESTSIGNER00000000000000000000000000000000'
+                    Subject = 'CN=WPFDEVTOOLS TEST SIGNER'
+                }
+            }
+        }
+
+        return [pscustomobject]@{
+            Status = $forcedStatus
+            SignerCertificate = $null
+        }
+    }
+
+    return Get-AuthenticodeSignature -FilePath $Path
 }
 
 function Get-PackagePayloadSignatureTargets {
@@ -486,9 +531,13 @@ function Get-PackagePayloadSignatureTargets {
     signature policy before installation.
 
 .PARAMETER TrustedArchiveManifestPolicy
-    Indicates the package directory was extracted from an archive that already
-    passed Assert-ArchiveIntegrity and Assert-ArchiveSafeEntries, so a
-    DebugTrustedRootSkip manifest may skip per-payload Authenticode checks.
+    Indicates the package directory was extracted from a GitHub release archive
+    whose provenance already passed trusted release metadata verification in
+    Assert-ArchiveIntegrity plus zip-slip validation in Assert-ArchiveSafeEntries.
+    This is a provenance hint only; archive-controlled manifest fields must not
+    use it to relax shipping payload signature requirements. Local
+    PackageArchivePath installs never set this flag because archive-adjacent
+    release-assets.json/SHA256SUMS.txt are not a trusted root.
 #>
 function Assert-PackagePayloadIntegrity {
     param(
@@ -502,12 +551,9 @@ function Assert-PackagePayloadIntegrity {
     $signaturePolicy = [string]$PackageManifest.signaturePolicy
     $installerMode = Resolve-InstallerMode
 
-    # Archive-backed sessions have already passed release checksum and zip-slip
-    # validation in Assert-ArchiveIntegrity/Assert-ArchiveSafeEntries, so
-    # DebugTrustedRootSkip only bypasses per-payload Authenticode checks there.
-    if ($signaturePolicy -eq 'DebugTrustedRootSkip' -and $TrustedArchiveManifestPolicy) {
-        return
-    }
+    # TrustedArchiveManifestPolicy records that archive provenance was verified,
+    # but shipping payload signature requirements still must not be downgraded
+    # by archive-controlled manifest fields such as DebugTrustedRootSkip.
 
     $requiresSignedPayload = $false
 
@@ -525,6 +571,11 @@ function Assert-PackagePayloadIntegrity {
         return
     }
 
+    if (-not (Test-InstallerTestModeEnabled) -and
+        -not [string]::IsNullOrWhiteSpace([string]$env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS)) {
+        throw 'WPFDEVTOOLS_TEST_SIGNATURE_STATUS is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+    }
+
     $targets = @(Get-PackagePayloadSignatureTargets -PackageDirectory $PackageDirectory -PackageManifest $PackageManifest)
     if ($targets.Count -eq 0) {
         throw 'Package payload signature verification could not locate any executable payloads.'
@@ -537,11 +588,11 @@ function Assert-PackagePayloadIntegrity {
     if (-not (Test-InstallerTestModeEnabled) -and
         [string]::IsNullOrWhiteSpace([string]$expectedSigner.Thumbprint) -and
         [string]::IsNullOrWhiteSpace([string]$expectedSigner.Subject)) {
-        throw 'Package payload signature verification requires pinned signer metadata from release metadata or WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+        throw 'Package payload signature verification requires pinned signer metadata from a trusted release source or WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT/WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT.'
     }
 
     foreach ($targetPath in $targets) {
-        $signature = Get-AuthenticodeSignature -FilePath $targetPath
+        $signature = Get-PackagePayloadSignature -Path $targetPath
         if ($null -eq $signature -or $signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
             $signatureStatus = if ($null -eq $signature) { 'Unknown' } else { [string]$signature.Status }
             throw "Package payload signature verification failed for $targetPath. Authenticode status: $signatureStatus."

@@ -39,6 +39,10 @@ public sealed class ReleaseReadinessDocumentationTests
             "the release guide should explain how to manually rerun the GitHub release workflow");
         content.Should().Contain("release.yml",
             "the release guide should point maintainers to the GitHub release automation workflow");
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
+            "maintainers need the exact signer pin variables called out before running signed Release packaging");
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH",
+            "the guide should explain how hosted or local packaging supplies the signing certificate to Publish-Release.ps1");
         content.Should().Contain("without uploading to GitHub",
             "the guide should include a local validation path that stops before publication");
         content.Should().Contain("Desktop development with C++",
@@ -62,10 +66,18 @@ public sealed class ReleaseReadinessDocumentationTests
             "the guide should document the supported certificate-store signing parameter");
         content.Should().Contain("WPFDEVTOOLS_PFX_PASSWORD",
             "the guide should describe the password environment variable used by the signing script");
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64",
+            "the CI signing guide should describe how GitHub Actions materializes the release certificate on hosted runners");
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
+            "the guide should document the signer-pinning secret used by release packaging validation");
+        content.Should().Contain("WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA",
+            "the release guide should explain the explicit test-only trust hook used by the hosted smoke lane for synthetic local archive validation");
         content.Should().NotContain(".\\scripts\\Create-SelfSignedCert.ps1",
             "the guide should not reference the retired root-level helper path");
         content.Should().NotContain("-Password \"YourPassword\"",
             "the guide should not describe a PFX password parameter that the current signing script does not expose");
+        content.Should().NotContain("CERT_PATH",
+            "the GitHub Actions guidance should not rely on a runner-local certificate path secret that does not exist on hosted runners");
     }
 
     private static string GetRepoFilePath(string relativePath)

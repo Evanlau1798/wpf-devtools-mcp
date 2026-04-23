@@ -476,10 +476,17 @@ internal static class ReleaseScriptTestHarness
         }
 
         EnsureIsolatedProcessEnvironment(startInfo, environmentRoot, environmentOverrides);
+        ClearInheritedReleaseTestEnvironment(startInfo, environmentOverrides);
 
         if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
         {
             startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1";
+        }
+
+        if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal) &&
+            !startInfo.Environment.ContainsKey("WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"))
+        {
+            startInfo.Environment["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = "1";
         }
 
         try
@@ -531,6 +538,7 @@ internal static class ReleaseScriptTestHarness
         }
 
         EnsureIsolatedProcessEnvironment(startInfo, isolatedEnvironmentRoot, environmentOverrides);
+        ClearInheritedReleaseTestEnvironment(startInfo, environmentOverrides);
 
         if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
         {
@@ -653,6 +661,32 @@ internal static class ReleaseScriptTestHarness
         startInfo.Environment["TMP"] = environmentOverrides is not null && TryGetPathOverride(environmentOverrides, "TMP", out var tmpOverride)
             ? tmpOverride
             : startInfo.Environment["TEMP"];
+    }
+
+    private static void ClearInheritedReleaseTestEnvironment(
+        ProcessStartInfo startInfo,
+        IReadOnlyDictionary<string, string?>? environmentOverrides)
+    {
+        foreach (var variableName in new[]
+                 {
+                     "WPFDEVTOOLS_INSTALLER_TEST_MODE",
+                     "WPFDEVTOOLS_TEST_SIGNATURE_STATUS",
+                     "WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA",
+                     "WPFDEVTOOLS_TEST_FORCE_SIGNING_CERTIFICATE_CLEANUP_FAILURE",
+                     "WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
+                     "WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT",
+                     "WPFDEVTOOLS_RELEASE_CERTIFICATE_THUMBPRINT",
+                     "WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH",
+                     "WPFDEVTOOLS_PFX_PASSWORD",
+                     "WPFDEVTOOLS_SIGNTOOL_PATH",
+                     "WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"
+                 })
+        {
+            if (environmentOverrides is null || !environmentOverrides.ContainsKey(variableName))
+            {
+                startInfo.Environment.Remove(variableName);
+            }
+        }
     }
 
     private static void CopyInstallerHelperFiles(string destinationDirectory)

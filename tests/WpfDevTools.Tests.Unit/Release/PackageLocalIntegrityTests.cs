@@ -56,6 +56,108 @@ public sealed class PackageLocalIntegrityTests
     }
 
     [Fact]
+    public void PackageLocalInstaller_ShouldAllowDeterministicTestSignatureOverridesInInstallerTestMode()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64", useSignedPayload: false);
+            var extractRoot = Path.Combine(tempRoot, "package-extract");
+            ZipFile.ExtractToDirectory(archivePath, extractRoot);
+
+            var manifestPath = Path.Combine(extractRoot, "bin", "manifest.json");
+            using (var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath)))
+            {
+                var rewrittenManifest = JsonSerializer.Serialize(new
+                {
+                    name = manifest.RootElement.GetProperty("name").GetString(),
+                    version = manifest.RootElement.GetProperty("version").GetString(),
+                    architecture = manifest.RootElement.GetProperty("architecture").GetString(),
+                    runtimeId = manifest.RootElement.GetProperty("runtimeId").GetString(),
+                    channel = "release",
+                    buildConfiguration = "Release",
+                    signaturePolicy = "RequireAuthenticodeSignature",
+                    inspector = new
+                    {
+                        net8 = "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
+                        net48 = "bin/inspectors/net48/WpfDevTools.Inspector.dll"
+                    },
+                    bootstrapper = "bin/bootstrapper/x64/WpfDevTools.Bootstrapper.x64.dll"
+                });
+                File.WriteAllText(manifestPath, rewrittenManifest);
+            }
+
+            var environment = new Dictionary<string, string?>(CreateInstallerEnvironment(tempRoot))
+            {
+                ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "Valid"
+            };
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                Path.Combine(extractRoot, "bin", "install.ps1"),
+                ["-InstallRoot", Path.Combine(tempRoot, "install-root"), "-Client", "other", "-NonInteractive", "-Force", "-OutputJson"],
+                environment);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackageLocalInstaller_ShouldRejectDeterministicTestSignatureOverridesOutsideInstallerTestMode()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64", useSignedPayload: false);
+            var extractRoot = Path.Combine(tempRoot, "package-extract");
+            ZipFile.ExtractToDirectory(archivePath, extractRoot);
+
+            var manifestPath = Path.Combine(extractRoot, "bin", "manifest.json");
+            using (var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath)))
+            {
+                var rewrittenManifest = JsonSerializer.Serialize(new
+                {
+                    name = manifest.RootElement.GetProperty("name").GetString(),
+                    version = manifest.RootElement.GetProperty("version").GetString(),
+                    architecture = manifest.RootElement.GetProperty("architecture").GetString(),
+                    runtimeId = manifest.RootElement.GetProperty("runtimeId").GetString(),
+                    channel = "release",
+                    buildConfiguration = "Release",
+                    signaturePolicy = "RequireAuthenticodeSignature",
+                    inspector = new
+                    {
+                        net8 = "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
+                        net48 = "bin/inspectors/net48/WpfDevTools.Inspector.dll"
+                    },
+                    bootstrapper = "bin/bootstrapper/x64/WpfDevTools.Bootstrapper.x64.dll"
+                });
+                File.WriteAllText(manifestPath, rewrittenManifest);
+            }
+
+            var environment = new Dictionary<string, string?>(CreateInstallerEnvironment(tempRoot, enforceProductionMode: true))
+            {
+                ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "Valid"
+            };
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                Path.Combine(extractRoot, "bin", "install.ps1"),
+                ["-InstallRoot", Path.Combine(tempRoot, "install-root"), "-Client", "other", "-NonInteractive", "-Force", "-OutputJson"],
+                environment);
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("WPFDEVTOOLS_TEST_SIGNATURE_STATUS is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PackageLocalInstaller_ShouldIgnoreUnsignedThirdPartyDependenciesWhenSignedPayloadsAreValid()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

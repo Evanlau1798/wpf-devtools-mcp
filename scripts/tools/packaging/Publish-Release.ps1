@@ -3,6 +3,10 @@ param(
     [string]$Configuration = 'Release',
     [string[]]$Architectures = @('x64'),
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release'),
+    [string]$SigningCertificatePath,
+    [string]$SigningCertificateThumbprint,
+    [string]$SigningPasswordEnvironmentVariable = 'WPFDEVTOOLS_PFX_PASSWORD',
+    [string]$SigningTimestampServer = 'https://timestamp.digicert.com',
     [switch]$SkipBuild
 )
 
@@ -217,6 +221,11 @@ function Test-InstallerTestModeEnabled {
     return [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)
 }
 
+function Test-NonInteractiveReleaseSigningContext {
+    return [string]::Equals([string]$env:GITHUB_ACTIONS, 'true', [System.StringComparison]::OrdinalIgnoreCase) -or
+        [string]::Equals([string]$env:CI, 'true', [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Normalize-SignerThumbprint {
     param([string]$Thumbprint)
 
@@ -233,6 +242,326 @@ function Get-ReleaseSignerPin {
     return [ordered]@{
         Thumbprint = $thumbprint
         Subject = if ([string]::IsNullOrWhiteSpace($subject)) { $null } else { $subject }
+    }
+}
+
+function Get-ReleaseSigningInputs {
+    param(
+        [string]$CertificatePathParameter,
+        [string]$CertificateThumbprintParameter,
+        [string]$PasswordEnvironmentVariableParameter,
+        [string]$TimestampServerParameter
+    )
+
+    $certificatePath = if (-not [string]::IsNullOrWhiteSpace($CertificatePathParameter)) {
+        $CertificatePathParameter
+    }
+    else {
+        [string]$env:WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH
+    }
+
+    $certificateThumbprint = if (-not [string]::IsNullOrWhiteSpace($CertificateThumbprintParameter)) {
+        $CertificateThumbprintParameter
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace([string]$env:WPFDEVTOOLS_RELEASE_CERTIFICATE_THUMBPRINT)) {
+        [string]$env:WPFDEVTOOLS_RELEASE_CERTIFICATE_THUMBPRINT
+    }
+    else {
+        [string]$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT
+    }
+
+    $passwordEnvironmentVariable = if (-not [string]::IsNullOrWhiteSpace($PasswordEnvironmentVariableParameter)) {
+        $PasswordEnvironmentVariableParameter
+    }
+    else {
+        'WPFDEVTOOLS_PFX_PASSWORD'
+    }
+
+    $timestampServer = if (-not [string]::IsNullOrWhiteSpace($TimestampServerParameter)) {
+        $TimestampServerParameter
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace([string]$env:WPFDEVTOOLS_RELEASE_TIMESTAMP_SERVER)) {
+        [string]$env:WPFDEVTOOLS_RELEASE_TIMESTAMP_SERVER
+    }
+    else {
+        'https://timestamp.digicert.com'
+    }
+
+    return [ordered]@{
+        CertificatePath = if ([string]::IsNullOrWhiteSpace($certificatePath)) { $null } else { $certificatePath }
+        CertificateThumbprint = Normalize-SignerThumbprint -Thumbprint $certificateThumbprint
+        PasswordEnvironmentVariable = $passwordEnvironmentVariable
+        TimestampServer = $timestampServer
+    }
+}
+
+function Resolve-SignToolPath {
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_SIGNTOOL_PATH)) {
+        return $env:WPFDEVTOOLS_SIGNTOOL_PATH
+    }
+
+    $command = Get-Command 'signtool.exe' -ErrorAction SilentlyContinue
+    if ($null -ne $command) {
+        return $command.Source
+    }
+
+    $kitsRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+    if (-not (Test-Path $kitsRoot)) {
+        return $null
+    }
+
+    $candidate = Get-ChildItem -Path $kitsRoot -Recurse -Filter 'signtool.exe' -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -like '*\\x64\\signtool.exe' } |
+        Sort-Object FullName -Descending |
+        Select-Object -First 1
+    return $candidate.FullName
+}
+
+function Get-CertificatePassword {
+    param(
+        [Parameter(Mandatory)] [string]$EnvironmentVariableName,
+        [Parameter(Mandatory)] [string]$CertificatePath
+    )
+
+    $passwordValue = [Environment]::GetEnvironmentVariable($EnvironmentVariableName, 'Process')
+    if ([string]::IsNullOrWhiteSpace($passwordValue)) {
+        $passwordValue = [Environment]::GetEnvironmentVariable($EnvironmentVariableName, 'User')
+    }
+    if ([string]::IsNullOrWhiteSpace($passwordValue)) {
+        $passwordValue = [Environment]::GetEnvironmentVariable($EnvironmentVariableName, 'Machine')
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($passwordValue)) {
+        return (ConvertTo-SecureString -String $passwordValue -AsPlainText -Force)
+    }
+
+    if (Test-NonInteractiveReleaseSigningContext) {
+        throw "Non-interactive release signing requires environment variable '$EnvironmentVariableName' when using certificate path '$CertificatePath'."
+    }
+
+    return (Read-Host -Prompt "Enter the PFX password for $CertificatePath" -AsSecureString)
+}
+
+function Get-PfxCertificateMetadata {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] [securestring]$Password
+    )
+
+    $marshal = [System.Runtime.InteropServices.Marshal]
+    $bstr = [System.IntPtr]::Zero
+    $collection = $null
+
+    try {
+        $bstr = $marshal::SecureStringToBSTR($Password)
+        $plainTextPassword = $marshal::PtrToStringBSTR($bstr)
+
+        $collection = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2Collection
+        $collection.Import(
+            $Path,
+            $plainTextPassword,
+            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet)
+
+        $primaryCertificate = @($collection | Where-Object { $_.HasPrivateKey } | Select-Object -First 1)
+        if ($primaryCertificate.Count -eq 0) {
+            $primaryCertificate = @($collection | Select-Object -First 1)
+        }
+
+        if ($primaryCertificate.Count -eq 0) {
+            throw 'PFX metadata inspection did not find any certificates.'
+        }
+
+        return [ordered]@{
+            PrimaryThumbprint = Normalize-SignerThumbprint -Thumbprint ([string]$primaryCertificate[0].Thumbprint)
+            Thumbprints = @($collection | ForEach-Object { Normalize-SignerThumbprint -Thumbprint ([string]$_.Thumbprint) } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+        }
+    }
+    finally {
+        if ($collection -is [System.Security.Cryptography.X509Certificates.X509Certificate2Collection]) {
+            foreach ($certificate in $collection) {
+                if ($certificate -is [System.Security.Cryptography.X509Certificates.X509Certificate2]) {
+                    $certificate.Reset()
+                }
+            }
+        }
+
+        if ($bstr -ne [System.IntPtr]::Zero) {
+            $marshal::ZeroFreeBSTR($bstr)
+        }
+    }
+}
+
+function Import-SigningCertificate {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] [securestring]$Password
+    )
+
+    $importedCertificates = @(Import-PfxCertificate -FilePath $Path -CertStoreLocation 'Cert:\CurrentUser\My' -Password $Password)
+    if ($importedCertificates.Count -eq 0) {
+        throw 'Import-PfxCertificate did not return an imported certificate.'
+    }
+
+    $primaryCertificate = @($importedCertificates | Where-Object { $_.HasPrivateKey } | Select-Object -First 1)
+    if ($primaryCertificate.Count -eq 0) {
+        $primaryCertificate = @($importedCertificates | Select-Object -First 1)
+    }
+
+    return [ordered]@{
+        Thumbprint = Normalize-SignerThumbprint -Thumbprint ([string]$primaryCertificate[0].Thumbprint)
+        ImportedThumbprints = @($importedCertificates | ForEach-Object { Normalize-SignerThumbprint -Thumbprint ([string]$_.Thumbprint) } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    }
+}
+
+function Remove-ImportedSigningCertificates {
+    param([string[]]$Thumbprints)
+
+    if ([string]::Equals([string]$env:WPFDEVTOOLS_TEST_FORCE_SIGNING_CERTIFICATE_CLEANUP_FAILURE, '1', [System.StringComparison]::Ordinal)) {
+        throw 'Simulated release signing certificate cleanup failure.'
+    }
+
+    foreach ($thumbprint in @($Thumbprints | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+        $certificatePath = Join-Path 'Cert:\CurrentUser\My' $thumbprint
+        if (Test-Path $certificatePath) {
+            Remove-Item -Path $certificatePath -Force
+        }
+    }
+}
+
+function Invoke-ReleasePayloadSigning {
+    param(
+        [Parameter(Mandatory)] [string]$SignaturePolicy,
+        [Parameter(Mandatory)] [string[]]$PayloadPaths,
+        [string]$CertificatePathParameter,
+        [string]$CertificateThumbprintParameter,
+        [string]$PasswordEnvironmentVariableParameter,
+        [string]$TimestampServerParameter
+    )
+
+    if ($SignaturePolicy -ne 'RequireAuthenticodeSignature' -or (Test-InstallerTestModeEnabled)) {
+        return
+    }
+
+    $signingInputs = Get-ReleaseSigningInputs `
+        -CertificatePathParameter $CertificatePathParameter `
+        -CertificateThumbprintParameter $CertificateThumbprintParameter `
+        -PasswordEnvironmentVariableParameter $PasswordEnvironmentVariableParameter `
+        -TimestampServerParameter $TimestampServerParameter
+
+    if ([string]::IsNullOrWhiteSpace([string]$signingInputs.CertificatePath) -and
+        [string]::IsNullOrWhiteSpace([string]$signingInputs.CertificateThumbprint)) {
+        return
+    }
+
+    $signtoolPath = Resolve-SignToolPath
+    if ([string]::IsNullOrWhiteSpace($signtoolPath) -or -not (Test-Path $signtoolPath)) {
+        throw 'signtool.exe was not found. Install the Windows SDK or set WPFDEVTOOLS_SIGNTOOL_PATH before running signed release packaging.'
+    }
+
+    $importedThumbprints = @()
+    $activeThumbprint = [string]$signingInputs.CertificateThumbprint
+    $certificateAlreadyInstalled = $false
+    $shouldImportCertificate = -not [string]::IsNullOrWhiteSpace([string]$signingInputs.CertificatePath)
+    $certificatePassword = $null
+    $preexistingImportedThumbprints = @()
+
+    if (-not [string]::IsNullOrWhiteSpace($activeThumbprint)) {
+        $certificateAlreadyInstalled = Test-Path (Join-Path 'Cert:\CurrentUser\My' $activeThumbprint)
+        if ($certificateAlreadyInstalled) {
+            $shouldImportCertificate = $false
+        }
+    }
+
+    if ($shouldImportCertificate) {
+        if (-not (Test-Path $signingInputs.CertificatePath)) {
+            throw "Release signing certificate was not found: $($signingInputs.CertificatePath)"
+        }
+
+        $certificatePassword = Get-CertificatePassword `
+            -EnvironmentVariableName $signingInputs.PasswordEnvironmentVariable `
+            -CertificatePath $signingInputs.CertificatePath
+        $certificateMetadata = Get-PfxCertificateMetadata -Path $signingInputs.CertificatePath -Password $certificatePassword
+        if ([string]::IsNullOrWhiteSpace($activeThumbprint)) {
+            $activeThumbprint = [string]$certificateMetadata.PrimaryThumbprint
+        }
+        $preexistingImportedThumbprints = @($certificateMetadata.Thumbprints | Where-Object { Test-Path (Join-Path 'Cert:\CurrentUser\My' $_) })
+        if (-not $certificateAlreadyInstalled) {
+            $certificateAlreadyInstalled = $preexistingImportedThumbprints -contains $activeThumbprint
+            if ($certificateAlreadyInstalled) {
+                $shouldImportCertificate = $false
+            }
+        }
+    }
+
+    $signingFailure = $null
+    $cleanupFailure = $null
+
+    try {
+        if ($shouldImportCertificate) {
+            if (-not (Test-Path $signingInputs.CertificatePath)) {
+                throw "Release signing certificate was not found: $($signingInputs.CertificatePath)"
+            }
+
+            if ($null -eq $certificatePassword) {
+                $certificatePassword = Get-CertificatePassword `
+                    -EnvironmentVariableName $signingInputs.PasswordEnvironmentVariable `
+                    -CertificatePath $signingInputs.CertificatePath
+            }
+            $importResult = Import-SigningCertificate -Path $signingInputs.CertificatePath -Password $certificatePassword
+            $activeThumbprint = [string]$importResult.Thumbprint
+            $importedThumbprints = @($importResult.ImportedThumbprints)
+        }
+        elseif ([string]::IsNullOrWhiteSpace($activeThumbprint)) {
+            throw 'Release signing requires either an installed certificate thumbprint or a certificate path.'
+        }
+
+        foreach ($payloadPath in $PayloadPaths) {
+            if (-not (Test-Path $payloadPath)) {
+                throw "Release signing payload was not found: $payloadPath"
+            }
+
+            $result = & $signtoolPath sign `
+                /sha1 $activeThumbprint `
+                /s My `
+                /fd SHA256 `
+                /tr $signingInputs.TimestampServer `
+                /td SHA256 `
+                /v `
+                $payloadPath 2>&1
+
+            if ($LASTEXITCODE -ne 0) {
+                $details = ($result | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+                throw "signtool.exe failed while signing '$payloadPath'. $details"
+            }
+        }
+    }
+    catch {
+        $signingFailure = $_.Exception
+    }
+
+    if (-not $certificateAlreadyInstalled) {
+        if (-not $certificateAlreadyInstalled) {
+            $newlyImportedThumbprints = @($importedThumbprints | Where-Object { $preexistingImportedThumbprints -notcontains $_ })
+            try {
+                Remove-ImportedSigningCertificates -Thumbprints $newlyImportedThumbprints
+            }
+            catch {
+                $cleanupFailure = $_.Exception
+            }
+        }
+    }
+
+    if ($null -ne $signingFailure) {
+        $failureMessage = [string]$signingFailure.Message
+        if ($null -ne $cleanupFailure) {
+            $failureMessage += " Certificate cleanup also failed: $($cleanupFailure.Message)"
+        }
+
+        throw $failureMessage
+    }
+
+    if ($null -ne $cleanupFailure) {
+        throw "Release signing certificate cleanup failed. $($cleanupFailure.Message)"
     }
 }
 
@@ -559,12 +888,22 @@ foreach ($architecture in $resolvedArchitectures) {
         Copy-Item -Path $installScript -Destination (Join-Path $binDir 'install.ps1') -Force
         Copy-InstallerHelperFiles -RepositoryRoot $repoRoot -Destination (Join-Path $binDir 'installer')
 
-        $payloadSigner = Assert-ReleasePayloadSignaturePolicy -SignaturePolicy $signaturePolicy -PayloadPaths @(
+        $payloadPaths = @(
             (Join-Path $binDir $packagedExecutableName)
             (Join-Path $inspectorNet8Dir 'WpfDevTools.Inspector.dll')
             (Join-Path $inspectorNet48Dir 'WpfDevTools.Inspector.dll')
             $bootstrapperDestination
         )
+
+        Invoke-ReleasePayloadSigning `
+            -SignaturePolicy $signaturePolicy `
+            -PayloadPaths $payloadPaths `
+            -CertificatePathParameter $SigningCertificatePath `
+            -CertificateThumbprintParameter $SigningCertificateThumbprint `
+            -PasswordEnvironmentVariableParameter $SigningPasswordEnvironmentVariable `
+            -TimestampServerParameter $SigningTimestampServer
+
+        $payloadSigner = Assert-ReleasePayloadSignaturePolicy -SignaturePolicy $signaturePolicy -PayloadPaths $payloadPaths
 
         $manifest = [ordered]@{
             name = 'wpf-devtools'
@@ -598,9 +937,29 @@ foreach ($architecture in $resolvedArchitectures) {
         Write-Host "Created archive: $packageArchivePath"
     }
     catch {
-        Remove-PathIfExists -Path $packageArchivePath
-        Remove-PathIfExists -Path $packageDir
-        throw "Failed to package architecture $architecture. $($_.Exception.Message)"
+        $packagingError = $_.Exception
+        $cleanupFailures = [System.Collections.Generic.List[string]]::new()
+
+        try {
+            Remove-PathIfExists -Path $packageArchivePath
+        }
+        catch {
+            $cleanupFailures.Add($_.Exception.Message)
+        }
+
+        try {
+            Remove-PathIfExists -Path $packageDir
+        }
+        catch {
+            $cleanupFailures.Add($_.Exception.Message)
+        }
+
+        $failureMessage = "Failed to package architecture $architecture. $($packagingError.Message)"
+        if ($cleanupFailures.Count -gt 0) {
+            $failureMessage += " Cleanup also failed: $($cleanupFailures -join ' | ')"
+        }
+
+        throw $failureMessage
     }
 }
 

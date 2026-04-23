@@ -192,7 +192,7 @@ public sealed class GitHubPagesInstallerScriptTests
     }
 
     [Fact]
-    public void OnlineInstallerScript_ShouldIgnoreTamperedInnerManifestSignerMetadata_WhenReleaseAssetMetadataPinsSigner()
+    public void OnlineInstallerScript_ShouldRejectTamperedLocalArchive_WhenSignerOverrideCannotProveArchiveIntegrity()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -201,13 +201,8 @@ public sealed class GitHubPagesInstallerScriptTests
             var extractRoot = Path.Combine(tempRoot, "tampered-package");
             ZipFile.ExtractToDirectory(archivePath, extractRoot);
 
-            var manifestPath = Path.Combine(extractRoot, "bin", "manifest.json");
-            var manifestNode = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
-            var trustedThumbprint = manifestNode["signerThumbprint"]?.GetValue<string>();
-            var trustedSubject = manifestNode["signerSubject"]?.GetValue<string>();
-            manifestNode["signerThumbprint"] = "0000000000000000000000000000000000000000";
-            manifestNode["signerSubject"] = "CN=Tampered Release Signer";
-            File.WriteAllText(manifestPath, manifestNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            var installScriptPath = Path.Combine(extractRoot, "bin", "install.ps1");
+            File.AppendAllText(installScriptPath, Environment.NewLine + "# tampered local archive script");
 
             var tamperedArchivePath = Path.Combine(tempRoot, "release_1.2.3_win-x64.zip");
             if (File.Exists(tamperedArchivePath))
@@ -216,7 +211,9 @@ public sealed class GitHubPagesInstallerScriptTests
             }
 
             ZipFile.CreateFromDirectory(extractRoot, tamperedArchivePath);
-            ReleaseScriptTestHarness.WriteAdjacentReleaseMetadata(tamperedArchivePath, trustedThumbprint, trustedSubject);
+            var signer = ReleaseScriptTestHarness.GetSignedPayloadSigner();
+            File.Delete(Path.Combine(tempRoot, "release-assets.json"));
+            File.Delete(Path.Combine(tempRoot, "SHA256SUMS.txt"));
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -235,10 +232,70 @@ public sealed class GitHubPagesInstallerScriptTests
                     ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
                     ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
                     ["PATH"] = string.Empty,
-                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
+                    ["WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"] = signer.Thumbprint,
+                    ["WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT"] = signer.Subject
                 });
 
-            result.ExitCode.Should().Be(0, result.Stdout + Environment.NewLine + result.Stderr);
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("Archive integrity", "a signer override can validate signed binaries but cannot prove that an entire local archive with unsigned installer scripts remained untampered");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldRejectRenamedTamperedLocalArchive_WhenCanonicalIdentityCannotBeResolved()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64", useSignedPayload: true, isolateArchiveContents: true);
+            var extractRoot = Path.Combine(tempRoot, "renamed-tampered-package");
+            ZipFile.ExtractToDirectory(archivePath, extractRoot);
+
+            var installScriptPath = Path.Combine(extractRoot, "bin", "install.ps1");
+            File.AppendAllText(installScriptPath, Environment.NewLine + "# tampered renamed local archive script");
+
+            var renamedArchivePath = Path.Combine(tempRoot, "renamed-local-package.zip");
+            if (File.Exists(renamedArchivePath))
+            {
+                File.Delete(renamedArchivePath);
+            }
+
+            ZipFile.CreateFromDirectory(extractRoot, renamedArchivePath);
+            var signer = ReleaseScriptTestHarness.GetSignedPayloadSigner();
+            File.Delete(Path.Combine(tempRoot, "release-assets.json"));
+            File.Delete(Path.Combine(tempRoot, "SHA256SUMS.txt"));
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-PackageArchivePath", renamedArchivePath,
+                    "-InstallRoot", Path.Combine(tempRoot, "install-root"),
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                },
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["PATH"] = string.Empty,
+                    ["WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"] = signer.Thumbprint,
+                    ["WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT"] = signer.Subject
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("canonical release asset identity",
+                    "renaming a local release archive must not bypass the trusted archive provenance gate for unsigned installer script content");
         }
         finally
         {

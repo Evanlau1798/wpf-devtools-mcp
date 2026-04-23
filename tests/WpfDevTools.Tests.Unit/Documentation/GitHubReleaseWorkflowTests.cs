@@ -44,6 +44,21 @@ public sealed class GitHubReleaseWorkflowTests
             "CI should execute the generated upload helper to publish staged assets");
     }
 
+    [Fact]
+    public void ReleaseWorkflow_ShouldProvideExecutableSigningInputsToPackaging()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));
+
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64",
+            "the hosted release workflow needs a secret-backed certificate payload instead of assuming a local file path exists on the runner");
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH",
+            "Publish-Release.ps1 needs a materialized certificate path or an already-installed certificate thumbprint to sign release payloads");
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
+            "release packaging enforces signer pinning, so the workflow must pass the expected signer thumbprint into the packaging step");
+        content.Should().Contain("WPFDEVTOOLS_PFX_PASSWORD",
+            "PFX-backed signing in GitHub Actions must inject the certificate password through an environment variable instead of interactive prompts");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
 

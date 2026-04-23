@@ -141,25 +141,47 @@ Path                   : ...
 
 ### GitHub Actions
 
-Add signing step to `.github/workflows/ci-cd.yml`:
+The production GitHub Release workflow should materialize the certificate from a base64 secret and let `Publish-Release.ps1` sign the packaged payloads directly:
 
 ```yaml
-- name: Sign binaries
-  if: github.ref == 'refs/heads/master'
+- name: Materialize signing certificate
   env:
-    WPFDEVTOOLS_PFX_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+    WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64: ${{ secrets.WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64 }}
   run: |
-    .\scripts\tools\Sign-Binaries.ps1 `
-      -CertificatePath ${{ secrets.CERT_PATH }}
+    $certificatePath = Join-Path $env:RUNNER_TEMP 'wpf-devtools-release-signing.pfx'
+    [System.IO.File]::WriteAllBytes(
+      $certificatePath,
+      [System.Convert]::FromBase64String($env:WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64))
+    "WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+- name: Build release packages
+  env:
+    WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+    WPFDEVTOOLS_PFX_PASSWORD: ${{ secrets.WPFDEVTOOLS_PFX_PASSWORD }}
+  run: |
+    .\scripts\tools\packaging\Publish-Release.ps1 -Configuration Release
 ```
+
+For hosted-runner smoke validation without production signing material, use:
+
+```yaml
+env:
+  WPFDEVTOOLS_INSTALLER_TEST_MODE: '1'
+  WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA: '1'
+  WPFDEVTOOLS_TEST_SIGNATURE_STATUS: Valid
+```
+
+When `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` points at a PFX file in CI, `WPFDEVTOOLS_PFX_PASSWORD` must be present and non-empty. `Publish-Release.ps1` now fails fast instead of falling back to an interactive prompt.
 
 ### Store Certificate Securely
 
 1. Go to GitHub repository settings
 2. Navigate to "Secrets and variables" → "Actions"
 3. Add secrets:
-   - `CERT_PATH`: Path to certificate file (or base64-encoded certificate)
-   - `CERT_PASSWORD`: Certificate password
+   - `WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64`: Base64-encoded PFX content for hosted runners
+   - `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`: Expected release signer thumbprint used for package verification
+   - `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`: Optional signer subject pin
+   - `WPFDEVTOOLS_PFX_PASSWORD`: Certificate password
 
 **Security Note**: Never commit certificate files or passwords to git!
 

@@ -2,6 +2,7 @@ using System.IO.Pipes;
 using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Messages;
@@ -14,8 +15,30 @@ namespace WpfDevTools.Tests.Unit.Inspector;
 /// <summary>
 /// Tests for InspectorHost concurrency and shutdown issues
 /// </summary>
-public class InspectorHostConcurrencyTests
+[Collection("InspectorHostLifecycle")]
+public class InspectorHostConcurrencyTests : IDisposable
 {
+    private readonly Action _originalResetMonitoringAction;
+    private readonly Action _originalStopAllWatchersAction;
+    private readonly Action _originalUninstallBindingTraceListenerAction;
+
+    public InspectorHostConcurrencyTests()
+    {
+        _originalResetMonitoringAction = InspectorHost.ResetMonitoringAction;
+        _originalStopAllWatchersAction = InspectorHost.StopAllWatchersAction;
+        _originalUninstallBindingTraceListenerAction = InspectorHost.UninstallBindingTraceListenerAction;
+        InspectorHost.ResetMonitoringAction = static () => PerformanceAnalyzer.ResetMonitoring();
+        InspectorHost.StopAllWatchersAction = static () => DependencyPropertyAnalyzer.StopAllWatchers();
+        InspectorHost.UninstallBindingTraceListenerAction = static () => BindingErrorTraceListener.Uninstall();
+    }
+
+    public void Dispose()
+    {
+        InspectorHost.ResetMonitoringAction = _originalResetMonitoringAction;
+        InspectorHost.StopAllWatchersAction = _originalStopAllWatchersAction;
+        InspectorHost.UninstallBindingTraceListenerAction = _originalUninstallBindingTraceListenerAction;
+    }
+
     [Fact]
     public async Task Stop_DuringActiveRequest_ShouldWaitForCompletion()
     {
@@ -53,6 +76,79 @@ public class InspectorHostConcurrencyTests
 
         act.Should().NotThrow();
         host.IsRunning.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Stop_WhenAnalyzerCleanupBlocks_ShouldStillReturnPromptly()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        using var cleanupStarted = new ManualResetEventSlim(initialState: false);
+        using var releaseCleanup = new ManualResetEventSlim(initialState: false);
+        using var host = new InspectorHost(pid);
+        host.Start();
+
+        InspectorHost.ResetMonitoringAction = () =>
+        {
+            cleanupStarted.Set();
+            releaseCleanup.Wait(TimeSpan.FromSeconds(5));
+        };
+
+        var stopTask = Task.Run(() => host.Stop());
+
+        cleanupStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        stopTask.IsCompleted.Should().BeTrue("shutdown should not block on post-stop analyzer cleanup");
+
+        releaseCleanup.Set();
+        await stopTask;
+    }
+
+    [Fact]
+    public async Task Stop_WhenServerTaskLingersAfterCancellation_ShouldStillReturnPromptly()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var serverTaskSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var host = new InspectorHost(pid);
+        SetPrivateField(host, "_serverTask", serverTaskSource.Task);
+        SetPrivateField(host, "_cancellationTokenSource", new CancellationTokenSource());
+        SetPrivateField(host, "_lifecycleState", 2);
+        SetPrivateField(host, "_isRunning", true);
+
+        var stopTask = Task.Run(() => host.Stop());
+
+        await Task.Delay(100);
+        stopTask.IsCompleted.Should().BeTrue("shutdown should not block on a lingering server task after cancellation has been requested");
+
+        serverTaskSource.TrySetResult(null);
+        await stopTask;
+    }
+
+    [Fact]
+    public async Task Start_WhenPreviousStopTimedOutWaitingForServerTask_ShouldRemainBlockedUntilTaskExits()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var serverTaskSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var host = new InspectorHost(pid);
+        SetPrivateField(host, "_serverTask", serverTaskSource.Task);
+        SetPrivateField(host, "_cancellationTokenSource", new CancellationTokenSource());
+        SetPrivateField(host, "_lifecycleState", 2);
+        SetPrivateField(host, "_isRunning", true);
+
+        await Task.Run(() => host.Stop());
+
+        var timedOutRestart = Task.Run(() => host.Start());
+        var timeoutException = await Assert.ThrowsAsync<TimeoutException>(() => timedOutRestart);
+        timeoutException.Message.Should().Contain("Timed out after");
+        host.IsRunning.Should().BeFalse();
+
+        var blockedRestart = Task.Run(() => host.Start());
+        await Task.Delay(100);
+        blockedRestart.IsCompleted.Should().BeFalse("restart should stay blocked until the lingering pre-stop server task actually exits");
+
+        serverTaskSource.TrySetResult(null);
+        await blockedRestart;
+        host.IsRunning.Should().BeTrue();
     }
 
     [Fact]
@@ -220,7 +316,7 @@ public class InspectorHostConcurrencyTests
     }
 
     [Fact]
-    public async Task Start_WhenStopTimesOutDuringStartupFailureCleanup_ShouldNotClearRestartedHostState()
+    public async Task Start_WhenStopFinalizationWaitsOnStartupFailureCleanup_ShouldDelayRestartUntilCleanupCompletes()
     {
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var firstFactoryEntered = new ManualResetEventSlim(initialState: false);
@@ -264,8 +360,9 @@ public class InspectorHostConcurrencyTests
         await stopTask;
         host.IsRunning.Should().BeFalse();
 
-        await Task.Run(() => host.Start());
-        host.IsRunning.Should().BeTrue();
+        var restartTask = Task.Run(() => host.Start());
+        await Task.Delay(100);
+        restartTask.IsCompleted.Should().BeFalse("restart should wait for the prior stop finalization while startup-failure cleanup is still pending");
 
         releaseFirstFactory.Set();
 
@@ -274,6 +371,8 @@ public class InspectorHostConcurrencyTests
 
         firstException.Message.Should().Contain("Timed out after");
         secondException.Message.Should().Contain("Timed out after");
+
+        await restartTask;
         host.IsRunning.Should().BeTrue();
 
         using var client = await ConnectToHostAsync(pid);

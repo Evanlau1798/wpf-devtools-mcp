@@ -41,12 +41,18 @@ public sealed partial class InspectorHost : IDisposable
     private CancellationTokenSource? _cancellationTokenSource;
     private TaskCompletionSource<object?>? _startupCompletionSource;
     private Task? _serverTask;
+    private Task? _stopCompletionTask;
     private volatile bool _isRunning;
     private int _lifecycleState;
     private long _nextServerGeneration;
     private long _activeServerGeneration;
+    private long _nextStopOperationId;
     private int _disposeState;
     private readonly object _lock = new object();
+
+    internal static Action ResetMonitoringAction { get; set; } = static () => PerformanceAnalyzer.ResetMonitoring();
+    internal static Action StopAllWatchersAction { get; set; } = static () => DependencyPropertyAnalyzer.StopAllWatchers();
+    internal static Action UninstallBindingTraceListenerAction { get; set; } = static () => BindingErrorTraceListener.Uninstall();
 
     /// <summary>
     /// Create a new InspectorHost instance without authentication or encryption (backward compatible)
@@ -157,38 +163,52 @@ public sealed partial class InspectorHost : IDisposable
 
             lock (_lock)
             {
-                if (_lifecycleState == LifecycleRunning)
+                if (_disposeState != 0)
                 {
-                    return;
+                    throw new ObjectDisposedException(nameof(InspectorHost));
                 }
 
-                if (_lifecycleState == LifecycleStarting)
+                if (_stopCompletionTask != null)
                 {
-                    generation = _activeServerGeneration;
-                    startupTask = _startupCompletionSource!.Task;
-                }
-                else if (_lifecycleState == LifecycleStopping)
-                {
-                    stopTask = _serverTask;
+                    stopTask = _stopCompletionTask;
                     generation = _activeServerGeneration;
                     startupTask = Task.CompletedTask;
                 }
                 else
                 {
-                    ownsStartup = true;
-                    _lifecycleState = LifecycleStarting;
-                    generation = ++_nextServerGeneration;
-                    _activeServerGeneration = generation;
-                    _cancellationTokenSource = new CancellationTokenSource();
-                    cancellationTokenSource = _cancellationTokenSource;
-                    _startupCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    startupCompletionSource = _startupCompletionSource;
-                    startupTask = _startupCompletionSource.Task;
-                    startupReadinessCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    startupReadinessTask = startupReadinessCompletionSource.Task;
-                    var startupCancellationToken = _cancellationTokenSource.Token;
-                    _serverTask = Task.Run(() => RunServerLoop(startupCancellationToken, startupReadinessCompletionSource, generation));
-                    serverTask = _serverTask;
+                    if (_lifecycleState == LifecycleRunning)
+                    {
+                        return;
+                    }
+
+                    if (_lifecycleState == LifecycleStarting)
+                    {
+                        generation = _activeServerGeneration;
+                        startupTask = _startupCompletionSource!.Task;
+                    }
+                    else if (_lifecycleState == LifecycleStopping)
+                    {
+                        stopTask = _serverTask;
+                        generation = _activeServerGeneration;
+                        startupTask = Task.CompletedTask;
+                    }
+                    else
+                    {
+                        ownsStartup = true;
+                        _lifecycleState = LifecycleStarting;
+                        generation = ++_nextServerGeneration;
+                        _activeServerGeneration = generation;
+                        _cancellationTokenSource = new CancellationTokenSource();
+                        cancellationTokenSource = _cancellationTokenSource;
+                        _startupCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                        startupCompletionSource = _startupCompletionSource;
+                        startupTask = _startupCompletionSource.Task;
+                        startupReadinessCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                        startupReadinessTask = startupReadinessCompletionSource.Task;
+                        var startupCancellationToken = _cancellationTokenSource.Token;
+                        _serverTask = Task.Run(() => RunServerLoop(startupCancellationToken, startupReadinessCompletionSource, generation));
+                        serverTask = _serverTask;
+                    }
                 }
             }
 
@@ -229,11 +249,14 @@ public sealed partial class InspectorHost : IDisposable
     /// </summary>
     /// <remarks>
     /// This method is idempotent - calling it multiple times has no effect if server is already stopped.
-    /// Waits up to ShutdownTimeout for server task to complete, then disposes resources.
+    /// Cancellation and pipe teardown happen inline; final server-task waiting and analyzer cleanup complete in the background.
     /// </remarks>
     public void Stop()
     {
-        Task? taskToWait = null;
+        Task? serverTask;
+        CancellationTokenSource? cancellationTokenSource;
+        long stopOperationId;
+
         lock (_lock)
         {
             if (_lifecycleState == LifecycleStopped || _lifecycleState == LifecycleStopping)
@@ -245,69 +268,122 @@ public sealed partial class InspectorHost : IDisposable
             _activeServerGeneration = 0;
             _cancellationTokenSource?.Cancel();
             _isRunning = false;
-            taskToWait = _serverTask;
-        }
-
-        // CRITICAL FIX: Check Wait() return value and log timeout
-        if (taskToWait != null)
-        {
-            try
-            {
-                bool completed = taskToWait.Wait(InspectorConfig.ShutdownTimeout);
-                if (!completed)
-                {
-                    LogError($"Server task did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout");
-                }
-            }
-            catch (AggregateException ex) when (
-                taskToWait.IsCanceled ||
-                ex.Flatten().InnerExceptions.All(static inner => inner is OperationCanceledException))
-            {
-                // Cancellation is the normal shutdown path for the server loop.
-            }
-            catch (AggregateException ex)
-            {
-                LogError($"Server task failed during shutdown: {ex.Flatten().Message}");
-            }
-        }
-
-        // Dispose pipe server and CTS after task completes
-        lock (_lock)
-        {
             _pipeServer?.Dispose();
             _pipeServer = null;
-            _cancellationTokenSource?.Dispose();
-            _cancellationTokenSource = null;
+
+            serverTask = _serverTask;
             _serverTask = null;
+            cancellationTokenSource = _cancellationTokenSource;
+            _cancellationTokenSource = null;
             _lifecycleState = LifecycleStopped;
+
+            stopOperationId = ++_nextStopOperationId;
+            _stopCompletionTask = Task.Run(() => CompleteStop(serverTask, cancellationTokenSource, stopOperationId));
+        }
+    }
+
+    private void CompleteStop(Task? serverTask, CancellationTokenSource? cancellationTokenSource, long stopOperationId)
+    {
+        if (!WaitForServerTaskShutdown(serverTask))
+        {
+            var deferredCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            lock (_lock)
+            {
+                if (_nextStopOperationId == stopOperationId)
+                {
+                    _stopCompletionTask = deferredCompletionSource.Task;
+                }
+            }
+
+            serverTask!.ContinueWith(
+                completedTask =>
+                {
+                    try
+                    {
+                        if (completedTask.IsFaulted && completedTask.Exception is { } exception)
+                        {
+                            LogError($"Server task failed after shutdown timeout: {exception.Flatten().Message}");
+                        }
+
+                        CompleteStopFinalization(cancellationTokenSource, stopOperationId);
+                        deferredCompletionSource.TrySetResult(null);
+                    }
+                    catch (Exception ex)
+                    {
+                        deferredCompletionSource.TrySetException(ex);
+                    }
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+            return;
         }
 
-        // Clean up analyzer resources
+        CompleteStopFinalization(cancellationTokenSource, stopOperationId);
+    }
+
+    private void CompleteStopFinalization(CancellationTokenSource? cancellationTokenSource, long stopOperationId)
+    {
+        RunPostStopCleanup();
+        cancellationTokenSource?.Dispose();
+
+        lock (_lock)
+        {
+            if (_nextStopOperationId == stopOperationId)
+            {
+                _stopCompletionTask = null;
+            }
+        }
+    }
+
+    private bool WaitForServerTaskShutdown(Task? serverTask)
+    {
+        if (serverTask == null)
+        {
+            return true;
+        }
+
         try
         {
-            PerformanceAnalyzer.ResetMonitoring();
+            bool completed = serverTask.Wait(InspectorConfig.ShutdownTimeout);
+            if (!completed)
+            {
+                LogError($"Server task did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout");
+                return false;
+            }
+        }
+        catch (AggregateException ex) when (
+            serverTask.IsCanceled ||
+            ex.Flatten().InnerExceptions.All(static inner => inner is OperationCanceledException))
+        {
+            // Cancellation is the normal shutdown path for the server loop.
+        }
+        catch (AggregateException ex)
+        {
+            LogError($"Server task failed during shutdown: {ex.Flatten().Message}");
+        }
+
+        return true;
+    }
+
+    private void RunPostStopCleanup()
+    {
+        TryRunCleanupAction("reset performance monitoring", ResetMonitoringAction);
+        TryRunCleanupAction("stop DP watchers", StopAllWatchersAction);
+        TryRunCleanupAction("uninstall BindingErrorTraceListener", UninstallBindingTraceListenerAction);
+    }
+
+    private void TryRunCleanupAction(string operationName, Action cleanupAction)
+    {
+        try
+        {
+            cleanupAction();
         }
         catch (Exception ex)
         {
-            LogError($"Failed to reset performance monitoring: {ex.Message}");
-        }
-
-        try
-        {
-            DependencyPropertyAnalyzer.StopAllWatchers();
-        }
-        catch (Exception ex)
-        {
-            LogError($"Failed to stop DP watchers: {ex.Message}");
-        }
-
-        try
-        {
-            BindingErrorTraceListener.Uninstall();
-        }
-        catch (Exception ex)
-        {
-            LogError($"Failed to uninstall BindingErrorTraceListener: {ex.Message}");
+            LogError($"Failed to {operationName}: {ex.Message}");
         }
     }
 
@@ -778,6 +854,15 @@ public sealed partial class InspectorHost : IDisposable
 
         try
         {
+            WaitForStopFinalization();
+        }
+        catch (Exception ex)
+        {
+            cleanupError = cleanupError == null ? ex : new AggregateException(cleanupError, ex);
+        }
+
+        try
+        {
             _dispatcher.Dispose();
         }
         catch (Exception ex)
@@ -808,6 +893,40 @@ public sealed partial class InspectorHost : IDisposable
         if (cleanupError != null)
         {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanupError).Throw();
+        }
+    }
+
+    private void WaitForStopFinalization()
+    {
+        Task? stopCompletionTask;
+
+        lock (_lock)
+        {
+            stopCompletionTask = _stopCompletionTask;
+        }
+
+        if (stopCompletionTask == null)
+        {
+            return;
+        }
+
+        try
+        {
+            bool completed = stopCompletionTask.Wait(InspectorConfig.ShutdownTimeout);
+            if (!completed)
+            {
+                LogError($"Stop finalization did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout");
+            }
+        }
+        catch (AggregateException ex) when (
+            stopCompletionTask.IsCanceled ||
+            ex.Flatten().InnerExceptions.All(static inner => inner is OperationCanceledException))
+        {
+            // Cancellation is the normal finalization path when disposal races with shutdown.
+        }
+        catch (AggregateException ex)
+        {
+            LogError($"Stop finalization failed: {ex.Flatten().Message}");
         }
     }
 }

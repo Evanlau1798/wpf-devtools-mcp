@@ -124,6 +124,19 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
+    public void InspectorHostLifecycleTests_ShouldUseInspectorHostLifecycleCollection()
+    {
+        GetCollectionName(typeof(InspectorHostConcurrencyTests)).Should().Be("InspectorHostLifecycle");
+        GetCollectionName(typeof(InspectorHostLifecycleReviewTests)).Should().Be("InspectorHostLifecycle");
+    }
+
+    [Fact]
+    public void InspectorHostLifecycleCollection_ShouldDisableParallelization()
+    {
+        AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.InspectorHostLifecycleCollection");
+    }
+
+    [Fact]
     public void TraceStateTests_ShouldUseTraceStateCollection()
     {
         GetCollectionName(typeof(TraceAuditLoggerTests)).Should().Be("TraceState");

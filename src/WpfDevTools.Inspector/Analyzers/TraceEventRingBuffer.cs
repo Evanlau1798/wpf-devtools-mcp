@@ -8,7 +8,11 @@ internal sealed class TraceEventRingBuffer
 
     public TraceEventRingBuffer(int capacity)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
+        if (capacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(capacity));
+        }
+
         _items = new object[capacity];
     }
 
@@ -16,7 +20,10 @@ internal sealed class TraceEventRingBuffer
 
     public void Add(object item)
     {
-        ArgumentNullException.ThrowIfNull(item);
+        if (item == null)
+        {
+            throw new ArgumentNullException(nameof(item));
+        }
 
         if (_count < _items.Length)
         {

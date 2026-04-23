@@ -91,6 +91,7 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(DependencyPropertyAnalyzerTests)).Should().Be("DependencyPropertyMonitoring");
         GetCollectionName(typeof(DependencyPropertyAnalyzerCleanupTests)).Should().Be("DependencyPropertyMonitoring");
         GetCollectionName(typeof(DependencyPropertyAnalyzerWatchEventTests)).Should().Be("DependencyPropertyMonitoring");
+        GetCollectionName(typeof(DependencyPropertyAnalyzerWatcherCleanupTests)).Should().Be("DependencyPropertyMonitoring");
     }
 
     [Fact]
@@ -105,6 +106,7 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(FileLoggerPerformanceTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(NamedPipeClientTimeoutBudgetTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostAuthTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InspectorHostSessionTimeoutTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolConcurrencyTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolCompatibilityTests)).Should().Be("TimingSensitive");

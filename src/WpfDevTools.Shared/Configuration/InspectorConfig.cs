@@ -31,6 +31,14 @@ public static class InspectorConfig
         TimeSpan.FromSeconds(30));
 
     /// <summary>
+    /// Timeout for idle or incomplete reads on an established inspector client session (default: 60 seconds)
+    /// Override with environment variable: WPF_DEVTOOLS_IDLE_TIMEOUT_MS
+    /// </summary>
+    public static TimeSpan IdleConnectionTimeout { get; } = GetTimeoutFromEnv(
+        "WPF_DEVTOOLS_IDLE_TIMEOUT_MS",
+        TimeSpan.FromSeconds(60));
+
+    /// <summary>
     /// Timeout for graceful shutdown (default: 5 seconds)
     /// Override with environment variable: WPF_DEVTOOLS_SHUTDOWN_TIMEOUT_MS
     /// </summary>

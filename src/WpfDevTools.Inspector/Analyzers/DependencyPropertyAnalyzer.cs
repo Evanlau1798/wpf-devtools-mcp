@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Windows;
 using System.ComponentModel;
+using System.Windows.Threading;
 using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 
@@ -22,15 +23,23 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 {
+    private readonly record struct WatchRegistration(
+        DependencyPropertyDescriptor Descriptor,
+        EventHandler Handler,
+        WeakReference<DependencyObject> ElementRef,
+        Dispatcher? Dispatcher);
+
     private readonly ElementFinder _elementFinder;
     private readonly WatchEventBuffer? _watchEventBuffer;
 
     // Static state for global property change tracking
     // Thread-safe via ConcurrentDictionary/ConcurrentQueue
-    private static readonly ConcurrentDictionary<string, (DependencyPropertyDescriptor Descriptor, EventHandler Handler, WeakReference<DependencyObject> ElementRef)> _watchers = new();
+    private static readonly ConcurrentDictionary<string, WatchRegistration> _watchers = new();
     private static readonly ConcurrentQueue<object> _changeLog = new();
     private static int _changeLogCount = 0;
     private const int MaxChangeLogEntries = 10000;
+    internal static Action<DependencyPropertyDescriptor, DependencyObject, EventHandler> DetachWatcherAction { get; set; } =
+        static (descriptor, element, handler) => descriptor.RemoveValueChanged(element, handler);
 
     // CRITICAL FIX: Timer for periodic cleanup of dead watchers
     private static readonly System.Threading.Timer _cleanupTimer;

@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Threading;
 using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -97,7 +99,11 @@ public sealed partial class DependencyPropertyAnalyzer
                     };
 
                     descriptor.AddValueChanged(depObj, handler);
-                    _watchers[watchKey] = (descriptor, handler, new WeakReference<DependencyObject>(depObj));
+                    _watchers[watchKey] = new WatchRegistration(
+                        descriptor,
+                        handler,
+                        new WeakReference<DependencyObject>(depObj),
+                        depObj.Dispatcher);
                 }
 
                 return new
@@ -127,20 +133,23 @@ public sealed partial class DependencyPropertyAnalyzer
         {
             var watchKey = $"{elementId}_{propertyName}";
 
-            if (_watchers.TryRemove(watchKey, out var watcher))
+            if (_watchers.TryGetValue(watchKey, out var watcher))
             {
-                if (watcher.ElementRef.TryGetTarget(out var element))
+                if (TryDetachWatcher(watchKey, watcher, out var cleanupFailure))
                 {
-                    watcher.Descriptor.RemoveValueChanged(element, watcher.Handler);
+                    return new
+                    {
+                        success = true,
+                        message = $"Stopped watching property '{propertyName}'",
+                        propertyName,
+                        elementId
+                    };
                 }
 
-                return new
-                {
-                    success = true,
-                    message = $"Stopped watching property '{propertyName}'",
-                    propertyName,
-                    elementId
-                };
+                return ToolErrorFactory.OperationFailed(
+                    "stop watching property",
+                    cleanupFailure ?? new InvalidOperationException($"Failed to detach watcher '{watchKey}'"),
+                    "Retry watch cleanup after the owning dispatcher becomes available or the target element is valid again.");
             }
 
             return ToolErrorFactory.InvalidArgument(
@@ -170,27 +179,80 @@ public sealed partial class DependencyPropertyAnalyzer
     }
 
     /// <summary>
+    /// Clear transient watch registrations after a successful STDIO drain cycle.
+    /// This must run on the owning UI dispatcher so WPF handler detachment is real,
+    /// not just a registry mutation.
+    /// </summary>
+    public Exception? ClearTransientWatchers()
+    {
+        try
+        {
+            Exception? cleanupFailure = null;
+
+            InvokeOnUIThread(() =>
+            {
+                var failedWatchKeys = new List<string>();
+
+                foreach (var watcherEntry in _watchers.ToArray())
+                {
+                    if (!TryDetachWatcher(watcherEntry.Key, watcherEntry.Value, out var ex))
+                    {
+                        var detachFailure = ex ?? new InvalidOperationException($"Failed to detach transient watcher '{watcherEntry.Key}'.");
+                        failedWatchKeys.Add(watcherEntry.Key);
+                        cleanupFailure = cleanupFailure is null
+                            ? new InvalidOperationException(
+                                $"Failed to detach {failedWatchKeys.Count} transient watcher(s): {string.Join(", ", failedWatchKeys)}",
+                                detachFailure)
+                            : new AggregateException(cleanupFailure, detachFailure);
+                    }
+                }
+
+                if (failedWatchKeys.Count > 0 && cleanupFailure is not InvalidOperationException)
+                {
+                    cleanupFailure = new InvalidOperationException(
+                        $"Failed to detach {failedWatchKeys.Count} transient watcher(s): {string.Join(", ", failedWatchKeys)}",
+                        cleanupFailure);
+                }
+
+                if (cleanupFailure != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"DependencyPropertyAnalyzer: {cleanupFailure.Message}");
+                }
+            });
+
+            return cleanupFailure;
+        }
+        catch (Exception ex)
+        {
+            return ex;
+        }
+    }
+
+    /// <summary>
     /// Stop all active property watchers (cleanup on shutdown)
     /// </summary>
     public static void StopAllWatchers()
     {
-        foreach (var kvp in _watchers)
+        var failedWatchKeys = new List<string>();
+
+        foreach (var kvp in _watchers.ToArray())
         {
-            try
+            if (!TryDetachWatcher(kvp.Key, kvp.Value, out var cleanupFailure) && cleanupFailure != null)
             {
-                if (kvp.Value.ElementRef.TryGetTarget(out var element))
-                {
-                    kvp.Value.Descriptor.RemoveValueChanged(element, kvp.Value.Handler);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"DependencyPropertyAnalyzer: Failed to cleanup watcher: {ex.Message}");
+                failedWatchKeys.Add(kvp.Key);
+                System.Diagnostics.Debug.WriteLine($"DependencyPropertyAnalyzer: Failed to cleanup watcher '{kvp.Key}': {cleanupFailure.Message}");
             }
         }
 
-        _watchers.Clear();
-        _cleanupTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        _cleanupTimer?.Change(
+            _watchers.IsEmpty ? Timeout.InfiniteTimeSpan : TimeSpan.FromSeconds(CleanupIntervalSeconds),
+            _watchers.IsEmpty ? Timeout.InfiniteTimeSpan : TimeSpan.FromSeconds(CleanupIntervalSeconds));
+
+        if (failedWatchKeys.Count > 0)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"DependencyPropertyAnalyzer: {failedWatchKeys.Count} watcher(s) remain registered for retry: {string.Join(", ", failedWatchKeys)}");
+        }
     }
 
     /// <summary>
@@ -221,6 +283,49 @@ public sealed partial class DependencyPropertyAnalyzer
         foreach (var key in deadKeys)
         {
             _watchers.TryRemove(key, out _);
+        }
+    }
+
+    private static bool TryDetachWatcher(string watchKey, WatchRegistration watcher, out Exception? cleanupFailure)
+    {
+        if (!watcher.ElementRef.TryGetTarget(out var element))
+        {
+            _watchers.TryRemove(watchKey, out _);
+            cleanupFailure = null;
+            return true;
+        }
+
+        var dispatcher = watcher.Dispatcher ?? element.Dispatcher;
+        if (dispatcher == null || dispatcher.HasShutdownFinished || dispatcher.HasShutdownStarted)
+        {
+            _watchers.TryRemove(watchKey, out _);
+            cleanupFailure = null;
+            return true;
+        }
+
+        try
+        {
+            if (dispatcher.CheckAccess())
+            {
+                DetachWatcherAction(watcher.Descriptor, element, watcher.Handler);
+            }
+            else
+            {
+                dispatcher.Invoke(
+                    () => DetachWatcherAction(watcher.Descriptor, element, watcher.Handler),
+                    DispatcherPriority.Normal,
+                    CancellationToken.None,
+                    InspectorConfig.UIThreadTimeout);
+            }
+
+            _watchers.TryRemove(watchKey, out _);
+            cleanupFailure = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            cleanupFailure = ex;
+            return false;
         }
     }
 }

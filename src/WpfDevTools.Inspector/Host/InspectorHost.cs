@@ -37,6 +37,7 @@ public sealed partial class InspectorHost : IDisposable
     private readonly Func<NamedPipeServerStream>? _pipeServerFactory;
     private readonly Action? _beforeStartupCompletion;
     private readonly TimeSpan _startupTimeout;
+    private readonly TimeSpan _sessionReadTimeout;
     private NamedPipeServerStream? _pipeServer;
     private CancellationTokenSource? _cancellationTokenSource;
     private TaskCompletionSource<object?>? _startupCompletionSource;
@@ -119,7 +120,8 @@ public sealed partial class InspectorHost : IDisposable
         FileLogLevel minimumLogLevel = FileLogLevel.Warning,
         Func<NamedPipeServerStream>? pipeServerFactory = null,
         TimeSpan? startupTimeout = null,
-        Action? beforeStartupCompletion = null)
+        Action? beforeStartupCompletion = null,
+        TimeSpan? sessionReadTimeout = null)
     {
         _processId = processId;
         _pipeName = string.IsNullOrWhiteSpace(pipeName)
@@ -137,6 +139,7 @@ public sealed partial class InspectorHost : IDisposable
         _pipeServerFactory = pipeServerFactory;
         _startupTimeout = startupTimeout ?? InspectorConfig.PipeConnectTimeout;
         _beforeStartupCompletion = beforeStartupCompletion;
+        _sessionReadTimeout = sessionReadTimeout ?? InspectorConfig.IdleConnectionTimeout;
     }
 
     private static string CreatePipeName(int processId) => $"WpfDevTools_{processId}";
@@ -717,8 +720,20 @@ public sealed partial class InspectorHost : IDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                // Read request
-                var requestJson = await MessageFraming.ReadMessageAsync(stream, cancellationToken).ConfigureAwait(false);
+                string requestJson;
+                try
+                {
+                    requestJson = await ReadMessageWithSessionTimeoutAsync(stream, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (TimeoutException ex)
+                {
+                    LogError(ex.Message);
+                    break;
+                }
 
                 // Parse request with shared options (includes MaxDepth protection)
                 var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson, IpcSerializerOptions);
@@ -765,6 +780,50 @@ public sealed partial class InspectorHost : IDisposable
         {
             LogError($"Client handling error: {ex.Message}");
         }
+    }
+
+    private async Task<string> ReadMessageWithSessionTimeoutAsync(
+        Stream stream,
+        CancellationToken cancellationToken)
+    {
+        var readTask = MessageFraming.ReadMessageAsync(stream, cancellationToken);
+        var timeoutTask = Task.Delay(_sessionReadTimeout, cancellationToken);
+        var completedTask = await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false);
+
+        if (ReferenceEquals(completedTask, readTask))
+        {
+            return await readTask.ConfigureAwait(false);
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
+
+        ObserveTimedOutReadTask(readTask);
+
+        try
+        {
+            stream.Dispose();
+        }
+        catch (Exception ex)
+        {
+            LogError($"Failed to dispose timed-out client stream: {ex.Message}");
+        }
+
+        throw new TimeoutException($"Client session read timed out after {_sessionReadTimeout.TotalMilliseconds}ms");
+    }
+
+    private static void ObserveTimedOutReadTask(Task<string> readTask)
+    {
+        _ = readTask.ContinueWith(
+            completedTask =>
+            {
+                _ = completedTask.Exception;
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private async Task<InspectorResponse> ProcessRequestAsync(

@@ -14,6 +14,7 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 {
     private Process? _testApp;
     private McpStdioClient? _client;
+    private string? _serverExePath;
 
     public McpStdioClient Client => _client
         ?? throw new InvalidOperationException("E2E fixture not initialized");
@@ -68,29 +69,48 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             return;
         }
 
+        _serverExePath = serverExe;
+
         try
         {
             _testApp = TestAppProcessLauncher.StartAndWaitForMainWindow(testAppExe, TimeSpan.FromSeconds(15));
-
-            _client = new McpStdioClient();
-            await _client.StartAsync(serverExe);
-
-            var connectResult = await _client.CallToolAsync(
-                "connect",
-                new { processId = _testApp.Id },
-                timeoutMs: 90000);
-
-            if (!connectResult.TryGetProperty("success", out var success) ||
-                !success.GetBoolean())
-            {
-                var error = connectResult.TryGetProperty("error", out var e) ? e.GetString() : "unknown";
-                SkipReason = $"Failed to connect to TestApp: {error}";
-            }
+            await ReconnectClientAsync();
         }
         catch (Exception ex)
         {
             var stderrFull = _client?.ServerStderr ?? "";
             SkipReason = $"E2E fixture initialization failed: {ex.Message}\n---STDERR---\n{stderrFull}";
+        }
+    }
+
+    public async Task ReconnectClientAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_serverExePath))
+        {
+            throw new InvalidOperationException("MCP server executable path is not available for reconnect.");
+        }
+
+        if (_testApp == null)
+        {
+            throw new InvalidOperationException("TestApp must be started before reconnecting the MCP session.");
+        }
+
+        _client?.Dispose();
+        _client = new McpStdioClient();
+        await _client.StartAsync(_serverExePath).ConfigureAwait(false);
+
+        var connectResult = await _client.CallToolAsync(
+            "connect",
+            new { processId = _testApp.Id },
+            timeoutMs: 90000).ConfigureAwait(false);
+
+        if (!connectResult.TryGetProperty("success", out var success) ||
+            !success.GetBoolean())
+        {
+            var error = connectResult.TryGetProperty("error", out var errorProperty)
+                ? errorProperty.GetString()
+                : "unknown";
+            throw new InvalidOperationException($"Failed to reconnect to TestApp: {error}");
         }
     }
 

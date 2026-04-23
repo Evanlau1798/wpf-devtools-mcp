@@ -262,8 +262,26 @@ function Assert-ArchiveIntegrity {
     }
 
     $releaseRecord = $null
-    if ($DownloadSource -eq 'github-release' -or
-        ($DownloadSource -eq 'local-package' -and (Test-AllowLocalArchiveReleaseMetadataInTestMode))) {
+    $explicitMetadataDirectory = if ($DownloadSource -eq 'local-package') {
+        Get-ExplicitTrustedReleaseMetadataDirectory
+    }
+    else {
+        $null
+    }
+    $hasExplicitMetadataDirectory = -not [string]::IsNullOrWhiteSpace($explicitMetadataDirectory)
+
+    if ($null -eq $releaseRecord -and
+        $DownloadSource -eq 'local-package' -and
+        $hasExplicitMetadataDirectory) {
+        $releaseRecord = Get-ReleaseAssetRecordFromDirectory `
+            -DirectoryPath $explicitMetadataDirectory `
+            -AssetName $canonicalAssetName `
+            -ArchiveHash $archiveHash
+    }
+
+    if (-not $hasExplicitMetadataDirectory -and
+        ($DownloadSource -eq 'github-release' -or
+            ($DownloadSource -eq 'local-package' -and (Test-AllowLocalArchiveReleaseMetadataInTestMode)))) {
         $releaseRecord = Get-ReleaseAssetRecordFromDirectory `
             -DirectoryPath (Split-Path -Parent $ArchivePath) `
             -AssetName $canonicalAssetName `
@@ -271,7 +289,7 @@ function Assert-ArchiveIntegrity {
     }
 
     if ($null -eq $releaseRecord -and
-        ($DownloadSource -eq 'github-release' -or $DownloadSource -eq 'local-package') -and
+        ($DownloadSource -eq 'github-release' -or ($DownloadSource -eq 'local-package' -and -not $hasExplicitMetadataDirectory)) -and
         $null -ne $archiveIdentity) {
         $releaseRecord = Get-ReleaseAssetRecordFromGitHub `
             -ResolvedVersion ([string]$archiveIdentity.ResolvedVersion) `
@@ -415,6 +433,26 @@ function Test-AllowLocalArchiveReleaseMetadataInTestMode {
         [string]::Equals([string]$env:WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA, '1', [System.StringComparison]::Ordinal)
 }
 
+function Get-ExplicitTrustedReleaseMetadataDirectory {
+    $trustedDirectoryEntry = Get-Item Env:WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY -ErrorAction SilentlyContinue
+    if ($null -eq $trustedDirectoryEntry) {
+        return $null
+    }
+
+    $trustedDirectory = [string]$trustedDirectoryEntry.Value
+
+    if ([string]::IsNullOrWhiteSpace($trustedDirectory)) {
+        throw 'TrustedReleaseMetadataDirectory must not be empty when specified.'
+    }
+
+    $resolvedDirectory = Resolve-AbsolutePath -Path $trustedDirectory
+    if (-not (Test-Path -LiteralPath $resolvedDirectory -PathType Container)) {
+        throw "TrustedReleaseMetadataDirectory was not found: $resolvedDirectory"
+    }
+
+    return $resolvedDirectory
+}
+
 function Normalize-SignerThumbprint {
     param([string]$Thumbprint)
 
@@ -528,6 +566,22 @@ function Get-PackagePayloadSignatureTargets {
 <#
 .SYNOPSIS
     Verifies that executable payloads inside a package satisfy the current
+    $explicitMetadataDirectory = if ($DownloadSource -eq 'local-package') {
+        Get-ExplicitTrustedReleaseMetadataDirectory
+    }
+    else {
+        $null
+    }
+
+    if ($null -eq $releaseRecord -and
+        $DownloadSource -eq 'local-package' -and
+        -not [string]::IsNullOrWhiteSpace($explicitMetadataDirectory)) {
+        $releaseRecord = Get-ReleaseAssetRecordFromDirectory `
+            -DirectoryPath $explicitMetadataDirectory `
+            -AssetName $canonicalAssetName `
+            -ArchiveHash $archiveHash
+    }
+
     signature policy before installation.
 
 .PARAMETER TrustedArchiveManifestPolicy

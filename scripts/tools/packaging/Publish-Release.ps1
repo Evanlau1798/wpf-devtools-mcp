@@ -3,6 +3,7 @@ param(
     [string]$Configuration = 'Release',
     [string[]]$Architectures = @('x64'),
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release'),
+    [string]$ExpectedReleaseTag,
     [string]$SigningCertificatePath,
     [string]$SigningCertificateThumbprint,
     [string]$SigningPasswordEnvironmentVariable = 'WPFDEVTOOLS_PFX_PASSWORD',
@@ -64,6 +65,34 @@ function Get-SignaturePolicy {
     }
 
     return 'RequireAuthenticodeSignature'
+}
+
+function Normalize-ReleaseTag {
+    param([Parameter(Mandatory)] [string]$Tag)
+
+    if ($Tag.StartsWith('v')) {
+        return $Tag
+    }
+
+    return "v$Tag"
+}
+
+function Assert-ExpectedReleaseTagMatchesVersion {
+    param(
+        [Parameter(Mandatory)] [string]$Version,
+        [string]$ExpectedReleaseTag,
+        [Parameter(Mandatory)] [string]$ProjectPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedReleaseTag)) {
+        return
+    }
+
+    $normalizedExpectedTag = Normalize-ReleaseTag -Tag $ExpectedReleaseTag
+    $normalizedVersionTag = Normalize-ReleaseTag -Tag $Version
+    if (-not [string]::Equals($normalizedExpectedTag, $normalizedVersionTag, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Expected release tag '$ExpectedReleaseTag' does not match project version '$Version' from $ProjectPath."
+    }
 }
 
 function Copy-DirectoryContents {
@@ -813,6 +842,8 @@ $version = $serverProjectXml.Project.PropertyGroup.Version | Select-Object -Firs
 if ([string]::IsNullOrWhiteSpace($version)) {
     $version = '0.0.0-dev'
 }
+
+Assert-ExpectedReleaseTagMatchesVersion -Version $version -ExpectedReleaseTag $ExpectedReleaseTag -ProjectPath $serverProject
 
 $resolvedArchitectures = Resolve-ArchitectureList -InputArchitectures $Architectures
 Assert-ArchitectureToolchainAvailable -ResolvedArchitectures $resolvedArchitectures -ResolvedMsBuildPath $msbuildPath

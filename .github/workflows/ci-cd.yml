@@ -115,7 +115,7 @@ jobs:
 
     strategy:
       matrix:
-        architecture: [x64, x86, arm64]
+        architecture: [x64, x86]
 
     steps:
     - name: Checkout code
@@ -147,6 +147,17 @@ jobs:
 
         & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir.FullName 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
 
+    - name: Start installed package runtime smoke test
+      shell: pwsh
+      run: |
+        $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'
+
+        if (-not (Test-Path $serverPath)) {
+          throw "Could not locate installed server executable at $serverPath"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
+
     - name: Online installer smoke test
       shell: pwsh
       run: |
@@ -159,6 +170,17 @@ jobs:
         }
 
         & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+
+    - name: Start online-installed runtime smoke test
+      shell: pwsh
+      run: |
+        $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'
+
+        if (-not (Test-Path $serverPath)) {
+          throw "Could not locate online-installed server executable at $serverPath"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
 
     - name: Uninstall published package smoke test
       shell: pwsh
@@ -181,6 +203,101 @@ jobs:
         }
 
         & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+
+  release-packaging-smoke-arm64:
+    if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
+    runs-on: [self-hosted, Windows, ARM64]
+    env:
+      WPFDEVTOOLS_INSTALLER_TEST_MODE: '1'
+      WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA: '1'
+      WPFDEVTOOLS_TEST_SIGNATURE_STATUS: 'Valid'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Run ARM64 release packaging smoke test
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Publish-Release.ps1 -Architectures 'arm64'
+
+    - name: Install published ARM64 package smoke test
+      shell: pwsh
+      run: |
+        $packageDir = Get-ChildItem 'artifacts/release' -Directory -Filter 'release_*_win-arm64' |
+          Sort-Object Name -Descending |
+          Select-Object -First 1
+
+        if ($null -eq $packageDir) {
+          throw 'Could not locate packaged release directory for architecture arm64'
+        }
+
+        & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir.FullName 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+
+    - name: Start installed ARM64 runtime smoke test
+      shell: pwsh
+      run: |
+        $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'arm64\current\bin\wpf-devtools-arm64.exe'
+
+        if (-not (Test-Path $serverPath)) {
+          throw "Could not locate installed ARM64 server executable at $serverPath"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
+
+    - name: ARM64 online installer smoke test
+      shell: pwsh
+      run: |
+        $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter 'release_*_win-arm64.zip' |
+          Sort-Object Name -Descending |
+          Select-Object -First 1
+
+        if ($null -eq $packageArchive) {
+          throw 'Could not locate packaged release archive for architecture arm64'
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+
+    - name: Start online-installed ARM64 runtime smoke test
+      shell: pwsh
+      run: |
+        $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'arm64\current\bin\wpf-devtools-arm64.exe'
+
+        if (-not (Test-Path $serverPath)) {
+          throw "Could not locate online-installed ARM64 server executable at $serverPath"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
+
+    - name: Uninstall published ARM64 package smoke test
+      shell: pwsh
+      run: |
+        $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'arm64\current\bin\install.ps1'
+
+        if (-not (Test-Path $installedScript)) {
+          throw "Could not locate installed package-local installer at $installedScript"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+
+    - name: Uninstall ARM64 online installer smoke test
+      shell: pwsh
+      run: |
+        $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'arm64\current\bin\install.ps1'
+
+        if (-not (Test-Path $installedScript)) {
+          throw "Could not locate installed online-installer payload at $installedScript"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
   code-coverage:
     runs-on: windows-latest
 

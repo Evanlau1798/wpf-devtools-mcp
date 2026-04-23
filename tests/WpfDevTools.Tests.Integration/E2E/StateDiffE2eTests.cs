@@ -130,4 +130,45 @@ public sealed class StateDiffE2eTests : SharedStateMcpE2eTestBase
         batchResult.GetProperty("stateDiff").GetProperty("success").GetBoolean().Should().BeTrue();
         batchResult.GetProperty("stateDiff").GetProperty("viewModelChanges").GetArrayLength().Should().BeGreaterThan(0);
     }
+
+    [Fact]
+    public async Task ResetSharedSessionState_AfterSnapshotCapture_ShouldDiscardPriorSnapshotIds()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var findResult = await _fixture.Client.CallToolAsync(
+            "find_elements",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementName = "NameTextBox"
+            });
+        var runtimeElementId = findResult.GetProperty("results")[0].GetProperty("elementId").GetString();
+
+        var capture = await _fixture.Client.CallToolAsync(
+            "capture_state_snapshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = runtimeElementId,
+                propertyNames = new[] { "Text" },
+                viewModelPropertyNames = new[] { "Name" }
+            });
+        capture.GetProperty("success").GetBoolean().Should().BeTrue();
+        var snapshotId = capture.GetProperty("snapshotId").GetString();
+
+        await E2eTestHelpers.ResetSharedSessionStateAsync(_fixture);
+
+        var restore = await _fixture.Client.CallToolAsync(
+            "restore_state_snapshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                snapshotId
+            });
+        _output.WriteLine($"restore_state_snapshot after reset => {restore.GetRawText()}");
+
+        restore.GetProperty("success").GetBoolean().Should().BeFalse();
+        restore.GetProperty("error").GetString().Should().Contain("No stored snapshot found");
+    }
 }

@@ -15,6 +15,7 @@ public sealed partial class SessionManager : IDisposable
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     internal readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly Dictionary<int, Dictionary<string, StoredStateSnapshot>> _stateSnapshots = new();
+    private readonly Dictionary<int, long> _sessionGenerations = new();
     private ActiveProcessSelection? _activeProcessSelection;
     private readonly IRateLimiterManager _rateLimiter;
     private readonly AuthenticationManager? _authManager;
@@ -23,6 +24,7 @@ public sealed partial class SessionManager : IDisposable
     private readonly object _lock = new();
     private readonly object _shutdownGuard = new();
     internal readonly System.Threading.Timer _cleanupTimer;
+    private long _nextSessionGeneration;
 
     /// <summary>
     /// Create a new SessionManager with dependency injection
@@ -135,20 +137,7 @@ public sealed partial class SessionManager : IDisposable
                 throw new InvalidOperationException($"Session for process {processId} already exists");
             }
 
-            _sessions[processId] = new SessionInfo
-            {
-                ProcessId = processId,
-                LastActivity = DateTimeOffset.UtcNow
-            };
-
-            _pipeClients[processId] = new NamedPipeClient(processId, _authManager, _certManager);
-            _stateSnapshots[processId] = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
-            _navigationStateStore.EnsureProcess(processId);
-            _activeProcessSelection ??= new ActiveProcessSelection
-            {
-                ProcessId = processId,
-                SelectedAtUtc = DateTimeOffset.UtcNow
-            };
+            InitializeSessionState(processId, new NamedPipeClient(processId, _authManager, _certManager));
         }
     }
 
@@ -170,6 +159,8 @@ public sealed partial class SessionManager : IDisposable
 
             _stateSnapshots.Remove(processId);
             _pendingEventReplay.Remove(processId);
+            _pendingEventReplayLocks.Remove(processId);
+            _sessionGenerations.Remove(processId);
             _navigationStateStore.RemoveProcess(processId);
 
             if (_activeProcessSelection?.ProcessId == processId)
@@ -179,6 +170,40 @@ public sealed partial class SessionManager : IDisposable
 
             // Clean up rate limiter state
             _rateLimiter.RemoveSession(processId);
+        }
+    }
+
+    private void InitializeSessionState(int processId, NamedPipeClient pipeClient)
+    {
+        _sessions[processId] = new SessionInfo
+        {
+            ProcessId = processId,
+            LastActivity = DateTimeOffset.UtcNow
+        };
+        _sessionGenerations[processId] = ++_nextSessionGeneration;
+
+        _pipeClients[processId] = pipeClient;
+        _stateSnapshots[processId] = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
+        _navigationStateStore.EnsureProcess(processId);
+        _activeProcessSelection ??= new ActiveProcessSelection
+        {
+            ProcessId = processId,
+            SelectedAtUtc = DateTimeOffset.UtcNow
+        };
+    }
+
+    internal NamedPipeClient? GetPipeClient(int processId, long expectedSessionGeneration)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (!_sessionGenerations.TryGetValue(processId, out var currentGeneration)
+                || currentGeneration != expectedSessionGeneration)
+            {
+                return null;
+            }
+
+            return _pipeClients.TryGetValue(processId, out var client) ? client : null;
         }
     }
 
@@ -281,20 +306,7 @@ public sealed partial class SessionManager : IDisposable
                 throw new InvalidOperationException($"Session for process {processId} already exists");
             }
 
-            _sessions[processId] = new SessionInfo
-            {
-                ProcessId = processId,
-                LastActivity = DateTimeOffset.UtcNow
-            };
-
-            _pipeClients[processId] = pipeClient;
-            _stateSnapshots[processId] = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
-            _navigationStateStore.EnsureProcess(processId);
-            _activeProcessSelection ??= new ActiveProcessSelection
-            {
-                ProcessId = processId,
-                SelectedAtUtc = DateTimeOffset.UtcNow
-            };
+            InitializeSessionState(processId, pipeClient);
         }
     }
 

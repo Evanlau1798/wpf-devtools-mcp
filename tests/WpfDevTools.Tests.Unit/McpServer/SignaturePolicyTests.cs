@@ -4,6 +4,8 @@ using Xunit;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Tests.Unit.Execution;
+using WpfDevTools.Tests.Unit.Release;
+using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -161,7 +163,7 @@ public class SignaturePolicyTests
         }
         else
         {
-            act.Should().Throw<InvalidOperationException>()
+            act.Should().Throw<System.Security.Cryptography.CryptographicException>()
                 .WithMessage("*signature*");
         }
     }
@@ -253,7 +255,7 @@ public class SignaturePolicyTests
             }
             else
             {
-                act.Should().Throw<InvalidOperationException>()
+                act.Should().Throw<System.Security.Cryptography.CryptographicException>()
                     .WithMessage("*signature*");
             }
         }
@@ -324,7 +326,251 @@ public class SignaturePolicyTests
         }
     }
 
-    private static string CreateWorkspaceBuildBaseDirectory()
+    [Fact]
+    public void ValidateDllPath_ReleaseBuild_WhenWinVerifyTrustFails_ShouldKeepStableInvalidSignatureContract()
+    {
+        var previousVerifier = DllPathValidator.WinVerifyTrustOverrideForTesting;
+        var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
+        var previousSignerThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
+        var previousSignerSubject = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
+        var tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var trustedDllPath = Path.Combine(tempDirectory, "WpfDevTools.Inspector.dll");
+        var verifierInvoked = false;
+        const string expectedMessage =
+            "Inspector DLL is not digitally signed or has an invalid signature. " +
+            "In development, use a DEBUG build which auto-skips signature verification for local DLLs. " +
+            "In production, sign the DLL with Authenticode.";
+        var verifyMethod = typeof(DllPathValidator).GetMethod(
+            "VerifyAuthenticodeSignature",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Directory.CreateDirectory(tempDirectory);
+        File.WriteAllText(trustedDllPath, "unsigned");
+
+        try
+        {
+            verifyMethod.Should().NotBeNull("the signature verifier should remain a distinct implementation surface that tests can exercise deterministically");
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = false;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", "TESTSIGNER00000000000000000000000000000000");
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", null);
+            DllPathValidator.WinVerifyTrustOverrideForTesting = _ =>
+            {
+                verifierInvoked = true;
+                return unchecked((int)0x800B0100);
+            };
+
+            var act = () => verifyMethod!.Invoke(null, new object[] { trustedDllPath, tempDirectory });
+
+            var exception = act.Should().Throw<TargetInvocationException>().Which;
+            var signatureException = exception.InnerException.Should().BeOfType<System.Security.Cryptography.CryptographicException>().Which;
+            signatureException.Message.Should().Be(expectedMessage,
+                "WinVerifyTrust failures should be normalized back to the established invalid-signature guidance contract");
+            signatureException.InnerException.Should().BeOfType<System.Security.Cryptography.CryptographicException>(
+                "the normalized CryptographicException should preserve the underlying native verification failure details");
+            verifierInvoked.Should().BeTrue(
+                "the Authenticode verifier should execute the WinVerifyTrust-based file check before certificate parsing");
+        }
+        finally
+        {
+            DllPathValidator.WinVerifyTrustOverrideForTesting = previousVerifier;
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", previousSignerThumbprint);
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", previousSignerSubject);
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DllPathValidator_ShouldUseWinVerifyTrustForReleaseAuthenticodeVerification()
+    {
+        var content = File.ReadAllText(
+            TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs"));
+
+        content.Should().Contain("WinVerifyTrust(",
+            "release DLL validation should verify the signed PE file itself instead of trusting only the signer certificate metadata");
+        content.Should().Contain("VerifyFileAuthenticodeTrust(filePath)",
+            "the Authenticode file-trust check should run before certificate-chain inspection so tampered signed files are rejected");
+    }
+
+    [Fact]
+    public void DllPathValidator_ShouldNotReuseTransportCertificateThumbprintForDllSignaturePinning()
+    {
+        var content = File.ReadAllText(
+            TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs"));
+
+        content.Should().NotContain("WPFDEVTOOLS_CERT_THUMBPRINT",
+            "the transport TLS certificate pin must not double as the runtime DLL signer policy for injected payload validation");
+    }
+
+    [Fact]
+    public void DllPathValidator_ShouldNotTrustInstallDirectoryManifestSignerMetadataForRuntimePinning()
+    {
+        var content = File.ReadAllText(
+            TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs"));
+
+        content.Should().Contain("Environment.ProcessPath",
+            "runtime DLL signer pinning should fall back to the currently running signed MCP server executable when no explicit env pin is provided");
+        content.Should().NotContain("manifest.json",
+            "runtime DLL signer pinning must not trust mutable install-directory manifest metadata as the authoritative signer pin source");
+    }
+
+    [Fact]
+    public void VerifyAuthenticodeSignature_PackagedReleaseBuild_WithPinnedCurrentServerSigner_ShouldAcceptSignedPayload()
+    {
+        var previousVerifier = DllPathValidator.WinVerifyTrustOverrideForTesting;
+        var previousValidatedSigner = DllPathValidator.ValidatedSignerOverrideForTesting;
+        var previousCurrentProcessSigner = DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting;
+        var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
+        var previousSignerThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
+        var previousSignerSubject = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var verifyMethod = typeof(DllPathValidator).GetMethod(
+            "VerifyAuthenticodeSignature",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        try
+        {
+            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: true);
+            var baseDirectory = Path.Combine(packageRoot, "bin");
+            var dllPath = Path.Combine(packageRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll");
+            var signer = ReleaseScriptTestHarness.GetSignedPayloadSigner();
+            verifyMethod.Should().NotBeNull();
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = false;
+            DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = new DllPathValidator.ValidatedAuthenticodeSigner(
+                signer.Thumbprint,
+                signer.Subject,
+                DateTimeOffset.UtcNow.AddDays(-1),
+                DateTimeOffset.UtcNow.AddDays(1));
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", null);
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", null);
+            DllPathValidator.WinVerifyTrustOverrideForTesting = _ => 0;
+            DllPathValidator.ValidatedSignerOverrideForTesting = _ => new DllPathValidator.ValidatedAuthenticodeSigner(
+                signer.Thumbprint,
+                signer.Subject,
+                DateTimeOffset.UtcNow.AddDays(-1),
+                DateTimeOffset.UtcNow.AddDays(1));
+
+            var act = () => verifyMethod!.Invoke(null, new object[] { dllPath, baseDirectory });
+
+            act.Should().NotThrow<TargetInvocationException>(
+                "release package payloads should validate when the signed DLL matches the currently running MCP server executable signer and no explicit env pin overrides it");
+        }
+        finally
+        {
+            DllPathValidator.WinVerifyTrustOverrideForTesting = previousVerifier;
+            DllPathValidator.ValidatedSignerOverrideForTesting = previousValidatedSigner;
+            DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = previousCurrentProcessSigner;
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", previousSignerThumbprint);
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", previousSignerSubject);
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void VerifyAuthenticodeSignature_PackagedReleaseBuild_WhenPinnedEnvironmentSignerDoesNotMatch_ShouldThrow()
+    {
+        var previousVerifier = DllPathValidator.WinVerifyTrustOverrideForTesting;
+        var previousValidatedSigner = DllPathValidator.ValidatedSignerOverrideForTesting;
+        var previousCurrentProcessSigner = DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting;
+        var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
+        var previousSignerThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
+        var previousSignerSubject = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var verifyMethod = typeof(DllPathValidator).GetMethod(
+            "VerifyAuthenticodeSignature",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        try
+        {
+            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: true);
+            var baseDirectory = Path.Combine(packageRoot, "bin");
+            var dllPath = Path.Combine(packageRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll");
+            var signer = ReleaseScriptTestHarness.GetSignedPayloadSigner();
+            verifyMethod.Should().NotBeNull();
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = false;
+            DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = null;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", "0000000000000000000000000000000000000000");
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", null);
+            DllPathValidator.WinVerifyTrustOverrideForTesting = _ => 0;
+            DllPathValidator.ValidatedSignerOverrideForTesting = _ => new DllPathValidator.ValidatedAuthenticodeSigner(
+                signer.Thumbprint,
+                signer.Subject,
+                DateTimeOffset.UtcNow.AddDays(-1),
+                DateTimeOffset.UtcNow.AddDays(1));
+
+            var act = () => verifyMethod!.Invoke(null, new object[] { dllPath, baseDirectory });
+
+            var exception = act.Should().Throw<TargetInvocationException>().Which;
+            var signatureException = exception.InnerException.Should().BeOfType<System.Security.Cryptography.CryptographicException>().Which;
+            signatureException.Message.Should().Contain("invalid signature");
+            signatureException.InnerException.Should().BeOfType<System.Security.Cryptography.CryptographicException>();
+            signatureException.InnerException!.Message.Should().Contain("pinned release signer");
+        }
+        finally
+        {
+            DllPathValidator.WinVerifyTrustOverrideForTesting = previousVerifier;
+            DllPathValidator.ValidatedSignerOverrideForTesting = previousValidatedSigner;
+            DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = previousCurrentProcessSigner;
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", previousSignerThumbprint);
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", previousSignerSubject);
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void VerifyAuthenticodeSignature_WhenSubjectOnlyEnvironmentPinIsProvided_ShouldRejectWeakPinConfiguration()
+    {
+        var previousVerifier = DllPathValidator.WinVerifyTrustOverrideForTesting;
+        var previousValidatedSigner = DllPathValidator.ValidatedSignerOverrideForTesting;
+        var previousCurrentProcessSigner = DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting;
+        var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
+        var previousSignerThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
+        var previousSignerSubject = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var verifyMethod = typeof(DllPathValidator).GetMethod(
+            "VerifyAuthenticodeSignature",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        try
+        {
+            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: true);
+            var baseDirectory = Path.Combine(packageRoot, "bin");
+            var dllPath = Path.Combine(packageRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll");
+            var signer = ReleaseScriptTestHarness.GetSignedPayloadSigner();
+            verifyMethod.Should().NotBeNull();
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = false;
+            DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = null;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", null);
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", signer.Subject);
+            DllPathValidator.WinVerifyTrustOverrideForTesting = _ => 0;
+            DllPathValidator.ValidatedSignerOverrideForTesting = _ => new DllPathValidator.ValidatedAuthenticodeSigner(
+                signer.Thumbprint,
+                signer.Subject,
+                DateTimeOffset.UtcNow.AddDays(-1),
+                DateTimeOffset.UtcNow.AddDays(1));
+
+            var act = () => verifyMethod!.Invoke(null, new object[] { dllPath, baseDirectory });
+
+            var exception = act.Should().Throw<TargetInvocationException>().Which;
+            var signatureException = exception.InnerException.Should().BeOfType<System.Security.Cryptography.CryptographicException>().Which;
+            signatureException.Message.Should().Contain("invalid signature");
+            signatureException.InnerException.Should().BeOfType<System.Security.Cryptography.CryptographicException>();
+            signatureException.InnerException!.Message.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
+        }
+        finally
+        {
+            DllPathValidator.WinVerifyTrustOverrideForTesting = previousVerifier;
+            DllPathValidator.ValidatedSignerOverrideForTesting = previousValidatedSigner;
+            DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = previousCurrentProcessSigner;
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", previousSignerThumbprint);
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", previousSignerSubject);
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    private static string CreateWorkspaceBuildBaseDirectory(string configuration = "Checked")
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var mainRoot = Path.Combine(root, "repo");
@@ -334,7 +580,7 @@ public class SignaturePolicyTests
             "src",
             "WpfDevTools.Mcp.Server",
             "bin",
-            "Checked",
+            configuration,
             "net8.0-windows");
 
         Directory.CreateDirectory(baseDirectory);

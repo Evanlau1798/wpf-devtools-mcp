@@ -59,6 +59,60 @@ function Get-ReleaseArchiveDownloadTimeoutSeconds {
     return 30
 }
 
+function Get-LocalPackageTrustedReleaseMetadata {
+    param(
+        [Parameter(Mandatory)] [string]$PackageDirectory,
+        [Parameter(Mandatory)] [psobject]$PackageManifest
+    )
+
+    $resolvedVersion = [string]$PackageManifest.version
+    $resolvedArchitecture = [string]$PackageManifest.architecture
+    if ([string]::IsNullOrWhiteSpace($resolvedVersion) -or [string]::IsNullOrWhiteSpace($resolvedArchitecture)) {
+        return [ordered]@{
+            TrustedSignerThumbprint = $null
+            TrustedSignerSubject = $null
+            PackageAssetName = $null
+            DownloadUri = $null
+            HasTrustedReleaseMetadata = $false
+        }
+    }
+
+    $assetName = Get-ReleaseAssetName -ResolvedVersion $resolvedVersion -ResolvedArchitecture $resolvedArchitecture
+    $candidateDirectories = @((Split-Path -Parent $PackageDirectory)) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+        Select-Object -Unique
+
+    foreach ($candidateDirectory in $candidateDirectories) {
+        $adjacentArchivePath = Join-Path -Path $candidateDirectory -ChildPath $assetName
+        if (-not (Test-Path -LiteralPath $adjacentArchivePath -PathType Leaf)) {
+            continue
+        }
+
+        $archiveHash = Get-ArchiveSha256 -ArchivePath $adjacentArchivePath
+        $releaseRecord = Get-ReleaseAssetRecordFromDirectory `
+            -DirectoryPath $candidateDirectory `
+            -AssetName $assetName `
+            -ArchiveHash $archiveHash
+        if ($null -ne $releaseRecord -and [string]$releaseRecord.Sha256 -eq $archiveHash) {
+            return [ordered]@{
+                TrustedSignerThumbprint = [string]$releaseRecord.SignerThumbprint
+                TrustedSignerSubject = [string]$releaseRecord.SignerSubject
+                PackageAssetName = [string]$releaseRecord.AssetName
+                DownloadUri = Get-ReleaseDownloadUri -ResolvedVersion $resolvedVersion -ResolvedArchitecture $resolvedArchitecture
+                HasTrustedReleaseMetadata = $true
+            }
+        }
+    }
+
+    return [ordered]@{
+        TrustedSignerThumbprint = $null
+        TrustedSignerSubject = $null
+        PackageAssetName = $assetName
+        DownloadUri = Get-ReleaseDownloadUri -ResolvedVersion $resolvedVersion -ResolvedArchitecture $resolvedArchitecture
+        HasTrustedReleaseMetadata = $false
+    }
+}
+
 function Resolve-PackageSession {
     param(
         [Parameter(Mandatory)] [string]$Mode,
@@ -97,18 +151,22 @@ function Resolve-PackageSession {
     if ($Mode -eq 'offline') {
         $localRoot = Resolve-LocalPackageRoot
         $manifest = Get-Content -Path (Resolve-PackageManifestPath -PackageDirectory $localRoot) -Raw | ConvertFrom-Json
-        # Package-local directories are not archive-backed, so embedded manifests
-        # never get trusted to relax payload signature validation.
+        $trustedLocalReleaseMetadata = Get-LocalPackageTrustedReleaseMetadata -PackageDirectory $localRoot -PackageManifest $manifest
+        # Package-local directories must never trust embedded manifest fields to
+        # relax payload signature validation. Manual archive fallback may reuse
+        # adjacent release sidecars only when the original verified release zip
+        # is still present beside the extracted package so the signer metadata
+        # remains hash-bound to a concrete archive.
         return [ordered]@{
             PackageDirectory = $localRoot
             SessionRoot = $null
             CleanupSession = $false
             TrustedArchiveManifestPolicy = $false
-            TrustedSignerThumbprint = $null
-            TrustedSignerSubject = $null
+            TrustedSignerThumbprint = [string]$trustedLocalReleaseMetadata.TrustedSignerThumbprint
+            TrustedSignerSubject = [string]$trustedLocalReleaseMetadata.TrustedSignerSubject
             DownloadSource = 'local-package'
-            DownloadUri = $null
-            PackageAssetName = $null
+            DownloadUri = [string]$trustedLocalReleaseMetadata.DownloadUri
+            PackageAssetName = [string]$trustedLocalReleaseMetadata.PackageAssetName
             ResolvedVersion = [string]$manifest.version
         }
     }

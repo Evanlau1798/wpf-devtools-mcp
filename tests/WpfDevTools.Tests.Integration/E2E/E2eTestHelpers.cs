@@ -229,6 +229,12 @@ public static class E2eTestHelpers
         EnsureToolSucceeded(drainResult, "drain_events", "pending event queue");
     }
 
+    public static async Task ResetSharedSessionStateAsync(McpE2eFixture fixture)
+    {
+        await fixture.ReconnectClientAsync();
+        await ResetTestAppStateAsync(fixture.Client, fixture.TestAppProcessId);
+    }
+
     /// <summary>
     /// Truncate a string for safe inclusion in log/error messages.
     /// </summary>

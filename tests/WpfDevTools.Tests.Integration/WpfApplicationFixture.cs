@@ -22,6 +22,8 @@ public class WpfApplicationFixture : IDisposable
     private Application? _application;
     private Dispatcher? _dispatcher;
     private Window? _rootWindow;
+    private Exception? _startupFailure;
+    private volatile bool _startupAborted;
 
     public WpfApplicationFixture()
     {
@@ -41,11 +43,18 @@ public class WpfApplicationFixture : IDisposable
                 _rootWindow = CreateHiddenRootWindow();
                 _application.MainWindow = _rootWindow;
 
-                // Signal that app is ready
+                if (!TryStartDispatcherLoop(
+                    () => _startupAborted,
+                    () => _appStarted.Set(),
+                    Dispatcher.Run))
+                {
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _startupFailure = ex;
                 _appStarted.Set();
-
-                // Run dispatcher
-                Dispatcher.Run();
             }
             finally
             {
@@ -58,11 +67,23 @@ public class WpfApplicationFixture : IDisposable
         _uiThread.Start();
 
         // Wait for application to start
-        _appStarted.Wait(DefaultStartupTimeout);
+        var startupCompleted = _appStarted.Wait(DefaultStartupTimeout);
 
-        if (_dispatcher == null)
+        try
         {
-            throw new InvalidOperationException("Failed to initialize WPF Application");
+            EnsureStartupCompleted(
+                startupCompleted,
+                _startupFailure,
+                _application,
+                _dispatcher,
+                _rootWindow,
+                DefaultStartupTimeout);
+        }
+        catch
+        {
+            _startupAborted = true;
+            ReleaseFailedStartupResources(_dispatcher, _uiThread, _appStarted, _appStopped, DefaultShutdownTimeout);
+            throw;
         }
     }
 
@@ -143,6 +164,47 @@ public class WpfApplicationFixture : IDisposable
             Visibility = Visibility.Hidden
         };
 
+    internal static void EnsureStartupCompleted(
+        bool startupCompleted,
+        Exception? startupFailure,
+        Application? application,
+        Dispatcher? dispatcher,
+        Window? rootWindow,
+        TimeSpan startupTimeout)
+    {
+        if (startupFailure != null)
+        {
+            throw new InvalidOperationException("Failed to initialize WPF Application", startupFailure);
+        }
+
+        if (!startupCompleted)
+        {
+            throw new TimeoutException($"Timed out waiting {startupTimeout} for WPF Application startup.");
+        }
+
+        if (application == null || dispatcher == null || rootWindow == null)
+        {
+            throw new InvalidOperationException("Failed to initialize WPF Application");
+        }
+    }
+
+    internal static void ReleaseFailedStartupResources(
+        Dispatcher? dispatcher,
+        Thread uiThread,
+        ManualResetEventSlim appStarted,
+        ManualResetEventSlim appStopped,
+        TimeSpan shutdownTimeout)
+    {
+        if (dispatcher != null)
+        {
+            dispatcher.InvokeShutdown();
+        }
+
+        var shutdownCompleted = CompleteShutdown(uiThread, appStopped, shutdownTimeout);
+        ReleaseStartupSignal(shutdownCompleted, appStarted, appStopped);
+        ReleaseStoppedSignal(shutdownCompleted, appStopped);
+    }
+
     internal static bool CompleteShutdown(Thread uiThread, ManualResetEventSlim appStopped, TimeSpan shutdownTimeout)
     {
         if (uiThread.IsAlive && shutdownTimeout > TimeSpan.Zero)
@@ -164,6 +226,27 @@ public class WpfApplicationFixture : IDisposable
         return !uiThread.IsAlive;
     }
 
+    internal static bool TryStartDispatcherLoop(
+        Func<bool> isStartupAborted,
+        Action signalStarted,
+        Action runDispatcher)
+    {
+        if (isStartupAborted())
+        {
+            return false;
+        }
+
+        signalStarted();
+
+        if (isStartupAborted())
+        {
+            return false;
+        }
+
+        runDispatcher();
+        return true;
+    }
+
     internal static void ReleaseStoppedSignal(bool shutdownCompleted, ManualResetEventSlim appStopped)
     {
         if (shutdownCompleted)
@@ -173,6 +256,20 @@ public class WpfApplicationFixture : IDisposable
         }
 
         ScheduleDeferredSignalDisposal(appStopped);
+    }
+
+    internal static void ReleaseStartupSignal(
+        bool shutdownCompleted,
+        ManualResetEventSlim appStarted,
+        ManualResetEventSlim appStopped)
+    {
+        if (shutdownCompleted)
+        {
+            appStarted.Dispose();
+            return;
+        }
+
+        ScheduleDeferredSignalDisposal(appStopped, appStarted);
     }
 
     private static TimeSpan GetRemainingTimeout(TimeSpan timeout, Stopwatch stopwatch)
@@ -185,8 +282,15 @@ public class WpfApplicationFixture : IDisposable
 
     private static void ScheduleDeferredSignalDisposal(ManualResetEventSlim appStopped)
     {
+        ScheduleDeferredSignalDisposal(appStopped, appStopped);
+    }
+
+    private static void ScheduleDeferredSignalDisposal(
+        ManualResetEventSlim disposalTrigger,
+        ManualResetEventSlim signalToDispose)
+    {
         _ = ThreadPool.RegisterWaitForSingleObject(
-            appStopped.WaitHandle,
+            disposalTrigger.WaitHandle,
             static (state, _) =>
             {
                 try
@@ -197,7 +301,7 @@ public class WpfApplicationFixture : IDisposable
                 {
                 }
             },
-            appStopped,
+            signalToDispose,
             Timeout.Infinite,
             executeOnlyOnce: true);
     }

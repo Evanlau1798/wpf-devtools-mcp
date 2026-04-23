@@ -22,8 +22,14 @@ public class ReleasePackagingWorkflowTests
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
 
-        content.Should().Contain("architecture: [x64, x86, arm64]");
+        content.Should().Contain("architecture: [x64, x86]");
         content.Should().Contain("release_*_win-${{ matrix.architecture }}");
+        content.Should().Contain("release-packaging-smoke-arm64",
+            "ARM64 runtime smoke should run on a dedicated ARM64 lane instead of pretending hosted x64 install/uninstall smoke validates the shipped runtime");
+        content.Should().Contain("[self-hosted, Windows, ARM64]",
+            "ARM64 runtime smoke needs an actual ARM64 runner so the packaged executable can be launched before release publication");
+        content.Should().Contain("WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE",
+            "the dedicated ARM64 lane should stay opt-in for CI until the repository runner is configured");
     }
 
     [Fact]
@@ -52,6 +58,19 @@ public class ReleasePackagingWorkflowTests
 
         content.Should().Contain("scripts/online-installer.ps1");
         content.Should().Contain("release_*_win-${{ matrix.architecture }}.zip");
+    }
+
+    [Fact]
+    public void CiWorkflow_ShouldSmokeTestInstalledServerRuntimeAfterInstall()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("Test-PackagedServerRuntime.ps1",
+            "release packaging smoke should launch the packaged server entrypoint after install so runtime failures are caught before publication");
+        content.Should().Contain("Start installed package runtime smoke test",
+            "package-local installs should be exercised beyond install/uninstall script success");
+        content.Should().Contain("Start online-installed runtime smoke test",
+            "online-installer installs should also launch the packaged server entrypoint before cleanup");
     }
 
     [Fact]

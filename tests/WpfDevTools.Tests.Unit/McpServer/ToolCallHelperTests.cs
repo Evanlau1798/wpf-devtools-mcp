@@ -1,9 +1,12 @@
 using System.Text.Json;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Navigation;
 using WpfDevTools.Mcp.Server.Schema;
+using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -568,6 +571,61 @@ public class ToolCallHelperTests
         var structured = result.StructuredContent!.Value;
         structured.GetProperty("errorCode").GetString().Should().Be("SecurityError");
         structured.GetProperty("error").GetString().Should().NotContain("localized OS error text");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenDllPathValidatorFailsAfterWinVerifyTrust_ShouldReturnSecurityErrorCode()
+    {
+        var previousVerifier = DllPathValidator.WinVerifyTrustOverrideForTesting;
+        var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
+        var previousSignerThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
+        var previousSignerSubject = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
+        var tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var dllPath = Path.Combine(tempDirectory, "WpfDevTools.Inspector.dll");
+        var verifyMethod = typeof(DllPathValidator).GetMethod(
+            "VerifyAuthenticodeSignature",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Directory.CreateDirectory(tempDirectory);
+        File.WriteAllText(dllPath, "unsigned");
+
+        try
+        {
+            verifyMethod.Should().NotBeNull(
+                "the tests should exercise the real DllPathValidator signature verifier instead of stubbing away the validation path");
+            DllPathValidator.WinVerifyTrustOverrideForTesting = _ => 0;
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = false;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", "TESTSIGNER00000000000000000000000000000000");
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", null);
+
+            Func<JsonElement?, CancellationToken, Task<object>> faultyTool = (args, ct) =>
+            {
+                try
+                {
+                    verifyMethod!.Invoke(null, new object[] { dllPath, tempDirectory });
+                    return Task.FromResult<object>(new { success = true });
+                }
+                catch (TargetInvocationException ex) when (ex.InnerException is not null)
+                {
+                    ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                    throw;
+                }
+            };
+
+            var result = await ToolCallHelper.ExecuteAndWrapAsync(faultyTool, null, CancellationToken.None);
+
+            result.IsError.Should().BeTrue();
+            var structured = result.StructuredContent!.Value;
+            structured.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+            structured.GetProperty("error").GetString().Should().Be("Security verification failed");
+        }
+        finally
+        {
+            DllPathValidator.WinVerifyTrustOverrideForTesting = previousVerifier;
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", previousSignerThumbprint);
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", previousSignerSubject);
+            Directory.Delete(tempDirectory, recursive: true);
+        }
     }
 
     [Fact]

@@ -163,6 +163,33 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         result.GetProperty("cleanupFailureType").GetString().Should().Be("InvalidOperationException");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenReplayLockIsBusyAndCallerTokenCancelsDuringBestEffortPiggyback_ShouldStillReturnPrimarySuccess()
+    {
+        const int processId = 51045;
+        using var connected = await ConnectedBindingErrorsSession.CreateAsync(
+            processId,
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                errorCount = 0,
+                errors = Array.Empty<object>()
+            }));
+        using var replayLock = await connected.SessionManager.AcquirePendingEventReplayLockAsync(processId, CancellationToken.None);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        var tool = new GetBindingErrorsTool(connected.SessionManager);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new { processId }),
+            cancellation.Token));
+
+        await connected.ServerTask;
+
+        connected.RequestMethods.Should().Equal("get_binding_errors");
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(0);
+    }
+
     private sealed class ConnectedBindingErrorsSession(
         SessionManager sessionManager,
         NamedPipeServerStream server,

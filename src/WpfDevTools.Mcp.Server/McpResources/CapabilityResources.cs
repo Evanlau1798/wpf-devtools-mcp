@@ -63,6 +63,10 @@ public static class CapabilityResources
         - Mutation and interaction tools default to `detail=compact` when clients want to drop additive normalization metadata without changing core semantics.
         - Use `detail=minimal` when mutation flows only need success/property/newValue confirmation.
         - Use `detail=verbose` when clients need requested/effective input plus observedEffect metadata; legacy `detail=standard` remains accepted as a compatibility alias.
+        - `drain_events` and piggybacked `pendingEvents` payloads may also surface `cleanupIncomplete`, `cleanupFailureMessage`, and `cleanupFailureType` when buffered-event cleanup could not finish cleanly.
+        - When replay is already buffered, `drain_events` performs an uncapped live read internally, then applies the caller-visible `maxEvents`, `eventTypes`, `elementId`, and `sinceTimestamp` filters across the merged replay + live event set.
+        - In that replay-present path, any replay event that is not returned by the explicit read, and any matching live event that exceeds the caller-visible result cap, remain buffered for the next explicit `drain_events` read.
+        - If a replay-backed live drain fails before merge completes, the error surfaces `errorData.replayPreserved=true` plus `errorData.bufferedReplayEventCount` so clients can retry without assuming the preserved replay buffer was discarded.
 
         ## Transport notes
 
@@ -133,7 +137,38 @@ public static class CapabilityResources
             {
                 canonicalField = "structuredContent",
                 requiredBaseFields = new[] { "success" },
-                additiveFields = new[] { "nextSteps", "navigation", "pendingEvents" }
+                additiveFields = new[]
+                {
+                    "nextSteps",
+                    "navigation",
+                    "pendingEvents",
+                    "pendingEventCount",
+                    "droppedEventCount",
+                    "cleanupIncomplete",
+                    "cleanupFailureMessage",
+                    "cleanupFailureType",
+                    "pendingEventsOrigin",
+                    "pendingEventsMayIncludePriorContext"
+                }
+            },
+            pendingEventsAdditiveContract = new
+            {
+                topLevelFields = new[]
+                {
+                    "pendingEvents",
+                    "pendingEventCount",
+                    "droppedEventCount",
+                    "cleanupIncomplete",
+                    "cleanupFailureMessage",
+                    "cleanupFailureType",
+                    "pendingEventsOrigin",
+                    "pendingEventsMayIncludePriorContext"
+                },
+                piggybackScope = "any successful pipe-backed tool response that keeps default piggyback drain behavior",
+                illustrativeTools = new[] { "get_binding_errors" },
+                pendingEventsOriginField = "pendingEventsOrigin",
+                pendingEventsOriginValues = new[] { "piggybackSharedBuffer" },
+                pendingEventsMayIncludePriorContextField = "pendingEventsMayIncludePriorContext"
             },
             errorPayload = new
             {
@@ -372,6 +407,14 @@ public static class CapabilityResources
                         "success",
                         "errorCount",
                         "errors",
+                        "pendingEvents",
+                        "pendingEventCount",
+                        "droppedEventCount",
+                        "cleanupIncomplete",
+                        "cleanupFailureMessage",
+                        "cleanupFailureType",
+                        "pendingEventsOrigin",
+                        "pendingEventsMayIncludePriorContext",
                         "navigation",
                         "nextSteps"
                     },
@@ -382,7 +425,10 @@ public static class CapabilityResources
                         "errors[].elementId",
                         "errors[].suggestedElementId",
                         "errors[].propertyName",
-                        "errors[].bindingPath"
+                        "errors[].bindingPath",
+                        "pendingEvents[].eventType",
+                        "pendingEvents[].elementId",
+                        "pendingEvents[].propertyName"
                     },
                     requestParameters = new[]
                     {
@@ -390,6 +436,55 @@ public static class CapabilityResources
                         "sinceTimestamp",
                         "compact",
                         "navigation"
+                    }
+                },
+                new
+                {
+                    tool = "drain_events",
+                    contractName = "pending-runtime-events",
+                    canonicalPayloadField = "result.structuredContent",
+                    textFallbackField = "result.content[0].text",
+                    contractResource = ResponseContractResourceUri,
+                    topLevelFields = new[]
+                    {
+                        "success",
+                        "pendingEventCount",
+                        "droppedEventCount",
+                        "cleanupIncomplete",
+                        "cleanupFailureMessage",
+                        "cleanupFailureType",
+                        "pendingEvents"
+                    },
+                    nestedResponsePaths = new[]
+                    {
+                        "pendingEvents[].eventType",
+                        "pendingEvents[].elementId",
+                        "pendingEvents[].propertyName",
+                        "pendingEvents[].eventName",
+                        "pendingEvents[].timestampUtc"
+                    },
+                    requestParameters = new[]
+                    {
+                        "maxEvents",
+                        "eventTypes",
+                        "elementId",
+                        "sinceTimestamp"
+                    },
+                    errorDataFields = new[]
+                    {
+                        "errorData.replayPreserved",
+                        "errorData.bufferedReplayEventCount"
+                    },
+                    recoveryFields = new[]
+                    {
+                        "recovery.hint",
+                        "recovery.suggestedAction"
+                    },
+                    semantics = new
+                    {
+                        callerVisibleFiltersAppliedAfterMergedRead = true,
+                        overflowEventsRetainedForNextDrain = true,
+                        replayPreservedOnLiveFailure = true
                     }
                 },
                 new

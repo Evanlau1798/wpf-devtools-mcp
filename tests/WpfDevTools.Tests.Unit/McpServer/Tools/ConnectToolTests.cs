@@ -119,7 +119,7 @@ public partial class ConnectToolTests : IDisposable
         }
         else
         {
-            act.Should().Throw<InvalidOperationException>()
+            act.Should().Throw<System.Security.Cryptography.CryptographicException>()
                 .WithMessage("*signature*");
         }
     }
@@ -164,7 +164,7 @@ public partial class ConnectToolTests : IDisposable
             }
             else
             {
-                act.Should().Throw<InvalidOperationException>()
+                act.Should().Throw<System.Security.Cryptography.CryptographicException>()
                     .WithMessage("*signature*");
             }
         }

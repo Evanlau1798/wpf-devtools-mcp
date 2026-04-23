@@ -196,6 +196,34 @@ public sealed class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void PublishReleaseScript_ShouldFailClosedWhenExpectedReleaseTagDoesNotMatchProjectVersion()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var testRepo = CreateMinimalSkipBuildReleaseRepo(tempRoot, "x64");
+            var fakeMsbuild = Path.Combine(tempRoot, "fake-msbuild.exe");
+            File.WriteAllText(fakeMsbuild, "stub");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                testRepo.PackagingScriptPath,
+                ["-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", testRepo.OutputRoot, "-SkipBuild", "-ExpectedReleaseTag", "v9.9.9"],
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuild
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("Expected release tag 'v9.9.9' does not match project version '1.2.3'",
+                "release packaging should fail before publishing mismatched asset names into a different Git tag");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PublishReleaseScript_ShouldRetryArchiveCreationWhenTransientFileLocksOccur()
     {
         var content = File.ReadAllText(

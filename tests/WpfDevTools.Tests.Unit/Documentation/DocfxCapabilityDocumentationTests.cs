@@ -114,6 +114,29 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/binding-and-dp.md", "cleanupIncomplete", "uncapped live read internally", "matching live event that exceeds the caller-visible result cap remains buffered", "errorData.replayPreserved", "errorData.bufferedReplayEventCount")]
+    [InlineData("docfx/zh-tw/reference/tools/binding-and-dp.md", "cleanupIncomplete", "uncapped live read", "超出 caller-visible result cap 的 matching live event，都會保留到下一次 `drain_events` 呼叫", "errorData.replayPreserved", "errorData.bufferedReplayEventCount")]
+    public void BindingReferencePages_ShouldDocumentDrainCleanupDiagnosticsAndReplaySubsetRetention(
+        string relativePath,
+        string cleanupKeyword,
+        string uncappedKeyword,
+        string retentionKeyword,
+        string replayPreservedKeyword,
+        string replayCountKeyword)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(cleanupKeyword);
+        content.Should().Contain("cleanupFailureMessage");
+        content.Should().Contain("cleanupFailureType");
+        content.Should().Contain(uncappedKeyword);
+        content.Should().Contain(retentionKeyword);
+        content.Should().Contain(replayPreservedKeyword);
+        content.Should().Contain(replayCountKeyword);
+        content.Should().Contain("drain_events");
+    }
+
+    [Theory]
     [InlineData("docfx/guides/common-workflows.md")]
     [InlineData("docfx/zh-tw/guides/common-workflows.md")]
     public void CommonWorkflowPages_ShouldDescribeSnapshotAndFocusSafetyPatterns(string relativePath)

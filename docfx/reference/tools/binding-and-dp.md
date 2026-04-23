@@ -56,6 +56,14 @@ If `triggerMutation` itself exhausts the remaining timeout budget, `wait_for_dp_
 
 Use `drain_events` when you need a deterministic explicit read of buffered `DpChange`, `BindingError`, or validation events after a mutation, interaction, or watcher registration.
 
+`drain_events` may also surface `cleanupIncomplete`, `cleanupFailureMessage`, and `cleanupFailureType` when post-drain cleanup could not finish cleanly. Treat those fields as follow-up diagnostics rather than silently assuming the shared buffer is fully reset.
+
+When replay is already buffered, `drain_events` performs an uncapped live read internally, then applies `maxEvents`, `eventTypes`, `elementId`, and `sinceTimestamp` across the merged replay + live event set.
+
+In that replay-present path, any replay event that is not returned by the explicit read and any matching live event that exceeds the caller-visible result cap remains buffered for the next `drain_events` call.
+
+If that replay-backed live drain fails before merge completes, the error still preserves the buffered replay for the next successful `drain_events` call and surfaces `errorData.replayPreserved` plus `errorData.bufferedReplayEventCount` so clients can retry without assuming buffer loss.
+
 ## Mutation warning
 
 `set_dp_value` and `clear_dp_value` mutate the live application. Follow each mutation with a verification call such as `get_state_diff`, `get_dp_value_source`, or `drain_events`.

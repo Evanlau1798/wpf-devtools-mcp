@@ -60,7 +60,52 @@ public sealed class McpToolDescriptionContractTests
             "Recovery guidance must be clearly labelled so agents can index it");
     }
 
+    [Fact]
+    public void DrainEvents_Description_ShouldAdvertiseCleanupDiagnosticsAndReplaySubsetSemantics()
+    {
+        var description = GetDescriptionText("drain_events");
+
+        description.Should().Contain("cleanupIncomplete",
+            "AI agents must know which field signals that buffered-event cleanup did not complete cleanly");
+        description.Should().Contain("cleanupFailureMessage",
+            "AI agents need the surfaced cleanup failure detail field to decide whether to quarantine or retry");
+        description.Should().Contain("cleanupFailureType",
+            "AI agents need the surfaced cleanup failure type field to classify follow-up risk");
+        description.Should().Contain("uncapped live read internally",
+            "AI agents must know replay-present drains internally bypass the inspector default live drain window before applying the caller-visible cap");
+        description.Should().Contain("Any replay event that is not returned by the explicit read",
+            "AI agents must know max-capped replay reads only consume the events actually returned to the caller");
+        description.Should().Contain("matching live event that exceeds the caller-visible result cap",
+            "AI agents must know that overflow live events are retained rather than silently lost");
+        description.Should().Contain("remain buffered for the next explicit drain_events call",
+            "AI agents must know that filtered or max-capped replay reads only consume the returned subset");
+        description.Should().Contain("errorData.replayPreserved",
+            "AI agents must know live drain failures do not discard already buffered replay");
+        description.Should().Contain("errorData.bufferedReplayEventCount",
+            "AI agents need the preserved replay count to decide whether a retry is still meaningful");
+    }
+
+    [Fact]
+    public void DrainEvents_MaxEventsParameterDescription_ShouldExplainReplayBacklogDefault()
+    {
+        var method = FindToolMethod("drain_events");
+        var maxEventsParameter = method.GetParameters().Single(parameter => parameter.Name == "maxEvents");
+        var description = maxEventsParameter.GetCustomAttribute<DescriptionAttribute>()?.Description;
+
+        description.Should().NotBeNull();
+        description.Should().Contain("only when no replay is buffered",
+            "schema-driven clients need to know omitting maxEvents is only bounded on the pure live-read path");
+        description.Should().Contain("full merged replay plus matching live backlog",
+            "schema-driven clients need the replay-backed omission case to avoid accidentally requesting an unbounded merged drain");
+        description.Should().Contain("caller-visible result cap",
+            "schema-driven clients need to know the cap is enforced after the internal uncapped replay-backed live read");
+    }
+
     private static McpServerToolAttribute FindToolAttribute(string toolName)
+        => FindToolMethod(toolName).GetCustomAttribute<McpServerToolAttribute>()
+            ?? throw new InvalidOperationException($"Tool '{toolName}' is missing [McpServerTool].");
+
+    private static MethodInfo FindToolMethod(string toolName)
     {
         foreach (var type in McpServerAssembly.GetTypes()
                      .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null))
@@ -70,7 +115,7 @@ public sealed class McpToolDescriptionContractTests
                 var attr = method.GetCustomAttribute<McpServerToolAttribute>();
                 if (attr is not null && string.Equals(attr.Name, toolName, StringComparison.Ordinal))
                 {
-                    return attr;
+                    return method;
                 }
             }
         }

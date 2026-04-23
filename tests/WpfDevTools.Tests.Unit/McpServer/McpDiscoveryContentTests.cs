@@ -25,6 +25,15 @@ public class McpDiscoveryContentTests
         content.Should().Contain("response contract JSON");
         content.Should().Contain("performance profiling");
         content.Should().Contain("runtime state safety notes");
+        content.Should().Contain("cleanupIncomplete");
+        content.Should().Contain("cleanupFailureMessage");
+        content.Should().Contain("cleanupFailureType");
+        content.Should().Contain("uncapped live read internally");
+        content.Should().Contain("any replay event that is not returned by the explicit read");
+        content.Should().Contain("matching live event that exceeds the caller-visible result cap");
+        content.Should().Contain("remain buffered for the next explicit `drain_events` read");
+        content.Should().Contain("errorData.replayPreserved=true");
+        content.Should().Contain("errorData.bufferedReplayEventCount");
     }
 
     [Fact]

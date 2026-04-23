@@ -21,6 +21,32 @@ public sealed class ResponseContractResourceTests
         root.GetProperty("toolCallResult").GetProperty("textFallbackField").GetString().Should().Be("result.content[0].text");
         root.GetProperty("toolCallResult").GetProperty("annotationsField").GetString().Should().Be("result.content[0].annotations");
         root.GetProperty("toolPayload").GetProperty("canonicalField").GetString().Should().Be("structuredContent");
+        AssertArrayContains(
+            root.GetProperty("toolPayload").GetProperty("additiveFields"),
+            "pendingEvents",
+            "pendingEventCount",
+            "droppedEventCount",
+            "cleanupIncomplete",
+            "cleanupFailureMessage",
+            "cleanupFailureType",
+            "pendingEventsOrigin",
+            "pendingEventsMayIncludePriorContext");
+
+        var pendingEventsAdditiveContract = root.GetProperty("pendingEventsAdditiveContract");
+        AssertArrayContains(
+            pendingEventsAdditiveContract.GetProperty("topLevelFields"),
+            "pendingEvents",
+            "pendingEventCount",
+            "droppedEventCount",
+            "cleanupIncomplete",
+            "cleanupFailureMessage",
+            "cleanupFailureType",
+            "pendingEventsOrigin",
+            "pendingEventsMayIncludePriorContext");
+        pendingEventsAdditiveContract.GetProperty("piggybackScope").GetString().Should().Contain("default piggyback drain behavior");
+        AssertArrayContains(pendingEventsAdditiveContract.GetProperty("illustrativeTools"), "get_binding_errors");
+        pendingEventsAdditiveContract.GetProperty("pendingEventsOriginField").GetString().Should().Be("pendingEventsOrigin");
+        pendingEventsAdditiveContract.GetProperty("pendingEventsMayIncludePriorContextField").GetString().Should().Be("pendingEventsMayIncludePriorContext");
         root.GetProperty("navigation").GetProperty("field").GetString().Should().Be("navigation");
         root.GetProperty("nextSteps").GetProperty("field").GetString().Should().Be("nextSteps");
     }
@@ -131,6 +157,14 @@ public sealed class ResponseContractResourceTests
             topLevelFields: [
                 "errorCount",
                 "errors",
+                "pendingEvents",
+                "pendingEventCount",
+                "droppedEventCount",
+                "cleanupIncomplete",
+                "cleanupFailureMessage",
+                "cleanupFailureType",
+                "pendingEventsOrigin",
+                "pendingEventsMayIncludePriorContext",
                 "navigation"
             ],
             requestParameters: [
@@ -142,8 +176,50 @@ public sealed class ResponseContractResourceTests
             nestedResponsePaths: [
                 "errors[].timestamp",
                 "errors[].sourceKind",
-                "errors[].bindingPath"
+                "errors[].bindingPath",
+                "pendingEvents[].eventType",
+                "pendingEvents[].elementId",
+                "pendingEvents[].propertyName"
             ]);
+
+        AssertHighValueToolContract(
+            highValueTools,
+            "drain_events",
+            "pending-runtime-events",
+            topLevelFields: [
+                "pendingEventCount",
+                "droppedEventCount",
+                "cleanupIncomplete",
+                "cleanupFailureMessage",
+                "cleanupFailureType",
+                "pendingEvents"
+            ],
+            requestParameters: [
+                "maxEvents",
+                "eventTypes",
+                "elementId",
+                "sinceTimestamp"
+            ],
+            nestedResponsePaths: [
+                "pendingEvents[].eventType",
+                "pendingEvents[].elementId",
+                "pendingEvents[].propertyName",
+                "pendingEvents[].eventName",
+                "pendingEvents[].timestampUtc"
+            ]);
+
+        var drainEventsContract = highValueTools
+            .EnumerateArray()
+            .Single(entry => entry.GetProperty("tool").GetString() == "drain_events");
+        AssertArrayContains(
+            drainEventsContract.GetProperty("errorDataFields"),
+            "errorData.replayPreserved",
+            "errorData.bufferedReplayEventCount");
+        AssertArrayContains(
+            drainEventsContract.GetProperty("recoveryFields"),
+            "recovery.hint",
+            "recovery.suggestedAction");
+        drainEventsContract.GetProperty("semantics").GetProperty("replayPreservedOnLiveFailure").GetBoolean().Should().BeTrue();
 
         AssertHighValueToolContract(
             highValueTools,

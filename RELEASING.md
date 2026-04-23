@@ -72,6 +72,7 @@ Before publishing a public Release channel build, confirm:
 - The working tree is clean
 - The version tag is final
 - Release packages were produced from the tagged revision
+- A self-hosted Windows ARM64 runner is available and `WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true` is configured for GitHub release validation
 - `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` is set to the expected release signer
 - `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` or an installed certificate thumbprint is available to `Publish-Release.ps1`
 - `WPFDEVTOOLS_PFX_PASSWORD` is available when the signing certificate is supplied as a PFX file
@@ -92,10 +93,11 @@ The workflow will:
 1. Check out the tagged revision
 2. Materialize `WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64` into `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH`
 3. Rebuild and sign release packages for `x64`, `x86`, and `arm64` using `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`
-4. Stage checksums and metadata
-5. Execute the generated upload helper to attach assets to the GitHub Release
+4. Download the staged `win-arm64` asset onto a self-hosted Windows ARM64 runner, install it, launch `wpf-devtools-arm64.exe`, and validate the online-installer lane before publication
+5. Stage checksums and metadata
+6. Execute the generated upload helper to attach assets to the GitHub Release only after the ARM64 runtime smoke lane passes
 
-The CI smoke lane in `./.github/workflows/ci-cd.yml` does not use the production certificate. Instead, it sets `WPFDEVTOOLS_INSTALLER_TEST_MODE=1`, `WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA=1`, and `WPFDEVTOOLS_TEST_SIGNATURE_STATUS=Valid` so `Publish-Release.ps1` exercises the release-signature contract deterministically on hosted runners while local archive smoke installs still trust the freshly generated release sidecars only through the explicit test hook.
+The CI smoke lane in `./.github/workflows/ci-cd.yml` does not use the production certificate. Instead, it sets `WPFDEVTOOLS_INSTALLER_TEST_MODE=1`, `WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA=1`, and `WPFDEVTOOLS_TEST_SIGNATURE_STATUS=Valid` so `Publish-Release.ps1` exercises the release-signature contract deterministically on hosted runners while local archive smoke installs still trust the freshly generated release sidecars only through the explicit test hook. Hosted `windows-latest` runners continue to smoke `x64` and `x86`; the actual `arm64` executable lane runs only when `WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true` and the repository has a self-hosted Windows ARM64 runner.
 
 ## 5. Recommended publish sequence
 

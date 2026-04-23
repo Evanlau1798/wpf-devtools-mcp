@@ -252,6 +252,28 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void LandingPages_WithManualArchiveFallback_ShouldRequireReleaseProvenanceVerification()
+    {
+        var files = new[]
+        {
+            "README.md",
+            "docfx/index.md",
+            "docfx/zh-tw/index.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("SHA256SUMS.txt",
+                $"{file} should tell users to verify the downloaded archive hash before trusting the manual release package path");
+            content.Should().Contain("release-assets.json",
+                $"{file} should point users at the canonical release asset metadata before they run the extracted installer manually");
+            content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
+                $"{file} should explain how to provide an explicit signer pin when the verified archive is no longer kept beside the extracted package");
+        }
+    }
+
+    [Fact]
     public void PublicQuickstartPages_ShouldReferenceScriptsOnlineInstallerEntryPoint()
     {
         var files = new[]

@@ -40,4 +40,32 @@ public sealed class FixtureLifecycleContractTests
         content.Should().Contain("ScheduleDeferredSignalDisposal(appStopped)",
             "slow teardown paths should still guarantee that the shutdown signal is eventually released after the UI thread exits");
     }
+
+    [Fact]
+    public void WpfApplicationFixture_ShouldFailFastWhenStartupDoesNotComplete()
+    {
+        var content = File.ReadAllText(
+            TestRepositoryPaths.GetRepoFilePath("tests/WpfDevTools.Tests.Integration/WpfApplicationFixture.cs"));
+
+        content.Should().Contain("var startupCompleted = _appStarted.Wait(DefaultStartupTimeout);",
+            "fixture startup should check whether the startup signal actually arrived before treating the UI thread as ready");
+        content.Should().Contain("EnsureStartupCompleted(",
+            "constructor startup validation should be centralized so timeout and partial-startup checks stay aligned");
+        content.Should().Contain("throw new TimeoutException(",
+            "slow startup paths should fail fast with an explicit timeout instead of silently accepting a non-null dispatcher");
+        content.Should().Contain("application == null || dispatcher == null || rootWindow == null",
+            "startup readiness should require the full WPF surface, not just a dispatcher reference");
+        content.Should().Contain("_startupFailure = ex;",
+            "startup faults on the UI thread should be preserved so constructor failures are not misreported as timeouts");
+        content.Should().Contain("_appStarted.Set();",
+            "startup faults on the UI thread should also release the constructor waiter so failures do not sit until the full startup timeout expires");
+        content.Should().Contain("_startupAborted = true;",
+            "constructor timeouts should mark startup as aborted before cleanup so the late UI thread cannot transition into a live dispatcher after the fixture already failed");
+        content.Should().Contain("TryStartDispatcherLoop(",
+            "the UI-thread startup path should re-check the aborted flag before signaling readiness and before entering Dispatcher.Run");
+        content.Should().Contain("ReleaseFailedStartupResources(",
+            "constructor failures should still release the partial UI-thread resources instead of leaking a background startup thread");
+        content.Should().Contain("ReleaseStartupSignal(",
+            "failed-startup cleanup should defer startup-signal disposal until the UI thread has fully exited so late startup signaling cannot hit a disposed event");
+    }
 }

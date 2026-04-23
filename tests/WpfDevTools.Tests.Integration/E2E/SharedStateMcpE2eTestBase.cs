@@ -24,7 +24,7 @@ public abstract class SharedStateMcpE2eTestBase : IAsyncLifetime
 
         try
         {
-            await E2eTestHelpers.ResetTestAppStateAsync(Fixture.Client, Fixture.TestAppProcessId);
+            await E2eTestHelpers.ResetSharedSessionStateAsync(Fixture);
         }
         catch (Exception ex)
         {
@@ -42,7 +42,7 @@ public abstract class SharedStateMcpE2eTestBase : IAsyncLifetime
 
         try
         {
-            await E2eTestHelpers.ResetTestAppStateAsync(Fixture.Client, Fixture.TestAppProcessId);
+            await E2eTestHelpers.ResetSharedSessionStateAsync(Fixture);
         }
         catch (Exception ex)
         {

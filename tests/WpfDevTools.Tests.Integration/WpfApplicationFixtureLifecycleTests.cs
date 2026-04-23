@@ -1,10 +1,118 @@
 using System.Diagnostics;
 using FluentAssertions;
+using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
 
 public sealed class WpfApplicationFixtureLifecycleTests
 {
+    [Fact]
+    public void EnsureStartupCompleted_WhenStartupFailureExists_ShouldThrowWithInnerExceptionEvenAfterSignal()
+    {
+        var startupFailure = new InvalidOperationException("UI startup failed");
+
+        var act = () => WpfApplicationFixture.EnsureStartupCompleted(
+            startupCompleted: true,
+            startupFailure: startupFailure,
+            application: null,
+            dispatcher: null,
+            rootWindow: null,
+            startupTimeout: TimeSpan.FromSeconds(10));
+
+        var exception = act.Should().Throw<InvalidOperationException>().Which;
+        exception.Message.Should().Be("Failed to initialize WPF Application");
+        exception.InnerException.Should().BeSameAs(startupFailure);
+    }
+
+    [Fact]
+    public void EnsureStartupCompleted_WhenStartupTimesOutWithoutFailure_ShouldThrowTimeoutException()
+    {
+        var act = () => WpfApplicationFixture.EnsureStartupCompleted(
+            startupCompleted: false,
+            startupFailure: null,
+            application: null,
+            dispatcher: null,
+            rootWindow: null,
+            startupTimeout: TimeSpan.FromSeconds(10));
+
+        act.Should().Throw<TimeoutException>()
+            .WithMessage("*Timed out waiting*WPF Application startup*");
+    }
+
+    [Fact]
+    public void ReleaseStartupSignal_WhenShutdownIsIncomplete_ShouldDeferDisposalUntilStopSignal()
+    {
+        var appStarted = new ManualResetEventSlim(false);
+        var appStopped = new ManualResetEventSlim(false);
+
+        try
+        {
+            WpfApplicationFixture.ReleaseStartupSignal(
+                shutdownCompleted: false,
+                appStarted,
+                appStopped);
+
+            appStarted.Invoking(signal => signal.Set()).Should().NotThrow(
+                "late startup signaling should stay safe until the UI thread has actually exited");
+
+            appStopped.Set();
+
+            SpinWait.SpinUntil(() => IsDisposed(appStarted), TimeSpan.FromSeconds(1)).Should().BeTrue(
+                "the deferred cleanup should eventually release the startup signal after the UI thread signals shutdown");
+        }
+        finally
+        {
+            if (!IsDisposed(appStarted))
+            {
+                appStarted.Dispose();
+            }
+
+            if (!IsDisposed(appStopped))
+            {
+                appStopped.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public void TryStartDispatcherLoop_WhenStartupWasAlreadyAborted_ShouldNotSignalOrRunDispatcher()
+    {
+        var signaledStartup = false;
+        var ranDispatcher = false;
+
+        var startedDispatcher = WpfApplicationFixture.TryStartDispatcherLoop(
+            isStartupAborted: () => true,
+            signalStarted: () => signaledStartup = true,
+            runDispatcher: () => ranDispatcher = true);
+
+        startedDispatcher.Should().BeFalse(
+            "a constructor timeout should prevent a late startup thread from advertising readiness or entering a live dispatcher loop");
+        signaledStartup.Should().BeFalse();
+        ranDispatcher.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryStartDispatcherLoop_WhenStartupAbortsAfterSignal_ShouldNotRunDispatcher()
+    {
+        var startupAborted = false;
+        var signaledStartup = false;
+        var ranDispatcher = false;
+
+        var startedDispatcher = WpfApplicationFixture.TryStartDispatcherLoop(
+            isStartupAborted: () => startupAborted,
+            signalStarted: () =>
+            {
+                signaledStartup = true;
+                startupAborted = true;
+            },
+            runDispatcher: () => ranDispatcher = true);
+
+        startedDispatcher.Should().BeFalse(
+            "a late abort that arrives after the waiter is released should still stop the thread before Dispatcher.Run begins");
+        signaledStartup.Should().BeTrue();
+        ranDispatcher.Should().BeFalse();
+    }
+
     [Fact]
     public void CompleteShutdown_WhenThreadExitsAfterTimeout_ShouldNotDisposeSignalEarly()
     {

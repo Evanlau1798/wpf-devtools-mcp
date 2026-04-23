@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Runtime.InteropServices;
 using WpfDevTools.Shared.IO;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -11,6 +12,14 @@ namespace WpfDevTools.Mcp.Server.Tools;
 internal static class DllPathValidator
 {
     private const string SkipSignatureCheckEnvironmentVariable = "WPFDEVTOOLS_SKIP_SIGNATURE_CHECK";
+    private const string ReleaseSignerThumbprintEnvironmentVariable = "WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT";
+    private const string ReleaseSignerSubjectEnvironmentVariable = "WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT";
+    private static readonly Guid WinTrustActionGenericVerifyV2 = new("00AAC56B-CD44-11D0-8CC2-00C04FC295EE");
+
+    internal static Func<string, int>? WinVerifyTrustOverrideForTesting { get; set; }
+    internal static Func<string, ValidatedAuthenticodeSigner?>? ValidatedSignerOverrideForTesting { get; set; }
+    internal static ValidatedAuthenticodeSigner? CurrentProcessReleaseSignerOverrideForTesting { get; set; }
+    internal static bool? TrustedLocalDevelopmentBuildOverrideForTesting { get; set; }
 
 #if DEBUG
     private static readonly bool IsDebugBuild = true;
@@ -67,7 +76,7 @@ internal static class DllPathValidator
         }
         else
         {
-            VerifyAuthenticodeSignature(fullPath);
+            VerifyAuthenticodeSignature(fullPath, baseDirectory);
         }
     }
 
@@ -136,6 +145,11 @@ internal static class DllPathValidator
 
     internal static bool IsTrustedLocalDevelopmentBuild(string baseDirectory)
     {
+        if (TrustedLocalDevelopmentBuildOverrideForTesting is bool overrideValue)
+        {
+            return overrideValue;
+        }
+
         if (IsDebugBuild)
         {
             return true;
@@ -203,15 +217,39 @@ internal static class DllPathValidator
         return null;
     }
 
-    private static void VerifyAuthenticodeSignature(string filePath)
+    private static void VerifyAuthenticodeSignature(string filePath, string baseDirectory)
     {
         try
         {
+            var isTrustedLocalDevelopmentBuild = IsTrustedLocalDevelopmentBuild(baseDirectory);
+            var expectedSigner = isTrustedLocalDevelopmentBuild
+                ? null
+                : GetExpectedReleaseSigner();
+            if (!isTrustedLocalDevelopmentBuild && expectedSigner is null)
+            {
+                throw new System.Security.Cryptography.CryptographicException(
+                    "Release DLL validation requires a pinned signer from the signed MCP server executable or " +
+                    "WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.");
+            }
+
+            VerifyFileAuthenticodeTrust(filePath);
+
+            var validatedSignerOverride = ValidatedSignerOverrideForTesting?.Invoke(filePath);
+            if (validatedSignerOverride is not null)
+            {
+                VerifyCertificateValidity(validatedSignerOverride.NotBefore, validatedSignerOverride.NotAfter);
+                VerifyExpectedReleaseSigner(
+                    validatedSignerOverride.Thumbprint,
+                    validatedSignerOverride.Subject,
+                    expectedSigner);
+                return;
+            }
+
             using var cert = X509Certificate.CreateFromSignedFile(filePath);
 
             if (cert == null)
             {
-                throw new InvalidOperationException("DLL is not digitally signed");
+                throw new System.Security.Cryptography.CryptographicException("DLL is not digitally signed");
             }
 
             using var cert2 = new X509Certificate2(cert);
@@ -225,36 +263,240 @@ internal static class DllPathValidator
             {
                 var errors = string.Join(", ",
                     chain.ChainStatus.Select(s => $"{s.Status}: {s.StatusInformation}"));
-                throw new InvalidOperationException(
+                throw new System.Security.Cryptography.CryptographicException(
                     $"Certificate chain validation failed: {errors}");
             }
 
-            var validityWindow = new CertificateValidityWindow(
-                new DateTimeOffset(cert2.NotBefore),
-                new DateTimeOffset(cert2.NotAfter));
-            var now = DateTimeOffset.UtcNow;
-            if (!validityWindow.Contains(now))
-            {
-                throw new InvalidOperationException(
-                    $"Certificate has expired or is not yet valid. Valid from {cert2.NotBefore} to {cert2.NotAfter}");
-            }
-
-            var expectedThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_THUMBPRINT");
-            if (!string.IsNullOrEmpty(expectedThumbprint))
-            {
-                if (!cert2.Thumbprint.Equals(expectedThumbprint, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException(
-                        "Certificate thumbprint does not match the expected value configured in WPFDEVTOOLS_CERT_THUMBPRINT.");
-                }
-            }
+            VerifyCertificateValidity(new DateTimeOffset(cert2.NotBefore), new DateTimeOffset(cert2.NotAfter));
+            VerifyExpectedReleaseSigner(cert2.Thumbprint, cert2.Subject, expectedSigner);
         }
         catch (System.Security.Cryptography.CryptographicException ex)
         {
-            throw new InvalidOperationException(
-                "Inspector DLL is not digitally signed or has an invalid signature. " +
-                "In development, use a DEBUG build which auto-skips signature verification for local DLLs. " +
-                "In production, sign the DLL with Authenticode.", ex);
+            throw CreateInvalidSignatureException(ex);
         }
     }
+
+    private static System.Security.Cryptography.CryptographicException CreateInvalidSignatureException(Exception innerException)
+    {
+        return new System.Security.Cryptography.CryptographicException(
+            "Inspector DLL is not digitally signed or has an invalid signature. " +
+            "In development, use a DEBUG build which auto-skips signature verification for local DLLs. " +
+            "In production, sign the DLL with Authenticode.", innerException);
+    }
+
+    private static void VerifyCertificateValidity(DateTimeOffset notBefore, DateTimeOffset notAfter)
+    {
+        var validityWindow = new CertificateValidityWindow(notBefore, notAfter);
+        var now = DateTimeOffset.UtcNow;
+        if (!validityWindow.Contains(now))
+        {
+            throw new System.Security.Cryptography.CryptographicException(
+                $"Certificate has expired or is not yet valid. Valid from {notBefore} to {notAfter}");
+        }
+    }
+
+    private static void VerifyExpectedReleaseSigner(
+        string? certificateThumbprint,
+        string? certificateSubject,
+        ReleaseSignerMetadata? expectedSigner)
+    {
+        if (expectedSigner is null)
+        {
+            return;
+        }
+
+        var actualThumbprint = NormalizeThumbprint(certificateThumbprint);
+        if (!string.IsNullOrWhiteSpace(expectedSigner.Thumbprint)
+            && !string.Equals(actualThumbprint, expectedSigner.Thumbprint, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new System.Security.Cryptography.CryptographicException(
+                $"Certificate thumbprint does not match the pinned release signer. Expected '{expectedSigner.Thumbprint}' but got '{actualThumbprint}'.");
+        }
+
+        var actualSubject = NormalizeOptionalValue(certificateSubject);
+        if (!string.IsNullOrWhiteSpace(expectedSigner.Subject)
+            && !string.Equals(actualSubject, expectedSigner.Subject, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new System.Security.Cryptography.CryptographicException(
+                $"Certificate subject does not match the pinned release signer. Expected '{expectedSigner.Subject}' but got '{actualSubject}'.");
+        }
+    }
+
+    private static ReleaseSignerMetadata? GetExpectedReleaseSigner()
+    {
+        var environmentSigner = GetReleaseSignerFromEnvironment();
+        if (environmentSigner is not null)
+        {
+            return environmentSigner;
+        }
+
+        return GetReleaseSignerFromCurrentServerExecutable();
+    }
+
+    private static ReleaseSignerMetadata? GetReleaseSignerFromEnvironment()
+    {
+        var thumbprint = NormalizeThumbprint(Environment.GetEnvironmentVariable(ReleaseSignerThumbprintEnvironmentVariable));
+        var subject = NormalizeOptionalValue(Environment.GetEnvironmentVariable(ReleaseSignerSubjectEnvironmentVariable));
+        if (string.IsNullOrWhiteSpace(thumbprint))
+        {
+            if (!string.IsNullOrWhiteSpace(subject))
+            {
+                throw new System.Security.Cryptography.CryptographicException(
+                    "WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.");
+            }
+
+            return null;
+        }
+
+        return CreateReleaseSignerMetadata(thumbprint, subject);
+    }
+
+    private static ReleaseSignerMetadata? GetReleaseSignerFromCurrentServerExecutable()
+    {
+        if (CurrentProcessReleaseSignerOverrideForTesting is { } overrideSigner)
+        {
+            return CreateReleaseSignerMetadata(overrideSigner.Thumbprint, overrideSigner.Subject);
+        }
+
+        try
+        {
+            var processPath = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(processPath) || !File.Exists(processPath))
+            {
+                return null;
+            }
+
+            VerifyFileAuthenticodeTrust(processPath);
+            using var cert = X509Certificate.CreateFromSignedFile(processPath);
+            if (cert == null)
+            {
+                return null;
+            }
+
+            using var cert2 = new X509Certificate2(cert);
+            using var chain = new X509Chain();
+            chain.ChainPolicy.RevocationMode = GetCurrentBuildRevocationMode();
+            chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
+            chain.ChainPolicy.VerificationFlags = X509VerificationFlags.NoFlag;
+            if (!chain.Build(cert2))
+            {
+                return null;
+            }
+
+            VerifyCertificateValidity(new DateTimeOffset(cert2.NotBefore), new DateTimeOffset(cert2.NotAfter));
+            return CreateReleaseSignerMetadata(cert2.Thumbprint, cert2.Subject);
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static ReleaseSignerMetadata? CreateReleaseSignerMetadata(string? thumbprint, string? subject)
+        => string.IsNullOrWhiteSpace(thumbprint)
+            ? null
+            : new ReleaseSignerMetadata(NormalizeThumbprint(thumbprint), NormalizeOptionalValue(subject));
+
+    private static string? NormalizeThumbprint(string? thumbprint)
+        => string.IsNullOrWhiteSpace(thumbprint)
+            ? null
+            : thumbprint.Replace(" ", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
+
+    private static string? NormalizeOptionalValue(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static void VerifyFileAuthenticodeTrust(string filePath)
+    {
+        var fileInfo = new WinTrustFileInfo(filePath);
+        var fileInfoPointer = IntPtr.Zero;
+
+        try
+        {
+            fileInfoPointer = Marshal.AllocCoTaskMem(Marshal.SizeOf<WinTrustFileInfo>());
+            Marshal.StructureToPtr(fileInfo, fileInfoPointer, fDeleteOld: false);
+
+            var trustData = new WinTrustData(fileInfoPointer);
+            var result = WinVerifyTrustOverrideForTesting?.Invoke(filePath)
+                ?? WinVerifyTrust(IntPtr.Zero, WinTrustActionGenericVerifyV2, ref trustData);
+            if (result != 0)
+            {
+                throw new System.Security.Cryptography.CryptographicException(
+                    $"Authenticode verification failed for '{filePath}' (WinVerifyTrust HRESULT: 0x{result:X8}).");
+            }
+        }
+        finally
+        {
+            if (fileInfoPointer != IntPtr.Zero)
+            {
+                Marshal.DestroyStructure<WinTrustFileInfo>(fileInfoPointer);
+                Marshal.FreeCoTaskMem(fileInfoPointer);
+            }
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private readonly struct WinTrustFileInfo
+    {
+        private readonly uint _cbStruct = (uint)Marshal.SizeOf<WinTrustFileInfo>();
+        [MarshalAs(UnmanagedType.LPWStr)]
+        private readonly string _filePath = string.Empty;
+        private readonly IntPtr _fileHandle = IntPtr.Zero;
+        private readonly IntPtr _knownSubject = IntPtr.Zero;
+
+        public WinTrustFileInfo(string filePath)
+        {
+            _filePath = filePath;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private readonly struct WinTrustData
+    {
+        private const uint UiChoiceNone = 2;
+        private const uint RevocationChecksNone = 0;
+        private const uint ChoiceFile = 1;
+        private const uint StateActionIgnore = 0;
+        private const uint ProviderFlagsSafer = 0x00000100;
+        private const uint UiContextExecute = 0;
+
+        private readonly uint _cbStruct = (uint)Marshal.SizeOf<WinTrustData>();
+        private readonly IntPtr _policyCallbackData = IntPtr.Zero;
+        private readonly IntPtr _sipClientData = IntPtr.Zero;
+        private readonly uint _uiChoice = UiChoiceNone;
+        private readonly uint _revocationChecks = RevocationChecksNone;
+        private readonly uint _unionChoice = ChoiceFile;
+        private readonly IntPtr _fileInfoPointer = IntPtr.Zero;
+        private readonly uint _stateAction = StateActionIgnore;
+        private readonly IntPtr _stateData = IntPtr.Zero;
+        private readonly IntPtr _urlReference = IntPtr.Zero;
+        private readonly uint _providerFlags = ProviderFlagsSafer;
+        private readonly uint _uiContext = UiContextExecute;
+
+        public WinTrustData(IntPtr fileInfoPointer)
+        {
+            _fileInfoPointer = fileInfoPointer;
+        }
+    }
+
+    [DllImport("wintrust.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    private static extern int WinVerifyTrust(
+        IntPtr hwnd,
+        [MarshalAs(UnmanagedType.LPStruct)] Guid actionId,
+        ref WinTrustData trustData);
+
+    private sealed record ReleaseSignerMetadata(string? Thumbprint, string? Subject);
+
+    internal sealed record ValidatedAuthenticodeSigner(
+        string Thumbprint,
+        string Subject,
+        DateTimeOffset NotBefore,
+        DateTimeOffset NotAfter);
 }

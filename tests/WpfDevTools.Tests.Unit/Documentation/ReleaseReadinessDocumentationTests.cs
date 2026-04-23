@@ -49,6 +49,10 @@ public sealed class ReleaseReadinessDocumentationTests
             "maintainers need the native bootstrapper toolchain prerequisites called out before running release packaging");
         content.Should().Contain("ARM64",
             "the guide should mention that ARM64 release packaging requires the ARM64 native build tools workload/components");
+        content.Should().Contain("WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE",
+            "maintainers need the release guide to call out the fail-closed ARM64 runtime validation gate used by GitHub release automation");
+        content.Should().Contain("self-hosted Windows ARM64 runner",
+            "the release guide should explain that public ARM64 publication now requires a runner that can actually launch the packaged ARM64 executable");
     }
 
     [Fact]

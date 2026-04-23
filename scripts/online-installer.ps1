@@ -13,6 +13,7 @@ param(
     [string]$InstallRoot = (Join-Path $env:APPDATA 'WpfDevToolsMcp'),
     [string]$WorkingRoot = (Join-Path ([System.IO.Path]::GetTempPath()) 'wpf-devtools-online-installer'),
     [string]$PackageArchivePath,
+    [string]$TrustedReleaseMetadataDirectory,
     [string]$VsCodeConfigPath,
     [string]$VisualStudioConfigPath,
     [string]$ClaudeDesktopConfigPath,
@@ -29,7 +30,19 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:InstallRootWasSpecified = $PSBoundParameters.ContainsKey('InstallRoot')
 $script:PackageArchivePathWasSpecified = $PSBoundParameters.ContainsKey('PackageArchivePath')
+$script:TrustedReleaseMetadataDirectoryWasSpecified = $PSBoundParameters.ContainsKey('TrustedReleaseMetadataDirectory')
 $script:InstallerTestResponses = New-Object System.Collections.Generic.Queue[string]
+
+if ($script:TrustedReleaseMetadataDirectoryWasSpecified) {
+    if ([string]::IsNullOrWhiteSpace($TrustedReleaseMetadataDirectory)) {
+        throw 'TrustedReleaseMetadataDirectory must not be empty when specified.'
+    }
+
+    $env:WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY = [string]$TrustedReleaseMetadataDirectory
+}
+else {
+    Remove-Item Env:WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY -ErrorAction SilentlyContinue
+}
 
 if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES)) {
     foreach ($entry in ($env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES -split '\|\|')) {

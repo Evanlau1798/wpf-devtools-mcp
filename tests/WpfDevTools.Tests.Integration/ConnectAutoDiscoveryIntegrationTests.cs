@@ -1,6 +1,8 @@
 using System.IO.Pipes;
 using System.IO;
 using System.Text.Json;
+using System.Runtime.InteropServices;
+using System.Diagnostics;
 using FluentAssertions;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
@@ -12,6 +14,7 @@ using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
 using System.Threading;
+using WpfDevTools.Tests.Integration.TestSupport;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -260,5 +263,187 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
                 request.InspectorDllPath,
                 bootstrapExitCode: 0,
                 pipeName: request.ExpectedPipeName);
+    }
+}
+
+[Collection("LiveBootstrapIntegration")]
+public sealed class ConnectAutoDiscoveryLiveIntegrationTests : IDisposable
+{
+    private readonly List<Process> _testApps = [];
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ConnectTool_WithoutProcessId_ShouldAutoConnectSingleLiveCandidate()
+    {
+        EnsureLiveBootstrapReady();
+
+        var testApp = StartTestApp();
+        using var sessionManager = new SessionManager();
+        var detector = new FilteringProcessDetector(testApp.Id);
+        var connectTool = CreateLiveTool(sessionManager, detector);
+        var pingTool = new PingTool(sessionManager);
+
+        var result = await connectTool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
+        json.GetProperty("candidateCount").GetInt32().Should().Be(1);
+        json.GetProperty("processId").GetInt32().Should().Be(testApp.Id);
+        sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
+        activeProcessId.Should().Be(testApp.Id);
+
+        var ping = await pingTool.ExecuteAsync(ToJsonElement(new { processId = testApp.Id }), CancellationToken.None);
+        var pingJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(ping));
+        pingJson.GetProperty("success").GetBoolean().Should().BeTrue(
+            "live auto-discovery should establish a working inspector session for the resolved target");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ConnectTool_WithoutProcessId_ShouldReturnLiveCandidateListForMultipleVisibleProcesses()
+    {
+        var firstTestApp = StartTestApp();
+        var secondTestApp = StartTestApp();
+        using var sessionManager = new SessionManager();
+        var detector = new FilteringProcessDetector(firstTestApp.Id, secondTestApp.Id);
+        var connectTool = CreateLiveTool(sessionManager, detector);
+
+        ConditionWaiter.WaitUntil(
+            () => detector.GetAllWpfProcesses(ProcessWindowFilter.Visible).Count >= 2,
+            TimeSpan.FromSeconds(10),
+            "Expected both live test apps to appear in visible auto-discovery before validating the ambiguous-candidate path.");
+
+        var result = await connectTool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("MultipleWpfProcessesFound");
+        json.GetProperty("candidateCount").GetInt32().Should().Be(2);
+
+        var processIds = json.GetProperty("processes")
+            .EnumerateArray()
+            .Select(process => process.GetProperty("processId").GetInt32())
+            .ToArray();
+        processIds.Should().BeEquivalentTo([firstTestApp.Id, secondTestApp.Id],
+            "live auto-discovery should enumerate the actual visible test apps instead of a synthetic process list");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ConnectTool_WithVisibleWindowFilter_ShouldAutoConnectOnlyVisibleLiveCandidate()
+    {
+        EnsureLiveBootstrapReady();
+
+        var visibleTestApp = StartTestApp();
+        var hiddenTestApp = StartTestApp();
+        using var sessionManager = new SessionManager();
+        var detector = new FilteringProcessDetector(visibleTestApp.Id, hiddenTestApp.Id);
+        var connectTool = CreateLiveTool(sessionManager, detector);
+        var pingTool = new PingTool(sessionManager);
+
+        MinimizeProcessWindow(hiddenTestApp, detector);
+
+        var result = await connectTool.ExecuteAsync(
+            ToJsonElement(new { windowFilter = "visible" }),
+            CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
+        json.GetProperty("candidateCount").GetInt32().Should().Be(1);
+        json.GetProperty("processId").GetInt32().Should().Be(visibleTestApp.Id);
+
+        var ping = await pingTool.ExecuteAsync(ToJsonElement(new { processId = visibleTestApp.Id }), CancellationToken.None);
+        var pingJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(ping));
+        pingJson.GetProperty("success").GetBoolean().Should().BeTrue(
+            "visible-filter auto-discovery should connect to the only remaining visible live target after another WPF candidate is minimized");
+    }
+
+    public void Dispose()
+    {
+        foreach (var testApp in _testApps)
+        {
+            try
+            {
+                if (!testApp.HasExited)
+                {
+                    testApp.Kill();
+                    testApp.WaitForExit(5000);
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                testApp.Dispose();
+            }
+        }
+
+        _testApps.Clear();
+    }
+
+    private static void EnsureLiveBootstrapReady()
+    {
+        BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
+            "live auto-discovery connect coverage must fail fast when native bootstrapper artifacts are missing; " +
+            "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
+    }
+
+    private Process StartTestApp()
+    {
+        var process = TestAppProcessLauncher.StartAndWaitForMainWindow(TestAppProcessLauncher.FindTestAppExe());
+        _testApps.Add(process);
+        return process;
+    }
+
+    private static ConnectTool CreateLiveTool(SessionManager sessionManager, WpfProcessDetector detector)
+        => new(sessionManager, new ProcessInjector(), detector, isRawInjectionTargetAllowed: _ => true);
+
+    private static void MinimizeProcessWindow(Process process, FilteringProcessDetector detector)
+    {
+        ConditionWaiter.WaitUntil(
+            () =>
+            {
+                process.Refresh();
+                return process.MainWindowHandle != IntPtr.Zero;
+            },
+            TimeSpan.FromSeconds(10),
+            $"Timed out waiting for process {process.Id} to expose a main window handle.");
+
+        ShowWindowAsync(process.MainWindowHandle, SwMinimize);
+
+        ConditionWaiter.WaitUntil(
+            () => detector.GetAllWpfProcesses(ProcessWindowFilter.Visible)
+                .All(candidate => candidate.ProcessId != process.Id),
+            TimeSpan.FromSeconds(10),
+            $"Timed out waiting for process {process.Id} to stop appearing in the visible WPF auto-discovery candidate set.");
+    }
+
+    private static JsonElement ToJsonElement(object value)
+    {
+        var json = JsonSerializer.Serialize(value);
+        return JsonSerializer.Deserialize<JsonElement>(json);
+    }
+
+    private const int SwMinimize = 6;
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+
+    private sealed class FilteringProcessDetector(params int[] allowedProcessIds) : WpfProcessDetector
+    {
+        private readonly HashSet<int> _allowedProcessIds = [.. allowedProcessIds];
+
+        public override IReadOnlyList<WpfProcessInfo> GetAllWpfProcesses(ProcessWindowFilter windowFilter)
+            => base.GetAllWpfProcesses(windowFilter)
+                .Where(process => _allowedProcessIds.Contains(process.ProcessId))
+                .ToArray();
+
+        public override WpfProcessInfo? GetProcessInfo(int processId)
+            => _allowedProcessIds.Contains(processId)
+                ? base.GetProcessInfo(processId)
+                : null;
     }
 }

@@ -60,11 +60,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 
 Manual fallback:
 
-1. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` from Releases.
-2. Extract the archive.
-3. Run `run.bat` from the extracted package. It requests elevation when the current shell is not already elevated and launches the packaged `bin\install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
+1. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` from Releases together with `SHA256SUMS.txt` and `release-assets.json`.
+2. Verify the downloaded archive against the release provenance sidecars before extraction. Confirm the asset hash matches `SHA256SUMS.txt` and the exact asset entry in `release-assets.json`. The reviewed online installer performs this verification automatically; the manual path does not.
+3. Keep the verified release zip plus `SHA256SUMS.txt` and `release-assets.json` in the extracted package's parent directory while you run the package-local installer, or explicitly provide `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` and `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`.
+4. Extract the archive.
+5. Run `run.bat` from the extracted package. It requests elevation when the current shell is not already elevated and launches the packaged `bin\install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
   For `claude-code` and `codex`, elevated PATH-based CLI discovery is intentionally blocked. Use `WPFDEVTOOLS_SKIP_ELEVATION=1` for the CLI registration step, register manually after install, or provide a trusted absolute path with `WPFDEVTOOLS_CLAUDE_COMMAND_PATH` or `WPFDEVTOOLS_CODEX_COMMAND_PATH`.
-4. Register or verify the installed executable in your MCP client.
+6. Register or verify the installed executable in your MCP client.
 
 The installer writes ready-to-copy registration snippets under `<InstallRoot>\<arch>\client-registration\`. If you do not pass `-InstallRoot`, the installer reuses the last live install root when possible; otherwise it falls back to `%APPDATA%\WpfDevToolsMcp`.
 

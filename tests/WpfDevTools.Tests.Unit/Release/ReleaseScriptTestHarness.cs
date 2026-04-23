@@ -310,7 +310,8 @@ internal static class ReleaseScriptTestHarness
         if (Directory.Exists(packageDir) &&
             File.Exists(archivePath) &&
             File.Exists(Path.Combine(metadataDirectoryPath, "SHA256SUMS.txt")) &&
-            File.Exists(Path.Combine(metadataDirectoryPath, "release-assets.json")))
+            File.Exists(Path.Combine(metadataDirectoryPath, "release-assets.json")) &&
+            IsValidArchive(archivePath))
         {
             return new CachedPackageArtifacts(packageDir, archivePath, metadataDirectoryPath);
         }
@@ -404,6 +405,27 @@ internal static class ReleaseScriptTestHarness
         using var stream = File.OpenRead(filePath);
         var hashBytes = System.Security.Cryptography.SHA256.HashData(stream);
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    private static bool IsValidArchive(string archivePath)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(archivePath);
+            return archive.Entries.Count >= 0;
+        }
+        catch (InvalidDataException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     public static string CreateFakeCommand(string directory, string commandName, string logPath)

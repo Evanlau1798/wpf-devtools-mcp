@@ -142,5 +142,11 @@ public class ReadmeDocumentationTests
             "README should explain why the reviewed installer path is safer than manually expanding the archive");
         content.Should().Contain("run.bat",
             "README should keep the package-local launcher as the manual fallback path");
+        content.Should().Contain("SHA256SUMS.txt",
+            "README manual fallback should require release provenance verification before run.bat is launched from an extracted archive");
+        content.Should().Contain("release-assets.json",
+            "README manual fallback should point users at the canonical release asset metadata before trusting a downloaded archive");
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
+            "README manual fallback should explain how to provide an explicit signer pin if the verified archive is no longer kept beside the extracted package");
     }
 }

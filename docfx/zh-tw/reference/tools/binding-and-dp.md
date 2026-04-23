@@ -54,6 +54,14 @@
 
 如果你需要在 mutation、interaction 或 watcher 註冊後，明確讀出 buffered `DpChange`、`BindingError` 或 validation event，請使用 `drain_events`。
 
+當 post-drain cleanup 無法乾淨完成時，`drain_events` 也可能回傳 `cleanupIncomplete`、`cleanupFailureMessage` 與 `cleanupFailureType`。請把這些欄位視為後續診斷訊號，而不是默默假設 shared buffer 已完全重設。
+
+當 replay 已經 buffered 時，`drain_events` 會先在內部做 uncapped live read，再把 `maxEvents`、`eventTypes`、`elementId` 與 `sinceTimestamp` 套用到合併後的 replay + live event 集合。
+
+在這個 replay-present path 中，凡是這次 explicit read 沒有回傳的 replay event，以及超出 caller-visible result cap 的 matching live event，都會保留到下一次 `drain_events` 呼叫。
+
+如果這種 replay-backed live drain 在 merge 完成前失敗，error 仍會保留 buffered replay 供下一次成功的 `drain_events` 呼叫使用，並回傳 `errorData.replayPreserved` 與 `errorData.bufferedReplayEventCount`，讓 client 可以重試而不是誤判 buffer 已遺失。
+
 ## Mutation 注意事項
 
 `set_dp_value` 與 `clear_dp_value` 會直接修改執行中的應用程式。每次 mutation 之後，都應搭配 verification 呼叫確認結果，例如 `get_state_diff`、`get_dp_value_source` 或 `drain_events`。

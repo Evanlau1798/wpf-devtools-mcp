@@ -4,6 +4,7 @@ using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Security;
@@ -178,6 +179,60 @@ public sealed class ConnectToolSecurityErrorTests
             json.GetProperty("error").GetString().Should().Be("Bootstrap completed, but the Inspector Named Pipe did not become ready before the timeout expired.");
             json.GetProperty("error").GetString().Should().NotContain("WpfDevTools_4242");
             json.TryGetProperty("exitCode", out _).Should().BeFalse();
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Execute_WhenDllSignatureVerificationFails_ShouldSurfaceSecurityErrorAtToolBoundary()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+        var inspectorPath = Path.Combine(tempDirectory.FullName, "WpfDevTools.Inspector.net8.0-windows.dll");
+        var bootstrapperPath = Path.Combine(tempDirectory.FullName, "WpfDevTools.Bootstrapper.x64.dll");
+        const string signatureError =
+            "Inspector DLL is not digitally signed or has an invalid signature. " +
+            "In development, use a DEBUG build which auto-skips signature verification for local DLLs. " +
+            "In production, sign the DLL with Authenticode.";
+        File.WriteAllText(inspectorPath, "placeholder");
+        File.WriteAllText(bootstrapperPath, "placeholder");
+
+        try
+        {
+            using var scope = ToolCallHelper.BeginTestScope();
+            using var sessionManager = new SessionManager();
+            var injector = new RecordingProcessInjector();
+            var tool = new ConnectTool(
+                sessionManager,
+                injector,
+                processDetector: new FixedProcessDetector(new WpfProcessInfo
+                {
+                    ProcessId = 4242,
+                    ProcessName = "TestApp",
+                    Architecture = ProcessArchitecture.X64,
+                    Runtime = TargetRuntime.NetCore,
+                    IsWpfApplication = true,
+                    IsElevated = false,
+                    ExecutablePath = Path.Combine(tempDirectory.FullName, "TestApp.exe")
+                }),
+                dllPathValidator: _ => throw new System.Security.Cryptography.CryptographicException(signatureError),
+                isCurrentProcessElevated: () => false,
+                inspectorCandidateResolver: _ => [inspectorPath],
+                bootstrapperCandidateResolver: _ => [bootstrapperPath],
+                isRawInjectionTargetAllowed: _ => true);
+
+            var result = await ToolCallHelper.ExecuteAndWrapAsync(
+                tool.ExecuteAsync,
+                ToJsonElement(new { processId = 4242 }),
+                CancellationToken.None);
+
+            result.IsError.Should().BeTrue();
+            var json = result.StructuredContent!.Value;
+            json.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+            json.GetProperty("error").GetString().Should().Be("Security verification failed");
+            injector.InjectWithBootstrapCallCount.Should().Be(0);
         }
         finally
         {

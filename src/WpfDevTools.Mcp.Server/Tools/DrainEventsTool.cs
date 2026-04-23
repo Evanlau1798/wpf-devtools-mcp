@@ -26,21 +26,37 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
             return CreateInvalidParamError("maxEvents must be a positive integer when provided");
         }
 
+        if (!_sessionManager.TryGetSessionGeneration(processId, out var expectedSessionGeneration))
+        {
+            return CreateNotConnectedError(processId);
+        }
+
+        var eventTypes = ParseStringArrayParam(arguments, "eventTypes");
         var sinceTimestamp = ParseStringParam(arguments, "sinceTimestamp");
         if (sinceTimestamp is not null && !DateTimeOffset.TryParse(sinceTimestamp, out _))
         {
             return CreateInvalidParamError("sinceTimestamp must be a valid ISO-8601 timestamp when provided");
         }
 
-        _sessionManager.TryTakePendingEventReplay(processId, out var replayPayload);
+        using var replayLock = await _sessionManager.AcquirePendingEventReplayLockAsync(processId, cancellationToken).ConfigureAwait(false);
+        if (replayLock.SessionGeneration != expectedSessionGeneration)
+        {
+            return CreateNotConnectedError(processId);
+        }
+
+        _sessionManager.TryPeekPendingEventReplay(processId, replayLock.SessionGeneration, out var replayPayload);
+        var liveDrainMaxEvents = replayPayload.ValueKind == JsonValueKind.Undefined
+            ? maxEvents
+            : int.MaxValue;
 
         var liveResult = await SendInspectorRequestAsync(
             processId,
+            expectedSessionGeneration,
             "drain_events",
             new
             {
-                maxEvents,
-                eventTypes = ParseStringArrayParam(arguments, "eventTypes"),
+                maxEvents = liveDrainMaxEvents,
+                eventTypes,
                 elementId,
                 sinceTimestamp
             },
@@ -56,16 +72,29 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
             : JsonSerializer.SerializeToElement(liveResult);
         if (!IsSuccessfulPayload(livePayload))
         {
-            return liveResult;
+            return _sessionManager.TryPeekPendingEventReplay(processId, replayLock.SessionGeneration, out var preservedReplayPayload)
+                ? CreateReplayPreservedFailurePayload(livePayload, preservedReplayPayload)
+                : liveResult;
         }
 
-        return MergeReplayPayload(
+        var replayMergeResult = MergeReplayPayload(
             replayPayload,
             livePayload,
             maxEvents,
-            ParseStringArrayParam(arguments, "eventTypes"),
+            eventTypes,
             elementId,
             sinceTimestamp is null ? null : DateTimeOffset.Parse(sinceTimestamp));
+
+        _sessionManager.TryTakePendingEventReplay(processId, replayLock.SessionGeneration, out _);
+        if (replayMergeResult.RemainingReplayPayload.ValueKind != JsonValueKind.Undefined)
+        {
+            _sessionManager.SavePendingEventReplay(
+                processId,
+                replayLock.SessionGeneration,
+                replayMergeResult.RemainingReplayPayload);
+        }
+
+        return replayMergeResult.ResponsePayload;
     }
 
     private static bool IsSuccessfulPayload(JsonElement payload) =>
@@ -73,7 +102,19 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
         && payload.TryGetProperty("success", out var success)
         && success.ValueKind == JsonValueKind.True;
 
-    private static object MergeReplayPayload(
+    internal static (JsonElement ResponsePayload, JsonElement RemainingReplayPayload) MergeReplayPayloadForSharedBuffer(
+        JsonElement replayPayload,
+        JsonElement livePayload,
+        int? maxEvents,
+        string[]? eventTypes,
+        string? elementId,
+        DateTimeOffset? sinceTimestamp)
+    {
+        var result = MergeReplayPayload(replayPayload, livePayload, maxEvents, eventTypes, elementId, sinceTimestamp);
+        return (result.ResponsePayload, result.RemainingReplayPayload);
+    }
+
+    private static ReplayMergeResult MergeReplayPayload(
         JsonElement replayPayload,
         JsonElement livePayload,
         int? maxEvents,
@@ -86,9 +127,25 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
             ? new HashSet<string>(eventTypes, StringComparer.Ordinal)
             : null;
         var mergedEvents = new List<JsonElement>();
+        var remainingReplayEvents = new List<JsonElement>();
+        var remainingLiveEvents = new List<JsonElement>();
 
-        AppendMatchingEvents(mergedEvents, replayPayload, maxCount, eventTypeSet, elementId, sinceTimestamp);
-        AppendMatchingEvents(mergedEvents, livePayload, maxCount, eventTypeSet, elementId, sinceTimestamp);
+        PartitionEvents(
+            mergedEvents,
+            remainingReplayEvents,
+            replayPayload,
+            maxCount,
+            eventTypeSet,
+            elementId,
+            sinceTimestamp);
+        PartitionEvents(
+            mergedEvents,
+            remainingLiveEvents,
+            livePayload,
+            maxCount,
+            eventTypeSet,
+            elementId,
+            sinceTimestamp);
 
         var droppedEventCount = GetIntProperty(replayPayload, "droppedEventCount")
             + GetIntProperty(livePayload, "droppedEventCount");
@@ -99,24 +156,37 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
         var cleanupFailureType = GetCleanupFailureDetail(livePayload, "cleanupFailureType")
             ?? GetCleanupFailureDetail(replayPayload, "cleanupFailureType");
 
-        if (mergedEvents.Count == 0)
-        {
-            return new
-            {
-                success = true,
-                pendingEventCount = 0,
-                droppedEventCount,
-                cleanupIncomplete,
-                cleanupFailureMessage,
-                cleanupFailureType
-            };
-        }
+        var responsePayload = CreateDrainPayload(
+            mergedEvents,
+            droppedEventCount,
+            cleanupIncomplete,
+            cleanupFailureMessage,
+            cleanupFailureType);
+        remainingReplayEvents.AddRange(remainingLiveEvents);
+        var remainingReplayPayload = remainingReplayEvents.Count > 0
+            ? CreateDrainPayload(
+                remainingReplayEvents,
+                droppedEventCount: 0,
+                cleanupIncomplete: false,
+                cleanupFailureMessage: null,
+                cleanupFailureType: null)
+            : default;
 
+        return new ReplayMergeResult(responsePayload, remainingReplayPayload);
+    }
+
+    private static JsonElement CreateDrainPayload(
+        List<JsonElement> pendingEvents,
+        int droppedEventCount,
+        bool cleanupIncomplete,
+        string? cleanupFailureMessage,
+        string? cleanupFailureType)
+    {
         var buffer = new ArrayBufferWriter<byte>();
         using var writer = new Utf8JsonWriter(buffer);
         writer.WriteStartObject();
         writer.WriteBoolean("success", true);
-        writer.WriteNumber("pendingEventCount", mergedEvents.Count);
+        writer.WriteNumber("pendingEventCount", pendingEvents.Count);
         writer.WriteNumber("droppedEventCount", droppedEventCount);
         if (cleanupIncomplete)
         {
@@ -132,19 +202,51 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
             }
         }
 
-        writer.WritePropertyName("pendingEvents");
-        writer.WriteStartArray();
-        foreach (var pendingEvent in mergedEvents)
+        if (pendingEvents.Count > 0)
         {
-            pendingEvent.WriteTo(writer);
+            writer.WritePropertyName("pendingEvents");
+            writer.WriteStartArray();
+            foreach (var pendingEvent in pendingEvents)
+            {
+                pendingEvent.WriteTo(writer);
+            }
+
+            writer.WriteEndArray();
         }
 
-        writer.WriteEndArray();
         writer.WriteEndObject();
         writer.Flush();
 
         using var document = JsonDocument.Parse(buffer.WrittenMemory);
         return document.RootElement.Clone();
+    }
+
+    private static void PartitionEvents(
+        List<JsonElement> target,
+        List<JsonElement> overflowEvents,
+        JsonElement payload,
+        int maxCount,
+        HashSet<string>? eventTypes,
+        string? elementId,
+        DateTimeOffset? sinceTimestamp)
+    {
+        if (!payload.TryGetProperty("pendingEvents", out var pendingEvents)
+            || pendingEvents.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var pendingEvent in pendingEvents.EnumerateArray())
+        {
+            var clonedEvent = pendingEvent.Clone();
+            if (target.Count < maxCount && MatchesFilters(pendingEvent, eventTypes, elementId, sinceTimestamp))
+            {
+                target.Add(clonedEvent);
+                continue;
+            }
+
+            overflowEvents.Add(clonedEvent);
+        }
     }
 
     private static void AppendMatchingEvents(
@@ -230,4 +332,127 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
         && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
+
+    private static JsonElement CreateReplayPreservedFailurePayload(JsonElement livePayload, JsonElement replayPayload)
+    {
+        if (livePayload.ValueKind != JsonValueKind.Object)
+        {
+            return livePayload;
+        }
+
+        var hasErrorData = livePayload.TryGetProperty("errorData", out var existingErrorData);
+        var hasRecovery = livePayload.TryGetProperty("recovery", out var existingRecovery);
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartObject();
+
+        foreach (var property in livePayload.EnumerateObject())
+        {
+            if (property.NameEquals("errorData") && property.Value.ValueKind == JsonValueKind.Object)
+            {
+                WriteReplayPreservedErrorData(writer, property.Value, replayPayload);
+                continue;
+            }
+
+            if (property.NameEquals("recovery") && property.Value.ValueKind == JsonValueKind.Object)
+            {
+                WriteReplayPreservedRecovery(writer, property.Value);
+                continue;
+            }
+
+            property.WriteTo(writer);
+        }
+
+        if (!hasErrorData)
+        {
+            WriteReplayPreservedErrorData(writer, default, replayPayload);
+        }
+
+        if (!hasRecovery)
+        {
+            WriteReplayPreservedRecovery(writer, default);
+        }
+
+        writer.WriteEndObject();
+        writer.Flush();
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
+    }
+
+    private static void WriteReplayPreservedErrorData(Utf8JsonWriter writer, JsonElement existingErrorData, JsonElement replayPayload)
+    {
+        writer.WritePropertyName("errorData");
+        writer.WriteStartObject();
+
+        var wroteReplayPreserved = false;
+        var wroteBufferedReplayEventCount = false;
+        if (existingErrorData.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in existingErrorData.EnumerateObject())
+            {
+                if (property.NameEquals("replayPreserved"))
+                {
+                    wroteReplayPreserved = true;
+                }
+                else if (property.NameEquals("bufferedReplayEventCount"))
+                {
+                    wroteBufferedReplayEventCount = true;
+                }
+
+                property.WriteTo(writer);
+            }
+        }
+
+        if (!wroteReplayPreserved)
+        {
+            writer.WriteBoolean("replayPreserved", true);
+        }
+
+        if (!wroteBufferedReplayEventCount)
+        {
+            writer.WriteNumber("bufferedReplayEventCount", GetIntProperty(replayPayload, "pendingEventCount"));
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static void WriteReplayPreservedRecovery(Utf8JsonWriter writer, JsonElement existingRecovery)
+    {
+        writer.WritePropertyName("recovery");
+        writer.WriteStartObject();
+
+        var wroteHint = false;
+        var wroteSuggestedAction = false;
+        if (existingRecovery.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in existingRecovery.EnumerateObject())
+            {
+                if (property.NameEquals("hint"))
+                {
+                    wroteHint = true;
+                }
+                else if (property.NameEquals("suggestedAction"))
+                {
+                    wroteSuggestedAction = true;
+                }
+
+                property.WriteTo(writer);
+            }
+        }
+
+        if (!wroteHint)
+        {
+            writer.WriteString("hint", "Previously buffered replay events were preserved because the live drain failed before merge completed.");
+        }
+
+        if (!wroteSuggestedAction)
+        {
+            writer.WriteString("suggestedAction", "Retry drain_events after resolving the transient live-drain failure.");
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private readonly record struct ReplayMergeResult(JsonElement ResponsePayload, JsonElement RemainingReplayPayload);
 }

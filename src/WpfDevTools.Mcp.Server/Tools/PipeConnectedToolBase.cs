@@ -176,13 +176,45 @@ public abstract partial class PipeConnectedToolBase
         CancellationToken ct,
         bool piggybackPendingEvents = true)
     {
-        var result = await SendInspectorRequestCoreAsync(processId, method, parameters, ct).ConfigureAwait(false);
+        if (!_sessionManager.TryGetSessionGeneration(processId, out var expectedSessionGeneration))
+        {
+            return CreateNotConnectedError(processId);
+        }
+
+        return await SendInspectorRequestAsync(
+            processId,
+            expectedSessionGeneration,
+            method,
+            parameters,
+            ct,
+            piggybackPendingEvents).ConfigureAwait(false);
+    }
+
+    protected async Task<object> SendInspectorRequestAsync(
+        int processId,
+        long expectedSessionGeneration,
+        string method,
+        object? parameters,
+        CancellationToken ct,
+        bool piggybackPendingEvents = true)
+    {
+        var result = await SendInspectorRequestCoreAsync(
+            processId,
+            expectedSessionGeneration,
+            method,
+            parameters,
+            ct).ConfigureAwait(false);
         if (!piggybackPendingEvents)
         {
             return result;
         }
 
-        return await TryPiggybackPendingEventsAsync(processId, method, result, ct).ConfigureAwait(false);
+        return await TryPiggybackPendingEventsAsync(
+            processId,
+            expectedSessionGeneration,
+            method,
+            result,
+            ct).ConfigureAwait(false);
     }
 
     protected Task<object> SendInspectorRequestWithPiggybackAsync(
@@ -201,12 +233,13 @@ public abstract partial class PipeConnectedToolBase
 
     private async Task<object> SendInspectorRequestCoreAsync(
         int processId,
+        long expectedSessionGeneration,
         string method,
         object? parameters,
         CancellationToken ct)
     {
-        // Get pipe client atomically - avoids TOCTOU race between HasSession and GetPipeClient
-        var client = _sessionManager.GetPipeClient(processId);
+        // Get the pipe client and verify the request is still bound to the same session generation.
+        var client = _sessionManager.GetPipeClient(processId, expectedSessionGeneration);
         if (client == null)
             return CreateNotConnectedError(processId);
 
@@ -249,11 +282,17 @@ public abstract partial class PipeConnectedToolBase
 
     private async Task<object> TryPiggybackPendingEventsAsync(
         int processId,
+        long expectedSessionGeneration,
         string method,
         object result,
         CancellationToken ct)
     {
         if (string.Equals(method, "drain_events", StringComparison.Ordinal))
+        {
+            return result;
+        }
+
+        if (!_sessionManager.IsCurrentSessionGeneration(processId, expectedSessionGeneration))
         {
             return result;
         }
@@ -269,39 +308,81 @@ public abstract partial class PipeConnectedToolBase
             return result;
         }
 
-        object drainResult;
-        using var piggybackCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        piggybackCts.CancelAfter(PiggybackTimeout);
+        using var piggybackCts = new CancellationTokenSource(PiggybackTimeout);
         try
         {
+            using var replayLock = await _sessionManager.AcquirePendingEventReplayLockAsync(processId, piggybackCts.Token).ConfigureAwait(false);
+            if (replayLock.SessionGeneration != expectedSessionGeneration)
+            {
+                return result;
+            }
+
+            object drainResult;
             drainResult = await SendInspectorRequestCoreAsync(
                 processId,
+                expectedSessionGeneration,
                 "drain_events",
                 new { maxEvents = DefaultPiggybackMaxEvents },
                 piggybackCts.Token).ConfigureAwait(false);
+
+            var drainPayload = ToJsonElement(drainResult);
+            if (!IsSuccessfulPayload(drainPayload))
+            {
+                return result;
+            }
+
+            _sessionManager.TryPeekPendingEventReplay(processId, replayLock.SessionGeneration, out var existingReplayPayload);
+            if (existingReplayPayload.ValueKind != JsonValueKind.Undefined)
+            {
+                var replayMergeResult = DrainEventsTool.MergeReplayPayloadForSharedBuffer(
+                    existingReplayPayload,
+                    drainPayload,
+                    DefaultPiggybackMaxEvents,
+                    eventTypes: null,
+                    elementId: null,
+                    sinceTimestamp: null);
+                var replayStoragePayload = DrainEventsTool.MergeReplayPayloadForSharedBuffer(
+                    existingReplayPayload,
+                    drainPayload,
+                    maxEvents: null,
+                    eventTypes: null,
+                    elementId: null,
+                    sinceTimestamp: null).ResponsePayload;
+
+                var mergedPendingEventCount = GetIntProperty(replayMergeResult.ResponsePayload, "pendingEventCount");
+                var mergedDroppedEventCount = GetIntProperty(replayMergeResult.ResponsePayload, "droppedEventCount");
+                if (mergedPendingEventCount <= 0
+                    && mergedDroppedEventCount <= 0
+                    && !HasCleanupIncompleteDiagnostics(replayMergeResult.ResponsePayload))
+                {
+                    return result;
+                }
+
+                _sessionManager.TryTakePendingEventReplay(processId, replayLock.SessionGeneration, out _);
+                _sessionManager.SavePendingEventReplay(
+                    processId,
+                    replayLock.SessionGeneration,
+                    replayStoragePayload);
+
+                return MergePendingEvents(payload, replayMergeResult.ResponsePayload);
+            }
+
+            var pendingEventCount = GetIntProperty(drainPayload, "pendingEventCount");
+            var droppedEventCount = GetIntProperty(drainPayload, "droppedEventCount");
+            if (pendingEventCount <= 0
+                && droppedEventCount <= 0
+                && !HasCleanupIncompleteDiagnostics(drainPayload))
+            {
+                return result;
+            }
+
+            _sessionManager.SavePendingEventReplay(processId, replayLock.SessionGeneration, drainPayload);
+            return MergePendingEvents(payload, drainPayload);
         }
         catch (Exception)
         {
             return result;
         }
-
-        var drainPayload = ToJsonElement(drainResult);
-        if (!IsSuccessfulPayload(drainPayload))
-        {
-            return result;
-        }
-
-        var pendingEventCount = GetIntProperty(drainPayload, "pendingEventCount");
-        var droppedEventCount = GetIntProperty(drainPayload, "droppedEventCount");
-        if (pendingEventCount <= 0
-            && droppedEventCount <= 0
-            && !HasCleanupIncompleteDiagnostics(drainPayload))
-        {
-            return result;
-        }
-
-        _sessionManager.SavePendingEventReplay(processId, drainPayload);
-        return MergePendingEvents(payload, drainPayload);
     }
 
     protected static object AddSuccessMetadata(

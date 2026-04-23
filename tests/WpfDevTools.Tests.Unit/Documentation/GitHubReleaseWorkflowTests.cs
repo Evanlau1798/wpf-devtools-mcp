@@ -16,6 +16,8 @@ public sealed class GitHubReleaseWorkflowTests
             "GitHub Release packaging should build x64, x86, and arm64 assets from the same workflow");
         content.Should().Contain("Publish-Release.ps1",
             "the release workflow should call the production packaging script instead of duplicating packaging logic inline");
+        content.Should().Contain("-ExpectedReleaseTag '${{ steps.release-metadata.outputs.tag }}'",
+            "release packaging should fail closed if the checked-out tag and the packaged project version drift apart");
     }
 
     [Fact]
@@ -42,6 +44,29 @@ public sealed class GitHubReleaseWorkflowTests
             "operators should be able to rerun release packaging manually for a specific tag");
         content.Should().Contain("upload-gh-release.ps1",
             "CI should execute the generated upload helper to publish staged assets");
+    }
+
+    [Fact]
+    public void ReleaseWorkflow_ShouldRequireArm64RuntimeValidationBeforeUpload()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));
+
+        content.Should().Contain("WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE",
+            "public release publication should fail closed until a dedicated ARM64 runtime validation lane is configured");
+        content.Should().Contain("validate-arm64-release-assets",
+            "release publication should have a dedicated ARM64 validation job that runs before upload");
+        content.Should().Contain("[self-hosted, Windows, ARM64]",
+            "ARM64 asset validation must occur on an actual ARM64 runner so the packaged executable can launch");
+        content.Should().Contain("Test-PackagedServerRuntime.ps1",
+            "the ARM64 release validation lane should start the packaged server runtime, not just install and uninstall scripts");
+        content.Should().Contain("-TrustedReleaseMetadataDirectory $stagingRoot",
+            "the pre-upload ARM64 online-installer smoke must consume the staged release sidecars explicitly instead of falling back to GitHub metadata that does not exist yet");
+        content.Should().Contain("upload-release-assets:",
+            "asset upload should happen in a separate job after validation finishes");
+        content.Should().Contain("needs:",
+            "the upload job must depend on the package build and ARM64 runtime validation jobs");
+        content.Should().Contain("- validate-arm64-release-assets",
+            "the ARM64 runtime validation job should be part of the release workflow DAG before upload");
     }
 
     [Fact]

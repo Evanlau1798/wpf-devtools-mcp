@@ -1,15 +1,14 @@
 using System.Diagnostics;
 using System.Text.Json;
-using WpfDevTools.Shared.Messages;
-using WpfDevTools.Shared.Enums;
-using WpfDevTools.Shared.Configuration;
-using WpfDevTools.Shared.Utilities;
-using WpfDevTools.Inspector.Analyzers;
-using WpfDevTools.Inspector.Events;
-using WpfDevTools.Inspector.Utilities;
-using WpfDevTools.Inspector.Host.Handlers;
 using System.Windows.Threading;
 using System.Runtime.ExceptionServices;
+using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Host.Handlers;
+using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Host;
 
@@ -39,72 +38,10 @@ public sealed class RequestDispatcher : IDisposable
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        // Initialize shared utilities
-        _elementFinder = new ElementFinder();
-        var elementFinder = _elementFinder;
-        var xamlSerializer = new XamlSerializer();
-        var watchEventBuffer = new WatchEventBuffer();
-
-        // Initialize analyzers
-        var visualTreeAnalyzer = new VisualTreeAnalyzer(elementFinder);
-        var bindingAnalyzer = new BindingAnalyzer(elementFinder, watchEventBuffer);
-        var logicalTreeAnalyzer = new LogicalTreeAnalyzer(elementFinder);
-        var elementSearchAnalyzer = new ElementSearchAnalyzer(elementFinder);
-        var mvvmAnalyzer = new MvvmAnalyzer(elementFinder, watchEventBuffer);
-        var dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(elementFinder, watchEventBuffer);
-        var layoutAnalyzer = new LayoutAnalyzer(elementFinder);
-        var interactionAnalyzer = new InteractionAnalyzer(elementFinder, watchEventBuffer);
-        var styleAnalyzer = new StyleAnalyzer(elementFinder);
-        _eventAnalyzer = new EventAnalyzer(elementFinder, watchEventBuffer, eventTraceCleanupInvoker);
-        var performanceAnalyzer = new PerformanceAnalyzer(elementFinder);
-        var uiSummaryAnalyzer = new UiSummaryAnalyzer(elementFinder);
-        var formSummaryAnalyzer = new FormSummaryAnalyzer(elementFinder);
-
-        // Initialize handlers
-        var treeHandlers = new TreeHandlers(visualTreeAnalyzer, logicalTreeAnalyzer, xamlSerializer, elementFinder);
-        var elementSearchHandlers = new ElementSearchHandlers(elementSearchAnalyzer);
-        var bindingHandlers = new BindingHandlers(bindingAnalyzer, elementFinder);
-        var mvvmHandlers = new MvvmHandlers(mvvmAnalyzer);
-        var dependencyPropertyHandlers = new DependencyPropertyHandlers(dependencyPropertyAnalyzer);
-        var layoutHandlers = new LayoutHandlers(layoutAnalyzer);
-        var interactionHandlers = new InteractionHandlers(interactionAnalyzer);
-        var styleHandlers = new StyleHandlers(styleAnalyzer);
-        var eventHandlers = new EventHandlers(_eventAnalyzer, dependencyPropertyAnalyzer.ClearTransientWatchers);
-        var performanceHandlers = new PerformanceHandlers(performanceAnalyzer);
-        var sceneSummaryHandlers = new SceneSummaryHandlers(uiSummaryAnalyzer, formSummaryAnalyzer);
-        var elementSnapshotHandlers = new ElementSnapshotHandlers(
-            treeHandlers,
-            bindingHandlers,
-            mvvmHandlers,
-            styleHandlers,
-            layoutHandlers,
-            dependencyPropertyHandlers);
-
-        var handlers = new IRequestHandler[]
-        {
-            treeHandlers,
-            elementSearchHandlers,
-            bindingHandlers,
-            mvvmHandlers,
-            dependencyPropertyHandlers,
-            layoutHandlers,
-            interactionHandlers,
-            styleHandlers,
-            eventHandlers,
-            performanceHandlers,
-            sceneSummaryHandlers,
-            elementSnapshotHandlers
-        };
-
-        // Build handler map
-        _handlerMap = new Dictionary<string, IRequestHandler>();
-        foreach (var handler in handlers)
-        {
-            foreach (var method in handler.GetSupportedMethods())
-            {
-                _handlerMap[method] = handler;
-            }
-        }
+        var composition = RequestDispatcherRegistry.Create(_logger, eventTraceCleanupInvoker);
+        _elementFinder = composition.ElementFinder;
+        _eventAnalyzer = composition.EventAnalyzer;
+        _handlerMap = new Dictionary<string, IRequestHandler>(composition.HandlerMap, StringComparer.Ordinal);
 
         // Simple handlers
         _simpleHandlers = new Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>>

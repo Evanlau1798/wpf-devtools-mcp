@@ -27,6 +27,21 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
     /// </summary>
     public string? SkipReason { get; private set; }
 
+    /// <summary>
+    /// Non-null when a prior shared-session reset failed and later tests should stop using this fixture.
+    /// </summary>
+    public string? QuarantineReason { get; private set; }
+
+    public void Quarantine(string reason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+
+        if (string.IsNullOrWhiteSpace(QuarantineReason))
+        {
+            QuarantineReason = reason;
+        }
+    }
+
     public async Task InitializeAsync()
     {
         var serverExe = FindExecutable(

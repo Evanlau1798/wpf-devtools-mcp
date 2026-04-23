@@ -25,6 +25,8 @@ public static class E2eTestHelpers
     {
         fixture.SkipReason.Should().BeNull(
             $"E2E fixture must be available. Skip reason: {fixture.SkipReason}");
+        fixture.QuarantineReason.Should().BeNull(
+            $"E2E fixture must not be quarantined. Quarantine reason: {fixture.QuarantineReason}");
     }
 
     /// <summary>
@@ -237,12 +239,29 @@ public static class E2eTestHelpers
             : value.Substring(0, maxLength) + "...";
     }
 
-    private static void EnsureToolSucceeded(JsonElement result, string toolName, string target)
+    internal static void EnsureToolSucceeded(JsonElement result, string toolName, string target)
     {
         if (!result.TryGetProperty("success", out var success) || !success.GetBoolean())
         {
             throw new InvalidOperationException(
                 $"{toolName} failed while resetting {target}: {result.GetRawText()}");
+        }
+
+        if (result.TryGetProperty("cleanupIncomplete", out var cleanupIncomplete) &&
+            cleanupIncomplete.ValueKind == JsonValueKind.True)
+        {
+            var cleanupFailureMessage = result.TryGetProperty("cleanupFailureMessage", out var failureMessage)
+                && failureMessage.ValueKind == JsonValueKind.String
+                    ? failureMessage.GetString()
+                    : null;
+            var cleanupFailureType = result.TryGetProperty("cleanupFailureType", out var failureType)
+                && failureType.ValueKind == JsonValueKind.String
+                    ? failureType.GetString()
+                    : null;
+
+            throw new InvalidOperationException(
+                $"{toolName} reported cleanupIncomplete while resetting {target}: " +
+                $"{cleanupFailureType ?? "UnknownCleanupFailure"}: {cleanupFailureMessage ?? result.GetRawText()}");
         }
     }
 }

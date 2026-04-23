@@ -16,10 +16,12 @@ public sealed class BindingDescriptionContractTests
             .Single()
             .Description;
 
-        description.Should().Contain("message?: string",
-            "the response format should show that compact mode can omit the verbose message field");
-        description.Should().Contain("Compact mode omits the message field",
-            "the description should explain when the message field is absent from binding errors");
+        description.Should().Contain("compact=false",
+            "the description should explain how to opt back into the verbose trace text");
+        description.Should().Contain("structuredContent",
+            "binding error descriptions should point clients at the canonical machine-readable payload instead of embedding a full inline schema block");
+        description.Should().Contain("wpf://contracts/response",
+            "field-level binding error contracts should be discoverable from the shared response contract resource");
         description.Should().Contain("compact=false",
             "the description should explain how to opt back into the verbose trace text");
     }

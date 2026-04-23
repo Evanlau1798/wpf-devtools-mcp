@@ -13,6 +13,8 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class BindingMcpTools
 {
     private const string BindingMetadata = "CATEGORY: Binding\n\n";
+    private const string ContractGuidance =
+        "CONTRACT: Canonical payload lives in structuredContent. content[0].text is a compact fallback summary, not the full result. Read wpf://contracts/response for stable fields and MCP envelope semantics.\n\n";
 
     [McpServerTool(Name = "get_binding_mismatches", Title = "Detect WPF Binding Mismatches", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
@@ -71,18 +73,9 @@ public static class BindingMcpTools
         "BATCH MODE: Provide `elementIds` to inspect multiple roots in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "DO NOT USE: recursive=true on large apps without elementId scope (will be slow).\n" +
         "FILTERING: Optional `statusFilter` narrows the response to the binding statuses relevant to the current diagnosis.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  bindings: [{\n" +
-        "    elementId, elementType, propertyName, path, bindingType, bindingPaths,\n" +
-        "    mode: 'OneWay'|'TwoWay'|'OneTime'|'OneWayToSource',\n" +
-        "    converter, updateSourceTrigger, status, currentValue\n" +
-        "  }]\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"element not found\" -> verify elementId from get_visual_tree\n\n" +
+        ContractGuidance +
+        "RESPONSE FIELDS: bindings for single-target inspection, or results/resultCount/successCount/failureCount for batch inspection; each binding can include bindingType, bindingPaths, and currentValue.\n" +
+        "REQUEST OPTIONS: elementId or elementIds choose targets; recursive expands subtree inspection; statusFilter narrows returned binding statuses.\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345 }\n" +
         "- { processId: 12345, elementId: \"NameTextBox\" }\n" +
@@ -172,34 +165,16 @@ public static class BindingMcpTools
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
         "DO NOT USE: Before calling connect() - errors are only captured after injection; for validation rule errors use get_validation_errors.\n" +
         "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics. Compact mode is enabled by default to omit the verbose free-form message while preserving structured correlation fields; set `compact=false` when the full message text is required.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  errorCount: integer,\n" +
-        "  errors: [{\n" +
-        "    diagnosticKind: 'BindingError',\n" +
-        "    sourceKind: 'BindingTrace' | 'BindingExpression',\n" +
-        "    severity: 'Error',\n" +
-        "    timestamp: string (ISO 8601),\n" +
-        "    message?: string,\n" +
-        "    eventType: string,\n" +
-        "    sourceId: integer,\n" +
-        "    elementId: string | null,\n" +
-        "    suggestedElementId: string | null,\n" +
-        "    matchConfidence: 'high' | 'low' | null,\n" +
-        "    propertyName: string | null,\n" +
-        "    bindingPath: string | null\n" +
-        "  }]\n" +
-        "}\n\n" +
+        ContractGuidance +
+        "RESPONSE FIELDS: errorCount, errors, navigation, nextSteps, and per-error fields such as timestamp, sourceKind, elementId, suggestedElementId, propertyName, and bindingPath. Validation rule errors remain in get_validation_errors.\n" +
+        "REQUEST OPTIONS: maxErrors and sinceTimestamp window the diagnostic stream; set compact=false to recover full trace messages; set navigation=false to omit navigation and nextSteps.\n\n" +
         "sourceKind='BindingTrace': error captured from WPF PresentationTraceSources.\n" +
         "sourceKind='BindingExpression': error detected from live BindingExpression status inspection.\n" +
-        "Compact mode omits the message field from each error; pass compact=false when you need the verbose trace text.\n" +
+        "Compact mode omits the verbose message field from each error; pass compact=false when you need the full message text.\n" +
         "Empty errors array means no binding errors detected.\n" +
         "Validation rule errors belong in get_validation_errors, not get_binding_errors.\n" +
         "elementId is present when the failing DependencyObject can be identified directly. suggestedElementId is a best-effort match for trace-only errors.\n" +
         "NOTE: sourceId is a numeric trace ID, NOT an elementId. It cannot be used directly as the elementId parameter in other tools.\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetBindingErrors(

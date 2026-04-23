@@ -84,6 +84,25 @@ public sealed class ToolCallHelperTextFallbackTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_WithMinimalObjectPayload_ShouldExplainStructuredContentAsCanonicalPayload()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true
+            }),
+            null,
+            CancellationToken.None);
+
+        var textBlock = result.Content[0].Should().BeOfType<TextContentBlock>().Subject;
+        var textPayload = JsonSerializer.Deserialize<JsonElement>(textBlock.Text);
+
+        textPayload.GetProperty("message").GetString().Should().Be(
+            "Canonical payload available in structuredContent; content[0].text is a compact fallback.");
+        textPayload.GetProperty("hasStructuredContent").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_ShouldPreferExistingScalarCountsBeforeSyntheticCollectionCounts()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(

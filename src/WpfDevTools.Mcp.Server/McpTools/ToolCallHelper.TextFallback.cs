@@ -8,7 +8,7 @@ public static partial class ToolCallHelper
     private const int TextFallbackMaxLength = 200;
     private const int TextFallbackInlineStringMaxLength = 80;
     private const int TextFallbackMaxSummaryFields = 6;
-    private const string StructuredContentFallbackMessage = "Full response available in structuredContent.";
+    private const string StructuredContentFallbackMessage = "Canonical payload available in structuredContent; content[0].text is a compact fallback.";
 
     private static readonly HashSet<string> OmittedTextFallbackProperties = new(StringComparer.OrdinalIgnoreCase)
     {

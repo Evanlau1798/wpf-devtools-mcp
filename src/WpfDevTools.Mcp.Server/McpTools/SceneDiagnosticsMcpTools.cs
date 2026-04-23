@@ -12,6 +12,8 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class SceneDiagnosticsMcpTools
 {
     private const string SceneMetadata = "CATEGORY: Scene Diagnostics\n\n";
+    private const string ContractGuidance =
+        "CONTRACT: Canonical payload lives in structuredContent. content[0].text is a compact fallback summary, not the full result. Read wpf://contracts/response for stable fields and MCP envelope semantics.\n\n";
 
     [McpServerTool(Name = "get_state_diff", Title = "Inspect WPF Runtime State Diff", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
@@ -68,22 +70,9 @@ public static class SceneDiagnosticsMcpTools
         "USE WHEN: Before falling back to screenshots, or when you need one element-centric snapshot instead of multiple diagnostic calls.\n" +
         "PROPERTY PROBES: The default snapshot includes a stable baseline property set. Provide `includeProperties` to append extra DependencyProperty probes such as `IsChecked` or `SelectedIndex` without replacing the defaults.\n" +
         "DO NOT USE: As a full-tree replacement; use get_visual_tree/get_logical_tree for broad structural inspection.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  elementId: string,\n" +
-        "  elementType: string,\n" +
-        "  elementName: string|null,\n" +
-        "  dataContextType: string|null,\n" +
-        "  properties: object,\n" +
-        "  bindings: [],\n" +
-        "  validationErrors: [],\n" +
-        "  style: object,\n" +
-        "  layout: object\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree\n" +
-        "- \"not connected\" -> reconnect before requesting an aggregated snapshot\n\n" +
+        ContractGuidance +
+        "RESPONSE FIELDS: elementId, elementType, elementName, dataContextType, properties, bindings, validationErrors, style, and layout.\n" +
+        "REQUEST OPTIONS: includeProperties appends extra DependencyProperty probes to the default snapshot set.\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"TextBox_42\" }\n" +
         "- { elementId: \"SaveButton_7\" }")]
@@ -199,20 +188,9 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Traverse a WPF runtime subtree, suppress layout-only wrappers, and return a compact semantic overview of user-facing controls.\n\n" +
         "USE WHEN: You need fast screen context for an unfamiliar area before drilling into a specific element. For agent workflows, prefer depthMode='semantic' so layout-only wrapper levels do not consume the depth budget, and prefer summaryOnly=true when you only need summaryText without the node table.\n" +
         "DO NOT USE: As a replacement for full tree inspection when exact structure matters.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  rootElementId: string,\n" +
-        "  rootElementType: string,\n" +
-        "  rootElementName: string|null,\n" +
-        "  depth: number,\n" +
-        "  semanticNodeCount: number,\n" +
-        "  summaryText: string,\n" +
-        "  nodes: [] // omitted entirely when summaryOnly=true\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree, or omit it to summarize the root window\n" +
-        "- \"not connected\" -> reconnect before requesting a semantic UI summary\n\n" +
+        ContractGuidance +
+        "RESPONSE FIELDS: rootElementId, rootElementType, rootElementName, depth, semanticNodeCount, summaryText, and nodes.\n" +
+        "REQUEST OPTIONS: elementId scopes the subtree; depth and depthMode='semantic' shape traversal; summaryOnly omits the node table.\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, depthMode: \"semantic\" }\n" +
         "- { elementId: \"BasicControlsStackPanel_4\", depth: 4, depthMode: \"semantic\" }\n" +
@@ -249,17 +227,9 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Aggregate common input controls, nearby labels, current values, validation errors, command readiness, and overall form submittability.\n\n" +
         "USE WHEN: You want a single triage call for form-style layouts before validating or clicking Save/Submit. By default, framework-internal template controls such as RepeatButton or DataGrid headers are filtered out unless you explicitly set includeFramework=true.\n" +
         "DO NOT USE: For arbitrary non-form regions with no input or action controls.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  formScope: string,\n" +
-        "  inputs: [],\n" +
-        "  commands: [],\n" +
-        "  summary: { totalInputs, emptyInputs, errorCount, validationSubmittable, interactionSubmittable, isSubmittable }\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree, or omit it to summarize the root window form state\n" +
-        "- \"not connected\" -> reconnect before requesting a form summary\n\n" +
+        ContractGuidance +
+        "RESPONSE FIELDS: formScope, scopeVisibility, isCurrentlyVisible, inputs, commands, summary, and nested summary.totalInputs/summary.emptyInputs/summary.errorCount/summary.validationSubmittable/summary.interactionSubmittable/summary.isSubmittable.\n" +
+        "REQUEST OPTIONS: includeFramework keeps framework-internal template controls in the summary.\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, elementId: \"BasicControlsStackPanel_4\" }\n" +
         "- { elementId: \"ProfileForm_2\" }\n" +

@@ -13,36 +13,19 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class ProcessMcpTools
 {
     private const string ProcessMetadata = "CATEGORY: Process\n\n";
+    private const string ContractGuidance =
+        "CONTRACT: Canonical payload lives in structuredContent. content[0].text is a compact fallback summary, not the full result. Read wpf://contracts/response for stable fields and MCP envelope semantics.\n\n";
+
     [McpServerTool(Name = "get_processes", Title = "List Inspectable WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
     [Description(
         "Use this tool to resolve target ambiguity after connect() reports multiple candidates, or when you explicitly need process metadata before connecting.\n\n" +
-        ProcessMetadata + "[Process] List all running WPF processes available for inspection. " +
-        "Returns: processId, processName, windowTitle, architecture (X86/X64/ARM64), dotNetVersion, runtime, isElevated, requiresElevationToConnect, canConnectFromCurrentServer, connectionWarning.\n\n" +
+        ProcessMetadata + "[Process] List all running WPF processes available for inspection and surface the metadata needed for explicit target selection.\n\n" +
         "USE WHEN: connect() reports multiple candidates; you need architecture/elevation/window metadata before choosing a target; you need an explicit visible/all/foreground candidate list before choosing a specific processId.\n" +
         "DO NOT USE: As the default first step when connect() auto-discovery can already resolve the target, repeatedly in a loop (process list changes infrequently), or when connect(windowFilter='all') already expresses the broader auto-discovery scope you need.\n\n" +
-        "WINDOW FILTERS:\n" +
-        "- Omit windowFilter for the visible-only default\n" +
-        "- Use windowFilter='all' to include background or hidden WPF windows\n" +
-        "- Use windowFilter='foreground' to restrict results to the active foreground WPF window\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  processes: [{\n" +
-        "    processId: integer,\n" +
-        "    processName: string,\n" +
-        "    windowTitle: string,\n" +
-        "    architecture: 'X86'|'X64'|'ARM64',\n" +
-        "    dotNetVersion: string,\n" +
-        "    runtime: 'Unknown'|'NetFramework'|'NetCore',\n" +
-        "    isElevated: boolean,\n" +
-        "    requiresElevationToConnect: boolean,\n" +
-        "    canConnectFromCurrentServer: boolean,\n" +
-        "    connectionWarning: string|null\n" +
-        "  }]\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"access denied\" -> run MCP server as administrator\n" +
-        "- invalid windowFilter -> use 'visible', 'all', or 'foreground'\n\n" +
+        "WINDOW FILTERS: Omit windowFilter for the visible-only default; use windowFilter='all' for hidden/background windows; use windowFilter='foreground' for the active foreground WPF window.\n" +
+        ContractGuidance +
+        "RESPONSE FIELDS: processes plus per-candidate processId, processName, windowTitle, runtime, requiresElevationToConnect, canConnectFromCurrentServer, and connectionWarning.\n" +
+        "REQUEST OPTIONS: nameFilter narrows candidate names; windowFilter='foreground' scopes enumeration to the active WPF window.\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +
         "- { nameFilter: \"TestApp\" }\n" +
@@ -115,44 +98,12 @@ public static class ProcessMcpTools
         ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +
         "USE WHEN: Before using any inspection tools. If processId is omitted, connect auto-discovers the target when exactly one WPF process is running under the chosen window filter. After connect succeeds, build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees or relying on screenshots.\n" +
-        "DO NOT USE: On already-connected processes (returns immediately with success=true).\n\n" +
-        "TIMEOUT: Connection attempt times out after 30 seconds.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  message?: string,\n" +
-        "  error?: string,\n" +
-        "  errorCode?: string,\n" +
-        "  processId?: number,\n" +
-        "  processName?: string,\n" +
-        "  windowTitle?: string,\n" +
-        "  autoDiscovered?: boolean,\n" +
-        "  autoSelected?: boolean,\n" +
-        "  selectionReason?: 'largest_working_set'|'single_only',\n" +
-        "  candidateCount?: number,\n" +
-        "  processes?: [{ processId, processName, windowTitle, workingSetBytes, isElevated, requiresElevationToConnect, canConnectFromCurrentServer, connectionWarning }],\n" +
-        "  targetIsElevated?: boolean,\n" +
-        "  requiresElevationToConnect?: boolean,\n" +
-        "  canConnectFromCurrentServer?: boolean,\n" +
-        "  suggestedAction?: string\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"access denied\" -> run MCP server as administrator\n" +
-        "- elevated target + non-admin server -> preflight denial with requiresElevationToConnect=true and suggestedAction\n" +
-        "- \"not a WPF application\" -> processId is not a WPF app (use get_processes)\n" +
-        "- \"architecture mismatch\" -> server and target app must match (x64 vs x86)\n" +
-        "- \"timeout\" -> connection took >30s, process may be unresponsive\n" +
-        "- multiple WPF processes + no processId -> returns errorCode=MultipleWpfProcessesFound and a candidate process list\n" +
-        "- 0 WPF processes + no processId -> returns errorCode=NoWpfProcessesFound\n\n" +
-        "AUTO-DISCOVERY:\n" +
-        "- Omit processId to auto-connect when exactly one WPF process is available\n" +
-        "- Omit windowFilter for the visible-only default\n" +
-        "- Use windowFilter='all' to include background or hidden WPF windows during auto-discovery\n" +
-        "- Use windowFilter='foreground' to restrict auto-discovery to the active foreground WPF window\n" +
-        "- Use selectionStrategy='largest_working_set' to auto-select the largest candidate when multiple WPF processes are present\n" +
-        "- Keep the safe default by omitting selectionStrategy or using selectionStrategy='single_only'\n" +
-        "- Call connect(windowFilter='all') when hidden/background targets must participate in auto-discovery without a separate process listing step\n" +
-        "- Call connect(selectionStrategy='largest_working_set', windowFilter='all') when multiple WPF processes are expected and you intentionally want the largest candidate instead of a list-then-connect disambiguation round trip\n\n" +
+        "DO NOT USE: As a health check on an already-connected target; use ping instead.\n\n" +
+        "AUTO-DISCOVERY: Omit processId to auto-connect when exactly one WPF process is available. Omit windowFilter for the visible-only default. Use connect(windowFilter='all') when hidden/background targets must participate in auto-discovery without a separate process listing step. Use selectionStrategy='largest_working_set' only when you intentionally want the largest candidate, including connect(selectionStrategy='largest_working_set', windowFilter='all') for broad multi-process auto-selection.\n" +
+        "TIMEOUT: Connection attempt times out after 30 seconds.\n" +
+        ContractGuidance +
+        "RESPONSE FIELDS: processId, processName, windowTitle, autoDiscovered, autoSelected, selectionReason, candidateCount, candidate processes when ambiguity remains, requiresElevationToConnect, canConnectFromCurrentServer, and suggestedAction.\n" +
+        "REQUEST OPTIONS: processId selects an explicit target; selectionStrategy controls auto-selection behavior including largest_working_set; windowFilter widens or narrows auto-discovery scope.\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +
         "- { processId: 12345 }\n" +

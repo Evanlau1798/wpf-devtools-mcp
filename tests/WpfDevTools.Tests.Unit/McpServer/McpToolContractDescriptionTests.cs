@@ -130,6 +130,53 @@ public sealed class McpToolContractDescriptionTests
         description.Should().Contain("connect(selectionStrategy='largest_working_set', windowFilter='all')");
     }
 
+    [Theory]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses))]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect))]
+    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindings))]
+    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors))]
+    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetUiSummary))]
+    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetElementSnapshot))]
+    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetFormSummary))]
+    public void HighValueToolDescriptions_ShouldReferenceMachineReadableContract_AndAvoidInlineSchemaBlocks(Type toolType, string methodName)
+    {
+        var description = GetDescription(toolType, methodName);
+
+        description.Should().Contain("structuredContent");
+        description.Should().Contain("content[0].text");
+        description.Should().Contain("wpf://contracts/response");
+        description.Should().NotContain("RESPONSE FORMAT:");
+        description.Should().NotContain("ERRORS:");
+    }
+
+    [Theory]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses))]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect))]
+    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindings))]
+    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors))]
+    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetUiSummary))]
+    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetElementSnapshot))]
+    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetFormSummary))]
+    public void HighValueToolDescriptions_ShouldSeparateResponseFieldsFromRequestOptions(Type toolType, string methodName)
+    {
+        var description = GetDescription(toolType, methodName);
+
+        description.Should().Contain("RESPONSE FIELDS:");
+        description.Should().Contain("REQUEST OPTIONS:");
+    }
+
+    [Fact]
+    public void GetFormSummaryDescription_ShouldDescribeNestedSummarySubmittabilityFields()
+    {
+        var description = GetDescription(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetFormSummary));
+
+        description.Should().Contain("summary.validationSubmittable");
+        description.Should().Contain("summary.interactionSubmittable");
+        description.Should().Contain("summary.isSubmittable");
+        description.Should().NotContain("RESPONSE FIELDS: formScope, inputs, commands, summary, validationSubmittable",
+            "submittability fields are nested under summary rather than emitted at the top level");
+    }
+
     private static string GetDescription(Type toolType, string methodName)
     {
         var method = toolType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);

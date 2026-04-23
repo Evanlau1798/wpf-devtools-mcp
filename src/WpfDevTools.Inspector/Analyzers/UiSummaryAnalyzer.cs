@@ -42,7 +42,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             {
                 return ToolErrorFactory.InvalidArgument(
                     "depthMode must be 'visual' or 'semantic'",
-                    "Use depthMode='semantic' to skip layout-only wrappers, or omit the parameter to keep visual depth semantics.");
+                    "Use depthMode='semantic' to skip layout-only wrappers, or omit the parameter to keep the default semantic depth semantics.");
             }
 
             var root = elementId == null

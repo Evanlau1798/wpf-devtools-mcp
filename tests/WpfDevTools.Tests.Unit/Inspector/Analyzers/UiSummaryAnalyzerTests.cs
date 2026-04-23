@@ -301,6 +301,26 @@ public sealed class UiSummaryAnalyzerTests
     }
 
     [StaFact]
+    public void GetUiSummary_WithInvalidDepthMode_ShouldReferenceSemanticDefaultInGuidance()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel();
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1, depthMode: "invalid"));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("hint").GetString().Should().Contain("default semantic",
+            "invalid depthMode guidance should match the runtime default instead of pointing callers back to visual semantics");
+        result.GetProperty("hint").GetString().Should().Contain("omit the parameter",
+            "callers should be told the simplest recovery path when they want the default semantic behavior");
+        result.GetProperty("hint").GetString().Should().NotContain("visual depth semantics");
+    }
+
+    [StaFact]
     public void GetUiSummary_ShouldOmitEmptyTextBlocksThatCarryNoSignal()
     {
         var finder = new ElementFinder();

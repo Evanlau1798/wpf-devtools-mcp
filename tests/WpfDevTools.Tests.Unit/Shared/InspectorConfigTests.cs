@@ -25,6 +25,18 @@ public class InspectorConfigTests
     }
 
     [Fact]
+    public void AuthenticationTimeout_DefaultValue_ShouldBeFiveSeconds()
+    {
+        InspectorConfig.AuthenticationTimeout.Should().Be(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public void TlsHandshakeTimeout_DefaultValue_ShouldBeTenSeconds()
+    {
+        InspectorConfig.TlsHandshakeTimeout.Should().Be(TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
     public void RequestTimeout_DefaultValue_ShouldBeThirtySeconds()
     {
         InspectorConfig.RequestTimeout.Should().Be(TimeSpan.FromSeconds(30));
@@ -49,6 +61,8 @@ public class InspectorConfigTests
     {
         InspectorConfig.UIThreadTimeout.Should().BePositive();
         InspectorConfig.PipeConnectTimeout.Should().BePositive();
+        InspectorConfig.AuthenticationTimeout.Should().BePositive();
+        InspectorConfig.TlsHandshakeTimeout.Should().BePositive();
         InspectorConfig.RequestTimeout.Should().BePositive();
         InspectorConfig.ShutdownTimeout.Should().BePositive();
         InspectorConfig.HeartbeatInterval.Should().BePositive();

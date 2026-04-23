@@ -1,6 +1,7 @@
 using Xunit;
 using FluentAssertions;
 using WpfDevTools.Shared.Utilities;
+using System.Diagnostics;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -174,5 +175,60 @@ public class FileLoggerTests : IAsyncDisposable
     {
         // Assert
         _logger.LogFilePath.Should().Be(_testLogPath);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenBackgroundWriterOutlivesShutdownTimeout_ShouldRecordTimeoutAndReturnWithinSingleBudget()
+    {
+        var writeStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseWrite = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var shutdownTimeout = TimeSpan.FromMilliseconds(200);
+        var logger = new FileLogger(
+            _testLogPath,
+            shutdownTimeout: shutdownTimeout,
+            writeEntriesOverride: async (_, _) =>
+            {
+                writeStarted.SetResult();
+                await releaseWrite.Task;
+            });
+
+        logger.LogInfo("blocked write");
+        await writeStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        try
+        {
+            var stopwatch = Stopwatch.StartNew();
+            await logger.DisposeAsync();
+            stopwatch.Stop();
+
+            logger.LastShutdownErrorForTesting.Should().BeOfType<TimeoutException>();
+            stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(350),
+                "logger shutdown should consume one shared timeout budget instead of two full waits");
+        }
+        finally
+        {
+            releaseWrite.TrySetResult();
+            await logger.ProcessingTaskForTesting.WaitAsync(TimeSpan.FromSeconds(1));
+        }
+    }
+
+    [Fact]
+    public void GetRemainingShutdownTimeout_ShouldReduceTheSingleSharedBudget()
+    {
+        var remaining = FileLogger.GetRemainingShutdownTimeout(
+            TimeSpan.FromMilliseconds(200),
+            TimeSpan.FromMilliseconds(75));
+
+        remaining.Should().Be(TimeSpan.FromMilliseconds(125));
+    }
+
+    [Fact]
+    public void GetRemainingShutdownTimeout_WhenElapsedExceedsBudget_ShouldClampToZero()
+    {
+        var remaining = FileLogger.GetRemainingShutdownTimeout(
+            TimeSpan.FromMilliseconds(200),
+            TimeSpan.FromMilliseconds(250));
+
+        remaining.Should().Be(TimeSpan.Zero);
     }
 }

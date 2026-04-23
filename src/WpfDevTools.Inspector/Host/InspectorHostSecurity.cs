@@ -4,6 +4,7 @@ using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Principal;
 using System.Security.AccessControl;
+using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Inspector.Host;
@@ -71,7 +72,7 @@ public sealed partial class InspectorHost
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+            timeoutCts.CancelAfter(InspectorConfig.AuthenticationTimeout);
             var token = timeoutCts.Token;
 
             // 1. Generate and send 32-byte challenge
@@ -151,7 +152,7 @@ public sealed partial class InspectorHost
             sslStream = new SslStream(pipe, leaveInnerStreamOpen: true);
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
+            timeoutCts.CancelAfter(InspectorConfig.TlsHandshakeTimeout);
 
 #if NET48
             var authTask = sslStream.AuthenticateAsServerAsync(
@@ -159,7 +160,7 @@ public sealed partial class InspectorHost
                 clientCertificateRequired: false,
                 enabledSslProtocols: SslProtocols.Tls12,
                 checkCertificateRevocation: false);
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10), timeoutCts.Token);
+            var timeoutTask = Task.Delay(InspectorConfig.TlsHandshakeTimeout, timeoutCts.Token);
             var completed = await Task.WhenAny(authTask, timeoutTask).ConfigureAwait(false);
             if (completed == timeoutTask)
             {

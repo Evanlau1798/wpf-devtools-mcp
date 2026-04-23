@@ -23,6 +23,22 @@ public static class InspectorConfig
         TimeSpan.FromSeconds(5));
 
     /// <summary>
+    /// Timeout for the authentication handshake on an established inspector transport (default: 5 seconds)
+    /// Override with environment variable: WPF_DEVTOOLS_AUTH_HANDSHAKE_TIMEOUT_MS
+    /// </summary>
+    public static TimeSpan AuthenticationTimeout { get; } = GetTimeoutFromEnv(
+        "WPF_DEVTOOLS_AUTH_HANDSHAKE_TIMEOUT_MS",
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// Timeout for the TLS handshake on an established inspector transport (default: 10 seconds)
+    /// Override with environment variable: WPF_DEVTOOLS_TLS_HANDSHAKE_TIMEOUT_MS
+    /// </summary>
+    public static TimeSpan TlsHandshakeTimeout { get; } = GetTimeoutFromEnv(
+        "WPF_DEVTOOLS_TLS_HANDSHAKE_TIMEOUT_MS",
+        TimeSpan.FromSeconds(10));
+
+    /// <summary>
     /// Timeout for Inspector request/response (default: 30 seconds)
     /// Override with environment variable: WPF_DEVTOOLS_REQUEST_TIMEOUT_MS
     /// </summary>

@@ -1,6 +1,8 @@
 using System.Threading.Channels;
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Shared.Utilities;
 
@@ -16,6 +18,9 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     private readonly Channel<string> _logQueue;
     private readonly Task _processingTask;
     private readonly CancellationTokenSource _shutdownCts;
+    private readonly TimeSpan _shutdownTimeout;
+    private readonly Func<IReadOnlyList<string>, CancellationToken, Task>? _writeEntriesOverride;
+    private Exception? _lastShutdownError;
     private int _droppedEntries;
     private int _disposeState;
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
@@ -37,6 +42,14 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     /// </summary>
     /// <param name="logFilePath">Optional path to log file. If null, creates file in temp directory.</param>
     public FileLogger(string? logFilePath = null)
+        : this(logFilePath, InspectorConfig.ShutdownTimeout, writeEntriesOverride: null)
+    {
+    }
+
+    internal FileLogger(
+        string? logFilePath,
+        TimeSpan shutdownTimeout,
+        Func<IReadOnlyList<string>, CancellationToken, Task>? writeEntriesOverride)
     {
         _logFilePath = logFilePath ?? Path.Combine(
             Path.GetTempPath(),
@@ -48,6 +61,8 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         });
 
         _shutdownCts = new CancellationTokenSource();
+        _shutdownTimeout = shutdownTimeout > TimeSpan.Zero ? shutdownTimeout : InspectorConfig.ShutdownTimeout;
+        _writeEntriesOverride = writeEntriesOverride;
         _processingTask = Task.Run(() => ProcessLogQueueAsync(_shutdownCts.Token));
     }
 
@@ -202,7 +217,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
                         try
                         {
                             var entries = DrainLogEntries(logEntry);
-                            await WriteEntriesAsync(entries, cancellationToken).ConfigureAwait(false);
+                            await WriteEntriesCoreAsync(entries, cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException)
                         {
@@ -217,7 +232,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
                 try
                 {
                     var entries = DrainLogEntries(logEntry);
-                    await WriteEntriesAsync(entries, cancellationToken).ConfigureAwait(false);
+                    await WriteEntriesCoreAsync(entries, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -235,6 +250,10 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
             // Expected during shutdown
         }
     }
+
+    private Task WriteEntriesCoreAsync(IReadOnlyList<string> entries, CancellationToken cancellationToken)
+        => _writeEntriesOverride?.Invoke(entries, cancellationToken)
+           ?? WriteEntriesAsync(entries, cancellationToken);
 
     private List<string> DrainLogEntries(string firstEntry)
     {
@@ -332,6 +351,15 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
     /// </summary>
     public string LogFilePath => _logFilePath;
 
+    internal Task ProcessingTaskForTesting => _processingTask;
+    internal Exception? LastShutdownErrorForTesting => _lastShutdownError;
+
+    internal static TimeSpan GetRemainingShutdownTimeout(TimeSpan shutdownTimeout, TimeSpan elapsed)
+    {
+        var remaining = shutdownTimeout - elapsed;
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
     /// <summary>
     /// Synchronous dispose - signals shutdown and waits for flush
     /// </summary>
@@ -346,17 +374,13 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 
         try
         {
-            if (!_processingTask.Wait(TimeSpan.FromSeconds(5)))
-            {
-                _shutdownCts.Cancel();
-            }
+            _lastShutdownError = WaitForProcessingTaskShutdown();
+            ReportShutdownError(_lastShutdownError);
         }
-        catch (AggregateException)
+        finally
         {
-            // Expected if cancelled
+            _shutdownCts.Dispose();
         }
-
-        _shutdownCts.Dispose();
     }
 
     /// <summary>
@@ -375,17 +399,13 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 
         try
         {
-            if (!_processingTask.Wait(TimeSpan.FromSeconds(5)))
-            {
-                _shutdownCts.Cancel();
-            }
+            _lastShutdownError = WaitForProcessingTaskShutdown();
+            ReportShutdownError(_lastShutdownError);
         }
-        catch (AggregateException)
+        finally
         {
-            // Expected if cancelled
+            _shutdownCts.Dispose();
         }
-
-        _shutdownCts.Dispose();
         return default;
     }
 #else
@@ -400,7 +420,55 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 
         try
         {
-            await _processingTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            _lastShutdownError = await WaitForProcessingTaskShutdownAsync().ConfigureAwait(false);
+            ReportShutdownError(_lastShutdownError);
+        }
+        finally
+        {
+            _shutdownCts.Dispose();
+        }
+    }
+#endif
+
+    private Exception? WaitForProcessingTaskShutdown()
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            if (_processingTask.Wait(GetRemainingShutdownTimeout(_shutdownTimeout, stopwatch.Elapsed)))
+            {
+                return null;
+            }
+
+            _shutdownCts.Cancel();
+
+            if (_processingTask.Wait(GetRemainingShutdownTimeout(_shutdownTimeout, stopwatch.Elapsed)))
+            {
+                return null;
+            }
+
+            return new TimeoutException(
+                $"FileLogger shutdown timed out after {_shutdownTimeout.TotalMilliseconds:0}ms and the background writer did not stop after cancellation.");
+        }
+        catch (AggregateException ex) when (ex.Flatten().InnerExceptions.All(inner => inner is OperationCanceledException))
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ex;
+        }
+    }
+
+    private async Task<Exception?> WaitForProcessingTaskShutdownAsync()
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            await _processingTask.WaitAsync(GetRemainingShutdownTimeout(_shutdownTimeout, stopwatch.Elapsed)).ConfigureAwait(false);
+            return null;
         }
         catch (TimeoutException)
         {
@@ -408,12 +476,39 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            // Expected during shutdown
+            return null;
         }
 
-        _shutdownCts.Dispose();
+        try
+        {
+            await _processingTask.WaitAsync(GetRemainingShutdownTimeout(_shutdownTimeout, stopwatch.Elapsed)).ConfigureAwait(false);
+            return null;
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (TimeoutException ex)
+        {
+            return new TimeoutException(
+                $"FileLogger shutdown timed out after {_shutdownTimeout.TotalMilliseconds:0}ms and the background writer did not stop after cancellation.",
+                ex);
+        }
+        catch (Exception ex)
+        {
+            return ex;
+        }
     }
-#endif
+
+    private static void ReportShutdownError(Exception? shutdownError)
+    {
+        if (shutdownError == null)
+        {
+            return;
+        }
+
+        Trace.TraceWarning($"FileLogger shutdown warning: {shutdownError.Message}");
+    }
 
     private bool IsLevelEnabled(string level)
     {

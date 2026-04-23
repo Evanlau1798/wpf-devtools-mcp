@@ -61,6 +61,17 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/process-and-connection.md", "After connect succeeds, prefer get_ui_summary, get_element_snapshot, or get_form_summary before any tree-heavy follow-up.")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md", "connect 成功後，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 建立 scene-first 上下文，再決定是否真的需要 tree-heavy follow-up。")] 
+    public void ProcessReferencePages_ShouldExplicitlyPreferSceneFirstFollowUpsAfterConnect(string relativePath, string expectedSnippet)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(expectedSnippet,
+            "process reference pages should explicitly steer connect-success follow-ups toward scene-first context before tree expansion");
+    }
+
+    [Theory]
     [InlineData("docfx/reference/tools/index.md", "3. `get_ui_summary`, `get_element_snapshot`, or `get_form_summary`")]
     [InlineData("docfx/zh-tw/reference/tools/index.md", "3. `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`")]
     public void ToolOverviewPages_ShouldListSceneFirstTriadInRecommendedStepThree(

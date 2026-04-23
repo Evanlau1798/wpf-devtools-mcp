@@ -35,6 +35,11 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         json.GetProperty("success").GetBoolean().Should().BeTrue();
         json.GetProperty("processId").GetInt32().Should().Be(processId);
+        json.GetProperty("message").GetString().Should().Contain("get_ui_summary");
+        json.GetProperty("message").GetString().Should().Contain("get_element_snapshot");
+        json.GetProperty("message").GetString().Should().Contain("get_form_summary");
+        json.GetProperty("message").GetString().Should().NotContain("get_visual_tree",
+            "connect success guidance should steer agents toward scene-level context before tree-heavy follow-ups");
         json.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
         json.GetProperty("candidateCount").GetInt32().Should().Be(1);
         sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();

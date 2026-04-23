@@ -542,13 +542,15 @@ public sealed partial class ConnectTool
         ProcessDiscoverySelectionStrategy selectionStrategy,
         AutoDiscoveryResolution? autoDiscoveryResolution)
     {
+        var message = BuildConnectSuccessMessage("Already connected to process.");
+
         if (!explicitProcessSelection &&
             autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
         {
             return new
             {
                 success = true,
-                message = "Already connected to process",
+                message,
                 processId,
                 processName = candidate.ProcessName,
                 windowTitle = candidate.WindowTitle,
@@ -565,7 +567,7 @@ public sealed partial class ConnectTool
         return new
         {
             success = true,
-            message = "Already connected to process",
+            message,
             processId
         };
     }
@@ -578,8 +580,8 @@ public sealed partial class ConnectTool
         bool reusedExistingHost)
     {
         var message = reusedExistingHost
-            ? "Connected to an existing Inspector host. You can now use inspection tools with this processId."
-            : "Connected successfully. You can now use inspection tools (get_visual_tree, get_bindings, get_binding_errors, etc.) with this processId.";
+            ? BuildConnectSuccessMessage("Connected to an existing Inspector host.")
+            : BuildConnectSuccessMessage("Connected successfully.");
 
         if (!explicitProcessSelection &&
             autoDiscoveryResolution?.SelectedCandidate is ProcessDiscoveryCandidateSummary candidate)
@@ -639,6 +641,9 @@ public sealed partial class ConnectTool
             processId
         };
     }
+
+    private static string BuildConnectSuccessMessage(string prefix)
+        => $"{prefix} Start with get_ui_summary, get_element_snapshot, or get_form_summary to build scene-first context before any tree-heavy follow-up.";
 
     private static object CreatePreInjectionConnectFailure(
         int processId,

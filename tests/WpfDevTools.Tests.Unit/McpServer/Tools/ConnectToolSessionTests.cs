@@ -46,6 +46,9 @@ public partial class ConnectToolTests
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("message").GetString().Should().Contain("Already connected");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_ui_summary");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_element_snapshot");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_form_summary");
         sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
         activeProcessId.Should().Be(processId);
     }
@@ -86,8 +89,10 @@ public partial class ConnectToolTests
 
         firstResult.GetProperty("success").GetBoolean().Should().BeTrue();
         firstResult.GetProperty("message").GetString().Should().Contain("Already connected");
+        firstResult.GetProperty("message").GetString().Should().Contain("get_ui_summary");
         secondResult.GetProperty("success").GetBoolean().Should().BeTrue();
         secondResult.GetProperty("message").GetString().Should().Contain("Already connected");
+        secondResult.GetProperty("message").GetString().Should().Contain("get_ui_summary");
     }
 
     [Fact]
@@ -304,6 +309,9 @@ public partial class ConnectToolTests
 
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("message").GetString().Should().Contain("Already connected");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_ui_summary");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_element_snapshot");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_form_summary");
     }
 
     [Fact]
@@ -365,6 +373,9 @@ public partial class ConnectToolTests
 
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("message").GetString().Should().Contain("get_ui_summary");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_element_snapshot");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_form_summary");
         resultJson.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("candidateCount").GetInt32().Should().Be(1);
         resultJson.GetProperty("processId").GetInt32().Should().Be(processId);
@@ -401,8 +412,10 @@ public partial class ConnectToolTests
 
         firstResult.GetProperty("success").GetBoolean().Should().BeTrue();
         firstResult.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
+        firstResult.GetProperty("message").GetString().Should().Contain("get_ui_summary");
         secondResult.GetProperty("success").GetBoolean().Should().BeTrue();
         secondResult.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
+        secondResult.GetProperty("message").GetString().Should().Contain("get_ui_summary");
     }
 
     [Fact]
@@ -447,6 +460,9 @@ public partial class ConnectToolTests
 
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("message").GetString().Should().Contain("get_ui_summary");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_element_snapshot");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_form_summary");
         resultJson.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("candidateCount").GetInt32().Should().Be(1);
         resultJson.GetProperty("processId").GetInt32().Should().Be(processId);

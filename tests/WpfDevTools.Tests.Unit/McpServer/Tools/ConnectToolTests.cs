@@ -26,14 +26,16 @@ public partial class ConnectToolTests : IDisposable
         FakeProcessInjector? injector = null,
         WpfProcessDetector? processDetector = null,
         Action<string>? dllPathValidator = null,
-        Func<bool>? isCurrentProcessElevated = null)
+        Func<bool>? isCurrentProcessElevated = null,
+        Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null)
     {
         return new ConnectTool(
             sessionManager ?? new SessionManager(),
             injector ?? new FakeProcessInjector(),
             processDetector ?? new FakeProcessDetector(),
             dllPathValidator ?? (_ => { }),
-            isCurrentProcessElevated ?? (() => false));
+            isCurrentProcessElevated ?? (() => false),
+            isRawInjectionTargetAllowed: isRawInjectionTargetAllowed ?? (_ => true));
     }
 
     private void EnsureDummyBootstrapperExists()
@@ -254,8 +256,8 @@ public partial class ConnectToolTests : IDisposable
 
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-                resultJson.GetProperty(""errorCode"").GetString().Should().Be(""BootstrapFailed"");
-        resultJson.GetProperty(""error"").GetString().Should().Contain(""Bootstrap failed"");
+        resultJson.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+        resultJson.GetProperty("error").GetString().Should().Contain("Bootstrap failed");
         injector.InjectWithBootstrapCallCount.Should().Be(1);
     }
 
@@ -394,6 +396,9 @@ public partial class ConnectToolTests : IDisposable
 
             var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
             resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+            resultJson.GetProperty("message").GetString().Should().Contain("get_ui_summary");
+            resultJson.GetProperty("message").GetString().Should().Contain("get_element_snapshot");
+            resultJson.GetProperty("message").GetString().Should().Contain("get_form_summary");
             resultJson.GetProperty("reusedExistingHost").GetBoolean().Should().BeTrue();
             injector.InjectWithBootstrapCallCount.Should().Be(0);
             sessionManager.GetPipeClient(processId).Should().NotBeNull();
@@ -420,7 +425,7 @@ public partial class ConnectToolTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
 
-        const int processId = 24680;
+        var processId = Environment.ProcessId;
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         using var injector = new BootstrapStartsPipeInjector();
         var tool = CreateTool(injector: injector);
@@ -429,6 +434,9 @@ public partial class ConnectToolTests : IDisposable
 
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("message").GetString().Should().Contain("get_ui_summary");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_element_snapshot");
+        resultJson.GetProperty("message").GetString().Should().Contain("get_form_summary");
         injector.InjectWithBootstrapCallCount.Should().Be(1);
     }
 
@@ -590,6 +598,65 @@ public partial class ConnectToolTests : IDisposable
         }
         finally
         {
+            transportSecurity.AuthenticationManager.Dispose();
+            if (File.Exists(secretFilePath))
+            {
+                File.Delete(secretFilePath);
+            }
+            if (Directory.Exists(certDirectory))
+            {
+                Directory.Delete(certDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Execute_WithExistingPlaintextHostThatNeverCompletesSecureHandshake_ShouldReturnTimeoutWithoutInjection()
+    {
+        EnsureDummyBootstrapperExists();
+
+        const int processId = 24683;
+        var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
+        var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-plaintext-timeout-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(certDirectory);
+
+        using var server = new NamedPipeServerStream(
+            $"WpfDevTools_{processId}",
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        using var serverRelease = new ManualResetEventSlim(false);
+        var acceptTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            serverRelease.Wait(TimeSpan.FromSeconds(5));
+        });
+
+        var transportSecurity = TransportSecurityConfiguration.Create(
+            null,
+            certDirectory,
+            new PersistedAuthenticationSecretStore(secretFilePath));
+
+        try
+        {
+            using var sessionManager = new SessionManager(
+                authManager: transportSecurity.AuthenticationManager,
+                certManager: transportSecurity.CertificateManager);
+            var injector = new FakeProcessInjector();
+            var tool = CreateTool(sessionManager: sessionManager, injector: injector);
+
+            var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
+
+            var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+            resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+            resultJson.GetProperty("errorCode").GetString().Should().Be("Timeout");
+            injector.InjectWithBootstrapCallCount.Should().Be(0);
+        }
+        finally
+        {
+            serverRelease.Set();
+            await acceptTask;
             transportSecurity.AuthenticationManager.Dispose();
             if (File.Exists(secretFilePath))
             {
@@ -818,23 +885,17 @@ public partial class ConnectToolTests : IDisposable
 
     private sealed class BootstrapStartsPipeInjector : FakeProcessInjector, IDisposable
     {
-        private NamedPipeServerStream? _server;
-
         public BootstrapStartsPipeInjector()
         {
             InjectWithBootstrapHandler = StartPipeServer;
         }
 
+        private InspectorHost? _host;
+
         private InjectionResult StartPipeServer(InjectionRequest request, CancellationToken cancellationToken)
         {
-            _server = new NamedPipeServerStream(
-                request.ExpectedPipeName,
-                PipeDirection.InOut,
-                1,
-                PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous);
-
-            _ = _server.WaitForConnectionAsync(cancellationToken);
+            _host = new InspectorHost(request.ProcessId);
+            _host.Start();
 
             return InjectionResult.CreateSuccess(
                 request.ProcessId,
@@ -845,7 +906,8 @@ public partial class ConnectToolTests : IDisposable
 
         public void Dispose()
         {
-            _server?.Dispose();
+            _host?.Stop();
+            _host?.Dispose();
         }
     }
 }

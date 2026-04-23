@@ -47,6 +47,18 @@ public static partial class ToolCallHelper
         "GetActiveProcess",
         "SelectActiveProcess"
     };
+    private static readonly string[] RecoveryCompatibilityFields =
+    [
+        "hint",
+        "suggestedAction",
+        "requiresReconnect",
+        "processId",
+        "timeoutSeconds",
+        "retryAfterSeconds",
+        "retryAfter",
+        "availableTokens",
+        "availableEvents"
+    ];
     private static readonly ToolNavigationPlanner DefaultNavigationPlanner = new(new ToolNavigationRegistry());
     private static MetricsCollector? _metrics;
 
@@ -194,6 +206,7 @@ public static partial class ToolCallHelper
                 jsonElement = EnsureNavigation(jsonElement, navigation);
             }
             jsonElement = ApplyToolSpecificContracts(toolName, args, jsonElement);
+            jsonElement = NormalizeErrorContract(jsonElement);
             jsonElement = NormalizePendingEventsContract(jsonElement);
             var isError = IsToolResultError(jsonElement);
 
@@ -244,6 +257,7 @@ public static partial class ToolCallHelper
             {
                 timeoutPayload = RemoveTopLevelProperties(timeoutPayload, "nextSteps", "navigation");
             }
+            timeoutPayload = NormalizeErrorContract(timeoutPayload);
 
             return new CallToolResult()
             {
@@ -271,6 +285,7 @@ public static partial class ToolCallHelper
             {
                 exceptionPayload = RemoveTopLevelProperties(exceptionPayload, "nextSteps", "navigation");
             }
+            exceptionPayload = NormalizeErrorContract(exceptionPayload);
 
             return new CallToolResult()
             {
@@ -295,6 +310,7 @@ public static partial class ToolCallHelper
             hint,
             suggestedAction
         }, SerializerOptions), ToolNavigationEnvelope.Empty);
+        payload = NormalizeErrorContract(payload);
 
         return new CallToolResult()
         {
@@ -527,6 +543,88 @@ public static partial class ToolCallHelper
         }
 
         return RemoveTopLevelProperties(element, "pendingEvents");
+    }
+
+    private static JsonElement NormalizeErrorContract(JsonElement element)
+    {
+        if (!IsToolResultError(element)
+            || !TryBuildCanonicalRecovery(element, out var recovery))
+        {
+            return element;
+        }
+
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartObject();
+        var topLevelProperties = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.NameEquals("recovery")
+                || RecoveryCompatibilityFields.Contains(property.Name, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            topLevelProperties.Add(property.Name);
+            property.WriteTo(writer);
+        }
+
+        foreach (var propertyName in RecoveryCompatibilityFields)
+        {
+            if (topLevelProperties.Contains(propertyName)
+                || !recovery.TryGetProperty(propertyName, out var projectedProperty)
+                || projectedProperty.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+            {
+                continue;
+            }
+
+            writer.WritePropertyName(propertyName);
+            projectedProperty.WriteTo(writer);
+        }
+
+        writer.WritePropertyName("recovery");
+        recovery.WriteTo(writer);
+        writer.WriteEndObject();
+        writer.Flush();
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
+    }
+
+    private static bool TryBuildCanonicalRecovery(JsonElement element, out JsonElement recovery)
+    {
+        var recoveryProperties = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+
+        if (element.TryGetProperty("recovery", out var existingRecovery)
+            && existingRecovery.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in existingRecovery.EnumerateObject())
+            {
+                recoveryProperties[property.Name] = property.Value.Clone();
+            }
+        }
+
+        foreach (var propertyName in RecoveryCompatibilityFields)
+        {
+            if (recoveryProperties.ContainsKey(propertyName)
+                || !element.TryGetProperty(propertyName, out var property)
+                || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+            {
+                continue;
+            }
+
+            recoveryProperties[propertyName] = property.Clone();
+        }
+
+        if (recoveryProperties.Count == 0)
+        {
+            recovery = default;
+            return false;
+        }
+
+        recovery = JsonSerializer.SerializeToElement(recoveryProperties, SerializerOptions);
+        return true;
     }
 
     private static JsonElement RemoveTopLevelProperties(JsonElement element, params string[] propertyNames)

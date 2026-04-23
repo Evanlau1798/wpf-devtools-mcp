@@ -154,4 +154,77 @@ public sealed class ToolCallHelperTextFallbackTests : IDisposable
         textPayload.TryGetProperty("navigation", out _).Should().BeFalse();
         textPayload.TryGetProperty("base64Image", out _).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithNestedRecoveryOnlyErrorPayload_ShouldProjectRecoveryFieldsIntoTextFallback()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = false,
+                error = "Rate limit exceeded",
+                errorCode = "RateLimitExceeded",
+                recovery = new
+                {
+                    suggestedAction = "Wait and retry the same tool.",
+                    retryAfterSeconds = 3,
+                    availableTokens = 0,
+                    requiresReconnect = false
+                }
+            }),
+            null,
+            CancellationToken.None);
+
+        var textBlock = result.Content[0].Should().BeOfType<TextContentBlock>().Subject;
+        var textPayload = JsonSerializer.Deserialize<JsonElement>(textBlock.Text);
+        var structured = result.StructuredContent!.Value;
+
+        textPayload.GetProperty("error").GetString().Should().Be("Rate limit exceeded");
+        textPayload.GetProperty("suggestedAction").GetString().Should().Be("Wait and retry the same tool.");
+        textPayload.GetProperty("retryAfterSeconds").GetInt64().Should().Be(3);
+        textPayload.GetProperty("availableTokens").GetInt64().Should().Be(0);
+        textPayload.GetProperty("requiresReconnect").GetBoolean().Should().BeFalse();
+
+        structured.GetProperty("suggestedAction").GetString().Should().Be("Wait and retry the same tool.");
+        structured.GetProperty("retryAfterSeconds").GetInt32().Should().Be(3);
+        structured.GetProperty("availableTokens").GetInt32().Should().Be(0);
+        structured.GetProperty("requiresReconnect").GetBoolean().Should().BeFalse();
+        structured.GetProperty("recovery").GetProperty("suggestedAction").GetString().Should().Be("Wait and retry the same tool.");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithConflictingRecoveryAndTopLevelFields_ShouldProjectCanonicalRecoveryEverywhere()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = false,
+                error = "Rate limit exceeded",
+                errorCode = "RateLimitExceeded",
+                suggestedAction = "Stale top-level guidance.",
+                retryAfterSeconds = 9,
+                recovery = new
+                {
+                    suggestedAction = "Wait and retry the same tool.",
+                    retryAfterSeconds = 3,
+                    availableTokens = 0,
+                    availableEvents = new[] { "Click", "Loaded" }
+                }
+            }),
+            null,
+            CancellationToken.None);
+
+        var textBlock = result.Content[0].Should().BeOfType<TextContentBlock>().Subject;
+        var textPayload = JsonSerializer.Deserialize<JsonElement>(textBlock.Text);
+        var structured = result.StructuredContent!.Value;
+
+        structured.GetProperty("suggestedAction").GetString().Should().Be("Wait and retry the same tool.");
+        structured.GetProperty("retryAfterSeconds").GetInt32().Should().Be(3);
+        structured.GetProperty("availableTokens").GetInt32().Should().Be(0);
+        structured.GetProperty("availableEvents").EnumerateArray().Select(item => item.GetString()).Should().Contain(["Click", "Loaded"]);
+
+        textPayload.GetProperty("suggestedAction").GetString().Should().Be("Wait and retry the same tool.");
+        textPayload.GetProperty("retryAfterSeconds").GetInt64().Should().Be(3);
+        textPayload.GetProperty("availableEvents").EnumerateArray().Select(item => item.GetString()).Should().Contain(["Click", "Loaded"]);
+    }
 }

@@ -137,5 +137,9 @@ public class ToolCallHelperTimeoutContractTests
         structured.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
         structured.GetProperty("processId").GetInt32().Should().Be(1234);
         structured.GetProperty("suggestedAction").GetString().Should().ContainEquivalentOf("reconnect");
+        structured.GetProperty("recovery").GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        structured.GetProperty("recovery").GetProperty("processId").GetInt32().Should().Be(1234);
+        structured.GetProperty("recovery").GetProperty("suggestedAction").GetString().Should().ContainEquivalentOf("reconnect");
+        structured.GetProperty("recovery").GetProperty("timeoutSeconds").GetInt32().Should().Be(1);
     }
 }

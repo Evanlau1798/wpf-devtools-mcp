@@ -66,6 +66,7 @@ public static partial class ToolCallHelper
             hasPrimaryMessage = true;
         }
 
+        AppendRecoveryFallbackFields(payload, fallback);
         AppendHighSignalFallbackFields(payload, fallback);
 
         if (!hasPrimaryMessage && fallback.Count == baseFieldCount)
@@ -75,6 +76,77 @@ public static partial class ToolCallHelper
 
         fallback["hasStructuredContent"] = true;
         return JsonSerializer.Serialize(fallback, SerializerOptions);
+    }
+
+    private static void AppendRecoveryFallbackFields(JsonElement payload, Dictionary<string, object?> fallback)
+    {
+        if (!payload.TryGetProperty("recovery", out var recovery)
+            || recovery.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        AppendRecoveryScalar(recovery, fallback, "suggestedAction");
+        AppendRecoveryScalar(recovery, fallback, "hint");
+        AppendRecoveryScalar(recovery, fallback, "requiresReconnect");
+        AppendRecoveryScalar(recovery, fallback, "processId");
+        AppendRecoveryScalar(recovery, fallback, "timeoutSeconds");
+        AppendRecoveryScalar(recovery, fallback, "retryAfterSeconds");
+        AppendRecoveryScalar(recovery, fallback, "retryAfter");
+        AppendRecoveryScalar(recovery, fallback, "availableTokens");
+        AppendRecoveryStringArray(recovery, fallback, "availableEvents");
+    }
+
+    private static void AppendRecoveryScalar(JsonElement recovery, Dictionary<string, object?> fallback, string propertyName)
+    {
+        if (fallback.ContainsKey(propertyName)
+            || !recovery.TryGetProperty(propertyName, out var property))
+        {
+            return;
+        }
+
+        switch (property.ValueKind)
+        {
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                fallback[propertyName] = property.GetBoolean();
+                break;
+
+            case JsonValueKind.Number:
+                fallback[propertyName] = ReadFallbackNumber(property);
+                break;
+
+            case JsonValueKind.String:
+                var stringValue = property.GetString();
+                if (!string.IsNullOrWhiteSpace(stringValue))
+                {
+                    fallback[propertyName] = NormalizeFallbackString(stringValue, TextFallbackInlineStringMaxLength);
+                }
+                break;
+        }
+    }
+
+    private static void AppendRecoveryStringArray(JsonElement recovery, Dictionary<string, object?> fallback, string propertyName)
+    {
+        if (fallback.ContainsKey(propertyName)
+            || !recovery.TryGetProperty(propertyName, out var property)
+            || property.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        var values = property.EnumerateArray()
+            .Where(static item => item.ValueKind == JsonValueKind.String)
+            .Select(static item => item.GetString())
+            .Where(static item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .Take(5)
+            .ToArray();
+
+        if (values.Length > 0)
+        {
+            fallback[propertyName] = values;
+        }
     }
 
     private static string BuildArrayTextFallback(JsonElement payload) =>

@@ -44,6 +44,11 @@ public static class ToolErrorFactory
             ErrorCode = ToolErrorCode.EventNotFound.ToString(),
             Hint = "Use a valid eventName from availableEvents or inspect the target control type first.",
             ErrorData = errorData,
+            Recovery = new ToolErrorRecovery
+            {
+                Hint = "Use a valid eventName from availableEvents or inspect the target control type first.",
+                AvailableEvents = availableEventsArray
+            },
             AvailableEvents = availableEventsArray
         };
     }
@@ -108,6 +113,12 @@ public static class ToolErrorFactory
             Error = message,
             ErrorCode = errorCode.ToString(),
             Hint = hint,
-            ErrorData = errorData
+            ErrorData = errorData,
+            Recovery = hint is null
+                ? null
+                : new ToolErrorRecovery
+                {
+                    Hint = hint
+                }
         };
 }

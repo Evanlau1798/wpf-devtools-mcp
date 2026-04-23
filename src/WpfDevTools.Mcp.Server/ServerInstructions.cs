@@ -182,7 +182,7 @@ public static class ServerInstructions
 
         === RESPONSE CONTRACT VERSION ===
         - Current response contract version: {{ResponseContractVersion.Current}}
-        - Machine-readable response contract resource: `wpf://contracts/response` (JSON contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, compatibility aliases, and the `get_binding_errors` `navigation=false` opt-out)
+        - Machine-readable response contract resource: `wpf://contracts/response` (JSON contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, canonical `recovery` error guidance, `parameterVocabularies`, compatibility aliases, and the `get_binding_errors` `navigation=false` opt-out)
         - By default, tool responses include the additive `navigation` envelope; prefer `navigation.recommended` as the preferred follow-up surface when present instead of ad hoc tool guessing.
         - By default, tool responses also include compatibility `nextSteps`; expect `nextSteps: []` when the server has no deterministic runtime guidance.
         - v2 `nextSteps` entries may also include optional `preconditions`, `expectedOutcome`, `workflowId`, `prefetchTools`, `whyNow`, and `confidence` fields.
@@ -223,12 +223,14 @@ public static class ServerInstructions
 
         === RESPONSE FORMAT ===
         All tools return JSON: { success: boolean, ...fields }
-        On error: { success: false, error: string, errorCode?: string, errorData?: object, suggestedAction?: string, requiresReconnect?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string }
+        On error: { success: false, error: string, errorCode?: string, errorData?: object, recovery?: { hint?: string, suggestedAction?: string, requiresReconnect?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string, availableTokens?: number, availableEvents?: string[] }, hint?: string, suggestedAction?: string, requiresReconnect?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string, availableTokens?: number, availableEvents?: string[] }
         - errorCode is the Inspector error enum name when the request reached the in-process Inspector
         - errorData is optional structured context for automated recovery logic
+        - recovery is the canonical machine-readable recovery surface; compatibility fields such as suggestedAction/requiresReconnect/retryAfterSeconds remain projected at the top level for older clients
         - suggestedAction is a human-readable recovery hint when the next step is deterministic
         - requiresReconnect indicates the current pipe-backed session should be treated as stale before retrying
         - retryAfterSeconds and retryAfter are additive rate-limit backoff hints when throttling occurs
+        - Common closed vocabularies for string parameters such as windowFilter, selectionStrategy, depthMode, detail, and outputMode are published in parameterVocabularies inside `wpf://contracts/response`
 
         === LIMITATIONS ===
         - STDIO transport: Cannot push live watcher/event streams; use request-response diagnostics and polling workflows

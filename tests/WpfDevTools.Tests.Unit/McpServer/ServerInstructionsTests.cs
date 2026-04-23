@@ -114,6 +114,8 @@ public class ServerInstructionsTests
     {
         ServerInstructions.Value.Should().Contain("errorCode");
         ServerInstructions.Value.Should().Contain("errorData");
+        ServerInstructions.Value.Should().Contain("recovery");
+        ServerInstructions.Value.Should().Contain("parameterVocabularies");
     }
 
     [Fact]

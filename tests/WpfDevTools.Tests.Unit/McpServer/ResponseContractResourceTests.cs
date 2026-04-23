@@ -223,6 +223,80 @@ public sealed class ResponseContractResourceTests
         AssertTopLevelFieldsDoNotContain(highValueTools, "get_form_summary", "validationSubmittable", "interactionSubmittable", "isSubmittable");
     }
 
+    [Fact]
+    public void ResponseContractResource_ShouldDescribeCanonicalErrorRecoveryAndClosedParameterVocabularies()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
+        var root = document.RootElement;
+
+        var errorPayload = root.GetProperty("errorPayload");
+        errorPayload.GetProperty("canonicalRecoveryField").GetString().Should().Be("recovery");
+        errorPayload.GetProperty("structuredContextField").GetString().Should().Be("errorData");
+        AssertArrayContains(
+            errorPayload.GetProperty("compatibilityProjectionFields"),
+            "hint",
+            "suggestedAction",
+            "requiresReconnect",
+            "processId",
+            "timeoutSeconds",
+            "retryAfterSeconds",
+            "retryAfter",
+            "availableTokens",
+            "availableEvents");
+
+        var recovery = errorPayload.GetProperty("recovery");
+        recovery.GetProperty("field").GetString().Should().Be("recovery");
+        recovery.GetProperty("properties").GetProperty("suggestedAction").GetProperty("type").GetString().Should().Be("string");
+        recovery.GetProperty("properties").GetProperty("requiresReconnect").GetProperty("type").GetString().Should().Be("boolean");
+        recovery.GetProperty("properties").GetProperty("retryAfterSeconds").GetProperty("type").GetString().Should().Be("integer");
+
+        var parameterVocabularies = root.GetProperty("parameterVocabularies");
+        parameterVocabularies.GetArrayLength().Should().BeGreaterThanOrEqualTo(5);
+
+        AssertParameterVocabulary(
+            parameterVocabularies,
+            "windowFilter",
+            "visible",
+            ["visible", "all", "foreground"],
+            ["connect", "get_processes"]);
+
+        AssertParameterVocabulary(
+            parameterVocabularies,
+            "selectionStrategy",
+            "single_only",
+            ["single_only", "largest_working_set"],
+            ["connect"]);
+
+        AssertParameterVocabulary(
+            parameterVocabularies,
+            "depthMode",
+            "semantic",
+            ["semantic", "visual"],
+            ["get_ui_summary"]);
+
+        AssertParameterVocabulary(
+            parameterVocabularies,
+            "detail",
+            "compact",
+            ["compact", "minimal", "verbose"],
+            [
+                "click_element",
+                "execute_command",
+                "modify_viewmodel",
+                "set_dp_value",
+                "clear_dp_value",
+                "fire_routed_event",
+                "override_style_setter"
+            ]);
+
+        AssertParameterVocabulary(
+            parameterVocabularies,
+            "outputMode",
+            "base64",
+            ["base64", "metadata", "file"],
+            ["element_screenshot"]);
+    }
+
     private static void AssertHighValueToolContract(
         JsonElement highValueTools,
         string toolName,
@@ -288,5 +362,21 @@ public sealed class ResponseContractResourceTests
         {
             values.Should().Contain(expectedValue);
         }
+    }
+
+    private static void AssertParameterVocabulary(
+        JsonElement parameterVocabularies,
+        string parameterName,
+        string defaultValue,
+        string[] allowedValues,
+        string[] tools)
+    {
+        var vocabulary = parameterVocabularies
+            .EnumerateArray()
+            .Single(entry => entry.GetProperty("parameter").GetString() == parameterName);
+
+        vocabulary.GetProperty("defaultValue").GetString().Should().Be(defaultValue);
+        AssertArrayContains(vocabulary.GetProperty("allowedValues"), allowedValues);
+        AssertArrayContains(vocabulary.GetProperty("tools"), tools);
     }
 }

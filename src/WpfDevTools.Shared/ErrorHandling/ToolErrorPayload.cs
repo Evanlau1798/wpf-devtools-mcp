@@ -64,6 +64,13 @@ public sealed class ToolErrorPayload
     public object? ErrorData { get; init; }
 
     /// <summary>
+    /// Canonical machine-readable recovery guidance for automated clients.
+    /// </summary>
+    [JsonPropertyName("recovery")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ToolErrorRecovery? Recovery { get; init; }
+
+    /// <summary>
     /// Backward-compatible top-level projection used by event analyzer callers.
     /// </summary>
     [JsonPropertyName("availableEvents")]

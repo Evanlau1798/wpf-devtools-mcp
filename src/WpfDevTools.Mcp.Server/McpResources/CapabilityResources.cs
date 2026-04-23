@@ -44,7 +44,7 @@ public static class CapabilityResources
 
         ## Response contract notes
 
-        - Machine-readable JSON contract resource: `wpf://contracts/response`. Read it when clients need stable field-level metadata for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, and the `get_binding_errors` `navigation=false` opt-out without relying on prose alone.
+        - Machine-readable JSON contract resource: `wpf://contracts/response`. Read it when clients need stable field-level metadata for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, canonical `recovery` error guidance, closed vocabularies for common enum-like parameters, and the `get_binding_errors` `navigation=false` opt-out without relying on prose alone.
         - By default, every tool response includes compatibility `nextSteps`; tools without runtime-computable guidance return `nextSteps: []`.
         - By default, responses also include a `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
         - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` unless `get_binding_errors` explicitly receives `navigation=false`.
@@ -135,6 +135,42 @@ public static class CapabilityResources
                 requiredBaseFields = new[] { "success" },
                 additiveFields = new[] { "nextSteps", "navigation", "pendingEvents" }
             },
+            errorPayload = new
+            {
+                requiredBaseFields = new[] { "success", "error" },
+                machineReadableCodeField = "errorCode",
+                structuredContextField = "errorData",
+                canonicalRecoveryField = "recovery",
+                compatibilityProjectionFields = new[]
+                {
+                    "hint",
+                    "suggestedAction",
+                    "requiresReconnect",
+                    "processId",
+                    "timeoutSeconds",
+                    "retryAfterSeconds",
+                    "retryAfter",
+                    "availableTokens",
+                    "availableEvents"
+                },
+                recovery = new
+                {
+                    field = "recovery",
+                    optional = true,
+                    properties = new
+                    {
+                        hint = new { type = "string", optional = true },
+                        suggestedAction = new { type = "string", optional = true },
+                        requiresReconnect = new { type = "boolean", optional = true },
+                        processId = new { type = "integer", optional = true },
+                        timeoutSeconds = new { type = "integer", optional = true },
+                        retryAfterSeconds = new { type = "integer", optional = true },
+                        retryAfter = new { type = "string", optional = true },
+                        availableTokens = new { type = "integer", optional = true },
+                        availableEvents = new { type = "string[]", optional = true }
+                    }
+                }
+            },
             navigation = new
             {
                 field = "navigation",
@@ -173,6 +209,54 @@ public static class CapabilityResources
                 toolListOutputSchema = "omitted",
                 toolListOutputSchemaReason = "Claude tools/list compatibility while structuredContent remains canonical",
                 deprecatedAliases = ResponseContractVersion.DeprecatedAliases
+            },
+            parameterVocabularies = new object[]
+            {
+                new
+                {
+                    parameter = "windowFilter",
+                    tools = new[] { "connect", "get_processes" },
+                    defaultValue = "visible",
+                    allowedValues = new[] { "visible", "all", "foreground" }
+                },
+                new
+                {
+                    parameter = "selectionStrategy",
+                    tools = new[] { "connect" },
+                    defaultValue = "single_only",
+                    allowedValues = new[] { "single_only", "largest_working_set" }
+                },
+                new
+                {
+                    parameter = "depthMode",
+                    tools = new[] { "get_ui_summary" },
+                    defaultValue = "semantic",
+                    allowedValues = new[] { "semantic", "visual" }
+                },
+                new
+                {
+                    parameter = "detail",
+                    tools = new[]
+                    {
+                        "click_element",
+                        "execute_command",
+                        "modify_viewmodel",
+                        "set_dp_value",
+                        "clear_dp_value",
+                        "fire_routed_event",
+                        "override_style_setter"
+                    },
+                    defaultValue = "compact",
+                    allowedValues = new[] { "compact", "minimal", "verbose" },
+                    compatibilityAliases = new[] { "standard" }
+                },
+                new
+                {
+                    parameter = "outputMode",
+                    tools = new[] { "element_screenshot" },
+                    defaultValue = "base64",
+                    allowedValues = new[] { "base64", "metadata", "file" }
+                }
             },
             highValueTools = new object[]
             {

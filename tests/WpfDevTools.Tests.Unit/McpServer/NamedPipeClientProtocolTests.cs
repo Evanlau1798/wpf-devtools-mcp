@@ -9,6 +9,7 @@ using WpfDevTools.Shared.Serialization;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("TimingSensitive")]
 public class NamedPipeClientProtocolTests
 {
     [Fact]
@@ -109,6 +110,58 @@ public class NamedPipeClientProtocolTests
             authManager: null,
             certManager: null,
             enforceHostCompatibilityValidation: true);
+
+        var connected = await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1);
+
+        connected.Should().BeFalse();
+        client.LastConnectFailure.Should().Be(NamedPipeConnectFailure.IncompatibleHost);
+        await serverTask;
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WithDefaultPipeNameAndPlaintextClient_ShouldStillValidateHostCompatibility()
+    {
+        var processId = Environment.ProcessId;
+        var pipeName = $"WpfDevTools_{processId}";
+
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+
+            request.Should().NotBeNull();
+            request!.Method.Should().Be("ping");
+
+            var response = new InspectorResponse
+            {
+                Id = request.Id,
+                CorrelationId = request.CorrelationId,
+                Result = JsonSerializer.SerializeToElement(new
+                {
+                    success = true,
+                    status = "pong",
+                    processId,
+                    protocolVersion = InspectorCompatibilityContract.ProtocolVersion,
+                    buildFingerprint = "plaintext-stale-build"
+                }),
+                Error = null
+            };
+
+            await MessageFraming.WriteMessageAsync(
+                server,
+                JsonSerializer.Serialize(response),
+                CancellationToken.None);
+        });
+
+        using var client = new NamedPipeClient(processId);
 
         var connected = await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1);
 

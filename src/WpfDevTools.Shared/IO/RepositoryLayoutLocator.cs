@@ -51,6 +51,7 @@ public static class RepositoryLayoutLocator
         }
 
         var isWorktreeRoot =
+            string.Equals(worktreeContainer.Name, ".worktree", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(worktreeContainer.Name, ".worktrees", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(worktreeContainer.Name, "worktrees", StringComparison.OrdinalIgnoreCase);
         if (!isWorktreeRoot)

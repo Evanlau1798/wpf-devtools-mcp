@@ -7,7 +7,10 @@ using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Serialization;
 using System.Threading;
 
 namespace WpfDevTools.Tests.Integration;
@@ -23,8 +26,8 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
     public async Task ConnectTool_WithoutProcessId_ShouldAutoConnectSingleCandidate()
     {
         EnsureDummyBootstrapperExists();
-        var processId = NextSyntheticProcessId();
-        using var server = CreateServer($"WpfDevTools_{processId}");
+        var processId = Environment.ProcessId;
+        using var server = CreateServer(processId);
         using var sessionManager = new SessionManager();
         var tool = CreateTool(
             sessionManager,
@@ -70,8 +73,8 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
         var smallProcessId = NextSyntheticProcessId();
-        var largeProcessId = NextSyntheticProcessId();
-        using var server = CreateServer($"WpfDevTools_{largeProcessId}");
+        var largeProcessId = Environment.ProcessId;
+        using var server = CreateServer(largeProcessId);
         using var sessionManager = new SessionManager();
         var tool = CreateTool(
             sessionManager,
@@ -135,7 +138,9 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
             workingSetResolver,
             bootstrapperCandidateResolver: _ => string.IsNullOrWhiteSpace(_dummyBootstrapperPath)
                 ? []
-                : [_dummyBootstrapperPath]);
+                : [_dummyBootstrapperPath],
+            pipeReadyProbe: new PipeReadyProbe((_, _) => false, () => DateTime.UtcNow, _ => { }),
+            isRawInjectionTargetAllowed: _ => true);
     }
 
     private void EnsureDummyBootstrapperExists()
@@ -149,10 +154,10 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
         }
     }
 
-    private static NamedPipeServerStream CreateServer(string pipeName)
+    private static NamedPipeServerStream CreateServer(int processId)
     {
         var server = new NamedPipeServerStream(
-            pipeName,
+            $"WpfDevTools_{processId}",
             PipeDirection.InOut,
             1,
             PipeTransmissionMode.Byte,
@@ -160,8 +165,44 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
 
         _ = Task.Run(async () =>
         {
-            await server.WaitForConnectionAsync();
-            await Task.Delay(TimeSpan.FromSeconds(5));
+            try
+            {
+                await server.WaitForConnectionAsync();
+
+                var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+
+                request.Should().NotBeNull();
+                request!.Method.Should().Be("ping");
+
+                var response = new InspectorResponse
+                {
+                    Id = request.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.SerializeToElement(new
+                    {
+                        success = true,
+                        status = "pong",
+                        processId,
+                        protocolVersion = InspectorCompatibilityContract.ProtocolVersion,
+                        buildFingerprint = InspectorCompatibilityContract.GetBuildFingerprint(typeof(NamedPipeClient))
+                    }),
+                    Error = null
+                };
+
+                await MessageFraming.WriteMessageAsync(
+                    server,
+                    JsonSerializer.Serialize(response),
+                    CancellationToken.None);
+
+                await Task.Delay(TimeSpan.FromSeconds(5));
+            }
+            catch (IOException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         });
 
         return server;

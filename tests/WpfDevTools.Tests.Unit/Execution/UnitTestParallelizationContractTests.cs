@@ -104,6 +104,7 @@ public sealed class UnitTestParallelizationContractTests
     public void TimingSensitiveTests_ShouldUseTimingSensitiveCollection()
     {
         GetCollectionName(typeof(FileLoggerPerformanceTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(NamedPipeClientProtocolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(NamedPipeClientTimeoutBudgetTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostAuthTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostSessionTimeoutTests)).Should().Be("TimingSensitive");

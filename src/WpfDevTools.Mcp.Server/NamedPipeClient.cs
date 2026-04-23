@@ -100,9 +100,8 @@ public sealed class NamedPipeClient : IDisposable
             _pipeName,
             BuildPipeName(processId),
             StringComparison.Ordinal);
-        var usesSecureTransport = (_authManager?.IsAuthenticationEnabled == true) || _certManager != null;
         _enforceHostCompatibilityValidation =
-            enforceHostCompatibilityValidation ?? (usesDefaultPipeName && usesSecureTransport);
+            enforceHostCompatibilityValidation ?? usesDefaultPipeName;
     }
 
     private static string BuildPipeName(int processId) => $"WpfDevTools_{processId}";

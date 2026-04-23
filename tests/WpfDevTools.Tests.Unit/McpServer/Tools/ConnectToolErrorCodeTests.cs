@@ -25,7 +25,8 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
             new SessionManager(),
             new FailingProcessInjector(injectionError),
             new FakeProcessDetector(),
-            _ => { });
+            _ => { },
+            isRawInjectionTargetAllowed: _ => true);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 

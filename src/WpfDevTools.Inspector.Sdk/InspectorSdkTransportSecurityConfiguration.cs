@@ -5,9 +5,9 @@ using WpfDevTools.Shared.Security;
 namespace WpfDevTools.Inspector.Sdk;
 
 /// <summary>
-/// Resolves the optional SDK-mode transport hardening settings from environment variables.
+/// Resolves the required SDK-mode transport hardening settings from environment variables.
 /// Unlike the standard injection path, SDK mode does not receive a generated handoff automatically,
-/// so security is enabled here only when explicit matching configuration is provided.
+/// so initialization fails closed unless explicit matching configuration is provided.
 /// </summary>
 internal sealed class InspectorSdkTransportSecurityConfiguration
 {
@@ -56,6 +56,13 @@ internal sealed class InspectorSdkTransportSecurityConfiguration
         var hasAuthentication = !string.IsNullOrWhiteSpace(authenticationSecretBase64);
         var hasCertificateDirectory = !string.IsNullOrWhiteSpace(certificateDirectory);
 
+        if (!hasAuthentication && !hasCertificateDirectory)
+        {
+            throw new InvalidOperationException(
+                "SDK transport hardening requires both WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR to be set before calling InspectorSdk.Initialize(). " +
+                "SDK plaintext mode is no longer supported by default.");
+        }
+
         if (hasAuthentication == hasCertificateDirectory)
         {
             return;
@@ -63,7 +70,7 @@ internal sealed class InspectorSdkTransportSecurityConfiguration
 
         throw new InvalidOperationException(
             "SDK transport hardening requires both WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR to be set together. " +
-            "Set both values for hardened SDK mode, or leave both unset for plaintext SDK mode.");
+            "Partial SDK transport configuration is not supported.");
     }
 
     private static string ResolveExplicitCertificateDirectory(string certificateDirectory)

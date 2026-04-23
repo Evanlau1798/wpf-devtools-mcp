@@ -7,14 +7,12 @@ namespace WpfDevTools.Tests.Unit.InspectorSdk;
 public sealed class InspectorSdkTransportSecurityConfigurationTests
 {
     [Fact]
-    public void Create_WithoutEnvironmentOverrides_ShouldLeaveSdkTransportUnhardened()
+    public void Create_WithoutEnvironmentOverrides_ShouldFailClosed()
     {
-        var configuration = InspectorSdkTransportSecurityConfiguration.Create(null, null);
+        var act = () => InspectorSdkTransportSecurityConfiguration.Create(null, null);
 
-        configuration.AuthenticationManager.Should().BeNull();
-        configuration.CertificateManager.Should().BeNull();
-        configuration.IsAuthenticationEnabled.Should().BeFalse();
-        configuration.IsEncryptionEnabled.Should().BeFalse();
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*WPFDEVTOOLS_AUTH_SECRET*WPFDEVTOOLS_CERT_DIR*InspectorSdk.Initialize()*");
     }
 
     [Fact]
@@ -52,7 +50,7 @@ public sealed class InspectorSdkTransportSecurityConfigurationTests
         var act = () => InspectorSdkTransportSecurityConfiguration.Create(authSecret, null);
 
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*WPFDEVTOOLS_AUTH_SECRET*WPFDEVTOOLS_CERT_DIR*set together*");
+            .WithMessage("*WPFDEVTOOLS_AUTH_SECRET*WPFDEVTOOLS_CERT_DIR*Partial SDK transport configuration is not supported*");
     }
 
     [Fact]
@@ -63,7 +61,7 @@ public sealed class InspectorSdkTransportSecurityConfigurationTests
         var act = () => InspectorSdkTransportSecurityConfiguration.Create(null, certDirectory);
 
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*WPFDEVTOOLS_AUTH_SECRET*WPFDEVTOOLS_CERT_DIR*set together*");
+            .WithMessage("*WPFDEVTOOLS_AUTH_SECRET*WPFDEVTOOLS_CERT_DIR*Partial SDK transport configuration is not supported*");
     }
 
     [Fact]

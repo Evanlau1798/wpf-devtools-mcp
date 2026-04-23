@@ -31,6 +31,17 @@ public class SecurityDocumentationTests
         content.Should().NotContain(variableName);
     }
 
+    [Fact]
+    public void SecurityDocumentation_ShouldDescribeItsEnvironmentVariableTableAsSecurityScoped()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("SECURITY.md"));
+
+        content.Should().Contain("security-relevant",
+            "SECURITY.md should describe its environment-variable table as security-scoped instead of claiming it is the complete server configuration surface");
+        content.Should().NotContain("No other `WPFDEVTOOLS_*` environment variable is currently implemented by the shipping server.",
+            "SECURITY.md should not contradict non-security configuration knobs such as WPFDEVTOOLS_RATE_LIMIT_RPM");
+    }
+
     [Theory]
     [InlineData("By default the server runs without authentication or encryption.")]
     [InlineData("If the variable is not set, authentication is disabled.")]
@@ -139,6 +150,32 @@ public class SecurityDocumentationTests
             $"{relativePath} should mention the certificate directory setting when describing SDK transport coordination");
         content.Should().Contain(plaintextExpectation,
             $"{relativePath} should explain that the default-hardened MCP server does not reuse plaintext SDK hosts");
+    }
+
+    [Theory]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void Documentation_ShouldDescribeDefaultPipeHostCompatibilityValidation(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("default-pipe",
+            $"{relativePath} should describe the general default-pipe host validation guard, not only SDK-host reuse");
+    }
+
+    [Theory]
+    [InlineData("SECURITY.md", "CompatibilityError", "before the raw-injection policy denial")]
+    [InlineData("docfx/production/security.md", "CompatibilityError", "before the raw-injection policy denial")]
+    [InlineData("docfx/zh-tw/production/security.md", "CompatibilityError", "先回傳")]
+    public void Documentation_ShouldDescribeCompatibilityErrorPrecedenceForBlockedExternalTargets(string relativePath, string errorCode, string precedencePhrase)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(errorCode,
+            $"{relativePath} should document the stale-host compatibility error surface for blocked external targets");
+        content.Should().Contain(precedencePhrase,
+            $"{relativePath} should explain that compatibility rejection can surface before the raw injection policy denial");
     }
 
     [Theory]

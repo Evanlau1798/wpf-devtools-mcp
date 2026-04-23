@@ -6,6 +6,7 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public static class McpServerConfiguration
 {
+    public const string RawInjectionAllowedTargetsEnvVar = "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS";
     public const string RateLimitRequestsPerMinuteEnvVar = "WPFDEVTOOLS_RATE_LIMIT_RPM";
 
     /// <summary>
@@ -76,4 +77,10 @@ public static class McpServerConfiguration
     /// How long to wait for a single read or write operation.
     /// </summary>
     public static readonly TimeSpan PipeOperationTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Short grace window for external SDK-only targets that are not allowlisted for raw injection.
+    /// Gives a target-hosted InspectorSdk instance a chance to appear without consuming the full connect budget.
+    /// </summary>
+    public static readonly TimeSpan ExternalSdkHostReuseGracePeriod = TimeSpan.FromSeconds(2);
 }

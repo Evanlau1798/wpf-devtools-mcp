@@ -21,6 +21,16 @@ The server can inspect and mutate live WPF UI state. That makes these risks rele
 - **Release builds**: signature verification is enforced.
 - **Path validation**: the shipping server accepts only trusted roots.
 
+### Raw injection target policy
+
+Raw DLL injection into arbitrary same-user WPF processes is blocked by default.
+
+- The shipping server implicitly trusts only project-scoped targets discovered under the current repository root.
+- When the target executable is outside that trusted scope, `connect()` fails closed with `errorCode: SecurityError` and `requiresExplicitTargetOptIn: true` instead of injecting if no earlier default-pipe compatibility failure has already stopped the connection attempt.
+- If a stale or incompatible default-pipe host is already advertising the expected pipe, `connect()` can return `errorCode: CompatibilityError` before the raw-injection policy denial, but raw injection still remains blocked.
+- Set `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` to a semicolon-separated list of exact absolute executable paths only when raw injection into a specific external app is an intentional production decision.
+- Prefer the SDK-hosted reuse path with `InspectorSdk.Initialize()` when you need production diagnostics for an external target without broadening raw injection scope.
+
 ### Named-pipe authentication
 
 Injection-based `connect` sessions use HMAC challenge-response authentication by default.
@@ -28,8 +38,8 @@ Injection-based `connect` sessions use HMAC challenge-response authentication by
 - The secret must be base64 encoded.
 - When `WPFDEVTOOLS_AUTH_SECRET` is not set, the server generates a default secret once and reuses it across server restarts for the current user profile.
 - Set `WPFDEVTOOLS_AUTH_SECRET` when you need to override the generated secret with a deterministic shared value.
-- For `connect()` to reuse an SDK-hosted Inspector, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR` together on both sides. The default-hardened MCP server will not reuse a plaintext SDK host.
-- `connect()` can reuse an existing SDK-hosted Inspector when the target app calls `InspectorSdk.Initialize()` with matching `WPFDEVTOOLS_AUTH_SECRET` values.
+- For `connect()` to reuse an SDK-hosted Inspector, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR` together on both sides before calling `InspectorSdk.Initialize()`. The default-hardened MCP server will not reuse a plaintext SDK host.
+- If either value is missing, or both are unset, `InspectorSdk.Initialize()` now fails closed instead of starting a plaintext SDK host.
 
 ### TLS over named pipes
 
@@ -40,7 +50,8 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 - If you set `WPFDEVTOOLS_CERT_DIR`, it must be an absolute path.
 - The client validates the subject and can pin the expected thumbprint.
 - `WPFDEVTOOLS_CERT_THUMBPRINT` can override the expected thumbprint.
-- `connect()` can reuse an existing SDK-hosted Inspector when the target app calls `InspectorSdk.Initialize()` with the same absolute `WPFDEVTOOLS_CERT_DIR` value.
+- `connect()` can reuse an existing SDK-hosted Inspector only when the target app calls `InspectorSdk.Initialize()` with matching `WPFDEVTOOLS_AUTH_SECRET` values and the same absolute `WPFDEVTOOLS_CERT_DIR` value.
+- Even outside SDK-host reuse, any default-pipe `connect()` attempt validates that the named-pipe server is owned by the requested target process and reports a compatible protocol/build fingerprint before the client accepts the connection.
 - Before reusing an existing host, the client verifies that the named-pipe server is owned by the requested target process and that the host reports a compatible protocol/build fingerprint.
 
 ### Pipe access limits and server-side controls
@@ -57,7 +68,8 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 4. Set `WPFDEVTOOLS_AUTH_SECRET` when you need deterministic secret rotation or SDK-mode coordination.
 5. Set `WPFDEVTOOLS_CERT_DIR` to the same absolute directory in both processes when certificate storage must be deterministic or shared with SDK mode.
 6. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT`.
-7. Restrict who can launch the server on the workstation or VM.
+7. Keep raw injection scoped to project-owned binaries by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed external executables.
+8. Restrict who can launch the server on the workstation or VM.
 
 ## Important limitations
 

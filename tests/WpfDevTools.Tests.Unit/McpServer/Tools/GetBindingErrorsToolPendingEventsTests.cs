@@ -127,6 +127,42 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         pendingEvent.TryGetProperty("sourceKey", out _).Should().BeFalse();
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithPiggybackCleanupFailureAndNoPendingEvents_ShouldPreserveCleanupDiagnostics()
+    {
+        const int processId = 51044;
+        using var connected = await ConnectedBindingErrorsSession.CreateAsync(
+            processId,
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                errorCount = 0,
+                errors = Array.Empty<object>()
+            }),
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                pendingEventCount = 0,
+                droppedEventCount = 0,
+                cleanupIncomplete = true,
+                cleanupFailureMessage = "cleanup failed",
+                cleanupFailureType = "InvalidOperationException"
+            }));
+        var tool = new GetBindingErrorsTool(connected.SessionManager);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new { processId }),
+            CancellationToken.None));
+
+        await connected.ServerTask;
+
+        connected.RequestMethods.Should().Equal("get_binding_errors", "drain_events");
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("cleanupIncomplete").GetBoolean().Should().BeTrue();
+        result.GetProperty("cleanupFailureMessage").GetString().Should().Be("cleanup failed");
+        result.GetProperty("cleanupFailureType").GetString().Should().Be("InvalidOperationException");
+    }
+
     private sealed class ConnectedBindingErrorsSession(
         SessionManager sessionManager,
         NamedPipeServerStream server,

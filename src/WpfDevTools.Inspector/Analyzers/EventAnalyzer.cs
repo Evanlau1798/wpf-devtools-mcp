@@ -456,7 +456,8 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         {
             lock (_lock)
             {
-                if (_isTraceAcceptingEvents)
+                if (_isTraceAcceptingEvents
+                    && string.Equals(_activeTraceSession?.Metadata.SessionId, traceSessionId, StringComparison.Ordinal))
                 {
                     _handlerInvocationCount++;
                     var senderType = sender?.GetType().Name;
@@ -545,20 +546,23 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
 
     private bool CleanupPreviousSession(out Exception? cleanupException)
     {
-        return CleanupTraceSessionCore(null, out cleanupException);
+        return CleanupTraceSessionCore(null, out cleanupException, treatDeferredCleanupAsSuccess: true);
     }
 
     internal bool CleanupActiveTraceSession(out Exception? cleanupException)
     {
-        return CleanupTraceSessionCore(null, out cleanupException);
+        return CleanupTraceSessionCore(null, out cleanupException, treatDeferredCleanupAsSuccess: true);
     }
 
     internal bool CleanupTraceSession(TraceSessionHandle expectedSession, out Exception? cleanupException)
     {
-        return CleanupTraceSessionCore(expectedSession, out cleanupException);
+        return CleanupTraceSessionCore(expectedSession, out cleanupException, treatDeferredCleanupAsSuccess: false);
     }
 
-    private bool CleanupTraceSessionCore(TraceSessionHandle? expectedSession, out Exception? cleanupException)
+    private bool CleanupTraceSessionCore(
+        TraceSessionHandle? expectedSession,
+        out Exception? cleanupException,
+        bool treatDeferredCleanupAsSuccess)
     {
         ActiveTraceSession? sessionToClean = null;
         CompletedTraceSnapshot? completedSnapshot = null;
@@ -599,41 +603,40 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             completedSnapshot = new CompletedTraceSnapshot(_eventTrace.GetSnapshot(), _handlerInvocationCount);
         }
 
-        var removalSucceeded = TryCancelAndRemoveTraceSession(sessionToClean, out cleanupException);
+        var removalSucceeded = TryCancelAndRemoveTraceSession(
+            sessionToClean,
+            out cleanupException,
+            out var deferredCleanupScheduled);
 
         lock (_lock)
         {
-            if (removalSucceeded)
+            if (removalSucceeded || deferredCleanupScheduled)
             {
                 StoreCompletedSnapshot(sessionToClean.Metadata.SessionId, completedSnapshot);
-                if (_lastTraceCleanupFailure != null
-                    && string.Equals(_lastTraceCleanupFailure.SessionId, sessionToClean.Metadata.SessionId, StringComparison.Ordinal))
+
+                if (removalSucceeded)
                 {
-                    _lastTraceCleanupFailure = null;
+                    if (_lastTraceCleanupFailure != null
+                        && string.Equals(_lastTraceCleanupFailure.SessionId, sessionToClean.Metadata.SessionId, StringComparison.Ordinal))
+                    {
+                        _lastTraceCleanupFailure = null;
+                    }
+                }
+                else
+                {
+                    _lastTraceCleanupFailure = new TraceCleanupFailure(
+                        sessionToClean.Metadata.SessionId,
+                        sessionToClean.Metadata.EventName,
+                        cleanupException?.GetType().Name ?? nameof(InvalidOperationException),
+                        cleanupException?.Message ?? "Routed event trace cleanup failed.");
                 }
 
-                if (ReferenceEquals(_activeTraceSession, sessionToClean))
-                {
-                    _activeTraceSession = null;
-                }
-
-                if (ReferenceEquals(_tracingCts, sessionToClean.TokenSource))
-                {
-                    _tracingCts = null;
-                }
-
-                if (_activeTraceSession == null)
-                {
-                    _isTracing = false;
-                    _isTraceAcceptingEvents = false;
-                    _isStartTransitionInProgress = false;
-                    _startTransitionDispatcher = null;
-                }
+                DeactivateTraceSession(sessionToClean);
 
                 _isCleanupInProgress = false;
                 _cleanupTransitionDispatcher = null;
 
-                return true;
+                return removalSucceeded || treatDeferredCleanupAsSuccess;
             }
 
             _lastTraceCleanupFailure = new TraceCleanupFailure(
@@ -651,9 +654,13 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         }
     }
 
-    private bool TryCancelAndRemoveTraceSession(ActiveTraceSession session, out Exception? cleanupException)
+    private bool TryCancelAndRemoveTraceSession(
+        ActiveTraceSession session,
+        out Exception? cleanupException,
+        out bool deferredCleanupScheduled)
     {
         cleanupException = null;
+        deferredCleanupScheduled = false;
 
         try
         {
@@ -677,9 +684,15 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                     LogCleanupFailure(cleanupException);
                     if (ShouldTreatAsTerminalCleanup(dispatcher, cleanupException))
                     {
-                        session.TokenSource.Dispose();
+                        DisposeTokenSource(session.TokenSource);
                         cleanupException = null;
                         return true;
+                    }
+
+                    deferredCleanupScheduled = TryScheduleDeferredHandlerRemoval(session, dispatcher);
+                    if (deferredCleanupScheduled)
+                    {
+                        DisposeTokenSource(session.TokenSource);
                     }
 
                     return false;
@@ -690,13 +703,18 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                 InvokeOnDispatcher(dispatcher, () => RemoveAllHandlers(session.Registrations));
             }
 
-            session.TokenSource.Dispose();
+            DisposeTokenSource(session.TokenSource);
             return true;
         }
         catch (TimeoutException ex)
         {
             cleanupException = ex;
             LogCleanupFailure(ex);
+            deferredCleanupScheduled = TryScheduleDeferredHandlerRemoval(session, dispatcher);
+            if (deferredCleanupScheduled)
+            {
+                DisposeTokenSource(session.TokenSource);
+            }
             return false;
         }
         catch (InvalidOperationException ex)
@@ -705,9 +723,15 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             LogCleanupFailure(ex);
             if (ShouldTreatAsTerminalCleanup(dispatcher, ex))
             {
-                session.TokenSource.Dispose();
+                DisposeTokenSource(session.TokenSource);
                 cleanupException = null;
                 return true;
+            }
+
+            deferredCleanupScheduled = TryScheduleDeferredHandlerRemoval(session, dispatcher);
+            if (deferredCleanupScheduled)
+            {
+                DisposeTokenSource(session.TokenSource);
             }
 
             return false;
@@ -718,11 +742,62 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             LogCleanupFailure(ex);
             if (ShouldTreatAsTerminalCleanup(dispatcher, ex))
             {
-                session.TokenSource.Dispose();
+                DisposeTokenSource(session.TokenSource);
                 cleanupException = null;
                 return true;
             }
 
+            deferredCleanupScheduled = TryScheduleDeferredHandlerRemoval(session, dispatcher);
+            if (deferredCleanupScheduled)
+            {
+                DisposeTokenSource(session.TokenSource);
+            }
+
+            return false;
+        }
+    }
+
+    private static void DisposeTokenSource(CancellationTokenSource tokenSource)
+    {
+        try
+        {
+            tokenSource.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private static bool TryScheduleDeferredHandlerRemoval(ActiveTraceSession session, Dispatcher? dispatcher)
+    {
+        if (session.Registrations.Count == 0
+            || dispatcher == null
+            || dispatcher.HasShutdownStarted
+            || dispatcher.HasShutdownFinished)
+        {
+            return false;
+        }
+
+        try
+        {
+            _ = dispatcher.BeginInvoke(
+                DispatcherPriority.Background,
+                new Action(() =>
+                {
+                    try
+                    {
+                        RemoveAllHandlers(session.Registrations);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogCleanupFailure(ex);
+                    }
+                }));
+            return true;
+        }
+        catch (InvalidOperationException ex) when (ShouldTreatAsTerminalCleanup(dispatcher, ex))
+        {
+            LogCleanupFailure(ex);
             return false;
         }
     }
@@ -889,6 +964,27 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             }
 
             tokenSourceToDispose.Dispose();
+        }
+    }
+
+    private void DeactivateTraceSession(ActiveTraceSession session)
+    {
+        if (ReferenceEquals(_activeTraceSession, session))
+        {
+            _activeTraceSession = null;
+        }
+
+        if (ReferenceEquals(_tracingCts, session.TokenSource))
+        {
+            _tracingCts = null;
+        }
+
+        if (_activeTraceSession == null)
+        {
+            _isTracing = false;
+            _isTraceAcceptingEvents = false;
+            _isStartTransitionInProgress = false;
+            _startTransitionDispatcher = null;
         }
     }
 
@@ -1184,7 +1280,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
     {
         Task.Delay(cappedDuration, sessionHandle.TokenSource.Token).ContinueWith(completedDelay =>
         {
-            CleanupTraceSessionCore(sessionHandle, out _);
+            CleanupTraceSessionCore(sessionHandle, out _, treatDeferredCleanupAsSuccess: false);
         }, TaskContinuationOptions.OnlyOnRanToCompletion);
     }
 

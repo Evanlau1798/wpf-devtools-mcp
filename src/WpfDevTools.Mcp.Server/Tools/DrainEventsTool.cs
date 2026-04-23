@@ -92,6 +92,12 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
 
         var droppedEventCount = GetIntProperty(replayPayload, "droppedEventCount")
             + GetIntProperty(livePayload, "droppedEventCount");
+        var cleanupIncomplete = HasCleanupIncompleteDiagnostics(livePayload)
+            || HasCleanupIncompleteDiagnostics(replayPayload);
+        var cleanupFailureMessage = GetCleanupFailureDetail(livePayload, "cleanupFailureMessage")
+            ?? GetCleanupFailureDetail(replayPayload, "cleanupFailureMessage");
+        var cleanupFailureType = GetCleanupFailureDetail(livePayload, "cleanupFailureType")
+            ?? GetCleanupFailureDetail(replayPayload, "cleanupFailureType");
 
         if (mergedEvents.Count == 0)
         {
@@ -99,7 +105,10 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
             {
                 success = true,
                 pendingEventCount = 0,
-                droppedEventCount
+                droppedEventCount,
+                cleanupIncomplete,
+                cleanupFailureMessage,
+                cleanupFailureType
             };
         }
 
@@ -109,6 +118,20 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
         writer.WriteBoolean("success", true);
         writer.WriteNumber("pendingEventCount", mergedEvents.Count);
         writer.WriteNumber("droppedEventCount", droppedEventCount);
+        if (cleanupIncomplete)
+        {
+            writer.WriteBoolean("cleanupIncomplete", true);
+            if (cleanupFailureMessage != null)
+            {
+                writer.WriteString("cleanupFailureMessage", cleanupFailureMessage);
+            }
+
+            if (cleanupFailureType != null)
+            {
+                writer.WriteString("cleanupFailureType", cleanupFailureType);
+            }
+        }
+
         writer.WritePropertyName("pendingEvents");
         writer.WriteStartArray();
         foreach (var pendingEvent in mergedEvents)
@@ -197,4 +220,14 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
         && property.TryGetInt32(out var value)
             ? value
             : 0;
+
+    private static bool HasCleanupIncompleteDiagnostics(JsonElement payload) =>
+        payload.TryGetProperty("cleanupIncomplete", out var cleanupIncomplete)
+        && cleanupIncomplete.ValueKind == JsonValueKind.True;
+
+    private static string? GetCleanupFailureDetail(JsonElement payload, string propertyName) =>
+        payload.TryGetProperty(propertyName, out var property)
+        && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
 }

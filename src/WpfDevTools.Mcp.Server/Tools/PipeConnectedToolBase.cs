@@ -174,7 +174,7 @@ public abstract partial class PipeConnectedToolBase
         string method,
         object? parameters,
         CancellationToken ct,
-        bool piggybackPendingEvents = false)
+        bool piggybackPendingEvents = true)
     {
         var result = await SendInspectorRequestCoreAsync(processId, method, parameters, ct).ConfigureAwait(false);
         if (!piggybackPendingEvents)

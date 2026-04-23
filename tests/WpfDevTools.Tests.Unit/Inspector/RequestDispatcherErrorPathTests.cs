@@ -382,7 +382,7 @@ public class RequestDispatcherErrorPathTests
     }
 
     [StaFact]
-    public void Dispose_WhenEventTraceCleanupFails_ShouldThrowAndLeaveTraceStateVisible()
+    public void Dispose_WhenEventTraceCleanupTimesOut_ShouldDeferRemovalAndNotThrow()
     {
         using var logger = new FileLogger();
         var dispatcher = new RequestDispatcher(
@@ -410,12 +410,57 @@ public class RequestDispatcherErrorPathTests
         response.Error.Should().BeNull();
 
         Action dispose = () => dispatcher.Dispose();
-        dispose.Should().Throw<TimeoutException>();
+        dispose.Should().NotThrow();
+
+        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
 
         JsonSerializer.SerializeToElement(analyzer.GetEventTrace())
             .GetProperty("isTracing").GetBoolean().Should().BeFalse();
         JsonSerializer.SerializeToElement(analyzer.GetEventHandlers(elementId, "Click"))
-            .GetProperty("handlerCount").GetInt32().Should().Be(1);
+            .GetProperty("handlerCount").GetInt32().Should().Be(0);
+    }
+
+    [StaFact]
+    public void Dispose_WhenEventTraceCleanupIsDeferred_ShouldNotThrowAndShouldEventuallyUnregisterHandlers()
+    {
+        using var logger = new FileLogger();
+        var dispatcher = new RequestDispatcher(
+            logger,
+            static (traceDispatcher, removeHandlers) =>
+            {
+                traceDispatcher!.BeginInvoke(DispatcherPriority.Background, removeHandlers);
+                return new TimeoutException("Simulated deferred dispatcher cleanup timeout");
+            });
+        var finder = GetElementFinder(dispatcher);
+        var analyzer = GetEventAnalyzer(dispatcher);
+        var button = new Button { Name = "DeferredDispatcherTraceCleanupButton" };
+        var elementId = finder.GenerateElementId(button);
+
+        var response = dispatcher.DispatchAsync(new InspectorRequest
+        {
+            Id = "trace-dispose-deferred-cleanup",
+            Method = "trace_routed_events",
+            Params = JsonSerializer.SerializeToElement(new
+            {
+                mode = "start",
+                elementId,
+                eventName = "Click",
+                duration = 1000,
+                allowShortStartDuration = true
+            })
+        }, CancellationToken.None).GetAwaiter().GetResult();
+
+        response.Error.Should().BeNull();
+
+        Action dispose = () => dispatcher.Dispose();
+        dispose.Should().NotThrow();
+
+        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+
+        JsonSerializer.SerializeToElement(analyzer.GetEventTrace())
+            .GetProperty("isTracing").GetBoolean().Should().BeFalse();
+        JsonSerializer.SerializeToElement(analyzer.GetEventHandlers(elementId, "Click"))
+            .GetProperty("handlerCount").GetInt32().Should().Be(0);
     }
 
     [StaFact]

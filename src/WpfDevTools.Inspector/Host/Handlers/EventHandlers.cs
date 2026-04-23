@@ -10,14 +10,17 @@ namespace WpfDevTools.Inspector.Host.Handlers;
 public class EventHandlers : IRequestHandler
 {
     private readonly EventAnalyzer _eventAnalyzer;
+    private readonly Func<Exception?>? _afterDrainCleanup;
 
     /// <summary>
     /// Create a new <see cref="EventHandlers"/> instance.
     /// </summary>
     /// <param name="eventAnalyzer">Event analyzer used for RoutedEvent operations.</param>
-    public EventHandlers(EventAnalyzer eventAnalyzer)
+    /// <param name="afterDrainCleanup">Optional cleanup invoked after a successful drain_events readback.</param>
+    public EventHandlers(EventAnalyzer eventAnalyzer, Func<Exception?>? afterDrainCleanup = null)
     {
         _eventAnalyzer = eventAnalyzer;
+        _afterDrainCleanup = afterDrainCleanup;
     }
 
     /// <summary>
@@ -220,9 +223,55 @@ public class EventHandlers : IRequestHandler
         var eventTypes = ParameterHelpers.GetStringArrayParam(@params, "eventTypes");
         var sinceTimestamp = ParseSinceTimestamp(@params);
 
-        return await Task.Run(
+        var result = await Task.Run(
             () => _eventAnalyzer.DrainEvents(maxEvents, eventTypes, elementId, sinceTimestamp),
             cancellationToken).ConfigureAwait(false);
+
+        if (IsSuccessfulPayload(result))
+        {
+            try
+            {
+                var cleanupFailure = _afterDrainCleanup?.Invoke();
+                if (cleanupFailure != null)
+                {
+                    return AttachCleanupIncomplete(result, cleanupFailure);
+                }
+            }
+            catch (Exception ex)
+            {
+                return AttachCleanupIncomplete(result, ex);
+            }
+        }
+
+        return result;
+    }
+
+    private static bool IsSuccessfulPayload(object result)
+    {
+        var payload = JsonSerializer.SerializeToElement(result);
+        return payload.ValueKind == JsonValueKind.Object
+            && payload.TryGetProperty("success", out var success)
+            && success.ValueKind == JsonValueKind.True;
+    }
+
+    private static object AttachCleanupIncomplete(object result, Exception exception)
+    {
+        var payload = JsonSerializer.SerializeToElement(result);
+        if (payload.ValueKind != JsonValueKind.Object)
+        {
+            return result;
+        }
+
+        var response = new Dictionary<string, object?>();
+        foreach (var property in payload.EnumerateObject())
+        {
+            response[property.Name] = property.Value.Clone();
+        }
+
+        response["cleanupIncomplete"] = true;
+        response["cleanupFailureMessage"] = exception.Message;
+        response["cleanupFailureType"] = exception.GetType().Name;
+        return JsonSerializer.SerializeToElement(response);
     }
 
     private static string NormalizeTraceMode(string? mode)

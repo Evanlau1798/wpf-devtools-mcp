@@ -67,6 +67,53 @@ public sealed class DrainEventsToolReplayTests
         connected.RequestMethods.Should().Equal("get_binding_errors", "drain_events", "drain_events");
     }
 
+    [Fact]
+    public async Task Execute_AfterPiggybackCleanupFailure_ShouldReplayCleanupDiagnostics()
+    {
+        const int processId = 43104;
+        using var connected = await ConnectedReplaySession.CreateAsync(
+            processId,
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                errorCount = 0,
+                errors = Array.Empty<object>()
+            }),
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                pendingEventCount = 0,
+                droppedEventCount = 0,
+                cleanupIncomplete = true,
+                cleanupFailureMessage = "cleanup failed",
+                cleanupFailureType = "InvalidOperationException"
+            }),
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                pendingEventCount = 0,
+                droppedEventCount = 0
+            }));
+
+        var triggerTool = new GetBindingErrorsTool(connected.SessionManager);
+        var drainTool = new DrainEventsTool(connected.SessionManager);
+
+        var triggerResult = JsonSerializer.SerializeToElement(await triggerTool.ExecuteAsync(
+            ToJsonElement(new { processId }),
+            CancellationToken.None));
+        var replayResult = JsonSerializer.SerializeToElement(await drainTool.ExecuteAsync(
+            ToJsonElement(new { processId }),
+            CancellationToken.None));
+
+        triggerResult.GetProperty("cleanupIncomplete").GetBoolean().Should().BeTrue();
+        replayResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        replayResult.GetProperty("cleanupIncomplete").GetBoolean().Should().BeTrue();
+        replayResult.GetProperty("cleanupFailureMessage").GetString().Should().Be("cleanup failed");
+        replayResult.GetProperty("cleanupFailureType").GetString().Should().Be("InvalidOperationException");
+
+        connected.RequestMethods.Should().Equal("get_binding_errors", "drain_events", "drain_events");
+    }
+
     private sealed class ConnectedReplaySession(
         SessionManager sessionManager,
         NamedPipeServerStream server,

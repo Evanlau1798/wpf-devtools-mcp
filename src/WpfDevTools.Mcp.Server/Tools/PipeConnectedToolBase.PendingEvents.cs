@@ -4,6 +4,33 @@ namespace WpfDevTools.Mcp.Server.Tools;
 
 public abstract partial class PipeConnectedToolBase
 {
+    private static bool HasCleanupIncompleteDiagnostics(JsonElement payload) =>
+        payload.ValueKind == JsonValueKind.Object
+        && payload.TryGetProperty("cleanupIncomplete", out var cleanupIncomplete)
+        && cleanupIncomplete.ValueKind == JsonValueKind.True;
+
+    private static void WriteCleanupDiagnostics(Utf8JsonWriter writer, JsonElement payload)
+    {
+        if (!HasCleanupIncompleteDiagnostics(payload))
+        {
+            return;
+        }
+
+        writer.WriteBoolean("cleanupIncomplete", true);
+
+        if (payload.TryGetProperty("cleanupFailureMessage", out var cleanupFailureMessage))
+        {
+            writer.WritePropertyName("cleanupFailureMessage");
+            cleanupFailureMessage.WriteTo(writer);
+        }
+
+        if (payload.TryGetProperty("cleanupFailureType", out var cleanupFailureType))
+        {
+            writer.WritePropertyName("cleanupFailureType");
+            cleanupFailureType.WriteTo(writer);
+        }
+    }
+
     private static void WritePiggybackPendingEvents(Utf8JsonWriter writer, JsonElement pendingEvents)
     {
         if (pendingEvents.ValueKind != JsonValueKind.Array)

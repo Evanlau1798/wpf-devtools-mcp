@@ -324,8 +324,7 @@ public sealed class EventHandlerTraceModeTests
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("cleanupFailed");
         payload.GetProperty("diagnostics").GetProperty("cleanupFailureType").GetString().Should().Be("TimeoutException");
 
-        JsonSerializer.SerializeToElement(analyzer.GetEventHandlers(elementId, "Click"))
-            .GetProperty("handlerCount").GetInt32().Should().Be(1);
+        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
     }
 
     [StaFact]
@@ -601,6 +600,48 @@ public sealed class EventHandlerTraceModeTests
     }
 
     [StaFact]
+    public async Task TraceRoutedEvents_CaptureModeCancellation_WhenCleanupIsDeferred_ShouldEventuallyUnregisterHandlers()
+    {
+        var finder = new ElementFinder();
+        var button = new Button { Name = "DeferredCancellationCleanupButton" };
+        var analyzer = new EventAnalyzer(
+            finder,
+            watchEventBuffer: null,
+            cleanupInvoker: (dispatcher, removeHandlers) =>
+            {
+                dispatcher!.BeginInvoke(DispatcherPriority.Background, removeHandlers);
+                return new TimeoutException("Simulated deferred cancellation cleanup timeout");
+            });
+        var handler = new EventHandlers(analyzer);
+        var elementId = finder.GenerateElementId(button);
+        using var cts = new CancellationTokenSource();
+
+        var traceTask = handler.HandleAsync(
+            "trace_routed_events",
+            JsonSerializer.SerializeToElement(new
+            {
+                elementId,
+                eventName = "Click",
+                duration = 1000,
+                allowShortStartDuration = true
+            }),
+            cts.Token);
+
+        SpinWait.SpinUntil(
+            () => JsonSerializer.SerializeToElement(analyzer.GetEventTrace()).GetProperty("isTracing").GetBoolean(),
+            TimeSpan.FromSeconds(1)).Should().BeTrue();
+
+        cts.Cancel();
+
+        WaitForTaskCompletion(traceTask, button.Dispatcher, TimeSpan.FromSeconds(1)).Should().BeTrue();
+
+        var payload = JsonSerializer.SerializeToElement(await traceTask);
+        payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("cleanupFailed");
+
+        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+    }
+
+    [StaFact]
     public void TraceRoutedEvents_CaptureModeCancellation_ShouldNotStopNewerTraceSession()
     {
         var finder = new ElementFinder();
@@ -839,11 +880,9 @@ public sealed class EventHandlerTraceModeTests
             while (DateTime.UtcNow < deadline)
             {
                 var tracePayload = JsonSerializer.SerializeToElement(analyzer.GetEventTrace());
-                var handlerPayload = JsonSerializer.SerializeToElement(analyzer.GetEventHandlers(elementId, "Click"));
                 if (!tracePayload.GetProperty("isTracing").GetBoolean()
                     && tracePayload.TryGetProperty("cleanupFailed", out var cleanupFailed)
-                    && cleanupFailed.GetBoolean()
-                    && handlerPayload.GetProperty("handlerCount").GetInt32() == 1)
+                    && cleanupFailed.GetBoolean())
                 {
                     return true;
                 }

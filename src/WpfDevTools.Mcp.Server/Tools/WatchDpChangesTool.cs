@@ -28,7 +28,7 @@ public sealed class WatchDpChangesTool : PipeConnectedToolBase
         if (string.IsNullOrEmpty(propertyName))
             return CreateMissingParamError("propertyName");
 
-        return await SendInspectorRequestAsync(processId, "watch_dp_changes",
+        return await SendInspectorRequestWithoutPiggybackAsync(processId, "watch_dp_changes",
             new { elementId, propertyName }, cancellationToken);
     }
 }

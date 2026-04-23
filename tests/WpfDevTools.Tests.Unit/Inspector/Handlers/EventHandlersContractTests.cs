@@ -145,6 +145,27 @@ public sealed class EventHandlersContractTests : IDisposable
             "cleanupFailed");
     }
 
+    [Fact]
+    public async Task DrainEvents_WhenPostDrainCleanupReportsFailure_ShouldPreservePayloadAndSurfaceCleanupIncomplete()
+    {
+        var handler = new EventHandlers(
+            new EventAnalyzer(new ElementFinder()),
+            () => new InvalidOperationException("cleanup failed"));
+
+        var result = await handler.HandleAsync(
+            "drain_events",
+            JsonSerializer.SerializeToElement(new { maxEvents = 5 }),
+            CancellationToken.None);
+        var payload = JsonSerializer.SerializeToElement(result);
+
+        payload.GetProperty("success").GetBoolean().Should().BeTrue();
+        payload.GetProperty("pendingEventCount").GetInt32().Should().Be(0);
+        payload.GetProperty("droppedEventCount").GetInt32().Should().Be(0);
+        payload.GetProperty("cleanupIncomplete").GetBoolean().Should().BeTrue();
+        payload.GetProperty("cleanupFailureType").GetString().Should().Be(nameof(InvalidOperationException));
+        payload.GetProperty("cleanupFailureMessage").GetString().Should().Be("cleanup failed");
+    }
+
     private sealed class TestRelayCommand : System.Windows.Input.ICommand
     {
         private readonly Action _execute;

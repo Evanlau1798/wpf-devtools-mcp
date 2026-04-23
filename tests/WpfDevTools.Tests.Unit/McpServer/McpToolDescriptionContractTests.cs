@@ -38,6 +38,19 @@ public sealed class McpToolDescriptionContractTests
     }
 
     [Fact]
+    public void WatchDpChanges_Description_ShouldExplainTransientRegistrationLifecycle()
+    {
+        var description = GetDescriptionText("watch_dp_changes");
+
+        description.Should().Contain("next successful drain_events readback or piggyback cycle",
+            "AI agents must know exactly when STDIO watch registrations are cleared so they do not assume cross-session persistence");
+        description.Should().Contain("Any successful drain_events readback ends that transient watch cycle",
+            "AI agents must know that even non-DpChange drain reads expire the transient watch registration");
+        description.Should().Contain("transient",
+            "STDIO watch registrations should be described as transient to discourage relying on stale watcher state");
+    }
+
+    [Fact]
     public void BatchMutate_Description_ShouldDocumentRestoreStateSnapshotRecoveryPath()
     {
         var description = GetDescriptionText("batch_mutate");

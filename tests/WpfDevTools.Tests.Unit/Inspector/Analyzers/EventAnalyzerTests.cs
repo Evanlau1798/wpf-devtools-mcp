@@ -319,7 +319,7 @@ public class EventAnalyzerTests
     }
 
     [StaFact]
-    public void TraceRoutedEvents_WhenPreviousCleanupFails_ShouldKeepExistingTraceActiveAndRejectReplacement()
+    public void TraceRoutedEvents_WhenPreviousCleanupTimesOut_ShouldAllowReplacementWithoutReactivatingStaleHandlers()
     {
         var finder = new ElementFinder();
         var analyzer = new EventAnalyzer(
@@ -335,11 +335,39 @@ public class EventAnalyzerTests
         var replacementAttempt = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(analyzer.TraceRoutedEvents(elementId, "Click", 1000)));
 
-        replacementAttempt.GetProperty("errorCode").GetString().Should().Be("OperationFailed");
-        replacementAttempt.GetProperty("error").GetString().Should().Contain("Failed to stop existing event trace");
+        replacementAttempt.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
 
         JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(analyzer.GetEventTrace()))
-            .GetProperty("isTracing").GetBoolean().Should().BeFalse();
+            .GetProperty("handlerInvocationCount").GetInt32().Should().Be(1,
+                "stale handlers from the timed-out cleanup must not become active again after the replacement trace starts");
+
+        button.Dispatcher.Invoke(() =>
+        {
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(1);
+            while (DateTime.UtcNow < deadline)
+            {
+                var handlerCount = JsonSerializer.Deserialize<JsonElement>(
+                        JsonSerializer.Serialize(analyzer.GetEventHandlers(elementId, "Click")))
+                    .GetProperty("handlerCount").GetInt32();
+                if (handlerCount == 1)
+                {
+                    return;
+                }
+
+                var frame = new DispatcherFrame();
+                button.Dispatcher.BeginInvoke(
+                    DispatcherPriority.Background,
+                    new Action(() => frame.Continue = false));
+                Dispatcher.PushFrame(frame);
+            }
+
+            throw new TimeoutException("Timed out waiting for deferred routed event handler cleanup after replacement trace startup.");
+        });
+
+        JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(analyzer.GetEventTrace()))
+            .GetProperty("isTracing").GetBoolean().Should().BeTrue();
 
         JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(analyzer.GetEventHandlers(elementId, "Click")))
             .GetProperty("handlerCount").GetInt32().Should().Be(1);

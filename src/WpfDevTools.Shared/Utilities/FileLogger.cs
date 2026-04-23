@@ -210,19 +210,22 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 #if NET48
             while (!cancellationToken.IsCancellationRequested)
             {
-                if (await _logQueue.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+                var canRead = await _logQueue.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false);
+                if (!ShouldContinueNet48ConsumerLoop(canRead, cancellationToken))
                 {
-                    while (_logQueue.Reader.TryRead(out var logEntry))
+                    break;
+                }
+
+                while (_logQueue.Reader.TryRead(out var logEntry))
+                {
+                    try
                     {
-                        try
-                        {
-                            var entries = DrainLogEntries(logEntry);
-                            await WriteEntriesCoreAsync(entries, cancellationToken).ConfigureAwait(false);
-                        }
-                        catch (Exception ex) when (ex is not OperationCanceledException)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Logging failed: {ex.Message}");
-                        }
+                        var entries = DrainLogEntries(logEntry);
+                        await WriteEntriesCoreAsync(entries, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Logging failed: {ex.Message}");
                     }
                 }
             }
@@ -353,6 +356,9 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 
     internal Task ProcessingTaskForTesting => _processingTask;
     internal Exception? LastShutdownErrorForTesting => _lastShutdownError;
+
+    internal static bool ShouldContinueNet48ConsumerLoop(bool canRead, CancellationToken cancellationToken)
+        => canRead && !cancellationToken.IsCancellationRequested;
 
     internal static TimeSpan GetRemainingShutdownTimeout(TimeSpan shutdownTimeout, TimeSpan elapsed)
     {

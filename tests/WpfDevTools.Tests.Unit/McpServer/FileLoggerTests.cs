@@ -2,6 +2,7 @@ using Xunit;
 using FluentAssertions;
 using WpfDevTools.Shared.Utilities;
 using System.Diagnostics;
+using System.Threading.Channels;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -230,5 +231,37 @@ public class FileLoggerTests : IAsyncDisposable
             TimeSpan.FromMilliseconds(250));
 
         remaining.Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task ShouldContinueNet48ConsumerLoop_WhenChannelIsCompleted_ShouldReturnFalse()
+    {
+        var channel = Channel.CreateUnbounded<string>();
+        channel.Writer.TryComplete();
+
+        var canRead = await channel.Reader.WaitToReadAsync(CancellationToken.None);
+
+        FileLogger.ShouldContinueNet48ConsumerLoop(canRead, CancellationToken.None).Should().BeFalse(
+            "the NET48 consumer loop must stop once the channel is completed and drained so dispose does not wait until cancellation");
+    }
+
+    [Fact]
+    public async Task ShouldContinueNet48ConsumerLoop_WhenEntriesRemain_ShouldReturnTrue()
+    {
+        var channel = Channel.CreateUnbounded<string>();
+        channel.Writer.TryWrite("entry");
+
+        var canRead = await channel.Reader.WaitToReadAsync(CancellationToken.None);
+
+        FileLogger.ShouldContinueNet48ConsumerLoop(canRead, CancellationToken.None).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldContinueNet48ConsumerLoop_WhenCancellationIsRequested_ShouldReturnFalse()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        FileLogger.ShouldContinueNet48ConsumerLoop(canRead: true, cts.Token).Should().BeFalse();
     }
 }

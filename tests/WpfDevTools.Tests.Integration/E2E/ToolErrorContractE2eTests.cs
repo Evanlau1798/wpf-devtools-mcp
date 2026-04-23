@@ -43,11 +43,12 @@ public class ToolErrorContractE2eTests : IDisposable
 
 [Collection("McpE2E")]
 [Trait("Category", "E2E")]
-public sealed class InspectorToolErrorContractE2eTests
+public sealed class InspectorToolErrorContractE2eTests : SharedStateMcpE2eTestBase
 {
     private readonly McpE2eFixture _fixture;
 
     public InspectorToolErrorContractE2eTests(McpE2eFixture fixture)
+        : base(fixture)
     {
         _fixture = fixture;
     }

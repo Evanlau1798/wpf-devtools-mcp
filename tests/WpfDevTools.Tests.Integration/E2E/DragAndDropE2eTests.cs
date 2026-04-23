@@ -4,11 +4,12 @@ namespace WpfDevTools.Tests.Integration.E2E;
 
 [Collection("McpE2E")]
 [Trait("Category", "E2E")]
-public sealed class DragAndDropE2eTests
+public sealed class DragAndDropE2eTests : SharedStateMcpE2eTestBase
 {
     private readonly McpE2eFixture _fixture;
 
     public DragAndDropE2eTests(McpE2eFixture fixture)
+        : base(fixture)
     {
         _fixture = fixture;
     }

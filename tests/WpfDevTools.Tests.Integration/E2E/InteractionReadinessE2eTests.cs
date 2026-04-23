@@ -4,26 +4,15 @@ namespace WpfDevTools.Tests.Integration.E2E;
 
 [Collection("McpE2E")]
 [Trait("Category", "E2E")]
-public sealed class InteractionReadinessE2eTests : IAsyncLifetime
+public sealed class InteractionReadinessE2eTests : SharedStateMcpE2eTestBase
 {
     private readonly McpE2eFixture _fixture;
 
     public InteractionReadinessE2eTests(McpE2eFixture fixture)
+        : base(fixture)
     {
         _fixture = fixture;
     }
-
-    public async Task InitializeAsync()
-    {
-        if (_fixture.SkipReason != null)
-        {
-            return;
-        }
-
-        await E2eTestHelpers.ResetTestAppStateAsync(_fixture.Client, _fixture.TestAppProcessId);
-    }
-
-    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task GetInteractionReadiness_ShouldReportDisabledSaveButtonAsNotReady()

@@ -6,6 +6,9 @@ internal static class TestAppProcessLauncher
 {
     private static readonly TimeSpan DefaultStartupTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan DefaultInputIdleGracePeriod = TimeSpan.FromMilliseconds(250);
+
+    internal readonly record struct ProcessWindowState(bool HasExited, bool HasMainWindow);
 
     public static Process StartAndWaitForMainWindow(string executablePath, TimeSpan? startupTimeout = null)
     {
@@ -49,26 +52,82 @@ internal static class TestAppProcessLauncher
     }
 
     public static bool WaitForMainWindow(Process process, TimeSpan timeout)
+        => WaitForMainWindowCore(
+            timeout,
+            remainingTimeout => WaitForInputIdle(process, remainingTimeout),
+            () =>
+            {
+                process.Refresh();
+                return new ProcessWindowState(
+                    process.HasExited,
+                    process.MainWindowHandle != IntPtr.Zero);
+            },
+            static delay => Thread.Sleep(delay));
+
+    internal static bool WaitForMainWindowCore(
+        TimeSpan timeout,
+        Func<TimeSpan, bool> waitForInputIdle,
+        Func<ProcessWindowState> readState,
+        Action<TimeSpan> sleep)
     {
-        var stopwatch = Stopwatch.StartNew();
-
-        while (stopwatch.Elapsed < timeout)
+        if (timeout <= TimeSpan.Zero)
         {
-            process.Refresh();
+            return false;
+        }
 
-            if (process.HasExited)
+        var stopwatch = Stopwatch.StartNew();
+        var remainingTimeout = GetRemainingTimeout(timeout, stopwatch);
+        if (remainingTimeout > TimeSpan.Zero)
+        {
+            var inputIdleTimeout = remainingTimeout < DefaultInputIdleGracePeriod
+                ? remainingTimeout
+                : DefaultInputIdleGracePeriod;
+            waitForInputIdle(inputIdleTimeout);
+        }
+
+        while ((remainingTimeout = GetRemainingTimeout(timeout, stopwatch)) > TimeSpan.Zero)
+        {
+            var state = readState();
+
+            if (state.HasExited)
             {
                 return false;
             }
 
-            if (process.MainWindowHandle != IntPtr.Zero)
+            if (state.HasMainWindow)
             {
                 return true;
             }
 
-            Thread.Sleep(DefaultPollInterval);
+            sleep(remainingTimeout < DefaultPollInterval ? remainingTimeout : DefaultPollInterval);
         }
 
         return false;
+    }
+
+    private static bool WaitForInputIdle(Process process, TimeSpan timeout)
+    {
+        if (timeout <= TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            var milliseconds = (int)Math.Min(timeout.TotalMilliseconds, int.MaxValue);
+            return process.WaitForInputIdle(milliseconds);
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static TimeSpan GetRemainingTimeout(TimeSpan timeout, Stopwatch stopwatch)
+    {
+        var remainingTimeout = timeout - stopwatch.Elapsed;
+        return remainingTimeout > TimeSpan.Zero
+            ? remainingTimeout
+            : TimeSpan.Zero;
     }
 }

@@ -93,6 +93,17 @@ public sealed class AgentGuidanceDocumentationTests
             "maintainer docs should mention error annotations on MCP tool results");
     }
 
+    [Fact]
+    public void RepoAgentsGuide_ShouldTrackCurrentToolCount()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("AGENTS.md"));
+
+        content.Should().Contain("64 MCP tools",
+            "AGENTS.md is agent-facing repository guidance and should match the current public tool count");
+        content.Should().NotContain("63 MCP tools",
+            "AGENTS.md should not preserve the stale pre-64 tool count");
+    }
+
     private static string ExtractSection(string content, string heading)
     {
         var startIndex = content.IndexOf(heading, StringComparison.Ordinal);

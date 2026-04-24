@@ -293,6 +293,39 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void ManualPackageFallbackDocs_ShouldDescribeReleaseProvenanceSidecars()
+    {
+        var files = new[]
+        {
+            "docfx/quickstart/index.md",
+            "docfx/quickstart/ai-agent-clients.md",
+            "docfx/quickstart/claude-code.md",
+            "docfx/quickstart/openai-codex.md",
+            "docfx/quickstart/claude-desktop.md",
+            "docfx/quickstart/cursor-vscode.md",
+            "docfx/production/deployment.md",
+            "docfx/zh-tw/quickstart/index.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md",
+            "docfx/zh-tw/quickstart/claude-code.md",
+            "docfx/zh-tw/quickstart/openai-codex.md",
+            "docfx/zh-tw/quickstart/claude-desktop.md",
+            "docfx/zh-tw/quickstart/cursor-vscode.md",
+            "docfx/zh-tw/production/deployment.md"
+        };
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("SHA256SUMS.txt",
+                $"{file} should require release checksum sidecars before trusting an extracted package");
+            content.Should().Contain("release-assets.json",
+                $"{file} should point readers at the canonical release asset metadata before run.bat is trusted");
+            content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
+                $"{file} should explain how to provide an explicit signer pin when verified archive sidecars are no longer adjacent");
+        }
+    }
+
+    [Fact]
     public void Readme_ShouldDescribeCursorUsingDedicatedCursorSchema()
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));

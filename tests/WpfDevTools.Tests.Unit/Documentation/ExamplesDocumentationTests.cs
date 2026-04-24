@@ -30,6 +30,21 @@ public sealed class ExamplesDocumentationTests
             "examples should demonstrate process name narrowing with nameFilter instead of an invalid windowFilter value");
     }
 
+    [Fact]
+    public void Examples_ShouldContainOnlyCurrentSceneFirstEdition()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("EXAMPLES.md"));
+
+        Regex.Matches(content, "^# WPF DevTools MCP Server - Usage Examples\r?$", RegexOptions.Multiline)
+            .Should().HaveCount(1, "EXAMPLES.md should not append a stale second edition below the current scene-first guidance");
+        content.Should().NotContain("// 1. List running WPF processes",
+            "examples should not regress to a list-first workflow as the default entry path");
+        content.Should().NotContain("// 1. Get the Visual Tree to find elements with DataContext",
+            "examples should keep scene-first guidance ahead of tree-heavy workflows");
+        content.Should().NotContain("`TIMEOUT` ->",
+            "examples should not keep stale uppercase legacy error-code snippets from an appended older edition");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

@@ -227,6 +227,7 @@ public static class Bootstrap
                 }
             }, () => Interlocked.Exchange(ref rollbackRequested, 1));
 
+            IntegrationTestDelayHooks.DelayBeforeHostStartIfConfigured();
             HostStartAction(host);
             HostStartedCallback?.Invoke(host);
 

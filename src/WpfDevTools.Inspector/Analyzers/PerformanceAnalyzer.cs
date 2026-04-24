@@ -20,9 +20,11 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
 {
+    private static readonly ElementFinder SharedElementFinder = new ElementFinder();
+    private static int _sharedElementFinderDisposed = 0;
     private readonly ElementFinder _elementFinder;
 
-    internal PerformanceAnalyzer() : this(new ElementFinder())
+    internal PerformanceAnalyzer() : this(SharedElementFinder)
     {
     }
 
@@ -47,8 +49,8 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
     // CRITICAL FIX: Static constructor to register cleanup on AppDomain unload
     static PerformanceAnalyzer()
     {
-        AppDomain.CurrentDomain.ProcessExit += (s, e) => StopMonitoring();
-        AppDomain.CurrentDomain.DomainUnload += (s, e) => StopMonitoring();
+        AppDomain.CurrentDomain.ProcessExit += (s, e) => DisposeSharedResources();
+        AppDomain.CurrentDomain.DomainUnload += (s, e) => DisposeSharedResources();
     }
 
     // Keep last 60 frames (1 second at 60 FPS)
@@ -56,6 +58,7 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
 
     private static readonly List<WeakReference> _bindingReferences = new List<WeakReference>();
     private static readonly object _bindingLock = new object();
+    private static int _forcedGcPathExecutionCount = 0;
 
     /// <summary>
     /// Get render statistics
@@ -213,6 +216,7 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
         // Only force GC when off the UI thread to avoid blocking rendering
         if (Application.Current?.Dispatcher.CheckAccess() != true)
         {
+            Interlocked.Increment(ref _forcedGcPathExecutionCount);
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
@@ -228,9 +232,9 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
 
                 foreach (var weakRef in _bindingReferences.ToList())
                 {
-                    if (weakRef.IsAlive && weakRef.Target != null)
+                    var target = weakRef.Target;
+                    if (target != null)
                     {
-                        var target = weakRef.Target;
                         aliveBindings.Add(new
                         {
                             type = target.GetType().Name,
@@ -243,6 +247,8 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                         deadCount++;
                     }
                 }
+
+                var observedTrackedCount = aliveBindings.Count + deadCount;
 
                 // Clean up dead references
                 _bindingReferences.RemoveAll(wr => !wr.IsAlive);
@@ -265,12 +271,12 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                     .ToList();
                 var (confidence, guidance) = PerformanceConfidencePolicy.EvaluateBindingLeakSampling(
                     effectiveSamplingDurationMs,
-                    _bindingReferences.Count);
+                    observedTrackedCount);
 
                 return new
                 {
                     success = true,
-                    totalTracked = _bindingReferences.Count,
+                    totalTracked = observedTrackedCount,
                     aliveBindings = aliveBindings.Count,
                     deadBindings = deadCount,
                     threshold,
@@ -320,6 +326,26 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
         lock (_bindingLock)
         {
             _bindingReferences.Clear();
+        }
+    }
+
+    internal static int GetForcedGcPathExecutionCount()
+    {
+        return Volatile.Read(ref _forcedGcPathExecutionCount);
+    }
+
+    internal static void ResetForcedGcPathExecutionCount()
+    {
+        Interlocked.Exchange(ref _forcedGcPathExecutionCount, 0);
+    }
+
+    private static void DisposeSharedResources()
+    {
+        StopMonitoring();
+
+        if (Interlocked.Exchange(ref _sharedElementFinderDisposed, 1) == 0)
+        {
+            SharedElementFinder.Dispose();
         }
     }
 

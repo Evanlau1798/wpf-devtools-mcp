@@ -1,6 +1,9 @@
+using System.Diagnostics;
 using Xunit;
 using FluentAssertions;
 using WpfDevTools.Injector;
+using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Enums;
 
 namespace WpfDevTools.Tests.Unit.Injector;
@@ -106,5 +109,95 @@ public class ProcessInjectorTests
         result.Success.Should().BeFalse();
         // Should fail quickly due to process not found, not timeout
         result.Error.Should().Be(InjectionError.ProcessNotFound);
+    }
+
+    [Fact]
+    public void InjectWithBootstrap_WhenSharedBudgetIsExhaustedBeforeBootstrapPhaseStart_ShouldReturnStructuredTimeout()
+    {
+        var processId = Process.GetCurrentProcess().Id;
+        var injector = new ProcessInjector(
+            new AlwaysWpfProcessDetector(processId),
+            new SuccessfulDllInjector(),
+            () => new PipeReadyProbe((_, _) => true, () => DateTime.UtcNow, _ => { }));
+        var request = new InjectionRequest
+        {
+            ProcessId = processId,
+            BootstrapperDllPath = "bootstrapper.dll",
+            InspectorDllPath = "inspector.dll",
+            ExpectedPipeName = "WpfDevTools_TestPipe",
+            TotalTimeout = TimeSpan.Zero
+        };
+
+        var result = injector.InjectWithBootstrap(request);
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be(InjectionError.Timeout);
+        result.FailedAtStage.Should().Be(BootstrapStage.LoadLibrary);
+        result.BootstrapExitCode.Should().BeNull();
+        result.TimeoutReason.Should().Be(InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart);
+    }
+
+    [Fact]
+    public void InjectWithBootstrap_WhenSharedBudgetIsExhaustedBeforePipeReadyPhaseStart_ShouldReturnStructuredPipeReadyTimeout()
+    {
+        var processId = Process.GetCurrentProcess().Id;
+        var injector = new ProcessInjector(
+            new AlwaysWpfProcessDetector(processId),
+            new SuccessfulDllInjector(delay: TimeSpan.FromMilliseconds(300)),
+            () => new PipeReadyProbe((_, _) => true, () => DateTime.UtcNow, _ => { }));
+        var request = new InjectionRequest
+        {
+            ProcessId = processId,
+            BootstrapperDllPath = "bootstrapper.dll",
+            InspectorDllPath = "inspector.dll",
+            ExpectedPipeName = "WpfDevTools_TestPipe",
+            TotalTimeout = TimeSpan.FromMilliseconds(200)
+        };
+
+        var result = injector.InjectWithBootstrap(request);
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be(InjectionError.PipeReadyTimeout);
+        result.FailedAtStage.Should().Be(BootstrapStage.PipeReady);
+        result.BootstrapExitCode.Should().Be(0);
+        result.TimeoutReason.Should().Be(InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart);
+    }
+
+    private sealed class AlwaysWpfProcessDetector(int expectedProcessId) : WpfProcessDetector
+    {
+        public override WpfProcessInfo? GetProcessInfo(int processId)
+        {
+            if (processId != expectedProcessId)
+            {
+                return null;
+            }
+
+            return new WpfProcessInfo
+            {
+                ProcessId = processId,
+                ProcessName = "TestProcess",
+                Architecture = Environment.Is64BitProcess ? ProcessArchitecture.X64 : ProcessArchitecture.X86,
+                Runtime = TargetRuntime.NetCore,
+                IsWpfApplication = true
+            };
+        }
+    }
+
+    private sealed class SuccessfulDllInjector(TimeSpan? delay = null) : DllInjector
+    {
+        public override int InjectAndCallExport(
+            IntPtr hProcess,
+            string bootstrapperPath,
+            string exportName,
+            string parameters,
+            TimeSpan timeout)
+        {
+            if (delay.HasValue)
+            {
+                Thread.Sleep(delay.Value);
+            }
+
+            return 0;
+        }
     }
 }

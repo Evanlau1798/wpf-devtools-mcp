@@ -224,7 +224,7 @@ public class DllInjector
     ///         write params to target memory, CreateRemoteThread(BootstrapInspector, params)
     /// </summary>
     /// <returns>Step 2 remote thread exit code, or negative value on failure</returns>
-    public int InjectAndCallExport(
+    public virtual int InjectAndCallExport(
         IntPtr hProcess,
         string bootstrapperPath,
         string exportName,

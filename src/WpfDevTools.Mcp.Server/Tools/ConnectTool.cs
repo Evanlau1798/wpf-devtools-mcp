@@ -34,6 +34,8 @@ public sealed partial class ConnectTool
     private readonly Func<string, IEnumerable<string>> _bootstrapperCandidateResolver;
     private readonly PipeReadyProbe _pipeReadyProbe;
     private readonly Func<WpfProcessInfo, bool> _isRawInjectionTargetAllowed;
+    private readonly Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>> _connectInjectedSessionAsync;
+    private readonly TimeSpan _connectTimeout;
 
     /// <summary>
     /// Create ConnectTool with dependency injection
@@ -49,6 +51,35 @@ public sealed partial class ConnectTool
         Func<string, IEnumerable<string>>? bootstrapperCandidateResolver = null,
         PipeReadyProbe? pipeReadyProbe = null,
         Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null)
+        : this(
+            sessionManager,
+            injector,
+            processDetector,
+            dllPathValidator,
+            isCurrentProcessElevated,
+            workingSetResolver,
+            inspectorCandidateResolver,
+            bootstrapperCandidateResolver,
+            pipeReadyProbe,
+            isRawInjectionTargetAllowed,
+                connectInjectedSessionAsync: null,
+                connectTimeout: null)
+    {
+    }
+
+    internal ConnectTool(
+        SessionManager sessionManager,
+        IProcessInjector injector,
+        WpfProcessDetector? processDetector,
+        Action<string>? dllPathValidator,
+        Func<bool>? isCurrentProcessElevated,
+        Func<int, long>? workingSetResolver,
+        Func<string, IEnumerable<string>>? inspectorCandidateResolver,
+        Func<string, IEnumerable<string>>? bootstrapperCandidateResolver,
+        PipeReadyProbe? pipeReadyProbe,
+        Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed,
+        Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>>? connectInjectedSessionAsync,
+        TimeSpan? connectTimeout)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _injector = injector ?? throw new ArgumentNullException(nameof(injector));
@@ -60,6 +91,9 @@ public sealed partial class ConnectTool
         _bootstrapperCandidateResolver = bootstrapperCandidateResolver ?? DllCandidateResolver.EnumerateBootstrapperCandidates;
         _pipeReadyProbe = pipeReadyProbe ?? new PipeReadyProbe();
         _isRawInjectionTargetAllowed = isRawInjectionTargetAllowed ?? RawInjectionTargetPolicy.IsAllowed;
+        _connectInjectedSessionAsync = connectInjectedSessionAsync
+            ?? ((processId, timeout, cancellationToken) => _sessionManager.ConnectInjectedSessionAsync(processId, timeout, cancellationToken));
+        _connectTimeout = connectTimeout ?? TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds);
     }
 
     /// <summary>
@@ -255,7 +289,7 @@ public sealed partial class ConnectTool
             var isRawInjectionTargetAllowed = _isRawInjectionTargetAllowed(processInfo);
             var existingHostProbeBudget = likelySdkOnlyPackaging
                 ? (isRawInjectionTargetAllowed
-                    ? TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds)
+                    ? _connectTimeout
                     : McpServerConfiguration.ExternalSdkHostReuseGracePeriod)
                 : TimeSpan.FromMilliseconds(250);
 
@@ -333,7 +367,7 @@ public sealed partial class ConnectTool
 
             var remainingConnectTimeoutBeforeInjection = GetRemainingPipeConnectTimeout(
                 connectStopwatch.Elapsed,
-                TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds));
+                _connectTimeout);
             if (remainingConnectTimeoutBeforeInjection <= TimeSpan.Zero)
             {
                 return new
@@ -389,7 +423,7 @@ public sealed partial class ConnectTool
             {
                 var remainingPipeConnectTimeout = GetRemainingPipeConnectTimeout(
                     connectStopwatch.Elapsed,
-                    TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds));
+                    _connectTimeout);
                 if (remainingPipeConnectTimeout <= TimeSpan.Zero)
                 {
                     return new
@@ -404,7 +438,7 @@ public sealed partial class ConnectTool
                 NamedPipeConnectFailure pipeConnectFailure;
                 try
                 {
-                    pipeConnectFailure = await _sessionManager.ConnectInjectedSessionAsync(
+                    pipeConnectFailure = await _connectInjectedSessionAsync(
                         processId,
                         remainingPipeConnectTimeout,
                         cancellationToken).ConfigureAwait(false);
@@ -461,7 +495,7 @@ public sealed partial class ConnectTool
     {
         var remainingPipeConnectTimeout = GetRemainingPipeConnectTimeout(
             elapsedBeforeProbe,
-            TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds));
+            _connectTimeout);
         if (remainingPipeConnectTimeout <= TimeSpan.Zero)
         {
             return null;
@@ -761,6 +795,13 @@ public sealed partial class ConnectTool
 
     private static string DescribeBootstrapFailureMessage(InjectionResult injectionResult)
     {
+        if (injectionResult.BootstrapExitCode is int exitCode &&
+            exitCode < 0 &&
+            !string.IsNullOrWhiteSpace(injectionResult.ErrorMessage))
+        {
+            return injectionResult.ErrorMessage;
+        }
+
         return injectionResult.FailedAtStage switch
         {
             BootstrapStage.ClrDetection => "Bootstrap failed during CLR detection.",

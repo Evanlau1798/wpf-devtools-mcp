@@ -48,7 +48,7 @@ public class ElementScreenshotToolTests
     }
 
     [Fact]
-    public async Task Execute_WithoutOutputMode_ShouldDefaultToMetadata()
+    public async Task Execute_WithoutOutputMode_ShouldDefaultToBase64()
     {
         const int processId = 12345;
         const string pipeName = "WpfDevTools_Test_ElementScreenshotDefault";
@@ -96,7 +96,7 @@ public class ElementScreenshotToolTests
             var request = await requestCompletion.Task.WaitAsync(TimeSpan.FromSeconds(5));
             request.Params.Should().NotBeNull();
             request.Params!.Value.TryGetProperty("outputMode", out var outputMode).Should().BeTrue();
-            outputMode.GetString().Should().Be("metadata");
+            outputMode.GetString().Should().Be("base64");
         }
         finally
         {

@@ -1,11 +1,13 @@
 using Xunit;
 using FluentAssertions;
+using System.Text.Json;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 using System.Windows;
 using System.Windows.Controls;
 using System.ComponentModel;
 using System.Windows.Input;
+using System.Windows.Data;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -28,19 +30,31 @@ public class MvvmAnalyzerIntegrationTests
         // Arrange & Act
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
 
             var viewModel = new TestViewModel { Name = "Test", Age = 25 };
             var stackPanel = new StackPanel { DataContext = viewModel };
+            var stackPanelId = elementFinder.GenerateElementId(stackPanel);
 
             Application.Current.MainWindow.Content = stackPanel;
+            EvictElementCacheEntry(elementFinder, stackPanelId);
 
-            return analyzer.GetViewModel(elementId: null);
+            return analyzer.GetViewModel(stackPanelId);
         });
 
         // Assert
-        result.Should().NotBeNull();
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("viewModelType").GetString().Should().Be("TestViewModel");
+        json.GetProperty("implementsINotifyPropertyChanged").GetBoolean().Should().BeTrue();
+        json.GetProperty("properties").EnumerateArray().Should().ContainSingle(p =>
+            p.GetProperty("name").GetString() == "Name"
+            && p.GetProperty("value").GetString() == "Test"
+            && p.GetProperty("canWrite").GetBoolean());
+        json.GetProperty("properties").EnumerateArray().Should().ContainSingle(p =>
+            p.GetProperty("name").GetString() == "Age"
+            && p.GetProperty("value").GetString() == "25");
     }
 
     [Fact]
@@ -49,19 +63,26 @@ public class MvvmAnalyzerIntegrationTests
         // Arrange & Act
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
 
             var viewModel = new TestViewModel { Name = "Test", Age = 25 };
             var stackPanel = new StackPanel { DataContext = viewModel };
+            var stackPanelId = elementFinder.GenerateElementId(stackPanel);
 
             Application.Current.MainWindow.Content = stackPanel;
+            EvictElementCacheEntry(elementFinder, stackPanelId);
 
-            return analyzer.GetCommands(elementId: null);
+            return analyzer.GetCommands(stackPanelId);
         });
 
         // Assert
-        result.Should().NotBeNull();
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("commands").EnumerateArray().Should().ContainSingle(command =>
+            command.GetProperty("name").GetString() == "TestCommand"
+            && command.GetProperty("type").GetString() == "ICommand"
+            && command.GetProperty("canExecute").GetBoolean());
     }
 
     [Fact]
@@ -70,19 +91,30 @@ public class MvvmAnalyzerIntegrationTests
         // Arrange & Act
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
 
             var viewModel = new TestViewModel { Name = "Test", Age = 25 };
             var stackPanel = new StackPanel { DataContext = viewModel };
+            var stackPanelId = elementFinder.GenerateElementId(stackPanel);
 
             Application.Current.MainWindow.Content = stackPanel;
+            EvictElementCacheEntry(elementFinder, stackPanelId);
 
-            return analyzer.ExecuteCommand(elementId: null, commandName: "TestCommand", parameter: null);
+            var commandResult = analyzer.ExecuteCommand(stackPanelId, commandName: "TestCommand", parameter: null);
+            return new
+            {
+                result = commandResult,
+                executionCount = viewModel.CommandExecutions
+            };
         });
 
         // Assert
-        result.Should().NotBeNull();
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("executionCount").GetInt32().Should().Be(1);
+        json.GetProperty("result").GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("result").GetProperty("commandName").GetString().Should().Be("TestCommand");
+        json.GetProperty("result").GetProperty("executed").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
@@ -91,19 +123,31 @@ public class MvvmAnalyzerIntegrationTests
         // Arrange & Act
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
 
             var viewModel = new TestViewModel { Name = "Test", Age = 25 };
             var stackPanel = new StackPanel { DataContext = viewModel };
+            var stackPanelId = elementFinder.GenerateElementId(stackPanel);
 
             Application.Current.MainWindow.Content = stackPanel;
+            EvictElementCacheEntry(elementFinder, stackPanelId);
 
-            return analyzer.ModifyViewModel(elementId: null, propertyName: "Name", value: "Modified");
+            var modifyResult = analyzer.ModifyViewModel(stackPanelId, propertyName: "Name", value: "Modified");
+            return new
+            {
+                result = modifyResult,
+                actualName = viewModel.Name
+            };
         });
 
         // Assert
-        result.Should().NotBeNull();
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("actualName").GetString().Should().Be("Modified");
+        json.GetProperty("result").GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("result").GetProperty("propertyName").GetString().Should().Be("Name");
+        json.GetProperty("result").GetProperty("oldValue").GetString().Should().Be("Test");
+        json.GetProperty("result").GetProperty("newValue").GetString().Should().Be("Modified");
     }
 
     [Fact]
@@ -112,25 +156,60 @@ public class MvvmAnalyzerIntegrationTests
         // Arrange & Act
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
 
             var viewModel = new TestViewModel { Name = "", Age = -1 }; // Invalid values
+            var nameTextBox = new TextBox();
+            nameTextBox.SetBinding(TextBox.TextProperty, new Binding(nameof(TestViewModel.Name))
+            {
+                ValidatesOnDataErrors = true,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+            });
+
+            var ageTextBox = new TextBox();
+            ageTextBox.SetBinding(TextBox.TextProperty, new Binding(nameof(TestViewModel.Age))
+            {
+                ValidatesOnDataErrors = true,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+            });
+
             var stackPanel = new StackPanel { DataContext = viewModel };
+            stackPanel.Children.Add(nameTextBox);
+            stackPanel.Children.Add(ageTextBox);
+            var stackPanelId = elementFinder.GenerateElementId(stackPanel);
 
             Application.Current.MainWindow.Content = stackPanel;
+            Application.Current.MainWindow.Show();
+            Application.Current.MainWindow.UpdateLayout();
+            nameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            ageTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            EvictElementCacheEntry(elementFinder, stackPanelId);
 
-            return analyzer.GetValidationErrors(elementId: null);
+            return analyzer.GetValidationErrors(stackPanelId);
         });
 
         // Assert
-        result.Should().NotBeNull();
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("errorCount").GetInt32().Should().Be(2);
+        json.GetProperty("errors").EnumerateArray().Should().Contain(error =>
+            error.GetProperty("errorContent").GetString() == "Name is required");
+        json.GetProperty("errors").EnumerateArray().Should().Contain(error =>
+            error.GetProperty("errorContent").GetString() == "Age must be positive");
+    }
+
+    private static void EvictElementCacheEntry(ElementFinder elementFinder, string elementId)
+    {
+        elementFinder.TryRemoveCachedElement(elementId).Should().BeTrue();
     }
 
     private class TestViewModel : INotifyPropertyChanged, IDataErrorInfo
     {
         private string _name = "";
         private int _age;
+
+        public int CommandExecutions { get; private set; }
 
         public string Name
         {
@@ -156,7 +235,7 @@ public class MvvmAnalyzerIntegrationTests
 
         public TestViewModel()
         {
-            TestCommand = new RelayCommand(_ => { }, _ => true);
+            TestCommand = new RelayCommand(_ => CommandExecutions++, _ => true);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

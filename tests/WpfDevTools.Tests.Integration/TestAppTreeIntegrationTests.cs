@@ -3,10 +3,10 @@ using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Tests.TestApp;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Media;
+using System.Text.Json;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -16,188 +16,294 @@ namespace WpfDevTools.Tests.Integration;
 /// and logical tree traversal.
 /// </summary>
 [Collection("WpfIntegration")]
-public class TestAppTreeIntegrationTests
+public class TestAppTreeIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;
+    private Window? _previousMainWindow;
+    private MainWindow? _activeTestAppWindow;
 
     public TestAppTreeIntegrationTests(WpfApplicationFixture fixture)
     {
         _fixture = fixture;
     }
 
+    public void Dispose()
+    {
+        _fixture.RunOnUIThread(() =>
+        {
+            if (_activeTestAppWindow == null)
+            {
+                return;
+            }
+
+            _activeTestAppWindow.Close();
+            _activeTestAppWindow = null;
+
+            if (Application.Current != null)
+            {
+                Application.Current.MainWindow = _previousMainWindow;
+            }
+
+            _previousMainWindow = null;
+        });
+    }
+
     [Fact]
     public void GetVisualTree_WithDeepNesting_ShouldTraverseAllLevels()
     {
-        // Arrange - recreate TestApp Tab 2 nested tree (4-level deep borders)
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new VisualTreeAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
+            SelectTab(context.MainTabControl, context.NestedTreeTab, context.Window);
 
-            var viewModel = new TestViewModel { Name = "DeepTest", Age = 1 };
+            var rootId = elementFinder.GenerateElementId(context.NestedRootBorder);
 
-            // Level 1
-            var border1 = new Border
+            var cachedResult = analyzer.GetVisualTree(maxDepth: 10, elementId: rootId);
+            EvictElementCacheEntry(elementFinder, rootId);
+            var lookupResult = analyzer.GetVisualTree(maxDepth: 10, elementId: rootId);
+
+            return JsonSerializer.SerializeToElement(new
             {
-                BorderBrush = Brushes.Blue,
-                BorderThickness = new Thickness(2),
-                Padding = new Thickness(10)
-            };
-            var stack1 = new StackPanel();
-            stack1.Children.Add(new TextBlock { Text = "Level 1", FontWeight = FontWeights.Bold });
-
-            // Level 2
-            var border2 = new Border
-            {
-                BorderBrush = Brushes.Green,
-                BorderThickness = new Thickness(2),
-                Padding = new Thickness(10)
-            };
-            var stack2 = new StackPanel();
-            stack2.Children.Add(new TextBlock { Text = "Level 2", FontWeight = FontWeights.Bold });
-
-            // Level 3
-            var border3 = new Border
-            {
-                BorderBrush = Brushes.Orange,
-                BorderThickness = new Thickness(2),
-                Padding = new Thickness(10)
-            };
-            var stack3 = new StackPanel();
-            stack3.Children.Add(new TextBlock { Text = "Level 3", FontWeight = FontWeights.Bold });
-
-            // Level 4
-            var border4 = new Border
-            {
-                BorderBrush = Brushes.Red,
-                BorderThickness = new Thickness(2),
-                Padding = new Thickness(10)
-            };
-            var stack4 = new StackPanel { DataContext = viewModel };
-            stack4.Children.Add(new TextBlock { Text = "Level 4 (Deep nesting)", FontWeight = FontWeights.Bold });
-            stack4.Children.Add(new Button { Content = "Deep Button" });
-            var deepTextBox = new TextBox();
-            deepTextBox.SetBinding(TextBox.TextProperty, new Binding("Name"));
-            stack4.Children.Add(deepTextBox);
-
-            border4.Child = stack4;
-            stack3.Children.Add(border4);
-            border3.Child = stack3;
-            stack2.Children.Add(border3);
-            border2.Child = stack2;
-            stack1.Children.Add(border2);
-            border1.Child = stack1;
-
-            Application.Current.MainWindow.Content = border1;
-
-            return analyzer.GetVisualTree(maxDepth: 10, elementId: null);
+                cachedResult,
+                lookupResult
+            });
         });
 
-        result.Should().NotBeNull();
+        var cachedResult = result.GetProperty("cachedResult");
+        var lookupResult = result.GetProperty("lookupResult");
+
+        cachedResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        lookupResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        cachedResult.GetProperty("returnedNodeCount").GetInt32().Should().Be(
+            lookupResult.GetProperty("returnedNodeCount").GetInt32());
+        cachedResult.GetProperty("tree").GetRawText().Should().Be(lookupResult.GetProperty("tree").GetRawText());
+        lookupResult.GetProperty("returnedNodeCount").GetInt32().Should().BeGreaterThan(10);
+
+        var tree = lookupResult.GetProperty("tree");
+        tree.GetProperty("type").GetString().Should().Be("Border");
+
+        var outerStackPanel = GetOnlyChildOfType(tree, "StackPanel");
+        GetChildrenOfType(outerStackPanel, "TextBlock").Should().ContainSingle();
+
+        var greenBorder = GetOnlyChildOfType(outerStackPanel, "Border");
+        var secondLevelStackPanel = GetOnlyChildOfType(greenBorder, "StackPanel");
+        var orangeBorder = GetOnlyChildOfType(secondLevelStackPanel, "Border");
+        var thirdLevelStackPanel = GetOnlyChildOfType(orangeBorder, "StackPanel");
+        var redBorder = GetOnlyChildOfType(thirdLevelStackPanel, "Border");
+        var deepestStackPanel = GetOnlyChildOfType(redBorder, "StackPanel");
+        var deepestChildTypes = GetChildTypes(deepestStackPanel);
+
+        deepestChildTypes.Should().Contain("TextBlock");
+        deepestChildTypes.Should().Contain("Button");
+        deepestChildTypes.Should().Contain("TextBox");
     }
 
     [Fact]
     public void GetVisualTree_WithDepthLimit_ShouldNotExceedLimit()
     {
-        // Arrange - 4-level deep tree, but limit to depth 2
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new VisualTreeAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
+            SelectTab(context.MainTabControl, context.NestedTreeTab, context.Window);
 
-            var border1 = new Border { Child = new StackPanel() };
-            ((StackPanel)border1.Child).Children.Add(
-                new Border { Child = new StackPanel() });
+            var rootId = elementFinder.GenerateElementId(context.NestedRootBorder);
+            EvictElementCacheEntry(elementFinder, rootId);
 
-            Application.Current.MainWindow.Content = border1;
-
-            return analyzer.GetVisualTree(maxDepth: 2, elementId: null);
+            return JsonSerializer.SerializeToElement(analyzer.GetVisualTree(maxDepth: 2, elementId: rootId));
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        var tree = result.GetProperty("tree");
+        var outerStackPanel = GetOnlyChildOfType(tree, "StackPanel");
+        var greenBorder = GetOnlyChildOfType(outerStackPanel, "Border");
+
+        greenBorder.GetProperty("childCount").GetInt32().Should().BeGreaterThan(0);
+        greenBorder.TryGetProperty("children", out _).Should().BeFalse();
     }
 
     [Fact]
     public void GetVisualCount_WithLargeTree_ShouldCountAllElements()
     {
-        // Arrange - recreate TestApp Tab 8 performance scenario (100 elements)
         var result = _fixture.RunOnUIThread(() =>
         {
-            var analyzer = new PerformanceAnalyzer();
+            using var elementFinder = new ElementFinder();
+            var analyzer = new PerformanceAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
+            SelectTab(context.MainTabControl, context.PerformanceTab, context.Window);
+            context.PerformanceStackPanel.UpdateLayout();
+            context.Window.UpdateLayout();
 
-            var stackPanel = new StackPanel();
+            var rootId = elementFinder.GenerateElementId(context.PerformanceStackPanel);
+            var headerId = elementFinder.GenerateElementId((UIElement)context.PerformanceStackPanel.Children[0]);
+            var firstGeneratedRowId = elementFinder.GenerateElementId((UIElement)context.PerformanceStackPanel.Children[1]);
+            var sentinelId = elementFinder.GenerateElementId(context.PerformanceBottomSentinel);
 
-            // Add 100 elements matching TestApp's InitializePerformanceTab pattern
-            for (int i = 0; i < 100; i++)
+            EvictElementCacheEntry(elementFinder, rootId);
+            EvictElementCacheEntry(elementFinder, headerId);
+            EvictElementCacheEntry(elementFinder, firstGeneratedRowId);
+            EvictElementCacheEntry(elementFinder, sentinelId);
+
+            var stackPanelResult = JsonSerializer.SerializeToElement(analyzer.GetVisualCount(rootId));
+            var headerResult = JsonSerializer.SerializeToElement(analyzer.GetVisualCount(headerId));
+            var firstGeneratedRowResult = JsonSerializer.SerializeToElement(analyzer.GetVisualCount(firstGeneratedRowId));
+            var sentinelResult = JsonSerializer.SerializeToElement(analyzer.GetVisualCount(sentinelId));
+
+            return JsonSerializer.SerializeToElement(new
             {
-                var border = new Border
-                {
-                    BorderBrush = Brushes.Gray,
-                    BorderThickness = new Thickness(1),
-                    Margin = new Thickness(2),
-                    Padding = new Thickness(5)
-                };
-
-                var innerStack = new StackPanel { Orientation = Orientation.Horizontal };
-                innerStack.Children.Add(new TextBlock
-                {
-                    Text = $"Element {i + 1}: ",
-                    FontWeight = FontWeights.Bold
-                });
-                innerStack.Children.Add(new TextBox
-                {
-                    Text = $"Value {i + 1}",
-                    Width = 100
-                });
-                innerStack.Children.Add(new Button
-                {
-                    Content = "Click",
-                    Width = 60
-                });
-
-                border.Child = innerStack;
-                stackPanel.Children.Add(border);
-            }
-
-            Application.Current.MainWindow.Content = stackPanel;
-
-            return analyzer.GetVisualCount(elementId: null);
+                stackPanelResult,
+                headerResult,
+                firstGeneratedRowResult,
+                sentinelResult,
+                directChildCount = context.PerformanceStackPanel.Children.Count,
+                lastChildIsSentinel = ReferenceEquals(
+                    context.PerformanceStackPanel.Children[context.PerformanceStackPanel.Children.Count - 1],
+                    context.PerformanceBottomSentinel)
+            });
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("directChildCount").GetInt32().Should().Be(102);
+        result.GetProperty("lastChildIsSentinel").GetBoolean().Should().BeTrue();
+
+    var stackPanelResult = result.GetProperty("stackPanelResult");
+    var headerResult = result.GetProperty("headerResult");
+    var firstGeneratedRowResult = result.GetProperty("firstGeneratedRowResult");
+    var sentinelResult = result.GetProperty("sentinelResult");
+
+    stackPanelResult.GetProperty("success").GetBoolean().Should().BeTrue();
+    stackPanelResult.GetProperty("elementType").GetString().Should().Be("StackPanel");
+    headerResult.GetProperty("success").GetBoolean().Should().BeTrue();
+    firstGeneratedRowResult.GetProperty("success").GetBoolean().Should().BeTrue();
+    sentinelResult.GetProperty("success").GetBoolean().Should().BeTrue();
+
+    var totalVisualCount = stackPanelResult.GetProperty("count").GetInt32();
+    var headerVisualCount = headerResult.GetProperty("count").GetInt32();
+    var firstGeneratedRowVisualCount = firstGeneratedRowResult.GetProperty("count").GetInt32();
+    var sentinelVisualCount = sentinelResult.GetProperty("count").GetInt32();
+    var expectedVisualCount = 1 + headerVisualCount + (100 * firstGeneratedRowVisualCount) + sentinelVisualCount;
+
+    totalVisualCount.Should().Be(expectedVisualCount);
+    stackPanelResult.GetProperty("totalCount").GetInt32().Should().Be(totalVisualCount);
     }
 
     [Fact]
     public void CompareTree_WithNestedBorders_ShouldExecuteSuccessfully()
     {
-        // Arrange - nested borders matching TestApp Tab 2
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new VisualTreeAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
+            SelectTab(context.MainTabControl, context.NestedTreeTab, context.Window);
 
-            var border1 = new Border
-            {
-                BorderBrush = Brushes.Blue,
-                BorderThickness = new Thickness(2)
-            };
-            var stack = new StackPanel();
-            stack.Children.Add(new TextBlock { Text = "Level 1" });
-            stack.Children.Add(new Button { Content = "Button" });
-            var border2 = new Border
-            {
-                BorderBrush = Brushes.Green,
-                BorderThickness = new Thickness(2),
-                Child = new TextBlock { Text = "Level 2" }
-            };
-            stack.Children.Add(border2);
-            border1.Child = stack;
+            var stackPanelId = elementFinder.GenerateElementId(context.NestedOuterStackPanel);
+            EvictElementCacheEntry(elementFinder, stackPanelId);
 
-            Application.Current.MainWindow.Content = border1;
-
-            return analyzer.CompareTree(elementId: null);
+            return JsonSerializer.SerializeToElement(analyzer.CompareTree(stackPanelId));
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("visualChildCount").GetInt32().Should().Be(2);
+        result.GetProperty("logicalChildCount").GetInt32().Should().Be(2);
+        result.GetProperty("differenceCount").GetInt32().Should().Be(0);
+        result.GetProperty("differences").GetArrayLength().Should().Be(0);
     }
+
+    private static void EvictElementCacheEntry(ElementFinder elementFinder, string elementId)
+    {
+        elementFinder.TryRemoveCachedElement(elementId).Should().BeTrue();
+    }
+
+    private static void SelectTab(TabControl mainTabControl, TabItem tabItem, MainWindow window)
+    {
+        mainTabControl.SelectedItem = tabItem;
+        window.UpdateLayout();
+    }
+
+    private TestAppTreeWindowContext CreateRealTestAppWindow()
+    {
+        var application = Application.Current;
+        application.Should().NotBeNull();
+
+        _previousMainWindow ??= application!.MainWindow;
+
+        var window = new MainWindow();
+        _activeTestAppWindow = window;
+        application.MainWindow = window;
+        window.Show();
+        window.UpdateLayout();
+
+        var mainTabControl = window.FindName("MainTabControl") as TabControl;
+        var performanceTab = window.FindName("PerformanceTab") as TabItem;
+        var performanceStackPanel = window.FindName("PerformanceStackPanel") as StackPanel;
+        var performanceBottomSentinel = window.FindName("PerformanceBottomSentinel") as Border;
+
+        mainTabControl.Should().NotBeNull();
+        performanceTab.Should().NotBeNull();
+        performanceStackPanel.Should().NotBeNull();
+        performanceBottomSentinel.Should().NotBeNull();
+
+        var nestedTreeTab = mainTabControl!.Items
+            .OfType<TabItem>()
+            .SingleOrDefault(tabItem => Equals(tabItem.Header, "Nested Tree"));
+        nestedTreeTab.Should().NotBeNull();
+
+        var nestedScrollViewer = nestedTreeTab!.Content as ScrollViewer;
+        nestedScrollViewer.Should().NotBeNull();
+
+        var nestedRootBorder = nestedScrollViewer!.Content as Border;
+        nestedRootBorder.Should().NotBeNull();
+
+        var nestedOuterStackPanel = nestedRootBorder!.Child as StackPanel;
+        nestedOuterStackPanel.Should().NotBeNull();
+
+        return new TestAppTreeWindowContext(
+            window,
+            mainTabControl,
+            nestedTreeTab,
+            nestedRootBorder,
+            nestedOuterStackPanel!,
+            performanceTab!,
+            performanceStackPanel!,
+            performanceBottomSentinel!);
+    }
+
+    private static JsonElement GetOnlyChildOfType(JsonElement node, string type)
+    {
+        var matches = GetChildrenOfType(node, type);
+        matches.Should().ContainSingle();
+        return matches[0];
+    }
+
+    private static JsonElement[] GetChildrenOfType(JsonElement node, string type)
+    {
+        return node.GetProperty("children")
+            .EnumerateArray()
+            .Where(child => child.GetProperty("type").GetString() == type)
+            .ToArray();
+    }
+
+    private static string[] GetChildTypes(JsonElement node)
+    {
+        return node.GetProperty("children")
+            .EnumerateArray()
+            .Select(child => child.GetProperty("type").GetString())
+            .Where(type => type != null)
+            .Cast<string>()
+            .ToArray();
+    }
+
+    private sealed record TestAppTreeWindowContext(
+        MainWindow Window,
+        TabControl MainTabControl,
+        TabItem NestedTreeTab,
+        Border NestedRootBorder,
+        StackPanel NestedOuterStackPanel,
+        TabItem PerformanceTab,
+        StackPanel PerformanceStackPanel,
+        Border PerformanceBottomSentinel);
 }

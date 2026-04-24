@@ -278,7 +278,7 @@ public static class InteractionMcpTools
     [Description(
         "Use this tool to capture a WPF element screenshot for runtime visual verification.\n\n" +
         InteractionMetadata + "[Interaction] Capture a PNG screenshot of a specific element. " +
-        "Returns compact metadata by default, inline base64 image data only when explicitly requested, or a temporary PNG file path in file mode. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
+        "Returns inline base64 image data by default, compact metadata when explicitly requested, or a temporary PNG file path in file mode. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
         "USE WHEN: Visual verification needed; documenting UI state; debugging rendering issues.\n" +
         "DO NOT USE: As a first-pass scene exploration tool (prefer get_ui_summary or get_element_snapshot), or on off-screen elements (use scroll_to_element first).\n\n" +
         "PERFORMANCE: Large elements produce large base64 strings. Prefer `outputMode: \"metadata\"` or `outputMode: \"file\"`, and/or `maxWidth` / `maxHeight` in interactive STDIO sessions.\n\n" +
@@ -309,7 +309,7 @@ public static class InteractionMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to capture. Omit for the root window.")] string? elementId = null,
-        [Description("Optional screenshot output mode: 'metadata' (default), 'base64', or 'file'.")] string? outputMode = null,
+        [Description("Optional screenshot output mode: 'base64' (default), 'metadata', or 'file'.")] string? outputMode = null,
         [Description("Optional maximum screenshot width. When provided, the image is downscaled proportionally and never upscaled.")] int? maxWidth = null,
         [Description("Optional maximum screenshot height. When provided, the image is downscaled proportionally and never upscaled.")] int? maxHeight = null,
         CancellationToken cancellationToken = default)

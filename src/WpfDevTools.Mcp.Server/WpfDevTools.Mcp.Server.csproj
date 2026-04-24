@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="WpfDevTools.Tests.Unit" />
+    <InternalsVisibleTo Include="WpfDevTools.Tests.Integration" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">

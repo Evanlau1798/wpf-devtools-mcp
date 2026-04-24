@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -199,11 +200,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                 triggerType = "Data",
                 conditions = new[]
                 {
-                    new
-                    {
-                        property = dataTrigger.Binding?.ToString(),
-                        value = dataTrigger.Value?.ToString()
-                    }
+                    CreateBindingConditionInfo(dataTrigger.Binding, dataTrigger.Value)
                 },
                 setters = CreateSetterInfos(dataTrigger.Setters)
             },
@@ -229,11 +226,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                 triggerType = "MultiTrigger",
                 conditions = multiDataTrigger.Conditions
                     .Cast<Condition>()
-                    .Select(condition => new
-                    {
-                        property = condition.Binding?.ToString(),
-                        value = condition.Value?.ToString()
-                    })
+                    .Select(condition => CreateBindingConditionInfo(condition.Binding, condition.Value))
                     .ToArray(),
                 setters = CreateSetterInfos(multiDataTrigger.Setters)
             },
@@ -261,6 +254,55 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                 setters = Array.Empty<object>()
             }
         };
+    }
+
+    private static object CreateBindingConditionInfo(BindingBase? bindingBase, object? value)
+    {
+        if (bindingBase is Binding binding)
+        {
+            return new
+            {
+                property = binding.Path?.Path ?? bindingBase.ToString(),
+                bindingPath = binding.Path?.Path,
+                bindingElementName = string.IsNullOrWhiteSpace(binding.ElementName) ? null : binding.ElementName,
+                bindingSourceKind = GetBindingSourceKind(binding),
+                value = value?.ToString()
+            };
+        }
+
+        return new
+        {
+            property = bindingBase?.ToString(),
+            bindingPath = (string?)null,
+            bindingElementName = (string?)null,
+            bindingSourceKind = bindingBase?.GetType().Name,
+            value = value?.ToString()
+        };
+    }
+
+    private static string GetBindingSourceKind(Binding binding)
+    {
+        if (!string.IsNullOrWhiteSpace(binding.ElementName))
+        {
+            return "ElementName";
+        }
+
+        if (binding.RelativeSource != null)
+        {
+            return "RelativeSource";
+        }
+
+        if (binding.Source != null)
+        {
+            return "Source";
+        }
+
+        if (!string.IsNullOrWhiteSpace(binding.XPath))
+        {
+            return "XPath";
+        }
+
+        return "DataContext";
     }
 
     private static object[] CreateSetterInfos(SetterBaseCollection setters)

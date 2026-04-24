@@ -41,15 +41,25 @@ public class ProcessInjector : IProcessInjector
 {
     private readonly WpfProcessDetector _processDetector;
     private readonly DllInjector _dllInjector;
+    private readonly Func<PipeReadyProbe> _pipeReadyProbeFactory;
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// Create a new ProcessInjector instance
     /// </summary>
     public ProcessInjector()
+        : this(new WpfProcessDetector(), new DllInjector())
     {
-        _processDetector = new WpfProcessDetector();
-        _dllInjector = new DllInjector();
+    }
+
+    internal ProcessInjector(
+        WpfProcessDetector processDetector,
+        DllInjector dllInjector,
+        Func<PipeReadyProbe>? pipeReadyProbeFactory = null)
+    {
+        _processDetector = processDetector ?? throw new ArgumentNullException(nameof(processDetector));
+        _dllInjector = dllInjector ?? throw new ArgumentNullException(nameof(dllInjector));
+        _pipeReadyProbeFactory = pipeReadyProbeFactory ?? (() => new PipeReadyProbe());
     }
 
     /// <summary>
@@ -109,7 +119,7 @@ public class ProcessInjector : IProcessInjector
 
         cancellationToken.ThrowIfCancellationRequested();
 
-    var operationStopwatch = Stopwatch.StartNew();
+        var operationStopwatch = Stopwatch.StartNew();
 
         var validationError = ValidateTarget(request.ProcessId);
         if (validationError != InjectionError.None)
@@ -185,7 +195,7 @@ public class ProcessInjector : IProcessInjector
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var probe = new PipeReadyProbe();
+            var probe = _pipeReadyProbeFactory();
             var pipeReadyTimeout = request.ResolvePhaseTimeout(
                 operationStopwatch.Elapsed,
                 request.PipeReadyTimeout);

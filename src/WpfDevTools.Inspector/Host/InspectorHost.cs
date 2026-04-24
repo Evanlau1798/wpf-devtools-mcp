@@ -412,6 +412,9 @@ public sealed partial class InspectorHost : IDisposable
 
                 // Wait for client connection
                 await pipeServer.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
+                await global::WpfDevTools.Inspector.IntegrationTestDelayHooks
+                    .DelayAfterPipeConnectIfConfiguredAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
                 // Authenticate client if authentication is enabled
                 if (_authManager != null && _authManager.IsAuthenticationEnabled)

@@ -74,6 +74,32 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WhenNativeBootstrapMechanismFails_ShouldPreserveSanitizedFailureDetail()
+    {
+        EnsureDummyBootstrapperExists();
+        const string expectedMessage = "LoadLibraryW failed to load the native bootstrapper DLL into the target process.";
+        var tool = new ConnectTool(
+            new SessionManager(),
+            new FailingProcessInjector(
+                InjectionError.BootstrapFailed,
+                expectedMessage,
+                BootstrapStage.LoadLibrary,
+                timeoutReason: null,
+                bootstrapExitCode: InjectionMechanismFailure.LoadBootstrapperFailed),
+            new FakeProcessDetector(),
+            _ => { },
+            isRawInjectionTargetAllowed: _ => true);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+        json.GetProperty("stage").GetString().Should().Be("LoadLibrary");
+        json.GetProperty("error").GetString().Should().Be(expectedMessage);
+    }
+
+    [Fact]
     public void DescribePipeConnectFailure_WhenAuthenticationFails_ShouldReturnSecurityError()
     {
         var result = ConnectTool.DescribePipeConnectFailure(
@@ -146,7 +172,8 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
         InjectionError injectionError,
         string errorMessage = "Bootstrap timed out",
         BootstrapStage? failedStage = null,
-        InjectionTimeoutReason? timeoutReason = null) : IProcessInjector
+        InjectionTimeoutReason? timeoutReason = null,
+        int? bootstrapExitCode = null) : IProcessInjector
     {
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
             => InjectionResult.CreateSuccess(processId, dllPath);
@@ -159,7 +186,7 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
                 injectionError,
                 errorMessage,
                 failedAtStage: failedStage,
-                bootstrapExitCode: null,
+                bootstrapExitCode: bootstrapExitCode,
                 timeoutReason: timeoutReason);
     }
 }

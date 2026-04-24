@@ -110,7 +110,7 @@ public class InteractionAnalyzerTests
     }
 
     [StaFact]
-    public void TakeScreenshot_WithValidElement_ShouldReturnMetadataByDefault()
+    public void TakeScreenshot_WithValidElement_ShouldReturnBase64ByDefault()
     {
         // Arrange
         var finder = new ElementFinder();
@@ -125,7 +125,8 @@ public class InteractionAnalyzerTests
         result.Should().NotBeNull();
         var json = System.Text.Json.JsonSerializer.SerializeToElement(result);
         json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.TryGetProperty("base64Image", out _).Should().BeFalse();
+        json.TryGetProperty("base64Image", out var image).Should().BeTrue();
+        image.GetString().Should().NotBeNullOrEmpty();
         json.TryGetProperty("imageData", out _).Should().BeFalse();
         json.GetProperty("byteLength").GetInt32().Should().BeGreaterThan(0);
         json.GetProperty("width").GetInt32().Should().Be(100);

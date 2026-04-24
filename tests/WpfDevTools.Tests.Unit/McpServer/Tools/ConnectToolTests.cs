@@ -8,6 +8,7 @@ using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Inspector.Host;
+using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
@@ -28,16 +29,22 @@ public partial class ConnectToolTests : IDisposable
         Action<string>? dllPathValidator = null,
         Func<bool>? isCurrentProcessElevated = null,
         PipeReadyProbe? pipeReadyProbe = null,
-        Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null)
+        Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null,
+        Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>>? connectInjectedSessionAsync = null)
     {
         return new ConnectTool(
-            sessionManager ?? new SessionManager(),
-            injector ?? new FakeProcessInjector(),
-            processDetector ?? new FakeProcessDetector(),
-            dllPathValidator ?? (_ => { }),
-            isCurrentProcessElevated ?? (() => false),
+            sessionManager: sessionManager ?? new SessionManager(),
+            injector: injector ?? new FakeProcessInjector(),
+            processDetector: processDetector ?? new FakeProcessDetector(),
+            dllPathValidator: dllPathValidator ?? (_ => { }),
+            isCurrentProcessElevated: isCurrentProcessElevated ?? (() => false),
+            workingSetResolver: null,
+            inspectorCandidateResolver: null,
+            bootstrapperCandidateResolver: null,
             pipeReadyProbe: pipeReadyProbe,
-            isRawInjectionTargetAllowed: isRawInjectionTargetAllowed ?? (_ => true));
+            isRawInjectionTargetAllowed: isRawInjectionTargetAllowed ?? (_ => true),
+            connectInjectedSessionAsync: connectInjectedSessionAsync,
+            connectTimeout: null);
     }
 
     private void EnsureDummyBootstrapperExists()
@@ -472,6 +479,45 @@ public partial class ConnectToolTests : IDisposable
             TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds),
             "the pre-injection probe already consumed part of the overall connect budget before injection started");
         injector.LastInjectionRequest.TotalTimeout.Value.Should().BeGreaterThan(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task Execute_WhenInjectionConsumesTime_ShouldPassRemainingBudgetIntoFinalAttachPhase()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var injector = new FakeProcessInjector
+        {
+            InjectWithBootstrapHandler = (request, _) =>
+            {
+                Thread.Sleep(TimeSpan.FromMilliseconds(250));
+                return InjectionResult.CreateSuccess(
+                    request.ProcessId,
+                    request.InspectorDllPath,
+                    bootstrapExitCode: 0,
+                    pipeName: request.ExpectedPipeName);
+            }
+        };
+
+        TimeSpan? observedAttachTimeout = null;
+        var tool = CreateTool(
+            injector: injector,
+            connectInjectedSessionAsync: (_, timeout, _) =>
+            {
+                observedAttachTimeout = timeout;
+                return Task.FromResult(NamedPipeConnectFailure.None);
+            });
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        observedAttachTimeout.Should().NotBeNull(
+            "connect should forward the remaining deadline into the final attach phase after bootstrap injection succeeds");
+        observedAttachTimeout!.Value.Should().BeLessThan(
+            TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds),
+            "the final attach phase must consume from the same overall connect budget instead of starting with a fresh timeout");
+        observedAttachTimeout.Value.Should().BeGreaterThan(TimeSpan.Zero);
     }
 
     [Fact]

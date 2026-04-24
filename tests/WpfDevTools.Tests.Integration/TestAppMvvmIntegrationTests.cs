@@ -16,163 +16,250 @@ namespace WpfDevTools.Tests.Integration;
 /// and IDataErrorInfo validation - all using the actual TestApp golden sample types.
 /// </summary>
 [Collection("WpfIntegration")]
-public class TestAppMvvmIntegrationTests
+public class TestAppMvvmIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;
+    private Window? _previousMainWindow;
+    private MainWindow? _activeTestAppWindow;
 
     public TestAppMvvmIntegrationTests(WpfApplicationFixture fixture)
     {
         _fixture = fixture;
     }
 
+    public void Dispose()
+    {
+        _fixture.RunOnUIThread(() =>
+        {
+            if (Application.Current?.MainWindow is not { } mainWindow)
+            {
+                return;
+            }
+
+            if (_activeTestAppWindow != null)
+            {
+                _activeTestAppWindow.Close();
+                _activeTestAppWindow = null;
+                Application.Current.MainWindow = _previousMainWindow;
+                _previousMainWindow = null;
+                return;
+            }
+
+            mainWindow.DataContext = null;
+            mainWindow.Content = null;
+            mainWindow.Hide();
+        });
+    }
+
     [Fact]
     public void GetViewModel_WithRealTestViewModel_ShouldReturnProperties()
     {
-        // Arrange - use TestApp's real TestViewModel (not a duplicate)
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
 
-            var viewModel = new TestViewModel { Name = "Alice", Age = 30 };
-            var stackPanel = new StackPanel { DataContext = viewModel };
+            context.ViewModel.Name = "Alice";
+            context.ViewModel.Age = 30;
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.MainTabControl.SelectedItem = context.BasicControlsTab;
+            context.Window.UpdateLayout();
 
-            // Add controls with bindings matching TestApp Tab 1
-            var nameTextBox = new TextBox();
-            nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name")
-            {
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                ValidatesOnDataErrors = true
-            });
-            stackPanel.Children.Add(nameTextBox);
+            var panelId = elementFinder.GenerateElementId(context.BasicControlsStackPanel);
+            EvictElementCacheEntry(elementFinder, panelId);
 
-            Application.Current.MainWindow.Content = stackPanel;
-
-            return analyzer.GetViewModel(elementId: null);
+            return JsonSerializer.SerializeToElement(analyzer.GetViewModel(panelId));
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("viewModelType").GetString().Should().Be("TestViewModel");
+        result.GetProperty("properties").EnumerateArray().Should().ContainSingle(property =>
+            property.GetProperty("name").GetString() == "Name"
+            && property.GetProperty("value").GetString() == "Alice");
+        result.GetProperty("properties").EnumerateArray().Should().ContainSingle(property =>
+            property.GetProperty("name").GetString() == "Age"
+            && property.GetProperty("value").GetString() == "30");
+        result.GetProperty("properties").EnumerateArray().Should().ContainSingle(property =>
+            property.GetProperty("name").GetString() == "CanSave"
+            && property.GetProperty("value").GetString() == "True");
     }
 
     [Fact]
     public void GetCommands_WithSaveAndClearCommands_ShouldReturnBothCommands()
     {
-        // Arrange - TestViewModel has SaveCommand and ClearCommand
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
 
-            var viewModel = new TestViewModel { Name = "Test", Age = 25 };
-            var stackPanel = new StackPanel { DataContext = viewModel };
+            context.ViewModel.Name = "Test";
+            context.ViewModel.Age = 25;
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.Window.UpdateLayout();
+            context.SaveButton.Command.Should().BeSameAs(context.ViewModel.SaveCommand);
+            context.ClearButton.Command.Should().BeSameAs(context.ViewModel.ClearCommand);
 
-            Application.Current.MainWindow.Content = stackPanel;
+            var panelId = elementFinder.GenerateElementId(context.BasicControlsStackPanel);
+            EvictElementCacheEntry(elementFinder, panelId);
 
-            return analyzer.GetCommands(elementId: null);
+            return JsonSerializer.SerializeToElement(analyzer.GetCommands(panelId));
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("commands").EnumerateArray().Should().ContainSingle(command =>
+            command.GetProperty("name").GetString() == "SaveCommand"
+            && command.GetProperty("canExecute").GetBoolean());
+        result.GetProperty("commands").EnumerateArray().Should().ContainSingle(command =>
+            command.GetProperty("name").GetString() == "ClearCommand"
+            && command.GetProperty("canExecute").GetBoolean());
+        result.GetProperty("commands").EnumerateArray().Should().ContainSingle(command =>
+            command.GetProperty("name").GetString() == "ResetStateCommand"
+            && command.GetProperty("canExecute").GetBoolean());
     }
 
     [Fact]
     public void ExecuteCommand_WithClearCommand_ShouldExecuteSuccessfully()
     {
-        // Arrange - ClearCommand always has CanExecute=true
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
 
-            var viewModel = new TestViewModel { Name = "Test", Age = 25 };
-            var stackPanel = new StackPanel { DataContext = viewModel };
+            context.ViewModel.Name = "Test";
+            context.ViewModel.Age = 25;
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.Window.UpdateLayout();
+            context.ClearButton.Command.Should().BeSameAs(context.ViewModel.ClearCommand);
 
-            Application.Current.MainWindow.Content = stackPanel;
+            var clearButtonId = elementFinder.GenerateElementId(context.ClearButton);
+            EvictElementCacheEntry(elementFinder, clearButtonId);
 
-            // ClearCommand is safe to execute (no MessageBox, just clears properties)
-            return analyzer.ExecuteCommand(elementId: null, commandName: "ClearCommand", parameter: null);
+            var commandResult = analyzer.ExecuteCommand(clearButtonId, commandName: "ClearCommand", parameter: null);
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.Window.UpdateLayout();
+
+            return JsonSerializer.SerializeToElement(new
+            {
+                result = commandResult,
+                context.ViewModel.Name,
+                context.ViewModel.Age,
+                context.ViewModel.LastActionMessage
+            });
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("result").GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("result").GetProperty("commandName").GetString().Should().Be("ClearCommand");
+        result.GetProperty("result").GetProperty("executed").GetBoolean().Should().BeTrue();
+        result.GetProperty("Name").GetString().Should().BeEmpty();
+        result.GetProperty("Age").GetInt32().Should().Be(0);
+        result.GetProperty("LastActionMessage").GetString().Should().Be("Form cleared");
     }
 
     [Fact]
     public void ModifyViewModel_WithNameProperty_ShouldUpdateValue()
     {
-        // Arrange - modify TestViewModel.Name through analyzer
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
 
-            var viewModel = new TestViewModel { Name = "Original", Age = 25 };
-            var stackPanel = new StackPanel { DataContext = viewModel };
+            context.ViewModel.Name = "Original";
+            context.ViewModel.Age = 25;
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.Window.UpdateLayout();
 
-            Application.Current.MainWindow.Content = stackPanel;
+            var nameTextBoxId = elementFinder.GenerateElementId(context.NameTextBox);
+            EvictElementCacheEntry(elementFinder, nameTextBoxId);
 
-            return analyzer.ModifyViewModel(elementId: null, propertyName: "Name", value: "Modified");
+            var modifyResult = analyzer.ModifyViewModel(nameTextBoxId, propertyName: "Name", value: "Modified");
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.Window.UpdateLayout();
+
+            return JsonSerializer.SerializeToElement(new
+            {
+                result = modifyResult,
+                context.ViewModel.Name,
+                context.ViewModel.CanSave,
+                nameText = context.NameTextBox.Text
+            });
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("result").GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("result").GetProperty("propertyName").GetString().Should().Be("Name");
+        result.GetProperty("result").GetProperty("oldValue").GetString().Should().Be("Original");
+        result.GetProperty("result").GetProperty("newValue").GetString().Should().Be("Modified");
+        result.GetProperty("Name").GetString().Should().Be("Modified");
+        result.GetProperty("CanSave").GetBoolean().Should().BeTrue();
+        result.GetProperty("nameText").GetString().Should().Be("Modified");
     }
 
     [Fact]
     public void GetValidationErrors_WithInvalidTestViewModel_ShouldReturnErrors()
     {
-        // Arrange - TestViewModel validates Name (required) and Age (0-150)
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
 
-            // Invalid values: empty name, negative age
-            var viewModel = new TestViewModel { Name = "", Age = -1 };
-            var stackPanel = new StackPanel { DataContext = viewModel };
+            context.ViewModel.Name = string.Empty;
+            context.ViewModel.Age = -1;
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.MainTabControl.SelectedItem = context.BasicControlsTab;
+            context.Window.UpdateLayout();
 
-            // Add bound controls with ValidatesOnDataErrors
-            var nameTextBox = new TextBox();
-            nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name")
-            {
-                ValidatesOnDataErrors = true,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-            });
-            stackPanel.Children.Add(nameTextBox);
+            var panelId = elementFinder.GenerateElementId(context.BasicControlsStackPanel);
+            EvictElementCacheEntry(elementFinder, panelId);
 
-            var ageTextBox = new TextBox();
-            ageTextBox.SetBinding(TextBox.TextProperty, new Binding("Age")
-            {
-                ValidatesOnDataErrors = true,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-            });
-            stackPanel.Children.Add(ageTextBox);
-
-            Application.Current.MainWindow.Content = stackPanel;
-
-            return analyzer.GetValidationErrors(elementId: null);
+            return JsonSerializer.SerializeToElement(analyzer.GetValidationErrors(panelId));
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(2);
+        result.GetProperty("errors").EnumerateArray().Should().Contain(error =>
+            error.GetProperty("errorContent").GetString() == "Name is required");
+        result.GetProperty("errors").EnumerateArray().Should().Contain(error =>
+            error.GetProperty("errorContent").GetString() == "Age must be greater than 0");
     }
 
     [Fact]
     public void GetViewModel_WithCanSaveProperty_ShouldReflectComputedState()
     {
-        // Arrange - CanSave is computed from Name + Age
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
 
-            // CanSave should be true when Name is not empty AND Age > 0
-            var viewModel = new TestViewModel { Name = "Valid", Age = 25 };
-            viewModel.CanSave.Should().BeTrue();
+            context.ViewModel.Name = "Valid";
+            context.ViewModel.Age = 25;
+            context.ViewModel.CanSave.Should().BeTrue();
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.Window.UpdateLayout();
 
-            var stackPanel = new StackPanel { DataContext = viewModel };
-            Application.Current.MainWindow.Content = stackPanel;
+            var panelId = elementFinder.GenerateElementId(context.BasicControlsStackPanel);
+            EvictElementCacheEntry(elementFinder, panelId);
 
-            return analyzer.GetViewModel(elementId: null);
+            return JsonSerializer.SerializeToElement(analyzer.GetViewModel(panelId));
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("properties").EnumerateArray().Should().ContainSingle(property =>
+            property.GetProperty("name").GetString() == "CanSave"
+            && property.GetProperty("type").GetString() == "Boolean"
+            && property.GetProperty("value").GetString() == "True"
+            && !property.GetProperty("canWrite").GetBoolean());
     }
 
     [Fact]
@@ -180,43 +267,30 @@ public class TestAppMvvmIntegrationTests
     {
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
-            var viewModel = new TestViewModel { Name = "", Age = 0 };
-            var tabControl = new TabControl { SelectedIndex = 1 };
-            var validatedTab = new TabItem { Header = "Basic" };
-            var otherTab = new TabItem { Header = "Other", Content = new TextBlock { Text = "Other" } };
-            var stackPanel = new StackPanel { DataContext = viewModel };
-            var nameTextBox = new TextBox();
-            var ageTextBox = new TextBox();
+            var context = CreateRealTestAppWindow();
 
-            nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name")
-            {
-                ValidatesOnDataErrors = true,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-            });
-            ageTextBox.SetBinding(TextBox.TextProperty, new Binding("Age")
-            {
-                ValidatesOnDataErrors = true,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-            });
+            context.ViewModel.Name = string.Empty;
+            context.ViewModel.Age = 0;
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.MainTabControl.SelectedIndex = 1;
+            context.Window.UpdateLayout();
+            context.BasicControlsTab.IsSelected.Should().BeFalse();
+            ReferenceEquals(context.MainTabControl.SelectedItem, context.BasicControlsTab).Should().BeFalse();
 
-            stackPanel.Children.Add(nameTextBox);
-            stackPanel.Children.Add(ageTextBox);
-            validatedTab.Content = stackPanel;
-            tabControl.Items.Add(validatedTab);
-            tabControl.Items.Add(otherTab);
-
-            Application.Current.MainWindow.Content = tabControl;
-            Application.Current.MainWindow.Show();
-            Application.Current.MainWindow.UpdateLayout();
-
-            var tabId = elementFinder.GenerateElementId(validatedTab);
+            var tabId = elementFinder.GenerateElementId(context.BasicControlsTab);
+            EvictElementCacheEntry(elementFinder, tabId);
             return JsonSerializer.SerializeToElement(analyzer.GetValidationErrors(tabId));
         });
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("errorCount").GetInt32().Should().Be(2);
+        result.GetProperty("errors").EnumerateArray().Should().Contain(error =>
+            error.GetProperty("errorContent").GetString() == "Name is required");
+        result.GetProperty("errors").EnumerateArray().Should().Contain(error =>
+            error.GetProperty("errorContent").GetString() == "Age must be greater than 0");
     }
 
     [Fact]
@@ -224,38 +298,92 @@ public class TestAppMvvmIntegrationTests
     {
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new MvvmAnalyzer(elementFinder);
-            var viewModel = new TestViewModel();
-            var saveButton = new Button { Content = "Save", Width = 100, Margin = new Thickness(5) };
-            saveButton.SetBinding(Button.CommandProperty, new Binding("SaveCommand"));
+            var context = CreateRealTestAppWindow();
+            var saveButtonId = elementFinder.GenerateElementId(context.SaveButton);
+            EvictElementCacheEntry(elementFinder, saveButtonId);
 
-            var stackPanel = new StackPanel();
-            stackPanel.Children.Add(saveButton);
+            context.ViewModel.ResetState();
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.Window.UpdateLayout();
 
-            var window = Application.Current.MainWindow;
-            window.DataContext = viewModel;
-            window.Content = stackPanel;
-            window.Show();
-            window.Activate();
-            stackPanel.Measure(new Size(300, 120));
-            stackPanel.Arrange(new Rect(0, 0, 300, 120));
-            stackPanel.UpdateLayout();
+            context.SaveButton.IsEnabled.Should().BeFalse();
 
-            saveButton.IsEnabled.Should().BeFalse();
-
-            analyzer.ModifyViewModel(elementId: null, propertyName: "Name", value: "Alice");
-            analyzer.ModifyViewModel(elementId: null, propertyName: "Age", value: 25);
-            stackPanel.UpdateLayout();
+            analyzer.ModifyViewModel(saveButtonId, propertyName: "Name", value: "Alice");
+            analyzer.ModifyViewModel(saveButtonId, propertyName: "Age", value: 25);
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+            context.Window.UpdateLayout();
 
             return new
             {
-                viewModel.CanSave,
-                saveButton.IsEnabled
+                context.ViewModel.CanSave,
+                context.SaveButton.IsEnabled
             };
         });
 
         result.CanSave.Should().BeTrue();
         result.IsEnabled.Should().BeTrue();
     }
+
+    private static void EvictElementCacheEntry(ElementFinder elementFinder, string elementId)
+    {
+        elementFinder.TryRemoveCachedElement(elementId).Should().BeTrue();
+    }
+
+    private TestAppWindowContext CreateRealTestAppWindow()
+    {
+        var application = Application.Current;
+        application.Should().NotBeNull();
+
+        _previousMainWindow ??= application!.MainWindow;
+
+        var window = new MainWindow();
+        _activeTestAppWindow = window;
+        application.MainWindow = window;
+        window.Show();
+        window.UpdateLayout();
+
+        var viewModel = window.DataContext as TestViewModel;
+        var mainTabControl = window.FindName("MainTabControl") as TabControl;
+        var basicControlsTab = window.FindName("BasicControlsTab") as TabItem;
+        var basicControlsStackPanel = window.FindName("BasicControlsStackPanel") as StackPanel;
+        var nameTextBox = window.FindName("NameTextBox") as TextBox;
+        var ageTextBox = window.FindName("AgeTextBox") as TextBox;
+        var saveButton = window.FindName("SaveButton") as Button;
+        var clearButton = window.FindName("ClearButton") as Button;
+
+        viewModel.Should().NotBeNull();
+        mainTabControl.Should().NotBeNull();
+        basicControlsTab.Should().NotBeNull();
+        basicControlsStackPanel.Should().NotBeNull();
+        nameTextBox.Should().NotBeNull();
+        ageTextBox.Should().NotBeNull();
+        saveButton.Should().NotBeNull();
+        clearButton.Should().NotBeNull();
+
+        return new TestAppWindowContext(
+            window,
+            viewModel!,
+            mainTabControl!,
+            basicControlsTab!,
+            basicControlsStackPanel!,
+            nameTextBox!,
+            ageTextBox!,
+            saveButton!,
+            clearButton!);
+    }
+
+    private sealed record TestAppWindowContext(
+        MainWindow Window,
+        TestViewModel ViewModel,
+        TabControl MainTabControl,
+        TabItem BasicControlsTab,
+        StackPanel BasicControlsStackPanel,
+        TextBox NameTextBox,
+        TextBox AgeTextBox,
+        Button SaveButton,
+        Button ClearButton);
 }

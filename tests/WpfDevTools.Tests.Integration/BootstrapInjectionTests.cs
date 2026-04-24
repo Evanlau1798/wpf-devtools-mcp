@@ -2,6 +2,7 @@ using System.IO;
 using System.Security.Cryptography;
 using FluentAssertions;
 using System.Text.Json;
+using WpfDevTools.Inspector;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
@@ -12,6 +13,7 @@ using WpfDevTools.Shared.Security;
 using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -141,6 +143,67 @@ public class BootstrapInjectionTests : IDisposable
         }
     }
 
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ConnectTool_WhenBootstrapHostStartConsumesSharedBudget_ShouldReturnStructuredPipeReadyTimeout()
+    {
+        EnsureDebugDelayHooksEnabled();
+
+        BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
+            "the live bootstrap timeout coverage must fail fast when native bootstrapper artifacts are missing; " +
+            "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
+
+        using var hostStartDelayScope = new EnvironmentVariableScope(
+            IntegrationTestDelayHooks.DelayBeforeHostStartEnvVar,
+            "2500");
+
+        _testApp = StartTestApp();
+
+        using var sessionManager = new SessionManager();
+        var connectTool = CreateLiveConnectTool(sessionManager, TimeSpan.FromMilliseconds(1800));
+
+        var connectResult = await connectTool.ExecuteAsync(
+            JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(new { processId = _testApp.Id })),
+            CancellationToken.None);
+        var connectJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(connectResult));
+
+        connectJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        connectJson.GetProperty("errorCode").GetString().Should().Be("Timeout");
+        connectJson.GetProperty("stage").GetString().Should().Be("PipeReady");
+        connectJson.GetProperty("error").GetString().Should().Contain("Named Pipe");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ConnectTool_WhenFinalAttachConsumesSharedBudget_ShouldReturnStructuredNamedPipeTimeout()
+    {
+        EnsureDebugDelayHooksEnabled();
+
+        BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
+            "the live final-attach timeout coverage must fail fast when native bootstrapper artifacts are missing; " +
+            "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
+
+        using var attachDelayScope = new EnvironmentVariableScope(
+            IntegrationTestDelayHooks.DelayAfterPipeConnectEnvVar,
+            "3000");
+
+        _testApp = StartTestApp();
+
+        using var sessionManager = new SessionManager();
+        var connectTool = CreateLiveConnectTool(sessionManager, TimeSpan.FromMilliseconds(2200));
+
+        var connectResult = await connectTool.ExecuteAsync(
+            JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(new { processId = _testApp.Id })),
+            CancellationToken.None);
+        var connectJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(connectResult));
+
+        connectJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        connectJson.GetProperty("errorCode").GetString().Should().Be("Timeout");
+        connectJson.TryGetProperty("stage", out _).Should().BeFalse();
+        connectJson.GetProperty("error").GetString().Should().Be("Timeout connecting to Inspector Named Pipe");
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     public async Task ConnectTool_WhenBootstrapFails_ShouldReturnStageError()
@@ -168,7 +231,7 @@ public class BootstrapInjectionTests : IDisposable
             JsonSerializer.Serialize(result));
 
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("ManagedEntrypoint");
+        resultJson.GetProperty("error").GetString().Should().Contain("managed bootstrap entrypoint");
         resultJson.GetProperty("stage").GetString().Should().Be("ManagedEntrypoint");
     }
     private void EnsureDummyBootstrapperExists()
@@ -184,6 +247,31 @@ public class BootstrapInjectionTests : IDisposable
     private static string FindTestAppExe()
     {
         return TestAppProcessLauncher.FindTestAppExe();
+    }
+
+    private static ConnectTool CreateLiveConnectTool(SessionManager sessionManager, TimeSpan connectTimeout)
+    {
+        return new ConnectTool(
+            sessionManager: sessionManager,
+            injector: new ProcessInjector(),
+            processDetector: new WpfProcessDetector(),
+            dllPathValidator: null,
+            isCurrentProcessElevated: null,
+            workingSetResolver: null,
+            inspectorCandidateResolver: null,
+            bootstrapperCandidateResolver: null,
+            pipeReadyProbe: null,
+            isRawInjectionTargetAllowed: _ => true,
+            connectInjectedSessionAsync: null,
+            connectTimeout: connectTimeout);
+    }
+
+    private static void EnsureDebugDelayHooksEnabled()
+    {
+#if !DEBUG
+        throw SkipException.ForSkip(
+            "Live timeout-budget bootstrap coverage requires the Debug-only delay hooks and is skipped in Release test lanes.");
+#endif
     }
 
     private sealed class FakeProcessDetector : WpfProcessDetector
@@ -216,6 +304,24 @@ public class BootstrapInjectionTests : IDisposable
         public InjectionResult InjectWithBootstrap(
             InjectionRequest request,
             CancellationToken cancellationToken = default) => _result;
+    }
+
+    private sealed class EnvironmentVariableScope : IDisposable
+    {
+        private readonly string _name;
+        private readonly string? _originalValue;
+
+        public EnvironmentVariableScope(string name, string? value)
+        {
+            _name = name;
+            _originalValue = Environment.GetEnvironmentVariable(name);
+            Environment.SetEnvironmentVariable(name, value);
+        }
+
+        public void Dispose()
+        {
+            Environment.SetEnvironmentVariable(_name, _originalValue);
+        }
     }
 
     public void Dispose()

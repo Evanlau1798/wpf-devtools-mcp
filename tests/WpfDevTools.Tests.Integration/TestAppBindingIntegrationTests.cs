@@ -3,9 +3,9 @@ using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Tests.TestApp;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Text.Json;
 
 namespace WpfDevTools.Tests.Integration;
@@ -16,9 +16,11 @@ namespace WpfDevTools.Tests.Integration;
 /// matching the TestApp's Tab 1 (Basic Controls) structure.
 /// </summary>
 [Collection("WpfIntegration")]
-public class TestAppBindingIntegrationTests
+public sealed class TestAppBindingIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;
+    private Window? _previousMainWindow;
+    private MainWindow? _activeTestAppWindow;
 
     public TestAppBindingIntegrationTests(WpfApplicationFixture fixture)
     {
@@ -26,146 +28,222 @@ public class TestAppBindingIntegrationTests
         BindingErrorTraceListener.ResetInstance();
     }
 
+    public void Dispose()
+    {
+        _fixture.RunOnUIThread(() =>
+        {
+            BindingErrorTraceListener.ResetInstance();
+
+            if (_activeTestAppWindow == null)
+            {
+                return;
+            }
+
+            _activeTestAppWindow.Close();
+            _activeTestAppWindow = null;
+
+            if (Application.Current != null)
+            {
+                Application.Current.MainWindow = _previousMainWindow;
+            }
+
+            _previousMainWindow = null;
+        });
+    }
+
     [Fact]
     public void GetBindingErrors_WithIntentionalBindingErrors_ShouldDetectErrors()
     {
-        // Arrange - recreate TestApp Tab 1 binding error scenario
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            BindingErrorTraceListener.ResetInstance();
+            using var elementFinder = new ElementFinder();
             var analyzer = new BindingAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
+            SelectBasicControlsTab(context);
 
-            var viewModel = new TestViewModel { Name = "Test", Age = 25 };
-            var stackPanel = new StackPanel { DataContext = viewModel };
+            context.ViewModel.Name = "Alice";
+            context.ViewModel.Age = 30;
+            context.Window.UpdateLayout();
 
-            // Binding Error 1: Wrong property name (matches TestApp ErrorTextBox1)
-            var errorTextBox1 = new TextBox();
-            errorTextBox1.SetBinding(TextBox.TextProperty, new Binding("InvalidPropertyName"));
-            stackPanel.Children.Add(errorTextBox1);
+            context.ErrorTextBox1.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            context.ErrorTextBox2.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            context.ErrorTextBox3.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            context.BrushMismatchButton.GetBindingExpression(Button.BackgroundProperty)?.UpdateTarget();
 
-            // Binding Error 2: Wrong path (matches TestApp ErrorTextBox2)
-            var errorTextBox2 = new TextBox();
-            errorTextBox2.SetBinding(TextBox.TextProperty, new Binding("NonExistent.Property"));
-            stackPanel.Children.Add(errorTextBox2);
-
-            // Binding Error 3: Null DataContext (matches TestApp ErrorTextBox3)
-            var nullContextBorder = new Border();
-            var nullContextPanel = new StackPanel { DataContext = null };
-            var errorTextBox3 = new TextBox();
-            errorTextBox3.SetBinding(TextBox.TextProperty, new Binding("Name"));
-            nullContextPanel.Children.Add(errorTextBox3);
-            nullContextBorder.Child = nullContextPanel;
-            stackPanel.Children.Add(nullContextBorder);
-
-            Application.Current.MainWindow.Content = stackPanel;
-
-            // Force binding evaluation
-            errorTextBox1.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
-            errorTextBox2.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
-            errorTextBox3.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
-
-            return analyzer.GetBindingErrors(clearAfterRead: false);
+            return JsonSerializer.SerializeToElement(analyzer.GetBindingErrors(clearAfterRead: false));
         });
 
-        result.Should().NotBeNull();
+        var bindingPaths = result.GetProperty("errors").EnumerateArray()
+            .Select(error => error.GetProperty("bindingPath").GetString())
+            .Where(path => path != null)
+            .Cast<string>()
+            .ToArray();
+        var propertyNames = result.GetProperty("errors").EnumerateArray()
+            .Select(error => error.GetProperty("propertyName").GetString())
+            .Where(name => name != null)
+            .Cast<string>()
+            .ToArray();
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(4);
+        bindingPaths.Should().Contain("InvalidPropertyName");
+        bindingPaths.Should().Contain("NonExistent.Property");
+        bindingPaths.Should().Contain("Name");
+        bindingPaths.Should().Contain("IsEnabled");
+        propertyNames.Should().Contain("Text");
+        propertyNames.Should().Contain("Background");
     }
 
     [Fact]
     public void GetBindings_WithTestViewModelBindings_ShouldReturnBindingInfo()
     {
-        // Arrange - recreate TestApp Tab 1 valid binding scenario
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new BindingAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
+            SelectBasicControlsTab(context);
 
-            var viewModel = new TestViewModel { Name = "Alice", Age = 30 };
-            var stackPanel = new StackPanel { DataContext = viewModel };
+            context.ViewModel.Name = "Alice";
+            context.ViewModel.Age = 30;
+            context.ViewModel.IsEnabled = false;
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            context.EnabledCheckBox.GetBindingExpression(CheckBox.IsCheckedProperty)?.UpdateTarget();
 
-            // Name binding (matches TestApp NameTextBox)
-            var nameTextBox = new TextBox();
-            nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name")
+            var nameTextBoxId = elementFinder.GenerateElementId(context.NameTextBox);
+            var cachedNameResult = JsonSerializer.SerializeToElement(analyzer.GetBindings(nameTextBoxId));
+            EvictElementCacheEntry(elementFinder, nameTextBoxId);
+            var lookupNameResult = JsonSerializer.SerializeToElement(analyzer.GetBindings(nameTextBoxId));
+
+            var ageTextBoxId = elementFinder.GenerateElementId(context.AgeTextBox);
+            EvictElementCacheEntry(elementFinder, ageTextBoxId);
+            var ageResult = JsonSerializer.SerializeToElement(analyzer.GetBindings(ageTextBoxId));
+
+            var enabledCheckBoxId = elementFinder.GenerateElementId(context.EnabledCheckBox);
+            EvictElementCacheEntry(elementFinder, enabledCheckBoxId);
+            var enabledResult = JsonSerializer.SerializeToElement(analyzer.GetBindings(enabledCheckBoxId));
+
+            return JsonSerializer.SerializeToElement(new
             {
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                ValidatesOnDataErrors = true
+                cachedNameResult,
+                lookupNameResult,
+                ageResult,
+                enabledResult
             });
-            stackPanel.Children.Add(nameTextBox);
-
-            // Age binding (matches TestApp AgeTextBox)
-            var ageTextBox = new TextBox();
-            ageTextBox.SetBinding(TextBox.TextProperty, new Binding("Age")
-            {
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                ValidatesOnDataErrors = true
-            });
-            stackPanel.Children.Add(ageTextBox);
-
-            // IsEnabled binding (matches TestApp EnabledCheckBox)
-            var checkBox = new CheckBox();
-            checkBox.SetBinding(CheckBox.IsCheckedProperty, new Binding("IsEnabled"));
-            stackPanel.Children.Add(checkBox);
-
-            Application.Current.MainWindow.Content = stackPanel;
-
-            return analyzer.GetBindings(elementId: null);
         });
 
-        result.Should().NotBeNull();
+        var cachedNameResult = result.GetProperty("cachedNameResult");
+        var lookupNameResult = result.GetProperty("lookupNameResult");
+        var ageResult = result.GetProperty("ageResult");
+        var enabledResult = result.GetProperty("enabledResult");
+
+        cachedNameResult.GetRawText().Should().Be(lookupNameResult.GetRawText());
+        lookupNameResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        lookupNameResult.GetProperty("bindings")[0].GetProperty("propertyName").GetString().Should().Be("Text");
+        lookupNameResult.GetProperty("bindings")[0].GetProperty("path").GetString().Should().Be("Name");
+        lookupNameResult.GetProperty("bindings")[0].GetProperty("currentValue").GetString().Should().Be("Alice");
+
+        ageResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        ageResult.GetProperty("bindings")[0].GetProperty("propertyName").GetString().Should().Be("Text");
+        ageResult.GetProperty("bindings")[0].GetProperty("path").GetString().Should().Be("Age");
+        ageResult.GetProperty("bindings")[0].GetProperty("currentValue").GetString().Should().Be("30");
+
+        enabledResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        enabledResult.GetProperty("bindings")[0].GetProperty("propertyName").GetString().Should().Be("IsChecked");
+        enabledResult.GetProperty("bindings")[0].GetProperty("path").GetString().Should().Be("IsEnabled");
+        enabledResult.GetProperty("bindings")[0].GetProperty("currentValue").GetString().Should().Be("False");
     }
 
     [Fact]
     public void GetDataContextChain_WithTestViewModel_ShouldReturnChain()
     {
-        // Arrange - use real TestViewModel as DataContext
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new BindingAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
+            SelectBasicControlsTab(context);
 
-            var viewModel = new TestViewModel { Name = "Test", Age = 25 };
-            var stackPanel = new StackPanel { DataContext = viewModel };
+            context.BrokenDetailContextCheckBox.IsChecked = false;
+            context.Window.UpdateLayout();
 
-            // Nested element inheriting DataContext
-            var border = new Border();
-            var textBox = new TextBox();
-            textBox.SetBinding(TextBox.TextProperty, new Binding("Name"));
-            border.Child = textBox;
-            stackPanel.Children.Add(border);
+            var detailTextBoxId = elementFinder.GenerateElementId(context.DetailContextTextBox);
+            var cachedResult = JsonSerializer.SerializeToElement(analyzer.GetDataContextChain(detailTextBoxId));
+            EvictElementCacheEntry(elementFinder, detailTextBoxId);
+            var lookupResult = JsonSerializer.SerializeToElement(analyzer.GetDataContextChain(detailTextBoxId));
 
-            Application.Current.MainWindow.Content = stackPanel;
-
-            return analyzer.GetDataContextChain(elementId: null);
+            return JsonSerializer.SerializeToElement(new
+            {
+                cachedResult,
+                lookupResult
+            });
         });
 
-        result.Should().NotBeNull();
+        var cachedResult = result.GetProperty("cachedResult");
+        var lookupResult = result.GetProperty("lookupResult");
+        cachedResult.GetRawText().Should().Be(lookupResult.GetRawText());
+
+        lookupResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        lookupResult.GetProperty("chain").GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
+        lookupResult.GetProperty("chain")[0].GetProperty("elementName").GetString().Should().Be("DetailContextTextBox");
+        lookupResult.GetProperty("chain")[0].GetProperty("dataContextType").GetString().Should().Be("ValidDetailContext");
+        lookupResult.GetProperty("chain")[0].GetProperty("sourceKind").GetString().Should().Be("InheritedDataContext");
+        lookupResult.GetProperty("chain")[0].GetProperty("isInherited").GetBoolean().Should().BeTrue();
+        lookupResult.GetProperty("chain")[1].GetProperty("elementName").GetString().Should().Be("DynamicDetailHost");
+        lookupResult.GetProperty("chain")[1].GetProperty("dataContextType").GetString().Should().Be("ValidDetailContext");
+        lookupResult.GetProperty("chain")[1].GetProperty("sourceKind").GetString().Should().Be("LocalDataContext");
+        lookupResult.GetProperty("chain")[1].GetProperty("isInherited").GetBoolean().Should().BeFalse();
     }
 
     [Fact]
     public void ForceBindingUpdate_WithTestViewModelBinding_ShouldUpdateSuccessfully()
     {
-        // Arrange - use real TestViewModel with PropertyChanged
         var result = _fixture.RunOnUIThread(() =>
         {
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new BindingAnalyzer(elementFinder);
+            var context = CreateRealTestAppWindow();
+            SelectBasicControlsTab(context);
 
-            var viewModel = new TestViewModel { Name = "Original", Age = 25 };
-            var stackPanel = new StackPanel { DataContext = viewModel };
+            var detailContext = context.ViewModel.CurrentDetailContext.Should().BeOfType<ValidDetailContext>().Subject;
+            var bindingExpression = context.DetailContextTextBox.GetBindingExpression(TextBox.TextProperty);
+            var detailTextBoxId = elementFinder.GenerateElementId(context.DetailContextTextBox);
 
-            var textBox = new TextBox();
-            textBox.SetBinding(TextBox.TextProperty, new Binding("Name")
+            detailContext.DetailName = "Detail ready";
+            bindingExpression?.UpdateTarget();
+            context.DetailContextTextBox.Text = "Updated detail";
+            var sourceValueBeforeCachedUpdate = detailContext.DetailName;
+            var cachedResult = JsonSerializer.SerializeToElement(
+                analyzer.ForceBindingUpdate(detailTextBoxId, propertyName: "Text", direction: "Source"));
+            var sourceValueAfterCachedUpdate = detailContext.DetailName;
+
+            detailContext.DetailName = "Detail ready";
+            bindingExpression?.UpdateTarget();
+            context.DetailContextTextBox.Text = "Updated detail";
+            EvictElementCacheEntry(elementFinder, detailTextBoxId);
+            var lookupResult = JsonSerializer.SerializeToElement(
+                analyzer.ForceBindingUpdate(detailTextBoxId, propertyName: "Text", direction: "Source"));
+            var sourceValueAfterLookupUpdate = detailContext.DetailName;
+
+            return JsonSerializer.SerializeToElement(new
             {
-                Mode = BindingMode.TwoWay,
-                UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+                cachedResult,
+                lookupResult,
+                sourceValueBeforeCachedUpdate,
+                sourceValueAfterCachedUpdate,
+                sourceValueAfterLookupUpdate
             });
-            stackPanel.Children.Add(textBox);
-
-            Application.Current.MainWindow.Content = stackPanel;
-
-            return analyzer.ForceBindingUpdate(elementId: null, propertyName: "Text", direction: "Source");
         });
 
-        result.Should().NotBeNull();
+        result.GetProperty("cachedResult").GetRawText().Should().Be(result.GetProperty("lookupResult").GetRawText());
+        result.GetProperty("lookupResult").GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("lookupResult").GetProperty("direction").GetString().Should().Be("Source");
+        result.GetProperty("lookupResult").GetProperty("propertyName").GetString().Should().Be("Text");
+        result.GetProperty("sourceValueBeforeCachedUpdate").GetString().Should().Be("Detail ready");
+        result.GetProperty("sourceValueAfterCachedUpdate").GetString().Should().Be("Updated detail");
+        result.GetProperty("sourceValueAfterLookupUpdate").GetString().Should().Be("Updated detail");
     }
 
     [Fact]
@@ -174,62 +252,23 @@ public class TestAppBindingIntegrationTests
         var result = _fixture.RunOnUIThread(() =>
         {
             BindingErrorTraceListener.ResetInstance();
-            var elementFinder = new ElementFinder();
+            using var elementFinder = new ElementFinder();
             var analyzer = new BindingAnalyzer(elementFinder);
-            var window = Application.Current.MainWindow;
+            var context = CreateRealTestAppWindow();
+            SelectBasicControlsTab(context);
 
-            try
-            {
-                var viewModel = new TestViewModel { Name = "", Age = 0 };
-                var stackPanel = new StackPanel { DataContext = viewModel };
+            context.ViewModel.Name = string.Empty;
+            context.ViewModel.Age = 0;
+            context.Window.UpdateLayout();
 
-                var nameTextBox = new TextBox();
-                nameTextBox.SetBinding(TextBox.TextProperty, new Binding("Name")
-                {
-                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                    ValidatesOnDataErrors = true
-                });
-                stackPanel.Children.Add(nameTextBox);
+            context.NameTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            context.AgeTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            context.ErrorTextBox1.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            context.ErrorTextBox2.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            context.ErrorTextBox3.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            context.BrushMismatchButton.GetBindingExpression(Button.BackgroundProperty)?.UpdateTarget();
 
-                var ageTextBox = new TextBox();
-                ageTextBox.SetBinding(TextBox.TextProperty, new Binding("Age")
-                {
-                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                    ValidatesOnDataErrors = true
-                });
-                stackPanel.Children.Add(ageTextBox);
-
-                var invalidPropertyTextBox = new TextBox();
-                invalidPropertyTextBox.SetBinding(TextBox.TextProperty, new Binding("InvalidPropertyName"));
-                stackPanel.Children.Add(invalidPropertyTextBox);
-
-                var invalidPathTextBox = new TextBox();
-                invalidPathTextBox.SetBinding(TextBox.TextProperty, new Binding("NonExistent.Property"));
-                stackPanel.Children.Add(invalidPathTextBox);
-
-                var nullContextPanel = new StackPanel { DataContext = null };
-                var nullContextTextBox = new TextBox();
-                nullContextTextBox.SetBinding(TextBox.TextProperty, new Binding("Name"));
-                nullContextPanel.Children.Add(nullContextTextBox);
-                stackPanel.Children.Add(nullContextPanel);
-
-                window.Content = stackPanel;
-                window.Show();
-                window.Activate();
-                window.UpdateLayout();
-
-                nameTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-                ageTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-                invalidPropertyTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
-                invalidPathTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
-                nullContextTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
-
-                return JsonSerializer.SerializeToElement(analyzer.GetBindingErrors(clearAfterRead: false));
-            }
-            finally
-            {
-                window.Content = null;
-            }
+            return JsonSerializer.SerializeToElement(analyzer.GetBindingErrors(clearAfterRead: false));
         });
 
         var messages = result.GetProperty("errors")
@@ -237,12 +276,22 @@ public class TestAppBindingIntegrationTests
             .Select(error => error.GetProperty("message").GetString())
             .Where(message => message != null)
             .ToArray();
+        var bindingPaths = result.GetProperty("errors")
+            .EnumerateArray()
+            .Select(error => error.GetProperty("bindingPath").GetString())
+            .Where(path => path != null)
+            .Cast<string>()
+            .ToArray();
 
         var messageSummary = string.Join(" || ", messages);
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
-        result.GetProperty("errorCount").GetInt32().Should().Be(3, because: messageSummary);
+        result.GetProperty("errorCount").GetInt32().Should().Be(4, because: messageSummary);
 
+        bindingPaths.Should().Contain("InvalidPropertyName");
+        bindingPaths.Should().Contain("NonExistent.Property");
+        bindingPaths.Should().Contain("Name");
+        bindingPaths.Should().Contain("IsEnabled");
         messages.Should().Contain(message => message!.Contains("InvalidPropertyName", StringComparison.Ordinal));
         messages.Should().Contain(message => message!.Contains("NonExistent.Property", StringComparison.Ordinal));
         messages.Should().Contain(message => message!.Contains("no DataContext", StringComparison.OrdinalIgnoreCase)
@@ -250,4 +299,89 @@ public class TestAppBindingIntegrationTests
         messages.Should().NotContain(message => message!.Contains("Name is required", StringComparison.Ordinal));
         messages.Should().NotContain(message => message!.Contains("Age must be greater than 0", StringComparison.Ordinal));
     }
+
+    private static void EvictElementCacheEntry(ElementFinder elementFinder, string elementId)
+    {
+        elementFinder.TryRemoveCachedElement(elementId).Should().BeTrue();
+    }
+
+    private static void SelectBasicControlsTab(TestAppBindingWindowContext context)
+    {
+        context.MainTabControl.SelectedItem = context.BasicControlsTab;
+        context.Window.UpdateLayout();
+    }
+
+    private TestAppBindingWindowContext CreateRealTestAppWindow()
+    {
+        var application = Application.Current;
+        application.Should().NotBeNull();
+
+        _previousMainWindow ??= application!.MainWindow;
+
+        var window = new MainWindow();
+        _activeTestAppWindow = window;
+        application.MainWindow = window;
+        window.Show();
+        window.UpdateLayout();
+
+        var viewModel = window.DataContext as TestViewModel;
+        var mainTabControl = window.FindName("MainTabControl") as TabControl;
+        var basicControlsTab = window.FindName("BasicControlsTab") as TabItem;
+        var nameTextBox = window.FindName("NameTextBox") as TextBox;
+        var ageTextBox = window.FindName("AgeTextBox") as TextBox;
+        var enabledCheckBox = window.FindName("EnabledCheckBox") as CheckBox;
+        var errorTextBox1 = window.FindName("ErrorTextBox1") as TextBox;
+        var errorTextBox2 = window.FindName("ErrorTextBox2") as TextBox;
+        var errorTextBox3 = window.FindName("ErrorTextBox3") as TextBox;
+        var brushMismatchButton = window.FindName("BrushMismatchButton") as Button;
+        var brokenDetailContextCheckBox = window.FindName("BrokenDetailContextCheckBox") as CheckBox;
+        var dynamicDetailHost = window.FindName("DynamicDetailHost") as ContentControl;
+        var detailContextTextBox = window.FindName("DetailContextTextBox") as TextBox;
+
+        viewModel.Should().NotBeNull();
+        mainTabControl.Should().NotBeNull();
+        basicControlsTab.Should().NotBeNull();
+        nameTextBox.Should().NotBeNull();
+        ageTextBox.Should().NotBeNull();
+        enabledCheckBox.Should().NotBeNull();
+        errorTextBox1.Should().NotBeNull();
+        errorTextBox2.Should().NotBeNull();
+        errorTextBox3.Should().NotBeNull();
+        brushMismatchButton.Should().NotBeNull();
+        brokenDetailContextCheckBox.Should().NotBeNull();
+        dynamicDetailHost.Should().NotBeNull();
+        detailContextTextBox.Should().NotBeNull();
+
+        return new TestAppBindingWindowContext(
+            window,
+            viewModel!,
+            mainTabControl!,
+            basicControlsTab!,
+            nameTextBox!,
+            ageTextBox!,
+            enabledCheckBox!,
+            errorTextBox1!,
+            errorTextBox2!,
+            errorTextBox3!,
+            brushMismatchButton!,
+            brokenDetailContextCheckBox!,
+            dynamicDetailHost!,
+            detailContextTextBox!);
+    }
+
+    private sealed record TestAppBindingWindowContext(
+        MainWindow Window,
+        TestViewModel ViewModel,
+        TabControl MainTabControl,
+        TabItem BasicControlsTab,
+        TextBox NameTextBox,
+        TextBox AgeTextBox,
+        CheckBox EnabledCheckBox,
+        TextBox ErrorTextBox1,
+        TextBox ErrorTextBox2,
+        TextBox ErrorTextBox3,
+        Button BrushMismatchButton,
+        CheckBox BrokenDetailContextCheckBox,
+        ContentControl DynamicDetailHost,
+        TextBox DetailContextTextBox);
 }

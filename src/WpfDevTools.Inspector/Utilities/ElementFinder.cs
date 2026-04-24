@@ -176,6 +176,11 @@ public sealed class ElementFinder : IDisposable
         return elements;
     }
 
+    internal bool TryRemoveCachedElement(string elementId)
+    {
+        return _elementCache.TryRemove(elementId, out _);
+    }
+
     /// <summary>
     /// Find element by ID in the Visual Tree
     /// </summary>

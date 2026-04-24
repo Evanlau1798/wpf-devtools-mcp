@@ -225,7 +225,7 @@ public sealed partial class InteractionAnalyzer
     {
         if (string.IsNullOrWhiteSpace(outputMode))
         {
-            return "base64";
+            return "metadata";
         }
 
         if (string.Equals(outputMode, "metadata", StringComparison.OrdinalIgnoreCase))

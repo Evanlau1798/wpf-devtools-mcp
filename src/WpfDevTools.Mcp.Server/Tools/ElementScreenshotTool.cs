@@ -23,7 +23,7 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
     {
         var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
-        var outputMode = ParseStringParam(arguments, "outputMode");
+        var outputMode = ParseStringParam(arguments, "outputMode") ?? "metadata";
         var maxWidth = ParseIntParam(arguments, "maxWidth");
         var maxHeight = ParseIntParam(arguments, "maxHeight");
 

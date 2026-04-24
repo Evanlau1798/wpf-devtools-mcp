@@ -289,7 +289,7 @@ public static class CapabilityResources
                 {
                     parameter = "outputMode",
                     tools = new[] { "element_screenshot" },
-                    defaultValue = "base64",
+                    defaultValue = "metadata",
                     allowedValues = new[] { "base64", "metadata", "file" }
                 }
             },

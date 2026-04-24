@@ -368,7 +368,7 @@ public sealed class ResponseContractResourceTests
         AssertParameterVocabulary(
             parameterVocabularies,
             "outputMode",
-            "base64",
+            "metadata",
             ["base64", "metadata", "file"],
             ["element_screenshot"]);
     }

@@ -110,7 +110,7 @@ public class InteractionAnalyzerTests
     }
 
     [StaFact]
-    public void TakeScreenshot_WithValidElement_ShouldReturnBase64Image()
+    public void TakeScreenshot_WithValidElement_ShouldReturnMetadataByDefault()
     {
         // Arrange
         var finder = new ElementFinder();
@@ -125,29 +125,11 @@ public class InteractionAnalyzerTests
         result.Should().NotBeNull();
         var json = System.Text.Json.JsonSerializer.SerializeToElement(result);
         json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.TryGetProperty("base64Image", out var base64Image).Should().BeTrue();
+        json.TryGetProperty("base64Image", out _).Should().BeFalse();
         json.TryGetProperty("imageData", out _).Should().BeFalse();
-
-        var screenshot = base64Image.GetString();
-        screenshot.Should().NotBeNullOrEmpty();
-        var isValidBase64 = IsValidBase64(screenshot!);
-        isValidBase64.Should().BeTrue("screenshot should be valid base64 encoded image");
-    }
-
-    private static bool IsValidBase64(string base64String)
-    {
-        if (string.IsNullOrEmpty(base64String))
-            return false;
-
-        try
-        {
-            var data = Convert.FromBase64String(base64String);
-            return data.Length > 0;
-        }
-        catch
-        {
-            return false;
-        }
+        json.GetProperty("byteLength").GetInt32().Should().BeGreaterThan(0);
+        json.GetProperty("width").GetInt32().Should().Be(100);
+        json.GetProperty("height").GetInt32().Should().Be(50);
     }
 
     [StaFact]

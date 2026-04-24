@@ -1,5 +1,7 @@
 using Xunit;
 using FluentAssertions;
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text.Json;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
@@ -145,6 +147,11 @@ public class LayoutAnalyzerIntegrationTests
 
                 var wasTargetMeasureInvalid = !targetButton.IsMeasureValid;
                 var wasTargetArrangeInvalid = !targetButton.IsArrangeValid;
+
+                var elementCacheField = typeof(ElementFinder).GetField("_elementCache", BindingFlags.Instance | BindingFlags.NonPublic);
+                var elementCache = elementCacheField!.GetValue(elementFinder) as ConcurrentDictionary<string, WeakReference<DependencyObject>>;
+                elementCache.Should().NotBeNull();
+                elementCache!.TryRemove(targetButtonId, out _).Should().BeTrue();
 
                 var invalidateResult = analyzer.InvalidateLayout(targetButtonId);
                 return new

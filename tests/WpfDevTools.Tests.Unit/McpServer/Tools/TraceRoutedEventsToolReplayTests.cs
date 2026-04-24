@@ -686,7 +686,7 @@ public sealed class TraceRoutedEventsToolReplayTests
     public async Task Execute_GetMode_ShouldMergeReplayWithoutTimestampUsingSavedAtUtcFallback()
     {
         const int processId = 43135;
-        var currentTime = new DateTimeOffset(2026, 4, 24, 12, 0, 0, TimeSpan.Zero);
+        var currentTime = DateTimeOffset.UtcNow;
         using var connected = await ConnectedTraceReplaySession.CreateAsync(
             processId,
             new[]
@@ -700,9 +700,10 @@ public sealed class TraceRoutedEventsToolReplayTests
             new ActiveTraceNavigationState(
                 "Click",
                 "Button_46",
-                currentTime.AddMilliseconds(-200),
-                TimeSpan.FromMilliseconds(150),
-                SessionId: "trace-savedat-fallback"));
+                currentTime.AddMilliseconds(-400),
+                TimeSpan.FromMilliseconds(100),
+                SessionId: "trace-savedat-fallback",
+                IgnoreExpiry: true));
 
         currentTime = currentTime.AddMilliseconds(200);
         connected.SessionManager.SavePendingEventReplay(

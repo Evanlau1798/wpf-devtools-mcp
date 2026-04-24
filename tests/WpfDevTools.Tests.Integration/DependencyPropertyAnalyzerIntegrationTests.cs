@@ -163,13 +163,17 @@ public class DependencyPropertyAnalyzerIntegrationTests
             var changeLog = analyzer.GetChangeLog();
             var unwatchResult = analyzer.UnwatchChanges("Width", buttonId);
             analyzer.ClearChangeLog();
+            button.Width = 260.0;
+            var changeLogAfterUnwatch = analyzer.GetChangeLog();
+            analyzer.ClearChangeLog();
 
             return new
             {
                 buttonId,
                 watchResult,
                 changeLog,
-                unwatchResult
+                unwatchResult,
+                changeLogAfterUnwatch
             };
         });
 
@@ -195,5 +199,9 @@ public class DependencyPropertyAnalyzerIntegrationTests
         var unwatchResultJson = json.GetProperty("unwatchResult");
         unwatchResultJson.GetProperty("success").GetBoolean().Should().BeTrue();
         unwatchResultJson.GetProperty("propertyName").GetString().Should().Be("Width");
+
+        var changeLogAfterUnwatchJson = json.GetProperty("changeLogAfterUnwatch");
+        changeLogAfterUnwatchJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        changeLogAfterUnwatchJson.GetProperty("changeCount").GetInt32().Should().Be(0);
     }
 }

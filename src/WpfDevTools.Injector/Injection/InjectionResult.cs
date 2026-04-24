@@ -3,6 +3,17 @@ using WpfDevTools.Shared.Enums;
 namespace WpfDevTools.Injector.Injection;
 
 /// <summary>
+/// Structured reason for timeout-shaped injection failures.
+/// </summary>
+public enum InjectionTimeoutReason
+{
+    /// <summary>
+    /// The shared timeout budget was already exhausted before the reported phase could begin.
+    /// </summary>
+    SharedBudgetExhaustedBeforePhaseStart
+}
+
+/// <summary>
 /// Result of DLL injection operation
 /// </summary>
 public sealed class InjectionResult
@@ -41,6 +52,9 @@ public sealed class InjectionResult
     /// <summary>Named Pipe name (populated on success)</summary>
     public string? PipeName { get; init; }
 
+    /// <summary>Structured timeout classification when a timeout-shaped failure occurs.</summary>
+    public InjectionTimeoutReason? TimeoutReason { get; init; }
+
     /// <summary>
     /// Create a successful result
     /// </summary>
@@ -69,6 +83,26 @@ public sealed class InjectionResult
         BootstrapStage? failedAtStage = null,
         int? bootstrapExitCode = null)
     {
+        return CreateFailure(
+            processId,
+            error,
+            errorMessage,
+            failedAtStage,
+            bootstrapExitCode,
+            timeoutReason: null);
+    }
+
+    /// <summary>
+    /// Create a failed result with structured timeout classification metadata.
+    /// </summary>
+    public static InjectionResult CreateFailure(
+        int processId,
+        InjectionError error,
+        string errorMessage,
+        BootstrapStage? failedAtStage,
+        int? bootstrapExitCode,
+        InjectionTimeoutReason? timeoutReason)
+    {
         return new InjectionResult
         {
             Success = false,
@@ -76,7 +110,8 @@ public sealed class InjectionResult
             ErrorMessage = errorMessage,
             ProcessId = processId,
             FailedAtStage = failedAtStage,
-            BootstrapExitCode = bootstrapExitCode
+            BootstrapExitCode = bootstrapExitCode,
+            TimeoutReason = timeoutReason
         };
     }
 }

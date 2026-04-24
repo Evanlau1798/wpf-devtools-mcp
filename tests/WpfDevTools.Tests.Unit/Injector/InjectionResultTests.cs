@@ -80,6 +80,22 @@ public class InjectionResultTests
     }
 
     [Fact]
+    public void CreateFailure_WithTimeoutReason_ShouldPreserveMetadata()
+    {
+        var result = InjectionResult.CreateFailure(
+            301,
+            InjectionError.Timeout,
+            "Budget exhausted before phase start",
+            failedAtStage: BootstrapStage.ManagedEntrypoint,
+            bootstrapExitCode: null,
+            timeoutReason: InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart);
+
+        result.Error.Should().Be(InjectionError.Timeout);
+        result.TimeoutReason.Should().Be(InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart);
+        result.FailedAtStage.Should().Be(BootstrapStage.ManagedEntrypoint);
+    }
+
+    [Fact]
     public void DirectConstruction_WithRequiredProperties_ShouldWork()
     {
         // Act

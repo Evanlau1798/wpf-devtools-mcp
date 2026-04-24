@@ -79,4 +79,55 @@ public class DllInjectorTests
         // Assert
         error.Should().Be(InjectionError.ProcessNotFound);
     }
+
+    [Fact]
+    public void GetRemainingBootstrapPhaseTimeout_WhenElapsedIsTwoSeconds_ShouldReturnRemainingBudget()
+    {
+        var remaining = DllInjector.GetRemainingBootstrapPhaseTimeout(
+            elapsed: TimeSpan.FromSeconds(2),
+            totalTimeout: TimeSpan.FromSeconds(5));
+
+        remaining.Should().Be(TimeSpan.FromSeconds(3),
+            "LoadLibrary and bootstrap export invocation should share a single timeout budget");
+    }
+
+    [Fact]
+    public void GetRemainingBootstrapPhaseTimeout_WhenElapsedConsumesBudget_ShouldReturnZero()
+    {
+        var remaining = DllInjector.GetRemainingBootstrapPhaseTimeout(
+            elapsed: TimeSpan.FromSeconds(5),
+            totalTimeout: TimeSpan.FromSeconds(5));
+
+        remaining.Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public void InterpretInjectionMechanismFailure_WhenBootstrapExportBudgetIsExhausted_ShouldMapToTimeoutReason()
+    {
+        var interpreted = InjectionMechanismFailure.TryInterpret(
+            InjectionMechanismFailure.InvokeBootstrapExportBudgetExhausted,
+            out var result);
+
+        interpreted.Should().BeTrue();
+        result.Should().NotBeNull();
+        result!.Error.Should().Be(InjectionError.Timeout);
+        result.Stage.Should().Be(BootstrapStage.ManagedEntrypoint);
+        result.TimeoutReason.Should().Be(InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart);
+    }
+
+    [Theory]
+    [InlineData(InjectionMechanismFailure.LoadBootstrapperTimedOut, null)]
+    [InlineData(InjectionMechanismFailure.LoadBootstrapperBudgetExhausted, InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart)]
+    public void InterpretInjectionMechanismFailure_WhenLoadLibraryTimeoutsOccur_ShouldMapToTimeout(
+        int exitCode,
+        InjectionTimeoutReason? expectedReason)
+    {
+        var interpreted = InjectionMechanismFailure.TryInterpret(exitCode, out var result);
+
+        interpreted.Should().BeTrue();
+        result.Should().NotBeNull();
+        result!.Error.Should().Be(InjectionError.Timeout);
+        result.Stage.Should().Be(BootstrapStage.LoadLibrary);
+        result.TimeoutReason.Should().Be(expectedReason);
+    }
 }

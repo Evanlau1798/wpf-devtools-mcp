@@ -37,9 +37,55 @@ public sealed class InjectionRequest
     public TimeSpan PipeReadyTimeout { get; init; } = TimeSpan.FromSeconds(15);
 
     /// <summary>
+    /// Optional total timeout budget shared across all phases of bootstrap injection.
+    /// When set, each phase must clamp its own timeout to the remaining shared budget.
+    /// </summary>
+    public TimeSpan? TotalTimeout { get; init; }
+
+    /// <summary>
     /// Create the standard pipe name for a given process ID.
     /// </summary>
     public static string CreatePipeName(int processId) => $"WpfDevTools_{processId}";
+
+    internal TimeSpan ResolvePhaseTimeout(TimeSpan elapsed, TimeSpan configuredTimeout)
+    {
+        if (configuredTimeout <= TimeSpan.Zero)
+        {
+            return TimeSpan.Zero;
+        }
+
+        if (!TotalTimeout.HasValue)
+        {
+            return configuredTimeout;
+        }
+
+        var remaining = TotalTimeout.Value - elapsed;
+        if (remaining <= TimeSpan.Zero)
+        {
+            return TimeSpan.Zero;
+        }
+
+        return configuredTimeout <= remaining ? configuredTimeout : remaining;
+    }
+
+    /// <summary>
+    /// Create a copy of this request with a shared total timeout budget for all bootstrap phases.
+    /// </summary>
+    public InjectionRequest WithTotalTimeout(TimeSpan totalTimeout)
+    {
+        return new InjectionRequest
+        {
+            ProcessId = ProcessId,
+            BootstrapperDllPath = BootstrapperDllPath,
+            InspectorDllPath = InspectorDllPath,
+            ExpectedPipeName = ExpectedPipeName,
+            AuthenticationSecretBase64 = AuthenticationSecretBase64,
+            CertificateDirectory = CertificateDirectory,
+            InjectionTimeout = InjectionTimeout,
+            PipeReadyTimeout = PipeReadyTimeout,
+            TotalTimeout = totalTimeout
+        };
+    }
 
     /// <summary>
     /// Builds the bootstrap parameter string passed through the native bootstrapper.

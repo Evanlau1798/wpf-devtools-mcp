@@ -38,6 +38,68 @@ public class InjectionRequestTests
             "injection timeout must have a sensible default");
         request.PipeReadyTimeout.Should().BeGreaterThan(TimeSpan.Zero,
             "pipe ready timeout must have a sensible default");
+        request.TotalTimeout.Should().BeNull(
+            "callers that do not share a wider operation budget should keep the legacy per-phase defaults");
+    }
+
+    [Fact]
+    public void ResolvePhaseTimeout_WhenTotalTimeoutIsConfigured_ShouldClampToRemainingBudget()
+    {
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = "a.dll",
+            InspectorDllPath = "b.dll",
+            ExpectedPipeName = "WpfDevTools_1234",
+            TotalTimeout = TimeSpan.FromSeconds(5)
+        };
+
+        var phaseTimeout = request.ResolvePhaseTimeout(
+            elapsed: TimeSpan.FromSeconds(3),
+            configuredTimeout: TimeSpan.FromSeconds(15));
+
+        phaseTimeout.Should().Be(TimeSpan.FromSeconds(2),
+            "later injection phases must consume the remaining shared timeout budget instead of restarting a fresh per-phase timeout");
+    }
+
+    [Fact]
+    public void ResolvePhaseTimeout_WhenElapsedConsumesTotalTimeout_ShouldReturnZero()
+    {
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = "a.dll",
+            InspectorDllPath = "b.dll",
+            ExpectedPipeName = "WpfDevTools_1234",
+            TotalTimeout = TimeSpan.FromSeconds(5)
+        };
+
+        var phaseTimeout = request.ResolvePhaseTimeout(
+            elapsed: TimeSpan.FromSeconds(5),
+            configuredTimeout: TimeSpan.FromSeconds(15));
+
+        phaseTimeout.Should().Be(TimeSpan.Zero,
+            "once the shared connect budget is exhausted, later injector phases must fail fast instead of starting another wait window");
+    }
+
+    [Fact]
+    public void ResolvePhaseTimeout_WhenConfiguredTimeoutIsZeroWithoutTotalBudget_ShouldReturnZeroWithoutAssumingSharedBudget()
+    {
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = "a.dll",
+            InspectorDllPath = "b.dll",
+            ExpectedPipeName = "WpfDevTools_1234"
+        };
+
+        var phaseTimeout = request.ResolvePhaseTimeout(
+            elapsed: TimeSpan.Zero,
+            configuredTimeout: TimeSpan.Zero);
+
+        phaseTimeout.Should().Be(TimeSpan.Zero,
+            "zero per-phase timeouts can come from direct callers even when no shared total budget is configured");
+        request.TotalTimeout.Should().BeNull();
     }
 
     [Fact]

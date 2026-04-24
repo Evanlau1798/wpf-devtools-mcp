@@ -21,6 +21,8 @@ namespace WpfDevTools.Mcp.Server.Tools;
 public sealed partial class ConnectTool
 {
     private static readonly ConcurrentDictionary<ConnectOperationKey, InflightConnectOperation> GlobalInflightConnects = new();
+    private const string InjectionBudgetExhaustedMessage = "Injection timed out before the bootstrap phase could start.";
+    private const string PipeReadyBudgetExhaustedMessage = "Bootstrap completed, but the remaining connect budget was exhausted before the Inspector Named Pipe readiness check could start.";
 
     private readonly IProcessInjector _injector;
     private readonly SessionManager _sessionManager;
@@ -306,6 +308,7 @@ public sealed partial class ConnectTool
             var bootstrapperCandidates = _bootstrapperCandidateResolver(AppContext.BaseDirectory)
                 .Where(File.Exists)
                 .ToArray();
+
             var injectionRequest = InjectionPlanFactory.CreateRequest(
                 processInfo,
                 inspectorCandidates,
@@ -327,6 +330,22 @@ public sealed partial class ConnectTool
 
             _dllPathValidator(injectionRequest.InspectorDllPath);
             _dllPathValidator(injectionRequest.BootstrapperDllPath);
+
+            var remainingConnectTimeoutBeforeInjection = GetRemainingPipeConnectTimeout(
+                connectStopwatch.Elapsed,
+                TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds));
+            if (remainingConnectTimeoutBeforeInjection <= TimeSpan.Zero)
+            {
+                return new
+                {
+                    success = false,
+                    error = "Connect timed out before bootstrap injection could start.",
+                    errorCode = "Timeout",
+                    hint = "The pre-injection discovery and validation phases consumed the full connect budget. Retry connect or target the process explicitly."
+                };
+            }
+
+            injectionRequest = injectionRequest.WithTotalTimeout(remainingConnectTimeoutBeforeInjection);
 
             InjectionResult injectionResult;
             try
@@ -721,7 +740,11 @@ public sealed partial class ConnectTool
             InjectionError.AllocationFailed => "Failed to allocate remote memory during injection.",
             InjectionError.WriteFailed => "Failed to write injector payload into the target process.",
             InjectionError.CreateThreadFailed => "Failed to start the remote injection thread.",
+            InjectionError.Timeout when injectionResult.TimeoutReason == InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart
+                => injectionResult.ErrorMessage ?? InjectionBudgetExhaustedMessage,
             InjectionError.Timeout => "Injection timed out before the target process became ready.",
+            InjectionError.PipeReadyTimeout when injectionResult.TimeoutReason == InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart
+                => injectionResult.ErrorMessage ?? PipeReadyBudgetExhaustedMessage,
             InjectionError.PipeReadyTimeout => "Bootstrap completed, but the Inspector Named Pipe did not become ready before the timeout expired.",
             InjectionError.BootstrapFailed => DescribeBootstrapFailureMessage(injectionResult),
             InjectionError.Unknown => "Injection failed due to an unexpected internal error. Check server logs for details.",

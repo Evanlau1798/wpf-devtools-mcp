@@ -17,6 +17,13 @@ namespace WpfDevTools.Injector.Injection;
 [ExcludeFromCodeCoverage]
 public class DllInjector
 {
+    private enum LoadLibraryRemoteOutcome
+    {
+        Succeeded,
+        Failed,
+        TimedOut
+    }
+
     private const int PROCESS_CREATE_THREAD = 0x0002;
     private const int PROCESS_QUERY_INFORMATION = 0x0400;
     private const int PROCESS_VM_OPERATION = 0x0008;
@@ -224,8 +231,17 @@ public class DllInjector
         string parameters,
         TimeSpan timeout)
     {
+        var operationStopwatch = Stopwatch.StartNew();
+
         // Step 1: Load bootstrapper via LoadLibraryW
-        if (!LoadLibraryRemote(hProcess, bootstrapperPath, timeout))
+        var loadLibraryTimeout = GetRemainingBootstrapPhaseTimeout(operationStopwatch.Elapsed, timeout);
+        if (loadLibraryTimeout <= TimeSpan.Zero)
+            return InjectionMechanismFailure.LoadBootstrapperBudgetExhausted;
+
+        var loadLibraryOutcome = LoadLibraryRemote(hProcess, bootstrapperPath, loadLibraryTimeout);
+        if (loadLibraryOutcome == LoadLibraryRemoteOutcome.TimedOut)
+            return InjectionMechanismFailure.LoadBootstrapperTimedOut;
+        if (loadLibraryOutcome != LoadLibraryRemoteOutcome.Succeeded)
             return InjectionMechanismFailure.LoadBootstrapperFailed;
 
         // Find remote module base
@@ -243,11 +259,15 @@ public class DllInjector
 
         // Write parameters to target process memory
         var paramBytes = Encoding.Unicode.GetBytes(parameters + "\0");
+        var invokeExportTimeout = GetRemainingBootstrapPhaseTimeout(operationStopwatch.Elapsed, timeout);
+        if (invokeExportTimeout <= TimeSpan.Zero)
+            return InjectionMechanismFailure.InvokeBootstrapExportBudgetExhausted;
+
         var invocationResult = _bufferInvoker.Invoke(
             hProcess,
             remoteFuncAddr,
             paramBytes,
-            timeout,
+            invokeExportTimeout,
             requireExitCode: true);
 
         return invocationResult.Status switch
@@ -267,12 +287,18 @@ public class DllInjector
         };
     }
 
-    private bool LoadLibraryRemote(IntPtr hProcess, string dllPath, TimeSpan timeout)
+    internal static TimeSpan GetRemainingBootstrapPhaseTimeout(TimeSpan elapsed, TimeSpan totalTimeout)
+    {
+        var remaining = totalTimeout - elapsed;
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    private LoadLibraryRemoteOutcome LoadLibraryRemote(IntPtr hProcess, string dllPath, TimeSpan timeout)
     {
         var kernel32 = _api.GetModuleHandle("kernel32.dll");
         var loadLibraryAddr = _api.GetProcAddress(kernel32, "LoadLibraryW");
         if (loadLibraryAddr == IntPtr.Zero)
-            return false;
+            return LoadLibraryRemoteOutcome.Failed;
 
         var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
         var invocationResult = _bufferInvoker.Invoke(
@@ -285,11 +311,18 @@ public class DllInjector
             ? new IntPtr(unchecked((int)invocationResult.ExitCode))
             : IntPtr.Zero;
 
+        if (invocationResult.Status == RemoteThreadInvocationStatus.TimedOut)
+        {
+            return LoadLibraryRemoteOutcome.TimedOut;
+        }
+
         return invocationResult.Status == RemoteThreadInvocationStatus.Completed &&
             LoadLibraryRemoteResult.IsSuccessful(
                 invocationResult.WaitResult,
                 invocationResult.ExitCodeAvailable,
-                remoteModuleHandle);
+                remoteModuleHandle)
+            ? LoadLibraryRemoteOutcome.Succeeded
+            : LoadLibraryRemoteOutcome.Failed;
     }
 
     private string GetErrorMessage(InjectionError error)

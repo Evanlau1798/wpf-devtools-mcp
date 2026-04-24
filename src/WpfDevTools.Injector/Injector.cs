@@ -109,6 +109,8 @@ public class ProcessInjector : IProcessInjector
 
         cancellationToken.ThrowIfCancellationRequested();
 
+    var operationStopwatch = Stopwatch.StartNew();
+
         var validationError = ValidateTarget(request.ProcessId);
         if (validationError != InjectionError.None)
         {
@@ -133,21 +135,41 @@ public class ProcessInjector : IProcessInjector
 
         try
         {
+            var injectionTimeout = request.ResolvePhaseTimeout(
+                operationStopwatch.Elapsed,
+                request.InjectionTimeout);
+            if (injectionTimeout <= TimeSpan.Zero)
+            {
+                var exhaustedSharedBudget = request.TotalTimeout.HasValue;
+                return InjectionResult.CreateFailure(
+                    request.ProcessId,
+                    InjectionError.Timeout,
+                    exhaustedSharedBudget
+                        ? "Injection timed out before the bootstrap phase could start."
+                        : "Injection timed out before the bootstrap phase could start because the configured injection timeout was zero or negative.",
+                    failedAtStage: BootstrapStage.LoadLibrary,
+                    bootstrapExitCode: null,
+                    timeoutReason: exhaustedSharedBudget
+                        ? InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart
+                        : null);
+            }
+
             var exitCode = _dllInjector.InjectAndCallExport(
                 hProcess,
                 request.BootstrapperDllPath,
                 "BootstrapInspector",
                 parameters,
-                request.InjectionTimeout);
+                injectionTimeout);
 
             if (InjectionMechanismFailure.TryInterpret(exitCode, out var mechanismFailure))
             {
                 return InjectionResult.CreateFailure(
                     request.ProcessId,
-                    InjectionError.BootstrapFailed,
+                    mechanismFailure!.Error,
                     mechanismFailure!.Message,
                     failedAtStage: mechanismFailure.Stage,
-                    bootstrapExitCode: exitCode);
+                    bootstrapExitCode: exitCode,
+                    timeoutReason: mechanismFailure.TimeoutReason);
             }
 
             var interpretation = BootstrapResultInterpreter.Interpret(exitCode);
@@ -164,9 +186,28 @@ public class ProcessInjector : IProcessInjector
             cancellationToken.ThrowIfCancellationRequested();
 
             var probe = new PipeReadyProbe();
+            var pipeReadyTimeout = request.ResolvePhaseTimeout(
+                operationStopwatch.Elapsed,
+                request.PipeReadyTimeout);
+            if (pipeReadyTimeout <= TimeSpan.Zero)
+            {
+                var exhaustedSharedBudget = request.TotalTimeout.HasValue;
+                return InjectionResult.CreateFailure(
+                    request.ProcessId,
+                    InjectionError.PipeReadyTimeout,
+                    exhaustedSharedBudget
+                        ? "Bootstrap completed, but the remaining connect budget was exhausted before the Inspector Named Pipe readiness check could start."
+                        : "Bootstrap completed, but the configured pipe-ready timeout was zero or negative before the Inspector Named Pipe readiness check could start.",
+                    failedAtStage: BootstrapStage.PipeReady,
+                    bootstrapExitCode: exitCode,
+                    timeoutReason: exhaustedSharedBudget
+                        ? InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart
+                        : null);
+            }
+
             var pipeReady = probe.WaitForPipeReady(
                 request.ExpectedPipeName,
-                request.PipeReadyTimeout,
+                pipeReadyTimeout,
                 cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();

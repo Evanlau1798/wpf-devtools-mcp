@@ -27,6 +27,7 @@ public partial class ConnectToolTests : IDisposable
         WpfProcessDetector? processDetector = null,
         Action<string>? dllPathValidator = null,
         Func<bool>? isCurrentProcessElevated = null,
+        PipeReadyProbe? pipeReadyProbe = null,
         Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null)
     {
         return new ConnectTool(
@@ -35,6 +36,7 @@ public partial class ConnectToolTests : IDisposable
             processDetector ?? new FakeProcessDetector(),
             dllPathValidator ?? (_ => { }),
             isCurrentProcessElevated ?? (() => false),
+            pipeReadyProbe: pipeReadyProbe,
             isRawInjectionTargetAllowed: isRawInjectionTargetAllowed ?? (_ => true));
     }
 
@@ -438,6 +440,38 @@ public partial class ConnectToolTests : IDisposable
         resultJson.GetProperty("message").GetString().Should().Contain("get_element_snapshot");
         resultJson.GetProperty("message").GetString().Should().Contain("get_form_summary");
         injector.InjectWithBootstrapCallCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Execute_WhenPreInjectionProbeConsumesTime_ShouldPassRemainingBudgetIntoInjectionRequest()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var injector = new FakeProcessInjector
+        {
+            ShouldFailInjection = true,
+            FailedError = InjectionError.BootstrapFailed,
+            InjectionErrorMessage = "stop after inspecting timeout budget"
+        };
+        var probe = new PipeReadyProbe(
+            (_, _) => false,
+            () => DateTime.UtcNow,
+            Thread.Sleep);
+        var tool = CreateTool(
+            injector: injector,
+            pipeReadyProbe: probe);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        injector.LastInjectionRequest.Should().NotBeNull();
+        injector.LastInjectionRequest!.TotalTimeout.Should().NotBeNull(
+            "connect should propagate a single remaining deadline into the bootstrap injection request");
+        injector.LastInjectionRequest.TotalTimeout!.Value.Should().BeLessThan(
+            TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds),
+            "the pre-injection probe already consumed part of the overall connect budget before injection started");
+        injector.LastInjectionRequest.TotalTimeout.Value.Should().BeGreaterThan(TimeSpan.Zero);
     }
 
     [Fact]

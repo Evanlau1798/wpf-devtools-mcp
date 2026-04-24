@@ -35,6 +35,44 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
         json.GetProperty("errorCode").GetString().Should().Be("Timeout");
     }
 
+    [Theory]
+    [InlineData(
+        InjectionError.Timeout,
+        BootstrapStage.LoadLibrary,
+        "Injection timed out before the bootstrap phase could start.")]
+    [InlineData(
+        InjectionError.Timeout,
+        BootstrapStage.ManagedEntrypoint,
+        "The remaining timeout budget was exhausted before the bootstrap export thread could start.")]
+    [InlineData(
+        InjectionError.PipeReadyTimeout,
+        BootstrapStage.PipeReady,
+        "Bootstrap completed, but the remaining connect budget was exhausted before the Inspector Named Pipe readiness check could start.")]
+    public async Task Execute_WhenSharedBudgetIsExhaustedBeforePhaseStarts_ShouldPreserveAccurateTimeoutMessage(
+        InjectionError injectionError,
+        BootstrapStage failedStage,
+        string expectedMessage)
+    {
+        EnsureDummyBootstrapperExists();
+        var tool = new ConnectTool(
+            new SessionManager(),
+            new FailingProcessInjector(
+                injectionError,
+                expectedMessage,
+                failedStage,
+                InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart),
+            new FakeProcessDetector(),
+            _ => { },
+            isRawInjectionTargetAllowed: _ => true);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("Timeout");
+        json.GetProperty("error").GetString().Should().Be(expectedMessage);
+    }
+
     [Fact]
     public void DescribePipeConnectFailure_WhenAuthenticationFails_ShouldReturnSecurityError()
     {
@@ -104,7 +142,11 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
         };
     }
 
-    private sealed class FailingProcessInjector(InjectionError injectionError) : IProcessInjector
+    private sealed class FailingProcessInjector(
+        InjectionError injectionError,
+        string errorMessage = "Bootstrap timed out",
+        BootstrapStage? failedStage = null,
+        InjectionTimeoutReason? timeoutReason = null) : IProcessInjector
     {
         public InjectionResult Inject(int processId, string dllPath, TimeSpan? timeout = null)
             => InjectionResult.CreateSuccess(processId, dllPath);
@@ -112,6 +154,12 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
         public InjectionError ValidateTarget(int processId) => InjectionError.None;
 
         public InjectionResult InjectWithBootstrap(InjectionRequest request, CancellationToken cancellationToken = default)
-            => InjectionResult.CreateFailure(request.ProcessId, injectionError, "Bootstrap timed out");
+            => InjectionResult.CreateFailure(
+                request.ProcessId,
+                injectionError,
+                errorMessage,
+                failedAtStage: failedStage,
+                bootstrapExitCode: null,
+                timeoutReason: timeoutReason);
     }
 }

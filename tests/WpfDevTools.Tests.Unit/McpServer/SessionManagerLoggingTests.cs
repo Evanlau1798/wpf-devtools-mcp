@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -50,6 +51,29 @@ public class SessionManagerLoggingTests : IDisposable
         // Existing constructor signatures must remain valid
         using var sm = new SessionManager(maxRequestsPerMinute: 100);
         sm.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void PublicConstructorSignatures_ShouldRemainAvailable()
+    {
+        typeof(SessionManager)
+            .GetConstructor(new[]
+            {
+                typeof(IRateLimiterManager),
+                typeof(AuthenticationManager),
+                typeof(CertificateManager),
+                typeof(ILogger<SessionManager>)
+            })
+            .Should().NotBeNull();
+
+        typeof(SessionManager)
+            .GetConstructor(new[]
+            {
+                typeof(int),
+                typeof(AuthenticationManager),
+                typeof(CertificateManager)
+            })
+            .Should().NotBeNull();
     }
 
     [Fact]

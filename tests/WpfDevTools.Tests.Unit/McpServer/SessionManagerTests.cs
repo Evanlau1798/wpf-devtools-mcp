@@ -113,14 +113,17 @@ public class SessionManagerTests
     public void UpdateLastActivity_WithExistingSession_ShouldUpdateTimestamp()
     {
         // Arrange
-        using var manager = new SessionManager();
+        var currentTime = DateTimeOffset.UtcNow;
+        using var manager = new SessionManager(
+            McpServerConfiguration.RateLimitRequestsPerMinute,
+            authManager: null,
+            certManager: null,
+            utcNowProvider: () => currentTime);
         var processId = 12345;
         manager.AddSession(processId);
-
         var initialTime = manager.GetLastActivityTime(processId);
 
-        // Wait to ensure timestamp can change (avoid same-tick updates)
-        Thread.Sleep(10);
+        currentTime = currentTime.AddMinutes(1);
 
         // Act
         manager.UpdateLastActivity(processId);
@@ -134,16 +137,18 @@ public class SessionManagerTests
     public void GetIdleSessions_WithIdleTimeout_ShouldReturnIdleSessions()
     {
         // Arrange
-        using var manager = new SessionManager();
+        var currentTime = DateTimeOffset.UtcNow;
+        using var manager = new SessionManager(
+            McpServerConfiguration.RateLimitRequestsPerMinute,
+            authManager: null,
+            certManager: null,
+            utcNowProvider: () => currentTime);
         manager.AddSession(100);
-
-        // Wait to ensure session becomes idle
-        Thread.Sleep(150);
-
+        currentTime = currentTime.AddMinutes(5);
         manager.AddSession(200); // Fresh session
 
         // Act
-        var idleSessions = manager.GetIdleSessions(TimeSpan.FromMilliseconds(100));
+        var idleSessions = manager.GetIdleSessions(TimeSpan.FromMinutes(1));
 
         // Assert
         idleSessions.Should().Contain(100);

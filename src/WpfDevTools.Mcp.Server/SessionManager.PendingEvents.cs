@@ -50,7 +50,7 @@ public sealed partial class SessionManager
             {
                 _pendingEventReplay[processId] = new PendingEventReplaySnapshot(
                     drainPayload.Clone(),
-                    DateTimeOffset.UtcNow,
+                    _utcNowProvider(),
                     sessionGeneration);
                 return true;
             }

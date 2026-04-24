@@ -120,10 +120,14 @@ public class RateLimiterTests
     }
 
     [Fact]
-    public async Task TryAcquire_AfterIntervalElapsed_ShouldRefillTokens()
+    public void TryAcquire_AfterIntervalElapsed_ShouldRefillTokens()
     {
         // Arrange
-        var limiter = new RateLimiter(maxRequestsPerInterval: 5, interval: TimeSpan.FromMilliseconds(100));
+        var currentTime = DateTime.UtcNow;
+        var limiter = new RateLimiter(
+            maxRequestsPerInterval: 5,
+            interval: TimeSpan.FromMilliseconds(100),
+            () => currentTime);
 
         // Consume all tokens
         for (int i = 0; i < 5; i++)
@@ -132,22 +136,26 @@ public class RateLimiterTests
         }
         limiter.TryAcquire().Should().BeFalse("all tokens consumed");
 
-        // Act - wait for refill
-        await Task.Delay(150);
+        // Act - advance the injected clock past one refill interval
+        currentTime = currentTime.AddMilliseconds(150);
 
         // Assert - tokens should be refilled
         limiter.TryAcquire().Should().BeTrue("tokens should be refilled after interval");
     }
 
     [Fact]
-    public async Task GetAvailableTokens_AfterRefill_ShouldNotExceedMax()
+    public void GetAvailableTokens_AfterRefill_ShouldNotExceedMax()
     {
         // Arrange
-        var limiter = new RateLimiter(maxRequestsPerInterval: 10, interval: TimeSpan.FromMilliseconds(50));
+        var currentTime = DateTime.UtcNow;
+        var limiter = new RateLimiter(
+            maxRequestsPerInterval: 10,
+            interval: TimeSpan.FromMilliseconds(50),
+            () => currentTime);
         limiter.TryAcquire(); // Use 1 token
 
-        // Act - wait for multiple intervals
-        await Task.Delay(200); // 4x the interval
+        // Act - advance past multiple refill intervals
+        currentTime = currentTime.AddMilliseconds(200); // 4x the interval
 
         // Assert - should cap at max, not accumulate
         limiter.GetAvailableTokens().Should().Be(10, "tokens should not exceed max");

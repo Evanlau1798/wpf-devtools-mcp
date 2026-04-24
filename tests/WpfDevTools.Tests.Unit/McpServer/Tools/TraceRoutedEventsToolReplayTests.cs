@@ -683,6 +683,64 @@ public sealed class TraceRoutedEventsToolReplayTests
     }
 
     [Fact]
+    public async Task Execute_GetMode_ShouldMergeReplayWithoutTimestampUsingSavedAtUtcFallback()
+    {
+        const int processId = 43135;
+        var currentTime = new DateTimeOffset(2026, 4, 24, 12, 0, 0, TimeSpan.Zero);
+        using var connected = await ConnectedTraceReplaySession.CreateAsync(
+            processId,
+            new[]
+            {
+                """{"success":true,"sessionId":"trace-savedat-fallback","mode":"get","isTracing":true,"eventCount":0,"events":[],"handlerInvocationCount":0}"""
+            },
+            utcNowProvider: () => currentTime);
+
+        connected.SessionManager.SetActiveTraceState(
+            processId,
+            new ActiveTraceNavigationState(
+                "Click",
+                "Button_46",
+                currentTime.AddMilliseconds(-200),
+                TimeSpan.FromMilliseconds(150),
+                SessionId: "trace-savedat-fallback"));
+
+        currentTime = currentTime.AddMilliseconds(200);
+        connected.SessionManager.SavePendingEventReplay(
+            processId,
+            JsonSerializer.SerializeToElement(new
+            {
+                success = true,
+                pendingEventCount = 1,
+                droppedEventCount = 0,
+                pendingEvents = new[]
+                {
+                    new
+                    {
+                        eventType = "RoutedEvent",
+                        elementId = "Button_46",
+                        eventName = "Click",
+                        senderType = "Button",
+                        senderName = "SavedAtFallbackButton",
+                        routingStrategy = "Bubble",
+                        handled = false,
+                        originalSourceType = "Button"
+                    }
+                }
+            }));
+
+        var traceTool = new TraceRoutedEventsTool(connected.SessionManager);
+
+        var traceResult = JsonSerializer.SerializeToElement(await traceTool.ExecuteAsync(
+            ToJsonElement(new { processId, mode = "get" }),
+            CancellationToken.None));
+
+        traceResult.GetProperty("success").GetBoolean().Should().BeTrue(traceResult.GetRawText());
+        traceResult.GetProperty("eventCount").GetInt32().Should().Be(1, traceResult.GetRawText());
+        traceResult.GetProperty("events")[0].GetProperty("eventName").GetString().Should().Be("Click");
+        traceResult.GetProperty("events")[0].GetProperty("sender").GetString().Should().Be("Button");
+    }
+
+    [Fact]
     public async Task Execute_GetMode_ShouldNotMergeReplayForStaleSessionResponse()
     {
         const int processId = 43127;
@@ -798,7 +856,8 @@ public sealed class TraceRoutedEventsToolReplayTests
         public static async Task<ConnectedTraceReplaySession> CreateAsync(
             int processId,
             string[] responses,
-            Action<InspectorRequest>? inspectRequest = null)
+            Action<InspectorRequest>? inspectRequest = null,
+            Func<DateTimeOffset>? utcNowProvider = null)
         {
             var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
             var server = new NamedPipeServerStream(
@@ -841,7 +900,11 @@ public sealed class TraceRoutedEventsToolReplayTests
                 }
             });
 
-            var sessionManager = new SessionManager();
+            var sessionManager = new SessionManager(
+                McpServerConfiguration.RateLimitRequestsPerMinute,
+                authManager: null,
+                certManager: null,
+                utcNowProvider: utcNowProvider);
             DisableCleanupTimer(sessionManager);
             sessionManager.AddSession(processId);
             var client = new NamedPipeClient(processId, pipeName);
@@ -852,7 +915,7 @@ public sealed class TraceRoutedEventsToolReplayTests
         }
 
         public static Task<ConnectedTraceReplaySession> CreateAsync(int processId, params string[] responses) =>
-            CreateAsync(processId, responses, inspectRequest: null);
+            CreateAsync(processId, responses, inspectRequest: null, utcNowProvider: null);
 
         public void Dispose()
         {

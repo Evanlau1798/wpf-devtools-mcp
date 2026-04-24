@@ -12,6 +12,7 @@ namespace WpfDevTools.Mcp.Server;
 public sealed partial class SessionManager : IDisposable
 {
     private int _disposeState;
+    private readonly Func<DateTimeOffset> _utcNowProvider;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
     internal readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly Dictionary<int, Dictionary<string, StoredStateSnapshot>> _stateSnapshots = new();
@@ -38,11 +39,30 @@ public sealed partial class SessionManager : IDisposable
         AuthenticationManager? authManager = null,
         CertificateManager? certManager = null,
         ILogger<SessionManager>? logger = null)
+        : this(rateLimiter, authManager, certManager, logger, utcNowProvider: null)
+    {
+    }
+
+    /// <summary>
+    /// Create a new SessionManager with dependency injection and an optional deterministic UTC clock.
+    /// </summary>
+    /// <param name="rateLimiter">Rate limiter manager for controlling request rates</param>
+    /// <param name="authManager">Authentication manager (null to disable authentication)</param>
+    /// <param name="certManager">Certificate manager for encryption (null to disable encryption)</param>
+    /// <param name="logger">Logger for cleanup diagnostics (null to fall back to Debug.WriteLine)</param>
+    /// <param name="utcNowProvider">Optional UTC clock provider for deterministic tests</param>
+    internal SessionManager(
+        IRateLimiterManager rateLimiter,
+        AuthenticationManager? authManager,
+        CertificateManager? certManager,
+        ILogger<SessionManager>? logger,
+        Func<DateTimeOffset>? utcNowProvider)
     {
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
         _authManager = authManager;
         _certManager = certManager;
         _logger = logger;
+        _utcNowProvider = utcNowProvider ?? (() => DateTimeOffset.UtcNow);
 
         // CRITICAL FIX: Periodic cleanup of dead and idle sessions
         // Uses one-shot timer (Infinite period) to prevent overlapping callbacks.
@@ -64,7 +84,23 @@ public sealed partial class SessionManager : IDisposable
         int maxRequestsPerMinute = McpServerConfiguration.RateLimitRequestsPerMinute,
         AuthenticationManager? authManager = null,
         CertificateManager? certManager = null)
-        : this(new RateLimiterManager(maxRequestsPerMinute), authManager, certManager)
+        : this(maxRequestsPerMinute, authManager, certManager, utcNowProvider: null)
+    {
+    }
+
+    /// <summary>
+    /// Create a new SessionManager with a deterministic UTC clock for tests.
+    /// </summary>
+    /// <param name="maxRequestsPerMinute">Maximum requests per minute per session (default from McpServerConfiguration)</param>
+    /// <param name="authManager">Authentication manager (null to disable authentication)</param>
+    /// <param name="certManager">Certificate manager for encryption (null to disable encryption)</param>
+    /// <param name="utcNowProvider">Optional UTC clock provider for deterministic tests</param>
+    internal SessionManager(
+        int maxRequestsPerMinute,
+        AuthenticationManager? authManager,
+        CertificateManager? certManager,
+        Func<DateTimeOffset>? utcNowProvider)
+        : this(new RateLimiterManager(maxRequestsPerMinute), authManager, certManager, logger: null, utcNowProvider: utcNowProvider)
     {
     }
 
@@ -178,7 +214,7 @@ public sealed partial class SessionManager : IDisposable
         _sessions[processId] = new SessionInfo
         {
             ProcessId = processId,
-            LastActivity = DateTimeOffset.UtcNow
+            LastActivity = _utcNowProvider()
         };
         _sessionGenerations[processId] = ++_nextSessionGeneration;
 
@@ -188,7 +224,7 @@ public sealed partial class SessionManager : IDisposable
         _activeProcessSelection ??= new ActiveProcessSelection
         {
             ProcessId = processId,
-            SelectedAtUtc = DateTimeOffset.UtcNow
+            SelectedAtUtc = _utcNowProvider()
         };
     }
 
@@ -493,7 +529,7 @@ public sealed partial class SessionManager : IDisposable
             _activeProcessSelection = new ActiveProcessSelection
             {
                 ProcessId = processId,
-                SelectedAtUtc = DateTimeOffset.UtcNow
+                SelectedAtUtc = _utcNowProvider()
             };
         }
     }
@@ -513,7 +549,7 @@ public sealed partial class SessionManager : IDisposable
             _activeProcessSelection = new ActiveProcessSelection
             {
                 ProcessId = processId,
-                SelectedAtUtc = DateTimeOffset.UtcNow
+                SelectedAtUtc = _utcNowProvider()
             };
 
             return true;
@@ -576,7 +612,7 @@ public sealed partial class SessionManager : IDisposable
                 _sessions[processId] = new SessionInfo
                 {
                     ProcessId = session.ProcessId,
-                    LastActivity = DateTimeOffset.UtcNow
+                    LastActivity = _utcNowProvider()
                 };
             }
         }
@@ -608,7 +644,7 @@ public sealed partial class SessionManager : IDisposable
         ThrowIfDisposed();
         lock (_lock)
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = _utcNowProvider();
             return _sessions
                 .Where(kvp => now - kvp.Value.LastActivity > idleTimeout)
                 .Select(kvp => kvp.Key)

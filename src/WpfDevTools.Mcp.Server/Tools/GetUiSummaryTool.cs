@@ -27,9 +27,7 @@ public sealed class GetUiSummaryTool(SessionManager sessionManager) : PipeConnec
         return await SendInspectorRequestAsync(
             processId,
             "get_ui_summary",
-            // Keep full semantic nodes in the pipe payload so server-side navigation
-            // can inspect them before summaryOnly trimming is applied to the client response.
-            new { elementId, depth, depthMode, summaryOnly = false },
+            new { elementId, depth, depthMode, summaryOnly = summaryOnly ?? false },
             cancellationToken).ConfigureAwait(false);
     }
 }

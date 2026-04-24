@@ -60,11 +60,12 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             var rootName = SceneSummaryElementHelpers.GetElementName(root);
             var (scopeVisibility, isCurrentlyVisible) = SceneSummaryElementHelpers.GetScopeVisibilityMetadata(root);
             var nodes = summaryOnly ? null : new List<object>();
+            var navigationNodes = summaryOnly ? new List<object>() : null;
             var summary = new StringBuilder();
             var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
             var semanticNodeCount = 0;
 
-            Traverse(root, currentDepth: 0, maxDepth, traversalDepthMode, nodes, summary, visited, ref semanticNodeCount);
+            Traverse(root, currentDepth: 0, maxDepth, traversalDepthMode, nodes, navigationNodes, summary, visited, ref semanticNodeCount);
 
             return summaryOnly
                 ? new
@@ -78,7 +79,8 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                     scopeVisibility,
                     isCurrentlyVisible,
                     semanticNodeCount,
-                    summaryText = summary.ToString().TrimEnd()
+                    summaryText = summary.ToString().TrimEnd(),
+                    navigationNodes = navigationNodes ?? []
                 }
                 : new
                 {
@@ -103,6 +105,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         int maxDepth,
         SceneTraversalDepthMode depthMode,
         List<object>? nodes,
+        List<object>? navigationNodes,
         StringBuilder summary,
         HashSet<DependencyObject> visited,
         ref int semanticNodeCount)
@@ -115,13 +118,13 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         if (SceneSummaryElementHelpers.IsSemanticElement(current)
             && (currentDepth > 0 || current is FrameworkElement))
         {
-            AppendSemanticNode(current, currentDepth, nodes, summary, ref semanticNodeCount);
+            AppendSemanticNode(current, currentDepth, nodes, navigationNodes, summary, ref semanticNodeCount);
         }
 
         foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(current))
         {
             var nextDepth = SceneSummaryElementHelpers.GetNextTraversalDepth(child, currentDepth, depthMode);
-            Traverse(child, nextDepth, maxDepth, depthMode, nodes, summary, visited, ref semanticNodeCount);
+            Traverse(child, nextDepth, maxDepth, depthMode, nodes, navigationNodes, summary, visited, ref semanticNodeCount);
         }
     }
 
@@ -129,6 +132,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         DependencyObject element,
         int depth,
         List<object>? nodes,
+        List<object>? navigationNodes,
         StringBuilder summary,
         ref int semanticNodeCount)
     {
@@ -150,18 +154,29 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         }
 
         semanticNodeCount++;
+    var elementId = _elementFinder.GenerateElementId(frameworkElement);
 
         if (nodes != null)
         {
             nodes.Add(new
             {
-                elementId = _elementFinder.GenerateElementId(frameworkElement),
+        elementId,
                 elementType,
                 elementName,
                 kind,
                 depth,
                 text,
                 currentValue,
+                annotations
+            });
+        }
+
+        if (navigationNodes != null && annotations.Count > 0)
+        {
+            navigationNodes.Add(new
+            {
+                elementId,
+                elementType,
                 annotations
             });
         }

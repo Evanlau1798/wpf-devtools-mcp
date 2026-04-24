@@ -16,7 +16,8 @@ internal static class SceneNavigationRules
 
     private static ToolNavigationEnvelope BuildUiSummary(ToolNavigationContext context)
     {
-        if (!TryGetArray(context.Payload, "nodes", out var nodes))
+        if (!TryGetArray(context.Payload, "nodes", out var nodes)
+            && !TryGetArray(context.Payload, "navigationNodes", out nodes))
         {
             return ToolNavigationEnvelope.Empty;
         }

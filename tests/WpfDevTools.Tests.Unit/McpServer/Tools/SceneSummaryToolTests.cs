@@ -105,7 +105,7 @@ public sealed class SceneSummaryToolTests : IDisposable
     }
 
     [Fact]
-    public async Task GetUiSummaryTool_WithSummaryOnly_ShouldRequestFullInspectorPayloadAndReturnTrimmedResponse()
+    public async Task GetUiSummaryTool_WithSummaryOnly_ShouldForwardSummaryOnlyAndReturnNavigationTrimmedResponse()
     {
         const int processId = 60213;
         const string pipeName = "WpfDevTools_Test_SceneSummaryOnly";
@@ -125,7 +125,7 @@ public sealed class SceneSummaryToolTests : IDisposable
                 {
                     Id = request!.Id,
                     CorrelationId = request.CorrelationId,
-                    Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"rootElementId":"Window_1","semanticNodeCount":1,"summaryText":"- Button SaveButton [disabled]","nodes":[{"elementId":"Button_1","elementType":"Button","annotations":["disabled"]}]}""")
+                    Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"rootElementId":"Window_1","semanticNodeCount":1,"summaryText":"- Button SaveButton [disabled]","navigationNodes":[{"elementId":"Button_1","elementType":"Button","annotations":["disabled"]}]}""")
                 };
 
                 await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
@@ -155,11 +155,12 @@ public sealed class SceneSummaryToolTests : IDisposable
             var payload = result.StructuredContent!.Value;
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
             payload.TryGetProperty("nodes", out _).Should().BeFalse();
+            payload.TryGetProperty("navigationNodes", out _).Should().BeFalse();
             payload.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_interaction_readiness");
             var request = await requestCompletion.Task.WaitAsync(TimeSpan.FromSeconds(5));
             request.Params.Should().NotBeNull();
             request.Params!.Value.TryGetProperty("summaryOnly", out var summaryOnly).Should().BeTrue();
-            summaryOnly.GetBoolean().Should().BeFalse();
+            summaryOnly.GetBoolean().Should().BeTrue();
         }
         finally
         {

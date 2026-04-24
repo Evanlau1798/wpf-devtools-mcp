@@ -520,7 +520,7 @@ public static partial class ToolCallHelper
         if (string.Equals(toolName, "get_ui_summary", StringComparison.Ordinal)
             && TryGetBool(args, "summaryOnly"))
         {
-            return RemoveTopLevelProperties(element, "nodes");
+            return RemoveTopLevelProperties(element, "nodes", "navigationNodes");
         }
 
         if (string.Equals(toolName, "get_binding_errors", StringComparison.Ordinal)

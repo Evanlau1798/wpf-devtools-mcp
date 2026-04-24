@@ -371,6 +371,35 @@ public sealed class UiSummaryAnalyzerTests
     }
 
     [StaFact]
+    public void GetUiSummary_WithSummaryOnly_ShouldEmitLightweightNavigationNodesForAnnotatedElements()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel
+        {
+            Name = "SummaryRoot",
+            Children =
+            {
+                new Button { Name = "DisabledSaveButton", Content = "Save", IsEnabled = false }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 2, summaryOnly: true));
+
+        result.TryGetProperty("nodes", out _).Should().BeFalse();
+        result.TryGetProperty("navigationNodes", out var navigationNodes).Should().BeTrue();
+        navigationNodes.ValueKind.Should().Be(JsonValueKind.Array);
+        navigationNodes.GetArrayLength().Should().Be(1);
+
+        var navigationNode = navigationNodes[0];
+        navigationNode.GetProperty("elementType").GetString().Should().Be("Button");
+        navigationNode.GetProperty("annotations")[0].GetString().Should().Be("disabled");
+        navigationNode.TryGetProperty("text", out _).Should().BeFalse();
+        navigationNode.TryGetProperty("currentValue", out _).Should().BeFalse();
+    }
+
+    [StaFact]
     public void GetUiSummary_ShouldOmitFrameworkObjectDisplayTextNoise()
     {
         var finder = new ElementFinder();

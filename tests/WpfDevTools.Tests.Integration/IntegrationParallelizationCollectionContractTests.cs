@@ -73,6 +73,14 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Fact]
+    public void WpfIntegrationCollection_ShouldDisableParallelization()
+    {
+        GetCollectionDefinitionAttribute(typeof(WpfIntegrationCollection))
+            .DisableParallelization
+            .Should().BeTrue();
+    }
+
+    [Fact]
     public void McpE2eCollection_ShouldDisableParallelization()
     {
         GetCollectionDefinitionAttribute(typeof(McpE2eCollection))

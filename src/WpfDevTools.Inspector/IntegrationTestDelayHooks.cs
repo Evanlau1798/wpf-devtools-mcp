@@ -23,10 +23,10 @@ internal static class IntegrationTestDelayHooks
 #if DEBUG
         var delay = GetDelay(DelayAfterPipeConnectEnvVar);
         return delay <= TimeSpan.Zero
-            ? ValueTask.CompletedTask
+            ? default
             : new ValueTask(Task.Delay(delay, cancellationToken));
 #else
-        return ValueTask.CompletedTask;
+        return default;
 #endif
     }
 

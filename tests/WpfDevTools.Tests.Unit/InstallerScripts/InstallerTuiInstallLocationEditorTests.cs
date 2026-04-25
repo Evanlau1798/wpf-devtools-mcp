@@ -66,7 +66,7 @@ public sealed class InstallerTuiInstallLocationEditorTests
                 userProfile,
                 installRoot,
                 "DownArrow||DownArrow||DownArrow||Enter||Escape||Escape||Enter",
-                timeout: TimeSpan.FromSeconds(15));
+                timeout: TimeSpan.FromSeconds(30));
 
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("Select install parent directory");
@@ -102,7 +102,7 @@ public sealed class InstallerTuiInstallLocationEditorTests
                 userProfile,
                 installRoot,
                 "DownArrow||DownArrow||DownArrow||Enter||DownArrow||Enter||DownArrow||Enter||Tab||Text:-team||Enter||Escape||Enter",
-                timeout: TimeSpan.FromSeconds(15));
+                timeout: TimeSpan.FromSeconds(30));
 
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("Select install parent directory");

@@ -9,6 +9,8 @@ namespace WpfDevTools.Tests.Integration;
 [Collection("PackagingIntegration")]
 public sealed class ReleasePackagingIntegrationTests
 {
+    private static readonly TimeSpan BuildReleaseTimeout = TimeSpan.FromMinutes(5);
+
     [Fact]
     public void BuildReleaseScript_ShouldProduceVersionedPackageWithBinLayout()
     {
@@ -64,7 +66,9 @@ public sealed class ReleasePackagingIntegrationTests
             var command = "& '" +
                 ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1").Replace("'", "''") +
                 "' -Configuration Debug -Architectures @('x64','x86') -OutputRoot '" + escapedOutputRoot + "'";
-            var result = ReleasePackagingTestHarness.RunPowerShellCommand(command);
+            var result = ReleasePackagingTestHarness.RunPowerShellCommand(
+                command,
+                timeout: BuildReleaseTimeout);
 
             result.ExitCode.Should().Be(0, result.Stderr);
 
@@ -95,7 +99,8 @@ public sealed class ReleasePackagingIntegrationTests
                 {
                     ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1",
                     ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "NotSigned"
-                });
+                },
+                timeout: BuildReleaseTimeout);
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("signature",

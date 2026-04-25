@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Inspector.Host;
@@ -288,6 +289,128 @@ public class NamedPipeClientProtocolTests
 
         allowServerCompletion.SetResult();
         await serverTask;
+    }
+
+    [Fact]
+    public async Task SendRequestAsync_WhenResponseDoesNotArriveWithinRequestTimeout_ShouldResetConnectionAndThrowTimeoutException()
+    {
+        var processId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var requestReceived = new TaskCompletionSource<InspectorRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowServerCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+
+            request.Should().NotBeNull();
+            requestReceived.SetResult(request!);
+
+            await allowServerCompletion.Task;
+
+            try
+            {
+                var response = new InspectorResponse
+                {
+                    Id = request!.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.SerializeToElement(new { success = true }),
+                    Error = null
+                };
+
+                await MessageFraming.WriteMessageAsync(
+                    server,
+                    JsonSerializer.Serialize(response),
+                    CancellationToken.None);
+            }
+            catch (IOException)
+            {
+                // Client timeout resets the pipe before the delayed response is written.
+            }
+        });
+
+        using var client = new NamedPipeClient(
+            processId,
+            pipeName,
+            authManager: null,
+            certManager: null,
+            enforceHostCompatibilityValidation: false,
+            requestTimeout: TimeSpan.FromMilliseconds(100));
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var sendTask = client.SendRequestAsync(
+            "ping",
+            "timeout-id",
+            new { },
+            CancellationToken.None);
+
+        await requestReceived.Task;
+
+        await FluentActions.Invoking(async () => await sendTask)
+            .Should().ThrowAsync<TimeoutException>();
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(5));
+        client.IsConnected.Should().BeFalse(
+            "timing out an in-flight request must reset the client so the next request cannot reuse a stale secure transport");
+
+        allowServerCompletion.SetResult();
+        await serverTask;
+    }
+
+    [Fact]
+    public async Task SendRequestAsync_WhenTimedOutWaitingForPipeSemaphore_ShouldNotResetConnection()
+    {
+        var processId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        var serverConnectTask = server.WaitForConnectionAsync();
+
+        using var client = new NamedPipeClient(
+            processId,
+            pipeName,
+            authManager: null,
+            certManager: null,
+            enforceHostCompatibilityValidation: false,
+            requestTimeout: TimeSpan.FromMilliseconds(100));
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        await serverConnectTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var semaphoreField = typeof(NamedPipeClient).GetField("_pipeSemaphore", BindingFlags.Instance | BindingFlags.NonPublic);
+        semaphoreField.Should().NotBeNull();
+        var semaphore = (SemaphoreSlim)semaphoreField!.GetValue(client)!;
+
+        await semaphore.WaitAsync();
+        try
+        {
+            await FluentActions.Invoking(async () => await client.SendRequestAsync(
+                    "ping",
+                    "queued-timeout-id",
+                    new { },
+                    CancellationToken.None))
+                .Should().ThrowAsync<TimeoutException>();
+
+            client.IsConnected.Should().BeTrue(
+                "timing out before the request owns the pipe must not reset another request's transport state");
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     [Fact]

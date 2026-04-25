@@ -34,7 +34,7 @@ public sealed class PingTool : PipeConnectedToolBase
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var response = await SendInspectorRequestAsync(processId, "ping", new { }, cancellationToken).ConfigureAwait(false);
+            var response = await SendInspectorRequestWithoutPiggybackAsync(processId, "ping", new { }, cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
 
             var responseJson = JsonSerializer.SerializeToElement(response);

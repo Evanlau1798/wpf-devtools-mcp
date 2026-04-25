@@ -4,6 +4,7 @@ using FluentAssertions;
 using WpfDevTools.Tests.Unit.Injector;
 using WpfDevTools.Tests.Unit.Inspector;
 using WpfDevTools.Tests.Unit.Inspector.Analyzers;
+using WpfDevTools.Tests.Unit.Inspector.Handlers;
 using WpfDevTools.Tests.Unit.Inspector.Utilities;
 using WpfDevTools.Tests.Unit.McpServer;
 using WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -104,6 +105,9 @@ public sealed class UnitTestParallelizationContractTests
     public void TimingSensitiveTests_ShouldUseTimingSensitiveCollection()
     {
         GetCollectionName(typeof(FileLoggerPerformanceTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(EventAnalyzerTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(EventHandlerTraceModeTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InspectorHostTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(NamedPipeClientProtocolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(NamedPipeClientTimeoutBudgetTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostAuthTests)).Should().Be("TimingSensitive");
@@ -112,11 +116,19 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolCompatibilityTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.GetAffectedElementsToolTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.DiagnoseVisibilityToolTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WatchDpChangesToolTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ElementScreenshotToolTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.TraceRoutedEventsToolReplayTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolConcurrencyTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InspectorHostObservabilityTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InstallerTuiRuntimeTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InstallerTuiInstallLocationEditorTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InstallerProcessLifecycleTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InstallerTuiVisualContractTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InstallerScriptTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(InstallerFullUninstallTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(EncryptedCommunicationTests)).Should().Be("TimingSensitive");
     }
 

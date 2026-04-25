@@ -12,6 +12,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("TimingSensitive")]
 public class EventAnalyzerTests
 {
 

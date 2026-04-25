@@ -671,4 +671,13 @@ public class ToolCallHelperTests
         structured.GetProperty("errorCode").GetString().Should().Be("AccessDenied");
     }
 
+    [Fact]
+    public void ClassifyException_WhenTimeoutException_ShouldReturnTimeoutCode()
+    {
+        var (errorCode, message) = ToolCallHelper.ClassifyException(new TimeoutException("raw timeout detail"));
+
+        errorCode.Should().Be("Timeout");
+        message.Should().Be("Operation timed out");
+    }
+
 }

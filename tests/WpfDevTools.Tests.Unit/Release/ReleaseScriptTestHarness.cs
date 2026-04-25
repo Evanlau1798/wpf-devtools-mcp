@@ -567,6 +567,12 @@ internal static class ReleaseScriptTestHarness
             startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1";
         }
 
+        if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal) &&
+            !startInfo.Environment.ContainsKey("WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"))
+        {
+            startInfo.Environment["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = "1";
+        }
+
         try
         {
             return RunProcess(startInfo, timeout);

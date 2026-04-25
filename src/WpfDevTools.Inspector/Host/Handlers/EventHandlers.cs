@@ -433,7 +433,7 @@ public class EventHandlers : IRequestHandler
         var windowExpiredBeforeGet = windowEndedAtUtc.HasValue
             && getRequestedAtUtc > windowEndedAtUtc.Value;
         var expiredByMs = windowExpiredBeforeGet
-            ? Math.Max(0, (int)Math.Round((getRequestedAtUtc - windowEndedAtUtc!.Value).TotalMilliseconds))
+            ? Math.Max(1, (int)Math.Round((getRequestedAtUtc - windowEndedAtUtc!.Value).TotalMilliseconds))
             : 0;
         var requestedEventMismatch = !string.IsNullOrWhiteSpace(requestedEventName)
             && !string.IsNullOrWhiteSpace(activeEventName)

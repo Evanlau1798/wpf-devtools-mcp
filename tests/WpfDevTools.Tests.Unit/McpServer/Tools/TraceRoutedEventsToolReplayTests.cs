@@ -12,6 +12,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public sealed class TraceRoutedEventsToolReplayTests
 {
     [Fact]
@@ -597,6 +598,65 @@ public sealed class TraceRoutedEventsToolReplayTests
                         handled = false,
                         originalSourceType = "Button",
                         timestampUtc = now
+                    }
+                }
+            }));
+
+        var traceTool = new TraceRoutedEventsTool(connected.SessionManager);
+
+        var traceResult = JsonSerializer.SerializeToElement(await traceTool.ExecuteAsync(
+            ToJsonElement(new { processId, mode = "get" }),
+            CancellationToken.None));
+
+        traceResult.GetProperty("success").GetBoolean().Should().BeTrue(traceResult.GetRawText());
+        traceResult.GetProperty("eventCount").GetInt32().Should().Be(0, traceResult.GetRawText());
+    }
+
+    [Fact]
+    public async Task Execute_GetMode_ShouldNotMergeReplayWhenEventTimestampIsTooEarlyEvenIfSavedAtIsInsideFallbackWindow()
+    {
+        const int processId = 43136;
+        var currentTime = DateTimeOffset.UtcNow;
+        using var connected = await ConnectedTraceReplaySession.CreateAsync(
+            processId,
+            new[]
+            {
+                """{"success":true,"sessionId":"trace-too-early","mode":"get","isTracing":true,"eventCount":0,"events":[],"handlerInvocationCount":0}"""
+            },
+            utcNowProvider: () => currentTime);
+
+        var traceStartedAtUtc = currentTime.AddMilliseconds(-400);
+        connected.SessionManager.SetActiveTraceState(
+            processId,
+            new ActiveTraceNavigationState(
+                "Click",
+                "Button_46",
+                traceStartedAtUtc,
+                TimeSpan.FromMilliseconds(100),
+                SessionId: "trace-too-early",
+                IgnoreExpiry: true));
+
+        currentTime = traceStartedAtUtc.AddMilliseconds(20);
+        connected.SessionManager.SavePendingEventReplay(
+            processId,
+            JsonSerializer.SerializeToElement(new
+            {
+                success = true,
+                pendingEventCount = 1,
+                droppedEventCount = 0,
+                pendingEvents = new[]
+                {
+                    new
+                    {
+                        eventType = "RoutedEvent",
+                        elementId = "Button_46",
+                        eventName = "Click",
+                        senderType = "Button",
+                        senderName = "OldButton",
+                        routingStrategy = "Bubble",
+                        handled = false,
+                        originalSourceType = "Button",
+                        timestampUtc = traceStartedAtUtc.Subtract(TimeSpan.FromSeconds(2))
                     }
                 }
             }));

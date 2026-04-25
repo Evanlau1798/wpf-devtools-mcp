@@ -32,7 +32,10 @@ internal static class RequestDispatcherRegistry
         FileLogger logger,
         Func<Dispatcher?, Action, Exception?>? eventTraceCleanupInvoker)
     {
-        ArgumentNullException.ThrowIfNull(logger);
+        if (logger == null)
+        {
+            throw new ArgumentNullException(nameof(logger));
+        }
 
         var elementFinder = new ElementFinder();
         var xamlSerializer = new XamlSerializer();
@@ -101,11 +104,13 @@ internal static class RequestDispatcherRegistry
         {
             foreach (var method in handler.GetSupportedMethods())
             {
-                if (!handlerMap.TryAdd(method, handler))
+                if (handlerMap.ContainsKey(method))
                 {
                     throw new InvalidOperationException(
                         $"Duplicate request handler registration for method '{method}'.");
                 }
+
+                handlerMap.Add(method, handler);
             }
         }
 

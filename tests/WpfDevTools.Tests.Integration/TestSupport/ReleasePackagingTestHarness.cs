@@ -184,6 +184,12 @@ internal static class ReleasePackagingTestHarness
             startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1";
         }
 
+        if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal) &&
+            !startInfo.Environment.ContainsKey("WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"))
+        {
+            startInfo.Environment["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = "1";
+        }
+
         try
         {
             return RunProcess(startInfo, timeout);
@@ -237,6 +243,12 @@ internal static class ReleasePackagingTestHarness
         if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
         {
             startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1";
+        }
+
+        if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal) &&
+            !startInfo.Environment.ContainsKey("WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"))
+        {
+            startInfo.Environment["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = "1";
         }
 
         try

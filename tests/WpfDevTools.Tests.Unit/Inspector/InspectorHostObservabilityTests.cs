@@ -9,6 +9,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector;
 
+[Collection("TimingSensitive")]
 public class InspectorHostObservabilityTests : IDisposable
 {
     private readonly List<string> _logFilesToDelete = new();

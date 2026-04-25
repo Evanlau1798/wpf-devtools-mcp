@@ -132,7 +132,7 @@ public sealed partial class InspectorHost : IDisposable
         {
             MinimumLevel = minimumLogLevel
         };
-        _dispatcher = new RequestDispatcher(_logger);
+        _dispatcher = new RequestDispatcher(_logger, _processId, null);
         _authManager = authManager;
         _certManager = certManager;
         _challengeGenerator = new ChallengeGenerator();
@@ -209,7 +209,13 @@ public sealed partial class InspectorHost : IDisposable
                         startupReadinessCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
                         startupReadinessTask = startupReadinessCompletionSource.Task;
                         var startupCancellationToken = _cancellationTokenSource.Token;
-                        _serverTask = Task.Run(() => RunServerLoop(startupCancellationToken, startupReadinessCompletionSource, generation));
+                        _serverTask = Task.Factory
+                            .StartNew(
+                                () => RunServerLoop(startupCancellationToken, startupReadinessCompletionSource, generation),
+                                CancellationToken.None,
+                                TaskCreationOptions.LongRunning,
+                                TaskScheduler.Default)
+                            .Unwrap();
                         serverTask = _serverTask;
                     }
                 }

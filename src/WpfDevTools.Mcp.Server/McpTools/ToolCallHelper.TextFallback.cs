@@ -13,6 +13,7 @@ public static partial class ToolCallHelper
     private static readonly HashSet<string> OmittedTextFallbackProperties = new(StringComparer.OrdinalIgnoreCase)
     {
         "error",
+        "data",
         "message",
         "content",
         "structuredContent",

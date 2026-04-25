@@ -292,7 +292,14 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
     {
         if (remainingBudgetMs <= 0)
         {
-            return TriggerMutationResult.Timeout(stateAfterTimeoutUnknown: false, requiresReconnect: false);
+            if (_triggerMutationTimeoutRequiresReconnect)
+            {
+                _sessionManager.GetPipeClient(processId)?.Dispose();
+            }
+
+            return TriggerMutationResult.Timeout(
+                stateAfterTimeoutUnknown: true,
+                requiresReconnect: _triggerMutationTimeoutRequiresReconnect);
         }
 
         var batchArgs = BuildTriggerBatchArgs(processId, elementId, triggerMutation);

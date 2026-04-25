@@ -21,6 +21,7 @@ public sealed class IntegrationTestParallelizationContractTests
     }
 
     [Theory]
+    [InlineData("tests/WpfDevTools.Tests.Integration/WpfIntegrationCollection.cs", "[CollectionDefinition(\"WpfIntegration\", DisableParallelization = true)]")]
     [InlineData("tests/WpfDevTools.Tests.Integration/PackagingIntegrationCollection.cs", "[CollectionDefinition(\"PackagingIntegration\", DisableParallelization = true)]")]
     [InlineData("tests/WpfDevTools.Tests.Integration/LiveBootstrapIntegrationCollection.cs", "[CollectionDefinition(\"LiveBootstrapIntegration\", DisableParallelization = true)]")]
     [InlineData("tests/WpfDevTools.Tests.Integration/E2E/McpE2eCollection.cs", "[CollectionDefinition(\"McpE2E\", DisableParallelization = true)]")]
@@ -31,7 +32,6 @@ public sealed class IntegrationTestParallelizationContractTests
     }
 
     [Theory]
-    [InlineData("tests/WpfDevTools.Tests.Integration/WpfIntegrationCollection.cs", "[CollectionDefinition(\"WpfIntegration\")]")]
     [InlineData("tests/WpfDevTools.Tests.Integration/E2E/VisibilityDiagnosisE2eCollection.cs", "[CollectionDefinition(\"VisibilityMcpE2E\")]")]
     public void IsolatedCollections_ShouldRemainEligibleForParallelScheduling(string relativePath, string expectedAttribute)
     {

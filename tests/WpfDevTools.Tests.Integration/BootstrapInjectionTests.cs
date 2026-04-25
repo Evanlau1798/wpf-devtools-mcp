@@ -25,6 +25,7 @@ namespace WpfDevTools.Tests.Integration;
 [Collection("LiveBootstrapIntegration")]
 public class BootstrapInjectionTests : IDisposable
 {
+    private static readonly TimeSpan LiveSmokeTimeout = TimeSpan.FromSeconds(60);
     private readonly ITestOutputHelper _output;
     private System.Diagnostics.Process? _testApp;
     private string? _dummyBootstrapperPath;
@@ -47,6 +48,7 @@ public class BootstrapInjectionTests : IDisposable
             "the live bootstrap smoke test must fail fast when native bootstrapper artifacts are missing; " +
             "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
 
+        using var smokeTimeoutCts = new CancellationTokenSource(LiveSmokeTimeout);
         _testApp = StartTestApp();
 
         var sessionManager = new SessionManager();
@@ -58,7 +60,7 @@ public class BootstrapInjectionTests : IDisposable
         var connectArgs = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(new { processId = _testApp.Id }));
 
-        var connectResult = await connectTool.ExecuteAsync(connectArgs, CancellationToken.None);
+        var connectResult = await connectTool.ExecuteAsync(connectArgs, smokeTimeoutCts.Token);
         var connectJson = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(connectResult));
         var connectError = connectJson.TryGetProperty("error", out var errorProp)
@@ -77,7 +79,7 @@ public class BootstrapInjectionTests : IDisposable
         var pingArgs = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(new { processId = _testApp.Id }));
 
-        var pingResult = await pingTool.ExecuteAsync(pingArgs, CancellationToken.None);
+        var pingResult = await pingTool.ExecuteAsync(pingArgs, smokeTimeoutCts.Token);
         var pingJson = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(pingResult));
         pingJson.GetProperty("success").GetBoolean().Should().BeTrue(
@@ -92,6 +94,7 @@ public class BootstrapInjectionTests : IDisposable
             "the secure live bootstrap smoke test must fail fast when native bootstrapper artifacts are missing; " +
             "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
 
+        using var smokeTimeoutCts = new CancellationTokenSource(LiveSmokeTimeout);
         _testApp = StartTestApp();
 
         var secretBytes = new byte[32];
@@ -113,7 +116,7 @@ public class BootstrapInjectionTests : IDisposable
             var connectArgs = JsonSerializer.Deserialize<JsonElement>(
                 JsonSerializer.Serialize(new { processId = _testApp.Id }));
 
-            var connectResult = await connectTool.ExecuteAsync(connectArgs, CancellationToken.None);
+            var connectResult = await connectTool.ExecuteAsync(connectArgs, smokeTimeoutCts.Token);
             var connectJson = JsonSerializer.Deserialize<JsonElement>(
                 JsonSerializer.Serialize(connectResult));
             var connectError = connectJson.TryGetProperty("error", out var errorProp)
@@ -124,7 +127,7 @@ public class BootstrapInjectionTests : IDisposable
 
             var pingArgs = JsonSerializer.Deserialize<JsonElement>(
                 JsonSerializer.Serialize(new { processId = _testApp.Id }));
-            var pingResult = await pingTool.ExecuteAsync(pingArgs, CancellationToken.None);
+            var pingResult = await pingTool.ExecuteAsync(pingArgs, smokeTimeoutCts.Token);
             var pingJson = JsonSerializer.Deserialize<JsonElement>(
                 JsonSerializer.Serialize(pingResult));
             pingJson.GetProperty("success").GetBoolean().Should().BeTrue(

@@ -15,7 +15,7 @@ public sealed class TestAppProcessLauncherTests
             TimeSpan.FromMilliseconds(200),
             remainingTimeout =>
             {
-                Thread.Sleep(remainingTimeout);
+                Thread.Sleep(remainingTimeout + TimeSpan.FromMilliseconds(50));
                 return false;
             },
             () => new TestAppProcessLauncher.ProcessWindowState(HasExited: false, HasMainWindow: false),

@@ -11,6 +11,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("TimingSensitive")]
 public class ElementScreenshotToolTests
 {
     [Fact]
@@ -50,8 +51,8 @@ public class ElementScreenshotToolTests
     [Fact]
     public async Task Execute_WithoutOutputMode_ShouldDefaultToBase64()
     {
-        const int processId = 12345;
-        const string pipeName = "WpfDevTools_Test_ElementScreenshotDefault";
+        var processId = NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_ElementScreenshotDefault_{Guid.NewGuid():N}";
         using var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
         var requestCompletion = new TaskCompletionSource<InspectorRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -82,8 +83,15 @@ public class ElementScreenshotToolTests
         });
 
         var sessionManager = new SessionManager();
+        DisableSessionManagerCleanupTimer(sessionManager);
         sessionManager.AddSession(processId);
-        var client = new NamedPipeClient(processId, pipeName);
+        var client = new NamedPipeClient(
+            processId,
+            pipeName,
+            authManager: null,
+            certManager: null,
+            enforceHostCompatibilityValidation: false,
+            requestTimeout: TimeSpan.FromSeconds(5));
         (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
         ReplacePipeClient(sessionManager, processId, client);
         var tool = new ElementScreenshotTool(sessionManager);

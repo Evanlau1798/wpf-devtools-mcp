@@ -11,6 +11,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Handlers;
 
+[Collection("TimingSensitive")]
 public sealed class EventHandlerTraceModeTests
 {
     [Fact]

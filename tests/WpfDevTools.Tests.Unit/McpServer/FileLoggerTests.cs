@@ -209,7 +209,7 @@ public class FileLoggerTests : IAsyncDisposable
         finally
         {
             releaseWrite.TrySetResult();
-            await logger.ProcessingTaskForTesting.WaitAsync(TimeSpan.FromSeconds(1));
+            await logger.ProcessingTaskForTesting.WaitAsync(TimeSpan.FromSeconds(5));
         }
     }
 

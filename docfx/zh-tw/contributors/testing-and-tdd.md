@@ -14,6 +14,28 @@ dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-buil
 dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --no-build
 ```
 
+## 目前驗證快照
+
+目前專案層級的驗證狀態以下列最近一次完整完成的 full-suite 為準。
+
+### 測試結果
+
+- Unit tests：總數 2767，通過 2767，失敗 0
+- Integration tests：總數 289，通過 289，失敗 0
+- Full-suite 總計：3056 個測試，通過 3056，失敗 0
+
+### Coverage
+
+- 上一次合併 coverage 快照：line 83.4%、branch 71.8%、method 94.2%
+- Coverage 來源：以 `coverlet.runsettings` 產生的 unit 與 integration Cobertura 報告合併而成；最近一次 full-suite 驗證未重新產生 coverage
+- Coverage 報告仍包含可測的 `WpfDevTools.Injector` discovery 與 helper 程式碼
+- 需要真實注入流程的 entry points 則透過 `[ExcludeFromCodeCoverage]` 排除
+
+### 目前仍為紅色的切面
+
+- 最近一次 unit 與 integration full-suite 驗證沒有剩餘紅色切面。
+- 先前的 installer integrity、named-pipe compatibility、ping/replay、structured fallback、FileLogger shutdown，以及 `wait_for_dp_change_after_mutation` 切面目前皆由通過測試覆蓋。
+
 ## 涉及 MCP workflow 的變更
 
 當工具語意或 server 行為改變時，建議用以下順序驗證：

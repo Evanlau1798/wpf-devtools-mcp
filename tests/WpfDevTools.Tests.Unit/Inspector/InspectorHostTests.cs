@@ -18,6 +18,7 @@ namespace WpfDevTools.Tests.Unit.Inspector;
 /// Each test that needs a running host creates and disposes its own instance to avoid
 /// pipe-name collisions; the class-level _host is used only for pure lifecycle tests.
 /// </summary>
+[Collection("TimingSensitive")]
 public class InspectorHostTests : IDisposable
 {
     // Use a random process-id range that will never collide with real PIDs

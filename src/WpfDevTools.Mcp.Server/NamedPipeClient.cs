@@ -38,6 +38,7 @@ public sealed class NamedPipeClient : IDisposable
     private readonly AuthenticationManager? _authManager;
     private readonly CertificateManager? _certManager;
     private readonly bool _enforceHostCompatibilityValidation;
+    private readonly TimeSpan _requestTimeout;
     private NamedPipeClientStream? _pipeClient;
     private Stream? _communicationStream;
     private readonly object _lock = new();
@@ -87,7 +88,8 @@ public sealed class NamedPipeClient : IDisposable
         string pipeName,
         AuthenticationManager? authManager,
         CertificateManager? certManager,
-        bool? enforceHostCompatibilityValidation = null)
+        bool? enforceHostCompatibilityValidation = null,
+        TimeSpan? requestTimeout = null)
     {
         _processId = processId;
         _pipeName = string.IsNullOrWhiteSpace(pipeName)
@@ -95,6 +97,9 @@ public sealed class NamedPipeClient : IDisposable
             : pipeName;
         _authManager = authManager;
         _certManager = certManager;
+        _requestTimeout = requestTimeout.HasValue && requestTimeout.Value > TimeSpan.Zero
+            ? requestTimeout.Value
+            : InspectorConfig.RequestTimeout;
 
         var usesDefaultPipeName = string.Equals(
             _pipeName,
@@ -476,7 +481,7 @@ public sealed class NamedPipeClient : IDisposable
         CancellationToken cancellationToken)
     {
         var serverProcessId = TryGetConnectedServerProcessId(pipe);
-        if (serverProcessId.HasValue && serverProcessId.Value != _processId)
+        if (serverProcessId.HasValue && serverProcessId.Value != _processId && !IsSameProcessDefaultPipeHost(serverProcessId.Value))
         {
             return NamedPipeConnectFailure.ServerProcessMismatch;
         }
@@ -554,6 +559,12 @@ public sealed class NamedPipeClient : IDisposable
             !string.IsNullOrWhiteSpace(value = property.GetString());
     }
 
+    private bool IsSameProcessDefaultPipeHost(int serverProcessId)
+    {
+        return serverProcessId == Environment.ProcessId &&
+            string.Equals(_pipeName, BuildPipeName(_processId), StringComparison.Ordinal);
+    }
+
     private static int? TryGetConnectedServerProcessId(NamedPipeClientStream pipe)
     {
         try
@@ -595,15 +606,40 @@ public sealed class NamedPipeClient : IDisposable
         object? requestParams,
         CancellationToken cancellationToken)
     {
-        await _pipeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var requestTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        requestTimeoutCts.CancelAfter(_requestTimeout);
+
+        var lockAcquired = false;
         try
         {
-            return await SendRequestCoreAsync(method, requestId, requestParams, cancellationToken).ConfigureAwait(false);
+            await _pipeSemaphore.WaitAsync(requestTimeoutCts.Token).ConfigureAwait(false);
+            lockAcquired = true;
+
+            return await SendRequestCoreAsync(method, requestId, requestParams, requestTimeoutCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex) when (requestTimeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            if (lockAcquired)
+            {
+                ResetConnectionState();
+            }
+
+            throw CreateRequestTimeoutException(ex);
         }
         finally
         {
-            _pipeSemaphore.Release();
+            if (lockAcquired)
+            {
+                _pipeSemaphore.Release();
+            }
         }
+    }
+
+    private TimeoutException CreateRequestTimeoutException(Exception? innerException = null)
+    {
+        return new TimeoutException(
+            $"Timed out waiting {Math.Ceiling(_requestTimeout.TotalMilliseconds)}ms for an Inspector response.",
+            innerException);
     }
 
     private async Task<InspectorResponse> SendRequestCoreAsync(

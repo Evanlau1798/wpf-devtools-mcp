@@ -63,7 +63,13 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         _shutdownCts = new CancellationTokenSource();
         _shutdownTimeout = shutdownTimeout > TimeSpan.Zero ? shutdownTimeout : InspectorConfig.ShutdownTimeout;
         _writeEntriesOverride = writeEntriesOverride;
-        _processingTask = Task.Run(() => ProcessLogQueueAsync(_shutdownCts.Token));
+        _processingTask = Task.Factory
+            .StartNew(
+                () => ProcessLogQueueAsync(_shutdownCts.Token),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default)
+            .Unwrap();
     }
 
     /// <summary>
@@ -361,10 +367,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         => canRead && !cancellationToken.IsCancellationRequested;
 
     internal static TimeSpan GetRemainingShutdownTimeout(TimeSpan shutdownTimeout, TimeSpan elapsed)
-    {
-        var remaining = shutdownTimeout - elapsed;
-        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
-    }
+        => FileLoggerShutdownCoordinator.GetRemainingShutdownTimeout(shutdownTimeout, elapsed);
 
     /// <summary>
     /// Synchronous dispose - signals shutdown and waits for flush
@@ -437,74 +440,16 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 #endif
 
     private Exception? WaitForProcessingTaskShutdown()
-    {
-        var stopwatch = Stopwatch.StartNew();
-
-        try
-        {
-            if (_processingTask.Wait(GetRemainingShutdownTimeout(_shutdownTimeout, stopwatch.Elapsed)))
-            {
-                return null;
-            }
-
-            _shutdownCts.Cancel();
-
-            if (_processingTask.Wait(GetRemainingShutdownTimeout(_shutdownTimeout, stopwatch.Elapsed)))
-            {
-                return null;
-            }
-
-            return new TimeoutException(
-                $"FileLogger shutdown timed out after {_shutdownTimeout.TotalMilliseconds:0}ms and the background writer did not stop after cancellation.");
-        }
-        catch (AggregateException ex) when (ex.Flatten().InnerExceptions.All(inner => inner is OperationCanceledException))
-        {
-            return null;
-        }
-        catch (Exception ex)
-        {
-            return ex;
-        }
-    }
+        => FileLoggerShutdownCoordinator.WaitForProcessingTaskShutdown(
+            _processingTask,
+            _shutdownCts,
+            _shutdownTimeout);
 
     private async Task<Exception?> WaitForProcessingTaskShutdownAsync()
-    {
-        var stopwatch = Stopwatch.StartNew();
-
-        try
-        {
-            await _processingTask.WaitAsync(GetRemainingShutdownTimeout(_shutdownTimeout, stopwatch.Elapsed)).ConfigureAwait(false);
-            return null;
-        }
-        catch (TimeoutException)
-        {
-            _shutdownCts.Cancel();
-        }
-        catch (OperationCanceledException)
-        {
-            return null;
-        }
-
-        try
-        {
-            await _processingTask.WaitAsync(GetRemainingShutdownTimeout(_shutdownTimeout, stopwatch.Elapsed)).ConfigureAwait(false);
-            return null;
-        }
-        catch (OperationCanceledException)
-        {
-            return null;
-        }
-        catch (TimeoutException ex)
-        {
-            return new TimeoutException(
-                $"FileLogger shutdown timed out after {_shutdownTimeout.TotalMilliseconds:0}ms and the background writer did not stop after cancellation.",
-                ex);
-        }
-        catch (Exception ex)
-        {
-            return ex;
-        }
-    }
+        => await FileLoggerShutdownCoordinator.WaitForProcessingTaskShutdownAsync(
+            _processingTask,
+            _shutdownCts,
+            _shutdownTimeout).ConfigureAwait(false);
 
     private static void ReportShutdownError(Exception? shutdownError)
     {

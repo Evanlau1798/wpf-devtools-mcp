@@ -433,6 +433,19 @@ function Test-AllowLocalArchiveReleaseMetadataInTestMode {
         [string]::Equals([string]$env:WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA, '1', [System.StringComparison]::Ordinal)
 }
 
+function Test-AllowDebugTrustedRootSkipPayloadPolicy {
+    param(
+        [Parameter(Mandatory)] [string]$SignaturePolicy,
+        [Parameter(Mandatory)] [bool]$TrustedArchiveManifestPolicy,
+        [Parameter(Mandatory)] $PackageManifest
+    )
+
+    return $TrustedArchiveManifestPolicy -and
+        [string]::Equals($SignaturePolicy, 'DebugTrustedRootSkip', [System.StringComparison]::Ordinal) -and
+        [string]::Equals([string]$PackageManifest.channel, 'dev', [System.StringComparison]::OrdinalIgnoreCase) -and
+        [string]::Equals([string]$PackageManifest.buildConfiguration, 'Debug', [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Get-ExplicitTrustedReleaseMetadataDirectory {
     $trustedDirectoryEntry = Get-Item Env:WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY -ErrorAction SilentlyContinue
     if ($null -eq $trustedDirectoryEntry) {
@@ -566,32 +579,14 @@ function Get-PackagePayloadSignatureTargets {
 <#
 .SYNOPSIS
     Verifies that executable payloads inside a package satisfy the current
-    $explicitMetadataDirectory = if ($DownloadSource -eq 'local-package') {
-        Get-ExplicitTrustedReleaseMetadataDirectory
-    }
-    else {
-        $null
-    }
-
-    if ($null -eq $releaseRecord -and
-        $DownloadSource -eq 'local-package' -and
-        -not [string]::IsNullOrWhiteSpace($explicitMetadataDirectory)) {
-        $releaseRecord = Get-ReleaseAssetRecordFromDirectory `
-            -DirectoryPath $explicitMetadataDirectory `
-            -AssetName $canonicalAssetName `
-            -ArchiveHash $archiveHash
-    }
-
     signature policy before installation.
 
 .PARAMETER TrustedArchiveManifestPolicy
-    Indicates the package directory was extracted from a GitHub release archive
-    whose provenance already passed trusted release metadata verification in
+    Indicates the package directory was extracted from an archive whose
+    provenance already passed trusted release metadata verification in
     Assert-ArchiveIntegrity plus zip-slip validation in Assert-ArchiveSafeEntries.
-    This is a provenance hint only; archive-controlled manifest fields must not
-    use it to relax shipping payload signature requirements. Local
-    PackageArchivePath installs never set this flag because archive-adjacent
-    release-assets.json/SHA256SUMS.txt are not a trusted root.
+    Only dev/Debug manifests may use DebugTrustedRootSkip to skip per-payload
+    Authenticode checks.
 #>
 function Assert-PackagePayloadIntegrity {
     param(
@@ -605,9 +600,12 @@ function Assert-PackagePayloadIntegrity {
     $signaturePolicy = [string]$PackageManifest.signaturePolicy
     $installerMode = Resolve-InstallerMode
 
-    # TrustedArchiveManifestPolicy records that archive provenance was verified,
-    # but shipping payload signature requirements still must not be downgraded
-    # by archive-controlled manifest fields such as DebugTrustedRootSkip.
+    if (Test-AllowDebugTrustedRootSkipPayloadPolicy `
+            -SignaturePolicy $signaturePolicy `
+            -TrustedArchiveManifestPolicy ([bool]$TrustedArchiveManifestPolicy) `
+            -PackageManifest $PackageManifest) {
+        return
+    }
 
     $requiresSignedPayload = $false
 

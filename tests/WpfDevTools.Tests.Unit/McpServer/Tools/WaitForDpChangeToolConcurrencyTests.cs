@@ -396,7 +396,7 @@ public sealed class WaitForDpChangeToolConcurrencyTests
     }
 
     [Fact]
-    public async Task Execute_WhenTriggerBudgetIsExhaustedBeforeDispatch_ShouldTimeOutWithoutReconnectFlags()
+    public async Task Execute_WhenTriggerBudgetIsExhaustedBeforeDispatch_ShouldReturnReconnectContract()
     {
         const int processId = 4770;
         var state = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -452,11 +452,11 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         waitJson.GetProperty("success").GetBoolean().Should().BeTrue();
         waitJson.GetProperty("timedOut").GetBoolean().Should().BeTrue();
         waitJson.GetProperty("completionReason").GetString().Should().Be("TriggerMutationTimedOut");
-        waitJson.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeFalse();
-        waitJson.GetProperty("requiresReconnect").GetBoolean().Should().BeFalse();
+        waitJson.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        waitJson.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
         connected.RequestMethods.Should().NotContain("modify_viewmodel",
             "no trigger request should be dispatched once the remaining budget is already exhausted");
-        connected.SessionManager.GetPipeClient(processId)!.IsConnected.Should().BeTrue();
+        connected.SessionManager.GetPipeClient(processId)!.IsConnected.Should().BeFalse();
     }
 
     [Fact]

@@ -378,6 +378,7 @@ public static partial class ToolCallHelper
     {
         return ex switch
         {
+            TimeoutException => ("Timeout", "Operation timed out"),
             InvalidOperationException => ("OperationError", "Operation failed"),
             FileNotFoundException => ("FileNotFound", "Required file not found"),
             UnauthorizedAccessException => ("AccessDenied", "Access denied"),

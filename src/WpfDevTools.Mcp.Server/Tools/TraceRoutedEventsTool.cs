@@ -10,7 +10,6 @@ namespace WpfDevTools.Mcp.Server.Tools;
 public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
 {
     private static readonly TimeSpan CleanupFailedFollowUpGracePeriod = TimeSpan.FromMinutes(2);
-    private static readonly TimeSpan ReplayTimestampFallbackGracePeriod = TimeSpan.FromSeconds(1);
 
     private enum TraceNavigationSyncResult
     {
@@ -105,6 +104,7 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         var existingTrace = existingState?.ActiveTrace;
         if (existingTrace is not null && existingTrace.HasExpired(DateTimeOffset.UtcNow))
         {
+            var expiredTrace = existingTrace;
             var endedSessionId = existingTrace.FollowUpExpiresAtUtc.HasValue
                 ? existingTrace.SessionId
                 : null;
@@ -118,7 +118,19 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
                 };
             }
 
-            existingTrace = null;
+            existingTrace = mode == "get"
+                && IsTracing(payload)
+                && !IsMissingSessionIdForSessionAwareTrace(expiredTrace, responseSessionId, mode)
+                && !IsStaleTraceResponse(expiredTrace, responseSessionId, mode)
+                    ? expiredTrace
+                    : null;
+            if (existingTrace is null
+                && mode == "get"
+                && !IsMissingSessionIdForSessionAwareTrace(expiredTrace, responseSessionId, mode)
+                && !IsStaleTraceResponse(expiredTrace, responseSessionId, mode))
+            {
+                return TraceNavigationSyncResult.ClearedMatchingActiveTrace;
+            }
         }
 
         if (IsMissingSessionIdForSessionAwareTrace(existingTrace, responseSessionId, mode))
@@ -375,13 +387,18 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             return response;
         }
 
-        var activeTrace = ResolveReplayTraceState(processId, responseSessionId, replayTraceSnapshot, allowPreSyncFallback);
+        var activeTrace = ResolveReplayTraceState(
+            processId,
+            responseSessionId,
+            replayTraceSnapshot,
+            allowPreSyncFallback,
+            allowExpiredPreSyncFallback: IsTracing(payload));
         if (activeTrace is null)
         {
             return response;
         }
 
-        var replayEvents = GetMatchingReplayEvents(replayPayload, activeTrace, replaySavedAtUtc);
+        var replayEvents = TraceRoutedEventsReplayFormatter.GetMatchingReplayEvents(replayPayload, activeTrace, replaySavedAtUtc);
         if (replayEvents.Count == 0)
         {
             return response;
@@ -409,7 +426,7 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         writer.WriteStartArray();
         foreach (var replayEvent in replayEvents)
         {
-            WriteReplayTraceEvent(writer, replayEvent);
+            TraceRoutedEventsReplayFormatter.WriteReplayTraceEvent(writer, replayEvent);
         }
 
         writer.WriteEndArray();
@@ -433,7 +450,8 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         int processId,
         string? responseSessionId,
         ActiveTraceNavigationState? replayTraceSnapshot,
-        bool allowPreSyncFallback)
+        bool allowPreSyncFallback,
+        bool allowExpiredPreSyncFallback)
     {
         if (_sessionManager.TryGetNavigationState(processId, out var navigationState)
             && navigationState?.ActiveTrace is not null
@@ -443,11 +461,15 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             return navigationState.ActiveTrace;
         }
 
-        if (!allowPreSyncFallback
-            || replayTraceSnapshot is null
+        if (replayTraceSnapshot is null
             || IsMissingSessionIdForSessionAwareTrace(replayTraceSnapshot, responseSessionId, "get")
-            || replayTraceSnapshot.HasExpired(DateTimeOffset.UtcNow)
             || IsStaleTraceResponse(replayTraceSnapshot, responseSessionId, "get"))
+        {
+            return null;
+        }
+
+        var replayTraceExpired = replayTraceSnapshot.HasExpired(DateTimeOffset.UtcNow);
+        if (!allowPreSyncFallback && !(allowExpiredPreSyncFallback && replayTraceExpired))
         {
             return null;
         }
@@ -471,96 +493,4 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
             || (diagnostics.TryGetProperty("requestedEventMismatch", out var requestedEventMismatch)
                 && requestedEventMismatch.ValueKind == JsonValueKind.True));
 
-    private static List<JsonElement> GetMatchingReplayEvents(
-        JsonElement replayPayload,
-        ActiveTraceNavigationState activeTrace,
-        DateTimeOffset replaySavedAtUtc)
-    {
-        if (!replayPayload.TryGetProperty("pendingEvents", out var pendingEvents)
-            || pendingEvents.ValueKind != JsonValueKind.Array)
-        {
-            return new List<JsonElement>();
-        }
-
-        var traceWindowEndUtc = activeTrace.EffectiveDuration > TimeSpan.Zero
-            ? activeTrace.StartedAtUtc.Add(activeTrace.EffectiveDuration)
-            : DateTimeOffset.MaxValue;
-        var fallbackWindowEndUtc = traceWindowEndUtc == DateTimeOffset.MaxValue
-            ? DateTimeOffset.MaxValue
-            : traceWindowEndUtc.Add(ReplayTimestampFallbackGracePeriod);
-
-        return pendingEvents.EnumerateArray()
-            .Where(pendingEvent => MatchesActiveTrace(
-                pendingEvent,
-                activeTrace,
-                replaySavedAtUtc,
-                traceWindowEndUtc,
-                fallbackWindowEndUtc))
-            .Select(pendingEvent => pendingEvent.Clone())
-            .ToList();
-    }
-
-    private static bool MatchesActiveTrace(
-        JsonElement pendingEvent,
-        ActiveTraceNavigationState activeTrace,
-        DateTimeOffset replaySavedAtUtc,
-        DateTimeOffset traceWindowEndUtc,
-        DateTimeOffset fallbackWindowEndUtc)
-    {
-        if (!pendingEvent.TryGetProperty("eventType", out var eventType)
-            || eventType.ValueKind != JsonValueKind.String
-            || !string.Equals(eventType.GetString(), "RoutedEvent", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (!pendingEvent.TryGetProperty("eventName", out var eventName)
-            || eventName.ValueKind != JsonValueKind.String
-            || !string.Equals(eventName.GetString(), activeTrace.EventName, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(activeTrace.ElementId)
-            && (!pendingEvent.TryGetProperty("elementId", out var elementId)
-                || elementId.ValueKind != JsonValueKind.String
-                || !string.Equals(elementId.GetString(), activeTrace.ElementId, StringComparison.Ordinal)))
-        {
-            return false;
-        }
-
-        if (pendingEvent.TryGetProperty("timestampUtc", out var timestampProperty)
-            && timestampProperty.ValueKind == JsonValueKind.String
-            && DateTimeOffset.TryParse(timestampProperty.GetString(), out var timestamp))
-        {
-            return IsWithinTraceWindow(timestamp, activeTrace.StartedAtUtc, traceWindowEndUtc);
-        }
-
-        return IsWithinTraceWindow(replaySavedAtUtc, activeTrace.StartedAtUtc, fallbackWindowEndUtc);
-    }
-
-    private static bool IsWithinTraceWindow(
-        DateTimeOffset candidate,
-        DateTimeOffset windowStartUtc,
-        DateTimeOffset windowEndUtc) =>
-        candidate >= windowStartUtc && candidate <= windowEndUtc;
-
-    private static void WriteReplayTraceEvent(Utf8JsonWriter writer, JsonElement pendingEvent)
-    {
-        writer.WriteStartObject();
-        writer.WriteString("timestamp", GetOptionalString(pendingEvent, "timestampUtc"));
-        writer.WriteString("sender", GetOptionalString(pendingEvent, "senderType"));
-        writer.WriteString("senderName", GetOptionalString(pendingEvent, "senderName"));
-        writer.WriteString("eventName", GetOptionalString(pendingEvent, "eventName"));
-        writer.WriteString("routingStrategy", GetOptionalString(pendingEvent, "routingStrategy"));
-
-        if (pendingEvent.TryGetProperty("handled", out var handled))
-        {
-            writer.WritePropertyName("handled");
-            handled.WriteTo(writer);
-        }
-
-        writer.WriteString("originalSource", GetOptionalString(pendingEvent, "originalSourceType"));
-        writer.WriteEndObject();
-    }
 }

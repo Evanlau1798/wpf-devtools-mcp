@@ -167,8 +167,16 @@ public sealed class GetBindingErrorsToolPendingEventsTests
     public async Task ExecuteAsync_WhenReplayLockIsBusyAndCallerTokenCancelsDuringBestEffortPiggyback_ShouldStillReturnPrimarySuccess()
     {
         const int processId = 51045;
+        using var cancellation = new CancellationTokenSource();
         using var connected = await ConnectedBindingErrorsSession.CreateAsync(
             processId,
+            method =>
+            {
+                if (method == "get_binding_errors")
+                {
+                    cancellation.Cancel();
+                }
+            },
             JsonSerializer.Serialize(new
             {
                 success = true,
@@ -176,7 +184,6 @@ public sealed class GetBindingErrorsToolPendingEventsTests
                 errors = Array.Empty<object>()
             }));
         using var replayLock = await connected.SessionManager.AcquirePendingEventReplayLockAsync(processId, CancellationToken.None);
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
         var tool = new GetBindingErrorsTool(connected.SessionManager);
 
         var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
@@ -200,7 +207,13 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         public Task ServerTask { get; } = serverTask;
         public IReadOnlyList<string> RequestMethods { get; } = requestMethods;
 
-        public static async Task<ConnectedBindingErrorsSession> CreateAsync(int processId, params string[] responses)
+        public static Task<ConnectedBindingErrorsSession> CreateAsync(int processId, params string[] responses) =>
+            CreateAsync(processId, onResponseWritten: null, responses);
+
+        public static async Task<ConnectedBindingErrorsSession> CreateAsync(
+            int processId,
+            Action<string>? onResponseWritten,
+            params string[] responses)
         {
             var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
             var server = new NamedPipeServerStream(
@@ -232,6 +245,7 @@ public sealed class GetBindingErrorsToolPendingEventsTests
                         };
 
                         await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+                        onResponseWritten?.Invoke(request.Method);
                     }
                 }
                 catch (EndOfStreamException)

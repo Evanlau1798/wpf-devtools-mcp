@@ -22,26 +22,39 @@ public sealed class RequestDispatcher : IDisposable
     private readonly FileLogger _logger;
     private readonly ElementFinder _elementFinder;
     private readonly EventAnalyzer _eventAnalyzer;
+    private readonly int _processId;
 
     /// <summary>
     /// Create a new RequestDispatcher instance and initialize all handlers
     /// </summary>
     /// <param name="logger">Logger for error reporting</param>
     public RequestDispatcher(FileLogger logger)
-        : this(logger, null)
+        : this(logger, Process.GetCurrentProcess().Id, null)
     {
     }
 
     internal RequestDispatcher(
         FileLogger logger,
         Func<Dispatcher?, Action, Exception?>? eventTraceCleanupInvoker)
+        : this(logger, Process.GetCurrentProcess().Id, eventTraceCleanupInvoker)
+    {
+    }
+
+    internal RequestDispatcher(
+        FileLogger logger,
+        int processId,
+        Func<Dispatcher?, Action, Exception?>? eventTraceCleanupInvoker)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _processId = processId;
 
         var composition = RequestDispatcherRegistry.Create(_logger, eventTraceCleanupInvoker);
         _elementFinder = composition.ElementFinder;
         _eventAnalyzer = composition.EventAnalyzer;
-        _handlerMap = new Dictionary<string, IRequestHandler>(composition.HandlerMap, StringComparer.Ordinal);
+        _handlerMap = composition.HandlerMap.ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value,
+            StringComparer.Ordinal);
 
         // Simple handlers
         _simpleHandlers = new Dictionary<string, Func<JsonElement?, CancellationToken, Task<object>>>
@@ -151,7 +164,7 @@ public sealed class RequestDispatcher : IDisposable
             success = true,
             status = "pong",
             timestamp = DateTime.UtcNow,
-            processId = Process.GetCurrentProcess().Id,
+            processId = _processId,
             protocolVersion = InspectorCompatibilityContract.ProtocolVersion,
             buildFingerprint = InspectorCompatibilityContract.GetBuildFingerprint(typeof(RequestDispatcher))
         };

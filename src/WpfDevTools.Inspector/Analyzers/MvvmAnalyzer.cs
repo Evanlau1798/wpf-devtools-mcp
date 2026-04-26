@@ -327,7 +327,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Modify ViewModel property at runtime
     /// </summary>
-    public object ModifyViewModel(string? elementId, string propertyName, object value)
+    public object ModifyViewModel(string? elementId, string propertyName, object? value)
     {
         return InvokeOnUIThread<object>(() =>
         {

@@ -196,6 +196,17 @@ public class HandlerWithParamsTests
         result.Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task MvvmHandlers_ModifyViewModel_WithJsonNullValue_ShouldForwardValue()
+    {
+        var handler = new MvvmHandlers(new MvvmAnalyzer(new ElementFinder()));
+        var @params = JsonSerializer.SerializeToElement(new { propertyName = "Title", value = (string?)null });
+
+        var result = await handler.HandleAsync("modify_viewmodel", @params, CancellationToken.None);
+
+        result.Should().NotBeNull();
+    }
+
     // ---- StyleHandlers ----
 
     [Fact]

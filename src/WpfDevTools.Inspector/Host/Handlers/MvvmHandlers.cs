@@ -90,13 +90,14 @@ public class MvvmHandlers : IRequestHandler
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
         var propertyName = ParameterHelpers.GetStringParam(@params, "propertyName");
-        var value = ParameterHelpers.GetObjectParam<object>(@params, "value");
 
         if (string.IsNullOrEmpty(propertyName))
             throw new ArgumentException("Missing required parameter: propertyName");
 
-        if (value == null)
+        if (@params == null || !@params.HasValue || !@params.Value.TryGetProperty("value", out _))
             throw new ArgumentException("Missing required parameter: value");
+
+        var value = ParameterHelpers.GetObjectParam<object>(@params, "value");
 
         return await Task.Run(() =>
             _mvvmAnalyzer.ModifyViewModel(elementId, propertyName!, value), cancellationToken).ConfigureAwait(false);

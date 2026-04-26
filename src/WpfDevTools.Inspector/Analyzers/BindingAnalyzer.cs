@@ -8,7 +8,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Analyzes WPF Bindings
 /// </summary>
-public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase
+public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposable
 {
     private readonly ElementFinder _elementFinder;
     private readonly BindingErrorTraceListener _bindingErrorTraceListener;

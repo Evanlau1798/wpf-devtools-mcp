@@ -41,6 +41,51 @@ public sealed class BindingAnalyzerCoreTests_EventSupport
             && record.NewValue!.Contains("Missing"));
     }
 
+    [Fact]
+    public void Dispose_WhenBindingSinkIsCurrent_ShouldStopForwardingTraceEventsToDisposedBuffer()
+    {
+        var finder = new ElementFinder();
+        var buffer = new WatchEventBuffer(capacity: 16, new WatchEventDeduplicator());
+        var (analyzer, listener) = CreateBindingErrorAnalyzer(finder, buffer);
+
+        ((IDisposable)analyzer).Dispose();
+        listener.TraceEvent(
+            null,
+            "System.Windows.Data",
+            TraceEventType.Error,
+            41,
+            "BindingExpression path error: 'Disposed' property not found");
+
+        buffer.GetSnapshot().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Dispose_WhenNewerSinkIsCurrent_ShouldNotClearNewerSink()
+    {
+        var listener = BindingErrorTraceListener.CreateForTesting();
+        var olderBuffer = new WatchEventBuffer(capacity: 16, new WatchEventDeduplicator());
+        var newerBuffer = new WatchEventBuffer(capacity: 16, new WatchEventDeduplicator());
+        var olderAnalyzer = new BindingAnalyzer(new ElementFinder(), olderBuffer, listener);
+        var newerAnalyzer = new BindingAnalyzer(new ElementFinder(), newerBuffer, listener);
+
+        ((IDisposable)olderAnalyzer).Dispose();
+        listener.TraceEvent(
+            null,
+            "System.Windows.Data",
+            TraceEventType.Error,
+            42,
+            "BindingExpression path error: 'Current' property not found");
+
+        olderBuffer.GetSnapshot().Should().BeEmpty();
+        newerBuffer.GetSnapshot().Should().ContainSingle(record =>
+            record.EventType == "BindingError"
+            && record.NewValue!.Contains("Current"));
+        if (newerAnalyzer is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+    }
+
     [StaFact]
     public void GetBindingErrors_WithLivePathError_ShouldEnqueueStructuredBindingErrorEvent()
     {

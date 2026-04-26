@@ -65,6 +65,12 @@ public sealed class UnitTestParallelizationContractTests
     {
         GetCollectionName(typeof(BindingErrorTraceListenerTests))
             .Should().Be("BindingErrorTests");
+        GetCollectionName(typeof(BindingErrorTraceListenerLifecycleTests))
+            .Should().Be("BindingErrorTests");
+        GetCollectionName(typeof(BindingErrorCorrelationTests))
+            .Should().Be("BindingErrorTests");
+        GetCollectionName(typeof(DiagnosticNormalizationTests))
+            .Should().Be("BindingErrorTests");
     }
 
     [Fact]

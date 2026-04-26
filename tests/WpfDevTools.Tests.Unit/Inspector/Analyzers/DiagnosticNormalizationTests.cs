@@ -10,6 +10,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("BindingErrorTests")]
 public sealed class DiagnosticNormalizationTests
 {
     [Fact]

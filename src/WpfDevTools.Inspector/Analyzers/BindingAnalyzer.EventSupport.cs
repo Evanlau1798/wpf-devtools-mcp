@@ -7,12 +7,26 @@ public sealed partial class BindingAnalyzer
 {
     private readonly WatchEventBuffer? _watchEventBuffer;
     private readonly ConcurrentDictionary<string, byte> _emittedBindingEventKeys = new(StringComparer.Ordinal);
+    private Action<BindingErrorInfo>? _bindingEventSink;
 
     private void ConfigureBindingEventBridge()
     {
         if (_watchEventBuffer is not null)
         {
-            _bindingErrorTraceListener.SetWatchEventSink(EnqueueBindingError);
+            _bindingEventSink = EnqueueBindingError;
+            _bindingErrorTraceListener.SetWatchEventSink(_bindingEventSink);
+        }
+    }
+
+    /// <summary>
+    /// Clears the binding event bridge when this analyzer owns the current trace sink.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_bindingEventSink is { } sink)
+        {
+            _bindingErrorTraceListener.ClearWatchEventSink(sink);
+            _bindingEventSink = null;
         }
     }
 

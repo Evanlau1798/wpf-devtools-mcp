@@ -9,6 +9,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class BindingErrorTraceListener : TraceListener
 {
+    private static readonly object LifecycleLock = new();
     private static Lazy<BindingErrorTraceListener> _instance =
         new Lazy<BindingErrorTraceListener>(() => new BindingErrorTraceListener(),
             LazyThreadSafetyMode.ExecutionAndPublication);
@@ -40,9 +41,10 @@ public sealed class BindingErrorTraceListener : TraceListener
     /// </summary>
     public static void Install()
     {
-        var source = PresentationTraceSources.DataBindingSource;
-        if (!source.Listeners.Contains(Instance))
+        lock (LifecycleLock)
         {
+            var source = PresentationTraceSources.DataBindingSource;
+            RemoveAllRegistrations(source, Instance);
             source.Listeners.Add(Instance);
             source.Switch.Level = SourceLevels.Error;
         }
@@ -53,8 +55,11 @@ public sealed class BindingErrorTraceListener : TraceListener
     /// </summary>
     public static void Uninstall()
     {
-        var source = PresentationTraceSources.DataBindingSource;
-        source.Listeners.Remove(Instance);
+        lock (LifecycleLock)
+        {
+            var source = PresentationTraceSources.DataBindingSource;
+            RemoveAllRegistrations(source, Instance);
+        }
     }
 
     /// <summary>
@@ -149,13 +154,18 @@ public sealed class BindingErrorTraceListener : TraceListener
 
     internal void SetWatchEventSink(Action<BindingErrorInfo>? sink)
     {
-        _watchEventSink = sink;
+        Volatile.Write(ref _watchEventSink, sink);
+    }
+
+    internal void ClearWatchEventSink(Action<BindingErrorInfo> sink)
+    {
+        Interlocked.CompareExchange(ref _watchEventSink, null, sink);
     }
 
     private void EnqueueError(BindingErrorInfo error)
     {
         _errors.Enqueue(error);
-        var sink = _watchEventSink;
+        var sink = Volatile.Read(ref _watchEventSink);
         sink?.Invoke(error);
 
         // Trim oldest errors when exceeding capacity
@@ -170,23 +180,34 @@ public sealed class BindingErrorTraceListener : TraceListener
     /// </summary>
     internal static void ResetInstance()
     {
-        // Uninstall the old instance first
-        if (_instance.IsValueCreated)
+        lock (LifecycleLock)
         {
-            try
+            // Uninstall the old instance first
+            if (_instance.IsValueCreated)
             {
-                var source = PresentationTraceSources.DataBindingSource;
-                source.Listeners.Remove(_instance.Value);
+                try
+                {
+                    var source = PresentationTraceSources.DataBindingSource;
+                    RemoveAllRegistrations(source, _instance.Value);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"BindingErrorTraceListener: Failed to remove listener (may not be available in test contexts): {ex.Message}");
+                }
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"BindingErrorTraceListener: Failed to remove listener (may not be available in test contexts): {ex.Message}");
-            }
-        }
 
-        // Create a new Lazy instance
-        _instance = new Lazy<BindingErrorTraceListener>(
-            () => new BindingErrorTraceListener(),
-            LazyThreadSafetyMode.ExecutionAndPublication);
+            // Create a new Lazy instance
+            _instance = new Lazy<BindingErrorTraceListener>(
+                () => new BindingErrorTraceListener(),
+                LazyThreadSafetyMode.ExecutionAndPublication);
+        }
+    }
+
+    private static void RemoveAllRegistrations(TraceSource source, BindingErrorTraceListener listener)
+    {
+        while (source.Listeners.Cast<TraceListener>().Any(current => ReferenceEquals(current, listener)))
+        {
+            source.Listeners.Remove(listener);
+        }
     }
 }

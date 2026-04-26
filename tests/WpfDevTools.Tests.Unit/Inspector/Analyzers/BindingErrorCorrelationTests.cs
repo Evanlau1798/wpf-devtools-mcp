@@ -37,7 +37,7 @@ public sealed class BindingErrorCorrelationTests : IDisposable
             BindingFlags.Instance | BindingFlags.NonPublic);
 
         collectMethod.Should().NotBeNull();
-        collectMethod!.Invoke(analyzer, new object[] { textBox, errors });
+        collectMethod!.Invoke(analyzer, new[] { textBox, errors, CreateUnboundedBindingScanBudget() });
 
         errors.Should().ContainSingle();
         errors[0].ElementId.Should().Be(elementId);
@@ -125,5 +125,20 @@ public sealed class BindingErrorCorrelationTests : IDisposable
             Source = new { Name = "Alice" }
         });
         return textBox;
+    }
+
+    private static object CreateUnboundedBindingScanBudget()
+    {
+        var budgetType = typeof(BindingAnalyzer).GetNestedType(
+            "BindingScanBudget",
+            BindingFlags.NonPublic);
+
+        budgetType.Should().NotBeNull();
+        return Activator.CreateInstance(
+            budgetType!,
+            int.MaxValue,
+            int.MaxValue,
+            "TraversalLimit",
+            "ResultLimit")!;
     }
 }

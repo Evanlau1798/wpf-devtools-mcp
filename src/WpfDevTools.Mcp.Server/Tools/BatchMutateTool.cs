@@ -235,6 +235,12 @@ public sealed class BatchMutateTool : PipeConnectedToolBase
 
         if (hasCaptureSnapshot)
         {
+            if (captureSnapshotElement.TryGetProperty("processId", out _))
+            {
+                return (null, CreateInvalidParamError(
+                    "captureSnapshot must not include processId; use the batch root processId only."));
+            }
+
             captureSnapshot = new BatchMutationSnapshot(captureSnapshotElement);
         }
 

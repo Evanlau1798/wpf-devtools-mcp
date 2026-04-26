@@ -67,8 +67,6 @@ public sealed partial class InteractionAnalyzer
                     maxWidth,
                     maxHeight);
 
-                var imageBytes = RenderScreenshotBytes(uiElement, bounds, targetWidth, targetHeight);
-
                 if (normalizedOutputMode == "metadata")
                 {
                     return new
@@ -77,9 +75,13 @@ public sealed partial class InteractionAnalyzer
                         width = targetWidth,
                         height = targetHeight,
                         format = "png",
-                        byteLength = imageBytes.Length
+                        rendered = false,
+                        byteLength = 0
                     };
                 }
+
+                ValidateRenderedDimensions(targetWidth, targetHeight, bounds.Width, bounds.Height);
+                var imageBytes = RenderScreenshotBytes(uiElement, bounds, targetWidth, targetHeight);
 
                 if (normalizedOutputMode == "file")
                 {
@@ -93,6 +95,7 @@ public sealed partial class InteractionAnalyzer
                         width = targetWidth,
                         height = targetHeight,
                         format = "png",
+                        rendered = true,
                         byteLength = imageBytes.Length
                     };
                 }
@@ -104,10 +107,11 @@ public sealed partial class InteractionAnalyzer
                     width = targetWidth,
                     height = targetHeight,
                     format = "png",
+                    rendered = true,
                     byteLength = imageBytes.Length
                 };
             }
-            catch (ArgumentOutOfRangeException ex) when (ex.ParamName == "bounds")
+            catch (ArgumentOutOfRangeException ex) when (ex.ParamName == "targetSize")
             {
                 return ToolErrorFactory.InvalidArgument(
                     ex.Message,
@@ -134,7 +138,6 @@ public sealed partial class InteractionAnalyzer
         var bounds = VisualTreeHelper.GetDescendantBounds(uiElement);
         if (!bounds.IsEmpty)
         {
-            ValidateBounds(bounds);
             return bounds;
         }
 
@@ -159,7 +162,6 @@ public sealed partial class InteractionAnalyzer
         }
 
         bounds = new Rect(0, 0, renderSize.Width, renderSize.Height);
-        ValidateBounds(bounds);
         return bounds;
     }
 
@@ -225,7 +227,7 @@ public sealed partial class InteractionAnalyzer
     {
         if (string.IsNullOrWhiteSpace(outputMode))
         {
-            return "base64";
+            return "metadata";
         }
 
         if (string.Equals(outputMode, "metadata", StringComparison.OrdinalIgnoreCase))
@@ -246,14 +248,18 @@ public sealed partial class InteractionAnalyzer
         return null;
     }
 
-    private static void ValidateBounds(Rect bounds)
+    private static void ValidateRenderedDimensions(
+        int targetWidth,
+        int targetHeight,
+        double originalWidth,
+        double originalHeight)
     {
         const int maxDimensionPixels = 3840;
-        if (bounds.Width > maxDimensionPixels || bounds.Height > maxDimensionPixels)
+        if (targetWidth > maxDimensionPixels || targetHeight > maxDimensionPixels)
         {
             throw new ArgumentOutOfRangeException(
-                nameof(bounds),
-                $"Element too large to screenshot ({bounds.Width:F0}x{bounds.Height:F0} px). Maximum is {maxDimensionPixels}x{maxDimensionPixels}.");
+                "targetSize",
+                $"Element too large to screenshot ({originalWidth:F0}x{originalHeight:F0} px; rendered {targetWidth}x{targetHeight} px). Maximum rendered size is {maxDimensionPixels}x{maxDimensionPixels}.");
         }
     }
 

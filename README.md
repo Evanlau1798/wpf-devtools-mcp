@@ -191,7 +191,7 @@ Example project-scoped configuration:
 
 ## Important Contract Notes
 
-- `element_screenshot` supports `outputMode: "metadata"`, `"file"`, or `"base64"`. Prefer `metadata` or `file` for large captures and STDIO sessions. Base64 responses include `base64Image` plus dimensions and `format`; metadata/file responses include dimensions, `byteLength`, `screenshotId`, and file mode adds `path` plus `sha256`.
+- `element_screenshot` defaults to `outputMode: "metadata"` and also supports `"file"` or explicit `"base64"`. Metadata responses include dimensions, `format`, `rendered: false`, and `byteLength: 0` without rendering PNG bytes. File/base64 responses render pixels, include `rendered: true`, dimensions, `format`, and `byteLength`; file mode also returns `screenshotId`, `path`, and `sha256`, while base64 mode returns `base64Image`.
 - `set_dp_value`, `modify_viewmodel`, and `override_style_setter` accept raw JSON values, not string-only payloads.
 - Inspector-originated failures may also return `errorCode` and optional `errorData` alongside `error`.
 - `compare_trees` accepts an optional `elementId`.

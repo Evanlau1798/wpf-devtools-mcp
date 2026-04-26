@@ -10,7 +10,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 public sealed class InteractionAnalyzerScreenshotOptionsTests
 {
     [StaFact]
-    public void TakeScreenshot_WithMetadataOutputMode_ShouldOmitBase64AndIncludeByteLength()
+    public void TakeScreenshot_WithMetadataOutputMode_ShouldOmitBase64AndSkipRendering()
     {
         var finder = new ElementFinder();
         var analyzer = new InteractionAnalyzer(finder);
@@ -22,7 +22,8 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
 
         json.GetProperty("success").GetBoolean().Should().BeTrue();
         json.TryGetProperty("base64Image", out _).Should().BeFalse();
-        json.GetProperty("byteLength").GetInt32().Should().BeGreaterThan(0);
+        json.GetProperty("rendered").GetBoolean().Should().BeFalse();
+        json.GetProperty("byteLength").GetInt32().Should().Be(0);
         json.GetProperty("width").GetInt32().Should().Be(160);
         json.GetProperty("height").GetInt32().Should().Be(80);
     }
@@ -41,6 +42,27 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
         json.GetProperty("success").GetBoolean().Should().BeTrue();
         json.GetProperty("width").GetInt32().Should().Be(80);
         json.GetProperty("height").GetInt32().Should().Be(40);
+    }
+
+    [StaFact]
+    public void TakeScreenshot_WithMetadataOutputMode_ShouldAllowOversizedElementWithoutRendering()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var button = new Button { Width = 5000, Height = 5000 };
+        button.Measure(new System.Windows.Size(5000, 5000));
+        button.Arrange(new System.Windows.Rect(0, 0, 5000, 5000));
+        button.UpdateLayout();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.TakeScreenshot(elementId, "metadata");
+        var json = JsonSerializer.SerializeToElement(result);
+
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("rendered").GetBoolean().Should().BeFalse();
+        json.GetProperty("byteLength").GetInt32().Should().Be(0);
+        json.GetProperty("width").GetInt32().Should().Be(5000);
+        json.GetProperty("height").GetInt32().Should().Be(5000);
     }
 
     [StaFact]
@@ -75,6 +97,7 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
         var path = json.GetProperty("path").GetString();
         path.Should().NotBeNullOrEmpty();
         File.Exists(path).Should().BeTrue();
+        json.GetProperty("rendered").GetBoolean().Should().BeTrue();
         json.GetProperty("byteLength").GetInt32().Should().BeGreaterThan(0);
 
         File.Delete(path!);

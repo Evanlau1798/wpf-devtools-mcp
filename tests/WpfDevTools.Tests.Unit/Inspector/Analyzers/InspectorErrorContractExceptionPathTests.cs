@@ -18,7 +18,7 @@ public sealed class InspectorErrorContractExceptionPathTests
         var button = new Button();
         var elementId = finder.GenerateElementId(button);
 
-        var result = analyzer.TakeScreenshot(elementId);
+        var result = analyzer.TakeScreenshot(elementId, "base64");
 
         AssertStructuredError(result, "ElementNotLoaded", "rendered");
     }
@@ -38,7 +38,7 @@ public sealed class InspectorErrorContractExceptionPathTests
         button.UpdateLayout();
         var elementId = finder.GenerateElementId(button);
 
-        var result = analyzer.TakeScreenshot(elementId);
+        var result = analyzer.TakeScreenshot(elementId, "base64");
 
         AssertStructuredError(result, "InvalidArgument", "smaller");
     }

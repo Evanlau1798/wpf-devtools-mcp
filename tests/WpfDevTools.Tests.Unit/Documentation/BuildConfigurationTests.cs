@@ -76,6 +76,21 @@ public class BuildConfigurationTests
             "coverage CI should use a no-build test invocation after the explicit build step");
     }
 
+    [Fact]
+    public void BuildAndTestWorkflow_ShouldRunExplicitNoBuildTestProjectLanes()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("name: Run unit tests");
+        content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build",
+            "CI should shard unit tests into an explicit no-build project invocation instead of a broad solution test run");
+        content.Should().Contain("name: Run integration tests");
+        content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build",
+            "CI should shard integration tests into an explicit no-build project invocation instead of a broad solution test run");
+        content.Should().NotContain("dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}",
+            "the broad solution-level test command should be replaced by project-specific lanes");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 

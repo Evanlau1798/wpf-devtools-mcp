@@ -119,6 +119,23 @@ public sealed class McpStdioClient : IDisposable
         return ExtractToolResult(response);
     }
 
+    public async Task<Task<JsonElement>> DispatchToolCallAsync(
+        string toolName,
+        object? arguments = null,
+        int timeoutMs = 30000,
+        CancellationToken ct = default)
+    {
+        var dispatched = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var responseTask = SendRequestAsync("tools/call", new
+        {
+            name = toolName,
+            arguments = arguments ?? new { }
+        }, timeoutMs, ct, dispatched);
+
+        await dispatched.Task.ConfigureAwait(false);
+        return ExtractToolResultAsync(responseTask);
+    }
+
     /// <summary>
     /// Call an MCP tool and return the raw JSON-RPC response envelope.
     /// </summary>
@@ -160,7 +177,11 @@ public sealed class McpStdioClient : IDisposable
     }
 
     private async Task<JsonElement> SendRequestAsync(
-        string method, object? parameters, int timeoutMs, CancellationToken ct)
+        string method,
+        object? parameters,
+        int timeoutMs,
+        CancellationToken ct,
+        TaskCompletionSource<bool>? dispatched = null)
     {
         var id = Interlocked.Increment(ref _nextId);
         var responseTcs = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -176,9 +197,11 @@ public sealed class McpStdioClient : IDisposable
         try
         {
             await SendJsonLineAsync(payload);
+            dispatched?.TrySetResult(true);
         }
-        catch
+        catch (Exception ex)
         {
+            dispatched?.TrySetException(ex);
             _pendingResponses.TryRemove(id, out _);
             throw;
         }
@@ -311,6 +334,12 @@ public sealed class McpStdioClient : IDisposable
         }
 
         return response;
+    }
+
+    private static async Task<JsonElement> ExtractToolResultAsync(Task<JsonElement> responseTask)
+    {
+        var response = await responseTask.ConfigureAwait(false);
+        return ExtractToolResult(response);
     }
 
     private void EnsureRunning()

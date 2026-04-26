@@ -18,122 +18,19 @@ public sealed class WaitForDpChangeE2eTests : SharedStateMcpE2eTestBase
     [Fact]
     public async Task WaitForDpChange_ShouldObserveModifyViewmodelChangeOnSameSession()
     {
-        E2eTestHelpers.AssertFixtureReady(_fixture);
-
-        var textBoxId = await E2eTestHelpers.FindElementByNameAsync(
-            _fixture.Client,
-            _fixture.TestAppProcessId,
-            "NameTextBox");
-        textBoxId.Should().NotBeNull("TestApp should expose NameTextBox");
-
-        var expectedValue = $"wait-e2e-{Guid.NewGuid():N}";
-
-        await _fixture.Client.CallToolAsync(
-            "modify_viewmodel",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                propertyName = "Name",
-                value = string.Empty,
-                navigation = false
-            });
-
-        var waitTask = _fixture.Client.CallToolAsync(
-            "wait_for_dp_change",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                elementId = textBoxId,
-                propertyName = "Text",
-                expectedValue,
-                timeoutMs = 4000,
-                pollIntervalMs = 100,
-                navigation = false
-            },
-            timeoutMs: 10000);
-
-        await Task.Delay(250);
-
-        var mutateTask = _fixture.Client.CallToolAsync(
-            "modify_viewmodel",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                propertyName = "Name",
-                value = expectedValue,
-                navigation = false
-            },
-            timeoutMs: 10000);
-
-        var waitResult = await waitTask;
-        var mutateResult = await mutateTask;
-
-        mutateResult.GetProperty("success").GetBoolean().Should().BeTrue();
-        waitResult.GetProperty("success").GetBoolean().Should().BeTrue();
-        waitResult.GetProperty("changed").GetBoolean().Should().BeTrue();
-        waitResult.GetProperty("timedOut").GetBoolean().Should().BeFalse();
-        waitResult.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
-        waitResult.GetProperty("currentValue").GetString().Should().Be(expectedValue);
+        await AssertWaitForDpChangeObservesViewModelMutationAsync(
+            "NameTextBox",
+            "Name",
+            "wait-e2e");
     }
 
     [Fact]
     public async Task WaitForDpChange_ShouldObserveLiveChangeForSharedSearchBindingTargets()
     {
-        E2eTestHelpers.AssertFixtureReady(_fixture);
-
-        var textBoxId = await E2eTestHelpers.FindElementByNameAsync(
-            _fixture.Client,
-            _fixture.TestAppProcessId,
-            "SearchProbeTextBox");
-        textBoxId.Should().NotBeNull("TestApp should expose SearchProbeTextBox");
-
-        await _fixture.Client.CallToolAsync(
-            "modify_viewmodel",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                propertyName = "SearchText",
-                value = string.Empty,
-                navigation = false
-            });
-
-        var expectedValue = $"search-e2e-{Guid.NewGuid():N}";
-        var waitTask = _fixture.Client.CallToolAsync(
-            "wait_for_dp_change",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                elementId = textBoxId,
-                propertyName = "Text",
-                expectedValue,
-                timeoutMs = 4000,
-                pollIntervalMs = 100,
-                navigation = false
-            },
-            timeoutMs: 10000);
-
-        await Task.Delay(250);
-
-        var mutateTask = _fixture.Client.CallToolAsync(
-            "modify_viewmodel",
-            new
-            {
-                processId = _fixture.TestAppProcessId,
-                propertyName = "SearchText",
-                value = expectedValue,
-                navigation = false
-            },
-            timeoutMs: 10000);
-
-        var waitResult = await waitTask;
-        var mutateResult = await mutateTask;
-
-        mutateResult.GetProperty("success").GetBoolean().Should().BeTrue();
-        waitResult.GetProperty("success").GetBoolean().Should().BeTrue();
-        waitResult.GetProperty("changed").GetBoolean().Should().BeTrue();
-        waitResult.GetProperty("timedOut").GetBoolean().Should().BeFalse();
-        waitResult.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
-        waitResult.GetProperty("currentValue").GetString().Should().Be(expectedValue);
+        await AssertWaitForDpChangeObservesViewModelMutationAsync(
+            "SearchProbeTextBox",
+            "SearchText",
+            "search-e2e");
     }
 
     [Fact]
@@ -434,5 +331,81 @@ public sealed class WaitForDpChangeE2eTests : SharedStateMcpE2eTestBase
                 value = string.Empty,
                 navigation = false
             });
+    }
+
+    private async Task AssertWaitForDpChangeObservesViewModelMutationAsync(
+        string elementName,
+        string viewModelPropertyName,
+        string valuePrefix)
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+
+        var textBoxId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            elementName);
+        textBoxId.Should().NotBeNull($"TestApp should expose {elementName}");
+
+        var baselineValue = $"{valuePrefix}-baseline-{Guid.NewGuid():N}";
+        var intermediateValue = $"{valuePrefix}-pending-{Guid.NewGuid():N}";
+        var expectedValue = $"{valuePrefix}-{Guid.NewGuid():N}";
+        await ModifyViewModelAsync(viewModelPropertyName, baselineValue);
+        await E2eTestHelpers.WaitForDpValueAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            textBoxId!,
+            "Text",
+            baselineValue,
+            TimeSpan.FromSeconds(5));
+
+        var waitTask = await _fixture.Client.DispatchToolCallAsync(
+            "wait_for_dp_change",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = textBoxId,
+                propertyName = "Text",
+                expectedValue,
+                timeoutMs = 4000,
+                pollIntervalMs = 100,
+                navigation = false
+            },
+            timeoutMs: 10000);
+
+        await ModifyViewModelAsync(viewModelPropertyName, intermediateValue);
+        await E2eTestHelpers.WaitForDpValueAsync(
+            _fixture.Client,
+            _fixture.TestAppProcessId,
+            textBoxId!,
+            "Text",
+            intermediateValue,
+            TimeSpan.FromSeconds(5));
+
+        var mutateTask = ModifyViewModelAsync(viewModelPropertyName, expectedValue);
+        var waitResult = await waitTask;
+        var mutateResult = await mutateTask;
+
+        mutateResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        waitResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        waitResult.GetProperty("changed").GetBoolean().Should().BeTrue();
+        waitResult.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+        waitResult.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
+        waitResult.GetProperty("currentValue").GetString().Should().Be(expectedValue);
+    }
+
+    private Task<System.Text.Json.JsonElement> ModifyViewModelAsync(
+        string propertyName,
+        string value)
+    {
+        return _fixture.Client.CallToolAsync(
+            "modify_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName,
+                value,
+                navigation = false
+            },
+            timeoutMs: 10000);
     }
 }

@@ -134,9 +134,29 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
-    public void TimingSensitiveCollection_ShouldDisableParallelization()
+    public void TimingSensitiveCollection_ShouldRemainParallelizable()
     {
-        AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.TimingSensitiveCollection");
+        var collectionType = typeof(SignaturePolicyTests).Assembly
+            .GetType("WpfDevTools.Tests.Unit.Execution.TimingSensitiveCollection");
+        var attribute = collectionType?.GetCustomAttribute<CollectionDefinitionAttribute>();
+
+        collectionType.Should().NotBeNull();
+        attribute.Should().NotBeNull();
+        attribute!.DisableParallelization.Should().BeFalse(
+            "TimingSensitive serializes timing-sensitive classes within one lane, but should not block unrelated collections");
+    }
+
+    [Theory]
+    [InlineData("tests/WpfDevTools.Tests.Integration/DependencyPropertyWaitForChangeIntegrationTests.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Integration/E2E/WaitForDpChangeE2eTests.cs")]
+    public void DpWaitIntegrationTests_ShouldUseConditionBasedSynchronization(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().NotContain("Task.Delay(",
+            "DP wait integration and E2E tests should coordinate on observable handshakes instead of fixed sleeps");
+        content.Should().NotContain("Thread.Sleep(",
+            "DP wait integration and E2E tests should coordinate on observable handshakes instead of fixed sleeps");
     }
 
     [Fact]

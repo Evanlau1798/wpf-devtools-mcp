@@ -1,14 +1,27 @@
 # 設定參考
 
-## 已交付版本的環境變數
+## MCP server runtime 變數
 
 | 變數 | 用途 | 備註 |
 | --- | --- | --- |
 | `WPFDEVTOOLS_AUTH_SECRET` | 啟用 HMAC challenge-response 驗證 | 必須是 base64 編碼 |
 | `WPFDEVTOOLS_CERT_DIR` | 啟用 inspector pipe 的 TLS | 請使用受保護的本機目錄 |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | pin 預期憑證的 thumbprint | 在高限制部署中很有幫助 |
+| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | allowlist 外部 raw-injection target executable | 以分號分隔的 exact absolute executable path；優先使用 SDK-hosted reuse |
+| `WPFDEVTOOLS_RATE_LIMIT_RPM` | 覆寫 MCP server request rate limit | 每分鐘 request 數，必須是正整數 |
 
-除了已交付程式碼明確記錄的內容外，不應假設還有其他 `WPFDEVTOOLS_*` 變數存在。
+## Installer 與 package 變數
+
+| 變數 | 用途 | 備註 |
+| --- | --- | --- |
+| `WPFDEVTOOLS_SKIP_ELEVATION` | 讓 `run.bat` 與 installer registration 留在目前 shell | CLI registration 必須保持 unelevated 時設為 `1` |
+| `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` | 用 certificate thumbprint pin 預期 release signer | verified release sidecars 不在相鄰位置時供 package-local install 使用 |
+| `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` | 用 certificate subject pin 預期 release signer | package-local install 可用來取代 thumbprint pin |
+| `WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH` | elevated 狀態下啟用可信任 CLI command path override | 必須設為 `1`，否則 elevated Claude/Codex path override 會被忽略 |
+| `WPFDEVTOOLS_CLAUDE_COMMAND_PATH` | 提供可信任的 Claude CLI 絕對路徑 | 只在上述 elevated opt-in 或可信任 unelevated shell 中使用 |
+| `WPFDEVTOOLS_CODEX_COMMAND_PATH` | 提供可信任的 Codex CLI 絕對路徑 | 只在上述 elevated opt-in 或可信任 unelevated shell 中使用 |
+
+除了已交付程式碼或 release-only maintainer guide 明確記錄的內容外，不應假設還有其他 `WPFDEVTOOLS_*` 變數存在。
 
 ## Build 模式
 

@@ -176,6 +176,47 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
         result.GetProperty("snapshotSummary").GetProperty("skippedDependencyPropertyCount").GetInt32().Should().Be(1);
     }
 
+    [Fact]
+    public async Task CaptureStateSnapshot_ShouldSkipComplexNonExpressionLocalValue()
+    {
+        var processId = NextSyntheticProcessId();
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "get_dp_value_source" => (object)new
+                {
+                    success = true,
+                    propertyName = "Content",
+                    currentValue = "System.Windows.Controls.Button",
+                    hadLocalValue = true,
+                    localValue = "System.Windows.Controls.Button",
+                    localValueType = "Button",
+                    baseValueSource = "LocalValue",
+                    isExpression = false
+                },
+                "get_binding_errors" => EmptyErrors(),
+                "get_validation_errors" => EmptyErrors(),
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+
+        var tool = new CaptureStateSnapshotTool(connected.SessionManager);
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "ContentPresenter_1",
+            propertyNames = new[] { "Content" }
+        }), CancellationToken.None));
+
+        var snapshotId = result.GetProperty("snapshotId").GetString();
+        connected.SessionManager.TryGetStateSnapshot(processId, snapshotId!, out var snapshot).Should().BeTrue();
+        snapshot!.DependencyProperties[0].CanRestore.Should().BeFalse();
+        snapshot.DependencyProperties[0].SkipReason.Should().Contain("complex local value");
+        result.GetProperty("snapshotSummary").GetProperty("restorableDependencyPropertyCount").GetInt32().Should().Be(0);
+        result.GetProperty("snapshotSummary").GetProperty("skippedDependencyPropertyCount").GetInt32().Should().Be(1);
+        connected.RequestMethods.Should().NotContain("capture_dp_expression_restore");
+    }
+
     private static object EmptyErrors() => new
     {
         success = true,

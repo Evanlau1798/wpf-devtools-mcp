@@ -102,7 +102,7 @@ public sealed class StateSnapshotToolTests : IDisposable
                     currentValue = "120",
                     hadLocalValue = true,
                     localValue = "120",
-                    baseValueSource = "Local"
+                    baseValueSource = "LocalValue"
                 }),
                 JsonSerializer.Serialize(new
                 {

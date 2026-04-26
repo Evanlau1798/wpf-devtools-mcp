@@ -39,21 +39,26 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             }
 
             var isExpression = GetOptionalBool(response, "isExpression");
+            var hadLocalValue = response.GetProperty("hadLocalValue").GetBoolean();
+            var localValue = GetOptionalString(response, "localValue");
+            var currentValue = GetOptionalString(response, "currentValue");
+            var baseValueSource = GetOptionalString(response, "baseValueSource");
+            var localValueType = GetOptionalString(response, "localValueType");
             var expressionRestore = isExpression
                 ? await TryCaptureDependencyPropertyExpressionRestoreAsync(
                     processId,
                     elementId,
                     propertyName,
                     cancellationToken).ConfigureAwait(false)
-                : (canRestore: true, skipReason: (string?)null, restoreToken: (string?)null, expressionKind: (string?)null);
-            var canRestore = !isExpression || expressionRestore.canRestore;
+                : GetDirectDependencyPropertyRestore(propertyName, hadLocalValue, localValue, localValueType);
+            var canRestore = expressionRestore.canRestore;
             dependencyProperties.Add(new StoredDependencyPropertySnapshot(
                 elementId,
                 propertyName,
-                response.GetProperty("hadLocalValue").GetBoolean(),
-                GetOptionalString(response, "localValue"),
-                GetOptionalString(response, "currentValue"),
-                GetOptionalString(response, "baseValueSource"),
+                hadLocalValue,
+                localValue,
+                currentValue,
+                baseValueSource,
                 isExpression,
                 canRestore,
                 canRestore ? null : expressionRestore.skipReason ?? GetDependencyPropertySkipReason(propertyName, isExpression),
@@ -260,6 +265,44 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         }
 
         return $"Property '{propertyName}' is expression-backed and cannot be deterministically restored after a local mutation replaces the expression.";
+    }
+
+    private static (bool canRestore, string? skipReason, string? restoreToken, string? expressionKind)
+        GetDirectDependencyPropertyRestore(
+            string propertyName,
+            bool hadLocalValue,
+            string? localValue,
+            string? localValueType)
+    {
+        if (!hadLocalValue || localValue == null || IsStringConvertibleLocalValue(localValueType))
+        {
+            return (true, null, null, null);
+        }
+
+        var typeLabel = string.IsNullOrWhiteSpace(localValueType) ? "unknown" : localValueType;
+        return (
+            false,
+            $"Property '{propertyName}' has a complex local value of type '{typeLabel}' and cannot be deterministically restored via set_dp_value.",
+            null,
+            null);
+    }
+
+    private static bool IsStringConvertibleLocalValue(string? localValueType)
+    {
+        if (string.IsNullOrWhiteSpace(localValueType))
+        {
+            return true;
+        }
+
+        return localValueType switch
+        {
+            "String" or "Boolean" or "Byte" or "SByte" or "Char" or "Decimal" or "Double" or "Single" or
+            "Int16" or "Int32" or "Int64" or "UInt16" or "UInt32" or "UInt64" or "DateTime" or
+            "DateTimeOffset" or "Guid" or "TimeSpan" or "Uri" or "Thickness" or "CornerRadius" or
+            "GridLength" or "Color" or "SolidColorBrush" or "FontWeight" or "FontStyle" or "FontStretch" or
+            "Visibility" => true,
+            _ => false
+        };
     }
 
     private async Task<(bool canRestore, string? skipReason, string? restoreToken, string? expressionKind)> TryCaptureDependencyPropertyExpressionRestoreAsync(

@@ -39,11 +39,14 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
             ? GetRootElement()
             : _elementFinder.FindById(elementId);
 
-        return InvokeOnDispatcher<object>(root?.Dispatcher ?? Application.Current?.Dispatcher, () =>
+        if (root == null)
         {
-            var resolvedRoot = root ?? (elementId == null
-                ? GetRootElement()
-                : _elementFinder.FindById(elementId));
+            return ToolErrorFactory.ElementNotFound(elementId);
+        }
+
+        return InvokeOnDispatcher<object>(root.Dispatcher, () =>
+        {
+            var resolvedRoot = root;
 
             if (resolvedRoot == null)
             {

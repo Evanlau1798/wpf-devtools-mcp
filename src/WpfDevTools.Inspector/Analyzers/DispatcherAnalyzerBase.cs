@@ -20,7 +20,10 @@ public abstract class DispatcherAnalyzerBase
     /// </summary>
     protected T InvokeOnUIThread<T>(Func<T> action, TimeSpan? timeout = null)
     {
-        return InvokeOnDispatcher(ResolveCurrentUIThreadDispatcher(), action, timeout);
+        var dispatcher = ResolveCurrentUIThreadDispatcher();
+        return dispatcher == null
+            ? action()
+            : InvokeOnDispatcher(dispatcher, action, timeout);
     }
 
     /// <summary>
@@ -28,7 +31,14 @@ public abstract class DispatcherAnalyzerBase
     /// </summary>
     protected void InvokeOnUIThread(Action action, TimeSpan? timeout = null)
     {
-        InvokeOnDispatcher(ResolveCurrentUIThreadDispatcher(), action, timeout);
+        var dispatcher = ResolveCurrentUIThreadDispatcher();
+        if (dispatcher == null)
+        {
+            action();
+            return;
+        }
+
+        InvokeOnDispatcher(dispatcher, action, timeout);
     }
 
     /// <summary>

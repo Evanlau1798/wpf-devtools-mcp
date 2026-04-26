@@ -63,22 +63,37 @@ internal static class CertificateStorageSecurity
         Func<string, DriveType>? driveTypeResolver = null,
         Func<string, bool>? pathExistsResolver = null,
         Func<string, FileAttributes>? attributesResolver = null)
+        => ResolveAndValidateLocalPath(
+            path,
+            parameterName,
+            description: "Certificate directory",
+            driveTypeResolver,
+            pathExistsResolver,
+            attributesResolver);
+
+    internal static string ResolveAndValidateLocalPath(
+        string path,
+        string parameterName,
+        string description,
+        Func<string, DriveType>? driveTypeResolver = null,
+        Func<string, bool>? pathExistsResolver = null,
+        Func<string, FileAttributes>? attributesResolver = null)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new ArgumentException("Certificate directory cannot be empty", parameterName);
+            throw new ArgumentException($"{description} cannot be empty", parameterName);
         }
 
         if (!IsAbsolutePath(path))
         {
-            throw new ArgumentException("Certificate directory must be an absolute path", parameterName);
+            throw new ArgumentException($"{description} must be an absolute path", parameterName);
         }
 
         var normalizedPath = NormalizeExtendedPathPrefix(path);
         if (IsNetworkPath(normalizedPath))
         {
             throw new ArgumentException(
-                "Certificate directory must be a local path. Network paths are not allowed.",
+                $"{description} must be a local path. Network paths are not allowed.",
                 parameterName);
         }
 
@@ -86,14 +101,14 @@ internal static class CertificateStorageSecurity
         if (IsNetworkPath(fullPath) || IsMappedNetworkDrive(fullPath, driveTypeResolver))
         {
             throw new ArgumentException(
-                "Certificate directory must be a local path. Network paths are not allowed.",
+                $"{description} must be a local path. Network paths are not allowed.",
                 parameterName);
         }
 
         if (ContainsReparsePointInPathChain(fullPath, pathExistsResolver, attributesResolver))
         {
             throw new ArgumentException(
-                "Certificate directory must not traverse symbolic links or reparse points.",
+                $"{description} must not traverse symbolic links or reparse points.",
                 parameterName);
         }
 
@@ -101,15 +116,18 @@ internal static class CertificateStorageSecurity
     }
 
     public static void PrepareDirectory(string directoryPath)
+        => PrepareDirectory(directoryPath, "certificate directory");
+
+    internal static void PrepareDirectory(string directoryPath, string description)
     {
-        directoryPath = ResolveAndValidateLocalPath(directoryPath, nameof(directoryPath));
+        directoryPath = ResolveAndValidateLocalPath(directoryPath, nameof(directoryPath), description);
 
         var currentUserSid = GetCurrentUserSid();
         var directoryInfo = new DirectoryInfo(directoryPath);
 
         if (directoryInfo.Exists)
         {
-            EnsureTrustedOwner(directoryInfo.GetAccessControl(), currentUserSid, "certificate directory");
+            EnsureTrustedOwner(directoryInfo.GetAccessControl(), currentUserSid, description);
         }
         else
         {
@@ -119,7 +137,7 @@ internal static class CertificateStorageSecurity
         var hardenedSecurity = CreateDirectorySecurity(currentUserSid);
         directoryInfo.SetAccessControl(hardenedSecurity);
 
-        ValidateNoBroadWriteAccess(directoryInfo.GetAccessControl(), "certificate directory");
+        ValidateNoBroadWriteAccess(directoryInfo.GetAccessControl(), description);
     }
 
     public static void PrepareExistingFile(string path, string description)

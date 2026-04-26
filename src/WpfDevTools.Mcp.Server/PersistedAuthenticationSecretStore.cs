@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Mcp.Server;
 
@@ -17,16 +18,11 @@ internal sealed class PersistedAuthenticationSecretStore
 
     public PersistedAuthenticationSecretStore(string? secretFilePath = null, TimeSpan? mutexTimeout = null)
     {
-        _secretFilePath = string.IsNullOrWhiteSpace(secretFilePath)
+        var resolvedSecretFilePath = string.IsNullOrWhiteSpace(secretFilePath)
             ? ResolveDefaultSecretFilePath()
             : secretFilePath;
+        _secretFilePath = ResolveAndValidateSecretFilePath(resolvedSecretFilePath);
         _mutexTimeout = mutexTimeout ?? TimeSpan.FromSeconds(30);
-
-        if (!IsAbsolutePath(_secretFilePath))
-        {
-            throw new InvalidOperationException(
-                $"Persisted authentication secret path must be absolute. Resolved path was '{_secretFilePath}'.");
-        }
     }
 
     public string GetOrCreateSecretBase64()
@@ -61,6 +57,8 @@ internal sealed class PersistedAuthenticationSecretStore
 
     private string GetOrCreateSecretBase64UnderLock()
     {
+        PrepareSecretDirectory();
+
         if (File.Exists(_secretFilePath))
         {
             try
@@ -82,6 +80,7 @@ internal sealed class PersistedAuthenticationSecretStore
 
     private string LoadSecretBase64()
     {
+        CertificateStorageSecurity.PrepareExistingFile(_secretFilePath, "persisted authentication secret");
         var protectedBytes = File.ReadAllBytes(_secretFilePath);
         var secretBytes = ProtectedData.Unprotect(protectedBytes, null, DataProtectionScope.CurrentUser);
         try
@@ -102,12 +101,6 @@ internal sealed class PersistedAuthenticationSecretStore
 
     private string CreateAndPersistSecretBase64()
     {
-        var directory = Path.GetDirectoryName(_secretFilePath);
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
         var secretBytes = new byte[SecretLengthBytes];
         RandomNumberGenerator.Fill(secretBytes);
         var tempFilePath = _secretFilePath + $".tmp-{Guid.NewGuid():N}";
@@ -115,10 +108,12 @@ internal sealed class PersistedAuthenticationSecretStore
         {
             var protectedBytes = ProtectedData.Protect(secretBytes, null, DataProtectionScope.CurrentUser);
             File.WriteAllBytes(tempFilePath, protectedBytes);
+            CertificateStorageSecurity.ApplyFileSecurity(tempFilePath);
 
             try
             {
                 File.Move(tempFilePath, _secretFilePath);
+                CertificateStorageSecurity.ApplyFileSecurity(_secretFilePath);
             }
             catch (IOException) when (File.Exists(_secretFilePath))
             {
@@ -149,6 +144,20 @@ internal sealed class PersistedAuthenticationSecretStore
         return CreateAndPersistSecretBase64();
     }
 
+    private void PrepareSecretDirectory()
+    {
+        var directory = Path.GetDirectoryName(_secretFilePath);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            throw new InvalidOperationException(
+                $"Persisted authentication secret path must include a parent directory. Resolved path was '{_secretFilePath}'.");
+        }
+
+        CertificateStorageSecurity.PrepareDirectory(
+            directory,
+            "persisted authentication secret directory");
+    }
+
     private string BuildMutexName()
     {
         var normalizedPath = Path.GetFullPath(_secretFilePath).ToUpperInvariant();
@@ -157,22 +166,27 @@ internal sealed class PersistedAuthenticationSecretStore
         return $"Local\\WpfDevTools.AuthSecret.{hash}";
     }
 
-    private static bool IsAbsolutePath(string path)
+    private static string ResolveAndValidateSecretFilePath(string path)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        try
         {
-            return false;
+            return CertificateStorageSecurity.ResolveAndValidateLocalPath(
+                path,
+                nameof(path),
+                "Persisted authentication secret path");
         }
-
-        if (path.StartsWith("\\\\", StringComparison.Ordinal))
+        catch (ArgumentException ex)
         {
-            return true;
+            throw new InvalidOperationException(
+                $"Persisted authentication secret path must be absolute, must be a local path, and must not traverse reparse points. Resolved path was '{path}'.",
+                ex);
         }
-
-        return path.Length >= 3
-            && char.IsLetter(path[0])
-            && path[1] == ':'
-            && (path[2] == Path.DirectorySeparatorChar || path[2] == Path.AltDirectorySeparatorChar);
+        catch (Exception ex) when (ex is NotSupportedException or PathTooLongException)
+        {
+            throw new InvalidOperationException(
+                $"Persisted authentication secret path must resolve to a valid local path. Resolved path was '{path}'.",
+                ex);
+        }
     }
 
     private static string ResolveDefaultSecretFilePath()

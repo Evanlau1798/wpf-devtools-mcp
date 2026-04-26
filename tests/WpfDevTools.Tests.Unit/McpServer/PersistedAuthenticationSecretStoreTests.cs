@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Security.AccessControl;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 
@@ -9,7 +10,7 @@ public sealed class PersistedAuthenticationSecretStoreTests
     [Fact]
     public async Task GetOrCreateSecretBase64_WhenCalledConcurrently_ShouldReturnSameSecret()
     {
-        var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
+        var secretFilePath = CreateSecretFilePath();
         var store = new PersistedAuthenticationSecretStore(secretFilePath);
 
         try
@@ -30,7 +31,7 @@ public sealed class PersistedAuthenticationSecretStoreTests
     [Fact]
     public void GetOrCreateSecretBase64_WithCorruptBlob_ShouldQuarantineAndRegenerate()
     {
-        var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
+        var secretFilePath = CreateSecretFilePath();
         Directory.CreateDirectory(Path.GetDirectoryName(secretFilePath)!);
         File.WriteAllBytes(secretFilePath, RandomNumberGenerator.GetBytes(19));
         var store = new PersistedAuthenticationSecretStore(secretFilePath);
@@ -54,7 +55,7 @@ public sealed class PersistedAuthenticationSecretStoreTests
     [Fact]
     public void GetOrCreateSecretBase64_WithDecryptableInvalidLengthBlob_ShouldQuarantineAndRegenerate()
     {
-        var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
+        var secretFilePath = CreateSecretFilePath();
         Directory.CreateDirectory(Path.GetDirectoryName(secretFilePath)!);
         var invalidSecret = new byte[] { 0x42 };
         var protectedBytes = ProtectedData.Protect(invalidSecret, null, DataProtectionScope.CurrentUser);
@@ -80,7 +81,7 @@ public sealed class PersistedAuthenticationSecretStoreTests
     [Fact]
     public void GetOrCreateSecretBase64_WhenSecretFileIsLocked_ShouldPreserveExistingSecret()
     {
-        var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
+        var secretFilePath = CreateSecretFilePath();
         var expectedSecretBase64 = WriteProtectedSecret(secretFilePath, RandomNumberGenerator.GetBytes(32));
         var store = new PersistedAuthenticationSecretStore(secretFilePath);
 
@@ -108,7 +109,7 @@ public sealed class PersistedAuthenticationSecretStoreTests
     [Fact]
     public void GetOrCreateSecretBase64_WithAbandonedMutex_ShouldRecoverAndReturnSecret()
     {
-        var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
+        var secretFilePath = CreateSecretFilePath();
         var store = new PersistedAuthenticationSecretStore(secretFilePath);
 
         var thread = new Thread(() =>
@@ -153,9 +154,40 @@ public sealed class PersistedAuthenticationSecretStoreTests
     }
 
     [Fact]
+    public void Constructor_WithUncPath_ShouldThrowLocalPathError()
+    {
+        var act = () => new PersistedAuthenticationSecretStore(@"\\server\share\wpf-devtools\shared-secret.bin");
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*local path*");
+    }
+
+    [Fact]
+    public void GetOrCreateSecretBase64_WhenSecretIsCreated_ShouldProtectDirectoryAndFileAcl()
+    {
+        var secretFilePath = CreateSecretFilePath();
+        var store = new PersistedAuthenticationSecretStore(secretFilePath);
+
+        try
+        {
+            store.GetOrCreateSecretBase64();
+
+            var directorySecurity = new DirectoryInfo(Path.GetDirectoryName(secretFilePath)!).GetAccessControl();
+            var fileSecurity = new FileInfo(secretFilePath).GetAccessControl();
+
+            directorySecurity.AreAccessRulesProtected.Should().BeTrue();
+            fileSecurity.AreAccessRulesProtected.Should().BeTrue();
+        }
+        finally
+        {
+            DeleteSecretArtifacts(secretFilePath);
+        }
+    }
+
+    [Fact]
     public void GetOrCreateSecretBase64_WhenMutexTimesOut_ShouldThrowTimeoutException()
     {
-        var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
+        var secretFilePath = CreateSecretFilePath();
         var store = new PersistedAuthenticationSecretStore(secretFilePath, TimeSpan.FromMilliseconds(10));
         using var mutexAcquired = new ManualResetEventSlim(false);
         using var releaseMutex = new ManualResetEventSlim(false);
@@ -194,6 +226,15 @@ public sealed class PersistedAuthenticationSecretStoreTests
         return Convert.ToBase64String(secretBytes);
     }
 
+    private static string CreateSecretFilePath()
+    {
+        return Path.Combine(
+            Path.GetTempPath(),
+            "wpf-devtools-auth-tests",
+            Guid.NewGuid().ToString("N"),
+            "shared-secret.bin");
+    }
+
     private static string GetDriveRelativePath(string fileName)
     {
         var root = Path.GetPathRoot(Path.GetTempPath())!;
@@ -216,6 +257,16 @@ public sealed class PersistedAuthenticationSecretStoreTests
         foreach (var artifact in Directory.GetFiles(directory, Path.GetFileName(secretFilePath) + ".*") )
         {
             File.Delete(artifact);
+        }
+
+        var parent = Directory.GetParent(directory);
+        if (parent?.Name == "wpf-devtools-auth-tests")
+        {
+            Directory.Delete(directory, recursive: true);
+            if (!Directory.EnumerateFileSystemEntries(parent.FullName).Any())
+            {
+                Directory.Delete(parent.FullName);
+            }
         }
     }
 }

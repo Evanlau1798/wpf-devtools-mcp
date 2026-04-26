@@ -15,24 +15,16 @@ if not exist "%ENCODER_POWERSHELL_EXE%" (
 
 REM POWERSHELL_EXE is the actual execution engine and may be overridden by
 REM WPFDEVTOOLS_POWERSHELL_EXE for environments that need a custom host.
-if defined WPFDEVTOOLS_POWERSHELL_EXE (
-    if not "%WPFDEVTOOLS_POWERSHELL_EXE%"=="%WPFDEVTOOLS_POWERSHELL_EXE:"=%" (
-        echo WPFDEVTOOLS_POWERSHELL_EXE cannot contain quote characters.
-        exit /b 1
-    )
-    if /I not "%WPFDEVTOOLS_POWERSHELL_EXE:~-4%"==".exe" (
-        echo WPFDEVTOOLS_POWERSHELL_EXE must point to a .exe host.
-        exit /b 1
-    )
-    where "%WPFDEVTOOLS_POWERSHELL_EXE%" >nul 2>&1
-    if errorlevel 1 (
-        echo WPFDEVTOOLS_POWERSHELL_EXE was not found: %WPFDEVTOOLS_POWERSHELL_EXE%
-        exit /b 1
-    )
-    set "POWERSHELL_EXE=%WPFDEVTOOLS_POWERSHELL_EXE%"
-) else (
-    set "POWERSHELL_EXE=%ENCODER_POWERSHELL_EXE%"
-)
+if not defined WPFDEVTOOLS_POWERSHELL_EXE goto use_default_powershell
+call :validate_powershell_override
+if errorlevel 1 exit /b 1
+set "POWERSHELL_EXE=%WPFDEVTOOLS_POWERSHELL_EXE%"
+goto powershell_selected
+
+:use_default_powershell
+set "POWERSHELL_EXE=%ENCODER_POWERSHELL_EXE%"
+
+:powershell_selected
 
 if not exist "%INSTALL_SCRIPT%" (
     echo bin\install.ps1 was not found next to run.bat.
@@ -81,3 +73,33 @@ if not "%EXIT_CODE%"=="0" (
     echo Elevation failed with exit code %EXIT_CODE%.
 )
 exit /b %EXIT_CODE%
+
+:validate_powershell_override
+if not "%WPFDEVTOOLS_POWERSHELL_EXE%"=="%WPFDEVTOOLS_POWERSHELL_EXE:"=%" (
+    echo WPFDEVTOOLS_POWERSHELL_EXE cannot contain quote characters.
+    exit /b 1
+)
+if /I not "%WPFDEVTOOLS_POWERSHELL_EXE:~-4%"==".exe" (
+    echo WPFDEVTOOLS_POWERSHELL_EXE must point to a .exe host.
+    exit /b 1
+)
+if not "%WPFDEVTOOLS_POWERSHELL_EXE:~1,2%"==":\" if not "%WPFDEVTOOLS_POWERSHELL_EXE:~0,2%"=="\\" (
+    echo WPFDEVTOOLS_POWERSHELL_EXE must be an absolute path.
+    exit /b 1
+)
+for %%I in ("%WPFDEVTOOLS_POWERSHELL_EXE%") do set "POWERSHELL_EXE_NAME=%%~nxI"
+if /I not "%POWERSHELL_EXE_NAME%"=="powershell.exe" if /I not "%POWERSHELL_EXE_NAME%"=="pwsh.exe" (
+    echo WPFDEVTOOLS_POWERSHELL_EXE must point to powershell.exe or pwsh.exe.
+    exit /b 1
+)
+if not exist "%WPFDEVTOOLS_POWERSHELL_EXE%" (
+    echo WPFDEVTOOLS_POWERSHELL_EXE was not found: %WPFDEVTOOLS_POWERSHELL_EXE%
+    exit /b 1
+)
+set "POWERSHELL_SIGNER_OK="
+for /f "usebackq delims=" %%I in (`%ENCODER_POWERSHELL_EXE% -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$sig = Get-AuthenticodeSignature -LiteralPath $env:WPFDEVTOOLS_POWERSHELL_EXE; if ($sig.Status -eq 'Valid' -and $null -ne $sig.SignerCertificate -and $sig.SignerCertificate.Subject -like '*O=Microsoft Corporation*') { 'OK' }"`) do set "POWERSHELL_SIGNER_OK=%%I"
+if /I not "%POWERSHELL_SIGNER_OK%"=="OK" (
+    echo WPFDEVTOOLS_POWERSHELL_EXE must be signed by Microsoft.
+    exit /b 1
+)
+exit /b 0

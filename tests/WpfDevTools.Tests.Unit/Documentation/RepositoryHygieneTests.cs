@@ -4,6 +4,10 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public class RepositoryHygieneTests
 {
+    private const int SourceFileLineLimit = 500;
+    private const string LineLimitExceptionsPath =
+        "tests/WpfDevTools.Tests.Unit/Documentation/LineLimitExceptions.txt";
+
     [Fact]
     public void GitIgnore_ShouldIgnoreTransientTestArtifacts()
     {
@@ -28,6 +32,25 @@ public class RepositoryHygieneTests
         var ignored = GitIgnoreMatches(relativePath);
 
         ignored.Should().BeTrue($"{relativePath} should not be accidentally committed");
+    }
+
+    [Fact]
+    public void SourceFiles_ShouldStayUnderLineLimitUnlessExplicitlyExcepted()
+    {
+        var exceptions = ReadLineLimitExceptions();
+        var oversizedFiles = EnumeratePolicyFiles()
+            .Select(path => new
+            {
+                Path = path,
+                Lines = File.ReadLines(GetRepoFilePath(path)).Count()
+            })
+            .Where(file => file.Lines > SourceFileLineLimit)
+            .Where(file => !exceptions.Contains(file.Path))
+            .Select(file => $"{file.Path} has {file.Lines} lines")
+            .ToArray();
+
+        oversizedFiles.Should().BeEmpty(
+            "new source, script, and test files must stay under 500 lines unless the exception manifest explicitly documents the debt");
     }
 
     [Theory]
@@ -88,4 +111,44 @@ public class RepositoryHygieneTests
     private static string GetRepoRoot()
         => Path.GetDirectoryName(GetRepoFilePath(".gitignore"))
            ?? throw new DirectoryNotFoundException("Could not resolve repository root.");
+
+    private static HashSet<string> ReadLineLimitExceptions()
+    {
+        var path = GetRepoFilePath(LineLimitExceptionsPath);
+        File.Exists(path).Should().BeTrue(
+            "the 500-line policy needs an explicit exception manifest for existing debt");
+
+        return File.ReadLines(path)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && !line.StartsWith("#", StringComparison.Ordinal))
+            .Select(line => line.Split('|', 2))
+            .Select(parts =>
+            {
+                parts.Should().HaveCount(2, "each line-limit exception needs a path and reason");
+                parts[0].Trim().Should().NotBeNullOrWhiteSpace("exception paths must be explicit");
+                parts[1].Trim().Should().NotBeNullOrWhiteSpace("each exception must document why the debt remains");
+                return parts[0].Trim().Replace('\\', '/');
+            })
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static IEnumerable<string> EnumeratePolicyFiles()
+    {
+        var repoRoot = GetRepoRoot();
+        var roots = new[] { "src", "tests", "scripts" };
+        var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".cs",
+            ".ps1"
+        };
+
+        return roots
+            .Select(root => Path.Combine(repoRoot, root))
+            .Where(Directory.Exists)
+            .SelectMany(root => Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            .Where(path => extensions.Contains(Path.GetExtension(path)))
+            .Select(path => Path.GetRelativePath(repoRoot, path).Replace('\\', '/'))
+            .Where(path => !path.Contains("/bin/", StringComparison.Ordinal)
+                           && !path.Contains("/obj/", StringComparison.Ordinal));
+    }
 }

@@ -53,7 +53,7 @@ jobs:
         "BOOTSTRAPPER_NATIVE_DIR=$nativeDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore --locked-mode
 
     - name: Build native bootstrapper
       shell: pwsh
@@ -101,7 +101,7 @@ jobs:
         dotnet-version: '8.0.x'
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore --locked-mode
 
     - name: Build ARM64 (cross-compile, no test - no ARM64 runner available)
       run: dotnet build --configuration Release -p:Platform=ARM64 -nodeReuse:false -p:UseSharedCompilation=false
@@ -334,7 +334,7 @@ jobs:
         "BOOTSTRAPPER_NATIVE_DIR=$nativeDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore --locked-mode
 
     - name: Build native bootstrapper
       shell: pwsh
@@ -374,7 +374,7 @@ jobs:
         dotnet-version: '8.0.x'
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore --locked-mode
 
     - name: Build SDK package
       run: dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg

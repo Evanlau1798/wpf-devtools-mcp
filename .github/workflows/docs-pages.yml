@@ -44,7 +44,7 @@ jobs:
         run: dotnet tool restore
 
       - name: Restore project dependencies
-        run: dotnet restore WpfDevTools.sln
+        run: dotnet restore WpfDevTools.sln --locked-mode
 
       - name: Build shared assembly for API docs
         run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0

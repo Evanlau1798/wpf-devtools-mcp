@@ -19,18 +19,35 @@ public class RepositoryHygieneTests
     [InlineData("tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj")]
     public void TestProjects_ShouldPinSecurityPatchedCompatibilityPackages(string projectPath)
     {
-        var content = File.ReadAllText(GetRepoFilePath(projectPath));
+        ReadRepoFile(projectPath)
+            .Should()
+            .NotContain("Version=", "test projects should use central package management");
 
-        content.Should().Contain("<PackageReference Include=\"System.Net.Http\" Version=\"4.3.4\" />");
-        content.Should().Contain("<PackageReference Include=\"System.Text.RegularExpressions\" Version=\"4.3.1\" />");
+        var centralPackages = ReadRepoFile("Directory.Packages.props");
+
+        centralPackages.Should().Contain("<PackageVersion Include=\"System.Net.Http\" Version=\"4.3.4\" />");
+        centralPackages.Should().Contain("<PackageVersion Include=\"System.Text.RegularExpressions\" Version=\"4.3.1\" />");
     }
 
     [Fact]
     public void UnitTestProject_ShouldUseCommunityLicensedFluentAssertionsVersion()
     {
-        var content = File.ReadAllText(GetRepoFilePath("tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj"));
+        ReadRepoFile("tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj")
+            .Should()
+            .NotContain("Version=", "test projects should use central package management");
 
-        content.Should().Contain("<PackageReference Include=\"FluentAssertions\" Version=\"6.12.0\" />");
+        ReadRepoFile("Directory.Packages.props")
+            .Should()
+            .Contain("<PackageVersion Include=\"FluentAssertions\" Version=\"6.12.0\" />");
+    }
+
+    private static string ReadRepoFile(string relativePath)
+    {
+        var path = GetRepoFilePath(relativePath);
+
+        File.Exists(path).Should().BeTrue($"{relativePath} should exist");
+
+        return File.ReadAllText(path);
     }
 
     private static string GetRepoFilePath(string relativePath)

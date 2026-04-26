@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
@@ -35,7 +35,7 @@
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <!-- Only needed for .NET Framework 4.8; built into .NET 8.0 -->
-    <PackageReference Include="System.IO.Pipes.AccessControl" Version="5.0.0" />
+    <PackageReference Include="System.IO.Pipes.AccessControl" />
   </ItemGroup>
 
   <ItemGroup>

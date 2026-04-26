@@ -1,6 +1,9 @@
 <Project>
   <PropertyGroup>
     <UseSharedCompilation>false</UseSharedCompilation>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(GITHUB_ACTIONS)' == 'true' or '$(TF_BUILD)' == 'True'">true</RestoreLockedMode>
+    <NuGetAudit>true</NuGetAudit>
     <NuGetAudit Condition="'$(GITHUB_ACTIONS)' != 'true' and '$(TF_BUILD)' != 'True'">false</NuGetAudit>
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAuditLevel>low</NuGetAuditLevel>

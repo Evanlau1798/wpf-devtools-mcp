@@ -744,11 +744,16 @@ public sealed partial class InspectorHost : IDisposable
                     break;
                 }
 
-                // Parse request with shared options (includes MaxDepth protection)
-                var request = DeserializeRequest(requestJson);
+                // Parse request with shared options and validate the IPC contract shape.
+                var parseResult = DeserializeRequest(requestJson);
+                var request = parseResult.Request;
                 if (request == null)
                 {
-                    await SendErrorResponseAsync(stream, "unknown", "Invalid request format", cancellationToken).ConfigureAwait(false);
+                    await SendErrorResponseAsync(
+                        stream,
+                        parseResult.RequestId,
+                        parseResult.ErrorMessage,
+                        cancellationToken).ConfigureAwait(false);
                     continue;
                 }
 

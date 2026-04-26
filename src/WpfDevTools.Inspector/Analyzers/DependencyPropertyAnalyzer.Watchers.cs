@@ -41,86 +41,89 @@ public sealed partial class DependencyPropertyAnalyzer
             try
             {
                 var watchKey = $"{elementId}_{propertyName}";
-                if (_watchers.ContainsKey(watchKey))
+                lock (_watchRegistrationLock)
                 {
-                    return ToolErrorFactory.InvalidArgument(
-                        "Already watching this property",
-                        "Reuse the existing watcher or clear it before registering the same property again.");
-                }
-
-                var descriptor = DependencyPropertyDescriptor.FromProperty(dp, depObj.GetType());
-                if (descriptor != null)
-                {
-                    var weakElement = new WeakReference<DependencyObject>(depObj);
-                    var resolvedElementId = elementId ?? _elementFinder.GenerateElementId(depObj);
-                    EventHandler handler = (_, _) =>
+                    if (_watchers.ContainsKey(watchKey))
                     {
-                        if (!weakElement.TryGetTarget(out var trackedElement))
-                        {
-                            return;
-                        }
-
-                        var newValue = trackedElement.GetValue(dp);
-                        _changeLog.Enqueue(new
-                        {
-                            timestamp = DateTime.UtcNow,
-                            elementId,
-                            propertyName,
-                            newValue = newValue?.ToString(),
-                            valueType = newValue?.GetType().Name
-                        });
-                        _watchEventBuffer?.Enqueue(new WatchEventRecord(
-                            EventType: "DpChange",
-                            TimestampUtc: DateTimeOffset.UtcNow,
-                            SourceKey: $"dp:{resolvedElementId}:{propertyName}",
-                            ElementId: resolvedElementId,
-                            PropertyName: propertyName,
-                            EventName: null,
-                            NewValue: newValue?.ToString(),
-                            ValueType: newValue?.GetType().Name,
-                            SenderType: null,
-                            SenderName: null,
-                            RoutingStrategy: null,
-                            Handled: null,
-                            OriginalSourceType: null));
-
-                        var count = Interlocked.Increment(ref _changeLogCount);
-                        while (count > MaxChangeLogEntries)
-                        {
-                            if (_changeLog.TryDequeue(out _))
-                            {
-                                count = Interlocked.Decrement(ref _changeLogCount);
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-                    };
-
-                    descriptor.AddValueChanged(depObj, handler);
-                    var registration = new WatchRegistration(
-                        descriptor,
-                        handler,
-                        new WeakReference<DependencyObject>(depObj),
-                        depObj.Dispatcher);
-                    if (!_watchers.TryAdd(watchKey, registration))
-                    {
-                        if (!TryDetachWatcherHandler(
-                            descriptor,
-                            depObj,
-                            handler,
-                            depObj.Dispatcher,
-                            out var rollbackFailure))
-                        {
-                            throw new InvalidOperationException(
-                                $"Failed to rollback duplicate watcher registration '{watchKey}'.",
-                                rollbackFailure);
-                        }
-
                         return ToolErrorFactory.InvalidArgument(
                             "Already watching this property",
                             "Reuse the existing watcher or clear it before registering the same property again.");
+                    }
+
+                    var descriptor = DependencyPropertyDescriptor.FromProperty(dp, depObj.GetType());
+                    if (descriptor != null)
+                    {
+                        var weakElement = new WeakReference<DependencyObject>(depObj);
+                        var resolvedElementId = elementId ?? _elementFinder.GenerateElementId(depObj);
+                        EventHandler handler = (_, _) =>
+                        {
+                            if (!weakElement.TryGetTarget(out var trackedElement))
+                            {
+                                return;
+                            }
+
+                            var newValue = trackedElement.GetValue(dp);
+                            _changeLog.Enqueue(new
+                            {
+                                timestamp = DateTime.UtcNow,
+                                elementId,
+                                propertyName,
+                                newValue = newValue?.ToString(),
+                                valueType = newValue?.GetType().Name
+                            });
+                            _watchEventBuffer?.Enqueue(new WatchEventRecord(
+                                EventType: "DpChange",
+                                TimestampUtc: DateTimeOffset.UtcNow,
+                                SourceKey: $"dp:{resolvedElementId}:{propertyName}",
+                                ElementId: resolvedElementId,
+                                PropertyName: propertyName,
+                                EventName: null,
+                                NewValue: newValue?.ToString(),
+                                ValueType: newValue?.GetType().Name,
+                                SenderType: null,
+                                SenderName: null,
+                                RoutingStrategy: null,
+                                Handled: null,
+                                OriginalSourceType: null));
+
+                            var count = Interlocked.Increment(ref _changeLogCount);
+                            while (count > MaxChangeLogEntries)
+                            {
+                                if (_changeLog.TryDequeue(out _))
+                                {
+                                    count = Interlocked.Decrement(ref _changeLogCount);
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
+                        };
+
+                        descriptor.AddValueChanged(depObj, handler);
+                        var registration = new WatchRegistration(
+                            descriptor,
+                            handler,
+                            new WeakReference<DependencyObject>(depObj),
+                            depObj.Dispatcher);
+                        if (!_watchers.TryAdd(watchKey, registration))
+                        {
+                            if (!TryDetachWatcherHandler(
+                                descriptor,
+                                depObj,
+                                handler,
+                                depObj.Dispatcher,
+                                out var rollbackFailure))
+                            {
+                                throw new InvalidOperationException(
+                                    $"Failed to rollback duplicate watcher registration '{watchKey}'.",
+                                    rollbackFailure);
+                            }
+
+                            return ToolErrorFactory.InvalidArgument(
+                                "Already watching this property",
+                                "Reuse the existing watcher or clear it before registering the same property again.");
+                        }
                     }
                 }
 

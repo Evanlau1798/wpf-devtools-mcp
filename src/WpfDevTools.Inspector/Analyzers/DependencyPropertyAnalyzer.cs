@@ -35,6 +35,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     // Static state for global property change tracking
     // Thread-safe via ConcurrentDictionary/ConcurrentQueue
     private static readonly ConcurrentDictionary<string, WatchRegistration> _watchers = new();
+    private static readonly object _watchRegistrationLock = new();
     private static readonly ConcurrentQueue<object> _changeLog = new();
     private static int _changeLogCount = 0;
     private const int MaxChangeLogEntries = 10000;

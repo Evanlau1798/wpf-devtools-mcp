@@ -93,6 +93,7 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(DependencyPropertyAnalyzerCleanupTests)).Should().Be("DependencyPropertyMonitoring");
         GetCollectionName(typeof(DependencyPropertyAnalyzerWatchEventTests)).Should().Be("DependencyPropertyMonitoring");
         GetCollectionName(typeof(DependencyPropertyAnalyzerWatcherCleanupTests)).Should().Be("DependencyPropertyMonitoring");
+        GetCollectionName(typeof(HandlerWithParamsTests)).Should().Be("DependencyPropertyMonitoring");
     }
 
     [Fact]

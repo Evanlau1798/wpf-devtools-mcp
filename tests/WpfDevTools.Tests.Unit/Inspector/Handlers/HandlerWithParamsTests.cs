@@ -14,6 +14,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Handlers;
 /// Dispatcher-dependent analyzers should return structured unavailable payloads
 /// instead of executing WPF object access without a usable UI dispatcher.
 /// </summary>
+[Collection("DependencyPropertyMonitoring")]
 public class HandlerWithParamsTests
 {
     // ---- DependencyPropertyHandlers ----

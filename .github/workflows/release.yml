@@ -76,30 +76,46 @@ jobs:
       - name: Resolve release tag
         id: release-metadata
         shell: pwsh
+        env:
+          RELEASE_EVENT_NAME: ${{ github.event_name }}
+          RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_INPUT_TAG: ${{ inputs.tag }}
         run: |
-          $tag = if ('${{ github.event_name }}' -eq 'release') {
-            '${{ github.event.release.tag_name }}'
+          $tag = if ($env:RELEASE_EVENT_NAME -eq 'release') {
+            $env:RELEASE_EVENT_TAG
           }
           else {
-            '${{ inputs.tag }}'
+            $env:RELEASE_INPUT_TAG
           }
 
           if ([string]::IsNullOrWhiteSpace($tag)) {
             throw 'Release tag is required.'
           }
 
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            throw "Release tag '$tag' must be a v-prefixed SemVer tag."
+          }
+
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Checkout tagged revision
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
         run: |
-          $tag = '${{ steps.release-metadata.outputs.tag }}'
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            throw "Release tag '$tag' must be a v-prefixed SemVer tag."
+          }
+
           git fetch --tags --force
-          git checkout "refs/tags/$tag"
+          git rev-parse --verify --end-of-options "refs/tags/$tag^{commit}" | Out-Null
+          git checkout --detach "refs/tags/$tag"
 
       - name: Build release packages
         shell: pwsh
         env:
+          RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
           WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
           WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
           WPFDEVTOOLS_PFX_PASSWORD: ${{ secrets.WPFDEVTOOLS_PFX_PASSWORD }}
@@ -107,16 +123,18 @@ jobs:
           ./scripts/tools/packaging/Publish-Release.ps1 `
             -Configuration Release `
             -Architectures @('x64', 'x86', 'arm64') `
-            -ExpectedReleaseTag '${{ steps.release-metadata.outputs.tag }}' `
+            -ExpectedReleaseTag $env:RELEASE_TAG `
             -OutputRoot '${{ env.RELEASE_OUTPUT_ROOT }}'
 
       - name: Stage GitHub Release assets
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
         run: |
           ./scripts/tools/packaging/Export-GitHubReleaseAssets.ps1 `
             -InputRoot '${{ env.RELEASE_OUTPUT_ROOT }}' `
             -OutputRoot '${{ env.RELEASE_STAGING_ROOT }}' `
-            -Tag '${{ steps.release-metadata.outputs.tag }}' `
+            -Tag $env:RELEASE_TAG `
             -OutputJson
 
       - name: Upload staged release bundle artifact
@@ -166,8 +184,10 @@ jobs:
 
       - name: Install staged ARM64 package smoke test
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
         run: |
-          $tag = '${{ needs.publish-release-assets.outputs.release-tag }}'
+          $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
           $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-arm64.zip' |
             Sort-Object Name -Descending |
@@ -198,8 +218,10 @@ jobs:
 
       - name: ARM64 online installer smoke test
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
         run: |
-          $tag = '${{ needs.publish-release-assets.outputs.release-tag }}'
+          $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
           $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-arm64.zip' |
             Sort-Object Name -Descending |
@@ -271,8 +293,9 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
         run: |
-          $tag = '${{ needs.publish-release-assets.outputs.release-tag }}'
+          $tag = $env:RELEASE_TAG
           gh release view $tag *> $null
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag --title $tag --notes "Automated release asset upload for $tag."
@@ -282,7 +305,8 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
         run: |
-          $tag = '${{ needs.publish-release-assets.outputs.release-tag }}'
+          $tag = $env:RELEASE_TAG
           Set-Location (Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag)
           ./upload-gh-release.ps1 -ReleaseTag $tag

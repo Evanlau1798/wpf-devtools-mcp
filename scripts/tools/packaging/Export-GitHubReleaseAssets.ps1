@@ -18,6 +18,20 @@ function Resolve-Directory {
     return (Resolve-Path $Path).Path
 }
 
+function Assert-ReleaseTag {
+    param([Parameter(Mandatory)] [string]$ReleaseTag)
+
+    if ($ReleaseTag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+        throw "Invalid release tag '$ReleaseTag'. Expected a v-prefixed SemVer tag such as v1.2.3 or v1.2.3-dev.1."
+    }
+}
+
+function ConvertTo-SingleQuotedLiteral {
+    param([Parameter(Mandatory)] [string]$Value)
+
+    return "'" + $Value.Replace("'", "''") + "'"
+}
+
 function Get-ReleaseAssets {
     param([Parameter(Mandatory)] [string]$Root)
 
@@ -34,10 +48,13 @@ function New-UploadScriptContent {
         [Parameter(Mandatory)] [string[]]$AssetNames
     )
 
-    $assetBlock = ($AssetNames | ForEach-Object { "    (Join-Path `$PSScriptRoot `"$_`")" }) -join [Environment]::NewLine
+    $releaseTagLiteral = ConvertTo-SingleQuotedLiteral -Value $ReleaseTag
+    $assetBlock = ($AssetNames | ForEach-Object {
+        "    (Join-Path `$PSScriptRoot $(ConvertTo-SingleQuotedLiteral -Value $_))"
+    }) -join [Environment]::NewLine
     return @"
 param(
-    [string]`$ReleaseTag = '$ReleaseTag'
+    [string]`$ReleaseTag = $releaseTagLiteral
 )
 
 `$ErrorActionPreference = 'Stop'
@@ -53,6 +70,7 @@ $assetBlock
 "@
 }
 
+Assert-ReleaseTag -ReleaseTag $Tag
 $inputRootFullPath = (Resolve-Path $InputRoot).Path
 $outputRootFullPath = Resolve-Directory -Path $OutputRoot
 $stagingRoot = Join-Path $outputRootFullPath $Tag

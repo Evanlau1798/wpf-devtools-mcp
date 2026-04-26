@@ -16,8 +16,8 @@ public sealed class GitHubReleaseWorkflowTests
             "GitHub Release packaging should build x64, x86, and arm64 assets from the same workflow");
         content.Should().Contain("Publish-Release.ps1",
             "the release workflow should call the production packaging script instead of duplicating packaging logic inline");
-        content.Should().Contain("-ExpectedReleaseTag '${{ steps.release-metadata.outputs.tag }}'",
-            "release packaging should fail closed if the checked-out tag and the packaged project version drift apart");
+        content.Should().Contain("-ExpectedReleaseTag $env:RELEASE_TAG",
+            "release packaging should fail closed if the checked-out tag and the packaged project version drift apart without interpolating the tag directly into PowerShell");
     }
 
     [Fact]
@@ -103,6 +103,25 @@ public sealed class GitHubReleaseWorkflowTests
 
         contentsWriteJobs.Should().Equal(["upload-release-assets"],
             "only the job that creates or updates GitHub Release assets should receive contents: write");
+    }
+
+    [Fact]
+    public void ReleaseWorkflow_ShouldValidateReleaseTagsBeforeShellUse()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));
+
+        content.Should().Contain("RELEASE_INPUT_TAG: ${{ inputs.tag }}");
+        content.Should().Contain("RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}");
+        content.Should().Contain("-notmatch '^v\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'",
+            "release tags should be constrained before reaching PowerShell, git, gh, or staging paths");
+        content.Should().Contain("git rev-parse --verify --end-of-options",
+            "tag checkout should verify the exact ref before switching revisions");
+        content.Should().NotContain("$tag = '${{ inputs.tag }}'",
+            "workflow inputs should flow through environment variables instead of direct script interpolation");
+        content.Should().NotContain("$tag = '${{ steps.release-metadata.outputs.tag }}'",
+            "validated release tags should flow through environment variables before shell use");
+        content.Should().NotContain("$tag = '${{ needs.publish-release-assets.outputs.release-tag }}'",
+            "upload jobs should not interpolate release tags directly into PowerShell scripts");
     }
 
     private static string GetRepoFilePath(string relativePath)

@@ -119,6 +119,38 @@ public sealed class GitHubReleaseAssetScriptTests
     }
 
     [Fact]
+    public void ExportGitHubReleaseAssets_ShouldRejectUnsafeReleaseTags()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var inputRoot = Path.Combine(tempRoot, "release-input");
+            var outputRoot = Path.Combine(tempRoot, "release-output");
+            Directory.CreateDirectory(inputRoot);
+            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3_win-x64.zip"), "x64-asset");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
+                new[]
+                {
+                    "-InputRoot", inputRoot,
+                    "-OutputRoot", outputRoot,
+                    "-Tag", "v1.2.3'; Write-Error injected; #",
+                    "-OutputJson"
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("Invalid release tag");
+            Directory.Exists(outputRoot).Should().BeFalse(
+                "unsafe tags must be rejected before creating staging paths or upload scripts");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void ExportGitHubReleaseAssets_ShouldIncludeSignerMetadataForEachPackageAsset()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

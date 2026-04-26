@@ -61,6 +61,13 @@ The MCP client should launch the resolved installed `wpf-devtools-<arch>.exe` un
 
 If you do not pass `-InstallRoot`, the installer first reuses the last live install root when possible. Only when no reusable install root exists does it fall back to `%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe`.
 
+## Signed payload provenance checklist
+
+- Keep the verified `SHA256SUMS.txt` and `release-assets.json` beside the downloaded archive until after installation evidence is captured.
+- Verify the signed release payloads, including `bin/wpf-devtools-<arch>.exe`, `bin/inspectors`, and `bin/bootstrapper`, against the pinned release signer. Set `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` when the verified sidecars are no longer adjacent to the extracted package.
+- Run a package-local smoke check from the extracted package with `run.bat`, then verify `get_processes`, `connect`, and `get_ui_summary` before registering that install with user tools.
+- Repeat the smoke check from the final installed path by launching `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`.
+
 ## Production checklist
 
 - Use the architecture that matches the target process.

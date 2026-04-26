@@ -84,6 +84,41 @@ public sealed class ReleaseReadinessDocumentationTests
             "the GitHub Actions guidance should not rely on a runner-local certificate path secret that does not exist on hosted runners");
     }
 
+    [Theory]
+    [InlineData(
+        "docfx/production/deployment.md",
+        "Signed payload provenance checklist",
+        "package-local smoke",
+        "installed path")]
+    [InlineData(
+        "docfx/zh-tw/production/deployment.md",
+        "已簽章 payload provenance 檢查清單",
+        "package-local smoke",
+        "已安裝路徑")]
+    public void DeploymentGuides_ShouldPublishSignedPayloadProvenanceChecklist(
+        string relativePath,
+        string checklistHeading,
+        string packageSmokePhrase,
+        string installedPathPhrase)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(checklistHeading,
+            $"{relativePath} should make signed payload provenance a first-class production gate");
+        content.Should().Contain("SHA256SUMS.txt",
+            $"{relativePath} should require release checksum sidecars in the production checklist");
+        content.Should().Contain("release-assets.json",
+            $"{relativePath} should require canonical release metadata in the production checklist");
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
+            $"{relativePath} should require an explicit signer pin when adjacent sidecars are absent");
+        content.Should().Contain("wpf-devtools-<arch>.exe",
+            $"{relativePath} should tie the checklist to the installed release executable");
+        content.Should().Contain(packageSmokePhrase,
+            $"{relativePath} should require a package-local smoke check before trusting the install");
+        content.Should().Contain(installedPathPhrase,
+            $"{relativePath} should require validation from the final installed location");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
 

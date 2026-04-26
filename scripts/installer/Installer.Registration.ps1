@@ -222,6 +222,12 @@ function Get-TrustedCliCommandPathEnvVarName {
     }
 }
 
+function Test-ElevatedCliCommandPathOverrideAllowed {
+    $rawValue = [Environment]::GetEnvironmentVariable('WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH')
+    return [string]::Equals($rawValue, '1', [System.StringComparison]::Ordinal) -or
+        [string]::Equals($rawValue, 'true', [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Resolve-TrustedCliCommandPath {
     param([Parameter(Mandatory)] [string]$Command)
 
@@ -233,6 +239,10 @@ function Resolve-TrustedCliCommandPath {
     $configuredPath = [Environment]::GetEnvironmentVariable($envVarName)
     if ([string]::IsNullOrWhiteSpace($configuredPath)) {
         return $null
+    }
+
+    if ((Test-InstallerRunningElevated) -and -not (Test-ElevatedCliCommandPathOverrideAllowed)) {
+        throw "$envVarName cannot be used while the installer is elevated unless WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH=1 is set in the elevated environment."
     }
 
     if (-not [System.IO.Path]::IsPathRooted($configuredPath)) {
@@ -256,7 +266,7 @@ function Get-ElevatedCliCommandBlockMessage {
 
     $envVarName = Get-TrustedCliCommandPathEnvVarName -Command $Command
     $overrideHint = if (-not [string]::IsNullOrWhiteSpace($envVarName)) {
-        " or provide a trusted absolute path via $envVarName."
+        " or provide a trusted absolute path via $envVarName with WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH=1 in the elevated environment."
     }
     else {
         "."

@@ -125,7 +125,40 @@ public sealed class InstallerCliCommandResolutionTests
     }
 
     [Fact]
-    public void InvokeRegistrationCommand_WhenElevatedWithTrustedAbsolutePathOverride_ShouldUseOverride()
+    public void InvokeRegistrationCommand_WhenElevatedWithTrustedAbsolutePathOverride_ShouldRequireExplicitOptIn()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var trustedCommandPath = Path.Combine(tempRoot, "trusted", "codex.cmd");
+            Directory.CreateDirectory(Path.GetDirectoryName(trustedCommandPath)!);
+            File.WriteAllText(trustedCommandPath, "@echo off" + Environment.NewLine + "exit /b 0");
+
+            var command = string.Join(
+                Environment.NewLine,
+                [
+                    ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Registration.ps1").Replace("'", "''") + "'",
+                    "$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED = '1'",
+                    "$env:WPFDEVTOOLS_CODEX_COMMAND_PATH = '" + trustedCommandPath.Replace("'", "''") + "'",
+                    "function Get-Command { throw 'PATH lookup should not be used when a trusted absolute path override is configured.' }",
+                    "try { Invoke-RegistrationCommand -Command 'codex' -Arguments @('mcp', 'add', 'wpf-devtools', '--', 'server.exe') -ClientName 'codex' | Out-Null; throw 'expected failure' } catch { $_.Exception.Message }"
+                ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("WPFDEVTOOLS_CODEX_COMMAND_PATH");
+            result.Stdout.Should().Contain("WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH");
+            result.Stdout.Should().Contain("elevated");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void InvokeRegistrationCommand_WhenElevatedWithOptedInTrustedAbsolutePathOverride_ShouldUseOverride()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -148,6 +181,7 @@ public sealed class InstallerCliCommandResolutionTests
                 [
                     ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Registration.ps1").Replace("'", "''") + "'",
                     "$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED = '1'",
+                    "$env:WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH = '1'",
                     "$env:WPFDEVTOOLS_CODEX_COMMAND_PATH = '" + trustedCommandPath.Replace("'", "''") + "'",
                     "function Get-Command { throw 'PATH lookup should not be used when a trusted absolute path override is configured.' }",
                     "$result = Invoke-RegistrationCommand -Command 'codex' -Arguments @('mcp', 'add', 'wpf-devtools', '--', 'server.exe') -ClientName 'codex'",

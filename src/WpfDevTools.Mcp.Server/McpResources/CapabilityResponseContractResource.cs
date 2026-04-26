@@ -173,54 +173,7 @@ public static partial class CapabilityResources
                 toolListOutputSchemaReason = "Claude tools/list compatibility while structuredContent remains canonical",
                 deprecatedAliases = ResponseContractVersion.DeprecatedAliases
             },
-            parameterVocabularies = new object[]
-            {
-                new
-                {
-                    parameter = "windowFilter",
-                    tools = new[] { "connect", "get_processes" },
-                    defaultValue = "visible",
-                    allowedValues = new[] { "visible", "all", "foreground" }
-                },
-                new
-                {
-                    parameter = "selectionStrategy",
-                    tools = new[] { "connect" },
-                    defaultValue = "single_only",
-                    allowedValues = new[] { "single_only", "largest_working_set" }
-                },
-                new
-                {
-                    parameter = "depthMode",
-                    tools = new[] { "get_ui_summary" },
-                    defaultValue = "semantic",
-                    allowedValues = new[] { "semantic", "visual" }
-                },
-                new
-                {
-                    parameter = "detail",
-                    tools = new[]
-                    {
-                        "click_element",
-                        "execute_command",
-                        "modify_viewmodel",
-                        "set_dp_value",
-                        "clear_dp_value",
-                        "fire_routed_event",
-                        "override_style_setter"
-                    },
-                    defaultValue = "compact",
-                    allowedValues = new[] { "compact", "minimal", "verbose" },
-                    compatibilityAliases = new[] { "standard" }
-                },
-                new
-                {
-                    parameter = "outputMode",
-                    tools = new[] { "element_screenshot" },
-                    defaultValue = "metadata",
-                    allowedValues = new[] { "base64", "metadata", "file" }
-                }
-            },
+            parameterVocabularies = ResponseContractParameterVocabularies.GetParameterVocabularies(),
             registeredToolCoverage = ResponseContractToolCoverage.GetRegisteredToolCoverage(ResponseContractResourceUri),
             highValueTools = ResponseContractToolEntries.GetHighValueTools(ResponseContractResourceUri)
         };

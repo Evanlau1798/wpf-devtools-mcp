@@ -289,7 +289,7 @@ public static class BindingMcpTools
         "Use for UpdateSourceTrigger=Explicit bindings or when the source value changed but the UI didn't update.\n\n" +
         "USE WHEN: UI is stale despite source changes; testing UpdateSourceTrigger=Explicit bindings.\n" +
         "DO NOT USE: As a workaround for broken INotifyPropertyChanged (fix the ViewModel instead).\n\n" +
-        "WARNING: This modifies the running app (triggers UpdateSource and UpdateTarget).\n\n" +
+        "WARNING: This modifies the running app. By default, pushes the current UI target value to the binding source (UpdateSource). Specify direction='Target' to pull the current source value back to the UI target (UpdateTarget).\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -307,7 +307,7 @@ public static class BindingMcpTools
         [Description("DependencyProperty name whose binding should be refreshed.")] string propertyName,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the binding. Omit for the root window.")] string? elementId = null,
-        [Description("Optional update direction: 'Source' (push UI value to ViewModel) or 'Target' (pull ViewModel value to UI). Default: both.")] string? direction = null,
+        [Description("Optional update direction: 'Source' (push UI value to ViewModel) or 'Target' (pull ViewModel value to UI). Default: Source.")] string? direction = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

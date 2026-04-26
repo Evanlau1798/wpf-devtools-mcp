@@ -168,6 +168,22 @@ public sealed class McpToolContractDescriptionTests
     }
 
     [Fact]
+    public void ForceBindingUpdateDescription_ShouldMatchDefaultSourceDirection()
+    {
+        var description = GetDescription(typeof(BindingMcpTools), nameof(BindingMcpTools.ForceBindingUpdate));
+        var directionParameter = typeof(BindingMcpTools)
+            .GetMethod(nameof(BindingMcpTools.ForceBindingUpdate), BindingFlags.Public | BindingFlags.Static)!
+            .GetParameters()
+            .Single(parameter => parameter.Name == "direction");
+        var directionDescription = directionParameter.GetCustomAttribute<DescriptionAttribute>()!.Description;
+
+        description.Should().Contain("By default, pushes the current UI target value to the binding source");
+        description.Should().NotContain("triggers UpdateSource and UpdateTarget");
+        directionDescription.Should().Contain("Default: Source");
+        directionDescription.Should().NotContain("Default: both");
+    }
+
+    [Fact]
     public void GetFormSummaryDescription_ShouldDescribeNestedSummarySubmittabilityFields()
     {
         var description = GetDescription(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetFormSummary));

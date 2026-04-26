@@ -19,10 +19,13 @@ public sealed partial class DependencyPropertyAnalyzer
             return action();
         }
 
+        var cancellationToken = DispatcherRequestContext.CancellationToken;
+        cancellationToken.ThrowIfCancellationRequested();
+
         return dispatcher.Invoke(
             action,
             DispatcherPriority.Background,
-            CancellationToken.None,
+            cancellationToken,
             InspectorConfig.UIThreadTimeout);
     }
 }

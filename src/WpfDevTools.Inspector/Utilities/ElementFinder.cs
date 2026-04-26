@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
+using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Utilities;
@@ -259,7 +260,11 @@ public sealed class ElementFinder : IDisposable
         });
     }
 
-    internal static T InvokeOnDispatcher<T>(Dispatcher? dispatcher, Func<T> action, TimeSpan? timeout = null)
+    internal static T InvokeOnDispatcher<T>(
+        Dispatcher? dispatcher,
+        Func<T> action,
+        TimeSpan? timeout = null,
+        CancellationToken? cancellationToken = null)
     {
         if (dispatcher == null || dispatcher.CheckAccess())
         {
@@ -267,10 +272,13 @@ public sealed class ElementFinder : IDisposable
         }
 
         var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
+        var effectiveCancellationToken = cancellationToken ?? DispatcherRequestContext.CancellationToken;
+        effectiveCancellationToken.ThrowIfCancellationRequested();
+
         return dispatcher.Invoke(
             action,
             DispatcherPriority.Normal,
-            CancellationToken.None,
+            effectiveCancellationToken,
             actualTimeout);
     }
 

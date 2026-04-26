@@ -67,6 +67,19 @@ public sealed class ReadmeContractConsistencyTests
         readme.Should().NotContain("Structured content: `StructuredContent` and `Annotations` populated on all tool results");
     }
 
+    [Fact]
+    public void Readme_ShouldSeparateToolInputSchemasFromResponseContracts()
+    {
+        var readme = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        readme.Should().Contain("Use MCP tool discovery for input schemas");
+        readme.Should().Contain("Use `wpf://contracts/response` for machine-readable response contracts");
+        readme.Should().Contain("structuredContent");
+        readme.Should().Contain("navigation");
+        readme.Should().Contain("nextSteps");
+        readme.Should().NotContain("Use MCP tool discovery for full schemas.");
+    }
+
     private static IReadOnlyList<(string ToolName, string Category)> GetToolCategories()
     {
         var tools = new List<(string ToolName, string Category)>();

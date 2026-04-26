@@ -15,7 +15,7 @@ Published releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](h
 
 - Shipping transport is STDIO only. The server is wired through `WithStdioServerTransport()`.
 - The server bootstrap uses `Host.CreateEmptyApplicationBuilder(...)` so the process does not inherit default console logging that could pollute `stdout`.
-- MCP clients should treat tool discovery as the source of truth for exposed request schemas; this README stays intentionally high level and may describe runtime conventions that are not universally discoverable from every client SDK.
+- MCP clients should treat tool discovery as the source of truth for exposed input schemas, and read `wpf://contracts/response` for stable response contracts; this README stays intentionally high level and may describe runtime conventions that are not universally discoverable from every client SDK.
 - HTTP/SSE work remains planned and is not part of the current server binary.
 - MCP schemas improve discovery, but runtime validation still happens inside tool handlers because generated schemas and SDK annotations are not a substitute for validating untrusted arguments.
 - Tool metadata is written for agent use: each tool description should state what the tool does, when to use it, when not to use it, and the limits of the returned data.
@@ -186,7 +186,8 @@ Example project-scoped configuration:
 
 - Register this server as a local STDIO command.
 - Keep all logs off `stdout`; the server already routes operational logs to stderr and file output.
-- Prefer MCP tool discovery instead of hard-coding request shapes in prompts or scripts.
+- Use MCP tool discovery for input schemas; do not hard-code request shapes in prompts or scripts.
+- Use `wpf://contracts/response` for machine-readable response contracts, including `structuredContent`, `navigation`, and `nextSteps`.
 
 ## Important Contract Notes
 
@@ -214,7 +215,7 @@ Security deployment guidance lives in `SECURITY.md`.
 
 ## Tool Categories
 
-The server ships 64 MCP tools across 11 categories. Use MCP tool discovery for full schemas.
+The server ships 64 MCP tools across 11 categories. Use MCP tool discovery for input schemas.
 
 <details>
 <summary>Tool category overview</summary>

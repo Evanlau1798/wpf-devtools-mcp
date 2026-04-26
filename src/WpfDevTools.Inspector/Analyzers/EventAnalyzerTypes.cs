@@ -40,7 +40,8 @@ internal sealed record TraceCleanupFailure(
     string SessionId,
     string EventName,
     string ExceptionType,
-    string Message);
+    string Message,
+    string State);
 
 internal sealed record TraceSessionMetadata(
     string SessionId,

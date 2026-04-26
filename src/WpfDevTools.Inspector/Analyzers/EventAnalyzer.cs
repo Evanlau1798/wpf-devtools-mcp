@@ -177,6 +177,8 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                     null);
             }
 
+            var previousCleanupException = cleanupException;
+
             CancellationTokenSource localCts;
             lock (_lock)
             {
@@ -253,14 +255,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                 }
 
                 return new TraceStartOutcome(
-                    new
-                    {
-                        success = true,
-                        message = $"Started tracing '{eventName}' for {cappedDuration}ms",
-                        eventName,
-                        duration = cappedDuration,
-                        registrationCount = registrations.Count
-                    },
+                    CreateTraceStartResult(eventName, cappedDuration, registrations.Count, previousCleanupException),
                     sessionHandle);
             }
             catch (Exception ex)
@@ -335,6 +330,8 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                     ? _handlerInvocationCount
                     : completedSnapshot?.HandlerInvocationCount ?? 0,
                 cleanupFailed = cleanupFailure != null,
+                cleanupIncomplete = cleanupFailure != null,
+                cleanupState = cleanupFailure?.State,
                 cleanupFailureMessage = cleanupFailure?.Message,
                 cleanupFailureType = cleanupFailure?.ExceptionType
             };
@@ -628,7 +625,8 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                         sessionToClean.Metadata.SessionId,
                         sessionToClean.Metadata.EventName,
                         cleanupException?.GetType().Name ?? nameof(InvalidOperationException),
-                        cleanupException?.Message ?? "Routed event trace cleanup failed.");
+                        cleanupException?.Message ?? "Routed event trace cleanup failed.",
+                        "deferredPending");
                 }
 
                 DeactivateTraceSession(sessionToClean);
@@ -643,7 +641,8 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                 sessionToClean.Metadata.SessionId,
                 sessionToClean.Metadata.EventName,
                 cleanupException?.GetType().Name ?? nameof(InvalidOperationException),
-                cleanupException?.Message ?? "Routed event trace cleanup failed.");
+                cleanupException?.Message ?? "Routed event trace cleanup failed.",
+                "failed");
 
             _isCleanupInProgress = false;
             _cleanupTransitionDispatcher = null;

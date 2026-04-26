@@ -15,6 +15,22 @@ public class RepositoryHygieneTests
     }
 
     [Theory]
+    [InlineData("docs/review-note.md")]
+    [InlineData("tmp/probe.txt")]
+    [InlineData("release/release_0.0.0_win-x64.zip")]
+    [InlineData("docfx/_site/index.html")]
+    [InlineData("docfx/api/WpfDevTools.yml")]
+    [InlineData("docfx/obj/cache.json")]
+    [InlineData("docfx/.xrefmap")]
+    [InlineData("docfx/xrefmap.yml")]
+    public void GitIgnore_ShouldIgnoreLocalOnlyRepositoryArtifacts(string relativePath)
+    {
+        var ignored = GitIgnoreMatches(relativePath);
+
+        ignored.Should().BeTrue($"{relativePath} should not be accidentally committed");
+    }
+
+    [Theory]
     [InlineData("tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj")]
     [InlineData("tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj")]
     public void TestProjects_ShouldPinSecurityPatchedCompatibilityPackages(string projectPath)
@@ -52,4 +68,24 @@ public class RepositoryHygieneTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static bool GitIgnoreMatches(string relativePath)
+    {
+        using var process = new System.Diagnostics.Process();
+        process.StartInfo.FileName = "git";
+        process.StartInfo.ArgumentList.Add("check-ignore");
+        process.StartInfo.ArgumentList.Add("--quiet");
+        process.StartInfo.ArgumentList.Add(relativePath);
+        process.StartInfo.WorkingDirectory = GetRepoRoot();
+        process.StartInfo.UseShellExecute = false;
+        process.StartInfo.CreateNoWindow = true;
+
+        process.Start();
+        process.WaitForExit();
+        return process.ExitCode == 0;
+    }
+
+    private static string GetRepoRoot()
+        => Path.GetDirectoryName(GetRepoFilePath(".gitignore"))
+           ?? throw new DirectoryNotFoundException("Could not resolve repository root.");
 }

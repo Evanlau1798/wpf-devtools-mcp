@@ -69,6 +69,8 @@ CHANGELOG.md
 docfx/_site/
 docfx/api/
 docfx/obj/
+docfx/.xrefmap
+docfx/xrefmap.yml
 
 # Stray environment artifacts (PowerShell/NuGet cache dirs accidentally
 # created in the repo root when HOME/APPDATA env vars are restricted)

@@ -99,11 +99,29 @@ public sealed partial class DependencyPropertyAnalyzer
                     };
 
                     descriptor.AddValueChanged(depObj, handler);
-                    _watchers[watchKey] = new WatchRegistration(
+                    var registration = new WatchRegistration(
                         descriptor,
                         handler,
                         new WeakReference<DependencyObject>(depObj),
                         depObj.Dispatcher);
+                    if (!_watchers.TryAdd(watchKey, registration))
+                    {
+                        if (!TryDetachWatcherHandler(
+                            descriptor,
+                            depObj,
+                            handler,
+                            depObj.Dispatcher,
+                            out var rollbackFailure))
+                        {
+                            throw new InvalidOperationException(
+                                $"Failed to rollback duplicate watcher registration '{watchKey}'.",
+                                rollbackFailure);
+                        }
+
+                        return ToolErrorFactory.InvalidArgument(
+                            "Already watching this property",
+                            "Reuse the existing watcher or clear it before registering the same property again.");
+                    }
                 }
 
                 return new
@@ -296,9 +314,29 @@ public sealed partial class DependencyPropertyAnalyzer
         }
 
         var dispatcher = watcher.Dispatcher ?? element.Dispatcher;
-        if (dispatcher == null || dispatcher.HasShutdownFinished || dispatcher.HasShutdownStarted)
+        if (TryDetachWatcherHandler(
+            watcher.Descriptor,
+            element,
+            watcher.Handler,
+            dispatcher,
+            out cleanupFailure))
         {
             _watchers.TryRemove(watchKey, out _);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryDetachWatcherHandler(
+        DependencyPropertyDescriptor descriptor,
+        DependencyObject element,
+        EventHandler handler,
+        Dispatcher? dispatcher,
+        out Exception? cleanupFailure)
+    {
+        if (dispatcher == null || dispatcher.HasShutdownFinished || dispatcher.HasShutdownStarted)
+        {
             cleanupFailure = null;
             return true;
         }
@@ -307,18 +345,17 @@ public sealed partial class DependencyPropertyAnalyzer
         {
             if (dispatcher.CheckAccess())
             {
-                DetachWatcherAction(watcher.Descriptor, element, watcher.Handler);
+                DetachWatcherAction(descriptor, element, handler);
             }
             else
             {
                 dispatcher.Invoke(
-                    () => DetachWatcherAction(watcher.Descriptor, element, watcher.Handler),
+                    () => DetachWatcherAction(descriptor, element, handler),
                     DispatcherPriority.Normal,
                     CancellationToken.None,
                     InspectorConfig.UIThreadTimeout);
             }
 
-            _watchers.TryRemove(watchKey, out _);
             cleanupFailure = null;
             return true;
         }

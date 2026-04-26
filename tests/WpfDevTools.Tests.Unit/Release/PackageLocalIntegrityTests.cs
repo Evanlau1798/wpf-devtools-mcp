@@ -300,6 +300,73 @@ public sealed class PackageLocalIntegrityTests
     }
 
     [Fact]
+    public void AssertArchiveIntegrity_ShouldRejectLocalPackageWhenTrustMetadataIsOnlyAvailableFromGitHub()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(
+                tempRoot,
+                "x64",
+                useSignedPayload: true,
+                isolateArchiveContents: true);
+            File.Delete(Path.Combine(tempRoot, "SHA256SUMS.txt"));
+            File.Delete(Path.Combine(tempRoot, "release-assets.json"));
+
+            var archiveHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(archivePath)))
+                .ToLowerInvariant();
+            var releaseHelper = QuotePowerShellString(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Release.ps1"));
+            var integrityHelper = QuotePowerShellString(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.PackageIntegrity.ps1"));
+            var quotedArchivePath = QuotePowerShellString(archivePath);
+
+            var command = string.Join(Environment.NewLine, new[]
+            {
+                "$ErrorActionPreference = 'Stop'",
+                $". {releaseHelper}",
+                $". {integrityHelper}",
+                "$script:GitHubReleaseChecksumRecordCache = @{}",
+                "function Get-GitHubReleaseApiResponse {",
+                "    param([string]$ResolvedVersion)",
+                "    return [pscustomobject]@{",
+                "        assets = @([pscustomobject]@{ name = 'release-assets.json'; browser_download_url = 'https://example.invalid/release-assets.json' })",
+                "    }",
+                "}",
+                "function Invoke-RestMethod {",
+                "    param([string]$Uri, $Headers, [int]$TimeoutSec)",
+                "    return [pscustomobject]@{",
+                "        assets = @([pscustomobject]@{",
+                "            name = 'release_1.2.3_win-x64.zip'",
+                $"            sha256 = '{archiveHash}'",
+                "            signerThumbprint = 'TESTSIGNER00000000000000000000000000000000'",
+                "            signerSubject = 'CN=WPFDEVTOOLS TEST SIGNER'",
+                "        })",
+                "    }",
+                "}",
+                $"Assert-ArchiveIntegrity -ArchivePath {quotedArchivePath} -DownloadSource 'local-package' -ResolvedVersion '1.2.3' -ResolvedArchitecture 'x64' | ConvertTo-Json -Compress"
+            });
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+                });
+
+            result.ExitCode.Should().NotBe(0, result.Stdout + result.Stderr);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("local package")
+                .And.Contain("trusted release metadata")
+                .And.Contain("WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PackageLocalInstaller_ShouldIgnoreSignerSidecarsInsideExtractedPackageRoot()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -405,4 +472,7 @@ public sealed class PackageLocalIntegrityTests
 
         return environment;
     }
+
+    private static string QuotePowerShellString(string value)
+        => "'" + value.Replace("'", "''") + "'";
 }

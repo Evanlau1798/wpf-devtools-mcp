@@ -50,6 +50,263 @@ function Get-ReleaseAssetDownloadDetails {
     }
 }
 
+function Get-ReleaseAssetIdentity {
+    param([string]$AssetName)
+
+    if ([string]::IsNullOrWhiteSpace($AssetName)) {
+        return $null
+    }
+
+    $match = [regex]::Match($AssetName, '^release_(?<version>.+)_win-(?<architecture>x64|x86|arm64)\.zip$', 'IgnoreCase')
+    if (-not $match.Success) {
+        return $null
+    }
+
+    $resolvedVersion = [string]$match.Groups['version'].Value
+    $resolvedArchitecture = [string]$match.Groups['architecture'].Value.ToLowerInvariant()
+    return [ordered]@{
+        AssetName = (Get-ReleaseAssetName -ResolvedVersion $resolvedVersion -ResolvedArchitecture $resolvedArchitecture)
+        ResolvedVersion = $resolvedVersion
+        ResolvedArchitecture = $resolvedArchitecture
+    }
+}
+
+function Get-ReleaseArchiveIdentity {
+    param(
+        [Parameter(Mandatory)] [string]$ArchivePath,
+        [string]$ResolvedVersion,
+        [string]$ResolvedArchitecture
+    )
+
+    $archiveName = Split-Path -Leaf $ArchivePath
+    $match = [regex]::Match($archiveName, '^release_(?<version>.+)_win-(?<architecture>x64|x86|arm64)(?: \(\d+\))?\.zip$', 'IgnoreCase')
+    if ($match.Success) {
+        $versionFromName = [string]$match.Groups['version'].Value
+        $architectureFromName = [string]$match.Groups['architecture'].Value.ToLowerInvariant()
+        return [ordered]@{
+            AssetName = (Get-ReleaseAssetName -ResolvedVersion $versionFromName -ResolvedArchitecture $architectureFromName)
+            ResolvedVersion = $versionFromName
+            ResolvedArchitecture = $architectureFromName
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ResolvedVersion) -and
+        $ResolvedVersion -ne 'latest' -and
+        -not [string]::IsNullOrWhiteSpace($ResolvedArchitecture)) {
+        return [ordered]@{
+            AssetName = (Get-ReleaseAssetName -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture)
+            ResolvedVersion = $ResolvedVersion
+            ResolvedArchitecture = $ResolvedArchitecture
+        }
+    }
+
+    return $null
+}
+
+function Get-ArchiveSha256 {
+    param([Parameter(Mandatory)] [string]$ArchivePath)
+
+    return (Get-FileHash -Algorithm SHA256 -Path $ArchivePath).Hash.ToLowerInvariant()
+}
+
+function Normalize-SignerThumbprint {
+    param([string]$Thumbprint)
+
+    if ([string]::IsNullOrWhiteSpace($Thumbprint)) {
+        return $null
+    }
+
+    return $Thumbprint.Replace(' ', '').ToUpperInvariant()
+}
+
+function Get-ReleaseAssetRecordsFromManifestObject {
+    param($ManifestObject)
+
+    $records = @()
+    if ($null -eq $ManifestObject -or $null -eq $ManifestObject.assets) {
+        return $records
+    }
+
+    foreach ($asset in @($ManifestObject.assets)) {
+        $assetName = [string]$asset.name
+        $sha256 = [string]$asset.sha256
+        if ([string]::IsNullOrWhiteSpace($assetName) -or [string]::IsNullOrWhiteSpace($sha256)) {
+            continue
+        }
+
+        $signerThumbprint = Normalize-SignerThumbprint -Thumbprint ([string]$asset.signerThumbprint)
+        $signerSubject = if ([string]::IsNullOrWhiteSpace([string]$asset.signerSubject)) { $null } else { [string]$asset.signerSubject }
+
+        $records += ,([ordered]@{
+                AssetName = $assetName
+                Sha256 = $sha256.ToLowerInvariant()
+                SignerThumbprint = $signerThumbprint
+                SignerSubject = $signerSubject
+            })
+    }
+
+    return $records
+}
+
+function Get-ReleaseAssetRecordsFromManifestPath {
+    param([Parameter(Mandatory)] $ManifestPath)
+
+    $resolvedManifestPath = [string]$ManifestPath
+    if ([string]::IsNullOrWhiteSpace($resolvedManifestPath) -or -not (Test-Path -LiteralPath $resolvedManifestPath)) {
+        return @()
+    }
+
+    try {
+        $manifestJson = [System.IO.File]::ReadAllText((Resolve-Path -LiteralPath $resolvedManifestPath).Path)
+        $manifest = $manifestJson | ConvertFrom-Json
+    }
+    catch {
+        return @()
+    }
+
+    return @(Get-ReleaseAssetRecordsFromManifestObject -ManifestObject $manifest)
+}
+
+function Get-ReleaseAssetRecordsFromChecksumContent {
+    param([AllowEmptyString()] [string]$Content)
+
+    $records = @()
+    foreach ($rawLine in ($Content -split "`r?`n")) {
+        $line = [string]$rawLine
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        $match = [regex]::Match($line.Trim(), '^(?<sha>[0-9A-Fa-f]{64})\s+\*?(?<name>.+)$')
+        if (-not $match.Success) {
+            continue
+        }
+
+        $records += ,([ordered]@{
+                AssetName = [string]$match.Groups['name'].Value.Trim()
+                Sha256 = [string]$match.Groups['sha'].Value.ToLowerInvariant()
+            })
+    }
+
+    return $records
+}
+
+function Get-ReleaseAssetRecordsFromChecksumPath {
+    param([Parameter(Mandatory)] $ChecksumPath)
+
+    $resolvedChecksumPath = [string]$ChecksumPath
+    if ([string]::IsNullOrWhiteSpace($resolvedChecksumPath) -or -not (Test-Path -LiteralPath $resolvedChecksumPath)) {
+        return @()
+    }
+
+    $checksumContent = [System.IO.File]::ReadAllText((Resolve-Path -LiteralPath $resolvedChecksumPath).Path)
+    return @(Get-ReleaseAssetRecordsFromChecksumContent -Content $checksumContent)
+}
+
+function Find-ReleaseAssetRecord {
+    param(
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]]$Records,
+        [string]$AssetName,
+        [string]$ArchiveHash
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($AssetName)) {
+        $namedRecord = @($Records | Where-Object { [string]$_.AssetName -eq $AssetName } | Select-Object -First 1)
+        if ($namedRecord.Count -gt 0) {
+            return $namedRecord[0]
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ArchiveHash)) {
+        $hashRecord = @($Records | Where-Object { [string]$_.Sha256 -eq $ArchiveHash } | Select-Object -First 1)
+        if ($hashRecord.Count -gt 0) {
+            return $hashRecord[0]
+        }
+    }
+
+    return $null
+}
+
+function Get-ReleaseAssetRecordFromDirectory {
+    param(
+        [Parameter(Mandatory)] [string]$DirectoryPath,
+        [string]$AssetName,
+        [string]$ArchiveHash
+    )
+
+    if ([string]::IsNullOrWhiteSpace($DirectoryPath) -or -not (Test-Path $DirectoryPath)) {
+        return $null
+    }
+
+    $manifestPath = Join-Path -Path $DirectoryPath -ChildPath 'release-assets.json'
+    $manifestRecords = @(Get-ReleaseAssetRecordsFromManifestPath -ManifestPath $manifestPath)
+    $manifestRecord = Find-ReleaseAssetRecord `
+        -Records $manifestRecords `
+        -AssetName $AssetName `
+        -ArchiveHash $ArchiveHash
+    if ($null -ne $manifestRecord) {
+        return $manifestRecord
+    }
+
+    $checksumPath = Join-Path -Path $DirectoryPath -ChildPath 'SHA256SUMS.txt'
+    $checksumRecords = @(Get-ReleaseAssetRecordsFromChecksumPath -ChecksumPath $checksumPath)
+    return (Find-ReleaseAssetRecord `
+            -Records $checksumRecords `
+            -AssetName $AssetName `
+            -ArchiveHash $ArchiveHash)
+}
+
+function Get-ReleaseAssetRecordsFromGitHub {
+    param([Parameter(Mandatory)] [string]$ResolvedVersion)
+
+    $cacheKey = [string]$ResolvedVersion
+    if ($script:GitHubReleaseChecksumRecordCache.Contains($cacheKey)) {
+        return @($script:GitHubReleaseChecksumRecordCache[$cacheKey])
+    }
+
+    $records = @()
+    $release = Get-GitHubReleaseApiResponse -ResolvedVersion $ResolvedVersion
+    if ($null -ne $release -and $null -ne $release.assets) {
+        $manifestAsset = @($release.assets) | Where-Object { $_.name -eq 'release-assets.json' } | Select-Object -First 1
+        if ($null -ne $manifestAsset) {
+            try {
+                $manifest = Invoke-RestMethod -Uri ([string]$manifestAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+                $records = @(Get-ReleaseAssetRecordsFromManifestObject -ManifestObject $manifest)
+            }
+            catch {
+            }
+        }
+
+        if ($records.Count -eq 0) {
+            $checksumAsset = @($release.assets) | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
+            if ($null -ne $checksumAsset) {
+                try {
+                    $checksumResponse = Invoke-WebRequest -Uri ([string]$checksumAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+                    $records = @(Get-ReleaseAssetRecordsFromChecksumContent -Content ([string]$checksumResponse.Content))
+                }
+                catch {
+                }
+            }
+        }
+    }
+
+    $script:GitHubReleaseChecksumRecordCache[$cacheKey] = @($records)
+    return @($records)
+}
+
+function Get-ReleaseAssetRecordFromGitHub {
+    param(
+        [Parameter(Mandatory)] [string]$ResolvedVersion,
+        [string]$AssetName,
+        [string]$ArchiveHash
+    )
+
+    return (Find-ReleaseAssetRecord `
+            -Records @(Get-ReleaseAssetRecordsFromGitHub -ResolvedVersion $ResolvedVersion) `
+            -AssetName $AssetName `
+            -ArchiveHash $ArchiveHash)
+}
+
 function Get-ReleaseArchiveDownloadTimeoutSeconds {
     $resolver = Get-Command 'Get-InstallerTimeoutSeconds' -ErrorAction SilentlyContinue
     if ($null -ne $resolver) {

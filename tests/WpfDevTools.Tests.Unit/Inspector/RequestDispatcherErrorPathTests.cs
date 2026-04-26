@@ -16,7 +16,7 @@ namespace WpfDevTools.Tests.Unit.Inspector;
 
 /// <summary>
 /// Tests for the error-handling branches in RequestDispatcher.DispatchAsync:
-///   1. OperationCanceledException  → ErrorCode.InternalError ("cancelled or timed out")
+///   1. OperationCanceledException  → ErrorCode.Timeout ("cancelled or timed out")
 ///   2. ArgumentException           → ErrorCode.InvalidParams  (missing required param)
 ///   3. General Exception           → ErrorCode.InternalError  (with exception message)
 ///   4. Request Id is always preserved in error responses
@@ -51,7 +51,7 @@ public class RequestDispatcherErrorPathTests
         response.Id.Should().Be("cancel-01");
         response.Result.Should().BeNull();
         response.Error.Should().NotBeNull();
-        response.Error!.Code.Should().Be(ErrorCode.InternalError);
+        response.Error!.Code.Should().Be(ErrorCode.Timeout);
         response.Error.Message.Should().ContainEquivalentOf("cancelled");
     }
 

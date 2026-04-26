@@ -117,7 +117,7 @@ public sealed class RequestDispatcher : IDisposable
                 Result = null,
                 Error = new InspectorError
                 {
-                    Code = ErrorCode.InternalError,
+                    Code = ErrorCode.Timeout,
                     Message = "Request cancelled or timed out",
                     Data = null
                 }

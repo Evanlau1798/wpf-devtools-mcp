@@ -123,50 +123,6 @@ public abstract partial class PipeConnectedToolBase
         => MutationDetailModeParser.Parse(arguments);
 
     /// <summary>
-    /// Create error response for missing required parameter
-    /// </summary>
-    protected static object CreateMissingParamError(string paramName) =>
-        new ToolErrorPayload
-        {
-            Error = $"Missing required parameter: {paramName}",
-            ErrorCode = ToolErrorCode.MissingRequiredParameter.ToString(),
-            Hint = $"Provide {paramName} explicitly, or establish an active process/session before retrying."
-        };
-
-    /// <summary>
-    /// Create error response for invalid parameter value.
-    /// </summary>
-    protected static object CreateInvalidParamError(string message) =>
-        new ToolErrorPayload
-        {
-            Error = message,
-            ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
-            Hint = "Correct the parameter value and retry the tool."
-        };
-
-    /// <summary>
-    /// Create error response for not-connected process
-    /// </summary>
-    protected static object CreateNotConnectedError(int processId) =>
-        new ToolErrorPayload
-        {
-            Error = $"Process {processId} is not connected. Call connect(processId: {processId}) first, then retry this tool.",
-            ErrorCode = ToolErrorCode.NotConnected.ToString(),
-            Hint = $"Call connect(processId: {processId}) before using inspection or mutation tools."
-        };
-
-    /// <summary>
-    /// Create error response for omitted processId when no active process has been selected.
-    /// </summary>
-    protected static object CreateNoActiveProcessError() =>
-        new ToolErrorPayload
-        {
-            Error = "No active process is selected. Provide processId explicitly or select an active process first.",
-            ErrorCode = ToolErrorCode.NoActiveProcess.ToString(),
-            Hint = "Call select_active_process(processId) or connect(processId) before omitting processId."
-        };
-
-    /// <summary>
     /// Send a request to the Inspector DLL via Named Pipe
     /// </summary>
     protected async Task<object> SendInspectorRequestAsync(
@@ -467,32 +423,6 @@ public abstract partial class PipeConnectedToolBase
 
         return payload;
     }
-
-    private static object CreateInspectorError(InspectorError error)
-    {
-        return error.Data.HasValue
-            ? new ToolErrorPayload
-            {
-                Error = error.Message,
-                ErrorCode = error.Code.ToString(),
-                Hint = GetInspectorHint(error.Code.ToString()),
-                ErrorData = error.Data.Value
-            }
-            : new ToolErrorPayload
-            {
-                Error = error.Message,
-                ErrorCode = error.Code.ToString(),
-                Hint = GetInspectorHint(error.Code.ToString())
-            };
-    }
-
-    private static string? GetInspectorHint(string errorCode) => errorCode switch
-    {
-        "ElementNotFound" => "Refresh the visual/logical tree and confirm the elementId before retrying.",
-        "PropertyNotFound" => "Verify the propertyName spelling and the target element type.",
-        "EventNotFound" => "Use a valid eventName for the target control type.",
-        _ => null
-    };
 
     private static bool IsSuccessfulPayload(JsonElement payload) =>
         payload.ValueKind == JsonValueKind.Object

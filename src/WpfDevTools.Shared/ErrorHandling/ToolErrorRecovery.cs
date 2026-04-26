@@ -29,6 +29,13 @@ public sealed class ToolErrorRecovery
     public bool? RequiresReconnect { get; init; }
 
     /// <summary>
+    /// Indicates that runtime state may have changed after the timeout.
+    /// </summary>
+    [JsonPropertyName("stateAfterTimeoutUnknown")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? StateAfterTimeoutUnknown { get; init; }
+
+    /// <summary>
     /// Target process identifier associated with the recovery guidance.
     /// </summary>
     [JsonPropertyName("processId")]

@@ -119,7 +119,7 @@ public sealed class RequestDispatcher : IDisposable
                 {
                     Code = ErrorCode.Timeout,
                     Message = "Request cancelled or timed out",
-                    Data = null
+                    Data = CreateTimeoutRecoveryData()
                 }
             };
         }
@@ -168,6 +168,20 @@ public sealed class RequestDispatcher : IDisposable
             protocolVersion = InspectorCompatibilityContract.ProtocolVersion,
             buildFingerprint = InspectorCompatibilityContract.GetBuildFingerprint(typeof(RequestDispatcher))
         };
+    }
+
+    private JsonElement CreateTimeoutRecoveryData()
+    {
+        var timeoutSeconds = Math.Max(1, (int)Math.Ceiling(InspectorConfig.RequestTimeout.TotalSeconds));
+        return JsonSerializer.SerializeToElement(new
+        {
+            stateAfterTimeoutUnknown = true,
+            requiresReconnect = true,
+            processId = _processId,
+            timeoutSeconds,
+            suggestedAction = $"Reconnect to process {_processId} and re-read target state before retrying.",
+            hint = "The request was canceled or timed out while dispatcher work may still be pending or running."
+        });
     }
 
     private void LogError(string message)

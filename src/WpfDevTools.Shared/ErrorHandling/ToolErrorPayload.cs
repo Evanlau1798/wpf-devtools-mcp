@@ -71,6 +71,41 @@ public sealed class ToolErrorPayload
     public ToolErrorRecovery? Recovery { get; init; }
 
     /// <summary>
+    /// Deterministic next-step guidance projected for backward-compatible callers.
+    /// </summary>
+    [JsonPropertyName("suggestedAction")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SuggestedAction { get; init; }
+
+    /// <summary>
+    /// Indicates that the current session should be reconnected before retrying.
+    /// </summary>
+    [JsonPropertyName("requiresReconnect")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? RequiresReconnect { get; init; }
+
+    /// <summary>
+    /// Indicates that runtime state may have changed after the timeout.
+    /// </summary>
+    [JsonPropertyName("stateAfterTimeoutUnknown")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? StateAfterTimeoutUnknown { get; init; }
+
+    /// <summary>
+    /// Target process identifier associated with the recovery guidance.
+    /// </summary>
+    [JsonPropertyName("processId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ProcessId { get; init; }
+
+    /// <summary>
+    /// Timeout budget associated with the failed operation.
+    /// </summary>
+    [JsonPropertyName("timeoutSeconds")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? TimeoutSeconds { get; init; }
+
+    /// <summary>
     /// Backward-compatible top-level projection used by event analyzer callers.
     /// </summary>
     [JsonPropertyName("availableEvents")]

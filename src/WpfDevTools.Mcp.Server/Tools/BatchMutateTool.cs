@@ -106,6 +106,7 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
 
             executedMutationCount++;
             var mutationSucceeded = IsSuccess(mutationResult);
+            var mutationTimedOutWithUnknownState = IsTimeoutUnknownPayload(mutationResult);
             if (mutationSucceeded)
             {
                 successfulMutationCount++;
@@ -117,6 +118,13 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
                     ?? mutation.Label
                     ?? mutation.Tool;
                 firstFailureError ??= GetOptionalString(mutationResult, "error");
+                if (mutationTimedOutWithUnknownState)
+                {
+                    stateAfterTimeoutUnknown = true;
+                    requiresReconnect = true;
+                    firstFailureError ??= "The mutation timed out and reported that runtime state may be partially changed.";
+                }
+
                 stopExecution = true;
             }
 
@@ -129,6 +137,7 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
                 skipped = false,
                 error = mutationSucceeded ? null : GetOptionalString(mutationResult, "error"),
                 errorCode = mutationSucceeded ? null : GetOptionalString(mutationResult, "errorCode"),
+                stateAfterTimeoutUnknown = mutationTimedOutWithUnknownState ? true : (bool?)null,
                 result = mutationResult.Clone()
             });
         }

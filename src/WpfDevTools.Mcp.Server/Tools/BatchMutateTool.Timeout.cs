@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace WpfDevTools.Mcp.Server.Tools;
 
 public sealed partial class BatchMutateTool
@@ -30,4 +32,10 @@ public sealed partial class BatchMutateTool
             stateAfterTimeoutUnknown = true,
             result = (object?)null
         };
+
+    private static bool IsTimeoutUnknownPayload(JsonElement response) =>
+        !IsSuccess(response)
+        && GetOptionalString(response, "errorCode") == "Timeout"
+        && response.TryGetProperty("stateAfterTimeoutUnknown", out var stateProperty)
+        && stateProperty.ValueKind == JsonValueKind.True;
 }

@@ -41,6 +41,8 @@ package-local 回退路徑：
 
 `run.bat` 會在目前 shell 尚未提升權限時要求 elevation，然後啟動 packaged `bin/install.ps1`。如果你需要把安裝留在目前未提升權限的 shell 中，請設定 `WPFDEVTOOLS_SKIP_ELEVATION=1`。
 
+對 `claude-code` 與 `codex`，elevated CLI registration 會刻意封鎖 PATH-based CLI discovery。請優先用 `WPFDEVTOOLS_SKIP_ELEVATION=1` 留在目前 shell 完成註冊，或在安裝後手動註冊。若無法避免 elevated registration，請同時設定 `WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH=1` 與可信任的絕對路徑 `WPFDEVTOOLS_CLAUDE_COMMAND_PATH` 或 `WPFDEVTOOLS_CODEX_COMMAND_PATH`。
+
 如果 installer 不能重用先前仍有效的 live install root，且你也沒有傳入 `-InstallRoot`，回退用的 executable 路徑會是：
 
 ```text

@@ -32,6 +32,8 @@ Before trusting the extracted package, keep the verified release sidecars beside
 
 `run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 
+For `claude-code` and `codex`, elevated CLI registration intentionally blocks PATH-based CLI discovery. Prefer `WPFDEVTOOLS_SKIP_ELEVATION=1` for the registration step, or register manually after install. If elevated registration is unavoidable, set `WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH=1` together with a trusted absolute `WPFDEVTOOLS_CODEX_COMMAND_PATH` or `WPFDEVTOOLS_CLAUDE_COMMAND_PATH`.
+
 If the installer cannot reuse a previous live install root and you do not pass `-InstallRoot`, the fallback executable path is:
 
 ```text

@@ -120,8 +120,15 @@ public static class E2eTestHelpers
 
     public static async Task<string?> FindElementByNameAsync(
         McpStdioClient client, int processId, string elementName)
+        => await FindElementByNameAsync(
+            (toolName, arguments) => client.CallToolAsync(toolName, arguments),
+            processId,
+            elementName);
+
+    internal static async Task<string?> FindElementByNameAsync(
+        ToolCallAsync callToolAsync, int processId, string elementName)
     {
-        var response = await client.CallToolAsync(
+        var response = await callToolAsync(
             "get_namescope",
             new { processId });
 
@@ -138,7 +145,7 @@ public static class E2eTestHelpers
             return match.GetProperty("elementId").GetString();
         }
 
-        var treeResponse = await client.CallToolAsync(
+        var treeResponse = await callToolAsync(
             "get_visual_tree",
             new { processId, depth = 15 });
         if (!treeResponse.GetProperty("success").GetBoolean() ||
@@ -171,6 +178,33 @@ public static class E2eTestHelpers
         return null;
     }
 
+    public static Task<JsonElement> WaitForDpValueAsync(
+        McpStdioClient client,
+        int processId,
+        string elementId,
+        string propertyName,
+        string expectedValue,
+        TimeSpan timeout)
+    {
+        return ConditionWaiter.WaitForAsync(
+            () => client.CallToolAsync(
+                "get_dp_value_source",
+                new
+                {
+                    processId,
+                    elementId,
+                    propertyName,
+                    compact = true,
+                    settleBindings = true,
+                    navigation = false
+                },
+                timeoutMs: 10000),
+            result => ToolSucceeded(result) &&
+                string.Equals(GetDpCurrentValue(result), expectedValue, StringComparison.Ordinal),
+            timeout,
+            $"Timed out waiting for {propertyName} to become '{expectedValue}'.");
+    }
+
     public static async Task<JsonElement> WaitForTraceEventAsync(
         McpStdioClient client,
         int processId,
@@ -190,20 +224,25 @@ public static class E2eTestHelpers
     }
 
     public static async Task ResetTestAppStateAsync(McpStdioClient client, int processId)
+        => await ResetTestAppStateAsync(
+            (toolName, arguments) => client.CallToolAsync(toolName, arguments),
+            processId);
+
+    internal static async Task ResetTestAppStateAsync(ToolCallAsync callToolAsync, int processId)
     {
-        var basicControlsTabId = await FindElementByNameAsync(client, processId, BasicControlsTabName);
+        var basicControlsTabId = await FindElementByNameAsync(callToolAsync, processId, BasicControlsTabName);
         if (string.IsNullOrWhiteSpace(basicControlsTabId))
         {
             throw new InvalidOperationException($"Could not find {BasicControlsTabName} while resetting shared E2E state.");
         }
 
-        var resetTargetId = await FindElementByNameAsync(client, processId, ResetCommandTargetName);
+        var resetTargetId = await FindElementByNameAsync(callToolAsync, processId, ResetCommandTargetName);
         if (string.IsNullOrWhiteSpace(resetTargetId))
         {
             throw new InvalidOperationException($"Could not find {ResetCommandTargetName} while resetting shared E2E state.");
         }
 
-        var activateResult = await client.CallToolAsync(
+        var activateResult = await callToolAsync(
             "click_element",
             new
             {
@@ -213,7 +252,7 @@ public static class E2eTestHelpers
             });
         EnsureToolSucceeded(activateResult, "click_element", BasicControlsTabName);
 
-        var resetResult = await client.CallToolAsync(
+        var resetResult = await callToolAsync(
             "execute_command",
             new
             {
@@ -224,7 +263,7 @@ public static class E2eTestHelpers
             });
         EnsureToolSucceeded(resetResult, "execute_command", ResetStateCommandName);
 
-        await DrainPendingEventsUntilEmptyAsync(() => client.CallToolAsync(
+        await DrainPendingEventsUntilEmptyAsync(() => callToolAsync(
             "drain_events",
             new
             {
@@ -236,7 +275,7 @@ public static class E2eTestHelpers
     public static async Task ResetSharedSessionStateAsync(McpE2eFixture fixture)
     {
         await fixture.ReconnectClientAsync();
-        await ResetTestAppStateAsync(fixture.Client, fixture.TestAppProcessId);
+        await ResetTestAppStateAsync(fixture.CallToolAsync, fixture.TestAppProcessId);
     }
 
     internal static Task RunWithRestoredSnapshotAsync(
@@ -352,5 +391,23 @@ public static class E2eTestHelpers
 
         throw new InvalidOperationException(
             $"drain_events did not empty the pending event queue after {ResetEventDrainMaxPasses} reset passes: {lastResult.GetRawText()}");
+    }
+
+    private static bool ToolSucceeded(JsonElement result)
+        => result.TryGetProperty("success", out var success) &&
+            success.ValueKind == JsonValueKind.True;
+
+    private static string? GetDpCurrentValue(JsonElement result)
+    {
+        if (result.TryGetProperty("currentValue", out var currentValue) &&
+            currentValue.ValueKind == JsonValueKind.String)
+        {
+            return currentValue.GetString();
+        }
+
+        return result.TryGetProperty("effectiveValue", out var effectiveValue) &&
+            effectiveValue.ValueKind == JsonValueKind.String
+                ? effectiveValue.GetString()
+                : null;
     }
 }

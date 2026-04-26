@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using WpfDevTools.Tests.Integration.TestSupport;
 
@@ -15,11 +16,33 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
     private Process? _testApp;
     private McpStdioClient? _client;
     private string? _serverExePath;
+    private readonly int? _testAppProcessIdOverride;
+    private readonly Func<Task>? _reconnectClientAsyncOverride;
+    private readonly Func<string, object?, Task<JsonElement>>? _callToolAsyncOverride;
+
+    public McpE2eFixture()
+    {
+    }
+
+    internal McpE2eFixture(
+        int testAppProcessId,
+        Func<Task> reconnectClientAsync,
+        Func<string, object?, Task<JsonElement>> callToolAsync)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(testAppProcessId);
+        ArgumentNullException.ThrowIfNull(reconnectClientAsync);
+        ArgumentNullException.ThrowIfNull(callToolAsync);
+
+        _testAppProcessIdOverride = testAppProcessId;
+        _reconnectClientAsyncOverride = reconnectClientAsync;
+        _callToolAsyncOverride = callToolAsync;
+    }
 
     public McpStdioClient Client => _client
         ?? throw new InvalidOperationException("E2E fixture not initialized");
 
-    public int TestAppProcessId => _testApp?.Id
+    public int TestAppProcessId => _testAppProcessIdOverride
+        ?? _testApp?.Id
         ?? throw new InvalidOperationException("TestApp not started");
 
     /// <summary>
@@ -85,6 +108,12 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 
     public async Task ReconnectClientAsync()
     {
+        if (_reconnectClientAsyncOverride != null)
+        {
+            await _reconnectClientAsyncOverride().ConfigureAwait(false);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_serverExePath))
         {
             throw new InvalidOperationException("MCP server executable path is not available for reconnect.");
@@ -113,6 +142,11 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             throw new InvalidOperationException($"Failed to reconnect to TestApp: {error}");
         }
     }
+
+    internal Task<JsonElement> CallToolAsync(string toolName, object? arguments)
+        => _callToolAsyncOverride != null
+            ? _callToolAsyncOverride(toolName, arguments)
+            : Client.CallToolAsync(toolName, arguments);
 
     public Task DisposeAsync()
     {

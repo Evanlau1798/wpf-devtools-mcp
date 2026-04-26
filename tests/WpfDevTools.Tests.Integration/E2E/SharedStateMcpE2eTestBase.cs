@@ -6,9 +6,22 @@ namespace WpfDevTools.Tests.Integration.E2E;
 /// </summary>
 public abstract class SharedStateMcpE2eTestBase : IAsyncLifetime
 {
+    private readonly Func<McpE2eFixture, Task> _resetSharedSessionStateAsync;
+
     protected SharedStateMcpE2eTestBase(McpE2eFixture fixture)
+        : this(fixture, E2eTestHelpers.ResetSharedSessionStateAsync)
     {
+    }
+
+    internal SharedStateMcpE2eTestBase(
+        McpE2eFixture fixture,
+        Func<McpE2eFixture, Task> resetSharedSessionStateAsync)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+        ArgumentNullException.ThrowIfNull(resetSharedSessionStateAsync);
+
         Fixture = fixture;
+        _resetSharedSessionStateAsync = resetSharedSessionStateAsync;
     }
 
     protected McpE2eFixture Fixture { get; }
@@ -24,7 +37,7 @@ public abstract class SharedStateMcpE2eTestBase : IAsyncLifetime
 
         try
         {
-            await E2eTestHelpers.ResetSharedSessionStateAsync(Fixture);
+            await _resetSharedSessionStateAsync(Fixture);
         }
         catch (Exception ex)
         {
@@ -42,7 +55,7 @@ public abstract class SharedStateMcpE2eTestBase : IAsyncLifetime
 
         try
         {
-            await E2eTestHelpers.ResetSharedSessionStateAsync(Fixture);
+            await _resetSharedSessionStateAsync(Fixture);
         }
         catch (Exception ex)
         {

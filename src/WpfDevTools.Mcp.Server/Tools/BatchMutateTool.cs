@@ -3,7 +3,7 @@ using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
-public sealed class BatchMutateTool : PipeConnectedToolBase
+public sealed partial class BatchMutateTool : PipeConnectedToolBase
 {
     private readonly Func<string, JsonElement, CancellationToken, Task<object>> _mutationExecutor;
     private readonly Func<JsonElement, CancellationToken, Task<object>> _snapshotExecutor;
@@ -66,6 +66,8 @@ public sealed class BatchMutateTool : PipeConnectedToolBase
         var failedMutationCount = 0;
         var skippedMutationCount = 0;
         var stopExecution = false;
+        string? firstFailureContext = null;
+        string? firstFailureError = null;
 
         foreach (var mutation in request.Mutations)
         {
@@ -98,6 +100,10 @@ public sealed class BatchMutateTool : PipeConnectedToolBase
             else
             {
                 failedMutationCount++;
+                firstFailureContext ??= GetOptionalString(mutation.Args, "propertyName")
+                    ?? mutation.Label
+                    ?? mutation.Tool;
+                firstFailureError ??= GetOptionalString(mutationResult, "error");
                 stopExecution = true;
             }
 
@@ -128,13 +134,26 @@ public sealed class BatchMutateTool : PipeConnectedToolBase
             stateDiff = diffResult.Clone();
         }
 
-        var rollback = BuildRollback(processId, snapshotId, failedMutationCount);
+        var diffFailed = stateDiff is JsonElement diffPayload && !IsSuccess(diffPayload);
         var overallSuccess = failedMutationCount == 0
-            && (stateDiff is not JsonElement diffPayload || IsSuccess(diffPayload));
+            && !diffFailed;
+        var rollback = BuildRollback(processId, snapshotId, !overallSuccess);
+        var failure = overallSuccess
+            ? null
+            : BuildBatchFailure(
+                processId,
+                snapshotId,
+                failedMutationCount > 0 ? "BatchStepFailed" : "DiffFailed",
+                failedMutationCount > 0
+                    ? $"Batch mutation step failed for {firstFailureContext}. {firstFailureError}".Trim()
+                    : $"batch_mutate failed while running get_state_diff. {GetOptionalString((JsonElement)stateDiff!, "error")}".Trim());
 
         return new
         {
             success = overallSuccess,
+            error = failure?.Error,
+            errorCode = failure?.ErrorCode,
+            recovery = failure?.Recovery,
             executionMode = "sequential-stop-on-error",
             mutationCount = request.Mutations.Count,
             executedMutationCount,
@@ -393,37 +412,6 @@ public sealed class BatchMutateTool : PipeConnectedToolBase
         }
 
         return JsonSerializer.SerializeToElement(payload);
-    }
-
-    private object? BuildRollback(int processId, string? capturedSnapshotId, int failedMutationCount)
-    {
-        if (failedMutationCount == 0)
-        {
-            return null;
-        }
-
-        var snapshotId = capturedSnapshotId;
-        if (string.IsNullOrWhiteSpace(snapshotId)
-            && !_sessionManager.TryGetActiveSnapshotId(processId, out snapshotId))
-        {
-            return new
-            {
-                available = false,
-                reason = "No active snapshot is available for rollback guidance."
-            };
-        }
-
-        return new
-        {
-            available = true,
-            snapshotId,
-            tool = "restore_state_snapshot",
-            @params = new
-            {
-                processId,
-                snapshotId
-            }
-        };
     }
 
     private static object CreateStepFailure(string stepName, JsonElement response)

@@ -132,11 +132,58 @@ public sealed class BatchMutateToolTests
         result.GetProperty("successfulMutationCount").GetInt32().Should().Be(1);
         result.GetProperty("failedMutationCount").GetInt32().Should().Be(1);
         result.GetProperty("skippedMutationCount").GetInt32().Should().Be(1);
+        result.GetProperty("errorCode").GetString().Should().Be("BatchStepFailed");
+        result.GetProperty("error").GetString().Should().Contain("Age");
+        result.GetProperty("recovery").GetProperty("tool").GetString().Should().Be("restore_state_snapshot");
+        result.GetProperty("recovery").GetProperty("params").GetProperty("snapshotId").GetString().Should().Be("snapshot_batch_rollback");
         result.GetProperty("mutations")[2].GetProperty("skipped").GetBoolean().Should().BeTrue();
         result.GetProperty("rollback").GetProperty("available").GetBoolean().Should().BeTrue();
         result.GetProperty("rollback").GetProperty("tool").GetString().Should().Be("restore_state_snapshot");
         result.GetProperty("rollback").GetProperty("params").GetProperty("snapshotId").GetString().Should().Be("snapshot_batch_rollback");
         executedTools.Should().Equal("modify_viewmodel", "modify_viewmodel");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenStateDiffFails_ShouldReturnRollbackRecovery()
+    {
+        var tool = new BatchMutateTool(
+            new SessionManager(),
+            (_, _, _) => Task.FromResult<object>(new { success = true }),
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_batch_diff_failure"
+            }),
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = false,
+                error = "Diff collection failed.",
+                errorCode = "OperationFailed"
+            }));
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId = 12345,
+                captureSnapshot = new
+                {
+                    propertyNames = new[] { "Text" }
+                },
+                includeDiff = true,
+                mutations = new object[]
+                {
+                    new { tool = "set_dp_value", args = new { propertyName = "Text", value = "Updated" } }
+                }
+            }),
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("failedMutationCount").GetInt32().Should().Be(0);
+        result.GetProperty("errorCode").GetString().Should().Be("DiffFailed");
+        result.GetProperty("error").GetString().Should().Contain("get_state_diff");
+        result.GetProperty("rollback").GetProperty("available").GetBoolean().Should().BeTrue();
+        result.GetProperty("recovery").GetProperty("tool").GetString().Should().Be("restore_state_snapshot");
+        result.GetProperty("recovery").GetProperty("params").GetProperty("snapshotId").GetString().Should().Be("snapshot_batch_diff_failure");
     }
 
     [Fact]

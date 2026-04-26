@@ -35,14 +35,14 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         var progress = new RestoreProgress();
         try
         {
-            await RestoreDependencyPropertiesAsync(
-                processId,
-                snapshot.DependencyProperties,
-                progress,
-                cancellationToken).ConfigureAwait(false);
             await RestoreViewModelPropertiesAsync(
                 processId,
                 snapshot.ViewModelProperties,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+            await RestoreDependencyPropertiesAsync(
+                processId,
+                snapshot.DependencyProperties,
                 progress,
                 cancellationToken).ConfigureAwait(false);
             progress.RestoredFocus = await RestoreFocusAsync(

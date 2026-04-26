@@ -13,6 +13,8 @@ namespace WpfDevTools.Tests.Integration.E2E;
 /// </summary>
 public static class E2eTestHelpers
 {
+    internal delegate Task<JsonElement> ToolCallAsync(string toolName, object? arguments);
+
     private const string BasicControlsTabName = "BasicControlsTab";
     private const string ResetCommandTargetName = "NameTextBox";
     private const string ResetStateCommandName = "ResetStateCommand";
@@ -235,6 +237,65 @@ public static class E2eTestHelpers
     {
         await fixture.ReconnectClientAsync();
         await ResetTestAppStateAsync(fixture.Client, fixture.TestAppProcessId);
+    }
+
+    internal static Task RunWithRestoredSnapshotAsync(
+        McpStdioClient client,
+        int processId,
+        string snapshotId,
+        Func<Task> bodyAsync)
+    {
+        return RunWithRestoredSnapshotAsync(
+            (toolName, arguments) => client.CallToolAsync(toolName, arguments),
+            processId,
+            snapshotId,
+            bodyAsync);
+    }
+
+    internal static async Task RunWithRestoredSnapshotAsync(
+        ToolCallAsync callToolAsync,
+        int processId,
+        string snapshotId,
+        Func<Task> bodyAsync)
+    {
+        try
+        {
+            await bodyAsync();
+        }
+        finally
+        {
+            var restore = await RestoreStateSnapshotAsync(callToolAsync, processId, snapshotId);
+            EnsureToolSucceeded(restore, "restore_state_snapshot", snapshotId);
+        }
+    }
+
+    internal static Task<JsonElement> RestoreStateSnapshotAsync(
+        McpStdioClient client,
+        int processId,
+        string snapshotId,
+        bool removeAfterRestore = true)
+    {
+        return RestoreStateSnapshotAsync(
+            (toolName, arguments) => client.CallToolAsync(toolName, arguments),
+            processId,
+            snapshotId,
+            removeAfterRestore);
+    }
+
+    internal static Task<JsonElement> RestoreStateSnapshotAsync(
+        ToolCallAsync callToolAsync,
+        int processId,
+        string snapshotId,
+        bool removeAfterRestore = true)
+    {
+        return callToolAsync(
+            "restore_state_snapshot",
+            new
+            {
+                processId,
+                snapshotId,
+                removeAfterRestore
+            });
     }
 
     /// <summary>

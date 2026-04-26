@@ -185,6 +185,98 @@ public sealed class StateSnapshotRestoreVerificationTests
         connected.RequestMethods.Should().Equal("modify_viewmodel", "get_viewmodel");
     }
 
+    [Fact]
+    public async Task RestoreStateSnapshot_ShouldRestoreViewModelBeforeVerifyingBoundDependencyProperties()
+    {
+        var processId = NextSyntheticProcessId();
+        var viewModelName = "Bob";
+        var textBoxText = "Bob";
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request =>
+            {
+                switch (request.Method)
+                {
+                    case "modify_viewmodel":
+                        viewModelName = request.Params!.Value.GetProperty("value").GetString()!;
+                        textBoxText = viewModelName;
+                        return new
+                        {
+                            success = true,
+                            propertyName = "Name",
+                            oldValue = "Bob",
+                            newValue = viewModelName
+                        };
+                    case "get_viewmodel":
+                        return new
+                        {
+                            success = true,
+                            typeName = "SampleViewModel",
+                            properties = new[]
+                            {
+                                new { name = "Name", type = "String", value = viewModelName, canWrite = true }
+                            }
+                        };
+                    case "restore_dp_expression":
+                        return new
+                        {
+                            success = true,
+                            propertyName = "Text",
+                            restoredExpression = true
+                        };
+                    case "get_dp_value_source":
+                        return new
+                        {
+                            success = true,
+                            propertyName = "Text",
+                            currentValue = textBoxText,
+                            baseValueSource = "LocalValue",
+                            isExpression = true
+                        };
+                    default:
+                        return new { success = false, error = $"Unexpected method '{request.Method}'." };
+                }
+            });
+
+        const string snapshotId = "snapshot_bound_dp_with_viewmodel";
+        connected.SessionManager.SaveStateSnapshot(processId, CreateSnapshot(
+            snapshotId,
+            dependencyProperties:
+            [
+                new StoredDependencyPropertySnapshot(
+                    "TextBox_1",
+                    "Text",
+                    HadLocalValue: false,
+                    LocalValue: null,
+                    CurrentValue: "Alice",
+                    BaseValueSource: "LocalValue",
+                    IsExpression: true,
+                    ExpressionRestoreToken: "binding-token",
+                    ExpressionKind: "Binding")
+            ],
+            viewModelProperties:
+            [
+                new StoredViewModelPropertySnapshot(
+                    "TextBox_1",
+                    "Name",
+                    "String",
+                    "Alice",
+                    CanRestore: true,
+                    SkipReason: null)
+            ]));
+
+        var result = JsonSerializer.SerializeToElement(await new RestoreStateSnapshotTool(connected.SessionManager)
+            .ExecuteAsync(ToJsonElement(new { processId, snapshotId }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("warnings").GetArrayLength().Should().Be(0);
+        connected.RequestMethods.Should().Equal(
+            "modify_viewmodel",
+            "get_viewmodel",
+            "restore_dp_expression",
+            "get_dp_value_source");
+    }
+
     private static StoredStateSnapshot CreateSnapshot(
         string snapshotId,
         IReadOnlyList<StoredDependencyPropertySnapshot>? dependencyProperties = null,

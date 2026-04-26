@@ -161,6 +161,47 @@ public sealed class BatchMutateToolTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithNestedMutationProcessId_ShouldRejectPayloadBeforeExecution()
+    {
+        var mutationCalled = false;
+        var tool = new BatchMutateTool(
+            new SessionManager(),
+            (_, _, _) =>
+            {
+                mutationCalled = true;
+                return Task.FromResult<object>(new { success = true });
+            },
+            null,
+            null);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId = 12345,
+                mutations = new object[]
+                {
+                    new
+                    {
+                        tool = "modify_viewmodel",
+                        args = new
+                        {
+                            processId = 54321,
+                            propertyName = "Name",
+                            value = "Unsafe"
+                        }
+                    }
+                }
+            }),
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("processId");
+        result.GetProperty("error").GetString().Should().Contain("mutation");
+        mutationCalled.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithStringifiedMutationsArray_ShouldAcceptCompatibilityPayload()
     {
         var executedTools = new List<string>();

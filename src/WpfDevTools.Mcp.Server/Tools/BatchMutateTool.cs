@@ -195,6 +195,11 @@ public sealed class BatchMutateTool : PipeConnectedToolBase
                 }
 
                 args = argsElement.Clone();
+                if (args.TryGetProperty("processId", out _))
+                {
+                    return (null, CreateInvalidParamError(
+                        "Each mutations item args value must not include processId; use the batch root processId only."));
+                }
             }
 
             string? label = null;

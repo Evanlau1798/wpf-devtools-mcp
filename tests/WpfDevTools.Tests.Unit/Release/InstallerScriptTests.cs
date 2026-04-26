@@ -33,6 +33,8 @@ public sealed partial class InstallerScriptTests
             var installBase = Path.Combine(installRoot, "x64");
             var registrationDir = Path.Combine(installBase, "client-registration");
             File.Exists(Path.Combine(installBase, "install-manifest.json")).Should().BeTrue();
+            File.Exists(Path.Combine(installBase, "current", "bin", "install.ps1")).Should().BeTrue(
+                "release workflows uninstall through the installed package-local installer entrypoint");
             Directory.Exists(registrationDir).Should().BeTrue();
             File.ReadAllText(Path.Combine(registrationDir, "vscode.json"))
                 .Should().Contain("\"servers\"")

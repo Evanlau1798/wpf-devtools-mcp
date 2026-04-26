@@ -84,7 +84,6 @@ function Install-PackagePayload {
         New-Item -ItemType Directory -Force -Path $currentDir | Out-Null
         Copy-Item -Path (Join-Path $PackageDirectory '*') -Destination $currentDir -Recurse -Force
         Remove-PathIfExists -Path (Join-Path $currentDir 'run.bat')
-        Remove-PathIfExists -Path (Join-Path $currentDir 'bin\install.ps1')
 
         $relativeExecutable = $packageExecutable.Substring($PackageDirectory.Length).TrimStart('\', '/')
         $installedExecutable = Join-Path $currentDir $relativeExecutable

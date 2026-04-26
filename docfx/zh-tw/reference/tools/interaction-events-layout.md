@@ -61,6 +61,8 @@
 - `measure_element_render_time`
 - `get_visual_count`
 
+Render statistics 與 visual count 回應預設會把內部 visual-count walk 限制在 1000 個節點。使用 `visualCountLimit` 與 `visualCountTruncated` 判斷回報的 count 是完整值，還是已被刻意截斷。
+
 ## 安全使用模式
 
 1. 先檢查。

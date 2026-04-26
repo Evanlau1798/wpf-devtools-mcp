@@ -77,6 +77,7 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                 if (_frameTimes.Count == 0)
                 {
                     var (warmupConfidence, warmupGuidance) = PerformanceConfidencePolicy.EvaluateRenderStats(sampleCount: 0, isWarmedUp: false);
+                    var warmupVisualCount = GetVisualCountInternal();
                     return new
                     {
                         success = true,
@@ -97,7 +98,9 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                         maxFrameTime = 0.0,
                         totalFrames = _frameCount,
                         monitoringDuration = 0.0,
-                        visualCount = GetVisualCountInternal()
+                        visualCount = warmupVisualCount.Count,
+                        visualCountLimit = warmupVisualCount.Limit,
+                        visualCountTruncated = warmupVisualCount.Truncated
                     };
                 }
 
@@ -107,6 +110,7 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                 var monitoringDuration = (DateTime.UtcNow - _monitoringStartTime).TotalSeconds;
                 var (statsConfidence, statsGuidance) = PerformanceConfidencePolicy.EvaluateRenderStats(_frameTimes.Count, isWarmedUp: true);
 
+                var statsVisualCount = GetVisualCountInternal();
                 return new
                 {
                     success = true,
@@ -126,7 +130,9 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                     maxFrameTime = Math.Round(frameTimesArray.Max(), 2),
                     totalFrames = _frameCount,
                     monitoringDuration = Math.Round(monitoringDuration, 2),
-                    visualCount = GetVisualCountInternal()
+                    visualCount = statsVisualCount.Count,
+                    visualCountLimit = statsVisualCount.Limit,
+                    visualCountTruncated = statsVisualCount.Truncated
                 };
             }
         });
@@ -148,13 +154,15 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                 return ToolErrorFactory.ElementNotFound(elementId);
             }
 
-            var count = CountVisualElements(element);
+            var visualCount = CountVisualElements(element);
 
             return new
             {
                 success = true,
-                count = count,
-                totalCount = count,
+                count = visualCount.Count,
+                totalCount = visualCount.Count,
+                visualCountLimit = visualCount.Limit,
+                visualCountTruncated = visualCount.Truncated,
                 elementType = element.GetType().Name
             };
         });
@@ -391,27 +399,10 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
         }
     }
 
-    private int GetVisualCountInternal()
+    private VisualCountResult GetVisualCountInternal()
     {
         var root = GetRootElement();
-        return root != null ? CountVisualElements(root) : 0;
-    }
-
-    private int CountVisualElements(DependencyObject element, int maxDepth = 100, int currentDepth = 0)
-    {
-        if (currentDepth >= maxDepth)
-            return 1;
-
-        int count = 1; // Count the element itself
-
-        var childCount = VisualTreeHelper.GetChildrenCount(element);
-        for (int i = 0; i < childCount; i++)
-        {
-            var child = VisualTreeHelper.GetChild(element, i);
-            count += CountVisualElements(child, maxDepth, currentDepth + 1);
-        }
-
-        return count;
+        return root != null ? CountVisualElements(root) : VisualCountResult.Empty;
     }
 
     private DependencyObject? GetRootElement()

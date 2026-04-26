@@ -21,7 +21,8 @@ public static class TreeMcpTools
         "USE WHEN: You need to inspect template-generated elements, adorners, or the actual rendering structure.\n" +
         "DO NOT USE: Without depth parameter on large apps (use depth=2-4); use get_logical_tree for XAML structure only.\n\n" +
         "PERFORMANCE: Large trees (depth >5) can return 10,000+ elements. Always set depth=2-4 for initial exploration.\n" +
-        "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table, maxNodes caps total returned nodes, maxChildrenPerNode caps fan-out per level.\n\n" +
+        "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table. " +
+        "maxNodes caps total returned nodes (default 1000), and maxChildrenPerNode caps fan-out per level (default 200).\n\n" +
         "RESPONSE FORMAT:\n" +
         "Nested mode:\n" +
         "{ success, tree, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
@@ -44,8 +45,8 @@ public static class TreeMcpTools
         [Description("Optional maximum traversal depth. Use 2-4 for initial exploration.")] int? depth = null,
         [Description("Set true to omit null names and empty children arrays for smaller responses.")] bool compact = false,
         [Description("Set true to return a flat summary table instead of a nested tree for token-efficient browsing.")] bool summaryOnly = false,
-        [Description("Optional hard cap for the number of returned nodes. Use this to prevent oversized responses.")] int? maxNodes = null,
-        [Description("Optional per-node child cap. Extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
+        [Description("Optional hard cap for the number of returned nodes. Defaults to 1000 when omitted.")] int? maxNodes = null,
+        [Description("Optional per-node child cap. Defaults to 200; extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -70,7 +71,8 @@ public static class TreeMcpTools
         "Simpler than Visual Tree - shows only elements defined in XAML.\n\n" +
         "USE WHEN: You need to understand XAML structure, find named elements, or trace DataContext inheritance.\n" +
         "DO NOT USE: When you need to inspect template internals (use get_visual_tree or get_template_tree instead).\n\n" +
-        "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table, maxNodes caps total returned nodes, maxChildrenPerNode caps fan-out per level.\n\n" +
+        "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table. " +
+        "maxNodes caps total returned nodes (default 1000), and maxChildrenPerNode caps fan-out per level (default 200).\n\n" +
         "RESPONSE FORMAT:\n" +
         "Nested mode:\n" +
         "{ success, tree, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
@@ -92,8 +94,8 @@ public static class TreeMcpTools
         [Description("Optional maximum traversal depth for the logical tree walk.")] int? depth = null,
         [Description("Set true to omit null names and empty children arrays for smaller responses.")] bool compact = false,
         [Description("Set true to return a flat summary table instead of a nested tree for token-efficient browsing.")] bool summaryOnly = false,
-        [Description("Optional hard cap for the number of returned nodes. Use this to prevent oversized responses.")] int? maxNodes = null,
-        [Description("Optional per-node child cap. Extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
+        [Description("Optional hard cap for the number of returned nodes. Defaults to 1000 when omitted.")] int? maxNodes = null,
+        [Description("Optional per-node child cap. Defaults to 200; extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -186,10 +188,14 @@ public static class TreeMcpTools
         "Shows the internal rendering structure defined by the control's ControlTemplate.\n\n" +
         "USE WHEN: You need to inspect how a control renders internally or find template parts.\n" +
         "DO NOT USE: On non-templated elements (will return empty); check element type first.\n\n" +
+        "PERFORMANCE: Template traversal applies the same default 1000-node and 200-child fan-out caps as visual/logical tree tools.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  tree: { elementId, type, name, childCount, children: [...] }\n" +
+        "  tree: { elementId, type, name, childCount, children: [...], omittedChildCount? },\n" +
+        "  returnedNodeCount: number,\n" +
+        "  omittedNodeCount: number,\n" +
+        "  truncated: boolean\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

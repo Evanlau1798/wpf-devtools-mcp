@@ -1,9 +1,9 @@
+using WpfDevTools.Shared.Configuration;
+
 namespace WpfDevTools.Inspector.Analyzers;
 
 internal sealed class TreeTraversalOptions
 {
-    private const int MaxDepthLimit = 100;
-
     public int MaxDepth { get; }
     public bool Compact { get; }
     public bool SummaryOnly { get; }
@@ -32,11 +32,17 @@ internal sealed class TreeTraversalOptions
         int? maxChildrenPerNode)
     {
         return new TreeTraversalOptions(
-            Math.Max(0, Math.Min(depth ?? 10, MaxDepthLimit)),
+            Math.Max(0, Math.Min(depth ?? 10, TreeTraversalDefaults.MaxDepthLimit)),
             compact ?? false,
             summaryOnly ?? false,
-            maxNodes,
-            maxChildrenPerNode);
+            NormalizeCap(maxNodes, TreeTraversalDefaults.DefaultMaxNodes, TreeTraversalDefaults.MaxNodesLimit),
+            NormalizeCap(maxChildrenPerNode, TreeTraversalDefaults.DefaultMaxChildrenPerNode, TreeTraversalDefaults.MaxChildrenPerNodeLimit));
+    }
+
+    private static int NormalizeCap(int? value, int defaultValue, int upperLimit)
+    {
+        var resolved = value ?? defaultValue;
+        return Math.Max(1, Math.Min(resolved, upperLimit));
     }
 
     public object ToAppliedOptions()

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.ErrorHandling;
 using WpfDevTools.Shared.Utilities;
 
@@ -6,9 +7,9 @@ namespace WpfDevTools.Mcp.Server.Tools;
 
 internal sealed class TreeRequestOptions
 {
-    public const int MaxDepthLimit = 100;
-    public const int MaxNodesLimit = 10000;
-    public const int MaxChildrenPerNodeLimit = 1000;
+    public const int MaxDepthLimit = TreeTraversalDefaults.MaxDepthLimit;
+    public const int MaxNodesLimit = TreeTraversalDefaults.MaxNodesLimit;
+    public const int MaxChildrenPerNodeLimit = TreeTraversalDefaults.MaxChildrenPerNodeLimit;
 
     public int? Depth { get; }
     public bool Compact { get; }
@@ -65,7 +66,12 @@ internal sealed class TreeRequestOptions
             return false;
         }
 
-        options = new TreeRequestOptions(depth, compact, summaryOnly, maxNodes, maxChildrenPerNode);
+        options = new TreeRequestOptions(
+            depth,
+            compact,
+            summaryOnly,
+            maxNodes ?? TreeTraversalDefaults.DefaultMaxNodes,
+            maxChildrenPerNode ?? TreeTraversalDefaults.DefaultMaxChildrenPerNode);
         error = null;
         return true;
     }

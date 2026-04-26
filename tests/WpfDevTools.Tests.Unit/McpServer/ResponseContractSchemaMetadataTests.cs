@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.McpResources;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -38,8 +39,10 @@ public sealed class ResponseContractSchemaMetadataTests
         AssertNumericConstraint(constraints, "wait_for_dp_change", "pollIntervalMs", 200, 50, 5000);
         AssertNumericConstraint(constraints, "wait_for_dp_change_after_mutation", "timeoutMs", 5000, 1, 30000);
         AssertNumericConstraint(constraints, "get_visual_tree", "depth", null, 0, 100);
-        AssertNumericConstraint(constraints, "get_visual_tree", "maxNodes", null, 1, 10000);
-        AssertNumericConstraint(constraints, "get_visual_tree", "maxChildrenPerNode", null, 1, 1000);
+        AssertNumericConstraint(constraints, "get_visual_tree", "maxNodes", TreeTraversalDefaults.DefaultMaxNodes, 1, 10000);
+        AssertNumericConstraint(constraints, "get_visual_tree", "maxChildrenPerNode", TreeTraversalDefaults.DefaultMaxChildrenPerNode, 1, 1000);
+        AssertNumericConstraint(constraints, "get_logical_tree", "maxNodes", TreeTraversalDefaults.DefaultMaxNodes, 1, 10000);
+        AssertNumericConstraint(constraints, "get_logical_tree", "maxChildrenPerNode", TreeTraversalDefaults.DefaultMaxChildrenPerNode, 1, 1000);
         AssertNumericConstraint(constraints, "drain_events", "maxEvents", null, 1, null);
         AssertNumericConstraint(constraints, "get_binding_errors", "maxErrors", null, 1, null);
     }

@@ -254,12 +254,21 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
                     "The control template may not be applied yet. Ensure the control is loaded before calling get_template_tree.");
             }
 
-            var budget = new TreeTraversalBudget(maxNodes: null);
-            budget.TryTakeNode();
             var options = TreeTraversalOptions.Create(maxDepth, compact: null, summaryOnly: null, maxNodes: null, maxChildrenPerNode: null);
+            var budget = new TreeTraversalBudget(options.MaxNodes);
+            budget.TryTakeNode();
             var depthHintTracker = new TreeDepthSufficiencyTracker(options.MaxDepth);
             var tree = BuildTreeNode(templateRoot, options, currentDepth: 0, budget, depthHintTracker);
-            return new { success = true, tree };
+            return new
+            {
+                success = true,
+                tree,
+                depthSufficiencyHint = depthHintTracker.BuildHint(),
+                returnedNodeCount = budget.ReturnedNodeCount,
+                omittedNodeCount = budget.OmittedNodeCount,
+                truncated = budget.Truncated,
+                appliedOptions = options.ToAppliedOptions()
+            };
         });
     }
 

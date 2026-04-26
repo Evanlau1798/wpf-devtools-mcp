@@ -37,7 +37,9 @@ public static class PerformanceMcpTools
         "  dirtyRegionCount: number,\n" +
         "  totalFrames: number,\n" +
         "  monitoringDuration: number,\n" +
-        "  visualCount: number\n" +
+        "  visualCount: number,\n" +
+        "  visualCountLimit: number,\n" +
+        "  visualCountTruncated: boolean\n" +
         "}\n\n" +
         "NOTE: The first call may return zeros with a 'Monitoring started' message because the render stats " +
         "listener needs time to collect data. Set warmUp=true to wait for a baseline sample window on the same call, or call again after 1-2 seconds.\n\n" +

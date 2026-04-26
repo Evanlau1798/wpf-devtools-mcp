@@ -1,6 +1,6 @@
-﻿{
+{
     "schemaVersion":  1,
-    "cacheKey":  "sha256:c5d9d3e630d66411c6d78201ac6255f1988d1c979334ad4acecf778e4a6500cb",
+    "cacheKey":  "sha256:9de98a7a88b56c15bba562d5c21d609e4f57cbdc32cb3b5c257b850850435c0a",
     "helperFiles":  [
                         {
                             "path":  "Installer.BootstrapUi.ps1",
@@ -103,14 +103,19 @@
                             "sizeBytes":  27307
                         },
                         {
+                            "path":  "Installer.Encoding.ps1",
+                            "sha256":  "b5fbff54c3db2e724d37c8225073465c7d8995d0a83448dada2c9ecf9e9e90d8",
+                            "sizeBytes":  469
+                        },
+                        {
                             "path":  "Installer.State.ps1",
-                            "sha256":  "b91765ed0b9e050e373a80e9f88c1a0001727e3f941ddd01942a096caa179ddd",
-                            "sizeBytes":  14136
+                            "sha256":  "489982072adc9e88e25d29c18e3750d40b58d07b01b7b17fea3a30f874062c34",
+                            "sizeBytes":  14393
                         },
                         {
                             "path":  "Installer.Registration.ps1",
-                            "sha256":  "594d4132b044245f2fc3a33ead43760330aebb5d5be25547ad4fd901e2fabad5",
-                            "sizeBytes":  39811
+                            "sha256":  "e2e47b601c62616591a4c1aff68279a160c3061dfeab380c086159a69001e42a",
+                            "sizeBytes":  39933
                         },
                         {
                             "path":  "Installer.Verification.ps1",
@@ -119,8 +124,8 @@
                         },
                         {
                             "path":  "Installer.Actions.ps1",
-                            "sha256":  "21d753bd3e30721878061f1ccce4ceb20c27d82ce3257a7b13da6104a408395d",
-                            "sizeBytes":  39063
+                            "sha256":  "d65c539e7a35387db0e7e47ae978c9c046deb37391600ea0df89d34f64f2bb17",
+                            "sizeBytes":  39286
                         }
                     ]
 }

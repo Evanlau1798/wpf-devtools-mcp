@@ -1,3 +1,10 @@
+if (-not (Get-Command Write-InstallerUtf8NoBomFile -ErrorAction SilentlyContinue)) {
+    $encodingHelperPath = Join-Path $PSScriptRoot 'Installer.Encoding.ps1'
+    if (Test-Path -LiteralPath $encodingHelperPath) {
+        . $encodingHelperPath
+    }
+}
+
 function Backup-ConfigFile {
     param([Parameter(Mandatory)] [string]$Path)
 
@@ -85,7 +92,7 @@ function Set-JsonConfigRegistration {
 
     $root[$CollectionName] = $servers
     $backupPath = Backup-ConfigFile -Path $ConfigPath
-    $root | ConvertTo-Json -Depth 10 | Set-Content -Path $ConfigPath -Encoding UTF8
+    Write-InstallerUtf8NoBomFile -Path $ConfigPath -Content ($root | ConvertTo-Json -Depth 10)
 
     return [ordered]@{
         client = $ClientName
@@ -136,10 +143,10 @@ function Remove-JsonConfigRegistration {
     }
 
     if ($root.Count -eq 0) {
-        '{}' | Set-Content -Path $ConfigPath -Encoding UTF8
+        Write-InstallerUtf8NoBomFile -Path $ConfigPath -Content '{}'
     }
     else {
-        $root | ConvertTo-Json -Depth 10 | Set-Content -Path $ConfigPath -Encoding UTF8
+        Write-InstallerUtf8NoBomFile -Path $ConfigPath -Content ($root | ConvertTo-Json -Depth 10)
     }
 
     return [ordered]@{
@@ -968,28 +975,27 @@ function New-ClientRegistrationArtifacts {
         args = @()
     }
 
-    ([ordered]@{ servers = [ordered]@{ 'wpf-devtools' = $serverNode } } |
-        ConvertTo-Json -Depth 5) | Set-Content -Path (Join-Path $registrationDir 'vscode.json') -Encoding UTF8
-    ([ordered]@{ servers = [ordered]@{ 'wpf-devtools' = $serverNode } } |
-        ConvertTo-Json -Depth 5) | Set-Content -Path (Join-Path $registrationDir 'visual-studio.json') -Encoding UTF8
-    ([ordered]@{ mcpServers = [ordered]@{ 'wpf-devtools' = $serverNode } } |
-        ConvertTo-Json -Depth 5) | Set-Content -Path (Join-Path $registrationDir 'cursor.global.json') -Encoding UTF8
-    ([ordered]@{ mcpServers = [ordered]@{ 'wpf-devtools' = $serverNode } } |
-        ConvertTo-Json -Depth 5) | Set-Content -Path (Join-Path $registrationDir 'cursor.project.json') -Encoding UTF8
-    ([ordered]@{ mcpServers = [ordered]@{ 'wpf-devtools' = $serverNode } } |
-        ConvertTo-Json -Depth 5) | Set-Content -Path (Join-Path $registrationDir 'claude-desktop.json') -Encoding UTF8
-    ([ordered]@{ mcpServers = [ordered]@{ 'wpf-devtools' = $serverNode } } |
-        ConvertTo-Json -Depth 5) | Set-Content -Path (Join-Path $registrationDir 'other.mcpServers.json') -Encoding UTF8
+    $stdioRegistrationJson = ([ordered]@{ servers = [ordered]@{ 'wpf-devtools' = $serverNode } } |
+        ConvertTo-Json -Depth 5)
+    $mcpServersRegistrationJson = ([ordered]@{ mcpServers = [ordered]@{ 'wpf-devtools' = $serverNode } } |
+        ConvertTo-Json -Depth 5)
 
-    @"
+    Write-InstallerUtf8NoBomFile -Path (Join-Path $registrationDir 'vscode.json') -Content $stdioRegistrationJson
+    Write-InstallerUtf8NoBomFile -Path (Join-Path $registrationDir 'visual-studio.json') -Content $stdioRegistrationJson
+    Write-InstallerUtf8NoBomFile -Path (Join-Path $registrationDir 'cursor.global.json') -Content $mcpServersRegistrationJson
+    Write-InstallerUtf8NoBomFile -Path (Join-Path $registrationDir 'cursor.project.json') -Content $mcpServersRegistrationJson
+    Write-InstallerUtf8NoBomFile -Path (Join-Path $registrationDir 'claude-desktop.json') -Content $mcpServersRegistrationJson
+    Write-InstallerUtf8NoBomFile -Path (Join-Path $registrationDir 'other.mcpServers.json') -Content $mcpServersRegistrationJson
+
+    Write-InstallerUtf8NoBomFile -Path (Join-Path $registrationDir 'claude-code.txt') -Content @"
 claude mcp add --transport stdio wpf-devtools -- "$InstalledExecutable"
 
 claude mcp remove wpf-devtools
-"@ | Set-Content -Path (Join-Path $registrationDir 'claude-code.txt') -Encoding UTF8
+"@
 
-    @"
+    Write-InstallerUtf8NoBomFile -Path (Join-Path $registrationDir 'codex.txt') -Content @"
 codex mcp add wpf-devtools -- "$InstalledExecutable"
 
 codex mcp remove wpf-devtools
-"@ | Set-Content -Path (Join-Path $registrationDir 'codex.txt') -Encoding UTF8
+"@
 }

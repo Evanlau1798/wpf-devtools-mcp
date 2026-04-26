@@ -7,6 +7,13 @@
     passed release checksum and archive safety validation, allowing
     DebugTrustedRootSkip manifests to skip per-payload Authenticode checks.
 #>
+if (-not (Get-Command Write-InstallerUtf8NoBomFile -ErrorAction SilentlyContinue)) {
+    $encodingHelperPath = Join-Path $PSScriptRoot 'Installer.Encoding.ps1'
+    if (Test-Path -LiteralPath $encodingHelperPath) {
+        . $encodingHelperPath
+    }
+}
+
 function Install-PackagePayload {
     param(
         [Parameter(Mandatory)] [string]$PackageDirectory,
@@ -88,7 +95,7 @@ function Install-PackagePayload {
         $relativeExecutable = $packageExecutable.Substring($PackageDirectory.Length).TrimStart('\', '/')
         $installedExecutable = Join-Path $currentDir $relativeExecutable
 
-        ([ordered]@{
+        $installManifestJson = ([ordered]@{
                 name = 'wpf-devtools'
                 architecture = $ResolvedArchitecture
                 version = $ResolvedVersion
@@ -99,7 +106,8 @@ function Install-PackagePayload {
                 buildConfiguration = [string]$PackageManifest.buildConfiguration
                 signaturePolicy = [string]$PackageManifest.signaturePolicy
                 installedUtc = [DateTime]::UtcNow.ToString('o')
-            } | ConvertTo-Json -Depth 5) | Set-Content -Path $installManifestPath -Encoding UTF8
+            } | ConvertTo-Json -Depth 5)
+        Write-InstallerUtf8NoBomFile -Path $installManifestPath -Content $installManifestJson
 
         if (Test-Path $registrationArtifactsDir) {
             $rollbackBackupRegistrationDir = "$registrationArtifactsDir.rollback-$([guid]::NewGuid().ToString('N'))"
@@ -347,7 +355,7 @@ function Update-InstalledManifestManagedRegistrationTarget {
 
     $tempManifestPath = "$manifestPath.tmp-$([guid]::NewGuid().ToString('N'))"
     try {
-        $updatedManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $tempManifestPath -Encoding UTF8
+        Write-InstallerUtf8NoBomFile -Path $tempManifestPath -Content ($updatedManifest | ConvertTo-Json -Depth 10)
         Move-InstallerPathWithRetry -SourcePath $tempManifestPath -DestinationPath $manifestPath
     }
     finally {
@@ -759,8 +767,7 @@ function Invoke-InstallerActionCore {
                         New-Item -ItemType Directory -Force -Path $stateDirectory | Out-Null
                     }
 
-                    $utf8Encoding = New-Object System.Text.UTF8Encoding($false)
-                    [System.IO.File]::WriteAllText($statePathForRollback, [string]$originalStateContent, $utf8Encoding)
+                    Write-InstallerUtf8NoBomFile -Path $statePathForRollback -Content ([string]$originalStateContent)
                 }
                 else {
                     Remove-PathIfExists -Path $statePathForRollback

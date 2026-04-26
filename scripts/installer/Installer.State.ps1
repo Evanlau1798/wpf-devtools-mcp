@@ -1,3 +1,10 @@
+if (-not (Get-Command Write-InstallerUtf8NoBomFile -ErrorAction SilentlyContinue)) {
+    $encodingHelperPath = Join-Path $PSScriptRoot 'Installer.Encoding.ps1'
+    if (Test-Path -LiteralPath $encodingHelperPath) {
+        . $encodingHelperPath
+    }
+}
+
 function Resolve-InstallerStateAbsolutePath {
     param([Parameter(Mandatory)] [string]$Path)
 
@@ -106,7 +113,7 @@ function Save-InstallerState {
     $statePath = Resolve-InstallerStatePath -CreateRoot
     $tempStatePath = "$statePath.tmp-$([guid]::NewGuid().ToString('N'))"
     try {
-        $State | ConvertTo-Json -Depth 10 | Set-Content -Path $tempStatePath -Encoding UTF8
+        Write-InstallerUtf8NoBomFile -Path $tempStatePath -Content ($State | ConvertTo-Json -Depth 10)
         Move-Item -Path $tempStatePath -Destination $statePath -Force
     }
     finally {

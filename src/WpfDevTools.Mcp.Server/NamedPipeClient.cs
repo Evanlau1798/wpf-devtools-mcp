@@ -28,6 +28,8 @@ internal enum NamedPipeConnectFailure
 
 public sealed class NamedPipeClient : IDisposable
 {
+    private static readonly TimeSpan DisposeSemaphoreWaitTimeout = TimeSpan.FromMilliseconds(250);
+
     private static readonly JsonSerializerOptions IpcSerializerOptions = new()
     {
         MaxDepth = 32
@@ -744,14 +746,18 @@ public sealed class NamedPipeClient : IDisposable
             return;
         }
 
-        _pipeSemaphore.Wait();
-        try
+        ResetConnectionState();
+
+        if (_pipeSemaphore.Wait(DisposeSemaphoreWaitTimeout))
         {
-            ResetConnectionState();
-        }
-        finally
-        {
-            _pipeSemaphore.Release();
+            try
+            {
+                ResetConnectionState();
+            }
+            finally
+            {
+                _pipeSemaphore.Release();
+            }
         }
 
         // NOTE: _pipeSemaphore is intentionally NOT disposed here.

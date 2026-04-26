@@ -184,12 +184,14 @@ public sealed partial class SessionManager : IDisposable
     public void RemoveSession(int processId)
     {
         ThrowIfDisposed();
+        NamedPipeClient? clientToDispose = null;
+
         lock (_lock)
         {
             _sessions.Remove(processId);
             if (_pipeClients.TryGetValue(processId, out var client))
             {
-                client.Dispose();
+                clientToDispose = client;
                 _pipeClients.Remove(processId);
             }
 
@@ -207,6 +209,8 @@ public sealed partial class SessionManager : IDisposable
             // Clean up rate limiter state
             _rateLimiter.RemoveSession(processId);
         }
+
+        clientToDispose?.Dispose();
     }
 
     private void InitializeSessionState(int processId, NamedPipeClient pipeClient)
@@ -674,6 +678,8 @@ public sealed partial class SessionManager : IDisposable
 
         lock (_shutdownGuard)
         {
+            List<NamedPipeClient> clientsToDispose;
+
             lock (_lock)
             {
                 if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
@@ -685,24 +691,25 @@ public sealed partial class SessionManager : IDisposable
                 // Dispose rate limiter manager
                 (_rateLimiter as IDisposable)?.Dispose();
 
-                // Dispose all pipe clients
-                foreach (var client in _pipeClients.Values)
-                {
-                    try
-                    {
-                        client.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to dispose pipe client: {ex.Message}");
-                    }
-                }
+                clientsToDispose = _pipeClients.Values.ToList();
 
                 _pipeClients.Clear();
                 _sessions.Clear();
                 _stateSnapshots.Clear();
                 _pendingEventReplay.Clear();
                 _navigationStateStore.Clear();
+            }
+
+            foreach (var client in clientsToDispose)
+            {
+                try
+                {
+                    client.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to dispose pipe client: {ex.Message}");
+                }
             }
         }
     }

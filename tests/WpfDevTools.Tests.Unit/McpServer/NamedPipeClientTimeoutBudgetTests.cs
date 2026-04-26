@@ -1,9 +1,11 @@
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Security.Cryptography;
 using FluentAssertions;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Shared.Security;
+using WpfDevTools.Shared.Serialization;
 using WpfDevTools.Tests.Unit.Execution;
 using Xunit;
 
@@ -43,5 +45,80 @@ public class NamedPipeClientTimeoutBudgetTests
 
         connected.Should().BeFalse();
         client.LastConnectFailure.Should().Be(NamedPipeConnectFailure.Timeout);
+    }
+
+    [Fact]
+    public async Task Dispose_WithInFlightRequest_ShouldCompleteBeforeRequestTimeout()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        using var client = new NamedPipeClient(
+            pid,
+            pipeName,
+            authManager: null,
+            certManager: null,
+            enforceHostCompatibilityValidation: false,
+            requestTimeout: TimeSpan.FromSeconds(10));
+        using var requestLifetime = new CancellationTokenSource();
+        var requestObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var serverTask = Task.Run(async () =>
+        {
+            try
+            {
+                await server.WaitForConnectionAsync(requestLifetime.Token);
+                await MessageFraming.ReadMessageAsync(server, requestLifetime.Token);
+                requestObserved.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, requestLifetime.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                requestObserved.TrySetCanceled(requestLifetime.Token);
+            }
+            catch (Exception ex)
+            {
+                requestObserved.TrySetException(ex);
+            }
+        });
+
+        var connected = await client.ConnectAsync(TimeSpan.FromSeconds(2), maxRetries: 1);
+        connected.Should().BeTrue();
+
+        var sendTask = client.SendRequestAsync("ping", "dispose-timeout-test", new { }, requestLifetime.Token);
+        await requestObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var disposeTask = Task.Run(client.Dispose);
+        var completedBeforeTimeout = await Task.WhenAny(
+            disposeTask,
+            Task.Delay(TimeSpan.FromMilliseconds(500))) == disposeTask;
+
+        requestLifetime.Cancel();
+        server.Dispose();
+        await serverTask.IgnoreExceptionsAsync();
+        await sendTask.IgnoreExceptionsAsync();
+        await disposeTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+        completedBeforeTimeout.Should().BeTrue(
+            "Dispose should close the pipe and use a bounded semaphore wait instead of blocking until the request timeout");
+    }
+}
+
+internal static class NamedPipeClientTimeoutBudgetTestTaskExtensions
+{
+    public static async Task IgnoreExceptionsAsync(this Task task)
+    {
+        try
+        {
+            await task;
+        }
+        catch
+        {
+        }
     }
 }

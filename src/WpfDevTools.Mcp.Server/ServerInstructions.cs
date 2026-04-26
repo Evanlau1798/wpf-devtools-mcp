@@ -64,6 +64,7 @@ public static class ServerInstructions
 
         === TOOL SEARCH ===
         - Clients with many MCP tools may rely on tool search instead of loading every tool eagerly
+        - For large toolsets, defer loading specialized tools until the task scope is known; start with scene/process/binding summaries, then search for narrower tools
         - Prefer tool Title + Description matching over raw tool-name guessing
         - Treat prompt names and resource URIs as the portable discovery contract across clients before relying on client-specific UI affordances
         - MCP prompts may surface as slash commands in compatible clients; use that rendering as a convenience layer over the prompt name contract
@@ -114,6 +115,9 @@ public static class ServerInstructions
         - Prefer get_ui_summary(summaryOnly=true, depthMode='semantic') for initial scene orientation unless you already have a narrow element-centric question
         - Use depth=2-3 for initial tree exploration; increase only if needed
         - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
+        - For clients that can issue concurrent calls, run independent read-only inspections in parallel when the client supports it, then summarize intermediate tool results before choosing the next call
+        - For high-cardinality responses, keep only decision-relevant fields in conversation state and rely on elementId/snapshotId/resource URI references for follow-up calls
+        - For tools with complex parameters, remember that complex parameters require concrete examples; prefer copied examples from the tool description over invented shapes
         - Prefer prompt names and resource URIs as the portable discovery contract when you want a predefined workflow entry point or capability summary
         - Some clients surface those prompt/resource contracts as slash commands or @resource lookups; use the client-specific rendering only as a convenience layer
         - Check IsEnabled with get_dp_value_source before click_element to avoid errors

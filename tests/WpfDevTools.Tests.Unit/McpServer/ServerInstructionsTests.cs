@@ -166,6 +166,15 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldApplyAdvancedToolUseGuidanceForLargeToolsets()
+    {
+        ServerInstructions.Value.Should().Contain("defer loading specialized tools until the task scope is known");
+        ServerInstructions.Value.Should().Contain("run independent read-only inspections in parallel when the client supports it");
+        ServerInstructions.Value.Should().Contain("summarize intermediate tool results before choosing the next call");
+        ServerInstructions.Value.Should().Contain("complex parameters require concrete examples");
+    }
+
+    [Fact]
     public void Value_ShouldExplainElevatedTargetLimitations()
     {
         ServerInstructions.Value.Should().Contain("elevated");

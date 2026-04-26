@@ -50,6 +50,14 @@ public abstract partial class PipeConnectedToolBase
             Hint = "Call select_active_process(processId) or connect(processId) before omitting processId."
         };
 
+    private static ToolErrorPayload CreatePipeDisconnectedError(int processId) =>
+        new()
+        {
+            Error = $"Named pipe not connected for process {processId}. The Inspector DLL may have crashed or the target process exited. Try reconnecting with connect(processId: {processId}).",
+            ErrorCode = ToolErrorCode.NotConnected.ToString(),
+            Hint = $"Call connect(processId: {processId}) to re-establish the inspector session before retrying."
+        };
+
     internal static object CreateInspectorError(InspectorError error)
     {
         var data = error.Data;
@@ -78,6 +86,42 @@ public abstract partial class PipeConnectedToolBase
             StateAfterTimeoutUnknown = stateAfterTimeoutUnknown,
             ProcessId = processId,
             TimeoutSeconds = timeoutSeconds
+        };
+    }
+
+    internal static ToolErrorPayload CreatePipeTimeoutError(
+        int processId,
+        string message,
+        bool requiresReconnect)
+    {
+        var suggestedAction = requiresReconnect
+            ? $"Reconnect to process {processId} and re-read target state before retrying."
+            : "Retry after confirming the target is responsive. Reconnect if subsequent pipe-backed requests fail.";
+        const string hint = "The Inspector request timed out; the target process may be frozen or the pipe session may be stale.";
+
+        return new ToolErrorPayload
+        {
+            Error = message,
+            ErrorCode = "Timeout",
+            Hint = hint,
+            ErrorData = new
+            {
+                processId,
+                stateAfterTimeoutUnknown = true,
+                requiresReconnect
+            },
+            Recovery = new ToolErrorRecovery
+            {
+                Hint = hint,
+                SuggestedAction = suggestedAction,
+                RequiresReconnect = requiresReconnect,
+                StateAfterTimeoutUnknown = true,
+                ProcessId = processId
+            },
+            SuggestedAction = suggestedAction,
+            RequiresReconnect = requiresReconnect,
+            StateAfterTimeoutUnknown = true,
+            ProcessId = processId
         };
     }
 

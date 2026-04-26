@@ -13,7 +13,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Base class for analyzers that need to execute on the UI thread
 /// </summary>
-public abstract class DispatcherAnalyzerBase
+public abstract partial class DispatcherAnalyzerBase
 {
     /// <summary>
     /// Execute an action on the UI thread with optional timeout
@@ -53,99 +53,6 @@ public abstract class DispatcherAnalyzerBase
     {
         return Application.Current?.Dispatcher
             ?? Dispatcher.FromThread(Thread.CurrentThread);
-    }
-
-    /// <summary>
-    /// Execute an action on the specified dispatcher with optional timeout.
-    /// Returns a structured unavailable result for object-returning analyzer calls.
-    /// </summary>
-    protected T InvokeOnDispatcher<T>(Dispatcher? dispatcher, Func<T> action, TimeSpan? timeout = null)
-    {
-        if (TryGetDispatcherUnavailableMessage(dispatcher, out var unavailableMessage))
-        {
-            return CreateDispatcherUnavailableResult<T>(unavailableMessage);
-        }
-
-        var targetDispatcher = dispatcher!;
-        bool hasAccess;
-        try
-        {
-            hasAccess = targetDispatcher.CheckAccess();
-        }
-        catch (InvalidOperationException ex)
-        {
-            return CreateDispatcherUnavailableResult<T>(
-                "WPF dispatcher unavailable because access could not be validated; analyzer action was not executed.",
-                ex);
-        }
-
-        if (hasAccess)
-        {
-            return action();
-        }
-
-        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
-        try
-        {
-            return targetDispatcher.Invoke(
-                action,
-                DispatcherPriority.Normal,
-                CancellationToken.None,
-                actualTimeout);
-        }
-        catch (InvalidOperationException ex) when (IsDispatcherShuttingDown(targetDispatcher))
-        {
-            return CreateDispatcherUnavailableResult<T>(
-                "WPF dispatcher unavailable because it is shutting down; analyzer action was not executed.",
-                ex);
-        }
-    }
-
-    /// <summary>
-    /// Execute a void action on the specified dispatcher with optional timeout.
-    /// Throws a clear dispatcher unavailable error when the action cannot be marshalled safely.
-    /// </summary>
-    protected void InvokeOnDispatcher(Dispatcher? dispatcher, Action action, TimeSpan? timeout = null)
-    {
-        if (TryGetDispatcherUnavailableMessage(dispatcher, out var unavailableMessage))
-        {
-            throw CreateDispatcherUnavailableException(unavailableMessage);
-        }
-
-        var targetDispatcher = dispatcher!;
-        bool hasAccess;
-        try
-        {
-            hasAccess = targetDispatcher.CheckAccess();
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw CreateDispatcherUnavailableException(
-                "WPF dispatcher unavailable because access could not be validated; analyzer action was not executed.",
-                ex);
-        }
-
-        if (hasAccess)
-        {
-            action();
-            return;
-        }
-
-        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
-        try
-        {
-            targetDispatcher.Invoke(
-                action,
-                DispatcherPriority.Normal,
-                CancellationToken.None,
-                actualTimeout);
-        }
-        catch (InvalidOperationException ex) when (IsDispatcherShuttingDown(targetDispatcher))
-        {
-            throw CreateDispatcherUnavailableException(
-                "WPF dispatcher unavailable because it is shutting down; analyzer action was not executed.",
-                ex);
-        }
     }
 
     private static bool TryGetDispatcherUnavailableMessage(

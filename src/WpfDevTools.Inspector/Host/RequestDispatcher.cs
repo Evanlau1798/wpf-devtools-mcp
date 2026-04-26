@@ -70,6 +70,7 @@ public sealed class RequestDispatcher : IDisposable
         InspectorRequest request,
         CancellationToken cancellationToken)
     {
+        using var requestScope = DispatcherRequestContext.Push(cancellationToken);
         try
         {
             object result;
@@ -109,6 +110,21 @@ public sealed class RequestDispatcher : IDisposable
             };
         }
         catch (OperationCanceledException)
+        {
+            return new InspectorResponse
+            {
+                Id = request.Id,
+                CorrelationId = request.CorrelationId,
+                Result = null,
+                Error = new InspectorError
+                {
+                    Code = ErrorCode.Timeout,
+                    Message = "Request cancelled or timed out",
+                    Data = CreateTimeoutRecoveryData()
+                }
+            };
+        }
+        catch (TimeoutException)
         {
             return new InspectorResponse
             {
@@ -168,6 +184,13 @@ public sealed class RequestDispatcher : IDisposable
             protocolVersion = InspectorCompatibilityContract.ProtocolVersion,
             buildFingerprint = InspectorCompatibilityContract.GetBuildFingerprint(typeof(RequestDispatcher))
         };
+    }
+
+    internal void AddSimpleHandlerForTesting(
+        string method,
+        Func<JsonElement?, CancellationToken, Task<object>> handler)
+    {
+        _simpleHandlers[method] = handler;
     }
 
     private JsonElement CreateTimeoutRecoveryData()

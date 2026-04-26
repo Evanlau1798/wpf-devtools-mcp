@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
-using WpfDevTools.Shared.ErrorHandling;
 using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -210,19 +209,22 @@ public abstract partial class PipeConnectedToolBase
 
         if (!client.IsConnected)
         {
-            return new ToolErrorPayload
-            {
-                Error = $"Named pipe not connected for process {processId}. The Inspector DLL may have crashed or the target process exited. Try reconnecting with connect(processId: {processId}).",
-                ErrorCode = ToolErrorCode.NotConnected.ToString(),
-                Hint = $"Call connect(processId: {processId}) to re-establish the inspector session before retrying."
-            };
+            return CreatePipeDisconnectedError(processId);
         }
 
-        var response = await client.SendRequestAsync(
-            method,
-            Guid.NewGuid().ToString("N"),
-            parameters,
-            ct).ConfigureAwait(false);
+        InspectorResponse response;
+        try
+        {
+            response = await client.SendRequestAsync(
+                method,
+                Guid.NewGuid().ToString("N"),
+                parameters,
+                ct).ConfigureAwait(false);
+        }
+        catch (TimeoutException ex)
+        {
+            return CreatePipeTimeoutError(processId, ex.Message, requiresReconnect: !client.IsConnected);
+        }
 
         _sessionManager.UpdateLastActivity(processId);
 

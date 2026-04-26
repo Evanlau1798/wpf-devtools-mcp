@@ -34,4 +34,25 @@ public sealed class RequestDispatcherTimeoutRecoveryTests
         data.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
         data.GetProperty("suggestedAction").GetString().Should().Contain("Reconnect");
     }
+
+    [Fact]
+    public async Task DispatchAsync_WhenHandlerTimesOut_ShouldReturnTimeoutRecoveryData()
+    {
+        var dispatcher = new RequestDispatcher(new FileLogger());
+        dispatcher.AddSimpleHandlerForTesting("throw_timeout", static (_, _) =>
+            throw new TimeoutException("Simulated dispatcher timeout."));
+
+        var response = await dispatcher.DispatchAsync(new InspectorRequest
+        {
+            Id = "timeout-recovery-01",
+            Method = "throw_timeout",
+            Params = JsonSerializer.SerializeToElement(new { })
+        }, CancellationToken.None);
+
+        response.Error.Should().NotBeNull();
+        response.Error!.Code.Should().Be(ErrorCode.Timeout);
+        response.Error.Data.Should().NotBeNull();
+        response.Error.Data!.Value.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        response.Error.Data.Value.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+    }
 }

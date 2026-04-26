@@ -1,4 +1,6 @@
+using System.IO;
 using System.IO.Pipes;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
@@ -21,6 +23,8 @@ namespace WpfDevTools.Tests.Unit.Inspector.Host.Handlers;
 [Collection("ToolCallHelperState")]
 public sealed class EventHandlersContractTests : IDisposable
 {
+    private static readonly TimeSpan PipeBackedServerTimeout = TimeSpan.FromSeconds(10);
+
     public void Dispose()
     {
         ToolCallHelper.ResetCacheForTesting();
@@ -126,33 +130,8 @@ public sealed class EventHandlersContractTests : IDisposable
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous);
 
-        var serverTask = Task.Run(async () =>
-        {
-            await server.WaitForConnectionAsync();
-            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
-            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
-            request.Should().NotBeNull();
-
-            var response = new InspectorResponse
-            {
-                Id = request!.Id,
-                CorrelationId = request.CorrelationId,
-                Result = JsonSerializer.SerializeToElement(new
-                {
-                    success = true,
-                    elementId = "SaveButton",
-                    eventName = "Click",
-                    handlerCount = 0,
-                    mayBeIncomplete = true,
-                    handlers = Array.Empty<object>()
-                })
-            };
-
-            await MessageFraming.WriteMessageAsync(
-                server,
-                JsonSerializer.Serialize(response),
-                CancellationToken.None);
-        });
+        using var serverTimeout = new CancellationTokenSource(PipeBackedServerTimeout);
+        var serverTask = RunIncompleteClickInspectionServerAsync(server, serverTimeout.Token);
 
         using var sessionManager = new SessionManager();
         sessionManager.AddSession(processId);
@@ -166,11 +145,31 @@ public sealed class EventHandlersContractTests : IDisposable
             processId: processId,
             elementId: "SaveButton");
 
-        await serverTask;
+        await AwaitPipeBackedServerTaskAsync(serverTask, serverTimeout.Token);
 
         var navigation = result.StructuredContent!.Value.GetProperty("navigation");
         navigation.GetProperty("recommended")[0].GetProperty("tool").GetString().Should().Be("get_commands");
         navigation.GetProperty("recommended")[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+    }
+
+    [Fact]
+    public void PipeBackedContractServerTask_ShouldUseBoundedCancellation()
+    {
+        var source = File.ReadAllText(GetCurrentSourcePath()).Replace("\r\n", "\n");
+        var unboundedWaitForConnection = "await server." + "WaitForConnectionAsync();";
+        var unboundedRead = "await MessageFraming." +
+            "ReadMessageAsync(server, CancellationToken.None)";
+        var unboundedWrite = "await MessageFraming." +
+            "WriteMessageAsync(\n" +
+            "                server,\n" +
+            "                JsonSerializer.Serialize(response),\n" +
+            "                CancellationToken.None)";
+        var unboundedTaskAwait = "await " + "serverTask;";
+
+        source.Should().NotContain(unboundedWaitForConnection);
+        source.Should().NotContain(unboundedRead);
+        source.Should().NotContain(unboundedWrite);
+        source.Should().NotContain(unboundedTaskAwait);
     }
 
     [StaFact]
@@ -240,5 +239,52 @@ public sealed class EventHandlersContractTests : IDisposable
 #pragma warning restore CS0067
         public bool CanExecute(object? parameter) => true;
         public void Execute(object? parameter) => _execute();
+    }
+
+    private static string GetCurrentSourcePath([CallerFilePath] string path = "") => path;
+
+    private static Task RunIncompleteClickInspectionServerAsync(
+        NamedPipeServerStream server,
+        CancellationToken cancellationToken) =>
+        Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync(cancellationToken);
+            var requestJson = await MessageFraming.ReadMessageAsync(server, cancellationToken);
+            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+            request.Should().NotBeNull();
+
+            var response = new InspectorResponse
+            {
+                Id = request!.Id,
+                CorrelationId = request.CorrelationId,
+                Result = JsonSerializer.SerializeToElement(new
+                {
+                    success = true,
+                    elementId = "SaveButton",
+                    eventName = "Click",
+                    handlerCount = 0,
+                    mayBeIncomplete = true,
+                    handlers = Array.Empty<object>()
+                })
+            };
+
+            await MessageFraming.WriteMessageAsync(
+                server,
+                JsonSerializer.Serialize(response),
+                cancellationToken);
+        }, cancellationToken);
+
+    private static async Task AwaitPipeBackedServerTaskAsync(Task serverTask, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await serverTask.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Pipe-backed contract server task did not complete within {PipeBackedServerTimeout.TotalSeconds:0} seconds.",
+                ex);
+        }
     }
 }

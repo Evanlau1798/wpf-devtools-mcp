@@ -5,7 +5,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-public sealed class ReleasePackagingContractTests
+public sealed partial class ReleasePackagingContractTests
 {
     [Fact]
     public void BuildReleaseScript_ShouldExistAsPublicPackagingEntryPoint()

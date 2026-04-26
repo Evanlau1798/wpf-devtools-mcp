@@ -10,7 +10,7 @@ using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-public sealed class InstallerBootstrapTests
+public sealed partial class InstallerBootstrapTests
 {
     [Fact]
     public void OnlineInstallerScript_ShouldDeferLatestVersionLookupUntilAfterTuiStartup()

@@ -3,6 +3,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
+[Collection("InstallerScripts")]
 public sealed class InstallerTuiPathBrowserTests
 {
     [Fact]

@@ -1,10 +1,11 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.IO.Compression;
 using FluentAssertions;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
+[Collection("InstallerScripts")]
 public sealed class GitHubReleaseAssetScriptTests
 {
     [Fact]

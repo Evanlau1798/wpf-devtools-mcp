@@ -293,7 +293,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         return false;
     }
 
-    private async Task<(bool verified, string? currentValue, bool? currentIsExpression, string? skippedReason)> VerifyDependencyPropertyAsync(
+    private async Task<(bool verified, string? currentValue, bool? currentIsExpression, string? currentBaseValueSource, string? skippedReason)> VerifyDependencyPropertyAsync(
         int processId,
         StoredDependencyPropertySnapshot snapshot,
         CancellationToken cancellationToken)
@@ -306,20 +306,24 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
         if (!IsSuccess(response))
         {
-            return (false, null, null, "get_dp_value_source read-back failed.");
+            return (false, null, null, null, "get_dp_value_source read-back failed.");
         }
 
         var currentValue = GetOptionalString(response, "currentValue");
         var currentIsExpression = response.TryGetProperty("isExpression", out var isExpressionProperty) &&
             isExpressionProperty.ValueKind == JsonValueKind.True;
+        var currentBaseValueSource = GetOptionalString(response, "baseValueSource");
+        var baseValueSourceMatches = string.IsNullOrWhiteSpace(snapshot.BaseValueSource) ||
+            string.Equals(currentBaseValueSource, snapshot.BaseValueSource, StringComparison.Ordinal);
         var verified = string.Equals(currentValue, snapshot.CurrentValue, StringComparison.Ordinal) &&
-            currentIsExpression == snapshot.IsExpression;
-        return (verified, currentValue, currentIsExpression, null);
+            currentIsExpression == snapshot.IsExpression &&
+            baseValueSourceMatches;
+        return (verified, currentValue, currentIsExpression, currentBaseValueSource, null);
     }
 
     private static object CreateDependencyPropertyVerificationResult(
         StoredDependencyPropertySnapshot snapshot,
-        (bool verified, string? currentValue, bool? currentIsExpression, string? skippedReason) verification) =>
+        (bool verified, string? currentValue, bool? currentIsExpression, string? currentBaseValueSource, string? skippedReason) verification) =>
         new
         {
             propertyName = snapshot.PropertyName,
@@ -328,6 +332,8 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             currentValue = verification.currentValue,
             expectedIsExpression = snapshot.IsExpression,
             currentIsExpression = verification.currentIsExpression,
+            expectedBaseValueSource = snapshot.BaseValueSource,
+            currentBaseValueSource = verification.currentBaseValueSource,
             verificationSkippedReason = verification.skippedReason
         };
 

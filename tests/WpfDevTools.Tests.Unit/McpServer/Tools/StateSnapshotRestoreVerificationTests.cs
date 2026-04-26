@@ -74,6 +74,61 @@ public sealed class StateSnapshotRestoreVerificationTests
     }
 
     [Fact]
+    public async Task RestoreStateSnapshot_ShouldExposeDependencyPropertyBaseValueSourceMismatch()
+    {
+        var processId = NextSyntheticProcessId();
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "set_dp_value" => new
+                {
+                    success = true,
+                    propertyName = "Width",
+                    oldValue = "240",
+                    newValue = "120"
+                },
+                "get_dp_value_source" => new
+                {
+                    success = true,
+                    propertyName = "Width",
+                    currentValue = "120",
+                    hadLocalValue = false,
+                    baseValueSource = "Default",
+                    isExpression = false
+                },
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+
+        const string snapshotId = "snapshot_dp_base_value_source_mismatch";
+        connected.SessionManager.SaveStateSnapshot(processId, CreateSnapshot(
+            snapshotId,
+            dependencyProperties:
+            [
+                new StoredDependencyPropertySnapshot(
+                    "Button_1",
+                    "Width",
+                    HadLocalValue: true,
+                    LocalValue: "120",
+                    CurrentValue: "120",
+                    BaseValueSource: "LocalValue")
+            ]));
+
+        var result = JsonSerializer.SerializeToElement(await new RestoreStateSnapshotTool(connected.SessionManager)
+            .ExecuteAsync(ToJsonElement(new { processId, snapshotId }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        var verification = result.GetProperty("restoredDependencyProperties")[0];
+        verification.GetProperty("verified").GetBoolean().Should().BeFalse();
+        verification.GetProperty("expectedBaseValueSource").GetString().Should().Be("LocalValue");
+        verification.GetProperty("currentBaseValueSource").GetString().Should().Be("Default");
+        result.GetProperty("warnings").EnumerateArray()
+            .Select(item => item.GetString())
+            .Should().Contain(warning => warning!.Contains("Width", StringComparison.Ordinal));
+        connected.RequestMethods.Should().Equal("set_dp_value", "get_dp_value_source");
+    }
+
+    [Fact]
     public async Task RestoreStateSnapshot_ShouldExposeViewModelReadBackMismatch()
     {
         var processId = NextSyntheticProcessId();

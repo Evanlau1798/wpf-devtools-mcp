@@ -16,6 +16,19 @@ if not exist "%ENCODER_POWERSHELL_EXE%" (
 REM POWERSHELL_EXE is the actual execution engine and may be overridden by
 REM WPFDEVTOOLS_POWERSHELL_EXE for environments that need a custom host.
 if defined WPFDEVTOOLS_POWERSHELL_EXE (
+    if not "%WPFDEVTOOLS_POWERSHELL_EXE%"=="%WPFDEVTOOLS_POWERSHELL_EXE:"=%" (
+        echo WPFDEVTOOLS_POWERSHELL_EXE cannot contain quote characters.
+        exit /b 1
+    )
+    if /I not "%WPFDEVTOOLS_POWERSHELL_EXE:~-4%"==".exe" (
+        echo WPFDEVTOOLS_POWERSHELL_EXE must point to a .exe host.
+        exit /b 1
+    )
+    where "%WPFDEVTOOLS_POWERSHELL_EXE%" >nul 2>&1
+    if errorlevel 1 (
+        echo WPFDEVTOOLS_POWERSHELL_EXE was not found: %WPFDEVTOOLS_POWERSHELL_EXE%
+        exit /b 1
+    )
     set "POWERSHELL_EXE=%WPFDEVTOOLS_POWERSHELL_EXE%"
 ) else (
     set "POWERSHELL_EXE=%ENCODER_POWERSHELL_EXE%"

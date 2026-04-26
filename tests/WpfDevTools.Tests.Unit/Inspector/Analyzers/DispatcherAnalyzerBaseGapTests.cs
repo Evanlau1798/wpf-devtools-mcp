@@ -41,15 +41,34 @@ public class DispatcherAnalyzerBaseGapTests
     }
 
     [Fact]
-    public void IsOnUIThread_NoApplication_ShouldReturnFalse()
+    public void IsOnUIThread_NoDispatcherOnCurrentThread_ShouldReturnFalse()
     {
-        // Arrange - Application.Current is null in unit tests (non-STA thread)
-        var analyzer = new TestableAnalyzer();
+        bool? result = null;
+        Exception? threadException = null;
+        using var finished = new ManualResetEventSlim(initialState: false);
 
-        // Act
-        var result = analyzer.TestIsOnUIThread();
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var analyzer = new TestableAnalyzer();
+                result = analyzer.TestIsOnUIThread();
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+            }
+            finally
+            {
+                finished.Set();
+            }
+        });
+        thread.SetApartmentState(ApartmentState.MTA);
+        thread.Start();
 
-        // Assert - When Application.Current is null, should return false
+        finished.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        thread.Join(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        threadException.Should().BeNull();
         result.Should().BeFalse();
     }
 

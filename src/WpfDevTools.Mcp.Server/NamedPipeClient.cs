@@ -746,8 +746,6 @@ public sealed class NamedPipeClient : IDisposable
             return;
         }
 
-        ResetConnectionState();
-
         if (_pipeSemaphore.Wait(DisposeSemaphoreWaitTimeout))
         {
             try
@@ -758,6 +756,10 @@ public sealed class NamedPipeClient : IDisposable
             {
                 _pipeSemaphore.Release();
             }
+        }
+        else
+        {
+            ResetConnectionState();
         }
 
         // NOTE: _pipeSemaphore is intentionally NOT disposed here.

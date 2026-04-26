@@ -61,6 +61,19 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void CiWorkflow_ShouldDefaultTokenPermissionsToReadOnlyContents()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        var topLevelPermissions = GetTopLevelBlock(lines, "permissions");
+
+        topLevelPermissions.Should().Contain("  contents: read",
+            "CI should not inherit broad repository-default GITHUB_TOKEN permissions");
+        topLevelPermissions.Should().NotContain("  contents: write",
+            "ordinary CI jobs do not need repository write access");
+    }
+
+    [Fact]
     public void CiWorkflow_ShouldSmokeTestInstalledServerRuntimeAfterInstall()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
@@ -99,4 +112,18 @@ public class ReleasePackagingWorkflowTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string[] GetTopLevelBlock(string[] lines, string header)
+    {
+        var headerIndex = Array.FindIndex(lines, line => string.Equals(line, $"{header}:", StringComparison.Ordinal));
+        if (headerIndex < 0)
+        {
+            return [];
+        }
+
+        return lines
+            .Skip(headerIndex + 1)
+            .TakeWhile(line => string.IsNullOrWhiteSpace(line) || char.IsWhiteSpace(line[0]))
+            .ToArray();
+    }
 }

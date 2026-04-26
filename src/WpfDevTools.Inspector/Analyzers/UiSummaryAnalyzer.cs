@@ -272,7 +272,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         }
 
         budget.MarkTruncated("StringValueLength");
-        return value[..(MaxStringValueLength - 3)] + "...";
+        return value.Substring(0, MaxStringValueLength - 3) + "...";
     }
 
     private static void AppendBoundedSummaryLine(StringBuilder summary, string line, UiSummaryBudget budget)
@@ -287,7 +287,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
 
         if (value.Length > remaining)
         {
-            summary.Append(value[..remaining]);
+            summary.Append(value.Substring(0, remaining));
             budget.MarkTruncated("SummaryTextLength");
             return;
         }

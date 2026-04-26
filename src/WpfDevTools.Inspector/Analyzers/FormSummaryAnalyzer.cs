@@ -230,7 +230,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
         }
 
         budget.MarkTruncated("StringValueLength");
-        return value[..(MaxStringValueLength - 3)] + "...";
+        return value.Substring(0, MaxStringValueLength - 3) + "...";
     }
 
     private sealed class FormSummaryBudget

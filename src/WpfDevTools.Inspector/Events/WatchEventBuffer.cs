@@ -207,6 +207,9 @@ internal sealed class WatchEventBuffer
 
     private sealed class PayloadTruncationBuilder
     {
+        private const int HashPrefixLength = 8;
+        private const string HexDigits = "0123456789ABCDEF";
+
         private readonly Dictionary<string, int> _originalStringLengths = new(StringComparer.Ordinal);
 
         public bool Truncated => _originalStringLengths.Count > 0;
@@ -229,10 +232,25 @@ internal sealed class WatchEventBuffer
 
         private static string TruncateWithHash(string value)
         {
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..8];
+            var hash = ComputeHashPrefix(value);
             var suffix = $"...#{hash}";
             var prefixLength = Math.Max(0, MaxPayloadStringLength - suffix.Length);
-            return value[..prefixLength] + suffix;
+            return value.Substring(0, prefixLength) + suffix;
+        }
+
+        private static string ComputeHashPrefix(string value)
+        {
+            using var sha256 = SHA256.Create();
+            var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(value));
+            var characters = new char[HashPrefixLength];
+            for (var index = 0; index < HashPrefixLength / 2; index++)
+            {
+                var valueByte = hash[index];
+                characters[index * 2] = HexDigits[valueByte >> 4];
+                characters[index * 2 + 1] = HexDigits[valueByte & 0xF];
+            }
+
+            return new string(characters);
         }
 
         public string LimitRequired(string propertyName, string value) =>

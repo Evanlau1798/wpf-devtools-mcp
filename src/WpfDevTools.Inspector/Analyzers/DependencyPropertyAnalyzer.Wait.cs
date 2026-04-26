@@ -67,7 +67,11 @@ public sealed partial class DependencyPropertyAnalyzer
         while (stopwatch.ElapsedMilliseconds < effectiveTimeoutMs)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Thread.Sleep(effectivePollIntervalMs);
+            if (!WaitForNextPoll(stopwatch, effectiveTimeoutMs, effectivePollIntervalMs, cancellationToken))
+            {
+                break;
+            }
+
             pollCount++;
 
             var currentSnapshot = ReadDpSnapshot(propertyName, elementId);
@@ -207,6 +211,27 @@ public sealed partial class DependencyPropertyAnalyzer
             elapsedMs,
             pollCount
         };
+    }
+
+    private static bool WaitForNextPoll(
+        Stopwatch stopwatch,
+        int timeoutMs,
+        int pollIntervalMs,
+        CancellationToken cancellationToken)
+    {
+        var remainingMs = timeoutMs - stopwatch.ElapsedMilliseconds;
+        if (remainingMs <= 0)
+        {
+            return false;
+        }
+
+        var delayMs = (int)Math.Min(pollIntervalMs, remainingMs);
+        if (cancellationToken.WaitHandle.WaitOne(delayMs))
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
+
+        return true;
     }
 
     private readonly record struct DpSnapshot(string? FormattedValue, string BaseValueSource, object? Error = null)

@@ -11,7 +11,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   publish-release-assets:
@@ -248,6 +248,8 @@ jobs:
     needs:
       - publish-release-assets
       - validate-arm64-release-assets
+    permissions:
+      contents: write
     runs-on: windows-latest
     env:
       RELEASE_STAGING_ROOT: artifacts/release/github-assets

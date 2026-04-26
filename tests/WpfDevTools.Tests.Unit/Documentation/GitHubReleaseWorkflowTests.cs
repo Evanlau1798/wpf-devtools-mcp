@@ -84,8 +84,65 @@ public sealed class GitHubReleaseWorkflowTests
             "PFX-backed signing in GitHub Actions must inject the certificate password through an environment variable instead of interactive prompts");
     }
 
+    [Fact]
+    public void ReleaseWorkflow_ShouldLimitContentsWritePermissionToUploadJob()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+
+        var topLevelPermissions = GetTopLevelBlock(lines, "permissions");
+        topLevelPermissions.Should().Contain("  contents: read",
+            "the workflow-level token should default to read-only repository contents access");
+        topLevelPermissions.Should().NotContain("  contents: write",
+            "write access should not be granted to every release job");
+
+        var contentsWriteJobs = lines
+            .Select((line, index) => new { Line = line.Trim(), Index = index })
+            .Where(item => string.Equals(item.Line, "contents: write", StringComparison.Ordinal))
+            .Select(item => GetEnclosingJobName(lines, item.Index))
+            .ToArray();
+
+        contentsWriteJobs.Should().Equal(["upload-release-assets"],
+            "only the job that creates or updates GitHub Release assets should receive contents: write");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
+
+    private static string[] GetTopLevelBlock(string[] lines, string header)
+    {
+        var headerIndex = Array.FindIndex(lines, line => string.Equals(line, $"{header}:", StringComparison.Ordinal));
+        if (headerIndex < 0)
+        {
+            return [];
+        }
+
+        return lines
+            .Skip(headerIndex + 1)
+            .TakeWhile(line => string.IsNullOrWhiteSpace(line) || char.IsWhiteSpace(line[0]))
+            .ToArray();
+    }
+
+    private static string? GetEnclosingJobName(string[] lines, int lineIndex)
+    {
+        var jobsIndex = Array.FindIndex(lines, line => string.Equals(line, "jobs:", StringComparison.Ordinal));
+        if (jobsIndex < 0 || lineIndex <= jobsIndex)
+        {
+            return null;
+        }
+
+        for (var index = lineIndex - 1; index > jobsIndex; index--)
+        {
+            var line = lines[index];
+            if (line.StartsWith("  ", StringComparison.Ordinal) &&
+                !line.StartsWith("    ", StringComparison.Ordinal) &&
+                line.TrimEnd().EndsWith(':'))
+            {
+                return line.Trim().TrimEnd(':');
+            }
+        }
+
+        return null;
+    }
 
     private static string ResolveRepoRoot()
     {

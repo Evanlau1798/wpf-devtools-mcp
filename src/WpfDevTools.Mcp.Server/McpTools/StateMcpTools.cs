@@ -69,11 +69,13 @@ public static class StateMcpTools
         "{\n" +
         "  success: boolean,\n" +
         "  restoredDependencyPropertyCount: number,\n" +
+        "  restoredDependencyProperties: [{ propertyName, verified: boolean, expectedValue, currentValue, expectedIsExpression, currentIsExpression, verificationSkippedReason }],\n" +
         "  skippedDependencyPropertyCount: number,\n" +
-        "  skippedDependencyProperties: [{ propertyName, reason, restoreDisposition, verified: boolean, expectedValue, currentValue }],\n" +
+        "  skippedDependencyProperties: [{ propertyName, reason, restoreDisposition, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
         "  restoredViewModelPropertyCount: number,\n" +
+        "  restoredViewModelProperties: [{ propertyName, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
         "  skippedViewModelPropertyCount: number,\n" +
-        "  skippedViewModelProperties: [{ propertyName, reason, verified: boolean, expectedValue, currentValue }],\n" +
+        "  skippedViewModelProperties: [{ propertyName, reason, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
         "  restoredFocus: boolean,\n" +
         "  warnings: string[]\n" +
         "}\n\n" +

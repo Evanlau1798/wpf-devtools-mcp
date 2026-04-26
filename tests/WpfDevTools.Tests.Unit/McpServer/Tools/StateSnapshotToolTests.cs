@@ -123,6 +123,16 @@ public sealed class StateSnapshotToolTests : IDisposable
                     errors = Array.Empty<object>()
                 }),
                 JsonSerializer.Serialize(new { success = true, propertyName = "Width", oldValue = "240", newValue = "120" }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    propertyName = "Width",
+                    currentValue = "120",
+                    hadLocalValue = true,
+                    localValue = "120",
+                    baseValueSource = "LocalValue",
+                    isExpression = false
+                }),
                 JsonSerializer.Serialize(new { success = true, focused = true })
             });
 
@@ -146,6 +156,7 @@ public sealed class StateSnapshotToolTests : IDisposable
         var json = JsonSerializer.SerializeToElement(restoreResult);
         json.GetProperty("success").GetBoolean().Should().BeTrue();
         json.GetProperty("restoredDependencyPropertyCount").GetInt32().Should().Be(1);
+        json.GetProperty("restoredDependencyProperties")[0].GetProperty("verified").GetBoolean().Should().BeTrue();
         json.GetProperty("restoredFocus").GetBoolean().Should().BeTrue();
     }
 

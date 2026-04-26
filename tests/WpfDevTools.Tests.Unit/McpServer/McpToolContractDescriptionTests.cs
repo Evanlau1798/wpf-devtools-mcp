@@ -47,6 +47,8 @@ public sealed class McpToolContractDescriptionTests
     [InlineData(typeof(InteractionMcpTools), nameof(InteractionMcpTools.SimulateKeyboard), "focusChanged")]
     [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "skippedViewModelPropertyCount")]
     [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "skippedViewModelProperties")]
+    [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "restoredDependencyProperties")]
+    [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "restoredViewModelProperties")]
     [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetViewModel), "canWrite")]
     [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.ModifyViewModel), "requestedValueType")]
     [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetValidationErrors), "logical and visual descendants")]

@@ -12,6 +12,7 @@ public sealed class DependencyPropertyAnalyzerWatchRegistrationRaceTests : IDisp
 {
     public DependencyPropertyAnalyzerWatchRegistrationRaceTests()
     {
+        ResetDetachWatcherAction();
         DependencyPropertyAnalyzer.StopAllWatchers();
         DependencyPropertyAnalyzer.ResetMonitoring();
     }
@@ -56,12 +57,20 @@ public sealed class DependencyPropertyAnalyzerWatchRegistrationRaceTests : IDisp
 
     public void Dispose()
     {
+        ResetDetachWatcherAction();
         DependencyPropertyAnalyzer.StopAllWatchers();
         DependencyPropertyAnalyzer.ResetMonitoring();
+        ResetDetachWatcherAction();
     }
 
     private static bool IsSuccessfulResult(object result) =>
         result.GetType().GetProperty("success")?.GetValue(result) is true;
+
+    private static void ResetDetachWatcherAction()
+    {
+        DependencyPropertyAnalyzer.DetachWatcherAction =
+            static (descriptor, element, handler) => descriptor.RemoveValueChanged(element, handler);
+    }
 
     private static void PumpDispatcherUntil(Task task, Dispatcher dispatcher, TimeSpan timeout)
     {

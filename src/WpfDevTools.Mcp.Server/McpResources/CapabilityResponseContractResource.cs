@@ -173,7 +173,9 @@ public static partial class CapabilityResources
                 toolListOutputSchemaReason = "Claude tools/list compatibility while structuredContent remains canonical",
                 deprecatedAliases = ResponseContractVersion.DeprecatedAliases
             },
+            schemaMetadata = ResponseContractSchemaMetadata.GetSchemaMetadata(),
             parameterVocabularies = ResponseContractParameterVocabularies.GetParameterVocabularies(),
+            parameterConstraints = ResponseContractParameterConstraints.GetParameterConstraints(),
             registeredToolCoverage = ResponseContractToolCoverage.GetRegisteredToolCoverage(ResponseContractResourceUri),
             highValueTools = ResponseContractToolEntries.GetHighValueTools(ResponseContractResourceUri)
         };

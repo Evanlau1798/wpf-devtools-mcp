@@ -319,7 +319,7 @@ public sealed class InteractionToolMetadataTests : IDisposable
     }
 
     [Fact]
-    public async Task FireRoutedEvent_Navigation_WithActiveTrace_ShouldPreferTraceRetrieval()
+    public async Task FireRoutedEvent_Navigation_WithActiveTrace_ShouldPreferDrainEvents()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
             (_, _) => Task.FromResult<object>(new
@@ -335,8 +335,9 @@ public sealed class InteractionToolMetadataTests : IDisposable
             toolName: "fire_routed_event");
 
         var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
-        nextSteps[0].GetProperty("tool").GetString().Should().Be("trace_routed_events");
-        nextSteps[0].GetProperty("params").GetProperty("mode").GetString().Should().Be("get");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("drain_events");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+        nextSteps[0].GetProperty("params").GetProperty("eventTypes")[0].GetString().Should().Be("RoutedEvent");
         nextSteps[0].GetProperty("preconditions")[0].GetString().Should().Be("activeTrace");
     }
 

@@ -34,14 +34,15 @@ internal static class ActionNavigationRules
         var recommended = new List<ToolNextStep>();
         ToolNavigationReference? mutationContext = null;
 
-        if (TryGetActiveTrace(context.SessionState, out _))
+        if (TryGetActiveTrace(context.SessionState, out var activeTrace))
         {
             recommended.Add(ConditionalNavigationRules.CreateActiveTraceStep(
-                "trace_routed_events",
+                "drain_events",
                 NavigationParamBuilders.Create(
                     ("processId", TryGetInt(context.Arguments, "processId")),
-                    ("mode", "get")),
-                "A routed-event trace is already active; retrieve the buffered trace now.",
+                    ("elementId", activeTrace?.ElementId ?? TryGetOptionalString(context.Arguments, "elementId")),
+                    ("eventTypes", new[] { "RoutedEvent" })),
+                "A routed-event trace is already active; drain the buffered routed-event records now.",
                 ToolNextStepKind.Verification,
                 1,
                 "Returns buffered routed-event records collected after the mutation."));

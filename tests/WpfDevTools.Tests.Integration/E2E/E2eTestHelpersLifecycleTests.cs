@@ -260,6 +260,7 @@ public sealed class E2eTestHelpersLifecycleTests
             }
         });
 
+    [Collection("McpE2E")]
     private sealed class TestableSharedStateMcpE2eTest : SharedStateMcpE2eTestBase
     {
         public TestableSharedStateMcpE2eTest(

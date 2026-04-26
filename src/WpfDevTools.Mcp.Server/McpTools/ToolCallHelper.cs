@@ -52,6 +52,7 @@ public static partial class ToolCallHelper
         "hint",
         "suggestedAction",
         "requiresReconnect",
+        "stateAfterTimeoutUnknown",
         "processId",
         "timeoutSeconds",
         "retryAfterSeconds",
@@ -243,6 +244,7 @@ public static partial class ToolCallHelper
             if (timeoutRecovery.RequiresReconnect)
             {
                 timeoutPayloadData["requiresReconnect"] = true;
+                timeoutPayloadData["stateAfterTimeoutUnknown"] = true;
             }
 
             if (timeoutRecovery.ProcessId is int timedOutProcessId)

@@ -4,6 +4,13 @@ namespace WpfDevTools.Inspector.Analyzers;
 
 public sealed partial class EventAnalyzer
 {
+    private sealed record TraceEventPage(
+        IReadOnlyList<object> Events,
+        int TotalEventCount,
+        int ReturnedEventCount,
+        bool EventsTruncated,
+        int? MaxEvents);
+
     private IReadOnlyList<object> GetTraceSnapshotEvents(TraceSessionHandle? requestedSession, string? requestedEventName)
     {
         var traceMetadata = requestedSession?.Metadata ?? _lastTraceMetadata;
@@ -34,6 +41,22 @@ public sealed partial class EventAnalyzer
             .Select(CreateTraceSnapshotEvent)
             .Cast<object>()
             .ToList();
+    }
+
+    private static TraceEventPage CreateTraceEventPage(IReadOnlyList<object> events, int? maxEvents)
+    {
+        if (maxEvents is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxEvents), maxEvents, "maxEvents must be positive when provided.");
+        }
+
+        if (maxEvents is null || events.Count <= maxEvents.Value)
+        {
+            return new TraceEventPage(events, events.Count, events.Count, false, maxEvents);
+        }
+
+        var returnedEvents = events.Take(maxEvents.Value).ToArray();
+        return new TraceEventPage(returnedEvents, events.Count, returnedEvents.Length, true, maxEvents);
     }
 
     private static bool IsMatchingTraceBufferRecord(

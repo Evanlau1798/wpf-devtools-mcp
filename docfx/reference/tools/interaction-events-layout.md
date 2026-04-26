@@ -37,6 +37,8 @@ Interaction tool responses now also carry `nextSteps` and `navigation`. When the
 
 If you start a trace session with `trace_routed_events(mode: "start")` before the interaction, the usual next step is `drain_events` to read back the buffered event records explicitly. `trace_routed_events(mode: "get")` remains available for trace-session retrieval, but `drain_events` is the preferred shared-buffer read path when the session may also contain binding, dependency property, or validation events.
 
+Use `maxEvents` on `trace_routed_events(mode: "get")` or capture-mode retrieval when you need to cap trace payload size. Trace responses include `returnedEventCount`, `totalEventCount`, `eventsTruncated`, and `maxEvents` so agents can detect that the `events` array is intentionally partial and retry with a larger cap only when needed.
+
 Some interaction and diagnostic responses may piggyback a compact `pendingEvents` array when buffered events are already available. Use `drain_events` when you need the complete explicit event read step instead of opportunistic piggyback data.
 
 ## Layout

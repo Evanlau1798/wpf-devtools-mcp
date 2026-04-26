@@ -295,12 +295,15 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
     /// <summary>
     /// Get event trace data
     /// </summary>
-    public object GetEventTrace(string? requestedEventName = null)
+    public object GetEventTrace(string? requestedEventName = null, int? maxEvents = null)
     {
-        return GetEventTrace(null, requestedEventName);
+        return GetEventTrace(null, requestedEventName, maxEvents);
     }
 
-    internal object GetEventTrace(TraceSessionHandle? requestedSession, string? requestedEventName = null)
+    internal object GetEventTrace(
+        TraceSessionHandle? requestedSession,
+        string? requestedEventName = null,
+        int? maxEvents = null)
     {
         lock (_lock)
         {
@@ -315,6 +318,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             var completedSnapshot = ResolveCompletedSnapshot(requestedSession, requestedEventName);
             var cleanupFailure = ResolveCleanupFailure(requestedSession, traceMetadata);
             var events = GetTraceSnapshotEvents(requestedSession, requestedEventName);
+            var eventPage = CreateTraceEventPage(completedSnapshot?.Events ?? events, maxEvents);
             return new
             {
                 success = true,
@@ -326,8 +330,12 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                 effectiveDurationMs = traceMetadata?.EffectiveDurationMs ?? 0,
                 registrationCount = traceMetadata?.RegistrationCount ?? 0,
                 isTracing = isCurrentSession,
-                eventCount = completedSnapshot?.Events.Count ?? events.Count,
-                events = completedSnapshot?.Events ?? events,
+                eventCount = eventPage.ReturnedEventCount,
+                totalEventCount = eventPage.TotalEventCount,
+                returnedEventCount = eventPage.ReturnedEventCount,
+                eventsTruncated = eventPage.EventsTruncated,
+                maxEvents = eventPage.MaxEvents,
+                events = eventPage.Events,
                 handlerInvocationCount = isActiveSession && requestedEventMatches
                     ? _handlerInvocationCount
                     : completedSnapshot?.HandlerInvocationCount ?? 0,

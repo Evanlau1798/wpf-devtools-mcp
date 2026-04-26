@@ -33,18 +33,20 @@ public static class EventMcpTools
         "  { success, mode: \"start\", eventName, requestedDuration, effectiveDuration, shortDurationOverrideUsed, isTracing, message }\n" +
         "  NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced by default for AI agent IPC round-trips). Set `allowShortStartDuration=true` to opt into a shorter explicit window.\n" +
         "- get mode:\n" +
-        "  { success, mode: \"get\", isTracing, eventCount, events, handlerInvocationCount }\n\n" +
+        "  { success, mode: \"get\", isTracing, eventCount, totalEventCount, returnedEventCount, eventsTruncated, maxEvents, events, handlerInvocationCount }\n" +
+        "  NOTE: Provide maxEvents to cap returned trace records. When capped, totalEventCount preserves the original count and eventsTruncated=true signals that more events were available.\n\n" +
         "TIP: For AI-driven automation, prefer `mode=\"start\"` + `click_element`/`fire_routed_event` + `mode=\"get\"` so the capture window is not blocked by the current request.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"invalid event name\" -> verify eventName is a valid WPF RoutedEvent\n" +
         "- \"eventName required\" -> required for `capture` and `start` modes\n" +
+        "- \"maxEvents\" invalid -> provide a positive integer when limiting returned trace records\n" +
         "- \"invalid mode\" -> use `capture`, `start`, or `get`\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, eventName: \"MouseDown\", durationMs: 500 }\n" +
         "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", mode: \"start\", durationMs: 1000 }\n" +
         "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", mode: \"start\", durationMs: 1000, allowShortStartDuration: true }\n" +
-        "- { processId: 12345, mode: \"get\" }")]
+        "- { processId: 12345, mode: \"get\", maxEvents: 25 }")]
     public static Task<CallToolResult> TraceRoutedEvents(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -53,6 +55,7 @@ public static class EventMcpTools
         [Description("Optional capture window in milliseconds (default: 5000). Use smaller values (250-2000) for interactive STDIO sessions.")] int? durationMs = null,
         [Description("Optional tracing mode: `capture` (default), `start`, or `get`. Use `start` + `get` for AI-friendly non-blocking workflows.")] string? mode = null,
         [Description("Optional opt-in override for start mode. When true, short requested durations are honored instead of being raised to the default 30s minimum.")] bool allowShortStartDuration = false,
+        [Description("Optional positive cap on returned trace event records. Responses include returnedEventCount, totalEventCount, eventsTruncated, and maxEvents so agents can detect truncation and retry with a larger cap when needed.")] int? maxEvents = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -61,7 +64,8 @@ public static class EventMcpTools
             ("eventName", eventName),
             ("duration", durationMs),
             ("mode", mode),
-            ("allowShortStartDuration", allowShortStartDuration));
+            ("allowShortStartDuration", allowShortStartDuration),
+            ("maxEvents", maxEvents));
 
         var timeoutSeconds = Math.Max(
             McpServerConfiguration.DefaultToolTimeoutSeconds,

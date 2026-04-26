@@ -126,6 +126,22 @@ public sealed class McpToolDescriptionContractTests
             "schema-driven clients need to know the cap is enforced after the internal uncapped replay-backed live read");
     }
 
+    [Fact]
+    public void TraceRoutedEvents_MaxEventsParameterDescription_ShouldAdvertiseTruncationMetadata()
+    {
+        var method = FindToolMethod("trace_routed_events");
+        var maxEventsParameter = method.GetParameters().Single(parameter => parameter.Name == "maxEvents");
+        var description = maxEventsParameter.GetCustomAttribute<DescriptionAttribute>()?.Description;
+
+        description.Should().NotBeNull();
+        description.Should().Contain("returnedEventCount",
+            "schema-driven agents need the returned count when trace events are capped");
+        description.Should().Contain("totalEventCount",
+            "schema-driven agents need the original count when trace events are capped");
+        description.Should().Contain("eventsTruncated",
+            "schema-driven agents need a stable boolean that tells them to request a larger cap if needed");
+    }
+
     private static McpServerToolAttribute FindToolAttribute(string toolName)
         => FindToolMethod(toolName).GetCustomAttribute<McpServerToolAttribute>()
             ?? throw new InvalidOperationException($"Tool '{toolName}' is missing [McpServerTool].");

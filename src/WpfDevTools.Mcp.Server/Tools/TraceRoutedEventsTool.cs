@@ -36,11 +36,17 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
 
         var eventName = ParseStringParam(arguments, "eventName");
         var duration = ParseIntParam(arguments, "duration");
+        var maxEvents = ParseIntParam(arguments, "maxEvents");
         var allowShortStartDuration = ParseBoolParam(arguments, "allowShortStartDuration") ?? false;
 
         if (duration is < 0)
         {
             return CreateInvalidParamError("duration must be non-negative");
+        }
+
+        if (maxEvents is <= 0)
+        {
+            return CreateInvalidParamError("maxEvents must be a positive integer when provided");
         }
 
         if (mode != "get" && string.IsNullOrEmpty(eventName))
@@ -51,7 +57,7 @@ public sealed class TraceRoutedEventsTool : PipeConnectedToolBase
         var response = await SendInspectorRequestWithoutPiggybackAsync(
             processId,
             "trace_routed_events",
-            new { elementId, eventName, duration, mode, allowShortStartDuration },
+            new { elementId, eventName, duration, mode, allowShortStartDuration, maxEvents },
             cancellationToken);
         _sessionManager.TryGetNavigationState(processId, out var preSyncState);
         var replayTraceSnapshot = mode == "get"

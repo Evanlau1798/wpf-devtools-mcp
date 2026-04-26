@@ -37,6 +37,8 @@
 
 若你先用 `trace_routed_events(mode: "start")` 建立 trace session，再做互動，後續通常應先呼叫 `drain_events` 明確讀回 buffered event records。`trace_routed_events(mode: "get")` 仍可用來讀取 trace session，但當 session 內也可能存在 binding、dependency property 或 validation event 時，`drain_events` 是較建議的 shared-buffer read path。
 
+當你需要控制 trace payload 大小時，可在 `trace_routed_events(mode: "get")` 或 capture-mode retrieval 使用 `maxEvents`。Trace 回應會提供 `returnedEventCount`、`totalEventCount`、`eventsTruncated` 與 `maxEvents`，讓 agent 能判斷 `events` 陣列是否為刻意截斷，並只在需要時用更大的 cap 重試。
+
 部分互動與診斷回應也可能 piggyback 精簡版 `pendingEvents`。若你需要完整且顯式的 event read step，而不是機會式 piggyback，請改用 `drain_events`。
 
 ## Layout

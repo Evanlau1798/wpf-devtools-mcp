@@ -9,6 +9,7 @@
 - `serialize_to_xaml`
 - `get_namescope`
 - `get_template_tree`
+- `get_windows`
 
 ## 何時該用哪個
 
@@ -18,6 +19,7 @@
 - 需要快速用 type、name、automation id 或屬性值找元素時，用 **find_elements**
 - 需要看 template 產生出的 visual children 時，用 **template tree**
 - 需要找穩定的命名部件時，用 **namescope**
+- 需要檢查 dialog 或 secondary window 時，用 **`get_windows`**；將回傳的 window `elementId` 傳給 tree、scene 或其他 element-scoped 工具。
 - 需要取得精簡的 XAML 近似表示時，用 **serialize_to_xaml**
 
 ## 常見陷阱

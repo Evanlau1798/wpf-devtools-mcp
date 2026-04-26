@@ -101,6 +101,17 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/tree-and-xaml.md")]
+    [InlineData("docfx/zh-tw/reference/tools/tree-and-xaml.md")]
+    public void TreeReferencePages_ShouldDocumentGetWindows(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("get_windows");
+        content.Should().Contain("elementId");
+    }
+
+    [Theory]
     [InlineData("docfx/reference/tools/interaction-events-layout.md")]
     [InlineData("docfx/zh-tw/reference/tools/interaction-events-layout.md")]
     public void InteractionReferencePages_ShouldDocumentFocusAndStateTools(string relativePath)

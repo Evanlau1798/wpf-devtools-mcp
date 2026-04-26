@@ -9,6 +9,7 @@
 - `serialize_to_xaml`
 - `get_namescope`
 - `get_template_tree`
+- `get_windows`
 
 ## When to use which
 
@@ -18,6 +19,7 @@
 - Use **template tree** when control templates generate visual children.
 - Use **namescope** when you need stable named parts.
 - Use **find_elements** when you need a compact lookup by type, name, automation id, or exact property value before expanding the full tree.
+- Use **`get_windows`** when a process has dialogs or secondary windows; pass the returned window `elementId` to tree, scene, or element-scoped tools.
 - Use **`serialize_to_xaml`** when you want a compact XAML-like representation of a subtree.
 
 ## Common pitfall

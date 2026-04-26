@@ -66,6 +66,8 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
         var failedMutationCount = 0;
         var skippedMutationCount = 0;
         var stopExecution = false;
+        var stateAfterTimeoutUnknown = false;
+        var requiresReconnect = false;
         string? firstFailureContext = null;
         string? firstFailureError = null;
 
@@ -74,22 +76,33 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
             if (stopExecution)
             {
                 skippedMutationCount++;
-                mutationResults.Add(new
-                {
-                    index = mutation.Index,
-                    tool = mutation.Tool,
-                    label = mutation.Label,
-                    success = false,
-                    skipped = true,
-                    error = "Skipped because an earlier mutation failed."
-                });
+                mutationResults.Add(CreateSkippedMutationResult(mutation));
                 continue;
             }
 
-            var mutationResult = ToJsonElement(await _mutationExecutor(
-                mutation.Tool,
-                BuildMutationArgs(request, mutation),
-                cancellationToken).ConfigureAwait(false));
+            JsonElement mutationResult;
+            try
+            {
+                mutationResult = ToJsonElement(await _mutationExecutor(
+                    mutation.Tool,
+                    BuildMutationArgs(request, mutation),
+                    cancellationToken).ConfigureAwait(false));
+            }
+            catch (Exception ex) when (IsRecoverableTimeoutAfterSnapshot(ex, snapshotId))
+            {
+                executedMutationCount++;
+                failedMutationCount++;
+                stateAfterTimeoutUnknown = true;
+                requiresReconnect = true;
+                stopExecution = true;
+                firstFailureContext ??= GetOptionalString(mutation.Args, "propertyName")
+                    ?? mutation.Label
+                    ?? mutation.Tool;
+                firstFailureError ??= "The mutation was canceled or timed out before a response was returned.";
+
+                mutationResults.Add(CreateTimeoutMutationResult(mutation, firstFailureError));
+                continue;
+            }
 
             executedMutationCount++;
             var mutationSucceeded = IsSuccess(mutationResult);
@@ -123,28 +136,41 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
         object? stateDiff = null;
         if (request.IncludeDiff && failedMutationCount == 0 && !string.IsNullOrWhiteSpace(snapshotId))
         {
-            var diffResult = ToJsonElement(await _stateDiffExecutor(
-                JsonSerializer.SerializeToElement(new
-                {
-                    processId = request.ProcessId,
-                    snapshotId,
-                    trigger = request.DiffTrigger
-                }),
-                cancellationToken).ConfigureAwait(false));
-            stateDiff = diffResult.Clone();
+            try
+            {
+                var diffResult = ToJsonElement(await _stateDiffExecutor(
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        processId = request.ProcessId,
+                        snapshotId,
+                        trigger = request.DiffTrigger
+                    }),
+                    cancellationToken).ConfigureAwait(false));
+                stateDiff = diffResult.Clone();
+            }
+            catch (Exception ex) when (IsRecoverableTimeoutAfterSnapshot(ex, snapshotId))
+            {
+                stateAfterTimeoutUnknown = true;
+                requiresReconnect = true;
+                firstFailureContext ??= "get_state_diff";
+                firstFailureError ??= "State diff was canceled or timed out before a response was returned.";
+            }
         }
 
         var diffFailed = stateDiff is JsonElement diffPayload && !IsSuccess(diffPayload);
         var overallSuccess = failedMutationCount == 0
-            && !diffFailed;
+            && !diffFailed
+            && !stateAfterTimeoutUnknown;
         var rollback = BuildRollback(processId, snapshotId, !overallSuccess);
         var failure = overallSuccess
             ? null
             : BuildBatchFailure(
                 processId,
                 snapshotId,
-                failedMutationCount > 0 ? "BatchStepFailed" : "DiffFailed",
-                failedMutationCount > 0
+                stateAfterTimeoutUnknown ? "Timeout" : failedMutationCount > 0 ? "BatchStepFailed" : "DiffFailed",
+                stateAfterTimeoutUnknown
+                    ? $"batch_mutate was canceled or timed out while executing {firstFailureContext}. {firstFailureError}".Trim()
+                    : failedMutationCount > 0
                     ? $"Batch mutation step failed for {firstFailureContext}. {firstFailureError}".Trim()
                     : $"batch_mutate failed while running get_state_diff. {GetOptionalString((JsonElement)stateDiff!, "error")}".Trim());
 
@@ -160,6 +186,8 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
             successfulMutationCount,
             failedMutationCount,
             skippedMutationCount,
+            stateAfterTimeoutUnknown = stateAfterTimeoutUnknown ? true : (bool?)null,
+            requiresReconnect = requiresReconnect ? true : (bool?)null,
             snapshotId,
             stateDiff,
             rollback,

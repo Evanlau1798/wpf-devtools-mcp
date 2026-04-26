@@ -187,6 +187,63 @@ public sealed class BatchMutateToolTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenMutationIsCanceledAfterSnapshot_ShouldReturnPartialStateAndRollbackRecovery()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var executedProperties = new List<string?>();
+        var tool = new BatchMutateTool(
+            new SessionManager(),
+            (_, args, token) =>
+            {
+                var propertyName = args.GetProperty("propertyName").GetString();
+                executedProperties.Add(propertyName);
+                if (propertyName == "Age")
+                {
+                    cancellation.Cancel();
+                    throw new OperationCanceledException(token);
+                }
+
+                return Task.FromResult<object>(new { success = true, propertyName });
+            },
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_batch_cancel"
+            }),
+            null);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId = 12345,
+                captureSnapshot = new
+                {
+                    viewModelPropertyNames = new[] { "Name", "Age", "Title" }
+                },
+                mutations = new object[]
+                {
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Name", value = "Updated" } },
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Age", value = 32 } },
+                    new { tool = "modify_viewmodel", args = new { propertyName = "Title", value = "Skipped" } }
+                }
+            }),
+            cancellation.Token));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("Timeout");
+        result.GetProperty("executedMutationCount").GetInt32().Should().Be(2);
+        result.GetProperty("successfulMutationCount").GetInt32().Should().Be(1);
+        result.GetProperty("failedMutationCount").GetInt32().Should().Be(1);
+        result.GetProperty("skippedMutationCount").GetInt32().Should().Be(1);
+        result.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        result.GetProperty("rollback").GetProperty("available").GetBoolean().Should().BeTrue();
+        result.GetProperty("recovery").GetProperty("tool").GetString().Should().Be("restore_state_snapshot");
+        result.GetProperty("mutations")[1].GetProperty("errorCode").GetString().Should().Be("Timeout");
+        result.GetProperty("mutations")[2].GetProperty("skipped").GetBoolean().Should().BeTrue();
+        executedProperties.Should().Equal("Name", "Age");
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithIncludeDiffWithoutCaptureSnapshot_ShouldReturnStructuredError()
     {
         var tool = new BatchMutateTool(new SessionManager());

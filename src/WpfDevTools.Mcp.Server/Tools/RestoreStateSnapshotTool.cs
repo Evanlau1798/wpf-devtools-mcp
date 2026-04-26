@@ -32,60 +32,52 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             };
         }
 
-        var warnings = new List<string>();
-        var (restoredDependencyPropertyCount, restoredDependencyProperties, skippedDependencyProperties) = await RestoreDependencyPropertiesAsync(
-            processId,
-            snapshot.DependencyProperties,
-            warnings,
-            cancellationToken).ConfigureAwait(false);
-        var (restoredViewModelPropertyCount, restoredViewModelProperties, skippedViewModelProperties) = await RestoreViewModelPropertiesAsync(
-            processId,
-            snapshot.ViewModelProperties,
-            warnings,
-            cancellationToken).ConfigureAwait(false);
-        var restoredFocus = await RestoreFocusAsync(
-            processId,
-            snapshot.Focus,
-            warnings,
-            cancellationToken).ConfigureAwait(false);
+        var progress = new RestoreProgress();
+        try
+        {
+            await RestoreDependencyPropertiesAsync(
+                processId,
+                snapshot.DependencyProperties,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+            await RestoreViewModelPropertiesAsync(
+                processId,
+                snapshot.ViewModelProperties,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+            progress.RestoredFocus = await RestoreFocusAsync(
+                processId,
+                snapshot.Focus,
+                progress.Warnings,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (IsRestoreInterrupted(ex))
+        {
+            progress.Warnings.Add("Restore was interrupted before all snapshot state could be verified; reconnect and re-read state before retrying.");
+            return CreateInterruptedRestoreResult(processId, snapshotId, progress);
+        }
 
-        if (removeAfterRestore && warnings.Count == 0)
+        if (removeAfterRestore && progress.Warnings.Count == 0)
         {
             _sessionManager.RemoveStateSnapshot(processId, snapshotId);
         }
 
-        if (warnings.Count == 0
+        if (progress.Warnings.Count == 0
             && _sessionManager.TryGetNavigationState(processId, out var navigationState)
             && string.Equals(navigationState?.ActiveSnapshotId, snapshotId, StringComparison.Ordinal))
         {
             _sessionManager.ClearActiveSnapshotId(processId);
         }
 
-        return new
-        {
-            success = warnings.Count == 0,
-            restoredDependencyPropertyCount,
-            restoredDependencyProperties,
-            skippedDependencyPropertyCount = skippedDependencyProperties.Count,
-            skippedDependencyProperties,
-            restoredViewModelPropertyCount,
-            restoredViewModelProperties,
-            skippedViewModelPropertyCount = skippedViewModelProperties.Count,
-            skippedViewModelProperties,
-            restoredFocus,
-            warnings
-        };
+        return CreateRestoreResult(progress);
     }
 
-    private async Task<(int restoredCount, List<object> restoredProperties, List<object> skippedProperties)> RestoreDependencyPropertiesAsync(
+    private async Task RestoreDependencyPropertiesAsync(
         int processId,
         IReadOnlyList<StoredDependencyPropertySnapshot> snapshots,
-        List<string> warnings,
+        RestoreProgress progress,
         CancellationToken cancellationToken)
     {
-        var restored = 0;
-        var restoredProperties = new List<object>();
-        var skipped = new List<object>();
         foreach (var snapshot in snapshots)
         {
             if (snapshot.IsExpression && !string.IsNullOrWhiteSpace(snapshot.ExpressionRestoreToken))
@@ -107,17 +99,17 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                         processId,
                         snapshot,
                         cancellationToken).ConfigureAwait(false);
-                    restoredProperties.Add(CreateDependencyPropertyVerificationResult(snapshot, verification));
+                    progress.RestoredDependencyProperties.Add(CreateDependencyPropertyVerificationResult(snapshot, verification));
                     if (!verification.verified)
                     {
-                        warnings.Add($"DependencyProperty restore verification failed for '{snapshot.PropertyName}'.");
+                        progress.Warnings.Add($"DependencyProperty restore verification failed for '{snapshot.PropertyName}'.");
                     }
 
-                    restored++;
+                    progress.RestoredDependencyPropertyCount++;
                     continue;
                 }
 
-                warnings.Add($"DependencyProperty restore failed for '{snapshot.PropertyName}'.");
+                progress.Warnings.Add($"DependencyProperty restore failed for '{snapshot.PropertyName}'.");
                 continue;
             }
 
@@ -127,7 +119,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                     processId,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
-                skipped.Add(new
+                progress.SkippedDependencyProperties.Add(new
                 {
                     propertyName = snapshot.PropertyName,
                     reason = snapshot.SkipReason ?? $"Property '{snapshot.PropertyName}' cannot be deterministically restored.",
@@ -140,7 +132,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
                 if (!verification.verified)
                 {
-                    warnings.Add($"DependencyProperty restore verification failed for '{snapshot.PropertyName}'.");
+                    progress.Warnings.Add($"DependencyProperty restore verification failed for '{snapshot.PropertyName}'.");
                 }
 
                 continue;
@@ -162,31 +154,26 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                     processId,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
-                restoredProperties.Add(CreateDependencyPropertyVerificationResult(snapshot, verification));
+                progress.RestoredDependencyProperties.Add(CreateDependencyPropertyVerificationResult(snapshot, verification));
                 if (!verification.verified)
                 {
-                    warnings.Add($"DependencyProperty restore verification failed for '{snapshot.PropertyName}'.");
+                    progress.Warnings.Add($"DependencyProperty restore verification failed for '{snapshot.PropertyName}'.");
                 }
 
-                restored++;
+                progress.RestoredDependencyPropertyCount++;
                 continue;
             }
 
-            warnings.Add($"DependencyProperty restore failed for '{snapshot.PropertyName}'.");
+            progress.Warnings.Add($"DependencyProperty restore failed for '{snapshot.PropertyName}'.");
         }
-
-        return (restored, restoredProperties, skipped);
     }
 
-    private async Task<(int restoredCount, List<object> restoredProperties, List<object> skippedProperties)> RestoreViewModelPropertiesAsync(
+    private async Task RestoreViewModelPropertiesAsync(
         int processId,
         IReadOnlyList<StoredViewModelPropertySnapshot> snapshots,
-        List<string> warnings,
+        RestoreProgress progress,
         CancellationToken cancellationToken)
     {
-        var restored = 0;
-        var restoredProperties = new List<object>();
-        var skipped = new List<object>();
         foreach (var snapshot in snapshots)
         {
             if (!snapshot.CanRestore)
@@ -195,7 +182,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                     processId,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
-                skipped.Add(new
+                progress.SkippedViewModelProperties.Add(new
                 {
                     propertyName = snapshot.PropertyName,
                     reason = snapshot.SkipReason ?? $"Property '{snapshot.PropertyName}' is not writable.",
@@ -208,7 +195,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
                 if (!verification.verified)
                 {
-                    warnings.Add($"ViewModel restore verification failed for skipped property '{snapshot.PropertyName}'.");
+                    progress.Warnings.Add($"ViewModel restore verification failed for skipped property '{snapshot.PropertyName}'.");
                 }
 
                 continue;
@@ -226,7 +213,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                     processId,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
-                restoredProperties.Add(new
+                progress.RestoredViewModelProperties.Add(new
                 {
                     propertyName = snapshot.PropertyName,
                     verified = verification.verified,
@@ -237,17 +224,15 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
                 if (!verification.verified)
                 {
-                    warnings.Add($"ViewModel restore verification failed for '{snapshot.PropertyName}'.");
+                    progress.Warnings.Add($"ViewModel restore verification failed for '{snapshot.PropertyName}'.");
                 }
 
-                restored++;
+                progress.RestoredViewModelPropertyCount++;
                 continue;
             }
 
-            warnings.Add($"ViewModel restore failed for '{snapshot.PropertyName}'.");
+            progress.Warnings.Add($"ViewModel restore failed for '{snapshot.PropertyName}'.");
         }
-
-        return (restored, restoredProperties, skipped);
     }
 
     private async Task<(bool verified, string? currentValue, string? skippedReason)> VerifyViewModelPropertyAsync(
@@ -372,5 +357,62 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         }
 
         return "SkippedUnsupported";
+    }
+
+    private static bool IsRestoreInterrupted(Exception exception) =>
+        exception is OperationCanceledException or TimeoutException;
+
+    private static object CreateRestoreResult(RestoreProgress progress) => new
+    {
+        success = progress.Warnings.Count == 0,
+        restoredDependencyPropertyCount = progress.RestoredDependencyPropertyCount,
+        restoredDependencyProperties = progress.RestoredDependencyProperties,
+        skippedDependencyPropertyCount = progress.SkippedDependencyProperties.Count,
+        skippedDependencyProperties = progress.SkippedDependencyProperties,
+        restoredViewModelPropertyCount = progress.RestoredViewModelPropertyCount,
+        restoredViewModelProperties = progress.RestoredViewModelProperties,
+        skippedViewModelPropertyCount = progress.SkippedViewModelProperties.Count,
+        skippedViewModelProperties = progress.SkippedViewModelProperties,
+        restoredFocus = progress.RestoredFocus,
+        warnings = progress.Warnings
+    };
+
+    private static object CreateInterruptedRestoreResult(
+        int processId,
+        string snapshotId,
+        RestoreProgress progress) => new
+    {
+        success = false,
+        error = "Restore state snapshot was interrupted before all restore steps completed.",
+        errorCode = "Timeout",
+        restoreIncomplete = true,
+        stateAfterTimeoutUnknown = true,
+        requiresReconnect = true,
+        hint = "Restore was interrupted after one or more live operations may have already reached the target process.",
+        suggestedAction = "Reconnect, re-read runtime state, then retry restore_state_snapshot with the same snapshotId if restoration is still needed.",
+        processId,
+        snapshotId,
+        restoredDependencyPropertyCount = progress.RestoredDependencyPropertyCount,
+        restoredDependencyProperties = progress.RestoredDependencyProperties,
+        skippedDependencyPropertyCount = progress.SkippedDependencyProperties.Count,
+        skippedDependencyProperties = progress.SkippedDependencyProperties,
+        restoredViewModelPropertyCount = progress.RestoredViewModelPropertyCount,
+        restoredViewModelProperties = progress.RestoredViewModelProperties,
+        skippedViewModelPropertyCount = progress.SkippedViewModelProperties.Count,
+        skippedViewModelProperties = progress.SkippedViewModelProperties,
+        restoredFocus = progress.RestoredFocus,
+        warnings = progress.Warnings
+    };
+
+    private sealed class RestoreProgress
+    {
+        public int RestoredDependencyPropertyCount { get; set; }
+        public List<object> RestoredDependencyProperties { get; } = [];
+        public List<object> SkippedDependencyProperties { get; } = [];
+        public int RestoredViewModelPropertyCount { get; set; }
+        public List<object> RestoredViewModelProperties { get; } = [];
+        public List<object> SkippedViewModelProperties { get; } = [];
+        public bool RestoredFocus { get; set; }
+        public List<string> Warnings { get; } = [];
     }
 }

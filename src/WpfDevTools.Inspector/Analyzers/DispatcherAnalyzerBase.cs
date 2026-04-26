@@ -4,7 +4,9 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Text.Json;
 using System.Globalization;
+using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -18,7 +20,7 @@ public abstract class DispatcherAnalyzerBase
     /// </summary>
     protected T InvokeOnUIThread<T>(Func<T> action, TimeSpan? timeout = null)
     {
-        return InvokeOnDispatcher(Application.Current?.Dispatcher, action, timeout);
+        return InvokeOnDispatcher(ResolveCurrentUIThreadDispatcher(), action, timeout);
     }
 
     /// <summary>
@@ -26,7 +28,7 @@ public abstract class DispatcherAnalyzerBase
     /// </summary>
     protected void InvokeOnUIThread(Action action, TimeSpan? timeout = null)
     {
-        InvokeOnDispatcher(Application.Current?.Dispatcher, action, timeout);
+        InvokeOnDispatcher(ResolveCurrentUIThreadDispatcher(), action, timeout);
     }
 
     /// <summary>
@@ -34,46 +36,195 @@ public abstract class DispatcherAnalyzerBase
     /// </summary>
     protected bool IsOnUIThread()
     {
-        return Application.Current?.Dispatcher.CheckAccess() ?? false;
+        return ResolveCurrentUIThreadDispatcher()?.CheckAccess() ?? false;
+    }
+
+    private static Dispatcher? ResolveCurrentUIThreadDispatcher()
+    {
+        return Application.Current?.Dispatcher
+            ?? Dispatcher.FromThread(Thread.CurrentThread);
     }
 
     /// <summary>
     /// Execute an action on the specified dispatcher with optional timeout.
-    /// Falls back to direct execution when dispatcher is unavailable.
+    /// Returns a structured unavailable result for object-returning analyzer calls.
     /// </summary>
     protected T InvokeOnDispatcher<T>(Dispatcher? dispatcher, Func<T> action, TimeSpan? timeout = null)
     {
-        if (dispatcher == null || dispatcher.CheckAccess())
+        if (TryGetDispatcherUnavailableMessage(dispatcher, out var unavailableMessage))
+        {
+            return CreateDispatcherUnavailableResult<T>(unavailableMessage);
+        }
+
+        var targetDispatcher = dispatcher!;
+        bool hasAccess;
+        try
+        {
+            hasAccess = targetDispatcher.CheckAccess();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return CreateDispatcherUnavailableResult<T>(
+                "WPF dispatcher unavailable because access could not be validated; analyzer action was not executed.",
+                ex);
+        }
+
+        if (hasAccess)
         {
             return action();
         }
 
         var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
-        return dispatcher.Invoke(
-            action,
-            DispatcherPriority.Normal,
-            CancellationToken.None,
-            actualTimeout);
+        try
+        {
+            return targetDispatcher.Invoke(
+                action,
+                DispatcherPriority.Normal,
+                CancellationToken.None,
+                actualTimeout);
+        }
+        catch (InvalidOperationException ex) when (IsDispatcherShuttingDown(targetDispatcher))
+        {
+            return CreateDispatcherUnavailableResult<T>(
+                "WPF dispatcher unavailable because it is shutting down; analyzer action was not executed.",
+                ex);
+        }
     }
 
     /// <summary>
     /// Execute a void action on the specified dispatcher with optional timeout.
-    /// Falls back to direct execution when dispatcher is unavailable.
+    /// Throws a clear dispatcher unavailable error when the action cannot be marshalled safely.
     /// </summary>
     protected void InvokeOnDispatcher(Dispatcher? dispatcher, Action action, TimeSpan? timeout = null)
     {
-        if (dispatcher == null || dispatcher.CheckAccess())
+        if (TryGetDispatcherUnavailableMessage(dispatcher, out var unavailableMessage))
+        {
+            throw CreateDispatcherUnavailableException(unavailableMessage);
+        }
+
+        var targetDispatcher = dispatcher!;
+        bool hasAccess;
+        try
+        {
+            hasAccess = targetDispatcher.CheckAccess();
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw CreateDispatcherUnavailableException(
+                "WPF dispatcher unavailable because access could not be validated; analyzer action was not executed.",
+                ex);
+        }
+
+        if (hasAccess)
         {
             action();
             return;
         }
 
         var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
-        dispatcher.Invoke(
-            action,
-            DispatcherPriority.Normal,
-            CancellationToken.None,
-            actualTimeout);
+        try
+        {
+            targetDispatcher.Invoke(
+                action,
+                DispatcherPriority.Normal,
+                CancellationToken.None,
+                actualTimeout);
+        }
+        catch (InvalidOperationException ex) when (IsDispatcherShuttingDown(targetDispatcher))
+        {
+            throw CreateDispatcherUnavailableException(
+                "WPF dispatcher unavailable because it is shutting down; analyzer action was not executed.",
+                ex);
+        }
+    }
+
+    private static bool TryGetDispatcherUnavailableMessage(
+        Dispatcher? dispatcher,
+        out string message)
+    {
+        if (dispatcher == null)
+        {
+            message = "WPF dispatcher unavailable; analyzer action was not executed because running WPF object access on the pipe thread is unsafe.";
+            return true;
+        }
+
+        if (dispatcher.HasShutdownFinished)
+        {
+            message = "WPF dispatcher unavailable because shutdown has finished; analyzer action was not executed.";
+            return true;
+        }
+
+        if (dispatcher.HasShutdownStarted)
+        {
+            message = "WPF dispatcher unavailable because shutdown has started; analyzer action was not executed.";
+            return true;
+        }
+
+        message = string.Empty;
+        return false;
+    }
+
+    private static bool IsDispatcherShuttingDown(Dispatcher dispatcher)
+    {
+        return dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished;
+    }
+
+    private static T CreateDispatcherUnavailableResult<T>(string message, Exception? innerException = null)
+    {
+        var exception = CreateDispatcherUnavailableException(message, innerException);
+        var errorPayload = ToolErrorFactory.OperationFailed(
+            "access WPF dispatcher",
+            exception,
+            "Retry after the target UI dispatcher is available, or reconnect to the process before accessing WPF objects.",
+            new { dispatcherUnavailable = true });
+
+        if (typeof(T).IsAssignableFrom(typeof(ToolErrorPayload)))
+        {
+            return (T)(object)errorPayload;
+        }
+
+        if (TryCreateWrappedToolErrorResult(errorPayload, out T wrappedResult))
+        {
+            return wrappedResult;
+        }
+
+        throw exception;
+    }
+
+    private static bool TryCreateWrappedToolErrorResult<T>(ToolErrorPayload payload, out T result)
+    {
+        foreach (var constructor in typeof(T).GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        {
+            var parameters = constructor.GetParameters();
+            if (parameters.Length == 0
+                || !parameters[0].ParameterType.IsAssignableFrom(typeof(ToolErrorPayload))
+                || parameters.Skip(1).Any(static parameter => !CanAcceptNull(parameter.ParameterType)))
+            {
+                continue;
+            }
+
+            var arguments = new object?[parameters.Length];
+            arguments[0] = payload;
+            result = (T)constructor.Invoke(arguments);
+            return true;
+        }
+
+        result = default!;
+        return false;
+    }
+
+    private static bool CanAcceptNull(Type type)
+    {
+        return !type.IsValueType || Nullable.GetUnderlyingType(type) != null;
+    }
+
+    private static InvalidOperationException CreateDispatcherUnavailableException(
+        string message,
+        Exception? innerException = null)
+    {
+        return innerException == null
+            ? new InvalidOperationException(message)
+            : new InvalidOperationException(message, innerException);
     }
 
     /// <summary>

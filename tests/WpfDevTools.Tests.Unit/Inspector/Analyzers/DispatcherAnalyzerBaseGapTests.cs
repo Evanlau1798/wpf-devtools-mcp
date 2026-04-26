@@ -2,11 +2,15 @@ using Xunit;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using System;
+using System.Text.Json;
+using System.Threading;
+using System.Windows.Threading;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public class DispatcherAnalyzerBaseGapTests
 {
+    private sealed record WrappedAnalyzerResult(object Result, object? Session);
 
     private class TestableAnalyzer : DispatcherAnalyzerBase
     {
@@ -18,6 +22,16 @@ public class DispatcherAnalyzerBaseGapTests
         public void TestInvokeOnUIThread(Action action, TimeSpan? timeout = null)
         {
             InvokeOnUIThread(action, timeout);
+        }
+
+        public T TestInvokeOnDispatcher<T>(Dispatcher? dispatcher, Func<T> action, TimeSpan? timeout = null)
+        {
+            return InvokeOnDispatcher(dispatcher, action, timeout);
+        }
+
+        public void TestInvokeOnDispatcher(Dispatcher? dispatcher, Action action, TimeSpan? timeout = null)
+        {
+            InvokeOnDispatcher(dispatcher, action, timeout);
         }
 
         public bool TestIsOnUIThread()
@@ -40,98 +54,172 @@ public class DispatcherAnalyzerBaseGapTests
     }
 
     [Fact]
-    public void InvokeOnUIThread_Func_NoApplication_ShouldExecuteDirectly()
-    {
-        // Arrange
-        var analyzer = new TestableAnalyzer();
-        var executed = false;
-
-        // Act - when Application.Current is null, action executes directly
-        var result = analyzer.TestInvokeOnUIThread(() =>
-        {
-            executed = true;
-            return 42;
-        });
-
-        // Assert
-        executed.Should().BeTrue();
-        result.Should().Be(42);
-    }
-
-    [Fact]
-    public void InvokeOnUIThread_Action_NoApplication_ShouldExecuteDirectly()
-    {
-        // Arrange
-        var analyzer = new TestableAnalyzer();
-        var executed = false;
-
-        // Act - when Application.Current is null, action executes directly
-        analyzer.TestInvokeOnUIThread(() => executed = true);
-
-        // Assert
-        executed.Should().BeTrue();
-    }
-
-    [Fact]
-    public void InvokeOnUIThread_Func_NoApplication_WithTimeout_ShouldExecuteDirectly()
-    {
-        // Arrange
-        var analyzer = new TestableAnalyzer();
-
-        // Act - timeout is ignored when Application.Current is null
-        var result = analyzer.TestInvokeOnUIThread(
-            () => "test_value",
-            TimeSpan.FromSeconds(5));
-
-        // Assert
-        result.Should().Be("test_value");
-    }
-
-    [Fact]
-    public void InvokeOnUIThread_Action_NoApplication_WithTimeout_ShouldExecuteDirectly()
+    public void InvokeOnDispatcher_Func_NullDispatcher_ShouldReturnStructuredUnavailableWithoutExecuting()
     {
         // Arrange
         var analyzer = new TestableAnalyzer();
         var executed = false;
 
         // Act
-        analyzer.TestInvokeOnUIThread(
+        var result = analyzer.TestInvokeOnDispatcher<object>(null, () =>
+        {
+            executed = true;
+            return "pipe-thread fallback";
+        });
+
+        // Assert
+        executed.Should().BeFalse();
+        AssertDispatcherUnavailable(result);
+    }
+
+    [Fact]
+    public void InvokeOnDispatcher_Action_NullDispatcher_ShouldThrowWithoutExecuting()
+    {
+        // Arrange
+        var analyzer = new TestableAnalyzer();
+        var executed = false;
+
+        // Act
+        var act = () => analyzer.TestInvokeOnDispatcher(null, () => executed = true);
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*dispatcher*unavailable*");
+        executed.Should().BeFalse();
+    }
+
+    [Fact]
+    public void InvokeOnDispatcher_Func_NullDispatcher_WithTimeout_ShouldReturnStructuredUnavailable()
+    {
+        // Arrange
+        var analyzer = new TestableAnalyzer();
+
+        // Act
+        var result = analyzer.TestInvokeOnDispatcher<object>(
+            null,
+            () => "test_value",
+            TimeSpan.FromSeconds(5));
+
+        // Assert
+        AssertDispatcherUnavailable(result);
+    }
+
+    [Fact]
+    public void InvokeOnDispatcher_Action_NullDispatcher_WithTimeout_ShouldThrowWithoutExecuting()
+    {
+        // Arrange
+        var analyzer = new TestableAnalyzer();
+        var executed = false;
+
+        // Act
+        var act = () => analyzer.TestInvokeOnDispatcher(
+            null,
             () => executed = true,
             TimeSpan.FromSeconds(5));
 
         // Assert
-        executed.Should().BeTrue();
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*dispatcher*unavailable*");
+        executed.Should().BeFalse();
     }
 
     [Fact]
-    public void InvokeOnUIThread_Func_NoApplication_ShouldPropagateException()
+    public void InvokeOnDispatcher_Func_NullDispatcher_ShouldNotExecuteBodyException()
     {
         // Arrange
         var analyzer = new TestableAnalyzer();
 
-        // Act & Assert - exception should propagate when no Application.Current
-        var act = () => analyzer.TestInvokeOnUIThread<int>(() =>
+        // Act
+        var result = analyzer.TestInvokeOnDispatcher<object>(null, () =>
+        {
+            throw new InvalidOperationException("test error");
+        });
+
+        // Assert
+        AssertDispatcherUnavailable(result);
+    }
+
+    [Fact]
+    public void InvokeOnDispatcher_Func_NullDispatcher_WithWrappedResult_ShouldReturnStructuredUnavailable()
+    {
+        var analyzer = new TestableAnalyzer();
+        var executed = false;
+
+        var result = analyzer.TestInvokeOnDispatcher<WrappedAnalyzerResult>(null, () =>
+        {
+            executed = true;
+            return new WrappedAnalyzerResult("fallback", new object());
+        });
+
+        executed.Should().BeFalse();
+        result.Session.Should().BeNull();
+        AssertDispatcherUnavailable(result.Result);
+    }
+
+    [Fact]
+    public void InvokeOnDispatcher_Action_NullDispatcher_ShouldNotExecuteBodyException()
+    {
+        // Arrange
+        var analyzer = new TestableAnalyzer();
+
+        // Act
+        var act = () => analyzer.TestInvokeOnDispatcher(null, () =>
         {
             throw new InvalidOperationException("test error");
         });
 
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("test error");
+            .WithMessage("*dispatcher*unavailable*");
     }
 
     [Fact]
-    public void InvokeOnUIThread_Action_NoApplication_ShouldPropagateException()
+    public void InvokeOnDispatcher_Func_ShutdownDispatcherOnOwningThread_ShouldNotExecuteBody()
     {
-        // Arrange
-        var analyzer = new TestableAnalyzer();
+        object? result = null;
+        Exception? threadException = null;
+        var executed = false;
+        using var finished = new ManualResetEventSlim(initialState: false);
 
-        // Act & Assert
-        var act = () => analyzer.TestInvokeOnUIThread(() =>
+        var thread = new Thread(() =>
         {
-            throw new InvalidOperationException("test error");
-        });
+            try
+            {
+                var analyzer = new TestableAnalyzer();
+                var dispatcher = Dispatcher.CurrentDispatcher;
+                dispatcher.InvokeShutdown();
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("test error");
+                result = analyzer.TestInvokeOnDispatcher<object>(dispatcher, () =>
+                {
+                    executed = true;
+                    return "shutdown fallback";
+                });
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+            }
+            finally
+            {
+                finished.Set();
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+
+        finished.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        thread.Join(TimeSpan.FromSeconds(5)).Should().BeTrue();
+
+        threadException.Should().BeNull();
+        executed.Should().BeFalse();
+        AssertDispatcherUnavailable(result!);
+    }
+
+    private static void AssertDispatcherUnavailable(object result)
+    {
+        var json = JsonSerializer.SerializeToElement(result, result.GetType());
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("OperationFailed");
+        json.GetProperty("error").GetString().Should().Contain("dispatcher");
+        json.GetProperty("hint").GetString().Should().Contain("dispatcher");
     }
 }

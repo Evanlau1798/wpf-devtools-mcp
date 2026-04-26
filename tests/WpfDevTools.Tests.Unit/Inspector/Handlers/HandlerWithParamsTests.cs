@@ -11,8 +11,8 @@ namespace WpfDevTools.Tests.Unit.Inspector.Handlers;
 /// <summary>
 /// Tests that exercise handler methods with valid parameters so that execution
 /// reaches the Task.Run lambdas and invokes the underlying analyzers.
-/// The analyzers gracefully degrade without a running WPF Application via
-/// DispatcherAnalyzerBase (Application.Current == null → execute directly).
+/// Dispatcher-dependent analyzers should return structured unavailable payloads
+/// instead of executing WPF object access without a usable UI dispatcher.
 /// </summary>
 public class HandlerWithParamsTests
 {

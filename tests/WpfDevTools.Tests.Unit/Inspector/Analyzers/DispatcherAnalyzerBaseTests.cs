@@ -4,6 +4,7 @@ using WpfDevTools.Inspector.Analyzers;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
@@ -23,6 +24,16 @@ public class DispatcherAnalyzerBaseTests
             InvokeOnUIThread(action, timeout);
         }
 
+        public T TestInvokeOnDispatcher<T>(Dispatcher? dispatcher, Func<T> action, TimeSpan? timeout = null)
+        {
+            return InvokeOnDispatcher(dispatcher, action, timeout);
+        }
+
+        public void TestInvokeOnDispatcher(Dispatcher? dispatcher, Action action, TimeSpan? timeout = null)
+        {
+            InvokeOnDispatcher(dispatcher, action, timeout);
+        }
+
         public bool TestIsOnUIThread()
         {
             return IsOnUIThread();
@@ -40,28 +51,32 @@ public class DispatcherAnalyzerBaseTests
     }
 
     [StaFact]
-    public void InvokeOnUIThread_WithFunc_ShouldExecuteAndReturnValue()
+    public void InvokeOnDispatcher_WhenOnDispatcherThread_ShouldExecuteAndReturnValue()
     {
         // Arrange
         var analyzer = new TestAnalyzer();
         var expectedValue = 42;
 
         // Act
-        var result = analyzer.TestInvokeOnUIThread(() => expectedValue);
+        var result = analyzer.TestInvokeOnDispatcher(
+            Dispatcher.CurrentDispatcher,
+            () => expectedValue);
 
         // Assert
         result.Should().Be(expectedValue);
     }
 
     [StaFact]
-    public void InvokeOnUIThread_WithAction_ShouldExecute()
+    public void InvokeOnDispatcher_WithAction_WhenOnDispatcherThread_ShouldExecute()
     {
         // Arrange
         var analyzer = new TestAnalyzer();
         var executed = false;
 
         // Act
-        analyzer.TestInvokeOnUIThread(() => executed = true);
+        analyzer.TestInvokeOnDispatcher(
+            Dispatcher.CurrentDispatcher,
+            () => executed = true);
 
         // Assert
         executed.Should().BeTrue();

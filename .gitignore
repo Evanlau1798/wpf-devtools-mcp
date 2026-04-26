@@ -53,6 +53,7 @@ docfx/zh-tw/agent-feedback/*.md
 !docfx/zh-tw/agent-feedback/template.md
 
 # Worktrees
+.worktree/
 .worktrees/
 .dotnet-home/
 

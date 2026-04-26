@@ -7,6 +7,25 @@ namespace WpfDevTools.Tests.Integration.E2E;
 public sealed class E2eTestHelpersLifecycleTests
 {
     [Fact]
+    public async Task DrainPendingEventsUntilEmptyAsync_WhenEventsRemain_ShouldContinueUntilEmpty()
+    {
+        var pendingCounts = new Queue<int>([2, 1, 0]);
+        var callCount = 0;
+
+        await E2eTestHelpers.DrainPendingEventsUntilEmptyAsync(() =>
+        {
+            callCount++;
+            return Task.FromResult(JsonSerializer.SerializeToElement(new
+            {
+                success = true,
+                pendingEventCount = pendingCounts.Dequeue()
+            }));
+        });
+
+        callCount.Should().Be(3);
+    }
+
+    [Fact]
     public void EnsureToolSucceeded_WhenCleanupIncompleteIsReported_ShouldThrowActionableResetFailure()
     {
         var result = JsonSerializer.SerializeToElement(new

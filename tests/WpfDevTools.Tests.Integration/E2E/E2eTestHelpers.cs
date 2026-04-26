@@ -16,6 +16,8 @@ public static class E2eTestHelpers
     private const string BasicControlsTabName = "BasicControlsTab";
     private const string ResetCommandTargetName = "NameTextBox";
     private const string ResetStateCommandName = "ResetStateCommand";
+    private const int ResetEventDrainMaxEvents = 200;
+    private const int ResetEventDrainMaxPasses = 10;
 
     /// <summary>
     /// Assert the E2E fixture is ready and connected.
@@ -220,13 +222,13 @@ public static class E2eTestHelpers
             });
         EnsureToolSucceeded(resetResult, "execute_command", ResetStateCommandName);
 
-        var drainResult = await client.CallToolAsync(
+        await DrainPendingEventsUntilEmptyAsync(() => client.CallToolAsync(
             "drain_events",
             new
             {
-                processId
-            });
-        EnsureToolSucceeded(drainResult, "drain_events", "pending event queue");
+                processId,
+                maxEvents = ResetEventDrainMaxEvents
+            }));
     }
 
     public static async Task ResetSharedSessionStateAsync(McpE2eFixture fixture)
@@ -269,5 +271,25 @@ public static class E2eTestHelpers
                 $"{toolName} reported cleanupIncomplete while resetting {target}: " +
                 $"{cleanupFailureType ?? "UnknownCleanupFailure"}: {cleanupFailureMessage ?? result.GetRawText()}");
         }
+    }
+
+    internal static async Task DrainPendingEventsUntilEmptyAsync(Func<Task<JsonElement>> drainEventsAsync)
+    {
+        JsonElement lastResult = default;
+        for (var attempt = 1; attempt <= ResetEventDrainMaxPasses; attempt++)
+        {
+            lastResult = await drainEventsAsync();
+            EnsureToolSucceeded(lastResult, "drain_events", "pending event queue");
+
+            if (!lastResult.TryGetProperty("pendingEventCount", out var pendingEventCount) ||
+                pendingEventCount.ValueKind != JsonValueKind.Number ||
+                pendingEventCount.GetInt32() == 0)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"drain_events did not empty the pending event queue after {ResetEventDrainMaxPasses} reset passes: {lastResult.GetRawText()}");
     }
 }

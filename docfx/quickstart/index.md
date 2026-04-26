@@ -35,9 +35,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 ### Manual release package
 
 1. Open [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
-2. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip`.
-3. Extract the archive.
-4. Run `run.bat` from the extracted folder.
+2. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` together with `SHA256SUMS.txt` and `release-assets.json`.
+3. Verify the archive with `SHA256SUMS.txt` and `release-assets.json` before extraction.
+4. Extract the archive.
+5. Run `run.bat` from the extracted folder.
 
 Before trusting the extracted package, keep the verified release sidecars beside the archive: `SHA256SUMS.txt` for the checksum and `release-assets.json` for the canonical release metadata. If the verified archive and those sidecars are no longer adjacent to the extracted package, set `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` (or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`) before launching `run.bat` so the local install still enforces an explicit signer pin.
 

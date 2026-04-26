@@ -32,9 +32,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 
 package-local 回退路徑：
 
-1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`。
-2. 解壓縮套件。
-3. 執行 `run.bat`。
+1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`、`SHA256SUMS.txt` 與 `release-assets.json`。
+2. 解壓前，先用 `SHA256SUMS.txt` 與 `release-assets.json` 驗證 archive。
+3. 解壓縮套件。
+4. 執行 `run.bat`。
 
 在信任解壓後的套件前，請保留與該 archive 相鄰且已驗證的 release sidecar：`SHA256SUMS.txt` 用於 checksum 驗證，`release-assets.json` 用於 canonical release metadata。如果解壓後的套件旁已沒有原始且已驗證的 archive 與 sidecar，請在執行 `run.bat` 前設定 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`（或 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`），讓本機安裝流程仍會強制要求明確的 signer pin。
 

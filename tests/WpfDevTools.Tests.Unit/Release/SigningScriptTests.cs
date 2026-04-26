@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Xunit;
@@ -7,6 +9,8 @@ namespace WpfDevTools.Tests.Unit.Release;
 [Collection("InstallerScripts")]
 public sealed class SigningScriptTests
 {
+    private const string TrustedSidecarSignerThumbprint = "0123456789ABCDEF0123456789ABCDEF01234567";
+
     [Fact]
     public void SignBinariesScript_ShouldAvoidPassingPfxPasswordsToSigntoolArguments()
     {
@@ -247,5 +251,74 @@ public sealed class SigningScriptTests
         content.Should().NotContain("DevPassword123!");
         content.Should().Contain("[Parameter(Mandatory)]",
             "development certificate generation should require an explicit password or equivalent caller input");
+    }
+
+    [Fact]
+    public void WriteReleaseSidecars_WhenPackageSignerIsOnlySelfDeclared_ShouldFailClosedInProduction()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            CreateReleaseArchiveWithSignerManifest(tempRoot, TrustedSidecarSignerThumbprint, "CN=Self Declared");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Write-ReleaseSidecars.ps1"),
+                ["-ArchiveRoot", tempRoot, "-Tag", "v1.2.3"],
+                new Dictionary<string, string?> { ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0" });
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("trusted signer");
+            result.Stderr.Should().Contain("self-declared");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void WriteReleaseSidecars_WithTrustedSignerPolicyFile_ShouldAnnotateIndependentTrustPolicy()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            CreateReleaseArchiveWithSignerManifest(tempRoot, TrustedSidecarSignerThumbprint, "CN=Trusted");
+            var policyPath = Path.Combine(tempRoot, "release-trust-policy.json");
+            File.WriteAllText(
+                policyPath,
+                JsonSerializer.Serialize(new { trustedSignerThumbprints = new[] { TrustedSidecarSignerThumbprint } }));
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Write-ReleaseSidecars.ps1"),
+                ["-ArchiveRoot", tempRoot, "-Tag", "v1.2.3", "-TrustPolicyPath", policyPath, "-OutputJson"],
+                new Dictionary<string, string?> { ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0" });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRoot, "release-assets.json")));
+            var trustPolicy = manifest.RootElement.GetProperty("assets")[0].GetProperty("signerTrustPolicy");
+            trustPolicy.GetProperty("source").GetString().Should().Be("policyFile");
+            trustPolicy.GetProperty("trustedSignerThumbprint").GetString().Should().Be(TrustedSidecarSignerThumbprint);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    private static void CreateReleaseArchiveWithSignerManifest(
+        string archiveRoot,
+        string signerThumbprint,
+        string signerSubject)
+    {
+        var archivePath = Path.Combine(archiveRoot, "release_1.2.3_win-x64.zip");
+        using var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
+        var entry = archive.CreateEntry("bin/manifest.json");
+        using var writer = new StreamWriter(entry.Open());
+        writer.Write(JsonSerializer.Serialize(new
+        {
+            signerThumbprint,
+            signerSubject,
+            signaturePolicy = "RequireAuthenticodeSignature"
+        }));
     }
 }

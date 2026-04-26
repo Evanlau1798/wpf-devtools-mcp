@@ -15,7 +15,7 @@ namespace WpfDevTools.Inspector;
 /// Excluded from code coverage: requires real DLL injection into a WPF process
 /// </summary>
 [ExcludeFromCodeCoverage]
-public static class Bootstrap
+public static partial class Bootstrap
 {
     private static volatile bool _isInitialized;
     private static int _isInitializing; // 0 = not initializing, 1 = initializing
@@ -360,11 +360,13 @@ public static class Bootstrap
 
     private static void LogInfo(string message)
     {
+        RecordInitializationLogInfo(message);
         LogToFile($"[INFO] {message}");
     }
 
     private static void LogError(string message)
     {
+        RecordInitializationLogError(message);
         LogToFile($"[ERROR] {message}");
     }
 
@@ -443,6 +445,7 @@ public static class Bootstrap
         DispatcherFinalizeTimeout = InspectorConfig.ShutdownTimeout;
         FileLogOptInEvaluator = IsTempFileLoggingOptedIn;
         FileLogAppendAction = AppendFileLogEntry;
+        ResetInitializationStatusForTesting();
     }
 
     private static void CleanupFailedInitialization(

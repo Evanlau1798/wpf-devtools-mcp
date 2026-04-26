@@ -2,11 +2,22 @@ using System.Windows;
 using System.Windows.Threading;
 using WpfDevTools.Inspector.Host;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.ExceptionServices;
 using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Inspector.Sdk;
+
+public sealed record InspectorSdkInitializationStatus(
+    string State,
+    bool IsInitialized,
+    int? ProcessId,
+    string? ErrorCode,
+    string? ErrorType,
+    string? ErrorMessage,
+    string? Hint,
+    DateTimeOffset UpdatedUtc);
 
 /// <summary>
 /// Opt-in SDK for WPF DevTools - enables inspection without DLL injection
@@ -26,6 +37,7 @@ public static class InspectorSdk
 
     public static Exception? LastInitializationError { get; private set; }
     public static Exception? LastShutdownError { get; private set; }
+    public static InspectorSdkInitializationStatus LastInitializationStatus { get; private set; } = CreateNotStartedStatus();
 
     /// <summary>
     /// Initialize the inspector SDK.
@@ -36,9 +48,14 @@ public static class InspectorSdk
     {
         LastInitializationError = null;
         LastShutdownError = null;
+        var pid = processId ?? Environment.ProcessId;
+        LastInitializationStatus = CreateInitializingStatus(pid);
 
         if (_isInitialized)
+        {
+            LastInitializationStatus = CreateInitializedStatus(pid);
             return;
+        }
 
         // Atomic check-and-set to prevent race condition (same pattern as Bootstrap.cs)
         if (Interlocked.CompareExchange(ref _isInitializing, 1, 0) != 0)
@@ -47,9 +64,10 @@ public static class InspectorSdk
         try
         {
             if (_isInitialized)
+            {
+                LastInitializationStatus = CreateInitializedStatus(pid);
                 return;
-
-            var pid = processId ?? Environment.ProcessId;
+            }
 
             // Must run on UI thread
             var dispatcher = DispatcherResolver();
@@ -64,6 +82,7 @@ public static class InspectorSdk
         catch (Exception ex)
         {
             LastInitializationError = ex;
+            LastInitializationStatus = CreateFailedStatus(pid, ex);
             System.Diagnostics.Debug.WriteLine($"Failed to initialize WpfDevTools Inspector SDK: {ex.Message}");
             Trace.TraceError($"Failed to initialize WpfDevTools Inspector SDK: {ex}");
         }
@@ -92,6 +111,7 @@ public static class InspectorSdk
             _certificateManager = certificateManager;
             _host = host;
             _isInitialized = true;
+            LastInitializationStatus = CreateInitializedStatus(pid);
         }
         catch (Exception ex)
         {
@@ -138,6 +158,7 @@ public static class InspectorSdk
             _authenticationManager = null;
             _certificateManager = null;
             _isInitialized = false;
+            LastInitializationStatus = CreateNotStartedStatus();
 
             CleanupHostResources(host, authenticationManager);
         }
@@ -157,6 +178,107 @@ public static class InspectorSdk
     /// Gets whether the SDK is initialized
     /// </summary>
     public static bool IsInitialized => _isInitialized;
+
+    private static InspectorSdkInitializationStatus CreateNotStartedStatus() => new(
+        "NotStarted",
+        false,
+        null,
+        null,
+        null,
+        null,
+        null,
+        DateTimeOffset.UtcNow);
+
+    private static InspectorSdkInitializationStatus CreateInitializingStatus(int processId) => new(
+        "Initializing",
+        false,
+        processId,
+        null,
+        null,
+        null,
+        null,
+        DateTimeOffset.UtcNow);
+
+    private static InspectorSdkInitializationStatus CreateInitializedStatus(int processId) => new(
+        "Initialized",
+        true,
+        processId,
+        null,
+        null,
+        null,
+        null,
+        DateTimeOffset.UtcNow);
+
+    private static InspectorSdkInitializationStatus CreateFailedStatus(int processId, Exception exception) => new(
+        "Failed",
+        false,
+        processId,
+        GetInitializationErrorCode(exception),
+        exception.GetType().Name,
+        exception.Message,
+        GetInitializationHint(exception),
+        DateTimeOffset.UtcNow);
+
+    private static string GetInitializationErrorCode(Exception exception)
+    {
+        if (exception is FormatException)
+        {
+            return "SdkAuthenticationSecretInvalid";
+        }
+
+        if (exception is IOException)
+        {
+            return "SdkCertificateDirectoryInvalid";
+        }
+
+        if (exception is TimeoutException)
+        {
+            return "SdkDispatcherTimeout";
+        }
+
+        if (exception is InvalidOperationException &&
+            (ContainsOrdinal(exception.Message, "WPFDEVTOOLS_AUTH_SECRET") ||
+             ContainsOrdinal(exception.Message, "WPFDEVTOOLS_CERT_DIR") ||
+             ContainsOrdinal(exception.Message, "set together")))
+        {
+            return "SdkTransportConfigurationInvalid";
+        }
+
+        if (exception is InvalidOperationException && ContainsOrdinal(exception.Message, "dispatcher"))
+        {
+            return "SdkDispatcherUnavailable";
+        }
+
+        return "SdkInitializationFailed";
+    }
+
+    private static string GetInitializationHint(Exception exception)
+    {
+        if (string.Equals(GetInitializationErrorCode(exception), "SdkTransportConfigurationInvalid", StringComparison.Ordinal))
+        {
+            return "set both WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR to matching values before calling InspectorSdk.Initialize().";
+        }
+
+        if (exception is FormatException)
+        {
+            return "Provide WPFDEVTOOLS_AUTH_SECRET as a base64-encoded 32-byte shared secret.";
+        }
+
+        if (exception is IOException)
+        {
+            return "Provide WPFDEVTOOLS_CERT_DIR as a writable absolute directory shared with the MCP server.";
+        }
+
+        if (exception is TimeoutException)
+        {
+            return "Ensure the target-side WPF dispatcher can process InspectorSdk.Initialize() within the UI-thread timeout.";
+        }
+
+        return "Inspect ErrorType and ErrorMessage, then retry initialization after correcting the target-side SDK configuration.";
+    }
+
+    private static bool ContainsOrdinal(string value, string expected)
+        => value.Contains(expected, StringComparison.Ordinal);
 
     internal static void CleanupHostResources(InspectorHost? host, AuthenticationManager? authenticationManager)
     {

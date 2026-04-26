@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory)] [string]$ArchiveRoot,
     [Parameter(Mandatory)] [string]$Tag,
+    [string]$TrustedSignerThumbprint,
+    [string]$TrustPolicyPath,
     [switch]$OutputJson
 )
 
@@ -16,6 +18,127 @@ function Normalize-SignerThumbprint {
     }
 
     return $Thumbprint.Replace(' ', '').ToUpperInvariant()
+}
+
+function Test-InstallerTestModeEnabled {
+    return [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)
+}
+
+function Test-LocalArchiveMetadataTrustOverrideEnabled {
+    return (Test-InstallerTestModeEnabled) -and
+        [string]::Equals([string]$env:WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA, '1', [System.StringComparison]::Ordinal)
+}
+
+function Assert-ValidSignerThumbprint {
+    param(
+        [Parameter(Mandatory)] [string]$Thumbprint,
+        [Parameter(Mandatory)] [string]$Source
+    )
+
+    if ($Thumbprint -notmatch '^[A-F0-9]{40}$') {
+        throw "Release trust policy '$Source' must provide a 40-character hexadecimal signer thumbprint."
+    }
+}
+
+function Resolve-ReleaseTrustPolicy {
+    param(
+        [string]$TrustedThumbprint,
+        [string]$PolicyPath
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($PolicyPath)) {
+        if (-not (Test-Path $PolicyPath)) {
+            throw "Release trust policy file was not found: $PolicyPath"
+        }
+
+        $resolvedPolicyPath = (Resolve-Path $PolicyPath).Path
+        $policy = Get-Content -Path $resolvedPolicyPath -Raw | ConvertFrom-Json
+        $policyThumbprints = @(
+            $policy.trustedSignerThumbprints |
+                ForEach-Object { Normalize-SignerThumbprint -Thumbprint ([string]$_) } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+
+        if ($policyThumbprints.Count -eq 0) {
+            throw "Release trust policy file must declare trustedSignerThumbprints: $resolvedPolicyPath"
+        }
+
+        foreach ($thumbprint in $policyThumbprints) {
+            Assert-ValidSignerThumbprint -Thumbprint $thumbprint -Source $resolvedPolicyPath
+        }
+
+        return [ordered]@{
+            Source = 'policyFile'
+            PolicyPath = $resolvedPolicyPath
+            TrustedThumbprints = @($policyThumbprints | Sort-Object -Unique)
+        }
+    }
+
+    $explicitThumbprint = Normalize-SignerThumbprint -Thumbprint $TrustedThumbprint
+    $source = 'parameter'
+    if ([string]::IsNullOrWhiteSpace($explicitThumbprint)) {
+        $explicitThumbprint = Normalize-SignerThumbprint -Thumbprint ([string]$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)
+        $source = 'WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT'
+    }
+
+    if ([string]::IsNullOrWhiteSpace($explicitThumbprint)) {
+        return [ordered]@{
+            Source = $null
+            PolicyPath = $null
+            TrustedThumbprints = @()
+        }
+    }
+
+    Assert-ValidSignerThumbprint -Thumbprint $explicitThumbprint -Source $source
+    return [ordered]@{
+        Source = $source
+        PolicyPath = $null
+        TrustedThumbprints = @($explicitThumbprint)
+    }
+}
+
+function Assert-ArchiveSignerTrustPolicy {
+    param(
+        [object]$SignerMetadata,
+        [Parameter(Mandatory)] [object]$TrustPolicy,
+        [Parameter(Mandatory)] [string]$ArchiveName
+    )
+
+    if ($null -eq $SignerMetadata) {
+        return $null
+    }
+
+    $signerThumbprint = Normalize-SignerThumbprint -Thumbprint ([string]$SignerMetadata.signerThumbprint)
+    if ([string]::IsNullOrWhiteSpace($signerThumbprint)) {
+        throw "Release signer metadata for '$ArchiveName' is self-declared but does not include a trusted signer thumbprint."
+    }
+
+    if (Test-LocalArchiveMetadataTrustOverrideEnabled) {
+        return [ordered]@{
+            source = 'installerTestMode'
+            trustedSignerThumbprint = $signerThumbprint
+        }
+    }
+
+    $trustedThumbprints = @($TrustPolicy.TrustedThumbprints)
+    if ($trustedThumbprints.Count -eq 0) {
+        throw "Release signer metadata for '$ArchiveName' is self-declared; provide a trusted signer thumbprint or policy file before generating release sidecars."
+    }
+
+    if ($trustedThumbprints -notcontains $signerThumbprint) {
+        throw "Release signer metadata for '$ArchiveName' reported signer '$signerThumbprint', which is not allowed by the trusted signer policy."
+    }
+
+    $policy = [ordered]@{
+        source = [string]$TrustPolicy.Source
+        trustedSignerThumbprint = $signerThumbprint
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$TrustPolicy.PolicyPath)) {
+        $policy.policyPath = [string]$TrustPolicy.PolicyPath
+    }
+
+    return $policy
 }
 
 function Get-ArchiveSignerMetadata {
@@ -72,6 +195,7 @@ function Get-ReleaseArchives {
 }
 
 $archiveRootFullPath = (Resolve-Path $ArchiveRoot).Path
+$trustPolicy = Resolve-ReleaseTrustPolicy -TrustedThumbprint $TrustedSignerThumbprint -PolicyPath $TrustPolicyPath
 $archives = Get-ReleaseArchives -Root $archiveRootFullPath
 if ($archives.Count -eq 0) {
     throw "No release_*.zip archives were found under: $archiveRootFullPath"
@@ -80,12 +204,14 @@ if ($archives.Count -eq 0) {
 $assets = foreach ($archive in $archives) {
     $hash = (Get-FileHash -Path $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     $signerMetadata = Get-ArchiveSignerMetadata -ArchivePath $archive.FullName
+    $signerTrustPolicy = Assert-ArchiveSignerTrustPolicy -SignerMetadata $signerMetadata -TrustPolicy $trustPolicy -ArchiveName $archive.Name
     [pscustomobject]@{
         name = $archive.Name
         sizeBytes = $archive.Length
         sha256 = $hash
         signerThumbprint = if ($null -ne $signerMetadata) { [string]$signerMetadata.signerThumbprint } else { $null }
         signerSubject = if ($null -ne $signerMetadata) { [string]$signerMetadata.signerSubject } else { $null }
+        signerTrustPolicy = $signerTrustPolicy
     }
 }
 

@@ -125,6 +125,37 @@ public abstract partial class PipeConnectedToolBase
         };
     }
 
+    internal static ToolErrorPayload CreatePipeTransportResetError(int processId, string message)
+    {
+        var suggestedAction = $"Reconnect to process {processId} and re-read target state before retrying.";
+        const string hint = "The pipe transport reset during an Inspector request; the session should be treated as stale.";
+
+        return new ToolErrorPayload
+        {
+            Error = message,
+            ErrorCode = "TransportReset",
+            Hint = hint,
+            ErrorData = new
+            {
+                processId,
+                stateAfterTimeoutUnknown = true,
+                requiresReconnect = true
+            },
+            Recovery = new ToolErrorRecovery
+            {
+                Hint = hint,
+                SuggestedAction = suggestedAction,
+                RequiresReconnect = true,
+                StateAfterTimeoutUnknown = true,
+                ProcessId = processId
+            },
+            SuggestedAction = suggestedAction,
+            RequiresReconnect = true,
+            StateAfterTimeoutUnknown = true,
+            ProcessId = processId
+        };
+    }
+
     private static ToolErrorRecovery? CreateRecovery(
         string? hint,
         string? suggestedAction,

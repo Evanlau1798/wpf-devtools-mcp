@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Utilities;
@@ -225,6 +224,14 @@ public abstract partial class PipeConnectedToolBase
         {
             return CreatePipeTimeoutError(processId, ex.Message, requiresReconnect: !client.IsConnected);
         }
+        catch (System.IO.IOException ex)
+        {
+            return CreatePipeTransportResetError(processId, ex.Message);
+        }
+        catch (InvalidOperationException ex) when (!client.IsConnected)
+        {
+            return CreatePipeTransportResetError(processId, ex.Message);
+        }
 
         _sessionManager.UpdateLastActivity(processId);
 
@@ -286,7 +293,11 @@ public abstract partial class PipeConnectedToolBase
             var drainPayload = ToJsonElement(drainResult);
             if (!IsSuccessfulPayload(drainPayload))
             {
-                return result;
+                return MergePiggybackFailureDiagnostics(
+                    result,
+                    ResolvePiggybackFailureType(drainPayload),
+                    GetStringProperty(drainPayload, "errorCode"),
+                    GetStringProperty(drainPayload, "error"));
             }
 
             _sessionManager.TryPeekPendingEventReplay(processId, replayLock.SessionGeneration, out var existingReplayPayload);
@@ -337,9 +348,13 @@ public abstract partial class PipeConnectedToolBase
             _sessionManager.SavePendingEventReplay(processId, replayLock.SessionGeneration, drainPayload);
             return MergePendingEvents(payload, drainPayload);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return result;
+            return MergePiggybackFailureDiagnostics(
+                result,
+                ResolvePiggybackFailureType(ex),
+                null,
+                ex.Message);
         }
     }
 
@@ -443,56 +458,10 @@ public abstract partial class PipeConnectedToolBase
             ? value
             : 0;
 
-    private static object MergePendingEvents(JsonElement primaryPayload, JsonElement drainPayload)
-    {
-        if (primaryPayload.ValueKind != JsonValueKind.Object)
-        {
-            return primaryPayload;
-        }
-
-        var buffer = new ArrayBufferWriter<byte>();
-        using var writer = new Utf8JsonWriter(buffer);
-        writer.WriteStartObject();
-
-        foreach (var property in primaryPayload.EnumerateObject())
-        {
-            if (property.NameEquals("pendingEvents")
-                || property.NameEquals("pendingEventCount")
-                || property.NameEquals("droppedEventCount"))
-            {
-                continue;
-            }
-
-            property.WriteTo(writer);
-        }
-
-        if (drainPayload.TryGetProperty("pendingEventCount", out var pendingEventCount))
-        {
-            writer.WritePropertyName("pendingEventCount");
-            pendingEventCount.WriteTo(writer);
-        }
-
-        if (drainPayload.TryGetProperty("droppedEventCount", out var droppedEventCount))
-        {
-            writer.WritePropertyName("droppedEventCount");
-            droppedEventCount.WriteTo(writer);
-        }
-
-        WriteCleanupDiagnostics(writer, drainPayload);
-
-        writer.WriteString("pendingEventsOrigin", "piggybackSharedBuffer");
-        writer.WriteBoolean("pendingEventsMayIncludePriorContext", true);
-
-        if (drainPayload.TryGetProperty("pendingEvents", out var pendingEvents))
-        {
-            writer.WritePropertyName("pendingEvents");
-            WritePiggybackPendingEvents(writer, pendingEvents);
-        }
-
-        writer.WriteEndObject();
-        writer.Flush();
-
-        using var document = JsonDocument.Parse(buffer.WrittenMemory);
-        return document.RootElement.Clone();
-    }
+    private static string? GetStringProperty(JsonElement payload, string propertyName) =>
+        payload.ValueKind == JsonValueKind.Object
+        && payload.TryGetProperty(propertyName, out var property)
+        && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
 }

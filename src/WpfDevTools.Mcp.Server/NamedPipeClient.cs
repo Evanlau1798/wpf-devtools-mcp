@@ -26,7 +26,7 @@ internal enum NamedPipeConnectFailure
     IncompatibleHost = 6
 }
 
-public sealed class NamedPipeClient : IDisposable
+public sealed partial class NamedPipeClient : IDisposable
 {
     private static readonly TimeSpan DisposeSemaphoreWaitTimeout = TimeSpan.FromMilliseconds(250);
 
@@ -353,11 +353,13 @@ public sealed class NamedPipeClient : IDisposable
                 });
 
 #if NET48
-            await sslStream.AuthenticateAsClientAsync(
-                "WpfDevTools-Inspector",
-                null,
-                SslProtocols.Tls12,
-                checkCertificateRevocation: false);
+            await WaitForConnectPhaseAsync(
+                sslStream.AuthenticateAsClientAsync(
+                    "WpfDevTools-Inspector",
+                    null,
+                    SslProtocols.Tls12,
+                    checkCertificateRevocation: false),
+                cancellationToken).ConfigureAwait(false);
 #else
             var sslOptions = new SslClientAuthenticationOptions
             {
@@ -365,7 +367,9 @@ public sealed class NamedPipeClient : IDisposable
                 EnabledSslProtocols = SslProtocols.Tls12,
                 CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck
             };
-            await sslStream.AuthenticateAsClientAsync(sslOptions, cancellationToken).ConfigureAwait(false);
+            await WaitForConnectPhaseAsync(
+                sslStream.AuthenticateAsClientAsync(sslOptions, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
 #endif
             return sslStream;
         }
@@ -417,7 +421,9 @@ public sealed class NamedPipeClient : IDisposable
             var totalRead = 0;
             while (totalRead < 32)
             {
-                var read = await pipe.ReadAsync(challenge, totalRead, 32 - totalRead, cancellationToken).ConfigureAwait(false);
+                var read = await WaitForConnectPhaseAsync(
+                    pipe.ReadAsync(challenge, totalRead, 32 - totalRead, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
                 if (read == 0)
                 {
                     SetLastConnectFailure(NamedPipeConnectFailure.AuthenticationFailed);
@@ -441,12 +447,18 @@ public sealed class NamedPipeClient : IDisposable
             }
 
             // 3. Send response
-            await pipe.WriteAsync(response, 0, response.Length, cancellationToken).ConfigureAwait(false);
-            await pipe.FlushAsync(cancellationToken).ConfigureAwait(false);
+            await WaitForConnectPhaseAsync(
+                pipe.WriteAsync(response, 0, response.Length, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+            await WaitForConnectPhaseAsync(
+                pipe.FlushAsync(cancellationToken),
+                cancellationToken).ConfigureAwait(false);
 
             // 4. Read 1-byte result from server (1=success, 0=failure)
             var resultBuf = new byte[1];
-            var resultRead = await pipe.ReadAsync(resultBuf, 0, 1, cancellationToken).ConfigureAwait(false);
+            var resultRead = await WaitForConnectPhaseAsync(
+                pipe.ReadAsync(resultBuf, 0, 1, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
             if (resultRead == 0)
             {
                 SetLastConnectFailure(NamedPipeConnectFailure.AuthenticationFailed);

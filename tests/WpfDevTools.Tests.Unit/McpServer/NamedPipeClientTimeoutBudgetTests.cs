@@ -48,6 +48,63 @@ public class NamedPipeClientTimeoutBudgetTests
     }
 
     [Fact]
+    public async Task ConnectAsync_WithAuthenticatedClientAndSilentAuthPipe_ShouldRespectExplicitAuthTimeoutBudget()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var authManager = new AuthenticationManager(() => secret);
+        using var serverLifetime = new CancellationTokenSource();
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync(serverLifetime.Token);
+            await Task.Delay(Timeout.InfiniteTimeSpan, serverLifetime.Token);
+        });
+
+        using var client = new NamedPipeClient(
+            pid,
+            pipeName,
+            authManager,
+            certManager: null,
+            enforceHostCompatibilityValidation: false);
+
+        var sw = Stopwatch.StartNew();
+        var connected = await client.ConnectAsync(TimeSpan.FromMilliseconds(150), maxRetries: 1);
+        sw.Stop();
+
+        serverLifetime.Cancel();
+        await serverTask.IgnoreExceptionsAsync();
+
+        connected.Should().BeFalse();
+        client.LastConnectFailure.Should().Be(NamedPipeConnectFailure.Timeout);
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(800),
+            "auth read/write phases must be guarded by an explicit budget even when the underlying pipe operation ignores cancellation");
+    }
+
+    [Fact]
+    public async Task ConnectPhaseTimeoutGuard_WhenNet48StyleOperationIgnoresCancellation_ShouldStopAtTheBudget()
+    {
+        var neverCompletes = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        var sw = Stopwatch.StartNew();
+        Func<Task> act = () => NamedPipeClient.WaitForConnectPhaseAsync(neverCompletes.Task, timeout.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        sw.Stop();
+
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(800),
+            "NET48-style AuthenticateAsClientAsync/read/write tasks do not provide reliable cancellation overloads");
+    }
+
+    [Fact]
     public async Task Dispose_WithInFlightRequest_ShouldCompleteBeforeRequestTimeout()
     {
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();

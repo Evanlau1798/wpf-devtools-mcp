@@ -197,6 +197,105 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         result.GetProperty("errorCount").GetInt32().Should().Be(0);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenPiggybackDrainReturnsNonSuccessPayload_ShouldKeepPrimarySuccessWithDiagnostics()
+    {
+        const int processId = 51046;
+        using var connected = await ConnectedBindingErrorsSession.CreateAsync(
+            processId,
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                errorCount = 0,
+                errors = Array.Empty<object>()
+            }),
+            JsonSerializer.Serialize(new
+            {
+                success = false,
+                error = "drain failed",
+                errorCode = "Timeout"
+            }));
+        var tool = new GetBindingErrorsTool(connected.SessionManager);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new { processId }),
+            CancellationToken.None));
+
+        await connected.ServerTask;
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(0);
+        result.GetProperty("pendingEventsPiggybackFailed").GetBoolean().Should().BeTrue();
+        result.GetProperty("pendingEventsPiggybackFailureType").GetString().Should().Be("NonSuccessResponse");
+        result.GetProperty("pendingEventsMayRemainBuffered").GetBoolean().Should().BeTrue();
+        result.GetProperty("pendingEventsPiggybackSuggestedAction").GetString().Should().Contain("drain_events");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenPiggybackDrainTimesOut_ShouldKeepPrimarySuccessWithDiagnostics()
+    {
+        const int processId = 51047;
+        using var connected = await ConnectedBindingErrorsSession.CreateAsync(
+            processId,
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                errorCount = 0,
+                errors = Array.Empty<object>()
+            }));
+        var tool = new GetBindingErrorsTool(connected.SessionManager);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new { processId }),
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(0);
+        result.GetProperty("pendingEventsPiggybackFailed").GetBoolean().Should().BeTrue();
+        result.GetProperty("pendingEventsPiggybackFailureType").GetString().Should().Be("Timeout");
+        result.GetProperty("pendingEventsMayRemainBuffered").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenPiggybackDrainTransportResets_ShouldKeepPrimarySuccessWithDiagnostics()
+    {
+        const int processId = 51048;
+        using var connected = await ConnectedBindingErrorsSession.CreateAsync(
+            processId,
+            onRequestReceived: async (method, server) =>
+            {
+                if (string.Equals(method, "drain_events", StringComparison.Ordinal))
+                {
+                    await server.DisposeAsync();
+                }
+            },
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                errorCount = 0,
+                errors = Array.Empty<object>()
+            }),
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                pendingEventCount = 0,
+                droppedEventCount = 0
+            }));
+        var tool = new GetBindingErrorsTool(connected.SessionManager);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new { processId }),
+            CancellationToken.None));
+
+        await connected.ServerTask;
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(0);
+        result.GetProperty("pendingEventsPiggybackFailed").GetBoolean().Should().BeTrue();
+        result.GetProperty("pendingEventsPiggybackFailureType").GetString().Should().Be("TransportReset");
+        result.GetProperty("pendingEventsMayRemainBuffered").GetBoolean().Should().BeTrue();
+    }
+
     private sealed class ConnectedBindingErrorsSession(
         SessionManager sessionManager,
         NamedPipeServerStream server,
@@ -210,9 +309,22 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         public static Task<ConnectedBindingErrorsSession> CreateAsync(int processId, params string[] responses) =>
             CreateAsync(processId, onResponseWritten: null, responses);
 
+        public static Task<ConnectedBindingErrorsSession> CreateAsync(
+            int processId,
+            Func<string, NamedPipeServerStream, Task>? onRequestReceived,
+            params string[] responses) =>
+            CreateAsync(processId, onResponseWritten: null, onRequestReceived, responses);
+
         public static async Task<ConnectedBindingErrorsSession> CreateAsync(
             int processId,
             Action<string>? onResponseWritten,
+            params string[] responses) =>
+            await CreateAsync(processId, onResponseWritten, onRequestReceived: null, responses);
+
+        private static async Task<ConnectedBindingErrorsSession> CreateAsync(
+            int processId,
+            Action<string>? onResponseWritten,
+            Func<string, NamedPipeServerStream, Task>? onRequestReceived,
             params string[] responses)
         {
             var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
@@ -236,6 +348,10 @@ public sealed class GetBindingErrorsToolPendingEventsTests
                         var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
                         request.Should().NotBeNull();
                         requestMethods.Add(request!.Method);
+                        if (onRequestReceived is not null)
+                        {
+                            await onRequestReceived(request.Method, server);
+                        }
 
                         var response = new InspectorResponse
                         {

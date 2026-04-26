@@ -10,6 +10,11 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
 {
+    private const int MaxTraversalNodes = 512;
+    private const int MaxSemanticNodes = 128;
+    private const int MaxSummaryTextLength = 16 * 1024;
+    private const int MaxStringValueLength = 512;
+
     private readonly ElementFinder _elementFinder;
 
     /// <summary>
@@ -57,7 +62,8 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             var maxDepth = depth ?? 3;
             var rootElementId = _elementFinder.GenerateElementId(root);
             var rootType = root.GetType().Name;
-            var rootName = SceneSummaryElementHelpers.GetElementName(root);
+            var budget = new UiSummaryBudget();
+            var rootName = TruncateString(SceneSummaryElementHelpers.GetElementName(root), budget);
             var (scopeVisibility, isCurrentlyVisible) = SceneSummaryElementHelpers.GetScopeVisibilityMetadata(root);
             var nodes = summaryOnly ? null : new List<object>();
             var navigationNodes = summaryOnly ? new List<object>() : null;
@@ -65,7 +71,17 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
             var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
             var semanticNodeCount = 0;
 
-            Traverse(root, currentDepth: 0, maxDepth, traversalDepthMode, nodes, navigationNodes, summary, visited, ref semanticNodeCount);
+            Traverse(
+                root,
+                currentDepth: 0,
+                maxDepth,
+                traversalDepthMode,
+                nodes,
+                navigationNodes,
+                summary,
+                visited,
+                budget,
+                ref semanticNodeCount);
 
             return summaryOnly
                 ? new
@@ -79,6 +95,12 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                     scopeVisibility,
                     isCurrentlyVisible,
                     semanticNodeCount,
+                    traversalNodeCount = budget.TraversalNodeCount,
+                    omittedNodeCount = budget.OmittedNodeCount,
+                    omittedSemanticNodeCount = budget.OmittedSemanticNodeCount,
+                    truncated = budget.Truncated,
+                    truncationReasons = budget.TruncationReasons,
+                    payloadLimits = CreatePayloadLimits(),
                     summaryText = summary.ToString().TrimEnd(),
                     navigationNodes = navigationNodes ?? []
                 }
@@ -93,6 +115,12 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                     scopeVisibility,
                     isCurrentlyVisible,
                     semanticNodeCount,
+                    traversalNodeCount = budget.TraversalNodeCount,
+                    omittedNodeCount = budget.OmittedNodeCount,
+                    omittedSemanticNodeCount = budget.OmittedSemanticNodeCount,
+                    truncated = budget.Truncated,
+                    truncationReasons = budget.TruncationReasons,
+                    payloadLimits = CreatePayloadLimits(),
                     summaryText = summary.ToString().TrimEnd(),
                     nodes = nodes ?? []
                 };
@@ -108,9 +136,10 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         List<object>? navigationNodes,
         StringBuilder summary,
         HashSet<DependencyObject> visited,
+        UiSummaryBudget budget,
         ref int semanticNodeCount)
     {
-        if (currentDepth > maxDepth || !visited.Add(current))
+        if (currentDepth > maxDepth || !visited.Add(current) || !budget.TryTakeTraversalNode())
         {
             return;
         }
@@ -118,49 +147,76 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         if (SceneSummaryElementHelpers.IsSemanticElement(current)
             && (currentDepth > 0 || current is FrameworkElement))
         {
-            AppendSemanticNode(current, currentDepth, nodes, navigationNodes, summary, ref semanticNodeCount);
+            if (!AppendSemanticNode(current, currentDepth, nodes, navigationNodes, summary, budget, ref semanticNodeCount))
+            {
+                return;
+            }
         }
 
-        foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(current))
+        var children = SceneSummaryElementHelpers.GetSceneChildren(current);
+        for (var index = 0; index < children.Count; index++)
         {
+            if (budget.ShouldStopTraversal(semanticNodeCount, out var reason))
+            {
+                budget.OmitRemainingNodes(children.Count - index, reason);
+                break;
+            }
+
+            var child = children[index];
             var nextDepth = SceneSummaryElementHelpers.GetNextTraversalDepth(child, currentDepth, depthMode);
-            Traverse(child, nextDepth, maxDepth, depthMode, nodes, navigationNodes, summary, visited, ref semanticNodeCount);
+            Traverse(
+                child,
+                nextDepth,
+                maxDepth,
+                depthMode,
+                nodes,
+                navigationNodes,
+                summary,
+                visited,
+                budget,
+                ref semanticNodeCount);
         }
     }
 
-    private void AppendSemanticNode(
+    private bool AppendSemanticNode(
         DependencyObject element,
         int depth,
         List<object>? nodes,
         List<object>? navigationNodes,
         StringBuilder summary,
+        UiSummaryBudget budget,
         ref int semanticNodeCount)
     {
         if (element is not FrameworkElement frameworkElement)
         {
-            return;
+            return true;
         }
 
         var elementType = frameworkElement.GetType().Name;
-        var elementName = SceneSummaryElementHelpers.GetElementName(frameworkElement);
-        var text = SceneSummaryElementHelpers.GetDisplayText(frameworkElement);
+        var elementName = TruncateString(SceneSummaryElementHelpers.GetElementName(frameworkElement), budget);
+        var text = TruncateString(SceneSummaryElementHelpers.GetDisplayText(frameworkElement), budget);
         var annotations = SceneSummaryElementHelpers.GetAnnotations(frameworkElement);
         var kind = SceneSummaryElementHelpers.GetKind(frameworkElement);
-        var currentValue = SceneSummaryElementHelpers.GetCurrentValue(frameworkElement);
+        var currentValue = TruncatePayloadValue(SceneSummaryElementHelpers.GetCurrentValue(frameworkElement), budget);
 
         if (SceneSummaryElementHelpers.ShouldOmitSemanticNode(frameworkElement, kind, text, currentValue, annotations))
         {
-            return;
+            return true;
+        }
+
+        if (!budget.TryTakeSemanticNode(semanticNodeCount))
+        {
+            return false;
         }
 
         semanticNodeCount++;
-    var elementId = _elementFinder.GenerateElementId(frameworkElement);
+        var elementId = _elementFinder.GenerateElementId(frameworkElement);
 
         if (nodes != null)
         {
             nodes.Add(new
             {
-        elementId,
+                elementId,
                 elementType,
                 elementName,
                 kind,
@@ -185,6 +241,134 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
         var nameSegment = string.IsNullOrWhiteSpace(elementName) ? string.Empty : $" {elementName}";
         var textSegment = string.IsNullOrWhiteSpace(text) ? string.Empty : $" \"{text}\"";
         var annotationSegment = annotations.Count == 0 ? string.Empty : $" [{string.Join(", ", annotations)}]";
-        summary.AppendLine($"{indent}- {elementType}{nameSegment}{textSegment}{annotationSegment}");
+        AppendBoundedSummaryLine(
+            summary,
+            $"{indent}- {elementType}{nameSegment}{textSegment}{annotationSegment}",
+            budget);
+
+        return true;
+    }
+
+    private static object CreatePayloadLimits() => new
+    {
+        maxTraversalNodes = MaxTraversalNodes,
+        maxSemanticNodes = MaxSemanticNodes,
+        maxSummaryTextLength = MaxSummaryTextLength,
+        maxStringValueLength = MaxStringValueLength
+    };
+
+    private static object? TruncatePayloadValue(object? value, UiSummaryBudget budget)
+    {
+        return value is string text
+            ? TruncateString(text, budget)
+            : value;
+    }
+
+    private static string? TruncateString(string? value, UiSummaryBudget budget)
+    {
+        if (value == null || value.Length <= MaxStringValueLength)
+        {
+            return value;
+        }
+
+        budget.MarkTruncated("StringValueLength");
+        return value[..(MaxStringValueLength - 3)] + "...";
+    }
+
+    private static void AppendBoundedSummaryLine(StringBuilder summary, string line, UiSummaryBudget budget)
+    {
+        var value = line + Environment.NewLine;
+        var remaining = MaxSummaryTextLength - summary.Length;
+        if (remaining <= 0)
+        {
+            budget.MarkTruncated("SummaryTextLength");
+            return;
+        }
+
+        if (value.Length > remaining)
+        {
+            summary.Append(value[..remaining]);
+            budget.MarkTruncated("SummaryTextLength");
+            return;
+        }
+
+        summary.Append(value);
+    }
+
+    private sealed class UiSummaryBudget
+    {
+        private readonly List<string> _truncationReasons = [];
+
+        public int TraversalNodeCount { get; private set; }
+
+        public int OmittedNodeCount { get; private set; }
+
+        public int OmittedSemanticNodeCount { get; private set; }
+
+        public bool Truncated => _truncationReasons.Count > 0;
+
+        public IReadOnlyList<string> TruncationReasons => _truncationReasons;
+
+        public bool TryTakeTraversalNode()
+        {
+            if (TraversalNodeCount >= MaxTraversalNodes)
+            {
+                MarkTruncated("TraversalNodeLimit");
+                return false;
+            }
+
+            TraversalNodeCount++;
+            return true;
+        }
+
+        public bool TryTakeSemanticNode(int semanticNodeCount)
+        {
+            if (semanticNodeCount >= MaxSemanticNodes)
+            {
+                OmittedSemanticNodeCount++;
+                MarkTruncated("SemanticNodeLimit");
+                return false;
+            }
+
+            return true;
+        }
+
+        public bool ShouldStopTraversal(int semanticNodeCount, out string reason)
+        {
+            if (TraversalNodeCount >= MaxTraversalNodes)
+            {
+                reason = "TraversalNodeLimit";
+                return true;
+            }
+
+            if (semanticNodeCount >= MaxSemanticNodes)
+            {
+                reason = "SemanticNodeLimit";
+                return true;
+            }
+
+            reason = string.Empty;
+            return false;
+        }
+
+        public void OmitRemainingNodes(int count, string reason)
+        {
+            if (count <= 0)
+            {
+                return;
+            }
+
+            OmittedNodeCount += count;
+            MarkTruncated(reason);
+        }
+
+        public void MarkTruncated(string reason)
+        {
+            if (!_truncationReasons.Contains(reason, StringComparer.Ordinal))
+            {
+                _truncationReasons.Add(reason);
+            }
+        }
+
     }
 }

@@ -11,6 +11,11 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
 {
+    private const int MaxTraversalNodes = 512;
+    private const int MaxInputs = 128;
+    private const int MaxCommands = 128;
+    private const int MaxStringValueLength = 512;
+
     private readonly ElementFinder _elementFinder;
 
     /// <summary>
@@ -46,8 +51,9 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
             var hasReadyFallbackCommand = false;
             var hasPrimaryCommand = false;
             var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
+            var budget = new FormSummaryBudget();
 
-            TraverseDescendantsAndSelf(root, visited, descendant =>
+            TraverseDescendantsAndSelf(root, visited, budget, descendant =>
             {
                 if (descendant is not FrameworkElement frameworkElement)
                 {
@@ -60,7 +66,12 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
 
                 if (includeElement && SceneSummaryElementHelpers.IsInputControl(frameworkElement))
                 {
-                    var inputSummary = CreateInputSummary(frameworkElement);
+                    if (!budget.TryTakeInput())
+                    {
+                        return;
+                    }
+
+                    var inputSummary = CreateInputSummary(frameworkElement, budget);
                     inputs.Add(inputSummary.Payload);
                     if (inputSummary.IsEmpty)
                     {
@@ -72,7 +83,12 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
 
                 if (includeElement && frameworkElement is ButtonBase button)
                 {
-                    var commandSummary = CreateCommandSummary(button);
+                    if (!budget.TryTakeCommand())
+                    {
+                        return;
+                    }
+
+                    var commandSummary = CreateCommandSummary(button, budget);
                     commands.Add(commandSummary.Payload);
                     if (commandSummary.IsPrimary)
                     {
@@ -110,34 +126,46 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                 isCurrentlyVisible,
                 inputs,
                 commands,
+                traversalNodeCount = budget.TraversalNodeCount,
+                omittedNodeCount = budget.OmittedNodeCount,
+                omittedInputCount = budget.OmittedInputCount,
+                omittedCommandCount = budget.OmittedCommandCount,
+                truncated = budget.Truncated,
+                truncationReasons = budget.TruncationReasons,
+                payloadLimits = CreatePayloadLimits(),
                 summary
             };
         });
     }
 
-    private (object Payload, bool IsEmpty, int ValidationErrorCount) CreateInputSummary(FrameworkElement element)
+    private (object Payload, bool IsEmpty, int ValidationErrorCount) CreateInputSummary(
+        FrameworkElement element,
+        FormSummaryBudget budget)
     {
         var currentValue = SceneSummaryElementHelpers.GetCurrentValue(element);
         var textValue = currentValue?.ToString() ?? string.Empty;
         var validationErrors = Validation.GetErrors(element)
             .Select(error => error.ErrorContent?.ToString() ?? string.Empty)
             .Where(error => !string.IsNullOrWhiteSpace(error))
+            .Select(error => TruncateString(error, budget)!)
             .ToArray();
 
         return (new
         {
             elementId = _elementFinder.GenerateElementId(element),
             elementType = element.GetType().Name,
-            elementName = SceneSummaryElementHelpers.GetElementName(element),
-            label = SceneSummaryElementHelpers.TryGetNearbyLabel(element),
-            currentValue,
-            bindingPath = SceneSummaryElementHelpers.TryGetBindingPath(element),
+            elementName = TruncateString(SceneSummaryElementHelpers.GetElementName(element), budget),
+            label = TruncateString(SceneSummaryElementHelpers.TryGetNearbyLabel(element), budget),
+            currentValue = TruncatePayloadValue(currentValue, budget),
+            bindingPath = TruncateString(SceneSummaryElementHelpers.TryGetBindingPath(element), budget),
             isEmpty = string.IsNullOrWhiteSpace(textValue),
             validationErrors
         }, string.IsNullOrWhiteSpace(textValue), validationErrors.Length);
     }
 
-    private (object Payload, bool IsReady, bool IsPrimary) CreateCommandSummary(ButtonBase button)
+    private (object Payload, bool IsReady, bool IsPrimary) CreateCommandSummary(
+        ButtonBase button,
+        FormSummaryBudget budget)
     {
         var (isReady, blockers) = SceneSummaryElementHelpers.EvaluateInteractionReadiness(button);
         var isPrimary = SceneSummaryElementHelpers.IsPrimaryCommand(button);
@@ -145,8 +173,8 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
         {
             elementId = _elementFinder.GenerateElementId(button),
             elementType = button.GetType().Name,
-            elementName = SceneSummaryElementHelpers.GetElementName(button),
-            text = SceneSummaryElementHelpers.GetDisplayText(button),
+            elementName = TruncateString(SceneSummaryElementHelpers.GetElementName(button), budget),
+            text = TruncateString(SceneSummaryElementHelpers.GetDisplayText(button), budget),
             isPrimary,
             isReady,
             blockers
@@ -156,18 +184,158 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
     private static void TraverseDescendantsAndSelf(
         DependencyObject root,
         HashSet<DependencyObject> visited,
+        FormSummaryBudget budget,
         Action<DependencyObject> visit)
     {
-        if (!visited.Add(root))
+        if (!visited.Add(root) || !budget.TryTakeTraversalNode())
         {
             return;
         }
 
         visit(root);
 
-        foreach (var child in SceneSummaryElementHelpers.GetSceneChildren(root))
+        var children = SceneSummaryElementHelpers.GetSceneChildren(root);
+        for (var index = 0; index < children.Count; index++)
         {
-            TraverseDescendantsAndSelf(child, visited, visit);
+            if (budget.ShouldStopTraversal(out var reason))
+            {
+                budget.OmitRemainingNodes(children.Count - index, reason);
+                break;
+            }
+
+            TraverseDescendantsAndSelf(children[index], visited, budget, visit);
+        }
+    }
+
+    private static object CreatePayloadLimits() => new
+    {
+        maxTraversalNodes = MaxTraversalNodes,
+        maxInputs = MaxInputs,
+        maxCommands = MaxCommands,
+        maxStringValueLength = MaxStringValueLength
+    };
+
+    private static object? TruncatePayloadValue(object? value, FormSummaryBudget budget)
+    {
+        return value is string text
+            ? TruncateString(text, budget)
+            : value;
+    }
+
+    private static string? TruncateString(string? value, FormSummaryBudget budget)
+    {
+        if (value == null || value.Length <= MaxStringValueLength)
+        {
+            return value;
+        }
+
+        budget.MarkTruncated("StringValueLength");
+        return value[..(MaxStringValueLength - 3)] + "...";
+    }
+
+    private sealed class FormSummaryBudget
+    {
+        private readonly List<string> _truncationReasons = [];
+        private bool _commandLimitExceeded;
+        private bool _inputLimitExceeded;
+
+        public int TraversalNodeCount { get; private set; }
+
+        public int OmittedNodeCount { get; private set; }
+
+        public int InputCount { get; private set; }
+
+        public int OmittedInputCount { get; private set; }
+
+        public int CommandCount { get; private set; }
+
+        public int OmittedCommandCount { get; private set; }
+
+        public bool Truncated => _truncationReasons.Count > 0;
+
+        public IReadOnlyList<string> TruncationReasons => _truncationReasons;
+
+        public bool TryTakeTraversalNode()
+        {
+            if (TraversalNodeCount >= MaxTraversalNodes)
+            {
+                MarkTruncated("TraversalNodeLimit");
+                return false;
+            }
+
+            TraversalNodeCount++;
+            return true;
+        }
+
+        public bool TryTakeInput()
+        {
+            if (InputCount >= MaxInputs)
+            {
+                OmittedInputCount++;
+                _inputLimitExceeded = true;
+                MarkTruncated("InputLimit");
+                return false;
+            }
+
+            InputCount++;
+            return true;
+        }
+
+        public bool TryTakeCommand()
+        {
+            if (CommandCount >= MaxCommands)
+            {
+                OmittedCommandCount++;
+                _commandLimitExceeded = true;
+                MarkTruncated("CommandLimit");
+                return false;
+            }
+
+            CommandCount++;
+            return true;
+        }
+
+        public bool ShouldStopTraversal(out string reason)
+        {
+            if (TraversalNodeCount >= MaxTraversalNodes)
+            {
+                reason = "TraversalNodeLimit";
+                return true;
+            }
+
+            if (_inputLimitExceeded)
+            {
+                reason = "InputLimit";
+                return true;
+            }
+
+            if (_commandLimitExceeded)
+            {
+                reason = "CommandLimit";
+                return true;
+            }
+
+            reason = string.Empty;
+            return false;
+        }
+
+        public void OmitRemainingNodes(int count, string reason)
+        {
+            if (count <= 0)
+            {
+                return;
+            }
+
+            OmittedNodeCount += count;
+            MarkTruncated(reason);
+        }
+
+        public void MarkTruncated(string reason)
+        {
+            if (!_truncationReasons.Contains(reason, StringComparer.Ordinal))
+            {
+                _truncationReasons.Add(reason);
+            }
         }
     }
 }

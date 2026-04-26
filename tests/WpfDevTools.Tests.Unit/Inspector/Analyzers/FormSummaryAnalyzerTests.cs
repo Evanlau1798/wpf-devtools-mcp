@@ -338,6 +338,39 @@ public sealed class FormSummaryAnalyzerTests
         }
     }
 
+    [StaFact]
+    public void GetFormSummary_WhenFormExceedsPayloadBudget_ShouldTruncateAndReportMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new FormSummaryAnalyzer(finder);
+        var form = new StackPanel { Name = "LargeForm" };
+        for (var index = 0; index < 160; index++)
+        {
+            form.Children.Add(new TextBox
+            {
+                Name = $"Input{index:000}",
+                Text = new string('x', 80)
+            });
+        }
+
+        var elementId = finder.GenerateElementId(form);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId));
+        var totalInputs = result.GetProperty("summary").GetProperty("totalInputs").GetInt32();
+        var limits = result.GetProperty("payloadLimits");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("truncated").GetBoolean().Should().BeTrue();
+        result.GetProperty("inputs").GetArrayLength().Should().Be(totalInputs);
+        totalInputs.Should().Be(limits.GetProperty("maxInputs").GetInt32());
+        result.GetProperty("omittedInputCount").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("truncationReasons")
+            .EnumerateArray()
+            .Select(reason => reason.GetString())
+            .Should()
+            .Contain("InputLimit");
+    }
+
     private static void InjectValidationError(TextBox textBox, string errorMessage)
     {
         var binding = new System.Windows.Data.Binding("Text")

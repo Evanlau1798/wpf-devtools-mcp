@@ -420,4 +420,41 @@ public sealed class UiSummaryAnalyzerTests
         summaryText.Should().Contain("StatusText");
         summaryText.Should().NotContain("System.Windows");
     }
+
+    [StaFact]
+    public void GetUiSummary_WhenSceneExceedsPayloadBudget_ShouldTruncateAndReportMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel { Name = "LargeSceneRoot" };
+        for (var index = 0; index < 160; index++)
+        {
+            root.Children.Add(new TextBox
+            {
+                Name = $"Field{index:000}",
+                Text = new string('x', 80)
+            });
+        }
+
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1, depthMode: "visual"));
+        var semanticNodeCount = result.GetProperty("semanticNodeCount").GetInt32();
+        var limits = result.GetProperty("payloadLimits");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("truncated").GetBoolean().Should().BeTrue();
+        result.GetProperty("nodes").GetArrayLength().Should().Be(semanticNodeCount);
+        semanticNodeCount.Should().Be(limits.GetProperty("maxSemanticNodes").GetInt32());
+        result.GetProperty("omittedNodeCount").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("truncationReasons")
+            .EnumerateArray()
+            .Select(reason => reason.GetString())
+            .Should()
+            .Contain("SemanticNodeLimit");
+        result.GetProperty("summaryText").GetString()!.Length
+            .Should()
+            .BeLessOrEqualTo(limits.GetProperty("maxSummaryTextLength").GetInt32());
+    }
 }

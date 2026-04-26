@@ -236,6 +236,63 @@ public sealed class StateSnapshotToolTests : IDisposable
     }
 
     [Fact]
+    public async Task CaptureStateSnapshot_WhenBaselineCaptureFails_ShouldExposeWarningsAndCompleteness()
+    {
+        const int processId = 51007;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            new[]
+            {
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    propertyName = "Width",
+                    currentValue = "120",
+                    hadLocalValue = true,
+                    localValue = "120",
+                    baseValueSource = "Local"
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = "Binding diagnostics unavailable",
+                    errorCode = "InspectorUnavailable"
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = "Validation diagnostics unavailable",
+                    errorCode = "InspectorUnavailable"
+                })
+            });
+
+        var tool = new CaptureStateSnapshotTool(connected.SessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "Button_1",
+            propertyNames = new[] { "Width" }
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("warnings").EnumerateArray()
+            .Select(item => item.GetString())
+            .Should().Contain(warning => warning!.Contains("get_binding_errors", StringComparison.Ordinal))
+            .And.Contain(warning => warning!.Contains("get_validation_errors", StringComparison.Ordinal));
+
+        var completeness = json.GetProperty("snapshotCompleteness");
+        completeness.GetProperty("bindingErrorBaselineCaptured").GetBoolean().Should().BeFalse();
+        completeness.GetProperty("validationBaselineCaptured").GetBoolean().Should().BeFalse();
+
+        var snapshotId = json.GetProperty("snapshotId").GetString();
+        connected.SessionManager.TryGetStateSnapshot(processId, snapshotId!, out var snapshot).Should().BeTrue();
+        snapshot!.HasBindingErrorBaseline.Should().BeFalse();
+        snapshot.HasValidationBaseline.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task CaptureStateSnapshot_ShouldMarkComplexNullViewModelPropertyAsNonRestorable()
     {
         const int processId = 51006;

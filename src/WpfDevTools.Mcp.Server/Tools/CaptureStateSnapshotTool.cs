@@ -135,6 +135,16 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             processId,
             elementId,
             cancellationToken).ConfigureAwait(false);
+        var warnings = new List<string>();
+        if (!hasBindingErrorBaseline)
+        {
+            warnings.Add("Could not capture get_binding_errors baseline; get_state_diff will omit binding error additions and resolutions for this snapshot.");
+        }
+
+        if (!hasValidationBaseline)
+        {
+            warnings.Add("Could not capture get_validation_errors baseline; get_state_diff will omit validation changes for this snapshot.");
+        }
 
         var snapshotId = $"snapshot_{Guid.NewGuid():N}";
         _sessionManager.SaveStateSnapshot(processId, new StoredStateSnapshot(
@@ -163,7 +173,13 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
                 skippedDependencyPropertyCount = dependencyProperties.Count(snapshot => !snapshot.CanRestore),
                 viewModelPropertyCount = viewModelProperties.Count,
                 capturedFocus = focus != null
-            }
+            },
+            snapshotCompleteness = new
+            {
+                bindingErrorBaselineCaptured = hasBindingErrorBaseline,
+                validationBaselineCaptured = hasValidationBaseline
+            },
+            warnings
         };
     }
 

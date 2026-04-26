@@ -73,6 +73,22 @@ public sealed class AgentGuidanceDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/error-model.md")]
+    [InlineData("docfx/zh-tw/reference/error-model.md")]
+    public void ErrorModelDocumentation_ShouldDescribeCanonicalRecoveryBeforeCompatibilityProjections(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        var canonicalIndex = content.IndexOf("canonical `recovery` object", StringComparison.Ordinal);
+        var compatibilityIndex = content.IndexOf("top-level compatibility projection fields", StringComparison.Ordinal);
+
+        canonicalIndex.Should().BeGreaterThanOrEqualTo(0,
+            $"{relativePath} should explicitly document the canonical recovery object");
+        compatibilityIndex.Should().BeGreaterThan(canonicalIndex,
+            $"{relativePath} should describe compatibility projections after the canonical recovery object");
+    }
+
+    [Theory]
     [InlineData("docfx/contributors/documentation-style.md")]
     [InlineData("docfx/zh-tw/contributors/documentation-style.md")]
     public void ContributorDocumentation_ShouldDescribeMcpSdkContractConventions(string relativePath)

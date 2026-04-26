@@ -291,10 +291,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         {
             childrenToExpand = options.MaxChildrenPerNode.Value;
             omittedImmediateChildren = childCount - childrenToExpand;
-            for (var omittedIndex = childrenToExpand; omittedIndex < childCount; omittedIndex++)
-            {
-                budget.OmitSubtree(CountVisualSubtree(VisualTreeHelper.GetChild(element, omittedIndex)));
-            }
+            budget.OmitSubtree(omittedImmediateChildren);
         }
 
         var children = new List<object>(childrenToExpand);
@@ -303,11 +300,9 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
             var child = VisualTreeHelper.GetChild(element, index);
             if (!budget.TryTakeNode())
             {
-                omittedImmediateChildren += childrenToExpand - index;
-                for (var remainingIndex = index; remainingIndex < childrenToExpand; remainingIndex++)
-                {
-                    budget.OmitSubtree(CountVisualSubtree(VisualTreeHelper.GetChild(element, remainingIndex)));
-                }
+                var remainingImmediateChildren = childrenToExpand - index;
+                omittedImmediateChildren += remainingImmediateChildren;
+                budget.OmitSubtree(remainingImmediateChildren);
                 break;
             }
 
@@ -372,10 +367,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         if (options.MaxChildrenPerNode.HasValue && childrenToExpand > options.MaxChildrenPerNode.Value)
         {
             childrenToExpand = options.MaxChildrenPerNode.Value;
-            for (var omittedIndex = childrenToExpand; omittedIndex < childCount; omittedIndex++)
-            {
-                budget.OmitSubtree(CountVisualSubtree(VisualTreeHelper.GetChild(element, omittedIndex)));
-            }
+            budget.OmitSubtree(childCount - childrenToExpand);
         }
 
         for (var index = 0; index < childrenToExpand; index++)
@@ -383,10 +375,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
             var child = VisualTreeHelper.GetChild(element, index);
             if (!budget.TryTakeNode())
             {
-                for (var remainingIndex = index; remainingIndex < childrenToExpand; remainingIndex++)
-                {
-                    budget.OmitSubtree(CountVisualSubtree(VisualTreeHelper.GetChild(element, remainingIndex)));
-                }
+                budget.OmitSubtree(childrenToExpand - index);
                 break;
             }
 
@@ -443,17 +432,6 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         return children;
     }
 
-    private int CountVisualSubtree(DependencyObject element)
-    {
-        var count = 1;
-        var childCount = VisualTreeHelper.GetChildrenCount(element);
-        for (var index = 0; index < childCount; index++)
-        {
-            count += CountVisualSubtree(VisualTreeHelper.GetChild(element, index));
-        }
-
-        return count;
-    }
 }
 
 /// <summary>

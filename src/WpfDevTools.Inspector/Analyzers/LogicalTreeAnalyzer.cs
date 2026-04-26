@@ -120,10 +120,7 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
         {
             childrenToExpand = options.MaxChildrenPerNode.Value;
             omittedImmediateChildren = children.Count - childrenToExpand;
-            foreach (var omittedChild in children.Skip(childrenToExpand))
-            {
-                budget.OmitSubtree(CountLogicalSubtree(omittedChild));
-            }
+            budget.OmitSubtree(omittedImmediateChildren);
         }
 
         var expandedChildren = new List<object>(childrenToExpand);
@@ -132,11 +129,9 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
             var child = children[index];
             if (!budget.TryTakeNode())
             {
-                omittedImmediateChildren += childrenToExpand - index;
-                for (var remainingIndex = index; remainingIndex < childrenToExpand; remainingIndex++)
-                {
-                    budget.OmitSubtree(CountLogicalSubtree(children[remainingIndex]));
-                }
+                var remainingImmediateChildren = childrenToExpand - index;
+                omittedImmediateChildren += remainingImmediateChildren;
+                budget.OmitSubtree(remainingImmediateChildren);
                 break;
             }
 
@@ -201,10 +196,7 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
         if (options.MaxChildrenPerNode.HasValue && childrenToExpand > options.MaxChildrenPerNode.Value)
         {
             childrenToExpand = options.MaxChildrenPerNode.Value;
-            foreach (var omittedChild in children.Skip(childrenToExpand))
-            {
-                budget.OmitSubtree(CountLogicalSubtree(omittedChild));
-            }
+            budget.OmitSubtree(children.Count - childrenToExpand);
         }
 
         for (var index = 0; index < childrenToExpand; index++)
@@ -212,10 +204,7 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
             var child = children[index];
             if (!budget.TryTakeNode())
             {
-                for (var remainingIndex = index; remainingIndex < childrenToExpand; remainingIndex++)
-                {
-                    budget.OmitSubtree(CountLogicalSubtree(children[remainingIndex]));
-                }
+                budget.OmitSubtree(childrenToExpand - index);
                 break;
             }
 
@@ -259,17 +248,4 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
         return children;
     }
 
-    private int CountLogicalSubtree(DependencyObject element)
-    {
-        var count = 1;
-        foreach (var child in LogicalTreeHelper.GetChildren(element))
-        {
-            if (child is DependencyObject dependencyObject)
-            {
-                count += CountLogicalSubtree(dependencyObject);
-            }
-        }
-
-        return count;
-    }
 }

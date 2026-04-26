@@ -89,6 +89,44 @@ public class TreeCompressionHandlerTests
     }
 
     [StaFact]
+    public async Task GetVisualTree_WithMaxChildrenPerNode_ShouldNotDeepCountOmittedSubtrees()
+    {
+        var finder = new ElementFinder();
+        var root = new StackPanel();
+        root.Children.Add(new Button { Name = "First" });
+        var omittedParent = new StackPanel { Name = "Omitted" };
+        omittedParent.Children.Add(new Button { Name = "DeepChild" });
+        root.Children.Add(omittedParent);
+        var elementId = finder.GenerateElementId(root);
+        var handler = CreateHandler(finder);
+        var parameters = ToJsonElement(new { elementId, maxChildrenPerNode = 1, depth = 5 });
+
+        var result = await handler.HandleAsync("get_visual_tree", parameters, CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("omittedNodeCount").GetInt32().Should().Be(1);
+    }
+
+    [StaFact]
+    public async Task GetLogicalTree_WithMaxNodes_ShouldNotDeepCountRemainingSubtrees()
+    {
+        var finder = new ElementFinder();
+        var root = new StackPanel();
+        var first = new StackPanel { Name = "First" };
+        first.Children.Add(new Button { Name = "DeepChild" });
+        root.Children.Add(first);
+        root.Children.Add(new Button { Name = "Second" });
+        var elementId = finder.GenerateElementId(root);
+        var handler = CreateHandler(finder);
+        var parameters = ToJsonElement(new { elementId, maxNodes = 1, depth = 5 });
+
+        var result = await handler.HandleAsync("get_logical_tree", parameters, CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("omittedNodeCount").GetInt32().Should().Be(2);
+    }
+
+    [StaFact]
     public async Task GetVisualTree_WithDepthLimit_ShouldReportDepthSufficiencyHint()
     {
         var finder = new ElementFinder();

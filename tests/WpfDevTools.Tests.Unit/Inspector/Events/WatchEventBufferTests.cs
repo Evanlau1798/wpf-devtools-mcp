@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using FluentAssertions;
 using WpfDevTools.Inspector.Events;
 
@@ -32,6 +33,41 @@ public sealed class WatchEventBufferTests
         events.Should().HaveCount(1);
         events[0].NewValue.Should().Be("200");
         events[0].PropertyName.Should().Be("Width");
+    }
+
+    [Fact]
+    public void Enqueue_WithLongPayloadStrings_ShouldBoundValuesAndTrackTruncationMetadata()
+    {
+        var buffer = new WatchEventBuffer(capacity: 4, new WatchEventDeduplicator());
+        var longValue = new string('x', 4096);
+
+        buffer.Enqueue(CreateDpChange(longValue, "TextBox_1", "Text", longValue));
+
+        var record = buffer.GetSnapshot().Should().ContainSingle().Subject;
+        record.SourceKey.Length.Should().BeLessThanOrEqualTo(WatchEventBuffer.MaxPayloadStringLength);
+        record.NewValue!.Length.Should().BeLessThanOrEqualTo(WatchEventBuffer.MaxPayloadStringLength);
+        record.PayloadTruncated.Should().BeTrue();
+        record.TruncationMetadata.Should().NotBeNull();
+        record.TruncationMetadata!.Reasons.Should().Contain("PayloadStringLength");
+        record.TruncationMetadata.OriginalStringLengths["sourceKey"].Should().Be(4096);
+        GetDedupIndexCount(buffer).Should().BeLessThanOrEqualTo(buffer.PendingCount);
+    }
+
+    [Fact]
+    public void EnqueueAndDrain_WithManyUniqueDpChanges_ShouldNotLeaveUnboundedDedupIndex()
+    {
+        var buffer = new WatchEventBuffer(capacity: 8, new WatchEventDeduplicator());
+
+        for (var i = 0; i < 100; i++)
+        {
+            buffer.Enqueue(CreateDpChange($"dp:TextBox_{i}:Text", $"TextBox_{i}", "Text", i.ToString()));
+        }
+
+        GetDedupIndexCount(buffer).Should().BeLessThanOrEqualTo(8);
+
+        buffer.Drain(maxEvents: 8);
+
+        GetDedupIndexCount(buffer).Should().Be(0);
     }
 
     [Fact]
@@ -131,4 +167,13 @@ public sealed class WatchEventBufferTests
             RoutingStrategy: "Bubble",
             Handled: false,
             OriginalSourceType: "Button");
+
+    private static int GetDedupIndexCount(WatchEventBuffer buffer)
+    {
+        var field = typeof(WatchEventBuffer).GetField(
+            "_dedupIndex",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        var index = (System.Collections.IDictionary)field!.GetValue(buffer)!;
+        return index.Count;
+    }
 }

@@ -12,6 +12,9 @@ public sealed class MetricsCollector
     private long _errorCount;
     private readonly CircularBuffer<long> _latencies;
     private long _totalLatency;
+    private long _totalPayloadBytes;
+    private long _maxPayloadBytes;
+    private long _truncatedPayloadCount;
     private readonly Dictionary<string, MethodMetrics> _methodMetrics = new();
 
     private const int MaxLatencySamples = 1000;
@@ -27,7 +30,12 @@ public sealed class MetricsCollector
     /// <summary>
     /// Record a request with its latency and success status
     /// </summary>
-    public void RecordRequest(string method, long latencyMs, bool success)
+    public void RecordRequest(
+        string method,
+        long latencyMs,
+        bool success,
+        long? payloadByteLength = null,
+        bool truncated = false)
     {
         lock (_lock)
         {
@@ -50,6 +58,21 @@ public sealed class MetricsCollector
             methodStats.TotalCalls++;
             methodStats.TotalLatency += latencyMs;
             if (!success) methodStats.ErrorCount++;
+
+            if (payloadByteLength.HasValue)
+            {
+                var payloadBytes = Math.Max(0, payloadByteLength.Value);
+                _totalPayloadBytes += payloadBytes;
+                _maxPayloadBytes = Math.Max(_maxPayloadBytes, payloadBytes);
+                methodStats.TotalPayloadBytes += payloadBytes;
+                methodStats.MaxPayloadBytes = Math.Max(methodStats.MaxPayloadBytes, payloadBytes);
+            }
+
+            if (truncated)
+            {
+                _truncatedPayloadCount++;
+                methodStats.TruncatedPayloadCount++;
+            }
         }
     }
 
@@ -60,6 +83,7 @@ public sealed class MetricsCollector
     {
         long[] latencyArray;
         long totalRequests, successCount, errorCount, totalLatency;
+        long totalPayloadBytes, maxPayloadBytes, truncatedPayloadCount;
         Dictionary<string, MethodMetricsSnapshot> methodSnapshots;
 
         lock (_lock)
@@ -68,6 +92,9 @@ public sealed class MetricsCollector
             successCount = _successCount;
             errorCount = _errorCount;
             totalLatency = _totalLatency;
+            totalPayloadBytes = _totalPayloadBytes;
+            maxPayloadBytes = _maxPayloadBytes;
+            truncatedPayloadCount = _truncatedPayloadCount;
 
             latencyArray = _latencies.ToArray();
 
@@ -79,7 +106,13 @@ public sealed class MetricsCollector
                     ErrorCount = kvp.Value.ErrorCount,
                     AverageLatency = kvp.Value.TotalCalls > 0
                         ? (double)kvp.Value.TotalLatency / kvp.Value.TotalCalls
-                        : 0
+                        : 0,
+                    TotalPayloadBytes = kvp.Value.TotalPayloadBytes,
+                    MaxPayloadBytes = kvp.Value.MaxPayloadBytes,
+                    AveragePayloadBytes = kvp.Value.TotalCalls > 0
+                        ? (double)kvp.Value.TotalPayloadBytes / kvp.Value.TotalCalls
+                        : 0,
+                    TruncatedPayloadCount = kvp.Value.TruncatedPayloadCount
                 });
         }
 
@@ -96,6 +129,11 @@ public sealed class MetricsCollector
             P50Latency = CalculatePercentile(latencyArray, 0.50),
             P95Latency = CalculatePercentile(latencyArray, 0.95),
             P99Latency = CalculatePercentile(latencyArray, 0.99),
+            TotalPayloadBytes = totalPayloadBytes,
+            MaxPayloadBytes = maxPayloadBytes,
+            AveragePayloadBytes = totalRequests > 0 ? (double)totalPayloadBytes / totalRequests : 0,
+            TruncatedPayloadCount = truncatedPayloadCount,
+            PayloadPressureRate = totalRequests > 0 ? (double)truncatedPayloadCount / totalRequests : 0,
             MethodMetrics = methodSnapshots
         };
     }
@@ -111,6 +149,9 @@ public sealed class MetricsCollector
             _successCount = 0;
             _errorCount = 0;
             _totalLatency = 0;
+            _totalPayloadBytes = 0;
+            _maxPayloadBytes = 0;
+            _truncatedPayloadCount = 0;
             _latencies.Clear();
             _methodMetrics.Clear();
         }
@@ -121,6 +162,9 @@ public sealed class MetricsCollector
         public long TotalCalls;
         public long ErrorCount;
         public long TotalLatency;
+        public long TotalPayloadBytes;
+        public long MaxPayloadBytes;
+        public long TruncatedPayloadCount;
     }
 
     private static double CalculatePercentile(long[] sortedValues, double percentile)
@@ -255,6 +299,31 @@ public sealed record MetricsSnapshot
     public double P99Latency { get; init; }
 
     /// <summary>
+    /// Gets the total structured payload size recorded across requests
+    /// </summary>
+    public long TotalPayloadBytes { get; init; }
+
+    /// <summary>
+    /// Gets the largest structured payload size recorded for one request
+    /// </summary>
+    public long MaxPayloadBytes { get; init; }
+
+    /// <summary>
+    /// Gets the average structured payload size in bytes
+    /// </summary>
+    public double AveragePayloadBytes { get; init; }
+
+    /// <summary>
+    /// Gets the number of requests that reported truncated payloads
+    /// </summary>
+    public long TruncatedPayloadCount { get; init; }
+
+    /// <summary>
+    /// Gets the truncated payload ratio (0.0 to 1.0)
+    /// </summary>
+    public double PayloadPressureRate { get; init; }
+
+    /// <summary>
     /// Gets per-method (tool) metrics for observability
     /// </summary>
     public IReadOnlyDictionary<string, MethodMetricsSnapshot> MethodMetrics { get; init; }
@@ -280,4 +349,24 @@ public sealed record MethodMetricsSnapshot
     /// Average latency for this method in milliseconds
     /// </summary>
     public double AverageLatency { get; init; }
+
+    /// <summary>
+    /// Total structured payload size recorded for this method
+    /// </summary>
+    public long TotalPayloadBytes { get; init; }
+
+    /// <summary>
+    /// Largest structured payload size recorded for this method
+    /// </summary>
+    public long MaxPayloadBytes { get; init; }
+
+    /// <summary>
+    /// Average structured payload size in bytes for this method
+    /// </summary>
+    public double AveragePayloadBytes { get; init; }
+
+    /// <summary>
+    /// Number of truncated payloads recorded for this method
+    /// </summary>
+    public long TruncatedPayloadCount { get; init; }
 }

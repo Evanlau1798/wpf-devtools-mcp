@@ -63,6 +63,32 @@ public class ToolCallHelperMetricsTests
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_WithMetrics_ShouldRecordPayloadSizeAndTruncationPressure()
+    {
+        var metrics = new MetricsCollector();
+        using var toolCallHelperScope = ToolCallHelper.BeginTestScope(metricsCollector: metrics);
+
+        await ToolCallHelper.ExecuteAndWrapAsync(
+            (args, ct) => Task.FromResult<object>(new
+            {
+                success = true,
+                truncated = true,
+                truncationMetadata = new
+                {
+                    reasons = new[] { "ResultLimit" }
+                },
+                payload = new string('x', 256)
+            }),
+            null,
+            CancellationToken.None);
+
+        var snapshot = metrics.GetSnapshot();
+        snapshot.TotalPayloadBytes.Should().BeGreaterThan(0);
+        snapshot.TruncatedPayloadCount.Should().Be(1);
+        snapshot.PayloadPressureRate.Should().Be(1);
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_WithMetrics_WhenExceptionThrown_ShouldRecordAsError()
     {
         var metrics = new MetricsCollector();

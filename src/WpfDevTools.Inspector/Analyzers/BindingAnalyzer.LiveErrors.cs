@@ -7,46 +7,65 @@ namespace WpfDevTools.Inspector.Analyzers;
 
 public sealed partial class BindingAnalyzer
 {
-    private IReadOnlyList<BindingErrorInfo> GetLiveBindingErrors()
+    private sealed record LiveBindingErrorScanResult(
+        IReadOnlyList<BindingErrorInfo> Errors,
+        BindingScanBudget Budget);
+
+    private LiveBindingErrorScanResult GetLiveBindingErrors(
+        int? maxLiveScanNodes,
+        int? maxLiveErrors)
     {
         var rootElement = ResolveElement(elementId: null);
         var errors = new List<BindingErrorInfo>();
         var scannedElements = new HashSet<string>(StringComparer.Ordinal);
+        var budget = new BindingScanBudget(
+            ResolveLimit(maxLiveScanNodes, DefaultLiveBindingTraversalNodeLimit),
+            ResolveLimit(maxLiveErrors, DefaultLiveBindingErrorLimit),
+            "LiveBindingTraversalNodeLimit",
+            "LiveBindingResultLimit");
 
         if (rootElement != null)
         {
-            CollectLiveBindingErrorsFromScope(rootElement, errors, scannedElements);
-            return errors;
+            CollectLiveBindingErrorsFromScope(rootElement, errors, scannedElements, budget);
+            return new LiveBindingErrorScanResult(errors, budget);
         }
 
         foreach (var trackedElement in _elementFinder.GetTrackedElements())
         {
-            CollectLiveBindingErrorsFromScope(trackedElement, errors, scannedElements);
+            CollectLiveBindingErrorsFromScope(trackedElement, errors, scannedElements, budget);
         }
 
-        return errors.Count == 0 ? Array.Empty<BindingErrorInfo>() : errors;
+        IReadOnlyList<BindingErrorInfo> result = errors.Count == 0 ? Array.Empty<BindingErrorInfo>() : errors;
+        return new LiveBindingErrorScanResult(result, budget);
     }
 
     private void CollectLiveBindingErrorsFromScope(
         DependencyObject scope,
         List<BindingErrorInfo> errors,
-        HashSet<string> scannedElements)
+        HashSet<string> scannedElements,
+        BindingScanBudget budget)
     {
         foreach (var element in DependencyObjectTraversal.EnumerateDescendantsAndSelf(scope))
         {
+            if (!budget.TryTakeTraversalNode())
+            {
+                break;
+            }
+
             var elementId = _elementFinder.GenerateElementId(element);
             if (!scannedElements.Add(elementId))
             {
                 continue;
             }
 
-            CollectLocalBindingErrors(element, errors);
+            CollectLocalBindingErrors(element, errors, budget);
         }
     }
 
     private void CollectLocalBindingErrors(
         DependencyObject element,
-        List<BindingErrorInfo> errors)
+        List<BindingErrorInfo> errors,
+        BindingScanBudget budget)
     {
         foreach (var property in GetCandidateDependencyProperties(element))
         {
@@ -56,7 +75,7 @@ public sealed partial class BindingAnalyzer
                 continue;
             }
 
-            errors.Add(new BindingErrorInfo
+            var error = new BindingErrorInfo
             {
                 Timestamp = DateTime.UtcNow,
                 Message = BuildLiveBindingErrorMessage(element, property, bindingExpression),
@@ -66,7 +85,12 @@ public sealed partial class BindingAnalyzer
                 ElementId = _elementFinder.GenerateElementId(element),
                 PropertyName = property.Name,
                 BindingPath = bindingExpression.ParentBinding?.Path?.Path
-            });
+            };
+
+            if (budget.TryTakeResult())
+            {
+                errors.Add(error);
+            }
         }
     }
 

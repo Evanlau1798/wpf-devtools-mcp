@@ -76,6 +76,33 @@ public class MetricsCollectorTests
     }
 
     [Fact]
+    public void RecordRequest_WithPayloadPressure_ShouldTrackSizeAndTruncationMetrics()
+    {
+        // Arrange
+        var metrics = new MetricsCollector();
+
+        // Act
+        metrics.RecordRequest(
+            "get_bindings",
+            latencyMs: 25,
+            success: true,
+            payloadByteLength: 4096,
+            truncated: true);
+
+        // Assert
+        var snapshot = metrics.GetSnapshot();
+        snapshot.TotalPayloadBytes.Should().Be(4096);
+        snapshot.MaxPayloadBytes.Should().Be(4096);
+        snapshot.TruncatedPayloadCount.Should().Be(1);
+        snapshot.PayloadPressureRate.Should().Be(1);
+
+        var method = snapshot.MethodMetrics["get_bindings"];
+        method.TotalPayloadBytes.Should().Be(4096);
+        method.MaxPayloadBytes.Should().Be(4096);
+        method.TruncatedPayloadCount.Should().Be(1);
+    }
+
+    [Fact]
     public void Reset_ShouldClearAllMetrics()
     {
         // Arrange

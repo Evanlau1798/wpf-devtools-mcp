@@ -52,11 +52,28 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
     /// <param name="elementId">Element ID to get bindings for. If null, uses root element.</param>
     /// <param name="recursive">When true, also collect bindings from all descendant elements.</param>
     /// <param name="statusFilter">Optional status category filter: All, Active, or Error.</param>
+    /// <param name="maxTraversalNodes">Optional recursive traversal node budget.</param>
+    /// <param name="maxResults">Optional result budget.</param>
     /// <returns>Result object containing success status and list of bindings</returns>
-    public object GetBindings(string? elementId = null, bool recursive = false, string? statusFilter = null)
+    public object GetBindings(
+        string? elementId = null,
+        bool recursive = false,
+        string? statusFilter = null,
+        int? maxTraversalNodes = null,
+        int? maxResults = null)
     {
         return InvokeOnUIThread<object>(() =>
         {
+            if (!TryValidatePositiveLimit(maxTraversalNodes, nameof(maxTraversalNodes), out var traversalLimitError))
+            {
+                return traversalLimitError!;
+            }
+
+            if (!TryValidatePositiveLimit(maxResults, nameof(maxResults), out var resultLimitError))
+            {
+                return resultLimitError!;
+            }
+
             var element = ResolveElement(elementId);
 
             if (element == null)
@@ -64,17 +81,29 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
                 return ToolErrorFactory.ElementNotFound(elementId);
             }
 
+            var budget = new BindingScanBudget(
+                ResolveLimit(maxTraversalNodes, DefaultBindingTraversalNodeLimit),
+                ResolveLimit(maxResults, DefaultBindingResultLimit),
+                "TraversalNodeLimit",
+                "ResultLimit");
             var bindings = recursive
-                ? CollectBindingsRecursive(element)
-                : GetDependencyPropertiesWithBindings(element);
+                ? CollectBindingsRecursive(element, budget)
+                : CollectBindingsForElement(element, budget);
 
-            var filteredBindings = ApplyStatusFilter(bindings, statusFilter);
-            if (filteredBindings is not null)
+            var filterError = ApplyStatusFilter(bindings, statusFilter, out var filteredBindings);
+            if (filterError is not null)
             {
-                return filteredBindings;
+                return filterError;
             }
 
-            return new { success = true, bindings };
+            return new
+            {
+                success = true,
+                bindingCount = filteredBindings.Count,
+                bindings = filteredBindings,
+                truncated = budget.Truncated,
+                truncationMetadata = budget.ToContract(filteredBindings.Count)
+            };
         });
     }
 
@@ -86,8 +115,16 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
     /// <param name="sinceTimestamp">Optional ISO-8601 timestamp filter.</param>
     /// <param name="clearAfterRead">If true, clears error list after reading</param>
     /// <param name="compact">If true, omit the verbose free-form message while preserving structured correlation fields.</param>
+    /// <param name="maxLiveScanNodes">Optional live BindingExpression scan traversal node budget.</param>
+    /// <param name="maxLiveErrors">Optional live BindingExpression error result budget.</param>
     /// <returns>Result object containing success status, error count, and list of binding errors</returns>
-    public object GetBindingErrors(int? maxErrors = null, string? sinceTimestamp = null, bool clearAfterRead = false, bool compact = false)
+    public object GetBindingErrors(
+        int? maxErrors = null,
+        string? sinceTimestamp = null,
+        bool clearAfterRead = false,
+        bool compact = false,
+        int? maxLiveScanNodes = null,
+        int? maxLiveErrors = null)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -96,6 +133,16 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
                 return ToolErrorFactory.InvalidArgument(
                     "maxErrors must be a positive integer when provided",
                     "Provide maxErrors > 0 or omit it to return the full filtered error list.");
+            }
+
+            if (!TryValidatePositiveLimit(maxLiveScanNodes, nameof(maxLiveScanNodes), out var liveScanLimitError))
+            {
+                return liveScanLimitError!;
+            }
+
+            if (!TryValidatePositiveLimit(maxLiveErrors, nameof(maxLiveErrors), out var liveErrorLimitError))
+            {
+                return liveErrorLimitError!;
             }
 
             DateTime? sinceUtc = null;
@@ -111,7 +158,8 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
                 sinceUtc = parsed.UtcDateTime;
             }
 
-            var liveErrors = GetLiveBindingErrors();
+            var liveScan = GetLiveBindingErrors(maxLiveScanNodes, maxLiveErrors);
+            var liveErrors = liveScan.Errors;
 
             // Ensure trace listener is installed
             if (_usesSharedBindingErrorTraceListener)
@@ -131,6 +179,8 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
                     .ToList();
             }
 
+            var totalResultCount = filteredErrors.Count;
+            var truncationReasons = new HashSet<string>(liveScan.Budget.Reasons, StringComparer.Ordinal);
             if (maxErrors.HasValue && filteredErrors.Count > maxErrors.Value)
             {
                 var skipCount = filteredErrors.Count - maxErrors.Value;
@@ -138,12 +188,23 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
                     .OrderBy(error => error.Timestamp)
                     .Skip(skipCount)
                     .ToList();
+                truncationReasons.Add("ResultLimit");
             }
 
             var result = new
             {
                 success = true,
                 errorCount = filteredErrors.Count,
+                totalErrorCount = totalResultCount,
+                truncated = truncationReasons.Count > 0,
+                truncationMetadata = new
+                {
+                    reasons = truncationReasons.ToArray(),
+                    maxResults = maxErrors,
+                    totalResultCount,
+                    returnedResultCount = filteredErrors.Count,
+                    liveScan = liveScan.Budget.ToContract(liveErrors.Count)
+                },
                 errors = filteredErrors.Select(e => BuildBindingErrorPayload(e, liveErrors, compact)).ToList()
             };
 

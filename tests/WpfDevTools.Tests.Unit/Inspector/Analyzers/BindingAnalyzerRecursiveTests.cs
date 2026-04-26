@@ -125,6 +125,45 @@ public class BindingAnalyzerRecursiveTests
     }
 
     [StaFact]
+    public void GetBindings_WithRecursiveBudgetsExceeded_ShouldReturnBoundedResultsAndTruncationMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+
+        var first = new TextBox();
+        first.SetBinding(TextBox.TextProperty, new Binding("FirstValue"));
+        first.SetBinding(FrameworkElement.TagProperty, new Binding("FirstTag"));
+
+        var second = new TextBox();
+        second.SetBinding(TextBox.TextProperty, new Binding("SecondValue"));
+
+        var root = new StackPanel();
+        root.Children.Add(first);
+        root.Children.Add(second);
+
+        var rootId = finder.GenerateElementId(root);
+
+        var result = analyzer.GetBindings(
+            rootId,
+            recursive: true,
+            maxTraversalNodes: 2,
+            maxResults: 1);
+
+        var json = JsonSerializer.SerializeToElement(result);
+
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("bindings").GetArrayLength().Should().Be(1);
+        json.GetProperty("truncated").GetBoolean().Should().BeTrue();
+        var metadata = json.GetProperty("truncationMetadata");
+        metadata.GetProperty("maxTraversalNodes").GetInt32().Should().Be(2);
+        metadata.GetProperty("maxResults").GetInt32().Should().Be(1);
+        metadata.GetProperty("reasons").EnumerateArray()
+            .Select(reason => reason.GetString())
+            .Should().Contain("TraversalNodeLimit")
+            .And.Contain("ResultLimit");
+    }
+
+    [StaFact]
     public void GetBindings_WithRecursiveTrue_NoBindingsInTree_ShouldReturnEmptyList()
     {
         var finder = new ElementFinder();

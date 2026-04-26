@@ -13,4 +13,14 @@ internal sealed record WatchEventRecord(
     string? SenderName,
     string? RoutingStrategy,
     bool? Handled,
-    string? OriginalSourceType);
+    string? OriginalSourceType)
+{
+    public bool PayloadTruncated { get; init; }
+
+    public WatchEventTruncationMetadata? TruncationMetadata { get; init; }
+}
+
+internal sealed record WatchEventTruncationMetadata(
+    int MaxStringLength,
+    IReadOnlyList<string> Reasons,
+    IReadOnlyDictionary<string, int> OriginalStringLengths);

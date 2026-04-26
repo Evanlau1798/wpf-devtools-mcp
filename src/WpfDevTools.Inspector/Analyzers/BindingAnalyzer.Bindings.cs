@@ -13,20 +13,49 @@ public sealed partial class BindingAnalyzer
             : _elementFinder.FindById(elementId);
     }
 
-    private List<object> CollectBindingsRecursive(DependencyObject element)
+    private List<object> CollectBindingsForElement(
+        DependencyObject element,
+        BindingScanBudget budget)
+    {
+        var bindings = new List<object>();
+        if (!budget.TryTakeTraversalNode())
+        {
+            return bindings;
+        }
+
+        foreach (var binding in GetDependencyPropertiesWithBindings(element))
+        {
+            if (budget.TryTakeResult())
+            {
+                bindings.Add(binding);
+            }
+        }
+
+        return bindings;
+    }
+
+    private List<object> CollectBindingsRecursive(
+        DependencyObject element,
+        BindingScanBudget budget)
     {
         var bindings = new List<object>();
         var visited = new HashSet<DependencyObject>();
-        CollectBindingsRecursiveCore(element, visited, bindings);
+        CollectBindingsRecursiveCore(element, visited, bindings, budget);
         return bindings;
     }
 
     private void CollectBindingsRecursiveCore(
         DependencyObject element,
         HashSet<DependencyObject> visited,
-        List<object> bindings)
+        List<object> bindings,
+        BindingScanBudget budget)
     {
         if (!visited.Add(element))
+        {
+            return;
+        }
+
+        if (!budget.TryTakeTraversalNode())
         {
             return;
         }
@@ -46,12 +75,18 @@ public sealed partial class BindingAnalyzer
                 }
             }
 
-            bindings.AddRange(elementBindings);
+            foreach (var binding in elementBindings)
+            {
+                if (budget.TryTakeResult())
+                {
+                    bindings.Add(binding);
+                }
+            }
         }
 
         foreach (var child in DependencyObjectTraversal.EnumerateChildren(element))
         {
-            CollectBindingsRecursiveCore(child, visited, bindings);
+            CollectBindingsRecursiveCore(child, visited, bindings, budget);
         }
     }
 
@@ -147,8 +182,12 @@ public sealed partial class BindingAnalyzer
         };
     }
 
-    private static object? ApplyStatusFilter(List<object> bindings, string? statusFilter)
+    private static object? ApplyStatusFilter(
+        List<object> bindings,
+        string? statusFilter,
+        out List<object> filteredBindings)
     {
+        filteredBindings = bindings;
         if (string.IsNullOrWhiteSpace(statusFilter) ||
             string.Equals(statusFilter, "All", StringComparison.OrdinalIgnoreCase))
         {
@@ -171,11 +210,11 @@ public sealed partial class BindingAnalyzer
                 "Use statusFilter 'All', 'Active', or 'Error'.");
         }
 
-        var filtered = bindings
+        filteredBindings = bindings
             .Where(binding => binding is Dictionary<string, object?> dict &&
                               predicate(dict.TryGetValue("status", out var status) ? status?.ToString() : null))
             .ToList();
 
-        return new { success = true, bindings = filtered };
+        return null;
     }
 }

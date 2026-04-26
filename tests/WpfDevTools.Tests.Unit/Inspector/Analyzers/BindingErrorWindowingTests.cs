@@ -27,6 +27,13 @@ public sealed class BindingErrorWindowingTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("errorCount").GetInt32().Should().Be(1);
         result.GetProperty("errors")[0].GetProperty("message").GetString().Should().Be("Second error");
+        result.GetProperty("truncated").GetBoolean().Should().BeTrue();
+        var metadata = result.GetProperty("truncationMetadata");
+        metadata.GetProperty("totalResultCount").GetInt32().Should().Be(2);
+        metadata.GetProperty("returnedResultCount").GetInt32().Should().Be(1);
+        metadata.GetProperty("reasons").EnumerateArray()
+            .Select(reason => reason.GetString())
+            .Should().Contain("ResultLimit");
     }
 
     [Fact]

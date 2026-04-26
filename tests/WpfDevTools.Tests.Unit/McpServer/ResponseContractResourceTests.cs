@@ -84,6 +84,10 @@ public sealed class ResponseContractResourceTests
         toolCallResult.GetProperty("automationPreferredField").GetString().Should().Be("result.structuredContent");
         toolCallResult.GetProperty("textFallbackSemantics").GetString().Should().Be("compact-summary-only");
         toolCallResult.GetProperty("textFallbackIsFullPayload").GetBoolean().Should().BeFalse();
+        toolCallResult.GetProperty("textFallbackDefaultMode").GetString().Should().Be("compact");
+        toolCallResult.GetProperty("textFallbackModeEnvironmentVariable").GetString()
+            .Should().Be(McpServerConfiguration.TextFallbackModeEnvVar);
+        AssertArrayContains(toolCallResult.GetProperty("textFallbackModes"), "compact", "full");
 
         var highValueTools = root.GetProperty("highValueTools");
         highValueTools.GetArrayLength().Should().BeGreaterThanOrEqualTo(7);

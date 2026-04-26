@@ -8,6 +8,7 @@ public static class McpServerConfiguration
 {
     public const string RawInjectionAllowedTargetsEnvVar = "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS";
     public const string RateLimitRequestsPerMinuteEnvVar = "WPFDEVTOOLS_RATE_LIMIT_RPM";
+    public const string TextFallbackModeEnvVar = "WPFDEVTOOLS_TEXT_FALLBACK_MODE";
 
     /// <summary>
     /// Default timeout for tool execution (except connect which has its own timeout).

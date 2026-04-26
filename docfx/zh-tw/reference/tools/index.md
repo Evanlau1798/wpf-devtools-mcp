@@ -76,7 +76,7 @@
 - 支援 structured content 的 client 應以 `structuredContent` 作為正式 payload。
 - 雖然工具結果仍會回傳 `structuredContent`，但 `tools/list` 目前刻意不公開 `outputSchema`；這是為了維持 Claude 相容性，直到 SDK 自動產生的 structured-output metadata 能被更廣泛接受。
 - 如果 client 需要 machine-readable contract，請直接讀取 MCP resource `wpf://contracts/response`。它會提供目前 `structuredContent`、`navigation`、`nextSteps`、`contextRefs`，以及 `get_binding_errors` `navigation=false` opt-out 的 JSON contract，同時保留 `tools/list` 不公開 `outputSchema` 的 Claude 相容性策略。
-- `content[0].text` 是精簡的 JSON fallback，會保留高訊號的 top-level scalar 欄位與集合計數摘要，而不是完整 JSON 的重複傳輸。
+- `content[0].text` 是精簡的 JSON fallback，會保留高訊號的 top-level scalar 欄位與集合計數摘要，而不是完整 JSON 的重複傳輸。只有 legacy text-only MCP client 需要在 `content[0].text` 取得完整 JSON 時，才設定 `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full`。
 - 若 session 內已存在 buffered runtime event，部分 diagnostic 工具也可能在回應中 piggyback `pendingEvents`。若你需要明確且 deterministic 的 event read step，請改用 `drain_events`。
 
 需要更深入的語意與使用注意事項時，請再查看各分類頁面。

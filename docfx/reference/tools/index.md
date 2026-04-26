@@ -77,7 +77,7 @@ Recent additions worth learning early:
 - High-value tool descriptions in `tools/list` are intentionally brief discovery hints; use `wpf://contracts/response` for stable field-level contracts instead of relying on long inline prose.
 - `tools/list` intentionally omits `outputSchema` even though tool results still return `structuredContent`; this preserves Claude compatibility until SDK-generated structured-output metadata is broadly accepted.
 - Need a machine-readable contract? Read MCP resource `wpf://contracts/response`. It publishes the current JSON field contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, and the `get_binding_errors` `navigation=false` opt-out while `tools/list` keeps omitting `outputSchema` for Claude compatibility.
-- `content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object.
+- `content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `content[0].text`.
 - Diagnostic tools may also piggyback `pendingEvents` when the session has buffered runtime events. Use `drain_events` when you need an explicit deterministic read of the shared event buffer.
 
 Use the category pages for the most important tools, semantics, and gotchas.

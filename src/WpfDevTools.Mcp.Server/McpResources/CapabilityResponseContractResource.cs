@@ -59,6 +59,10 @@ public static partial class CapabilityResources
                 automationPreferredField = "result.structuredContent",
                 textFallbackSemantics = "compact-summary-only",
                 textFallbackIsFullPayload = false,
+                textFallbackDefaultMode = "compact",
+                textFallbackModes = new[] { "compact", "full" },
+                textFallbackModeEnvironmentVariable = McpServerConfiguration.TextFallbackModeEnvVar,
+                textFallbackFullModeSemantics = "full-json-compatibility-for-legacy-text-only-clients",
                 structuredContentPreferred = true
             },
             toolPayload = new

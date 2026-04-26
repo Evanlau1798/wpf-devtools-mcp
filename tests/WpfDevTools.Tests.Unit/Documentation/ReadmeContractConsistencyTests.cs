@@ -63,7 +63,7 @@ public sealed class ReadmeContractConsistencyTests
         textFallbackHelper.Should().Contain("AppendHighSignalFallbackFields");
         textFallbackHelper.Should().Contain("Annotations = isError ? ErrorAnnotations : null");
         textFallbackHelper.Should().Contain("hasStructuredContent");
-        readme.Should().Contain("Structured content: `StructuredContent` is populated on all tool results; object/array `Content.Text` preserves high-signal top-level scalar fields and collection counts as a compact fallback summary when structured payload is present, and error results include `Annotations`.");
+        readme.Should().Contain("Structured content: `StructuredContent` is populated on all tool results; object/array `Content.Text` preserves high-signal top-level scalar fields and collection counts as a compact fallback summary when structured payload is present. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `content[0].text`; error results include `Annotations`.");
         readme.Should().NotContain("Structured content: `StructuredContent` and `Annotations` populated on all tool results");
     }
 

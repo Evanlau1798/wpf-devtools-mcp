@@ -262,8 +262,10 @@ public sealed class DocfxCapabilityDocumentationTests
 
         english.Should().Contain("high-signal top-level scalar fields");
         english.Should().Contain("collection counts");
+        english.Should().Contain("WPFDEVTOOLS_TEXT_FALLBACK_MODE=full");
         traditionalChinese.Should().Contain("高訊號");
         traditionalChinese.Should().Contain("集合計數");
+        traditionalChinese.Should().Contain("WPFDEVTOOLS_TEXT_FALLBACK_MODE=full");
     }
 
     private static int CountOccurrences(string content, string value)

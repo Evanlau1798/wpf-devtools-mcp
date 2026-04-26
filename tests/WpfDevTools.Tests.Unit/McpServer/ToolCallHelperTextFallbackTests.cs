@@ -84,6 +84,29 @@ public sealed class ToolCallHelperTextFallbackTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_WithFullTextFallbackMode_ShouldEmitFullJsonText()
+    {
+        using var fallbackScope = EnvironmentVariableScope.Set("WPFDEVTOOLS_TEXT_FALLBACK_MODE", "full");
+        var payload = new
+        {
+            success = true,
+            status = "Ready",
+            details = Enumerable.Range(0, 4).Select(index => new { index }).ToArray()
+        };
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(payload),
+            null,
+            CancellationToken.None);
+
+        var textBlock = result.Content[0].Should().BeOfType<TextContentBlock>().Subject;
+        var textPayload = JsonSerializer.Deserialize<JsonElement>(textBlock.Text);
+
+        textPayload.GetProperty("details").GetArrayLength().Should().Be(4);
+        textBlock.Text.Should().Be(result.StructuredContent!.Value.GetRawText());
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_WithMinimalObjectPayload_ShouldExplainStructuredContentAsCanonicalPayload()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
@@ -226,5 +249,25 @@ public sealed class ToolCallHelperTextFallbackTests : IDisposable
         textPayload.GetProperty("suggestedAction").GetString().Should().Be("Wait and retry the same tool.");
         textPayload.GetProperty("retryAfterSeconds").GetInt64().Should().Be(3);
         textPayload.GetProperty("availableEvents").EnumerateArray().Select(item => item.GetString()).Should().Contain(["Click", "Loaded"]);
+    }
+
+    private sealed class EnvironmentVariableScope : IDisposable
+    {
+        private readonly string _name;
+        private readonly string? _previousValue;
+
+        private EnvironmentVariableScope(string name, string? value)
+        {
+            _name = name;
+            _previousValue = Environment.GetEnvironmentVariable(name);
+            Environment.SetEnvironmentVariable(name, value);
+        }
+
+        public static EnvironmentVariableScope Set(string name, string value) => new(name, value);
+
+        public void Dispose()
+        {
+            Environment.SetEnvironmentVariable(_name, _previousValue);
+        }
     }
 }

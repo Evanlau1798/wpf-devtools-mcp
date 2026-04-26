@@ -8,6 +8,7 @@ public static partial class ToolCallHelper
     private const int TextFallbackMaxLength = 200;
     private const int TextFallbackInlineStringMaxLength = 80;
     private const int TextFallbackMaxSummaryFields = 6;
+    private const string FullTextFallbackMode = "full";
     private const string StructuredContentFallbackMessage = "Canonical payload available in structuredContent; content[0].text is a compact fallback.";
 
     private static readonly HashSet<string> OmittedTextFallbackProperties = new(StringComparer.OrdinalIgnoreCase)
@@ -29,11 +30,24 @@ public static partial class ToolCallHelper
 
     private static TextContentBlock CreateTextContentBlock(JsonElement payload, bool isError) => new()
     {
-        Text = BuildTextFallback(payload),
+        Text = BuildTextFallback(payload, ResolveTextFallbackMode()),
         Annotations = isError ? ErrorAnnotations : null
     };
 
-    private static string BuildTextFallback(JsonElement payload) => payload.ValueKind switch
+    private static string? ResolveTextFallbackMode() =>
+        Environment.GetEnvironmentVariable(McpServerConfiguration.TextFallbackModeEnvVar);
+
+    private static string BuildTextFallback(JsonElement payload, string? fallbackMode)
+    {
+        if (string.Equals(fallbackMode, FullTextFallbackMode, StringComparison.OrdinalIgnoreCase))
+        {
+            return payload.GetRawText();
+        }
+
+        return BuildCompactTextFallback(payload);
+    }
+
+    private static string BuildCompactTextFallback(JsonElement payload) => payload.ValueKind switch
     {
         JsonValueKind.Object => BuildObjectTextFallback(payload),
         JsonValueKind.Array => BuildArrayTextFallback(payload),

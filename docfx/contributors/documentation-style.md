@@ -23,7 +23,7 @@ For this repository, the official C# SDK attributes are only the first layer of 
 
 - Tool metadata still starts in the SDK attributes, but the runtime response contract is normalized through `ToolCallHelper`.
 - MCP wrappers intentionally use `UseStructuredContent = false`; `ToolCallHelper` then populates `StructuredContent` with the canonical JSON payload.
-- When `StructuredContent` is present, `Content.Text` remains a compact fallback summary for clients that only read text.
+- When `StructuredContent` is present, `Content.Text` remains a compact fallback summary for clients that only read text. `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` is an explicit compatibility mode for legacy text-only MCP clients, not the default documentation baseline.
 - Additive follow-up guidance lives in the shared `navigation` envelope, while `nextSteps` remains the compatibility surface for older clients.
 - Error results may include `Annotations` plus structured recovery fields such as `suggestedAction`, `requiresReconnect`, and `retryAfterSeconds`.
 - Update public docfx pages from the code-backed contract; do not hand-maintain a second schema narrative that drifts from the wrappers.

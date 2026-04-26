@@ -825,17 +825,13 @@ internal static class ReleaseScriptTestHarness
             "$sig = Get-AuthenticodeSignature -FilePath '" + signedSourcePath.Replace("'", "''") +
             "'; [ordered]@{ Thumbprint = if ($null -ne $sig.SignerCertificate) { $sig.SignerCertificate.Thumbprint } else { $null }; Subject = if ($null -ne $sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { $null } } | ConvertTo-Json -Compress");
 
-        using var process = Process.Start(startInfo)!;
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-
-        if (process.ExitCode != 0)
+        var result = RunProcess(startInfo, TimeSpan.FromSeconds(10));
+        if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"Failed to resolve signer metadata for {signedSourcePath}: {stderr}");
+            throw new InvalidOperationException($"Failed to resolve signer metadata for {signedSourcePath}: {result.Stderr}");
         }
 
-        using var payload = JsonDocument.Parse(stdout);
+        using var payload = JsonDocument.Parse(result.Stdout);
         var thumbprint = payload.RootElement.GetProperty("Thumbprint").GetString();
         var subject = payload.RootElement.GetProperty("Subject").GetString();
         if (string.IsNullOrWhiteSpace(thumbprint) || string.IsNullOrWhiteSpace(subject))

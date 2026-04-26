@@ -259,7 +259,7 @@ Resolve-InstallerScriptRoot
             startInfo.ArgumentList.Add(Path.Combine("scripts", "installer", helperFile).Replace('\\', '/'));
 
             using var process = Process.Start(startInfo)!;
-            process.WaitForExit();
+            WaitForGitValidationExit(process, helperFile);
             process.ExitCode.Should().Be(0, $"{helperFile} must be tracked because the installer manifest ships it");
         }
     }
@@ -717,5 +717,23 @@ $session = Resolve-PackageSession -Mode online -ResolvedVersion latest -Resolved
         {
             return false;
         }
+    }
+
+    private static void WaitForGitValidationExit(Process process, string helperFile)
+    {
+        if (process.WaitForExit(5000))
+        {
+            return;
+        }
+
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        throw new TimeoutException($"Timed out validating tracked installer helper '{helperFile}'.");
     }
 }

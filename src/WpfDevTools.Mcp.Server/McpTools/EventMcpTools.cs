@@ -115,7 +115,8 @@ public static class EventMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetEventHandlersTool>("GetEventHandlersTool", () => new GetEventHandlersTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            toolName: "get_event_handlers");
     }
 
     [McpServerTool(Name = "fire_routed_event", Title = "Fire WPF Routed Event", OpenWorld = false, Destructive = true, UseStructuredContent = false)]

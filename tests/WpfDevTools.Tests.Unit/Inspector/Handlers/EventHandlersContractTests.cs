@@ -1,9 +1,15 @@
+using System.IO.Pipes;
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Mcp.Server;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Host.Handlers;
 using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Serialization;
+using static WpfDevTools.Tests.Unit.TestHelpers;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Host.Handlers;
@@ -106,6 +112,65 @@ public sealed class EventHandlersContractTests : IDisposable
         nextSteps.GetArrayLength().Should().Be(1);
         nextSteps[0].GetProperty("tool").GetString().Should().Be("get_commands");
         nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+    }
+
+    [Fact]
+    public async Task GetEventHandlersWrapper_WithIncompleteClickInspection_ShouldRecommendCommandFallback()
+    {
+        const int processId = 62041;
+        var pipeName = CreateUniquePipeName();
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+            var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+            request.Should().NotBeNull();
+
+            var response = new InspectorResponse
+            {
+                Id = request!.Id,
+                CorrelationId = request.CorrelationId,
+                Result = JsonSerializer.SerializeToElement(new
+                {
+                    success = true,
+                    elementId = "SaveButton",
+                    eventName = "Click",
+                    handlerCount = 0,
+                    mayBeIncomplete = true,
+                    handlers = Array.Empty<object>()
+                })
+            };
+
+            await MessageFraming.WriteMessageAsync(
+                server,
+                JsonSerializer.Serialize(response),
+                CancellationToken.None);
+        });
+
+        using var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplaceSessionManagerPipeClient(sessionManager, processId, client);
+
+        var result = await EventMcpTools.GetEventHandlers(
+            sessionManager,
+            eventName: "Click",
+            processId: processId,
+            elementId: "SaveButton");
+
+        await serverTask;
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        navigation.GetProperty("recommended")[0].GetProperty("tool").GetString().Should().Be("get_commands");
+        navigation.GetProperty("recommended")[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
     }
 
     [StaFact]

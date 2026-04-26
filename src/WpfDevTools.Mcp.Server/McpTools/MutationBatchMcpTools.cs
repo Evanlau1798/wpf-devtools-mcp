@@ -7,7 +7,7 @@ using WpfDevTools.Mcp.Server.Tools;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
-/// MCP SDK wrapper for Mutation Batch tools (1 tool).
+/// MCP SDK wrapper for Mutation Batch tools.
 /// </summary>
 [McpServerToolType]
 public static class MutationBatchMcpTools

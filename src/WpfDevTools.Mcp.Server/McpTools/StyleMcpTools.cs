@@ -7,7 +7,7 @@ using WpfDevTools.Mcp.Server.Tools;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
-/// MCP SDK wrapper for Style/Template tools (4 tools).
+/// MCP SDK wrapper for Style/Template tools.
 /// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
 /// </summary>
 [McpServerToolType]

@@ -6,7 +6,7 @@ using WpfDevTools.Mcp.Server.Tools;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 /// <summary>
-/// MCP SDK wrapper for Layout tools (4 tools).
+/// MCP SDK wrapper for Layout tools.
 /// Bridges [McpServerTool] attributes to existing tool ExecuteAsync implementations.
 /// </summary>
 [McpServerToolType]

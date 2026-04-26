@@ -102,6 +102,18 @@ public static class BatchQueryArgumentParser
             return null;
         }
 
+        var itemCount = property.GetArrayLength();
+        if (itemCount > BatchItemLimits.MaxQueryInputItems)
+        {
+            error = BatchItemLimits.CreateInvalidArgumentError(
+                name,
+                itemCount,
+                BatchItemLimits.MaxQueryInputItems,
+                $"{name} must contain at most {BatchItemLimits.MaxQueryInputItems} items; received {itemCount}.",
+                $"Split large batch queries into smaller batches of {BatchItemLimits.MaxQueryInputItems} or fewer values.");
+            return null;
+        }
+
         var values = new List<string?>();
         foreach (var item in property.EnumerateArray())
         {
@@ -201,7 +213,15 @@ public static class BatchQueryExecutor
     {
         if (combinationMode == CombinationMode.CrossProduct)
         {
-            var pairs = new List<(string? elementId, string? propertyName)>();
+            var pairCount = (long)elementIds.Count * propertyNames.Count;
+            if (pairCount > BatchItemLimits.MaxQueryExpandedItems)
+            {
+                return (Array.Empty<(string? elementId, string? propertyName)>(), CreateExpansionLimitExceeded(
+                    "crossProduct",
+                    pairCount));
+            }
+
+            var pairs = new List<(string? elementId, string? propertyName)>((int)pairCount);
             foreach (var elementId in elementIds)
             {
                 foreach (var propertyName in propertyNames)
@@ -211,6 +231,14 @@ public static class BatchQueryExecutor
             }
 
             return (pairs, null);
+        }
+
+        var expandedItemCount = Math.Max(elementIds.Count, propertyNames.Count);
+        if (expandedItemCount > BatchItemLimits.MaxQueryExpandedItems)
+        {
+            return (Array.Empty<(string? elementId, string? propertyName)>(), CreateExpansionLimitExceeded(
+                "pairwiseBroadcast",
+                expandedItemCount));
         }
 
         if (elementIds.Count > 1 && propertyNames.Count > 1 && elementIds.Count != propertyNames.Count)
@@ -265,4 +293,22 @@ public static class BatchQueryExecutor
             ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
             Hint = "Use equal-length elementIds/propertyNames for pairwise batch inspection, or provide a single elementId/propertyName to broadcast across the other batch axis."
         };
+
+    private static object CreateExpansionLimitExceeded(string mode, long actualItems)
+    {
+        var displayMode = mode switch
+        {
+            "crossProduct" => "cross-product",
+            "pairwiseBroadcast" => "pairwise-broadcast",
+            _ => mode
+        };
+
+        return BatchItemLimits.CreateInvalidArgumentError(
+            "queryExpansion",
+            actualItems,
+            BatchItemLimits.MaxQueryExpandedItems,
+            $"Batch query {displayMode} expansion would produce {actualItems} items; maximum is {BatchItemLimits.MaxQueryExpandedItems}.",
+            $"Split large batch queries into smaller batches so each request produces {BatchItemLimits.MaxQueryExpandedItems} or fewer results.",
+            new Dictionary<string, object?> { ["mode"] = mode });
+    }
 }

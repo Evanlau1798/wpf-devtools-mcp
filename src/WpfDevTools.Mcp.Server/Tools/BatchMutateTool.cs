@@ -219,6 +219,11 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
             return (null, mutationsError);
         }
 
+        if (!TryValidateMutationCount(mutationsElement, out var mutationCountError))
+        {
+            return (null, mutationCountError);
+        }
+
         var mutations = new List<BatchMutationStep>();
         var index = 0;
         foreach (var mutationElement in mutationsElement.EnumerateArray())

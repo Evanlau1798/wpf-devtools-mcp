@@ -839,18 +839,7 @@ public partial class ConnectToolTests : IDisposable
 
     private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
     {
-        var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
-        field.Should().NotBeNull();
-
-        var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
-        pipeClients.Should().NotBeNull();
-
-        if (pipeClients!.TryGetValue(processId, out var existingClient))
-        {
-            existingClient.Dispose();
-        }
-
-        pipeClients[processId] = replacement;
+        ReplaceSessionManagerPipeClient(sessionManager, processId, replacement);
     }
 
     private sealed class FakeProcessDetector(bool isElevated = false, string? executablePath = null) : WpfProcessDetector

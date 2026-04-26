@@ -1,11 +1,11 @@
 using System.IO.Pipes;
-using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
+using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
@@ -131,14 +131,7 @@ public sealed class DrainEventsToolTests
 
         private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
         {
-            var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
-            var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
-            if (pipeClients!.TryGetValue(processId, out var existingClient))
-            {
-                existingClient.Dispose();
-            }
-
-            pipeClients[processId] = replacement;
+            ReplaceSessionManagerPipeClient(sessionManager, processId, replacement);
         }
     }
 }

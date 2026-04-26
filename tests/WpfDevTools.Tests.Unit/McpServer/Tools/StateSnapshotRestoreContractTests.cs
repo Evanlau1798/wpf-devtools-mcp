@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Pipes;
-using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
@@ -399,18 +398,7 @@ public sealed class StateSnapshotRestoreContractTests
 
     private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
     {
-        var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
-        field.Should().NotBeNull();
-
-        var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
-        pipeClients.Should().NotBeNull();
-
-        if (pipeClients!.TryGetValue(processId, out var existingClient))
-        {
-            existingClient.Dispose();
-        }
-
-        pipeClients[processId] = replacement;
+        ReplaceSessionManagerPipeClient(sessionManager, processId, replacement);
     }
 
     private sealed class ConnectedStateSession(

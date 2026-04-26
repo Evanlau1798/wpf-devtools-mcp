@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Pipes;
-using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
@@ -291,28 +290,12 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
 
     private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
     {
-        var field = typeof(SessionManager).GetField("_pipeClients", BindingFlags.Instance | BindingFlags.NonPublic);
-        field.Should().NotBeNull();
-
-        var pipeClients = field!.GetValue(sessionManager) as Dictionary<int, NamedPipeClient>;
-        pipeClients.Should().NotBeNull();
-
-        if (pipeClients!.TryGetValue(processId, out var existingClient))
-        {
-            existingClient.Dispose();
-        }
-
-        pipeClients[processId] = replacement;
+        ReplaceSessionManagerPipeClient(sessionManager, processId, replacement);
     }
 
     private static void DisableCleanupTimer(SessionManager sessionManager)
     {
-        var timerField = typeof(SessionManager).GetField("_cleanupTimer", BindingFlags.Instance | BindingFlags.NonPublic);
-        timerField.Should().NotBeNull();
-
-        var timer = timerField!.GetValue(sessionManager) as System.Threading.Timer;
-        timer.Should().NotBeNull();
-        timer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        DisableSessionManagerCleanupTimer(sessionManager);
     }
 
     private sealed class ConnectedStateSession(

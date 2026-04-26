@@ -28,7 +28,7 @@ public static class ServerInstructions
         - windowFilter: string, one of 'visible' (default), 'all', or 'foreground' for process discovery and auto-discovery narrowing
         - nameFilter: string, optional on get_processes, case-insensitive substring match on process name
         - elementId: string, from get_visual_tree/get_logical_tree, optional (omit = root window)
-        - depth: integer (1-100), controls tree traversal depth, default=10
+        - depth: integer (0-100), controls traversal depth. Tree tools default to depth=10 when depth is omitted; get_ui_summary defaults to depth=3 and depthMode='semantic'.
         - propertyName: string, DependencyProperty name (e.g., 'Text', 'IsEnabled')
         - commandName: string, ICommand property name (e.g., 'SaveCommand')
         - eventName: string, WPF RoutedEvent name (e.g., 'Click', 'MouseDown')
@@ -93,6 +93,8 @@ public static class ServerInstructions
         - Need safe rollback before debugging? -> capture_state_snapshot before mutation, restore_state_snapshot afterwards
 
         === TOKEN EFFICIENCY ===
+        - Prefer scene tools first: get_ui_summary defaults to depth=3 and depthMode='semantic', so layout-only wrappers do not consume the initial scene budget
+        - Tree tools default to depth=10 when depth is omitted, but initial tree exploration should usually pass a smaller explicit depth
         - Use depth=1 for immediate children only (fastest)
         - Use depth=2-3 for typical UI exploration (recommended)
         - Use depth=5+ only when deep tree analysis is necessary

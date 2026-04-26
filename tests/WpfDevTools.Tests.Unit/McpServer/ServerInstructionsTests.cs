@@ -35,6 +35,15 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldSeparateSceneAndTreeDepthDefaults()
+    {
+        ServerInstructions.Value.Should().Contain("depth: integer (0-100)");
+        ServerInstructions.Value.Should().Contain("Tree tools default to depth=10 when depth is omitted");
+        ServerInstructions.Value.Should().Contain("get_ui_summary defaults to depth=3 and depthMode='semantic'");
+        ServerInstructions.Value.Should().NotContain("depth: integer (1-100), controls tree traversal depth, default=10");
+    }
+
+    [Fact]
     public void Value_ShouldContainTimeouts()
     {
         ServerInstructions.Value.Should().Contain("TIMEOUTS");

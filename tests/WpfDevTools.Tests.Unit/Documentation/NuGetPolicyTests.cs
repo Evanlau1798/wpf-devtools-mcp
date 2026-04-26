@@ -124,6 +124,23 @@ public class NuGetPolicyTests
     }
 
     [Fact]
+    public void DirectoryBuildProps_ShouldFailBuildOnNuGetSecurityAdvisories()
+    {
+        var document = LoadXml("Directory.Build.props");
+        var advisoryWarnings = new[] { "NU1901", "NU1902", "NU1903", "NU1904" };
+
+        var warningsNotAsErrors = GetPropertyValues(document, "WarningsNotAsErrors");
+        warningsNotAsErrors.Should().OnlyContain(
+            value => advisoryWarnings.All(code => !ContainsWarningCode(value, code)),
+            "NuGet security advisories must not be downgraded from errors");
+
+        var warningsAsErrors = GetPropertyValues(document, "WarningsAsErrors");
+        warningsAsErrors.Should().Contain(
+            value => advisoryWarnings.All(code => ContainsWarningCode(value, code)),
+            "NuGet security advisories should fail CI restore/build instead of being allowed through");
+    }
+
+    [Fact]
     public void Projects_ShouldCommitNuGetLockFiles()
     {
         foreach (var projectPath in ProjectFiles)
@@ -163,4 +180,13 @@ public class NuGetPolicyTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string[] GetPropertyValues(XDocument document, string propertyName)
+        => document.Descendants(propertyName)
+            .Select(element => element.Value)
+            .ToArray();
+
+    private static bool ContainsWarningCode(string propertyValue, string warningCode)
+        => propertyValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Contains(warningCode, StringComparer.OrdinalIgnoreCase);
 }

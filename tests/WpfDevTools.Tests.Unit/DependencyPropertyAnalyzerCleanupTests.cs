@@ -58,16 +58,14 @@ public class DependencyPropertyAnalyzerCleanupTests : IDisposable
     }
 
     [StaFact]
-    public void WatchChanges_ShouldNotLeakMemoryAfterUnwatch()
+    public void WatchChanges_ShouldDetachHandlersAfterUnwatch()
     {
-        // Arrange: Create analyzer
-        var elementFinder = new ElementFinder();
+        using var elementFinder = new ElementFinder();
         var analyzer = new DependencyPropertyAnalyzer(elementFinder);
 
-        var weakRefs = new List<WeakReference>();
+        var buttons = new List<Button>();
         var elementIds = new List<string>();
 
-        // Create multiple elements and watch them
         for (int i = 0; i < 10; i++)
         {
             var button = new Button { Content = $"Button {i}", Width = 100 };
@@ -76,35 +74,25 @@ public class DependencyPropertyAnalyzerCleanupTests : IDisposable
             dynamic result = analyzer.WatchChanges("Width", elementId);
             Assert.True(result.success);
 
-            // Keep weak reference to verify GC
-            weakRefs.Add(new WeakReference(button));
+            buttons.Add(button);
             elementIds.Add(elementId);
         }
 
-        // Act: Unwatch all elements (releases the strong reference held by AddValueChanged)
         for (int i = 0; i < elementIds.Count; i++)
         {
-            analyzer.UnwatchChanges("Width", elementIds[i]);
+            dynamic unwatchResult = analyzer.UnwatchChanges("Width", elementIds[i]);
+            ((bool)unwatchResult.success).Should().BeTrue();
         }
 
-        // Clean up ElementFinder caches (removes strong references from _objectToIdCache)
-        elementFinder.CleanupDeadReferences();
-        elementFinder.Dispose();
+        analyzer.ClearChangeLog();
+        foreach (var button in buttons)
+        {
+            button.Width += 10;
+        }
 
-        // Force garbage collection
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
-        // Assert: Verify cleanup ran without error
-        // GC behavior is non-deterministic - elements may or may not be collected
-        // depending on JIT optimizations and runtime internals.
-        // The important assertion is that the cleanup pipeline works end-to-end
-        // without throwing exceptions.
-        Assert.True(true, "Unwatch + cleanup pipeline completed without errors");
+        dynamic logResult = analyzer.GetChangeLog();
+        ((int)logResult.changeCount).Should().Be(0);
     }
-
-
 
     [StaFact]
     public void UnwatchChanges_ShouldHandleGarbageCollectedElementGracefully()

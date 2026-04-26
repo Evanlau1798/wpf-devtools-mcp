@@ -80,6 +80,27 @@ public class RepositoryHygieneTests
             .Contain("<PackageVersion Include=\"FluentAssertions\" Version=\"6.12.0\" />");
     }
 
+    [Fact]
+    public void UnitTests_ShouldNotUseTrivialTrueAssertionsAsBehaviorAssertions()
+    {
+        const string trivialTrueAssertion = "Assert.True(" + "true";
+        var violations = EnumeratePolicyFiles()
+            .Where(path => path.StartsWith("tests/", StringComparison.Ordinal))
+            .SelectMany(path => File.ReadLines(GetRepoFilePath(path))
+                .Select((line, index) => new
+                {
+                    Path = path,
+                    Line = index + 1,
+                    Text = line.Trim()
+                }))
+            .Where(line => line.Text.Contains(trivialTrueAssertion, StringComparison.Ordinal))
+            .Select(line => $"{line.Path}:{line.Line}: {line.Text}")
+            .ToArray();
+
+        violations.Should().BeEmpty(
+            "tests should assert deterministic behavior instead of recording that a code path merely completed");
+    }
+
     private static string ReadRepoFile(string relativePath)
     {
         var path = GetRepoFilePath(relativePath);

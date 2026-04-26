@@ -71,6 +71,21 @@ public class ReadmeDocumentationTests
         content.Should().Contain("Host.CreateEmptyApplicationBuilder(");
     }
 
+    [Fact]
+    public void Readme_ShouldDocumentElementScreenshotOutputModes()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("element_screenshot");
+        content.Should().Contain("outputMode");
+        content.Should().Contain("metadata");
+        content.Should().Contain("file");
+        content.Should().Contain("base64");
+        content.Should().Contain("screenshotId");
+        content.Should().Contain("sha256");
+        content.Should().NotContain("`element_screenshot` returns `base64Image`, `width`, `height`, and `format`.");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
     [Fact]

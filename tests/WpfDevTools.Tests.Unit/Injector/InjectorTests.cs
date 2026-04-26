@@ -30,38 +30,16 @@ public class ProcessInjectorTests
     [Fact]
     public void Inject_WithNonWpfProcess_ShouldReturnNotWpfApplicationError()
     {
-        // Arrange
-        var injector = new ProcessInjector();
+        var nonWpfProcessId = 1_500_000_001;
+        var injector = new ProcessInjector(
+            new NonWpfProcessDetector(nonWpfProcessId),
+            new DllInjector());
+        var dllPath = "not-used-before-target-validation.dll";
 
-        // Find a system process that is definitely not WPF (e.g., svchost, System, Idle)
-        var systemProcesses = System.Diagnostics.Process.GetProcessesByName("svchost");
-        if (systemProcesses.Length == 0)
-        {
-            // Fallback to other system processes
-            systemProcesses = System.Diagnostics.Process.GetProcessesByName("System");
-        }
-
-        if (systemProcesses.Length == 0)
-        {
-            return; // Skip if no suitable process found
-        }
-
-        var nonWpfProcessId = systemProcesses[0].Id;
-        var dllPath = typeof(ProcessInjector).Assembly.Location;
-
-        // Act
         var result = injector.Inject(nonWpfProcessId, dllPath);
 
-        // Assert
         result.Success.Should().BeFalse();
-        // System process is not a WPF app
         result.Error.Should().Be(InjectionError.NotWpfApplication);
-
-        // Cleanup
-        foreach (var proc in systemProcesses)
-        {
-            proc.Dispose();
-        }
     }
 
     [Fact]
@@ -179,6 +157,26 @@ public class ProcessInjectorTests
                 Architecture = Environment.Is64BitProcess ? ProcessArchitecture.X64 : ProcessArchitecture.X86,
                 Runtime = TargetRuntime.NetCore,
                 IsWpfApplication = true
+            };
+        }
+    }
+
+    private sealed class NonWpfProcessDetector(int expectedProcessId) : WpfProcessDetector
+    {
+        public override WpfProcessInfo? GetProcessInfo(int processId)
+        {
+            if (processId != expectedProcessId)
+            {
+                return null;
+            }
+
+            return new WpfProcessInfo
+            {
+                ProcessId = processId,
+                ProcessName = "NonWpfTestProcess",
+                Architecture = Environment.Is64BitProcess ? ProcessArchitecture.X64 : ProcessArchitecture.X86,
+                Runtime = TargetRuntime.NetCore,
+                IsWpfApplication = false
             };
         }
     }

@@ -13,13 +13,7 @@ public class PeArchitectureReaderTests
     [Fact]
     public void Detect_WithInspectorDllFromTestOutput_ShouldReturnUnknownForNeutralManagedAssembly()
     {
-        var inspectorDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
-
-        if (!File.Exists(inspectorDllPath))
-        {
-            // Skip if DLL not available in test output
-            return;
-        }
+        var inspectorDllPath = RequireAssemblyFile(typeof(global::WpfDevTools.Inspector.Bootstrap));
 
         var result = PeArchitectureReader.Detect(inspectorDllPath);
 
@@ -72,12 +66,7 @@ public class PeArchitectureReaderTests
     [Fact]
     public void Detect_WithSharedProjectDllFromTestOutput_ShouldReturnUnknownForNeutralManagedAssembly()
     {
-        var sharedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Shared.dll");
-
-        if (!File.Exists(sharedDllPath))
-        {
-            return;
-        }
+        var sharedDllPath = RequireAssemblyFile(typeof(ProcessArchitecture));
 
         var result = PeArchitectureReader.Detect(sharedDllPath);
 
@@ -91,5 +80,17 @@ public class PeArchitectureReaderTests
         var result = PeArchitectureReader.Detect(null!);
 
         result.Should().Be(ProcessArchitecture.Unknown);
+    }
+
+    private static string RequireAssemblyFile(Type assemblyMarkerType)
+    {
+        var assemblyPath = assemblyMarkerType.Assembly.Location;
+
+        assemblyPath.Should().NotBeNullOrWhiteSpace(
+            $"{assemblyMarkerType.Assembly.GetName().Name} must be resolved from the unit test output");
+        File.Exists(assemblyPath).Should().BeTrue(
+            $"{assemblyMarkerType.Assembly.GetName().Name} must exist as a deterministic PE reader test asset");
+
+        return assemblyPath;
     }
 }

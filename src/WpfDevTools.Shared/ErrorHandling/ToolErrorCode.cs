@@ -58,5 +58,10 @@ public enum ToolErrorCode
     /// <summary>
     /// The operation failed at runtime even though the input shape was valid.
     /// </summary>
-    OperationFailed
+    OperationFailed,
+
+    /// <summary>
+    /// The requested response payload would exceed transport, memory, or storage limits.
+    /// </summary>
+    PayloadTooLarge
 }

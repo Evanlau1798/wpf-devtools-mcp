@@ -79,6 +79,18 @@ public static class ToolErrorFactory
         hint);
 
     /// <summary>
+    /// Create a payload-too-large error before allocating or returning oversized data.
+    /// </summary>
+    public static ToolErrorPayload PayloadTooLarge(
+        string message,
+        string? hint = null,
+        object? errorData = null) => Create(
+        ToolErrorCode.PayloadTooLarge,
+        message,
+        hint,
+        errorData);
+
+    /// <summary>
     /// Create an element-not-loaded error payload.
     /// </summary>
     public static ToolErrorPayload ElementNotLoaded(string message, string? hint = null, object? errorData = null) => Create(

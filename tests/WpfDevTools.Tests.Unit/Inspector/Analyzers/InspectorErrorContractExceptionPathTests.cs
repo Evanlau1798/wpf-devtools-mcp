@@ -24,7 +24,7 @@ public sealed class InspectorErrorContractExceptionPathTests
     }
 
     [StaFact]
-    public void TakeScreenshot_ElementTooLarge_ShouldReturnStructuredInvalidArgument()
+    public void TakeScreenshot_ElementTooLarge_ShouldReturnStructuredPayloadTooLarge()
     {
         var finder = new ElementFinder();
         var analyzer = new InteractionAnalyzer(finder);
@@ -40,7 +40,7 @@ public sealed class InspectorErrorContractExceptionPathTests
 
         var result = analyzer.TakeScreenshot(elementId, "base64");
 
-        AssertStructuredError(result, "InvalidArgument", "smaller");
+        AssertStructuredError(result, "PayloadTooLarge", "smaller");
     }
 
     [StaFact]

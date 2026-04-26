@@ -80,8 +80,26 @@ public sealed partial class InteractionAnalyzer
                     };
                 }
 
-                ValidateRenderedDimensions(targetWidth, targetHeight, bounds.Width, bounds.Height);
+                var budgetError = ValidateRenderedBudget(targetWidth, targetHeight, bounds.Width, bounds.Height);
+                if (budgetError is not null)
+                {
+                    return budgetError;
+                }
+
                 var imageBytes = RenderScreenshotBytes(uiElement, bounds, targetWidth, targetHeight);
+                if (imageBytes.Length > ScreenshotStorage.MaxEncodedPngBytes)
+                {
+                    return ToolErrorFactory.PayloadTooLarge(
+                        $"Screenshot PNG payload is {imageBytes.Length} bytes, exceeding the {ScreenshotStorage.MaxEncodedPngBytes} byte limit.",
+                        "Use outputMode 'metadata', target a smaller element, or provide smaller maxWidth/maxHeight values.",
+                        new
+                        {
+                            byteLength = imageBytes.Length,
+                            maxByteLength = ScreenshotStorage.MaxEncodedPngBytes,
+                            width = targetWidth,
+                            height = targetHeight
+                        });
+                }
 
                 if (normalizedOutputMode == "file")
                 {
@@ -248,7 +266,7 @@ public sealed partial class InteractionAnalyzer
         return null;
     }
 
-    private static void ValidateRenderedDimensions(
+    private static object? ValidateRenderedBudget(
         int targetWidth,
         int targetHeight,
         double originalWidth,
@@ -257,10 +275,34 @@ public sealed partial class InteractionAnalyzer
         const int maxDimensionPixels = 3840;
         if (targetWidth > maxDimensionPixels || targetHeight > maxDimensionPixels)
         {
-            throw new ArgumentOutOfRangeException(
-                "targetSize",
-                $"Element too large to screenshot ({originalWidth:F0}x{originalHeight:F0} px; rendered {targetWidth}x{targetHeight} px). Maximum rendered size is {maxDimensionPixels}x{maxDimensionPixels}.");
+            return ToolErrorFactory.PayloadTooLarge(
+                $"Element too large to screenshot ({originalWidth:F0}x{originalHeight:F0} px; rendered {targetWidth}x{targetHeight} px). Maximum rendered dimension is {maxDimensionPixels}px.",
+                "Use outputMode 'metadata', target a smaller element, or provide smaller maxWidth/maxHeight values.",
+                new
+                {
+                    width = targetWidth,
+                    height = targetHeight,
+                    maxDimensionPixels
+                });
         }
+
+        const long maxRenderedBytes = 32L * 1024 * 1024;
+        var estimatedRenderedBytes = (long)targetWidth * targetHeight * 4;
+        if (estimatedRenderedBytes > maxRenderedBytes)
+        {
+            return ToolErrorFactory.PayloadTooLarge(
+                $"Screenshot render buffer would require {estimatedRenderedBytes} bytes, exceeding the {maxRenderedBytes} byte limit.",
+                "Use outputMode 'metadata', target a smaller element, or provide smaller maxWidth/maxHeight values.",
+                new
+                {
+                    width = targetWidth,
+                    height = targetHeight,
+                    estimatedRenderedBytes,
+                    maxRenderedBytes
+                });
+        }
+
+        return null;
     }
 
     private static (int Width, int Height) CalculateScaledDimensions(

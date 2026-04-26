@@ -66,6 +66,27 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
     }
 
     [StaFact]
+    public void TakeScreenshot_WithRenderedOutputAboveBudget_ShouldReturnPayloadTooLarge()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var button = new Button { Width = 5000, Height = 5000 };
+        button.Measure(new System.Windows.Size(5000, 5000));
+        button.Arrange(new System.Windows.Rect(0, 0, 5000, 5000));
+        button.UpdateLayout();
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.TakeScreenshot(elementId, "base64");
+        var json = JsonSerializer.SerializeToElement(result);
+
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be(
+            "PayloadTooLarge",
+            json.GetProperty("error").GetString());
+        json.GetProperty("hint").GetString().Should().Contain("maxWidth");
+    }
+
+    [StaFact]
     public void TakeScreenshot_WithNonPositiveMaxDimension_ShouldReturnStructuredError()
     {
         var finder = new ElementFinder();

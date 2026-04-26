@@ -16,13 +16,13 @@ dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.cs
 
 ## Current validation snapshot
 
-The current project-level verification status is based on the latest completed full-suite run.
+The current project-level verification status combines the latest completed suite baselines with subsequent focused reruns when test counts or scheduling change.
 
 ### Test results
 
-- Unit tests: 2767 total, 2767 passed, 0 failed
-- Integration tests: 289 total, 289 passed, 0 failed
-- Full-suite total: 3056 tests, 3056 passed, 0 failed
+- Unit tests: 2769 total, 2769 passed, 0 failed in the latest completed unit-suite run
+- Integration tests: 291 total, 291 passed, 0 failed in the latest completed integration-suite baseline
+- Verified combined total: 3060 tests, 3060 passed, 0 failed across the latest completed unit and integration suite runs
 
 ### Coverage
 
@@ -43,6 +43,26 @@ When tool semantics or server behavior changes, prefer this verification order:
 1. unit tests
 2. integration tests
 3. live MCP smoke harness against the test app
+
+## For test parallelization changes
+
+The unit and integration suites enable collection-level parallelization with CPU-scaled worker counts. Keep serial collection lanes narrow and named after the shared state they protect:
+
+- use `InstallerScripts` for installer PowerShell, TUI, process-lifecycle, and package-root tests that need to serialize with each other while still running beside unrelated collections
+- use `TimingSensitive` only for timing-budget tests that become unreliable under unrelated workstation contention
+- keep the `LiveBootstrapIntegration` collection ordered first because live DLL injection/connect smoke tests are most reliable before the shared testhost accumulates long-running WPF and MCP fixture state
+- avoid setting `DisableParallelization = true` unless a collection must not run beside any other collection
+- avoid moving unrelated slow tests into a broad serial lane when a smaller collection can preserve isolation and still allow other lanes to run concurrently
+
+## For installer and client registration changes
+
+Installer validation must cover both the registration metadata and the runnable MCP server contract:
+
+1. confirm generated artifacts match the target client schema: VS Code and Visual Studio use `servers`; Cursor, Claude Desktop, and generic MCP clients use `mcpServers`; Claude Code and Codex artifacts use their documented CLI commands
+2. confirm each generated `command` value is absolute and points at the installed `wpf-devtools-<arch>.exe`
+3. start the installed executable from a registration entry over STDIO and verify the MCP `initialize` plus `tools/list` flow succeeds
+
+This prevents regressions where an installer writes plausible configuration but the installed package cannot actually be started by an MCP client.
 
 ## What a good regression test looks like
 

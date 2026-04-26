@@ -123,12 +123,6 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolConcurrencyTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostObservabilityTests)).Should().Be("TimingSensitive");
-        GetCollectionName(typeof(InstallerTuiRuntimeTests)).Should().Be("TimingSensitive");
-        GetCollectionName(typeof(InstallerTuiInstallLocationEditorTests)).Should().Be("TimingSensitive");
-        GetCollectionName(typeof(InstallerProcessLifecycleTests)).Should().Be("TimingSensitive");
-        GetCollectionName(typeof(InstallerTuiVisualContractTests)).Should().Be("TimingSensitive");
-        GetCollectionName(typeof(InstallerScriptTests)).Should().Be("TimingSensitive");
-        GetCollectionName(typeof(InstallerFullUninstallTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(EncryptedCommunicationTests)).Should().Be("TimingSensitive");
     }
 
@@ -136,6 +130,30 @@ public sealed class UnitTestParallelizationContractTests
     public void TimingSensitiveCollection_ShouldDisableParallelization()
     {
         AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.TimingSensitiveCollection");
+    }
+
+    [Fact]
+    public void InstallerScriptTests_ShouldUseInstallerScriptsCollection()
+    {
+        GetCollectionName(typeof(InstallerTuiRuntimeTests)).Should().Be("InstallerScripts");
+        GetCollectionName(typeof(InstallerTuiInstallLocationEditorTests)).Should().Be("InstallerScripts");
+        GetCollectionName(typeof(InstallerProcessLifecycleTests)).Should().Be("InstallerScripts");
+        GetCollectionName(typeof(InstallerTuiVisualContractTests)).Should().Be("InstallerScripts");
+        GetCollectionName(typeof(InstallerScriptTests)).Should().Be("InstallerScripts");
+        GetCollectionName(typeof(InstallerFullUninstallTests)).Should().Be("InstallerScripts");
+    }
+
+    [Fact]
+    public void InstallerScriptsCollection_ShouldRemainParallelizable()
+    {
+        var collectionType = typeof(SignaturePolicyTests).Assembly
+            .GetType("WpfDevTools.Tests.Unit.Execution.InstallerScriptsCollection");
+        var attribute = collectionType?.GetCustomAttribute<CollectionDefinitionAttribute>();
+
+        collectionType.Should().NotBeNull();
+        attribute.Should().NotBeNull();
+        attribute!.DisableParallelization.Should().BeFalse(
+            "tests in a collection are serialized with each other, but the InstallerScripts lane should still run beside unrelated collections");
     }
 
     [Fact]

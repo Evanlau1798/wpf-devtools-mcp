@@ -4,6 +4,8 @@ using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Tests.Integration.E2E;
 using Xunit;
+using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -18,6 +20,40 @@ public sealed class IntegrationParallelizationCollectionContractTests
         document.RootElement.GetProperty("parallelizeAssembly").GetBoolean().Should().BeFalse();
         document.RootElement.GetProperty("parallelizeTestCollections").GetBoolean().Should().BeTrue();
         document.RootElement.GetProperty("maxParallelThreads").GetInt32().Should().Be(0);
+    }
+
+    [Fact]
+    public void RuntimeAssembly_ShouldRunLiveBootstrapCollectionFirst()
+    {
+        var attribute = typeof(LiveBootstrapFirstCollectionOrderer).Assembly
+            .GetCustomAttribute<TestCollectionOrdererAttribute>();
+
+        attribute.Should().NotBeNull();
+        typeof(LiveBootstrapFirstCollectionOrderer)
+            .Should()
+            .BeAssignableTo<ITestCollectionOrderer>();
+    }
+
+    [Fact]
+    public void LiveBootstrapFirstCollectionOrderer_ShouldPrioritizeLiveBootstrapCollection()
+    {
+        var alphaCollection = new StubTestCollection("AlphaCollection");
+        var liveBootstrapCollection = new StubTestCollection("LiveBootstrapIntegration");
+        var zetaCollection = new StubTestCollection("ZetaCollection");
+
+        var orderedCollections = new LiveBootstrapFirstCollectionOrderer()
+            .OrderTestCollections(new ITestCollection[]
+            {
+                alphaCollection,
+                zetaCollection,
+                liveBootstrapCollection
+            })
+            .ToArray();
+
+        orderedCollections[0].Should().BeSameAs(liveBootstrapCollection);
+        orderedCollections.Skip(1).Select(collection => collection.DisplayName)
+            .Should()
+            .Equal("AlphaCollection", "ZetaCollection");
     }
 
     [Fact]
@@ -144,5 +180,34 @@ public sealed class IntegrationParallelizationCollectionContractTests
 
         attribute.Should().NotBeNull($"{type.FullName} should declare a collection definition attribute");
         return attribute!;
+    }
+
+    private sealed class StubTestCollection : LongLivedMarshalByRefObject, ITestCollection
+    {
+        public StubTestCollection()
+            : this(string.Empty)
+        {
+        }
+
+        public StubTestCollection(string displayName)
+        {
+            DisplayName = displayName;
+        }
+
+        public ITypeInfo CollectionDefinition => null!;
+
+        public string DisplayName { get; }
+
+        public ITestAssembly TestAssembly => null!;
+
+        public Guid UniqueID { get; } = Guid.NewGuid();
+
+        public void Deserialize(IXunitSerializationInfo info)
+        {
+        }
+
+        public void Serialize(IXunitSerializationInfo info)
+        {
+        }
     }
 }

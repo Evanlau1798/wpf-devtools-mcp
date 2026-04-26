@@ -25,6 +25,7 @@ namespace WpfDevTools.Tests.Integration;
 [Collection("LiveBootstrapIntegration")]
 public class BootstrapInjectionTests : IDisposable
 {
+    private static readonly TimeSpan LiveTestAppStartupTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan LiveSmokeTimeout = TimeSpan.FromSeconds(60);
     private readonly ITestOutputHelper _output;
     private System.Diagnostics.Process? _testApp;
@@ -37,7 +38,9 @@ public class BootstrapInjectionTests : IDisposable
 
     private System.Diagnostics.Process StartTestApp()
     {
-        return TestAppProcessLauncher.StartAndWaitForMainWindow(TestAppProcessLauncher.FindTestAppExe());
+        return TestAppProcessLauncher.StartAndWaitForMainWindow(
+            TestAppProcessLauncher.FindTestAppExe(),
+            LiveTestAppStartupTimeout);
     }
 
     [Fact]
@@ -51,7 +54,7 @@ public class BootstrapInjectionTests : IDisposable
         using var smokeTimeoutCts = new CancellationTokenSource(LiveSmokeTimeout);
         _testApp = StartTestApp();
 
-        var sessionManager = new SessionManager();
+        using var sessionManager = new SessionManager();
         var injector = new ProcessInjector();
         var detector = new WpfProcessDetector();
         var connectTool = new ConnectTool(sessionManager, injector, detector, isRawInjectionTargetAllowed: _ => true);
@@ -105,7 +108,7 @@ public class BootstrapInjectionTests : IDisposable
 
         try
         {
-            var sessionManager = new SessionManager(
+            using var sessionManager = new SessionManager(
                 authManager: new AuthenticationManager(() => authSecret),
                 certManager: new CertificateManager(certDirectory));
             var injector = new ProcessInjector();

@@ -37,6 +37,15 @@ public sealed class McpStdioClient : IDisposable
     /// Start the MCP server process and perform protocol handshake.
     /// </summary>
     public async Task<JsonElement> StartAsync(string serverExePath, CancellationToken ct = default)
+        => await StartAsync(serverExePath, environmentVariables: null, ct);
+
+    /// <summary>
+    /// Start the MCP server process with additional environment variables and perform protocol handshake.
+    /// </summary>
+    public async Task<JsonElement> StartAsync(
+        string serverExePath,
+        IReadOnlyDictionary<string, string>? environmentVariables,
+        CancellationToken ct = default)
     {
         var psi = new ProcessStartInfo
         {
@@ -49,6 +58,15 @@ public sealed class McpStdioClient : IDisposable
             StandardErrorEncoding = Encoding.UTF8,
             CreateNoWindow = true
         };
+
+        if (environmentVariables != null)
+        {
+            foreach (var environmentVariable in environmentVariables)
+            {
+                psi.Environment[environmentVariable.Key] = environmentVariable.Value;
+            }
+        }
+
         psi.Environment[McpServerConfiguration.RateLimitRequestsPerMinuteEnvVar] = E2eRateLimitOverride;
 
         _serverProcess = Process.Start(psi)

@@ -4,7 +4,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-[Collection("TimingSensitive")]
+[Collection("InstallerScripts")]
 public sealed class InstallerFullUninstallTests
 {
     [Fact]

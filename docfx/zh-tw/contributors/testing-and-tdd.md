@@ -16,13 +16,13 @@ dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.cs
 
 ## 目前驗證快照
 
-目前專案層級的驗證狀態以下列最近一次完整完成的 full-suite 為準。
+目前專案層級的驗證狀態會結合最近一次完整完成的 suite baseline，以及測試數量或排程調整後的 focused rerun。
 
 ### 測試結果
 
-- Unit tests：總數 2767，通過 2767，失敗 0
-- Integration tests：總數 289，通過 289，失敗 0
-- Full-suite 總計：3056 個測試，通過 3056，失敗 0
+- Unit tests：最近一次完整 unit-suite run 總數 2769，通過 2769，失敗 0
+- Integration tests：最近一次完整 integration-suite baseline 總數 291，通過 291，失敗 0
+- 已驗證合併總數：最近完成的 unit 與 integration suite runs 合計 3060 個測試，通過 3060，失敗 0
 
 ### Coverage
 
@@ -43,6 +43,26 @@ dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.cs
 1. unit tests
 2. integration tests
 3. 針對測試應用程式執行 live MCP smoke harness
+
+## 涉及測試平行化的變更
+
+Unit 與 integration suites 會啟用 collection-level parallelization，並用 CPU 數量調整 worker count。序列化的 collection lanes 應保持窄而明確，依照它們保護的 shared state 命名：
+
+- installer PowerShell、TUI、process-lifecycle，以及 package-root 測試若需要彼此序列化，但仍應和不相關 collections 同時執行，請使用 `InstallerScripts`
+- `TimingSensitive` 只用於在無關 workstation contention 下容易不穩的 timing-budget 測試
+- `LiveBootstrapIntegration` collection 必須維持優先執行，因為 live DLL injection/connect smoke tests 在 shared testhost 累積長時間 WPF 與 MCP fixture 狀態前最穩定
+- 除非某個 collection 不能和任何其他 collection 同時執行，否則避免設定 `DisableParallelization = true`
+- 避免把不相關的慢測試放進過寬的 serial lane；如果較小的 collection 就能保留隔離性，應讓其他 lanes 可以同時執行
+
+## 涉及 installer 與 client registration 的變更
+
+Installer 驗證必須同時涵蓋 registration metadata 與可執行的 MCP server 契約：
+
+1. 確認產生的 artifacts 符合目標 client schema：VS Code 與 Visual Studio 使用 `servers`；Cursor、Claude Desktop 與 generic MCP clients 使用 `mcpServers`；Claude Code 與 Codex artifacts 使用各自文件化的 CLI 指令
+2. 確認每個產生的 `command` 值都是絕對路徑，且指向已安裝的 `wpf-devtools-<arch>.exe`
+3. 從 registration entry 啟動已安裝 executable 的 STDIO MCP server，並確認 MCP `initialize` 加上 `tools/list` 流程成功
+
+這能避免 installer 寫出看似合理的設定，但已安裝 package 實際上無法被 MCP client 啟動的回歸。
 
 ## 好的回歸測試應具備什麼特徵
 

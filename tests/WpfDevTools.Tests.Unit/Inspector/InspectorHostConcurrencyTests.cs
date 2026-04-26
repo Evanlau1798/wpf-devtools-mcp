@@ -322,6 +322,7 @@ public class InspectorHostConcurrencyTests : IDisposable
         var firstFactoryEntered = new ManualResetEventSlim(initialState: false);
         var releaseFirstFactory = new ManualResetEventSlim(initialState: false);
         var pipeFactoryCalls = 0;
+        var startupTimeout = TimeSpan.FromMilliseconds(200);
 
         using var host = new InspectorHost(
             pid,
@@ -346,7 +347,7 @@ public class InspectorHostConcurrencyTests : IDisposable
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous);
             },
-            startupTimeout: TimeSpan.FromMilliseconds(200));
+            startupTimeout: startupTimeout);
 
         var firstStart = Task.Run(() => host.Start());
 
@@ -355,6 +356,10 @@ public class InspectorHostConcurrencyTests : IDisposable
         var secondStart = Task.Run(() => host.Start());
         await Task.Delay(100);
         secondStart.IsCompleted.Should().BeFalse();
+
+        await Task.Delay(startupTimeout + TimeSpan.FromMilliseconds(200));
+        firstStart.IsCompleted.Should().BeFalse("startup failure cleanup should still be waiting for the blocked pipe factory");
+        secondStart.IsCompleted.Should().BeFalse("the concurrent starter should still be waiting for startup failure cleanup");
 
         var stopTask = Task.Run(() => host.Stop());
         await stopTask;

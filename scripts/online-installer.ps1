@@ -2189,6 +2189,9 @@ function Get-InstallerTimeoutSeconds {
 function Get-TuiHelperRequestTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_HELPER_TIMEOUT_SEC' -DefaultValue 5 -MinimumValue 1 -MaximumValue 30)
 }
+function Get-ReleaseArchiveDownloadTimeoutSeconds {
+    return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_DOWNLOAD_TIMEOUT_SEC' -DefaultValue 30 -MinimumValue 5 -MaximumValue 300)
+}
 function Get-TuiHelperBootstrapTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_HELPER_BOOTSTRAP_TIMEOUT_SEC' -DefaultValue 20 -MinimumValue 3 -MaximumValue 120)
 }
@@ -3138,7 +3141,7 @@ function Resolve-PackageSession {
     }
     else {
         $archivePath = Join-Path $sessionRoot ([string]$downloadDetails.AssetName)
-        Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath
+        Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-ReleaseArchiveDownloadTimeoutSeconds)
     }
 
     $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture

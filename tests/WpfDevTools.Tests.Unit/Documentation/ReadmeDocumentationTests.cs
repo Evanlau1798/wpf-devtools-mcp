@@ -164,4 +164,26 @@ public class ReadmeDocumentationTests
         content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
             "README manual fallback should explain how to provide an explicit signer pin if the verified archive is no longer kept beside the extracted package");
     }
+
+    [Fact]
+    public void LandingPages_ShouldDescribeSignerFallbackAsEitherPinnedSignerValue()
+    {
+        var englishLandingPages = new[]
+        {
+            "README.md",
+            "docfx/index.md"
+        };
+
+        foreach (var relativePath in englishLandingPages)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+            content.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+            content.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` and `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+        }
+
+        var traditionalChinese = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/index.md"));
+        traditionalChinese.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 或 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+        traditionalChinese.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 與 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+    }
 }

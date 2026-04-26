@@ -61,6 +61,31 @@ public sealed class McpToolDescriptionContractTests
     }
 
     [Fact]
+    public void BatchMutate_Description_ShouldDocumentActualResponseEnvelope()
+    {
+        var description = GetDescriptionText("batch_mutate");
+
+        description.Should().ContainAll(
+            "mutationCount",
+            "executedMutationCount",
+            "successfulMutationCount",
+            "failedMutationCount",
+            "skippedMutationCount",
+            "mutations",
+            "stateDiff",
+            "rollback",
+            "error",
+            "errorCode",
+            "recovery",
+            "stateAfterTimeoutUnknown",
+            "requiresReconnect");
+        description.Should().NotContain("totalSteps",
+            "stale response fields cause AI agents to parse a payload shape that batch_mutate no longer returns");
+        description.Should().NotContain("completedSteps",
+            "stale response fields cause AI agents to parse a payload shape that batch_mutate no longer returns");
+    }
+
+    [Fact]
     public void DrainEvents_Description_ShouldAdvertiseCleanupDiagnosticsAndReplaySubsetSemantics()
     {
         var description = GetDescriptionText("drain_events");

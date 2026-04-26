@@ -42,17 +42,28 @@ public static class MutationBatchMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
-        "  totalSteps: number,\n" +
-        "  completedSteps: number,\n" +
-        "  results: [{ step: string, success: boolean, error?: string }],\n" +
+        "  error?: string,\n" +
+        "  errorCode?: string,\n" +
+        "  recovery?: { suggestedAction, hint, tool?, params? },\n" +
+        "  executionMode: 'sequential-stop-on-error',\n" +
+        "  mutationCount: number,\n" +
+        "  executedMutationCount: number,\n" +
+        "  successfulMutationCount: number,\n" +
+        "  failedMutationCount: number,\n" +
+        "  skippedMutationCount: number,\n" +
+        "  stateAfterTimeoutUnknown?: boolean,\n" +
+        "  requiresReconnect?: boolean,\n" +
         "  snapshotId?: string,\n" +
-        "  diff?: object\n" +
+        "  stateDiff?: object,\n" +
+        "  rollback?: { available: boolean, snapshotId?, tool?, params? },\n" +
+        "  mutations: [{ index: number, tool: string, label?: string, success: boolean, skipped: boolean, error?: string, errorCode?: string, stateAfterTimeoutUnknown?: boolean, result?: object }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
-        "- NoMutations: mutations array is empty or missing.\n" +
-        "- StepFailed: a mutation step returned success=false; completedSteps < totalSteps.\n" +
-        "- SnapshotFailed: captureSnapshot was requested but the snapshot call failed.\n" +
-        "- DiffFailed: includeDiff was true but get_state_diff failed after mutations succeeded.")]
+        "- InvalidArgument: mutations array is empty, missing, malformed, or contains unsupported nested processId overrides.\n" +
+        "- BatchStepFailed: a mutation step returned success=false; failed/skipped counts identify where execution stopped.\n" +
+        "- OperationFailed: captureSnapshot was requested but the snapshot call failed before mutation execution.\n" +
+        "- DiffFailed: includeDiff was true but get_state_diff failed after mutations succeeded.\n" +
+        "- Timeout: a mutation or get_state_diff was canceled/timed out after snapshot capture; stateAfterTimeoutUnknown=true means reconnect and restore before retrying.")]
     public static Task<CallToolResult> BatchMutate(
         SessionManager sessionManager,
         [Description("Mutation steps as a JSON array. Each step must include tool (string) and may include label (string) plus args (object). Example: [{ \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }]")] JsonElement? mutations = null,

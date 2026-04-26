@@ -34,6 +34,11 @@ public partial class EventHandlers
             var traceStartedAtUtc = GetOptionalString(tracePayload, "traceStartedAtUtc");
             var effectiveDurationMs = GetOptionalInt(tracePayload, "effectiveDurationMs");
             var registrationCount = GetOptionalInt(tracePayload, "registrationCount");
+            var cleanupFailed = GetOptionalBool(tracePayload, "cleanupFailed");
+            var cleanupIncomplete = GetOptionalBool(tracePayload, "cleanupIncomplete");
+            var cleanupState = GetOptionalString(tracePayload, "cleanupState");
+            var cleanupFailureMessage = GetOptionalString(tracePayload, "cleanupFailureMessage");
+            var cleanupFailureType = GetOptionalString(tracePayload, "cleanupFailureType");
 
             if (mode == "capture")
             {
@@ -60,6 +65,11 @@ public partial class EventHandlers
                         traceStartedAtUtc,
                         effectiveDurationMs,
                         registrationCount,
+                        cleanupFailed,
+                        cleanupIncomplete,
+                        cleanupState,
+                        cleanupFailureMessage,
+                        cleanupFailureType,
                         diagnostics
                     };
                 }
@@ -84,7 +94,12 @@ public partial class EventHandlers
                     resolvedElementType,
                     traceStartedAtUtc,
                     effectiveDurationMs,
-                    registrationCount
+                    registrationCount,
+                    cleanupFailed,
+                    cleanupIncomplete,
+                    cleanupState,
+                    cleanupFailureMessage,
+                    cleanupFailureType
                 };
             }
 
@@ -107,6 +122,11 @@ public partial class EventHandlers
                 traceStartedAtUtc,
                 effectiveDurationMs,
                 registrationCount,
+                cleanupFailed,
+                cleanupIncomplete,
+                cleanupState,
+                cleanupFailureMessage,
+                cleanupFailureType,
                 diagnostics
             };
         }
@@ -198,6 +218,7 @@ public partial class EventHandlers
                 message = $"Requested event '{requestedEventName}' does not match active trace event '{activeEventName}'.",
                 requestedEventName,
                 activeEventName,
+                requestedEventMismatch,
                 windowExpiredBeforeGet,
                 windowEndedAtUtc,
                 getRequestedAtUtc,

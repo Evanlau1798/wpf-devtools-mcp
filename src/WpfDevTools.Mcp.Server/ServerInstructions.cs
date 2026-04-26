@@ -175,6 +175,7 @@ public static class ServerInstructions
         Some tools apply automatic normalization. Responses include metadata so you can see what was normalized:
         - trace_routed_events (start mode): enforces minimum 30s duration for AI agent IPC round-trips. Response includes both requestedDuration and effectiveDuration.
         - trace_routed_events (get/capture): maxEvents caps returned trace records. Check returnedEventCount, totalEventCount, eventsTruncated, and maxEvents before assuming the events array is complete.
+        - trace_routed_events cleanup: cleanupState can report deferredPending, deferredCompleted, deferredFailed, or failed. Treat cleanupFailed/cleanupIncomplete as state signals, not as proof that handlers remain attached.
         - fire_routed_event: for ButtonBase + Click event, uses OnClick() path instead of RaiseEvent(). Response includes usedOnClick: true.
         - get_validation_errors: recursively aggregates errors from ALL visual descendants (max depth: 50, max errors: 200). Each error includes elementType/elementName to identify the source.
         - set_dp_value / modify_viewmodel: JSON string values with surrounding double-quotes are auto-stripped (e.g., "\"hello\"" becomes "hello").

@@ -285,7 +285,7 @@ public sealed class EventHandlerTraceModeTests
     }
 
     [StaFact]
-    public async Task TraceRoutedEvents_GetMode_AfterAutoStopCleanupFailure_ShouldReturnCleanupFailedReason()
+    public async Task TraceRoutedEvents_GetMode_AfterAutoStopDeferredCleanupCompletes_ShouldReturnCompletedCleanupState()
     {
         var finder = new ElementFinder();
         var button = new System.Windows.Controls.Button { Name = "AutoStopCleanupFailureButton" };
@@ -310,7 +310,7 @@ public sealed class EventHandlerTraceModeTests
 
         JsonSerializer.SerializeToElement(startResult).GetProperty("success").GetBoolean().Should().BeTrue();
 
-        WaitForCleanupFailedTrace(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForDeferredCleanupCompletedTrace(analyzer, button, TimeSpan.FromSeconds(1)).Should().BeTrue();
 
         var getResult = await handler.HandleAsync(
             "trace_routed_events",
@@ -322,14 +322,16 @@ public sealed class EventHandlerTraceModeTests
         payload.GetProperty("isTracing").GetBoolean().Should().BeFalse();
         payload.GetProperty("eventCount").GetInt32().Should().Be(0);
         payload.GetProperty("handlerInvocationCount").GetInt32().Should().Be(0);
-        payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("cleanupFailed");
-        payload.GetProperty("diagnostics").GetProperty("cleanupFailureType").GetString().Should().Be("TimeoutException");
+        payload.GetProperty("cleanupState").GetString().Should().Be("deferredCompleted");
+        payload.GetProperty("cleanupFailed").GetBoolean().Should().BeFalse();
+        payload.GetProperty("cleanupIncomplete").GetBoolean().Should().BeFalse();
+        payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("eventNotRaised");
 
         WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
     }
 
     [StaFact]
-    public async Task TraceRoutedEvents_GetMode_AfterAutoStopCleanupFailure_WithMismatchedRequestedEvent_ShouldStillReturnCleanupFailedReason()
+    public async Task TraceRoutedEvents_GetMode_AfterAutoStopDeferredCleanupCompletes_WithMismatchedRequestedEvent_ShouldReturnFilterMismatchAndCleanupState()
     {
         var finder = new ElementFinder();
         var button = new System.Windows.Controls.Button { Name = "CleanupFailureMismatchButton" };
@@ -354,7 +356,7 @@ public sealed class EventHandlerTraceModeTests
 
         JsonSerializer.SerializeToElement(startResult).GetProperty("success").GetBoolean().Should().BeTrue();
 
-        WaitForCleanupFailedTrace(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForDeferredCleanupCompletedTrace(analyzer, button, TimeSpan.FromSeconds(1)).Should().BeTrue();
 
         var getResult = await handler.HandleAsync(
             "trace_routed_events",
@@ -363,7 +365,10 @@ public sealed class EventHandlerTraceModeTests
 
         var payload = JsonSerializer.SerializeToElement(getResult);
         payload.GetProperty("success").GetBoolean().Should().BeTrue();
-        payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("cleanupFailed");
+        payload.GetProperty("cleanupState").GetString().Should().Be("deferredCompleted");
+        payload.GetProperty("cleanupFailed").GetBoolean().Should().BeFalse();
+        payload.GetProperty("cleanupIncomplete").GetBoolean().Should().BeFalse();
+        payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("filterMismatch");
         payload.GetProperty("diagnostics").GetProperty("requestedEventMismatch").GetBoolean().Should().BeTrue();
         payload.GetProperty("diagnostics").GetProperty("requestedEventName").GetString().Should().Be("MouseDown");
         payload.GetProperty("diagnostics").GetProperty("activeEventName").GetString().Should().Be("Click");
@@ -873,7 +878,7 @@ public sealed class EventHandlerTraceModeTests
         });
     }
 
-    private static bool WaitForCleanupFailedTrace(EventAnalyzer analyzer, Button button, string elementId, TimeSpan timeout)
+    private static bool WaitForDeferredCleanupCompletedTrace(EventAnalyzer analyzer, Button button, TimeSpan timeout)
     {
         return button.Dispatcher.Invoke(() =>
         {
@@ -882,8 +887,8 @@ public sealed class EventHandlerTraceModeTests
             {
                 var tracePayload = JsonSerializer.SerializeToElement(analyzer.GetEventTrace());
                 if (!tracePayload.GetProperty("isTracing").GetBoolean()
-                    && tracePayload.TryGetProperty("cleanupFailed", out var cleanupFailed)
-                    && cleanupFailed.GetBoolean())
+                    && tracePayload.TryGetProperty("cleanupState", out var cleanupState)
+                    && string.Equals(cleanupState.GetString(), "deferredCompleted", StringComparison.Ordinal))
                 {
                     return true;
                 }

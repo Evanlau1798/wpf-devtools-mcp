@@ -28,12 +28,12 @@ public static class EventMcpTools
         "- `get`: return the current buffered trace and tracing status; `eventName` is not required in this mode\n\n" +
         "RESPONSE FORMAT:\n" +
         "- capture mode:\n" +
-        "  { success, mode: \"capture\", eventName, duration, isTracing, eventCount, events, handlerInvocationCount }\n" +
+        "  { success, mode: \"capture\", eventName, duration, isTracing, eventCount, events, handlerInvocationCount, cleanupState?, cleanupFailed?, cleanupIncomplete? }\n" +
         "- start mode:\n" +
         "  { success, mode: \"start\", eventName, requestedDuration, effectiveDuration, shortDurationOverrideUsed, isTracing, message }\n" +
         "  NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced by default for AI agent IPC round-trips). Set `allowShortStartDuration=true` to opt into a shorter explicit window.\n" +
         "- get mode:\n" +
-        "  { success, mode: \"get\", isTracing, eventCount, totalEventCount, returnedEventCount, eventsTruncated, maxEvents, events, handlerInvocationCount }\n" +
+        "  { success, mode: \"get\", isTracing, eventCount, totalEventCount, returnedEventCount, eventsTruncated, maxEvents, events, handlerInvocationCount, cleanupState?, cleanupFailed?, cleanupIncomplete? }\n" +
         "  NOTE: Provide maxEvents to cap returned trace records. When capped, totalEventCount preserves the original count and eventsTruncated=true signals that more events were available.\n\n" +
         "TIP: For AI-driven automation, prefer `mode=\"start\"` + `click_element`/`fire_routed_event` + `mode=\"get\"` so the capture window is not blocked by the current request.\n\n" +
         "ERRORS:\n" +

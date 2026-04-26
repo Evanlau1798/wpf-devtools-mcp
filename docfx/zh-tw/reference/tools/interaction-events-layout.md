@@ -39,6 +39,8 @@
 
 當你需要控制 trace payload 大小時，可在 `trace_routed_events(mode: "get")` 或 capture-mode retrieval 使用 `maxEvents`。Trace 回應會提供 `returnedEventCount`、`totalEventCount`、`eventsTruncated` 與 `maxEvents`，讓 agent 能判斷 `events` 陣列是否為刻意截斷，並只在需要時用更大的 cap 重試。
 
+Trace 回應也會在 trace teardown 延遲或復原時帶出 cleanup state。請搭配 `cleanupState`、`cleanupFailed` 與 `cleanupIncomplete` 判斷：`deferredCompleted` 代表先前 cleanup 問題已復原且 handler 已移除；`deferredPending`、`deferredFailed` 或 `failed` 則表示開始下一個 trace 前要更謹慎。
+
 部分互動與診斷回應也可能 piggyback 精簡版 `pendingEvents`。若你需要完整且顯式的 event read step，而不是機會式 piggyback，請改用 `drain_events`。
 
 ## Layout

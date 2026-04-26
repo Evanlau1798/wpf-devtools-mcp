@@ -39,6 +39,8 @@ If you start a trace session with `trace_routed_events(mode: "start")` before th
 
 Use `maxEvents` on `trace_routed_events(mode: "get")` or capture-mode retrieval when you need to cap trace payload size. Trace responses include `returnedEventCount`, `totalEventCount`, `eventsTruncated`, and `maxEvents` so agents can detect that the `events` array is intentionally partial and retry with a larger cap only when needed.
 
+Trace responses also surface cleanup state when trace teardown is delayed or recovered. Use `cleanupState`, `cleanupFailed`, and `cleanupIncomplete` together: `deferredCompleted` means an earlier cleanup problem recovered and the handlers were removed, while `deferredPending`, `deferredFailed`, or `failed` need more caution before starting another trace.
+
 Some interaction and diagnostic responses may piggyback a compact `pendingEvents` array when buffered events are already available. Use `drain_events` when you need the complete explicit event read step instead of opportunistic piggyback data.
 
 ## Layout

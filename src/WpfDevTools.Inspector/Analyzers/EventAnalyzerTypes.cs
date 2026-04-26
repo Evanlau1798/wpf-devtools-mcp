@@ -39,8 +39,8 @@ internal sealed record CompletedTraceSnapshot(
 internal sealed record TraceCleanupFailure(
     string SessionId,
     string EventName,
-    string ExceptionType,
-    string Message,
+    string? ExceptionType,
+    string? Message,
     string State);
 
 internal sealed record TraceSessionMetadata(

@@ -38,6 +38,43 @@ public sealed class EventAnalyzerCleanupStatusTests
         DrainDispatcher(button.Dispatcher);
     }
 
+    [StaFact]
+    public void CleanupTraceSession_WhenDeferredCleanupCompletes_ShouldExposeFinalCleanupState()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new EventAnalyzer(
+            finder,
+            watchEventBuffer: null,
+            cleanupInvoker: static (_, _) => new TimeoutException("Simulated cleanup timeout"));
+        var button = new Button { Content = "CleanupFinalState" };
+        var elementId = finder.GenerateElementId(button);
+        var startOutcome = analyzer.StartTraceRoutedEvents(
+            elementId,
+            "Click",
+            duration: 1000,
+            scheduleAutoStop: false);
+
+        JsonSerializer.SerializeToElement(startOutcome.Result)
+            .GetProperty("success").GetBoolean().Should().BeTrue();
+
+        analyzer.CleanupTraceSession(startOutcome.Session!, out var cleanupException).Should().BeFalse();
+        cleanupException.Should().BeOfType<TimeoutException>();
+
+        var pendingPayload = JsonSerializer.SerializeToElement(analyzer.GetEventTrace(startOutcome.Session!));
+        pendingPayload.GetProperty("cleanupIncomplete").GetBoolean().Should().BeTrue();
+        pendingPayload.GetProperty("cleanupState").GetString().Should().Be("deferredPending");
+
+        DrainDispatcher(button.Dispatcher);
+
+        var completedPayload = JsonSerializer.SerializeToElement(analyzer.GetEventTrace(startOutcome.Session!));
+        completedPayload.GetProperty("cleanupFailed").GetBoolean().Should().BeFalse();
+        completedPayload.GetProperty("cleanupIncomplete").GetBoolean().Should().BeFalse();
+        completedPayload.GetProperty("cleanupState").GetString().Should().Be("deferredCompleted");
+
+        analyzer.Dispose();
+        DrainDispatcher(button.Dispatcher);
+    }
+
     private static void DrainDispatcher(Dispatcher dispatcher)
     {
         var frame = new DispatcherFrame();

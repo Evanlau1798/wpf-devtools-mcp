@@ -26,6 +26,8 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
     private readonly TraceEventRingBuffer _eventTrace = new(MaxEventTraceEntries);
     private readonly Dictionary<string, CompletedTraceSnapshot> _completedTraceSnapshots = new Dictionary<string, CompletedTraceSnapshot>();
     private readonly Queue<string> _completedTraceSnapshotOrder = new Queue<string>();
+    private readonly Dictionary<string, TraceCleanupFailure> _traceCleanupStatuses = new Dictionary<string, TraceCleanupFailure>();
+    private readonly Queue<string> _traceCleanupStatusOrder = new Queue<string>();
     private const int MaxEventTraceEntries = 10000;
     private const int MaxCompletedTraceSnapshots = 16;
     private bool _isTracing;
@@ -329,8 +331,8 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                 handlerInvocationCount = isActiveSession && requestedEventMatches
                     ? _handlerInvocationCount
                     : completedSnapshot?.HandlerInvocationCount ?? 0,
-                cleanupFailed = cleanupFailure != null,
-                cleanupIncomplete = cleanupFailure != null,
+                cleanupFailed = IsCleanupStatusFailed(cleanupFailure),
+                cleanupIncomplete = IsCleanupStatusIncomplete(cleanupFailure),
                 cleanupState = cleanupFailure?.State,
                 cleanupFailureMessage = cleanupFailure?.Message,
                 cleanupFailureType = cleanupFailure?.ExceptionType
@@ -618,15 +620,17 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                     {
                         _lastTraceCleanupFailure = null;
                     }
+
+                    RemoveTraceCleanupStatus(sessionToClean.Metadata.SessionId);
                 }
                 else
                 {
-                    _lastTraceCleanupFailure = new TraceCleanupFailure(
+                    StoreTraceCleanupStatus(new TraceCleanupFailure(
                         sessionToClean.Metadata.SessionId,
                         sessionToClean.Metadata.EventName,
                         cleanupException?.GetType().Name ?? nameof(InvalidOperationException),
                         cleanupException?.Message ?? "Routed event trace cleanup failed.",
-                        "deferredPending");
+                        CleanupStateDeferredPending));
                 }
 
                 DeactivateTraceSession(sessionToClean);
@@ -637,12 +641,12 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                 return removalSucceeded || treatDeferredCleanupAsSuccess;
             }
 
-            _lastTraceCleanupFailure = new TraceCleanupFailure(
+            StoreTraceCleanupStatus(new TraceCleanupFailure(
                 sessionToClean.Metadata.SessionId,
                 sessionToClean.Metadata.EventName,
                 cleanupException?.GetType().Name ?? nameof(InvalidOperationException),
                 cleanupException?.Message ?? "Routed event trace cleanup failed.",
-                "failed");
+                CleanupStateFailed));
 
             _isCleanupInProgress = false;
             _cleanupTransitionDispatcher = null;
@@ -767,7 +771,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         }
     }
 
-    private static bool TryScheduleDeferredHandlerRemoval(ActiveTraceSession session, Dispatcher? dispatcher)
+    private bool TryScheduleDeferredHandlerRemoval(ActiveTraceSession session, Dispatcher? dispatcher)
     {
         if (session.Registrations.Count == 0
             || dispatcher == null
@@ -786,10 +790,12 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                     try
                     {
                         RemoveAllHandlers(session.Registrations);
+                        RecordDeferredCleanupCompletion(session.Metadata, null);
                     }
                     catch (Exception ex)
                     {
                         LogCleanupFailure(ex);
+                        RecordDeferredCleanupCompletion(session.Metadata, ex);
                     }
                 }));
             return true;
@@ -915,7 +921,17 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         TraceSessionHandle? requestedSession,
         TraceSessionMetadata? traceMetadata)
     {
-        if (_lastTraceCleanupFailure == null || traceMetadata == null)
+        if (traceMetadata == null)
+        {
+            return null;
+        }
+
+        if (_traceCleanupStatuses.TryGetValue(traceMetadata.SessionId, out var cleanupStatus))
+        {
+            return cleanupStatus;
+        }
+
+        if (_lastTraceCleanupFailure == null)
         {
             return null;
         }

@@ -239,8 +239,6 @@ public class InspectorHostTests : IDisposable
     // Sending the JSON literal "null" is valid JSON that deserializes to a null
     // InspectorRequest reference, which triggers the explicit null-check branch in
     // HandleClientAsync and causes the server to send an error response with id "unknown".
-    // (A completely malformed JSON string throws JsonException, which the server catches
-    //  internally without sending a response, so we use the null-literal path here.)
 
     [Fact]
     public async Task InvalidRequest_NullJson_ShouldReturnError()
@@ -271,6 +269,33 @@ public class InspectorHostTests : IDisposable
         response.Error!.Code.Should().Be(ErrorCode.InvalidRequest);
         // The server uses "unknown" as the id when the request cannot be parsed
         response.Id.Should().Be("unknown");
+    }
+
+    [Fact]
+    public async Task InvalidRequest_MalformedJson_ShouldReturnStructuredError()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        using var host = new InspectorHost(pid);
+        host.Start();
+
+        using var client = new NamedPipeClientStream(
+            ".",
+            $"WpfDevTools_{pid}",
+            PipeDirection.InOut,
+            PipeOptions.Asynchronous);
+
+        await client.ConnectAsync(5_000);
+        await MessageFraming.WriteMessageAsync(client, """{"id":"bad-json","method":"ping","params":""");
+
+        using var readCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        var responseJson = await MessageFraming.ReadMessageAsync(client, readCts.Token);
+        var response = JsonSerializer.Deserialize<InspectorResponse>(responseJson);
+
+        response.Should().NotBeNull();
+        response!.Id.Should().Be("unknown");
+        response.Error.Should().NotBeNull();
+        response.Error!.Code.Should().Be(ErrorCode.InvalidRequest);
+        response.Error.Message.Should().Contain("Invalid request");
     }
 
     // ── Roundtrip: multiple sequential requests on one connection ─────────────

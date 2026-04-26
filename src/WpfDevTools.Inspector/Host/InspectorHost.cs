@@ -745,7 +745,7 @@ public sealed partial class InspectorHost : IDisposable
                 }
 
                 // Parse request with shared options (includes MaxDepth protection)
-                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson, IpcSerializerOptions);
+                var request = DeserializeRequest(requestJson);
                 if (request == null)
                 {
                     await SendErrorResponseAsync(stream, "unknown", "Invalid request format", cancellationToken).ConfigureAwait(false);

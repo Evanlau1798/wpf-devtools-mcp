@@ -29,7 +29,7 @@ public class BootstrapInjectionTests : IDisposable
     private static readonly TimeSpan LiveSmokeTimeout = TimeSpan.FromSeconds(60);
     private readonly ITestOutputHelper _output;
     private System.Diagnostics.Process? _testApp;
-    private string? _dummyBootstrapperPath;
+    private DummyBootstrapperArtifact? _dummyBootstrapperArtifact;
 
     public BootstrapInjectionTests(ITestOutputHelper output)
     {
@@ -240,14 +240,36 @@ public class BootstrapInjectionTests : IDisposable
         resultJson.GetProperty("error").GetString().Should().Contain("managed bootstrap entrypoint");
         resultJson.GetProperty("stage").GetString().Should().Be("ManagedEntrypoint");
     }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void DummyBootstrapperArtifact_WhenFileAlreadyExists_ShouldPreserveItOnDispose()
+    {
+        var temporaryRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"WpfDevTools_BootstrapArtifact_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryRoot);
+        var bootstrapperPath = Path.Combine(temporaryRoot, "WpfDevTools.Bootstrapper.x64.dll");
+        var originalBytes = new byte[] { 1, 2, 3, 4 };
+        File.WriteAllBytes(bootstrapperPath, originalBytes);
+
+        try
+        {
+            var artifact = DummyBootstrapperArtifact.EnsureExists(temporaryRoot);
+            artifact.Dispose();
+
+            File.Exists(bootstrapperPath).Should().BeTrue();
+            File.ReadAllBytes(bootstrapperPath).Should().Equal(originalBytes);
+        }
+        finally
+        {
+            Directory.Delete(temporaryRoot, recursive: true);
+        }
+    }
+
     private void EnsureDummyBootstrapperExists()
     {
-        _dummyBootstrapperPath = Path.Combine(
-            AppContext.BaseDirectory, "WpfDevTools.Bootstrapper.x64.dll");
-        if (!File.Exists(_dummyBootstrapperPath))
-        {
-            File.WriteAllBytes(_dummyBootstrapperPath, Array.Empty<byte>());
-        }
+        _dummyBootstrapperArtifact = DummyBootstrapperArtifact.EnsureExists(AppContext.BaseDirectory);
     }
 
     private static string FindTestAppExe()
@@ -330,6 +352,44 @@ public class BootstrapInjectionTests : IDisposable
         }
     }
 
+    private sealed class DummyBootstrapperArtifact : IDisposable
+    {
+        private const string FileName = "WpfDevTools.Bootstrapper.x64.dll";
+
+        private readonly bool _createdByTest;
+
+        private DummyBootstrapperArtifact(string filePath, bool createdByTest)
+        {
+            FilePath = filePath;
+            _createdByTest = createdByTest;
+        }
+
+        public string FilePath { get; }
+
+        public static DummyBootstrapperArtifact EnsureExists(string rootDirectory)
+        {
+            var filePath = Path.Combine(rootDirectory, FileName);
+            if (File.Exists(filePath))
+            {
+                return new DummyBootstrapperArtifact(filePath, createdByTest: false);
+            }
+
+            File.WriteAllBytes(filePath, Array.Empty<byte>());
+            return new DummyBootstrapperArtifact(filePath, createdByTest: true);
+        }
+
+        public void Dispose()
+        {
+            if (!_createdByTest || !File.Exists(FilePath))
+            {
+                return;
+            }
+
+            try { File.Delete(FilePath); }
+            catch { /* best effort cleanup */ }
+        }
+    }
+
     public void Dispose()
     {
         if (_testApp != null && !_testApp.HasExited)
@@ -339,10 +399,6 @@ public class BootstrapInjectionTests : IDisposable
             _testApp.Dispose();
         }
 
-        if (_dummyBootstrapperPath != null && File.Exists(_dummyBootstrapperPath))
-        {
-            try { File.Delete(_dummyBootstrapperPath); }
-            catch { /* best effort cleanup */ }
-        }
+        _dummyBootstrapperArtifact?.Dispose();
     }
 }

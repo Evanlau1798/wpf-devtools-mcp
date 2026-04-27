@@ -25,10 +25,10 @@
 
 預設情況下，server 不會對任意同使用者 WPF process 做 raw DLL injection。
 
-- 目前 shipping server 只會隱式信任目前 repository root 底下的 project-scoped target。
-- 若 target executable 不在這個 trusted scope 內，而且沒有更早的 default-pipe compatibility failure 先中止連線流程，`connect()` 會直接 fail closed，回傳 `errorCode: SecurityError` 與 `requiresExplicitTargetOptIn: true`，而不是繼續注入。
+- 目前 shipping server 不會隱式信任目前 repository root 底下的 project-scoped target。
+- 若 target executable 沒有被明確 allowlist，而且沒有更早的 default-pipe compatibility failure 先中止連線流程，`connect()` 會直接 fail closed，回傳 `errorCode: SecurityError` 與 `requiresExplicitTargetOptIn: true`，而不是繼續注入。
 - 若預期的 pipe 名稱已經被 stale 或 incompatible 的 default-pipe host 佔用，`connect()` 可能會先回傳 `errorCode: CompatibilityError`，也就是先回傳 compatibility rejection；但 raw injection 仍然會維持 blocked。
-- 只有在你明確要對某個外部 app 做 raw injection 時，才設定 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`，其值必須是以分號分隔的 exact absolute executable path 清單。
+- 只有在你明確要對某個 app 做 raw injection 時，才設定 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`，其值必須是以分號分隔的 exact absolute executable path 清單。
 - 若希望在 production 對外部 target 做診斷而不擴大 raw injection 範圍，應優先使用 `InspectorSdk.Initialize()` 的 SDK-hosted reuse 路徑。
 
 ### Named-pipe 驗證
@@ -68,7 +68,7 @@
 4. 若需要 deterministic secret rotation 或 SDK mode coordination，設定 `WPFDEVTOOLS_AUTH_SECRET`。
 5. 若需要 deterministic 的憑證儲存位置或要與 SDK mode 共用，請在兩邊設定相同的 absolute `WPFDEVTOOLS_CERT_DIR`。
 6. 視需要設定 `WPFDEVTOOLS_CERT_THUMBPRINT`。
-7. 預設只讓 raw injection 侷限在 project-owned binaries；只有在外部 executable 經過明確審查後，才使用 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`。
+7. 預設停用 raw injection；只有在 executable path 經過明確審查後，才使用 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`。
 8. 限制哪些人可以在工作站或 VM 上啟動 server。
 
 ## 重要限制

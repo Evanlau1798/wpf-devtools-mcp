@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using WpfDevTools.Mcp.Server;
 using WpfDevTools.Tests.Integration.TestSupport;
 
 namespace WpfDevTools.Tests.Integration.E2E;
@@ -16,6 +17,7 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
     private Process? _testApp;
     private McpStdioClient? _client;
     private string? _serverExePath;
+    private string? _testAppExePath;
     private readonly int? _testAppProcessIdOverride;
     private readonly Func<Task>? _reconnectClientAsyncOverride;
     private readonly Func<string, object?, Task<JsonElement>>? _callToolAsyncOverride;
@@ -93,6 +95,7 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
         }
 
         _serverExePath = serverExe;
+        _testAppExePath = testAppExe;
 
         try
         {
@@ -124,9 +127,17 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             throw new InvalidOperationException("TestApp must be started before reconnecting the MCP session.");
         }
 
+        var testAppExePath = _testAppExePath
+            ?? throw new InvalidOperationException("TestApp executable path is not available for reconnect.");
+
         _client?.Dispose();
         _client = new McpStdioClient();
-        await _client.StartAsync(_serverExePath).ConfigureAwait(false);
+        await _client.StartAsync(
+            _serverExePath,
+            new Dictionary<string, string>
+            {
+                [McpServerConfiguration.RawInjectionAllowedTargetsEnvVar] = testAppExePath
+            }).ConfigureAwait(false);
 
         var connectResult = await _client.CallToolAsync(
             "connect",

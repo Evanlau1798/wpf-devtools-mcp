@@ -25,10 +25,10 @@ The server can inspect and mutate live WPF UI state. That makes these risks rele
 
 Raw DLL injection into arbitrary same-user WPF processes is blocked by default.
 
-- The shipping server implicitly trusts only project-scoped targets discovered under the current repository root.
-- When the target executable is outside that trusted scope, `connect()` fails closed with `errorCode: SecurityError` and `requiresExplicitTargetOptIn: true` instead of injecting if no earlier default-pipe compatibility failure has already stopped the connection attempt.
+- The shipping server does not implicitly trust project-scoped targets discovered under the current repository root.
+- When the target executable is not explicitly allowlisted, `connect()` fails closed with `errorCode: SecurityError` and `requiresExplicitTargetOptIn: true` instead of injecting if no earlier default-pipe compatibility failure has already stopped the connection attempt.
 - If a stale or incompatible default-pipe host is already advertising the expected pipe, `connect()` can return `errorCode: CompatibilityError` before the raw-injection policy denial, but raw injection still remains blocked.
-- Set `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` to a semicolon-separated list of exact absolute executable paths only when raw injection into a specific external app is an intentional production decision.
+- Set `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` to a semicolon-separated list of exact absolute executable paths only when raw injection into a specific app is an intentional production decision.
 - Prefer the SDK-hosted reuse path with `InspectorSdk.Initialize()` when you need production diagnostics for an external target without broadening raw injection scope.
 
 ### Named-pipe authentication
@@ -68,7 +68,7 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 4. Set `WPFDEVTOOLS_AUTH_SECRET` when you need deterministic secret rotation or SDK-mode coordination.
 5. Set `WPFDEVTOOLS_CERT_DIR` to the same absolute directory in both processes when certificate storage must be deterministic or shared with SDK mode.
 6. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT`.
-7. Keep raw injection scoped to project-owned binaries by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed external executables.
+7. Keep raw injection disabled by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed executable paths.
 8. Restrict who can launch the server on the workstation or VM.
 
 ## Important limitations

@@ -96,6 +96,28 @@ public class SecurityDocumentationTests
     [InlineData("SECURITY.md")]
     [InlineData("docfx/production/security.md")]
     [InlineData("docfx/zh-tw/production/security.md")]
+    [InlineData("docfx/reference/configuration.md")]
+    [InlineData("docfx/zh-tw/reference/configuration.md")]
+    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
+    public void Documentation_ShouldNotDescribeRepositoryTargetsAsImplicitRawInjectionTrust(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().NotContain("implicitly trusts only project-scoped targets",
+            $"{relativePath} should not document repository-root raw injection trust as a default");
+        content.Should().NotContain("outside the default trusted project scope",
+            $"{relativePath} should describe exact allowlist behavior instead of default project trust");
+        content.Should().NotContain("external raw-injection",
+            $"{relativePath} should not imply the raw-injection allowlist only applies to external targets");
+        content.Should().NotContain("外部 raw-injection",
+            $"{relativePath} should not imply the raw-injection allowlist only applies to external targets");
+    }
+
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
     [InlineData("src/WpfDevTools.Inspector.Sdk/README.md")]
     [InlineData("docfx/guides/troubleshooting.md")]
     [InlineData("docfx/zh-tw/guides/troubleshooting.md")]

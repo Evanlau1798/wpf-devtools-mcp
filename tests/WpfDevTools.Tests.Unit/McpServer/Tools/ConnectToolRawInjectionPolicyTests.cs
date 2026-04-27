@@ -212,7 +212,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
     }
 
     [Fact]
-    public void Authorize_WhenTargetIsUnderRepositoryRoot_ShouldAllowWithoutExplicitAllowlist()
+    public void Authorize_WhenTargetIsUnderRepositoryRootWithoutAllowlist_ShouldFailClosed()
     {
         var repoTargetPath = TestRepositoryPaths.GetRepoFilePath("tests/WpfDevTools.Tests.TestApp/WpfDevTools.Tests.TestApp.csproj");
         var processInfo = CreateProcessInfo(repoTargetPath);
@@ -221,6 +221,23 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
             processInfo,
             AppContext.BaseDirectory,
             configuredAllowedTargets: null,
+            path => Path.GetFullPath(path));
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("exact allowlist");
+        authorization.Hint.Should().Contain(McpServerConfiguration.RawInjectionAllowedTargetsEnvVar);
+    }
+
+    [Fact]
+    public void Authorize_WhenRepositoryTargetMatchesAllowlist_ShouldAllowExplicitOptIn()
+    {
+        var repoTargetPath = TestRepositoryPaths.GetRepoFilePath("tests/WpfDevTools.Tests.TestApp/WpfDevTools.Tests.TestApp.csproj");
+        var processInfo = CreateProcessInfo(repoTargetPath);
+
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            processInfo,
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: repoTargetPath,
             path => Path.GetFullPath(path));
 
         authorization.IsAllowed.Should().BeTrue();

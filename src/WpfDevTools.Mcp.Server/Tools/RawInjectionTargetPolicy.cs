@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using WpfDevTools.Injector.Discovery;
-using WpfDevTools.Shared.IO;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -35,7 +34,7 @@ internal static class RawInjectionTargetPolicy
 
     internal static RawInjectionAuthorization Authorize(
         WpfProcessInfo processInfo,
-        string baseDirectory,
+        string _,
         string? configuredAllowedTargets,
         Func<string, string?> tryResolvePhysicalPath)
     {
@@ -44,15 +43,7 @@ internal static class RawInjectionTargetPolicy
             return new RawInjectionAuthorization(
                 IsAllowed: false,
                 Error: "Raw injection is blocked because the target executable path is missing or not an absolute path. Start the target-side SDK host with InspectorSdk.Initialize() or allowlist the exact executable path before retrying connect().",
-                Hint: $"Set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths when raw injection into an external target is explicitly intended.");
-        }
-
-        if (GetImplicitTrustedRoots(baseDirectory, tryResolvePhysicalPath).Any(root => IsUnderRoot(normalizedTargetPath, root)))
-        {
-            return new RawInjectionAuthorization(
-                IsAllowed: true,
-                Error: null,
-                Hint: null);
+                Hint: $"Set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths when raw injection into a specific target executable is explicitly intended.");
         }
 
         var configuredTargets = GetConfiguredAllowedTargets(configuredAllowedTargets, tryResolvePhysicalPath);
@@ -66,7 +57,7 @@ internal static class RawInjectionTargetPolicy
 
         return new RawInjectionAuthorization(
             IsAllowed: false,
-            Error: $"Raw injection into '{normalizedTargetPath}' is blocked by the server's target policy. Only project-scoped targets are trusted by default.",
+            Error: $"Raw injection into '{normalizedTargetPath}' is blocked by the server's target policy. Raw injection requires an exact allowlist entry for the target executable.",
             Hint: $"Start the target-side SDK host with InspectorSdk.Initialize() for the safer reuse path, or add the exact absolute executable path to {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} before retrying connect().");
     }
 
@@ -92,20 +83,6 @@ internal static class RawInjectionTargetPolicy
             .ToArray();
 
         return new ReadOnlyCollection<string>(normalizedPaths!);
-    }
-
-    internal static IReadOnlyCollection<string> GetImplicitTrustedRoots(
-        string baseDirectory,
-        Func<string, string?> tryResolvePhysicalPath)
-    {
-        var roots = RepositoryLayoutLocator
-            .EnumerateSolutionRoots(baseDirectory)
-            .Select(path => TryNormalizeAbsolutePath(path, tryResolvePhysicalPath))
-            .Where(path => path != null)
-            .Distinct(PathComparer)
-            .ToArray();
-
-        return new ReadOnlyCollection<string>(roots!);
     }
 
     private static bool TryNormalizeAbsolutePath(
@@ -135,22 +112,6 @@ internal static class RawInjectionTargetPolicy
         {
             return false;
         }
-    }
-
-    private static bool IsUnderRoot(string path, string root)
-    {
-        if (PathComparer.Equals(path, root))
-        {
-            return true;
-        }
-
-        var rootWithSeparator = root.EndsWith(Path.DirectorySeparatorChar)
-            ? root
-            : root + Path.DirectorySeparatorChar;
-
-        return path.StartsWith(rootWithSeparator, OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal);
     }
 
     private static string? TryNormalizeAbsolutePath(

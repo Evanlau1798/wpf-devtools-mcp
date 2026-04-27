@@ -36,6 +36,8 @@ dotnet run --project src/WpfDevTools.Mcp.Server --no-build
 
 ```powershell
 dotnet tool restore
+dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0
+dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows
 dotnet tool run docfx docfx/docfx.json
 ```
 

@@ -32,7 +32,6 @@
 - [ ] P1: Strengthen live event and screenshot tests to assert semantic identity and valid image content.
 - [ ] P1: Add schema-visible constraints for high-value MCP input parameters.
 - [ ] P1: Validate enum and range parameters at the MCP server boundary before pipe requests.
-- [ ] P1: Update local DocFX/API-reference build instructions to include prerequisite assembly builds.
 - [ ] P1: Document installer architecture default as detected system architecture, not unconditional x64.
 - [ ] P1: Formalize structured-output compatibility strategy with versioned contracts or high-value output schema publication.
 - [ ] P1: Replace static MCP tool/helper caches with DI-managed per-host services or prove isolation with regression tests.

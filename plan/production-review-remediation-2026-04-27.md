@@ -26,7 +26,6 @@
 - [ ] P1: Harden elevated installer paths against reparse points, junctions, symlinks, UNC/network paths, and replacement before destructive file operations.
 - [ ] P1: Add server-side MCP policy gates for destructive tools, screenshots, ViewModel inspection, and target allowlisting.
 - [ ] P1: Narrow raw-injection implicit repository-root trust to explicit production-safe opt-in or allowlist behavior.
-- [ ] P1: Ensure test-created `SessionManager` instances are disposed by fixtures or ownership-aware factories.
 - [ ] P1: Make `InspectorSdk` dispatcher initialization use one bounded deadline across the whole wait path.
 - [ ] P1: Replace MCP E2E fixed startup sleep with bounded protocol readiness.
 - [ ] P1: Strengthen live event and screenshot tests to assert semantic identity and valid image content.

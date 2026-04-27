@@ -71,11 +71,13 @@ public sealed partial class SessionManager : IDisposable
         // CRITICAL FIX: Periodic cleanup of dead and idle sessions
         // Uses one-shot timer (Infinite period) to prevent overlapping callbacks.
         // Timer is rescheduled at the end of PerformCleanup.
+        var cleanupTimerState = new CleanupTimerState(this);
         _cleanupTimer = new System.Threading.Timer(
-            callback: _ => PerformCleanup(),
-            state: null,
+            callback: static state => CleanupTimerState.Invoke(state),
+            state: cleanupTimerState,
             dueTime: McpServerConfiguration.SessionCleanupInterval,
             period: Timeout.InfiniteTimeSpan);
+        cleanupTimerState.SetTimer(_cleanupTimer);
     }
 
     /// <summary>
@@ -725,6 +727,38 @@ public sealed partial class SessionManager : IDisposable
     {
         if (Volatile.Read(ref _disposeState) != 0)
             throw new ObjectDisposedException(nameof(SessionManager));
+    }
+
+    private sealed class CleanupTimerState
+    {
+        private readonly WeakReference<SessionManager> _sessionManager;
+        private System.Threading.Timer? _timer;
+
+        public CleanupTimerState(SessionManager sessionManager)
+        {
+            _sessionManager = new WeakReference<SessionManager>(sessionManager);
+        }
+
+        public void SetTimer(System.Threading.Timer timer)
+        {
+            _timer = timer;
+        }
+
+        public static void Invoke(object? state)
+        {
+            if (state is not CleanupTimerState cleanupTimerState)
+            {
+                return;
+            }
+
+            if (cleanupTimerState._sessionManager.TryGetTarget(out var sessionManager))
+            {
+                sessionManager.PerformCleanup();
+                return;
+            }
+
+            cleanupTimerState._timer?.Dispose();
+        }
     }
 
     /// <summary>

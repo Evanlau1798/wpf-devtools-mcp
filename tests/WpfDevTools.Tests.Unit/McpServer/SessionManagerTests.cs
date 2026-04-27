@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using System.Runtime.CompilerServices;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Shared.Security;
 
@@ -182,6 +183,19 @@ public class SessionManagerTests
     }
 
     [Fact]
+    public void CleanupTimer_ShouldNotKeepUnreferencedManagerAlive()
+    {
+        var reference = CreateUnreferencedSessionManager();
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        reference.IsAlive.Should().BeFalse(
+            "test-created SessionManager instances that accidentally miss Dispose should not be rooted by the cleanup timer callback");
+    }
+
+    [Fact]
     public void GetPipeClient_WhenNoSession_ShouldReturnNull()
     {
         // Validates C4: GetPipeClient returns null for non-existent sessions
@@ -192,5 +206,12 @@ public class SessionManagerTests
 
         // Assert
         client.Should().BeNull();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference CreateUnreferencedSessionManager()
+    {
+        var manager = new SessionManager();
+        return new WeakReference(manager);
     }
 }

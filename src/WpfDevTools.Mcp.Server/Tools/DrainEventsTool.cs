@@ -31,7 +31,7 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
             return CreateNotConnectedError(processId);
         }
 
-        var eventTypes = ParseStringArrayParam(arguments, "eventTypes");
+        var eventTypes = NormalizeEventTypes(ParseStringArrayParam(arguments, "eventTypes"));
         var sinceTimestamp = ParseStringParam(arguments, "sinceTimestamp");
         if (sinceTimestamp is not null && !DateTimeOffset.TryParse(sinceTimestamp, out _))
         {
@@ -101,6 +101,19 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
         payload.ValueKind == JsonValueKind.Object
         && payload.TryGetProperty("success", out var success)
         && success.ValueKind == JsonValueKind.True;
+
+    private static string[]? NormalizeEventTypes(string[]? eventTypes)
+    {
+        if (eventTypes is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        return eventTypes.Any(eventType =>
+            string.Equals(eventType?.Trim(), "all", StringComparison.OrdinalIgnoreCase))
+            ? null
+            : eventTypes;
+    }
 
     internal static (JsonElement ResponsePayload, JsonElement RemainingReplayPayload) MergeReplayPayloadForSharedBuffer(
         JsonElement replayPayload,

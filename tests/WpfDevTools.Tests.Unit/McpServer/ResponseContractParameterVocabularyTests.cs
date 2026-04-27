@@ -41,7 +41,7 @@ public sealed class ResponseContractParameterVocabularyTests
         {
             "eventTypes",
             "all",
-            ["DpChange", "RoutedEvent", "BindingError", "ValidationChange"],
+            ["all", "DpChange", "RoutedEvent", "BindingError", "ValidationChange"],
             ["drain_events"]
         }
     };

@@ -44,7 +44,7 @@ public static class EventDrainMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional maximum number of buffered events to return. Omit to use the normal live drain window only when no replay is buffered; if replay is already buffered, omitting maxEvents returns the full merged replay plus matching live backlog. Provide a positive integer to enforce a caller-visible result cap after the server internally drains matching live events uncapped.")] int? maxEvents = null,
-        [Description("Optional event-type filter, such as DpChange or RoutedEvent.")] string[]? eventTypes = null,
+        [Description("Optional event-type filter, such as DpChange or RoutedEvent. Omit or pass [\"all\"] to read all buffered event types.")] string[]? eventTypes = null,
         [Description("Optional element ID filter. Only matching buffered events will be returned.")] string? elementId = null,
         [Description("Optional ISO-8601 lower-bound timestamp. Only buffered events at or after this time will be returned.")] string? sinceTimestamp = null,
         CancellationToken cancellationToken = default)

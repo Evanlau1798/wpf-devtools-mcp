@@ -91,7 +91,7 @@ internal static class ResponseContractParameterVocabularies
                 parameter = "eventTypes",
                 tools = new[] { "drain_events" },
                 defaultValue = "all",
-                allowedValues = new[] { "DpChange", "RoutedEvent", "BindingError", "ValidationChange" }
+                allowedValues = new[] { "all", "DpChange", "RoutedEvent", "BindingError", "ValidationChange" }
             }
         };
     }

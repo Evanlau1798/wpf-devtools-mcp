@@ -60,6 +60,32 @@ public sealed class DrainEventsToolTests
         payload.GetProperty("pendingEvents")[0].GetProperty("eventType").GetString().Should().Be("DpChange");
     }
 
+    [Fact]
+    public async Task Execute_WithAllEventTypesAlias_ShouldForwardUnfilteredDrainRequestToInspector()
+    {
+        const int processId = 43103;
+        var responseJson =
+            """{"success":true,"pendingEventCount":1,"droppedEventCount":0,"pendingEvents":[{"eventType":"DpChange","elementId":"Button_1"}]}""";
+        using var connected = await ConnectedDrainSession.CreateAsync(processId, responseJson);
+        var tool = new DrainEventsTool(connected.SessionManager);
+
+        var result = await tool.ExecuteAsync(
+            JsonSerializer.SerializeToElement(new
+            {
+                processId,
+                eventTypes = new[] { "all" }
+            }),
+            CancellationToken.None);
+
+        var request = await connected.RequestTask;
+        request.Params.Should().NotBeNull();
+        request.Params!.Value.GetProperty("eventTypes").ValueKind.Should().Be(JsonValueKind.Null);
+
+        var payload = JsonSerializer.SerializeToElement(result);
+        payload.GetProperty("success").GetBoolean().Should().BeTrue();
+        payload.GetProperty("pendingEventCount").GetInt32().Should().Be(1);
+    }
+
     private sealed class ConnectedDrainSession(
         SessionManager sessionManager,
         NamedPipeServerStream server,

@@ -23,13 +23,15 @@ This quickstart is optimized for the current public distribution model: use the 
 Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the canonical source first. That installer resolves the published release asset, validates archive integrity before extraction, and then runs the version-matched packaged `bin/install.ps1` from the downloaded release.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
 ```
+
+When you omit `-Architecture`, the installer detects the system architecture (`x64`, `x86`, or `arm64`). Pass `-Architecture` only when you intentionally need to install a different package.
 
 Client-specific automation example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### Manual release package

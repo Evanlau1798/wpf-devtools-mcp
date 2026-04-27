@@ -23,13 +23,15 @@
 請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 作為正式來源。這支 installer 會解析對應的 published release asset、在解壓前驗證 archive integrity，然後執行該 release 內版本相符的 `bin/install.ps1`。
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
 ```
+
+省略 `-Architecture` 時，installer 會偵測系統架構（`x64`、`x86` 或 `arm64`）。只有在刻意安裝不同套件時才傳入 `-Architecture`。
 
 指定 client 的自動化範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### 手動 release package

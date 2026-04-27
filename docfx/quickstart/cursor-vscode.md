@@ -12,7 +12,7 @@ Preferred public path:
 Example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client vscode -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client vscode -NonInteractive -Force -OutputJson
 ```
 
 Package-local fallback:

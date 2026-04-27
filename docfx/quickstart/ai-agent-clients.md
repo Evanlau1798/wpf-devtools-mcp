@@ -11,7 +11,7 @@ Install WPF DevTools first, then register the installed executable with your pre
 Recommended public path:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
 ```
 
 That reviewed installer resolves the versioned release asset, validates archive integrity before extraction, and then runs the version-matched packaged installer from the downloaded release.
@@ -19,7 +19,7 @@ That reviewed installer resolves the versioned release asset, validates archive 
 Client-specific example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual package alternative:

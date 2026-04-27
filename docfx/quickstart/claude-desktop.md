@@ -12,7 +12,7 @@ Preferred public path:
 Example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-desktop -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-desktop -NonInteractive -Force -OutputJson
 ```
 
 Package-local fallback:

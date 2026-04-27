@@ -12,7 +12,7 @@ Cursor、VS Code 與 Visual Studio 最適合直接套用 installer 產生的 JSO
 範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client vscode -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client vscode -NonInteractive -Force -OutputJson
 ```
 
 package-local 回退路徑：

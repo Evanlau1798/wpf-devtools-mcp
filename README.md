@@ -47,15 +47,16 @@ Preferred path on Windows:
 > **Security note**: Review [scripts/online-installer.ps1](scripts/online-installer.ps1) first. The online installer resolves the versioned GitHub Release asset, validates archive integrity before extraction, and then runs the version-matched packaged installer from that release.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
 ```
 
 That script-first path keeps `scripts/online-installer.ps1` as the canonical source entrypoint while still installing from a published release package.
+When you omit `-Architecture`, the installer detects the system architecture (`x64`, `x86`, or `arm64`). Pass `-Architecture` only when you intentionally need to install a different package.
 
 If you want a single-command, non-interactive setup for a specific client and architecture, use:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual fallback:

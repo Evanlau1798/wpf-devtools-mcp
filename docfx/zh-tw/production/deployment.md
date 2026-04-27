@@ -21,13 +21,15 @@ installer 與 packaging 行為定義在 `scripts/`，而不是文件站台本身
 建議範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
 ```
+
+省略 `-Architecture` 時，installer 會偵測系統架構（`x64`、`x86` 或 `arm64`）。只有在刻意安裝不同套件時才傳入 `-Architecture`。
 
 指定 client 的自動化範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### 公開 release package 備援路徑

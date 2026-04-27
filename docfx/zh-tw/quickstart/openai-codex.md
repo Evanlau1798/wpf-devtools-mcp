@@ -18,7 +18,7 @@ npm install -g @openai/codex
 範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client codex -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client codex -NonInteractive -Force -OutputJson
 ```
 
 package-local 回退路徑：

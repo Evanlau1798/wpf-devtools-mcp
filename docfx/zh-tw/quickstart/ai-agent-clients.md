@@ -11,7 +11,7 @@
 建議的公開安裝路徑：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
 ```
 
 這支已審查的 installer 會解析對應版本的 release asset、在解壓前驗證 archive integrity，然後執行下載所得 release 內版本相符的 packaged installer。
@@ -19,7 +19,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 指定 client 的範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Architecture x64 -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 手動 package 的替代路徑：

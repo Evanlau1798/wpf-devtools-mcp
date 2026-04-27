@@ -84,4 +84,41 @@ public sealed class InspectorHostLifecycleReviewTests : IDisposable
         releaseCleanup.Set();
         await disposeTask;
     }
+
+    [Fact]
+    public void CompleteStartupFailure_ShouldSignalSharedStartupTaskOnce()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector/Host/InspectorHost.cs"));
+        var method = GetMethodBody(content, "private void CompleteStartupFailure", "private void WaitForStopCompletion");
+
+        CountOccurrences(method, "TrySetException(startupError)").Should().Be(1,
+            "startup failure should have a single authoritative task signal before rethrowing to the owning caller");
+    }
+
+    private static string GetRepoFilePath(string relativePath)
+        => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string GetMethodBody(string content, string startMarker, string endMarker)
+    {
+        var start = content.IndexOf(startMarker, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0);
+
+        var end = content.IndexOf(endMarker, start, StringComparison.Ordinal);
+        end.Should().BeGreaterThan(start);
+
+        return content[start..end];
+    }
+
+    private static int CountOccurrences(string content, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = content.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
+    }
 }

@@ -625,8 +625,6 @@ public sealed partial class InspectorHost : IDisposable
         }
 
         startupCompletionSource.TrySetException(startupError);
-
-        startupCompletionSource?.TrySetException(startupError);
     }
 
     private void WaitForStopCompletion(Task stopTask)

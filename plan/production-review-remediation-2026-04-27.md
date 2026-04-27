@@ -39,7 +39,6 @@
 - [ ] P1: Extend packaged server smoke tests beyond `initialize` to `tools/list`, `resources/read`, and a safe tool call.
 - [ ] P2: Remove blocking waits and sleeps from high-risk lifecycle paths where feasible this loop.
 - [ ] P2: Split or isolate event trace state-machine responsibilities without destabilizing behavior.
-- [ ] P2: Remove duplicate startup failure signaling in `InspectorHost`.
 - [ ] P2: Extract duplicated session attach flow in `SessionManager`.
 
 ## Finish Criteria

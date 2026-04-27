@@ -1,0 +1,180 @@
+using System.Reflection;
+using System.Text.Json;
+using FluentAssertions;
+using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
+
+namespace WpfDevTools.Tests.Unit.McpServer;
+
+public sealed class McpToolExecutionPolicyTests
+{
+    private static readonly HashSet<string> DestructivePolicyExceptions = new(StringComparer.Ordinal)
+    {
+        "connect",
+        "select_active_process"
+    };
+
+    [Theory]
+    [InlineData("click_element")]
+    [InlineData("set_dp_value")]
+    [InlineData("batch_mutate")]
+    [InlineData("measure_element_render_time")]
+    public void EvaluateToolCall_WhenDestructiveToolsAreDisabled_ShouldDenyDestructiveTool(string toolName)
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "false",
+            allowScreenshots: null,
+            allowViewModelInspection: null);
+
+        var decision = policy.EvaluateToolCall(toolName);
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("SecurityError");
+        decision.PolicyCategory.Should().Be("destructive-tools");
+        decision.Hint.Should().Contain(McpServerConfiguration.AllowDestructiveToolsEnvVar);
+    }
+
+    [Fact]
+    public void EvaluateToolCall_WhenModifyViewModelIsAllowedByViewModelGateButDestructiveToolsAreDisabled_ShouldDeny()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "false",
+            allowScreenshots: null,
+            allowViewModelInspection: "true");
+
+        var decision = policy.EvaluateToolCall("modify_viewmodel");
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("SecurityError");
+        decision.PolicyCategory.Should().Be("destructive-tools");
+    }
+
+    [Fact]
+    public void EvaluateToolCall_WhenScreenshotsAreDisabled_ShouldDenyElementScreenshot()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: null,
+            allowScreenshots: "0",
+            allowViewModelInspection: null);
+
+        var decision = policy.EvaluateToolCall("element_screenshot");
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("SecurityError");
+        decision.PolicyCategory.Should().Be("screenshots");
+        decision.Hint.Should().Contain(McpServerConfiguration.AllowScreenshotsEnvVar);
+    }
+
+    [Theory]
+    [InlineData("get_viewmodel")]
+    [InlineData("get_commands")]
+    [InlineData("modify_viewmodel")]
+    public void EvaluateToolCall_WhenViewModelInspectionIsDisabled_ShouldDenyViewModelTool(string toolName)
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: null,
+            allowScreenshots: null,
+            allowViewModelInspection: "no");
+
+        var decision = policy.EvaluateToolCall(toolName);
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("SecurityError");
+        decision.PolicyCategory.Should().Be("viewmodel-inspection");
+        decision.Hint.Should().Contain(McpServerConfiguration.AllowViewModelInspectionEnvVar);
+    }
+
+    [Fact]
+    public void EvaluateToolCall_WhenPolicyValuesAreUnset_ShouldAllowCurrentToolSurface()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: null,
+            allowScreenshots: null,
+            allowViewModelInspection: null);
+
+        policy.EvaluateToolCall("click_element").IsAllowed.Should().BeTrue();
+        policy.EvaluateToolCall("element_screenshot").IsAllowed.Should().BeTrue();
+        policy.EvaluateToolCall("get_viewmodel").IsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void EvaluateToolCall_WhenGateValueIsInvalid_ShouldFailClosedForThatCategory()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "sometimes",
+            allowScreenshots: null,
+            allowViewModelInspection: null);
+
+        var decision = policy.EvaluateToolCall("click_element");
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("InvalidPolicyConfiguration");
+        decision.Hint.Should().Contain("true or false");
+    }
+
+    [Theory]
+    [InlineData("batch_mutate", "{\"mutations\":[{\"tool\":\"modify_viewmodel\",\"args\":{\"propertyName\":\"Name\",\"value\":\"Alice\"}}]}")]
+    [InlineData("wait_for_dp_change_after_mutation", "{\"triggerMutation\":{\"tool\":\"modify_viewmodel\",\"args\":{\"propertyName\":\"Name\",\"value\":\"Alice\"}}}")]
+    [InlineData("capture_state_snapshot", "{\"viewModelPropertyNames\":[\"Name\"]}")]
+    public void EvaluateToolCall_WhenNestedViewModelAccessIsDisabled_ShouldDeny(string toolName, string argumentsJson)
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "true",
+            allowScreenshots: null,
+            allowViewModelInspection: "false");
+
+        using var document = JsonDocument.Parse(argumentsJson);
+        var arguments = document.RootElement.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.Clone());
+
+        var decision = policy.EvaluateToolCall(toolName, arguments);
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("SecurityError");
+        decision.PolicyCategory.Should().Be("viewmodel-inspection");
+    }
+
+    [Fact]
+    public void DestructivePolicy_ShouldCoverDestructiveMcpMetadataExceptSessionLifecycleTools()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "false",
+            allowScreenshots: "true",
+            allowViewModelInspection: "true");
+
+        var destructiveTools = GetExplicitDestructiveMcpToolNames();
+
+        destructiveTools.Should().Contain(DestructivePolicyExceptions,
+            "session lifecycle tools are intentionally governed by target/session policy instead of the destructive mutation gate");
+
+        foreach (var toolName in destructiveTools.Except(DestructivePolicyExceptions, StringComparer.Ordinal))
+        {
+            var decision = policy.EvaluateToolCall(toolName);
+
+            decision.IsAllowed.Should().BeFalse($"{toolName} is marked Destructive=true and should be gated");
+            decision.PolicyCategory.Should().Be("destructive-tools");
+        }
+    }
+
+    private static IReadOnlyCollection<string> GetExplicitDestructiveMcpToolNames()
+        => typeof(ServerInstructions).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            .Select(method => new
+            {
+                Attribute = method.GetCustomAttribute<McpServerToolAttribute>(),
+                AttributeData = method.GetCustomAttributesData()
+                    .FirstOrDefault(attribute => attribute.AttributeType == typeof(McpServerToolAttribute))
+            })
+            .Where(tool => tool.Attribute != null && IsExplicitlyDestructive(tool.AttributeData))
+            .Select(tool => tool.Attribute!.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .ToArray();
+
+    private static bool IsExplicitlyDestructive(CustomAttributeData? attributeData)
+        => attributeData?.NamedArguments.Any(argument =>
+            string.Equals(argument.MemberName, "Destructive", StringComparison.Ordinal)
+            && argument.TypedValue.Value is true) == true;
+}

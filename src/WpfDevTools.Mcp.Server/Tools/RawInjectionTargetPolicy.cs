@@ -13,7 +13,7 @@ internal readonly record struct RawInjectionAuthorization(
 
 internal static class RawInjectionTargetPolicy
 {
-    private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
+    internal static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
     private const uint FileShareRead = 0x00000001;
@@ -47,7 +47,7 @@ internal static class RawInjectionTargetPolicy
         }
 
         var configuredTargets = GetConfiguredAllowedTargets(configuredAllowedTargets, tryResolvePhysicalPath);
-        if (configuredTargets.Contains(normalizedTargetPath))
+        if (configuredTargets.Contains(normalizedTargetPath, PathComparer))
         {
             return new RawInjectionAuthorization(
                 IsAllowed: true,
@@ -85,7 +85,7 @@ internal static class RawInjectionTargetPolicy
         return new ReadOnlyCollection<string>(normalizedPaths!);
     }
 
-    private static bool TryNormalizeAbsolutePath(
+    internal static bool TryNormalizeAbsolutePath(
         string? path,
         Func<string, string?> tryResolvePhysicalPath,
         out string normalizedPath)
@@ -121,7 +121,7 @@ internal static class RawInjectionTargetPolicy
             ? normalizedPath
             : null;
 
-    private static string? TryResolvePhysicalPath(string path)
+    internal static string? TryResolvePhysicalPath(string path)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
         {

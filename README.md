@@ -211,6 +211,10 @@ The current implementation hardens the default injection-based transport and sti
 | `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory for named pipes | Use a private directory per environment when certificate storage must be pinned |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected inspector certificate | Useful when you want strict certificate selection |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Explicitly allowlists raw-injection targets | Use a semicolon-separated list of exact absolute executable paths when SDK-hosted reuse is not possible |
+| `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Restricts all `connect()` targets | Semicolon-separated exact absolute executable paths; malformed configured entries fail closed |
+| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Gates runtime mutation, interaction, and render-measurement tools | Unset preserves the local-development tool surface; set `false` to block destructive tools server-side |
+| `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Gates `element_screenshot` | Unset allows screenshots; set `false` to block screenshot capture and return at the MCP boundary |
+| `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Gates ViewModel inspection tools | Unset allows ViewModel tools; set `false` to block `get_viewmodel`, `get_commands`, and `modify_viewmodel` |
 
 Security deployment guidance lives in `SECURITY.md`.
 

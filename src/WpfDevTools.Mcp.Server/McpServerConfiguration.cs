@@ -7,6 +7,10 @@ namespace WpfDevTools.Mcp.Server;
 public static class McpServerConfiguration
 {
     public const string RawInjectionAllowedTargetsEnvVar = "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS";
+    public const string AllowedTargetsEnvVar = "WPFDEVTOOLS_MCP_ALLOWED_TARGETS";
+    public const string AllowDestructiveToolsEnvVar = "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS";
+    public const string AllowScreenshotsEnvVar = "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS";
+    public const string AllowViewModelInspectionEnvVar = "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION";
     public const string RateLimitRequestsPerMinuteEnvVar = "WPFDEVTOOLS_RATE_LIMIT_RPM";
     public const string TextFallbackModeEnvVar = "WPFDEVTOOLS_TEXT_FALLBACK_MODE";
 

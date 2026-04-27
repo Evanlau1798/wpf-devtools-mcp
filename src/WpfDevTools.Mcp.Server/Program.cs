@@ -60,6 +60,7 @@ try
         sp.GetRequiredService<ILoggerFactory>().CreateLogger<SessionManager>()));
 
     // MCP Server configuration
+    var toolPolicy = McpToolExecutionPolicy.FromEnvironment();
     builder.Services.AddMcpServer(options =>
     {
         options.ServerInfo = new() { Name = "wpf-devtools-mcp", Version = serverVersion };
@@ -71,6 +72,12 @@ try
         filters.AddCallToolFilter(next => async (request, cancellationToken) =>
         {
             var parameters = request.Params;
+            var policyDecision = toolPolicy.EvaluateToolCall(parameters?.Name, parameters?.Arguments);
+            if (!policyDecision.IsAllowed)
+            {
+                return policyDecision.ToCallToolResult();
+            }
+
             if (parameters is not null
                 && string.Equals(parameters.Name, "wait_for_dp_change", StringComparison.Ordinal)
                 && parameters.Arguments?.ContainsKey("triggerMutation") == true)

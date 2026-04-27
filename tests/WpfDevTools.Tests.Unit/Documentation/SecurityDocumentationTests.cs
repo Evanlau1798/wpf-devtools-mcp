@@ -10,6 +10,10 @@ public class SecurityDocumentationTests
     [InlineData("WPFDEVTOOLS_CERT_DIR")]
     [InlineData("WPFDEVTOOLS_CERT_THUMBPRINT")]
     [InlineData("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS")]
+    [InlineData("WPFDEVTOOLS_MCP_ALLOWED_TARGETS")]
+    [InlineData("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS")]
+    [InlineData("WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS")]
+    [InlineData("WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION")]
     public void Documentation_ShouldMentionSupportedEnvironmentVariables(string variableName)
     {
         var content = ReadDocumentation();
@@ -111,6 +115,28 @@ public class SecurityDocumentationTests
             $"{relativePath} should not imply the raw-injection allowlist only applies to external targets");
         content.Should().NotContain("外部 raw-injection",
             $"{relativePath} should not imply the raw-injection allowlist only applies to external targets");
+    }
+
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    [InlineData("docfx/reference/configuration.md")]
+    [InlineData("docfx/zh-tw/reference/configuration.md")]
+    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
+    public void Documentation_ShouldDescribeMcpPolicyGates(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+            $"{relativePath} should document the connect target allowlist gate");
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS",
+            $"{relativePath} should document the destructive tool gate");
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS",
+            $"{relativePath} should document the screenshot gate");
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION",
+            $"{relativePath} should document the ViewModel inspection gate");
     }
 
     [Theory]

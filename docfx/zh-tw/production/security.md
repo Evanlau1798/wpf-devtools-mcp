@@ -31,6 +31,16 @@
 - 只有在你明確要對某個 app 做 raw injection 時，才設定 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`，其值必須是以分號分隔的 exact absolute executable path 清單。
 - 若希望在 production 對外部 target 做診斷而不擴大 raw injection 範圍，應優先使用 `InspectorSdk.Initialize()` 的 SDK-hosted reuse 路徑。
 
+### MCP tool 與 target policy gates
+
+server 會在把高風險 MCP `tools/call` 派送到 tool implementation 前先做政策檢查。
+
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 會把所有 `connect()` target 限制在 exact absolute executable path 清單內，且會在 SDK-hosted reuse 或 raw injection 前套用；設定中若含 malformed entry 會 fail closed。
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=false` 會擋下 runtime mutation、interaction 與 render-measurement tools，例如 `set_dp_value`、`click_element`、`execute_command`、`measure_element_render_time`、`restore_state_snapshot`、`batch_mutate`。
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=false` 會在 MCP 邊界擋下 `element_screenshot`。
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=false` 會擋下 `get_viewmodel`、`get_commands`、`modify_viewmodel`。
+- boolean gate 未設定時會保留本機開發工具面；無效 boolean 值會讓受影響類別 fail closed。
+
 ### Named-pipe 驗證
 
 以 injection 為基礎的 `connect` session 預設就會使用 HMAC challenge-response 驗證。
@@ -59,6 +69,7 @@
 - Pipe ACL 只開放給目前使用者與 SYSTEM。
 - 請求會序列化並受 framing 大小限制保護。
 - server 會在 session 層級做 rate limiting。
+- Tool policy gates 可以在送出任何 target-process request 前，先擋下 destructive tools、screenshots、ViewModel inspection 與未 allowlist 的 target。
 
 ## 建議的生產環境姿態
 
@@ -69,7 +80,9 @@
 5. 若需要 deterministic 的憑證儲存位置或要與 SDK mode 共用，請在兩邊設定相同的 absolute `WPFDEVTOOLS_CERT_DIR`。
 6. 視需要設定 `WPFDEVTOOLS_CERT_THUMBPRINT`。
 7. 預設停用 raw injection；只有在 executable path 經過明確審查後，才使用 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`。
-8. 限制哪些人可以在工作站或 VM 上啟動 server。
+8. 若 server 只應連到已審查的 production executable，請設定 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。
+9. 若 session 不需要 destructive tools、screenshots 或 ViewModel inspection，請用 `WPFDEVTOOLS_MCP_ALLOW_*` gates 停用。
+10. 限制哪些人可以在工作站或 VM 上啟動 server。
 
 ## 重要限制
 

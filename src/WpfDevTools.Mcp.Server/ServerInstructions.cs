@@ -133,6 +133,13 @@ public static class ServerInstructions
         - focus_element and simulate_keyboard require the target to be attached to the active rendered visual tree; activate inactive tabs before focus-sensitive actions
         - Remember: all destructive changes are runtime-only and NOT persisted to XAML
 
+        === SERVER-SIDE POLICY GATES ===
+        - Operators can restrict all connect() targets with WPFDEVTOOLS_MCP_ALLOWED_TARGETS, a semicolon-separated exact absolute executable path allowlist that applies before SDK-hosted reuse or raw injection; malformed configured entries fail closed
+        - WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=false blocks runtime mutation, interaction, and render-measurement tools before they reach the target process
+        - WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=false blocks element_screenshot at the MCP boundary
+        - WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=false blocks get_viewmodel, get_commands, and modify_viewmodel
+        - Disabled gates return errorCode: SecurityError; invalid boolean gate values return errorCode: InvalidPolicyConfiguration
+
         === DESTRUCTIVE TOOLS (modify running app - changes NOT persisted to XAML) ===
         - set_dp_value, clear_dp_value, override_style_setter: change property/style values
         - modify_viewmodel: change ViewModel properties
@@ -144,6 +151,7 @@ public static class ServerInstructions
         - batch_mutate: execute multiple mutations in ordered sequence
         - scroll_to_element: change scroll position to bring element into view
         - highlight_element: add temporary visual overlay adorner
+        - measure_element_render_time: force bounded render passes for timing measurement
 
         === COMMON WORKFLOWS ===
 
@@ -219,6 +227,9 @@ public static class ServerInstructions
         - "timeout" -> process may be frozen; try ping() to verify connection
         - existing SDK host security mismatch that completes an incompatible authenticated/TLS handshake (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR is the same absolute path in both the MCP server and target app. For connect() reuse, hardened SDK mode requires setting both values together before calling InspectorSdk.Initialize()
         - connect() returns SecurityError with requiresExplicitTargetOptIn=true -> raw injection requires an exact executable allowlist entry. Prefer InspectorSdk.Initialize() for target-side reuse, or explicitly allowlist the exact absolute executable path in WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS before retrying.
+        - connect() returns SecurityError with policyEnvVar=WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> the target executable is outside the configured MCP target allowlist. Retry only after the exact absolute executable path is reviewed and added.
+        - tool call returns SecurityError from a WPFDEVTOOLS_MCP_ALLOW_* gate -> the server policy disabled that capability for this session. Use an allowed inspection workflow or ask the operator to explicitly enable the gate.
+        - tool call returns InvalidPolicyConfiguration -> fix the malformed WPFDEVTOOLS_MCP_ALLOW_* value to true or false and restart the MCP server.
         - existing SDK host build/protocol mismatch (errorCode: CompatibilityError) -> restart the target process so connect() can inject or reuse an Inspector host built from the same repo revision and compatibility contract as the MCP server
         - SDK startup fails closed before host reuse is possible -> set both WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR before calling InspectorSdk.Initialize(); partial or unset SDK transport configuration is no longer accepted by default
         - existing plaintext or otherwise unresponsive SDK host may still surface as Timeout -> restart the target host or enable explicit matching transport settings before retrying connect. The default-hardened MCP server will not reuse a plaintext SDK host

@@ -34,6 +34,7 @@ public sealed partial class ConnectTool
     private readonly Func<string, IEnumerable<string>> _bootstrapperCandidateResolver;
     private readonly PipeReadyProbe _pipeReadyProbe;
     private readonly Func<WpfProcessInfo, bool> _isRawInjectionTargetAllowed;
+    private readonly Func<WpfProcessInfo, McpTargetAuthorization> _targetPolicy;
     private readonly Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>> _connectInjectedSessionAsync;
     private readonly TimeSpan _connectTimeout;
 
@@ -62,6 +63,7 @@ public sealed partial class ConnectTool
             bootstrapperCandidateResolver,
             pipeReadyProbe,
             isRawInjectionTargetAllowed,
+            targetPolicy: null,
                 connectInjectedSessionAsync: null,
                 connectTimeout: null)
     {
@@ -78,6 +80,7 @@ public sealed partial class ConnectTool
         Func<string, IEnumerable<string>>? bootstrapperCandidateResolver,
         PipeReadyProbe? pipeReadyProbe,
         Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed,
+        Func<WpfProcessInfo, McpTargetAuthorization>? targetPolicy,
         Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>>? connectInjectedSessionAsync,
         TimeSpan? connectTimeout)
     {
@@ -91,6 +94,7 @@ public sealed partial class ConnectTool
         _bootstrapperCandidateResolver = bootstrapperCandidateResolver ?? DllCandidateResolver.EnumerateBootstrapperCandidates;
         _pipeReadyProbe = pipeReadyProbe ?? new PipeReadyProbe();
         _isRawInjectionTargetAllowed = isRawInjectionTargetAllowed ?? RawInjectionTargetPolicy.IsAllowed;
+        _targetPolicy = targetPolicy ?? McpTargetPolicy.Authorize;
         _connectInjectedSessionAsync = connectInjectedSessionAsync
             ?? ((processId, timeout, cancellationToken) => _sessionManager.ConnectInjectedSessionAsync(processId, timeout, cancellationToken));
         _connectTimeout = connectTimeout ?? TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds);
@@ -242,6 +246,22 @@ public sealed partial class ConnectTool
                     success = false,
                     error = $"Could not detect process info for {processId}",
                     errorCode = "ProcessNotFound"
+                };
+            }
+
+            var targetAuthorization = _targetPolicy(processInfo);
+            if (!targetAuthorization.IsAllowed)
+            {
+                return new
+                {
+                    success = false,
+                    error = targetAuthorization.Error,
+                    errorCode = "SecurityError",
+                    hint = targetAuthorization.Hint,
+                    requiresExplicitTargetOptIn = true,
+                    policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar,
+                    targetExecutablePath = processInfo.ExecutablePath,
+                    targetProcessName = processInfo.ProcessName
                 };
             }
 

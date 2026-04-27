@@ -30,6 +30,7 @@ public partial class ConnectToolTests : IDisposable
         Func<bool>? isCurrentProcessElevated = null,
         PipeReadyProbe? pipeReadyProbe = null,
         Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null,
+        Func<WpfProcessInfo, McpTargetAuthorization>? targetPolicy = null,
         Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>>? connectInjectedSessionAsync = null)
     {
         return new ConnectTool(
@@ -43,6 +44,7 @@ public partial class ConnectToolTests : IDisposable
             bootstrapperCandidateResolver: null,
             pipeReadyProbe: pipeReadyProbe,
             isRawInjectionTargetAllowed: isRawInjectionTargetAllowed ?? (_ => true),
+                targetPolicy: targetPolicy,
             connectInjectedSessionAsync: connectInjectedSessionAsync,
             connectTimeout: null);
     }
@@ -241,6 +243,29 @@ public partial class ConnectToolTests : IDisposable
         resultJson.GetProperty("requiresElevationToConnect").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("canConnectFromCurrentServer").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("administrator");
+        injector.InjectWithBootstrapCallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Execute_WhenMcpTargetPolicyRejectsProcess_ShouldReturnSecurityErrorWithoutInjection()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var injector = new FakeProcessInjector();
+        var tool = CreateTool(
+            injector: injector,
+            processDetector: new FakeProcessDetector(executablePath: @"C:\Denied\Target.exe"),
+            targetPolicy: _ => new McpTargetAuthorization(
+                IsAllowed: false,
+                Error: "Target blocked by test policy.",
+                Hint: $"Set {McpServerConfiguration.AllowedTargetsEnvVar} to allow this target."));
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+        resultJson.GetProperty("policyEnvVar").GetString().Should().Be(McpServerConfiguration.AllowedTargetsEnvVar);
         injector.InjectWithBootstrapCallCount.Should().Be(0);
     }
 

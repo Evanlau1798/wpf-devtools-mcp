@@ -45,6 +45,46 @@ public sealed class AgentFeedbackDocumentationTests
         content.Should().Contain(expectedHeading);
     }
 
+    [Fact]
+    public void AgentFeedbackTrackedPages_ShouldNotPublishStaleValidationReports()
+    {
+        var trackedFiles = GetTrackedAgentFeedbackFiles();
+
+        trackedFiles.Should().BeEquivalentTo(
+            [
+                "docfx/agent-feedback/index.md",
+                "docfx/agent-feedback/template.md",
+                "docfx/zh-tw/agent-feedback/index.md",
+                "docfx/zh-tw/agent-feedback/template.md"
+            ],
+            "only the official entry and template pages should be tracked; validation reports must be current before publication");
+        trackedFiles.Should().NotContain(path => path.Contains("63-tool", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string[] GetTrackedAgentFeedbackFiles()
+    {
+        using var process = new System.Diagnostics.Process();
+        process.StartInfo.FileName = "git";
+        process.StartInfo.ArgumentList.Add("ls-files");
+        process.StartInfo.ArgumentList.Add("docfx/agent-feedback");
+        process.StartInfo.ArgumentList.Add("docfx/zh-tw/agent-feedback");
+        process.StartInfo.WorkingDirectory = Path.GetDirectoryName(GetRepoFilePath(".gitignore"));
+        process.StartInfo.UseShellExecute = false;
+        process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.CreateNoWindow = true;
+
+        process.Start();
+        var output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        process.ExitCode.Should().Be(0);
+
+        return output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(path => path.Replace('\\', '/'))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
 }

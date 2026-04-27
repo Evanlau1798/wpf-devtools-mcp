@@ -53,7 +53,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version
 That script-first path keeps `scripts/online-installer.ps1` as the canonical source entrypoint while still installing from a published release package.
 When you omit `-Architecture`, the installer detects the system architecture (`x64`, `x86`, or `arm64`). Pass `-Architecture` only when you intentionally need to install a different package.
 
-If you want a single-command, non-interactive setup for a specific client and architecture, use:
+If you want a single-command, non-interactive setup for a specific client, use:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson

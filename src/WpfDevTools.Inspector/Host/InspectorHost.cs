@@ -105,6 +105,31 @@ public sealed partial class InspectorHost : IDisposable
     }
 
     /// <summary>
+    /// Create a new InspectorHost instance with optional authentication, encryption, and startup timeout.
+    /// </summary>
+    /// <param name="processId">Process ID of the target WPF application</param>
+    /// <param name="authManager">
+    /// Authentication manager (null to disable authentication).
+    /// Ownership is transferred to the host and the manager is disposed when the host is disposed.
+    /// </param>
+    /// <param name="certManager">Certificate manager for SslStream encryption (null to disable encryption)</param>
+    /// <param name="startupTimeout">Maximum time to wait for the inspector pipe server startup.</param>
+    public InspectorHost(
+        int processId,
+        AuthenticationManager? authManager,
+        CertificateManager? certManager,
+        TimeSpan startupTimeout)
+        : this(
+            processId,
+            CreatePipeName(processId),
+            authManager,
+            certManager,
+            FileLogLevel.Warning,
+            startupTimeout: startupTimeout)
+    {
+    }
+
+    /// <summary>
     /// Create a new InspectorHost instance with optional authentication, encryption, and explicit log level.
     /// </summary>
     public InspectorHost(int processId, AuthenticationManager? authManager, CertificateManager? certManager, FileLogLevel minimumLogLevel)

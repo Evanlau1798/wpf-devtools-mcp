@@ -92,10 +92,7 @@ public static class InspectorSdk
         }
     }
 
-    private static void InitializeCore(
-        int pid,
-        Func<bool>? deadlineExceeded = null,
-        TimeSpan? deadlineTimeout = null)
+    private static void InitializeCore(int pid, InitializationDeadline? deadline = null)
     {
         var transportSecurity = InspectorSdkTransportSecurityConfiguration.Create(
             Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET"),
@@ -106,10 +103,18 @@ public static class InspectorSdk
 
         try
         {
-            host = new InspectorHost(pid, authenticationManager, certificateManager);
+            deadline?.ThrowIfExpired();
+
+            host = deadline == null
+                ? new InspectorHost(pid, authenticationManager, certificateManager)
+                : new InspectorHost(pid, authenticationManager, certificateManager, deadline.GetRemainingTimeout());
             host.Start();
             HostStartedCallback?.Invoke(host);
-            ThrowIfInitializationDeadlineExceeded(deadlineExceeded, deadlineTimeout);
+
+            if (deadline?.TryClaimPublish() == false)
+            {
+                throw deadline.CreateCompletionTimeoutException();
+            }
 
             _authenticationManager = authenticationManager;
             _certificateManager = certificateManager;
@@ -132,19 +137,6 @@ public static class InspectorSdk
             ExceptionDispatchInfo.Capture(ex).Throw();
             throw;
         }
-    }
-
-    private static void ThrowIfInitializationDeadlineExceeded(
-        Func<bool>? deadlineExceeded,
-        TimeSpan? deadlineTimeout)
-    {
-        if (deadlineExceeded?.Invoke() != true)
-        {
-            return;
-        }
-
-        throw new TimeoutException(
-            $"Timed out after {deadlineTimeout?.TotalMilliseconds ?? 0}ms while completing WpfDevTools Inspector SDK initialization on the UI dispatcher.");
     }
 
     /// <summary>
@@ -344,17 +336,14 @@ public static class InspectorSdk
             throw new InvalidOperationException("Cannot initialize WpfDevTools Inspector SDK because the UI dispatcher is shutting down.");
         }
 
-        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
-        var stopwatch = Stopwatch.StartNew();
+        var deadline = new InitializationDeadline(timeout ?? InspectorConfig.UIThreadTimeout);
+        var actualTimeout = deadline.Timeout;
         var initializationStarted = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var operation = dispatcher.InvokeAsync(
             () =>
             {
                 initializationStarted.TrySetResult(null);
-                InitializeCore(
-                    processId,
-                    deadlineExceeded: () => stopwatch.Elapsed >= actualTimeout,
-                    deadlineTimeout: actualTimeout);
+                InitializeCore(processId, deadline);
             },
             DispatcherPriority.Normal,
             CancellationToken.None);
@@ -363,7 +352,7 @@ public static class InspectorSdk
         var completedTask = Task.WhenAny(
             initializationStarted.Task,
             operation.Task,
-            Task.Delay(GetRemainingTimeout(stopwatch, actualTimeout))).GetAwaiter().GetResult();
+            Task.Delay(deadline.GetRemainingTimeout())).GetAwaiter().GetResult();
 
         if (ReferenceEquals(completedTask, operation.Task))
         {
@@ -379,13 +368,13 @@ public static class InspectorSdk
 
         if (ReferenceEquals(completedTask, initializationStarted.Task))
         {
-            WaitForOperationCompletionOrThrow(operation.Task, stopwatch, actualTimeout);
+            WaitForOperationCompletionOrThrow(operation.Task, deadline);
             return;
         }
 
         if (initializationStarted.Task.IsCompleted || operation.Status == DispatcherOperationStatus.Executing)
         {
-            WaitForOperationCompletionOrThrow(operation.Task, stopwatch, actualTimeout);
+            WaitForOperationCompletionOrThrow(operation.Task, deadline);
             return;
         }
 
@@ -401,7 +390,7 @@ public static class InspectorSdk
 
             if (initializationStarted.Task.IsCompleted || operation.Status == DispatcherOperationStatus.Executing || operation.Task.IsCompleted)
             {
-                WaitForOperationCompletionOrThrow(operation.Task, stopwatch, actualTimeout);
+                WaitForOperationCompletionOrThrow(operation.Task, deadline);
                 return;
             }
 
@@ -414,7 +403,7 @@ public static class InspectorSdk
 
             if (initializationStarted.Task.IsCompleted || operation.Status == DispatcherOperationStatus.Executing)
             {
-                WaitForOperationCompletionOrThrow(operation.Task, stopwatch, actualTimeout);
+                WaitForOperationCompletionOrThrow(operation.Task, deadline);
                 return;
             }
 
@@ -431,19 +420,12 @@ public static class InspectorSdk
             }
         }
 
-        WaitForOperationCompletionOrThrow(operation.Task, stopwatch, actualTimeout);
-    }
-
-    private static TimeSpan GetRemainingTimeout(Stopwatch stopwatch, TimeSpan timeout)
-    {
-        var remaining = timeout - stopwatch.Elapsed;
-        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+        WaitForOperationCompletionOrThrow(operation.Task, deadline);
     }
 
     private static void WaitForOperationCompletionOrThrow(
         Task operationTask,
-        Stopwatch stopwatch,
-        TimeSpan timeout)
+        InitializationDeadline deadline)
     {
         if (operationTask.IsCompleted)
         {
@@ -451,7 +433,7 @@ public static class InspectorSdk
             return;
         }
 
-        var remaining = GetRemainingTimeout(stopwatch, timeout);
+        var remaining = deadline.GetRemainingTimeout();
         if (remaining > TimeSpan.Zero)
         {
             var completedTask = Task.WhenAny(operationTask, Task.Delay(remaining)).GetAwaiter().GetResult();
@@ -462,9 +444,14 @@ public static class InspectorSdk
             }
         }
 
+        if (!deadline.TryMarkTimedOut())
+        {
+            operationTask.GetAwaiter().GetResult();
+            return;
+        }
+
         ObserveLateDispatcherOperationFailure(operationTask);
-        throw new TimeoutException(
-            $"Timed out after {timeout.TotalMilliseconds}ms while completing WpfDevTools Inspector SDK initialization on the UI dispatcher.");
+        throw deadline.CreateCompletionTimeoutException();
     }
 
     private static void ObserveLateDispatcherOperationFailure(Task operationTask)
@@ -474,5 +461,83 @@ public static class InspectorSdk
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+    }
+
+    private sealed class InitializationDeadline
+    {
+        private readonly object _lock = new();
+        private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
+        private bool _published;
+        private bool _timedOut;
+
+        public InitializationDeadline(TimeSpan timeout)
+        {
+            Timeout = timeout;
+        }
+
+        public TimeSpan Timeout { get; }
+
+        public TimeSpan GetRemainingTimeout()
+        {
+            lock (_lock)
+            {
+                if (_timedOut)
+                {
+                    return TimeSpan.Zero;
+                }
+
+                var remaining = Timeout - _stopwatch.Elapsed;
+                return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+            }
+        }
+
+        public void ThrowIfExpired()
+        {
+            if (GetRemainingTimeout() == TimeSpan.Zero)
+            {
+                MarkTimedOut();
+                throw CreateCompletionTimeoutException();
+            }
+        }
+
+        public bool TryClaimPublish()
+        {
+            lock (_lock)
+            {
+                if (_timedOut || _stopwatch.Elapsed >= Timeout)
+                {
+                    _timedOut = true;
+                    return false;
+                }
+
+                _published = true;
+                return true;
+            }
+        }
+
+        public bool TryMarkTimedOut()
+        {
+            lock (_lock)
+            {
+                if (_published)
+                {
+                    return false;
+                }
+
+                _timedOut = true;
+                return true;
+            }
+        }
+
+        public TimeoutException CreateCompletionTimeoutException()
+            => new($"Timed out after {Timeout.TotalMilliseconds}ms while completing WpfDevTools Inspector SDK initialization on the UI dispatcher.");
+
+        private void MarkTimedOut()
+        {
+            lock (_lock)
+            {
+                _timedOut = true;
+            }
+        }
     }
 }

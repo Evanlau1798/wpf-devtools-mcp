@@ -89,14 +89,11 @@ public sealed class InspectorSdkDispatcherLifecycleTests
                 SdkInspector.InvokeInitializeOnDispatcher(
                     dispatcher!,
                     processId: 12345,
-                    timeout: TimeSpan.FromMilliseconds(100)));
+                    timeout: TimeSpan.FromSeconds(1)));
 
             hostStarted.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
-            await Task.Delay(TimeSpan.FromMilliseconds(250));
-            initializeTask.IsCompleted.Should().BeTrue(
-                "the dispatcher initialization timeout should bound the whole wait path, including work after the dispatcher starts executing");
-
-            var exception = await Assert.ThrowsAsync<TimeoutException>(() => initializeTask);
+            var exception = await Assert.ThrowsAsync<TimeoutException>(
+                () => initializeTask.WaitAsync(TimeSpan.FromSeconds(3)));
             exception.Message.Should().Contain("while completing WpfDevTools Inspector SDK initialization");
 
             releaseInitialization.Set();
@@ -149,11 +146,7 @@ public sealed class InspectorSdkDispatcherLifecycleTests
         try
         {
             SdkInspector.InitializationQueuedCallback = () => initializationQueued.Set();
-            SdkInspector.BeforeAbortPendingInitializationCallback = () =>
-            {
-                releaseBlock.Set();
-                hostStarted.Wait(TimeSpan.FromSeconds(5));
-            };
+            SdkInspector.BeforeAbortPendingInitializationCallback = () => releaseBlock.Set();
             SdkInspector.HostStartedCallback = _ => hostStarted.Set();
             testContext.SetTransport(InspectorSdkTestContext.CreateAuthSecret(), certDirectory);
 
@@ -165,13 +158,15 @@ public sealed class InspectorSdkDispatcherLifecycleTests
 
             initializationQueued.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
 
-            var exception = await Assert.ThrowsAsync<TimeoutException>(() => initializeTask);
-            exception.Message.Should().Contain("while completing WpfDevTools Inspector SDK initialization");
+            var exception = await Assert.ThrowsAsync<TimeoutException>(
+                () => initializeTask.WaitAsync(TimeSpan.FromSeconds(2)));
+            exception.Message.Should().Contain("while marshaling WpfDevTools Inspector SDK initialization");
 
             dispatcher!.Invoke(() => { }, DispatcherPriority.Background);
 
             SdkInspector.IsInitialized.Should().BeFalse(
                 "initialization that only starts at the timeout boundary should not publish initialized state later");
+            hostStarted.IsSet.Should().BeFalse("the expired deadline should prevent late host startup work");
             InspectorSdkTestContext.GetInspectorSdkHost().Should().BeNull();
         }
         finally

@@ -4,11 +4,12 @@
 
 | 變數 | 用途 | 備註 |
 | --- | --- | --- |
-| `WPFDEVTOOLS_AUTH_SECRET` | 啟用 HMAC challenge-response 驗證 | 必須是 base64 編碼 |
-| `WPFDEVTOOLS_CERT_DIR` | 啟用 inspector pipe 的 TLS | 請使用受保護的本機目錄 |
+| `WPFDEVTOOLS_AUTH_SECRET` | 覆寫 persisted/default HMAC 驗證 secret | 必須是 base64 編碼；injection session 預設會啟用驗證 |
+| `WPFDEVTOOLS_CERT_DIR` | 覆寫預設 TLS certificate directory | 請使用受保護的本機目錄；injection session 預設使用 TLS |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | pin 預期憑證的 thumbprint | 在高限制部署中很有幫助 |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | allowlist 外部 raw-injection target executable | 以分號分隔的 exact absolute executable path；優先使用 SDK-hosted reuse |
 | `WPFDEVTOOLS_RATE_LIMIT_RPM` | 覆寫 MCP server request rate limit | 每分鐘 request 數，必須是正整數 |
+| `WPFDEVTOOLS_TEXT_FALLBACK_MODE` | 控制 MCP `content[0].text` fallback 詳細程度 | 設為 `full` 會輸出完整 JSON text；未設定時使用 compact fallback |
 
 ## Installer 與 package 變數
 

@@ -4,11 +4,12 @@
 
 | Variable | Purpose | Notes |
 | --- | --- | --- |
-| `WPFDEVTOOLS_AUTH_SECRET` | Enables HMAC challenge-response authentication | Must be base64 encoded |
-| `WPFDEVTOOLS_CERT_DIR` | Enables TLS for the inspector pipe | Use a protected local directory |
+| `WPFDEVTOOLS_AUTH_SECRET` | Overrides the persisted/default HMAC authentication secret | Must be base64 encoded; injection sessions are authenticated by default |
+| `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory | Use a protected local directory; injection sessions use TLS by default |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Optional but useful in locked-down deployments |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Allowlists external raw-injection target executables | Semicolon-separated exact absolute executable paths; prefer SDK-hosted reuse first |
 | `WPFDEVTOOLS_RATE_LIMIT_RPM` | Overrides the MCP server request rate limit | Positive integer requests per minute |
+| `WPFDEVTOOLS_TEXT_FALLBACK_MODE` | Controls MCP `content[0].text` fallback verbosity | Set to `full` to emit full JSON text; unset uses the compact fallback |
 
 ## Installer and package variables
 

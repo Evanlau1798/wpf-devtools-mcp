@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "cacheKey":  "sha256:8f8c76a924d9653b54c86ecbed84bb640e407c915495ed3978cf8f519954a88d",
+    "cacheKey":  "sha256:9b962482b0b531650c6e135e8f1e0002a1026cbd7be304e31fbf793aff2d2626",
     "helperFiles":  [
                         {
                             "path":  "Installer.BootstrapUi.ps1",
@@ -94,28 +94,28 @@
                         },
                         {
                             "path":  "Installer.Release.ps1",
-                            "sha256":  "069b9c8b6b30e5b8ce90e24b6e8e31be5ff3b453fd1192ae5d0eebaed2a046d1",
-                            "sizeBytes":  20329
+                            "sha256":  "722b7e05ed8eb06bfc45d71a2dfad03f35a3610361a7c9e92031a3b0e0787f97",
+                            "sizeBytes":  20347
                         },
                         {
                             "path":  "Installer.PackageIntegrity.ps1",
-                            "sha256":  "d73876cd882e4db023f958c3616efaf766ac406b631403d6bfa1801ae62383b1",
-                            "sizeBytes":  19318
+                            "sha256":  "939ee9d660d051ab5cd74cce8e6b63cbc0e64c88a9e50de3980600104eda073d",
+                            "sizeBytes":  19385
                         },
                         {
                             "path":  "Installer.Encoding.ps1",
-                            "sha256":  "b5fbff54c3db2e724d37c8225073465c7d8995d0a83448dada2c9ecf9e9e90d8",
-                            "sizeBytes":  469
+                            "sha256":  "200b3cadf388fae5e454bd5c20ac3bf1a8ab91c0d7f273b1b06452047825d752",
+                            "sizeBytes":  483
                         },
                         {
                             "path":  "Installer.State.ps1",
-                            "sha256":  "489982072adc9e88e25d29c18e3750d40b58d07b01b7b17fea3a30f874062c34",
-                            "sizeBytes":  14393
+                            "sha256":  "99a5e1c4367596cfb5a1a676f61f31b2c93c1ddd545ef02e61b16475f445ef79",
+                            "sizeBytes":  14407
                         },
                         {
                             "path":  "Installer.Registration.ps1",
-                            "sha256":  "5c1bb4fff1babdaae352aa627b9d445a4fcf5425c62bb6c1878173afcb6d4dd5",
-                            "sizeBytes":  40587
+                            "sha256":  "555c6e4d7ed7e63d9174cc6485b9ef49429df98b8df8d3d6d288012107e7ee74",
+                            "sizeBytes":  40664
                         },
                         {
                             "path":  "Installer.Verification.ps1",
@@ -124,8 +124,8 @@
                         },
                         {
                             "path":  "Installer.Actions.ps1",
-                            "sha256":  "d65c539e7a35387db0e7e47ae978c9c046deb37391600ea0df89d34f64f2bb17",
-                            "sizeBytes":  39286
+                            "sha256":  "1a208e56e1cbe45c3b138803cef69343115b83ee5e61a9d41d8c55e88e05eec7",
+                            "sizeBytes":  39318
                         }
                     ]
 }

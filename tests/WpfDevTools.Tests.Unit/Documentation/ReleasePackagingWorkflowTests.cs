@@ -87,6 +87,42 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void PackagedServerRuntimeSmokeScript_ShouldExerciseProtocolBeyondInitialize()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        content.Should().Contain("ExpectedResponseId",
+            "packaged runtime smoke should validate JSON-RPC response identity for each request");
+        content.Should().Contain("jsonRpcVersion",
+            "packaged runtime smoke should validate the JSON-RPC protocol version, not just result payload shape");
+        content.Should().Contain("Invoke-McpRequest -Process $process -Id 1 -Method 'initialize'",
+            "packaged runtime smoke should perform an MCP initialize request first");
+        content.Should().Contain("Send-McpNotification -Process $process -Method 'notifications/initialized'",
+            "packaged runtime smoke should send the initialized notification before later requests");
+        content.Should().Contain("Invoke-McpRequest -Process $process -Id 2 -Method 'tools/list'",
+            "packaged runtime smoke should validate MCP tool discovery, not only initialize");
+        content.Should().Contain("Invoke-McpRequest -Process $process -Id 3 -Method 'resources/read'",
+            "packaged runtime smoke should validate resource serving from the packaged executable");
+        content.Should().Contain("wpf://capabilities",
+            "capability resource reads are safe and do not require a target process");
+        content.Should().Contain("Invoke-McpRequest -Process $process -Id 4 -Method 'tools/call'",
+            "packaged runtime smoke should execute at least one safe tool call");
+        content.Should().Contain("get_processes",
+            "get_processes is a safe process-discovery tool that does not mutate target UI state");
+
+        var initializeIndex = content.IndexOf("-Method 'initialize'", StringComparison.Ordinal);
+        var initializedIndex = content.IndexOf("-Method 'notifications/initialized'", StringComparison.Ordinal);
+        var toolsListIndex = content.IndexOf("-Method 'tools/list'", StringComparison.Ordinal);
+        var resourcesReadIndex = content.IndexOf("-Method 'resources/read'", StringComparison.Ordinal);
+        var toolCallIndex = content.IndexOf("-Method 'tools/call'", StringComparison.Ordinal);
+
+        initializeIndex.Should().BeLessThan(initializedIndex);
+        initializedIndex.Should().BeLessThan(toolsListIndex);
+        toolsListIndex.Should().BeLessThan(resourcesReadIndex);
+        resourcesReadIndex.Should().BeLessThan(toolCallIndex);
+    }
+
+    [Fact]
     public void CiWorkflow_ShouldRunReleasePackagingSmokeWithDeterministicSignatureTestMode()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));

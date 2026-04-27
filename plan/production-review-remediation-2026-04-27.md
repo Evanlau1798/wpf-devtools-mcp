@@ -32,7 +32,6 @@
 - [ ] P1: Replace static MCP tool/helper caches with DI-managed per-host services or prove isolation with regression tests.
 - [ ] P1: Add protocol-level cancellation coverage for long-running tools and concurrent `connect` cancellation.
 - [ ] P1: Sanitize pipe timeout/reset user-facing errors while preserving diagnostics in logs or structured fields.
-- [ ] P1: Extend packaged server smoke tests beyond `initialize` to `tools/list`, `resources/read`, and a safe tool call.
 - [ ] P2: Remove blocking waits and sleeps from high-risk lifecycle paths where feasible this loop.
 - [ ] P2: Split or isolate event trace state-machine responsibilities without destabilizing behavior.
 - [ ] P2: Extract duplicated session attach flow in `SessionManager`.

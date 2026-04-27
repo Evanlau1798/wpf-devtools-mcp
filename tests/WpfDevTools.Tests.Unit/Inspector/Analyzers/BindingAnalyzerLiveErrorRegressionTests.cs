@@ -58,4 +58,31 @@ public class BindingAnalyzerLiveErrorRegressionTests
             .Select(reason => reason.GetString())
             .Should().Contain("LiveBindingTraversalNodeLimit");
     }
+
+    [StaFact]
+    public void GetBindingErrors_DefaultLiveScanBudget_ShouldReachLateBindingErrors()
+    {
+        var finder = new ElementFinder();
+        var listener = BindingErrorTraceListener.CreateForTesting();
+        var analyzer = new BindingAnalyzer(finder, null, listener);
+
+        var root = new StackPanel();
+        for (var index = 0; index < 700; index++)
+        {
+            root.Children.Add(new Button { Content = $"Button {index}" });
+        }
+
+        var lateTextBox = new TextBox { DataContext = new { Present = "ok" } };
+        lateTextBox.SetBinding(TextBox.TextProperty, new System.Windows.Data.Binding("LateMissingProperty"));
+        root.Children.Add(lateTextBox);
+        finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingErrors());
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errors").EnumerateArray()
+            .Select(error => error.GetProperty("bindingPath").GetString())
+            .Should().Contain("LateMissingProperty");
+        result.GetProperty("truncated").GetBoolean().Should().BeFalse();
+    }
 }

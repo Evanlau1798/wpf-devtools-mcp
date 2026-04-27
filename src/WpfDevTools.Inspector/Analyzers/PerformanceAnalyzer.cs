@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -402,7 +403,9 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
     private VisualCountResult GetVisualCountInternal()
     {
         var root = GetRootElement();
-        return root != null ? CountVisualElements(root) : VisualCountResult.Empty;
+        return root != null
+            ? CountVisualElements(root, TreeTraversalDefaults.DefaultMaxNodes)
+            : VisualCountResult.Empty;
     }
 
     private DependencyObject? GetRootElement()

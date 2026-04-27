@@ -2,6 +2,10 @@
   <PropertyGroup>
     <UseSharedCompilation>false</UseSharedCompilation>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <WpfDevToolsNuGetLockFileRuntimeId Condition="'$(RuntimeIdentifiers)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-x64'">win-x64</WpfDevToolsNuGetLockFileRuntimeId>
+    <WpfDevToolsNuGetLockFileRuntimeId Condition="'$(RuntimeIdentifiers)' == 'win-x86' or '$(RuntimeIdentifier)' == 'win-x86'">win-x86</WpfDevToolsNuGetLockFileRuntimeId>
+    <WpfDevToolsNuGetLockFileRuntimeId Condition="'$(RuntimeIdentifiers)' == 'win-arm64' or '$(RuntimeIdentifier)' == 'win-arm64'">win-arm64</WpfDevToolsNuGetLockFileRuntimeId>
+    <NuGetLockFilePath Condition="'$(WpfDevToolsNuGetLockFileRuntimeId)' != ''">$(MSBuildProjectDirectory)\packages.$(WpfDevToolsNuGetLockFileRuntimeId).lock.json</NuGetLockFilePath>
     <RestoreLockedMode Condition="'$(GITHUB_ACTIONS)' == 'true' or '$(TF_BUILD)' == 'True'">true</RestoreLockedMode>
     <NuGetAudit>true</NuGetAudit>
     <NuGetAudit Condition="'$(GITHUB_ACTIONS)' != 'true' and '$(TF_BUILD)' != 'True'">false</NuGetAudit>

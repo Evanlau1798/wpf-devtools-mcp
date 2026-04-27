@@ -10,7 +10,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 public sealed class PerformanceAnalyzerContractTests
 {
-    private const int ExpectedDefaultVisualCountLimit = 1000;
+    private const int LegacyVisualCountBudget = 1000;
 
     public PerformanceAnalyzerContractTests()
     {
@@ -59,44 +59,47 @@ public sealed class PerformanceAnalyzerContractTests
     }
 
     [StaFact]
-    public void GetVisualCount_WhenTreeExceedsDefaultBudget_ShouldReportTruncation()
+    public void GetVisualCount_WhenTreeExceedsLegacyBudget_ShouldReturnExactCount()
     {
         var finder = new ElementFinder();
         var analyzer = new PerformanceAnalyzer(finder);
         var root = new StackPanel();
-        for (var index = 0; index < ExpectedDefaultVisualCountLimit; index++)
+        for (var index = 0; index <= LegacyVisualCountBudget; index++)
         {
             root.Children.Add(new Button());
         }
 
         var elementId = finder.GenerateElementId(root);
+        var expectedCount = root.Children.Count + 1;
 
         var result = JsonSerializer.SerializeToElement(analyzer.GetVisualCount(elementId));
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
-        result.GetProperty("count").GetInt32().Should().Be(ExpectedDefaultVisualCountLimit);
+        result.GetProperty("count").GetInt32().Should().Be(expectedCount);
         result.GetProperty("visualCountLimit").GetInt32()
-            .Should().Be(ExpectedDefaultVisualCountLimit);
-        result.GetProperty("visualCountTruncated").GetBoolean().Should().BeTrue();
+            .Should().Be(expectedCount);
+        result.GetProperty("visualCountTruncated").GetBoolean().Should().BeFalse();
     }
 
     [StaFact]
-    public void GetVisualCount_WhenTreeExactlyMatchesDefaultBudget_ShouldNotReportTruncation()
+    public void GetVisualCount_WhenTreeMatchesLegacyBudgetBoundary_ShouldStillReturnExactCount()
     {
         var finder = new ElementFinder();
         var analyzer = new PerformanceAnalyzer(finder);
         var root = new StackPanel();
-        for (var index = 1; index < ExpectedDefaultVisualCountLimit; index++)
+        for (var index = 1; index < LegacyVisualCountBudget; index++)
         {
             root.Children.Add(new Button());
         }
 
         var elementId = finder.GenerateElementId(root);
+        var expectedCount = root.Children.Count + 1;
 
         var result = JsonSerializer.SerializeToElement(analyzer.GetVisualCount(elementId));
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
-        result.GetProperty("count").GetInt32().Should().Be(ExpectedDefaultVisualCountLimit);
+        result.GetProperty("count").GetInt32().Should().Be(expectedCount);
+        result.GetProperty("visualCountLimit").GetInt32().Should().Be(expectedCount);
         result.GetProperty("visualCountTruncated").GetBoolean().Should().BeFalse();
     }
 }

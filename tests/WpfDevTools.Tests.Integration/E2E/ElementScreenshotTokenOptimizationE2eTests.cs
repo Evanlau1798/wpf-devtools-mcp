@@ -34,7 +34,8 @@ public sealed class ElementScreenshotTokenOptimizationE2eTests
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.TryGetProperty("base64Image", out _).Should().BeFalse();
-        result.GetProperty("byteLength").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("rendered").GetBoolean().Should().BeFalse();
+        result.GetProperty("byteLength").GetInt32().Should().Be(0);
         result.GetProperty("width").GetInt32().Should().BeGreaterThan(0);
         result.GetProperty("height").GetInt32().Should().BeGreaterThan(0);
     }
@@ -49,12 +50,14 @@ public sealed class ElementScreenshotTokenOptimizationE2eTests
             new
             {
                 processId = _fixture.TestAppProcessId,
+                outputMode = "base64",
                 maxWidth = 200
             });
 
         _output.WriteLine($"Downscaled screenshot keys: {string.Join(", ", E2eTestHelpers.EnumeratePropertyNames(result))}");
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("rendered").GetBoolean().Should().BeTrue();
         result.GetProperty("width").GetInt32().Should().BeLessOrEqualTo(200);
         result.TryGetProperty("base64Image", out var image).Should().BeTrue();
         image.GetString().Should().NotBeNullOrEmpty();

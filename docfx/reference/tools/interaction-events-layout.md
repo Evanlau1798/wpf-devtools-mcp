@@ -65,7 +65,7 @@ Some interaction and diagnostic responses may piggyback a compact `pendingEvents
 - `measure_element_render_time`
 - `get_visual_count`
 
-Render statistics and visual count responses bound the internal visual-count walk to 1000 nodes by default. Use `visualCountLimit` and `visualCountTruncated` to tell whether the reported count is complete or intentionally capped.
+Render statistics bound the internal visual-count walk to 1000 nodes by default. Use `visualCountLimit` and `visualCountTruncated` to tell whether the reported render-stat visual count is complete or intentionally capped.
 
 ## Safe usage pattern
 

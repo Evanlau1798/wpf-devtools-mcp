@@ -6,7 +6,7 @@ public sealed partial class BindingAnalyzer
 {
     private const int DefaultBindingTraversalNodeLimit = 512;
     private const int DefaultBindingResultLimit = 200;
-    private const int DefaultLiveBindingTraversalNodeLimit = 512;
+    private const int DefaultLiveBindingTraversalNodeLimit = 4096;
     private const int DefaultLiveBindingErrorLimit = 200;
 
     private sealed class BindingScanBudget

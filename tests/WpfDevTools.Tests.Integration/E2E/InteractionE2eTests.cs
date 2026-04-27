@@ -24,17 +24,22 @@ public sealed partial class InteractionE2eTests : SharedStateMcpE2eTestBase
     }
 
     [Fact]
-    public async Task ElementScreenshot_OnRoot_ShouldReturnBase64Image()
+    public async Task ElementScreenshot_OnRoot_WithExplicitBase64Output_ShouldReturnBase64Image()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
 
         var result = await _fixture.Client.CallToolAsync(
             "element_screenshot",
-            new { processId = _fixture.TestAppProcessId });
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                outputMode = "base64"
+            });
 
         _output.WriteLine($"Screenshot result keys: {string.Join(", ", E2eTestHelpers.EnumeratePropertyNames(result))}");
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("rendered").GetBoolean().Should().BeTrue();
         result.TryGetProperty("base64Image", out var image).Should().BeTrue(
             "screenshot should include base64-encoded PNG data");
         image.GetString().Should().NotBeNullOrEmpty();

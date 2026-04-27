@@ -84,7 +84,7 @@ public sealed partial class InspectorHost
             return false;
         }
 
-        value = stringValue;
+        value = stringValue!;
         return true;
     }
 

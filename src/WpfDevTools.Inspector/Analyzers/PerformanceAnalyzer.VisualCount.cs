@@ -8,15 +8,16 @@ public sealed partial class PerformanceAnalyzer
 {
     private static VisualCountResult CountVisualElements(
         DependencyObject element,
+        int? maxNodes = null,
         int maxDepth = TreeTraversalDefaults.MaxDepthLimit,
         int currentDepth = 0,
         int currentCount = 0)
     {
-        if (currentCount >= TreeTraversalDefaults.DefaultMaxNodes)
+        if (maxNodes.HasValue && currentCount >= maxNodes.Value)
         {
             return new VisualCountResult(
-                TreeTraversalDefaults.DefaultMaxNodes,
-                TreeTraversalDefaults.DefaultMaxNodes,
+                maxNodes.Value,
+                maxNodes.Value,
                 Truncated: true);
         }
 
@@ -24,35 +25,35 @@ public sealed partial class PerformanceAnalyzer
         var truncated = currentDepth >= maxDepth && VisualTreeHelper.GetChildrenCount(element) > 0;
         if (currentDepth >= maxDepth)
         {
-            return new VisualCountResult(count, TreeTraversalDefaults.DefaultMaxNodes, truncated);
+            return new VisualCountResult(count, maxNodes ?? count, truncated);
         }
 
         var childCount = VisualTreeHelper.GetChildrenCount(element);
         for (var index = 0; index < childCount; index++)
         {
             var child = VisualTreeHelper.GetChild(element, index);
-            var childResult = CountVisualElements(child, maxDepth, currentDepth + 1, count);
+            var childResult = CountVisualElements(child, maxNodes, maxDepth, currentDepth + 1, count);
             count = childResult.Count;
             truncated |= childResult.Truncated;
 
-            if (count >= TreeTraversalDefaults.DefaultMaxNodes)
+            if (maxNodes.HasValue && count >= maxNodes.Value)
             {
                 if (index == childCount - 1 && !truncated)
                 {
                     return new VisualCountResult(
-                        TreeTraversalDefaults.DefaultMaxNodes,
-                        TreeTraversalDefaults.DefaultMaxNodes,
+                        maxNodes.Value,
+                        maxNodes.Value,
                         Truncated: false);
                 }
 
                 return new VisualCountResult(
-                    TreeTraversalDefaults.DefaultMaxNodes,
-                    TreeTraversalDefaults.DefaultMaxNodes,
+                    maxNodes.Value,
+                    maxNodes.Value,
                     Truncated: true);
             }
         }
 
-        return new VisualCountResult(count, TreeTraversalDefaults.DefaultMaxNodes, truncated);
+        return new VisualCountResult(count, maxNodes ?? count, truncated);
     }
 
     private readonly record struct VisualCountResult(int Count, int Limit, bool Truncated)

@@ -63,6 +63,15 @@ public class RepositoryHygieneTests
             "new source, script, and test files must stay under 500 lines unless the exception manifest explicitly documents the debt");
     }
 
+    [Fact]
+    public void LineLimitPolicy_ShouldCoverTestAppXamlFiles()
+    {
+        EnumeratePolicyFiles()
+            .Should()
+            .Contain("tests/WpfDevTools.Tests.TestApp/MainWindow.xaml",
+                "large WPF test surfaces need the same 500-line governance as source and script files");
+    }
+
     [Theory]
     [InlineData("tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj")]
     [InlineData("tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj")]
@@ -170,7 +179,8 @@ public class RepositoryHygieneTests
         var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             ".cs",
-            ".ps1"
+            ".ps1",
+            ".xaml"
         };
 
         return roots

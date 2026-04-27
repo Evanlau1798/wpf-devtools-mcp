@@ -20,6 +20,7 @@ src/WpfDevTools.Mcp.Server/Tools/ConnectTool.cs | Existing connect workflow debt
 src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs | Existing security validator debt just over limit; split after validation policy characterization.
 tests/WpfDevTools.Tests.Integration/E2E/InteractionE2eTests.cs | Existing live interaction test debt; split after restoration coverage.
 tests/WpfDevTools.Tests.Integration/TestSupport/ReleasePackagingTestHarness.cs | Existing integration harness debt; split after release harness behavior characterization.
+tests/WpfDevTools.Tests.TestApp/MainWindow.xaml | Existing WPF test app scenario surface; split into focused views after live UI coverage stabilization.
 tests/WpfDevTools.Tests.Unit/Documentation/PublicQuickstartDocumentationTests.cs | Existing documentation contract debt just over limit; split by doc area.
 tests/WpfDevTools.Tests.Unit/Inspector/Analyzers/EventAnalyzerTests.cs | Existing event analyzer test debt; split by routed-event mode.
 tests/WpfDevTools.Tests.Unit/Inspector/Handlers/EventHandlerTraceModeTests.cs | Existing trace-mode test debt; split by trace workflow.

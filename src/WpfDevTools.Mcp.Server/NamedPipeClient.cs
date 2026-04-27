@@ -39,6 +39,7 @@ public sealed partial class NamedPipeClient : IDisposable
     private readonly string _pipeName;
     private readonly AuthenticationManager? _authManager;
     private readonly CertificateManager? _certManager;
+    private readonly bool _ownsAuthManager;
     private readonly bool _enforceHostCompatibilityValidation;
     private readonly TimeSpan _requestTimeout;
     private NamedPipeClientStream? _pipeClient;
@@ -90,6 +91,7 @@ public sealed partial class NamedPipeClient : IDisposable
         string pipeName,
         AuthenticationManager? authManager,
         CertificateManager? certManager,
+        bool ownsAuthManager = false,
         bool? enforceHostCompatibilityValidation = null,
         TimeSpan? requestTimeout = null)
     {
@@ -99,6 +101,7 @@ public sealed partial class NamedPipeClient : IDisposable
             : pipeName;
         _authManager = authManager;
         _certManager = certManager;
+        _ownsAuthManager = ownsAuthManager;
         _requestTimeout = requestTimeout.HasValue && requestTimeout.Value > TimeSpan.Zero
             ? requestTimeout.Value
             : InspectorConfig.RequestTimeout;
@@ -778,5 +781,10 @@ public sealed partial class NamedPipeClient : IDisposable
         // A concurrent SendRequestAsync may still be holding/awaiting the semaphore.
         // Disposing it while awaited would throw ObjectDisposedException.
         // SemaphoreSlim is lightweight and will be collected by GC.
+
+        if (_ownsAuthManager)
+        {
+            _authManager?.Dispose();
+        }
     }
 }

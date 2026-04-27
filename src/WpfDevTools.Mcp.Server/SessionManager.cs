@@ -1,5 +1,5 @@
+using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Mcp.Server.State;
@@ -11,6 +11,8 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public sealed partial class SessionManager : IDisposable
 {
+    private static readonly TimeSpan ExistingHostAuthenticationFallbackTimeout = TimeSpan.FromMilliseconds(250);
+
     private int _disposeState;
     private readonly Func<DateTimeOffset> _utcNowProvider;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
@@ -20,6 +22,7 @@ public sealed partial class SessionManager : IDisposable
     private ActiveProcessSelection? _activeProcessSelection;
     private readonly IRateLimiterManager _rateLimiter;
     private readonly AuthenticationManager? _authManager;
+    private readonly ProcessAuthenticationSecretProvider _processAuthenticationSecrets;
     private readonly CertificateManager? _certManager;
     private readonly ILogger? _logger;
     private readonly object _lock = new();
@@ -60,6 +63,7 @@ public sealed partial class SessionManager : IDisposable
     {
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
         _authManager = authManager;
+        _processAuthenticationSecrets = new ProcessAuthenticationSecretProvider(authManager);
         _certManager = certManager;
         _logger = logger;
         _utcNowProvider = utcNowProvider ?? (() => DateTimeOffset.UtcNow);
@@ -173,7 +177,7 @@ public sealed partial class SessionManager : IDisposable
                 throw new InvalidOperationException($"Session for process {processId} already exists");
             }
 
-            InitializeSessionState(processId, new NamedPipeClient(processId, _authManager, _certManager));
+            InitializeSessionState(processId, CreateProcessScopedPipeClient(processId));
         }
     }
 
@@ -264,6 +268,22 @@ public sealed partial class SessionManager : IDisposable
     internal NamedPipeClient CreateDetachedPipeClient(int processId)
     {
         ThrowIfDisposed();
+        return CreateProcessScopedPipeClient(processId);
+    }
+
+    private NamedPipeClient CreateProcessScopedPipeClient(int processId)
+    {
+        var processAuthManager = _processAuthenticationSecrets.CreateAuthenticationManager(processId);
+        return new NamedPipeClient(
+            processId,
+            $"WpfDevTools_{processId}",
+            processAuthManager,
+            _certManager,
+            ownsAuthManager: processAuthManager != null);
+    }
+
+    private NamedPipeClient CreateRootAuthenticatedPipeClient(int processId)
+    {
         return new NamedPipeClient(processId, _authManager, _certManager);
     }
 
@@ -302,14 +322,61 @@ public sealed partial class SessionManager : IDisposable
     internal async Task<NamedPipeConnectFailure> ConnectExistingHostSessionAsync(
         int processId,
         TimeSpan timeout,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool preferRootAuthentication = false)
+    {
+        ThrowIfDisposed();
+
+        var stopwatch = Stopwatch.StartNew();
+        var primaryAuthMode = preferRootAuthentication
+            ? ExistingHostAuthenticationMode.Root
+            : ExistingHostAuthenticationMode.ProcessScoped;
+        var primaryFailure = await ConnectExistingHostSessionAsync(
+            processId,
+            timeout,
+            cancellationToken,
+            primaryAuthMode).ConfigureAwait(false);
+        if (primaryFailure != NamedPipeConnectFailure.AuthenticationFailed || !_processAuthenticationSecrets.IsEnabled)
+        {
+            return primaryFailure;
+        }
+
+        var remainingTimeout = timeout - stopwatch.Elapsed;
+        if (remainingTimeout <= TimeSpan.Zero)
+        {
+            return NamedPipeConnectFailure.Timeout;
+        }
+
+        var alternateAuthMode = primaryAuthMode == ExistingHostAuthenticationMode.ProcessScoped
+            ? ExistingHostAuthenticationMode.Root
+            : ExistingHostAuthenticationMode.ProcessScoped;
+        var fallbackTimeout = remainingTimeout < ExistingHostAuthenticationFallbackTimeout
+            ? remainingTimeout
+            : ExistingHostAuthenticationFallbackTimeout;
+        var alternateFailure = await ConnectExistingHostSessionAsync(
+            processId,
+            fallbackTimeout,
+            cancellationToken,
+            alternateAuthMode).ConfigureAwait(false);
+        return alternateFailure == NamedPipeConnectFailure.Timeout
+            ? primaryFailure
+            : alternateFailure;
+    }
+
+    private async Task<NamedPipeConnectFailure> ConnectExistingHostSessionAsync(
+        int processId,
+        TimeSpan timeout,
+        CancellationToken cancellationToken,
+        ExistingHostAuthenticationMode authenticationMode)
     {
         ThrowIfDisposed();
 
         NamedPipeClient? detachedPipeClient = null;
         try
         {
-            detachedPipeClient = CreateDetachedPipeClient(processId);
+            detachedPipeClient = authenticationMode == ExistingHostAuthenticationMode.ProcessScoped
+                ? CreateProcessScopedPipeClient(processId)
+                : CreateRootAuthenticatedPipeClient(processId);
             var connected = await detachedPipeClient.ConnectAsync(
                 timeout,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -367,24 +434,16 @@ public sealed partial class SessionManager : IDisposable
         }
     }
 
-    internal string? GetAuthenticationSecretBase64()
+    internal string? GetAuthenticationSecretBase64(int processId)
     {
         ThrowIfDisposed();
+        return _processAuthenticationSecrets.GetAuthenticationSecretBase64(processId);
+    }
 
-        if (_authManager == null || !_authManager.IsAuthenticationEnabled)
-        {
-            return null;
-        }
-
-        var secretBytes = _authManager.GetSharedSecret();
-        try
-        {
-            return Convert.ToBase64String(secretBytes);
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(secretBytes);
-        }
+    private enum ExistingHostAuthenticationMode
+    {
+        ProcessScoped,
+        Root
     }
 
     internal string? GetCertificateDirectory()

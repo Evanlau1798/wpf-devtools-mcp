@@ -271,12 +271,14 @@ public partial class ConnectToolTests : IDisposable
     }
 
     [Fact]
-    public async Task Execute_WithSecureSessionConfiguration_ShouldForwardSecureBootstrapOptions()
+    public async Task Execute_WithSecureSessionConfiguration_ShouldForwardProcessScopedSecureBootstrapOptions()
     {
         EnsureDummyBootstrapperExists();
 
         var authSecret = Convert.ToBase64String(new byte[32]);
-        var authManager = new AuthenticationManager(() => authSecret);
+        using var authManager = new AuthenticationManager(() => authSecret);
+        var expectedAuthSecret = new ProcessAuthenticationSecretProvider(authManager)
+            .GetAuthenticationSecretBase64(12345);
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-certs-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
         try
@@ -295,7 +297,8 @@ public partial class ConnectToolTests : IDisposable
             var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
             resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
             injector.LastInjectionRequest.Should().NotBeNull();
-            injector.LastInjectionRequest!.AuthenticationSecretBase64.Should().Be(authSecret);
+            injector.LastInjectionRequest!.AuthenticationSecretBase64.Should().Be(expectedAuthSecret);
+            injector.LastInjectionRequest.AuthenticationSecretBase64.Should().NotBe(authSecret);
             injector.LastInjectionRequest.CertificateDirectory.Should().Be(certDirectory);
             injector.CertificateFileExistedAtInjection.Should().BeTrue(
                 "the certificate should already exist before the bootstrapper request is sent");
@@ -313,7 +316,7 @@ public partial class ConnectToolTests : IDisposable
     }
 
     [Fact]
-    public async Task Execute_WithPersistedDefaultAuthenticationAndConfiguredTls_ShouldForwardSecureBootstrapOptions()
+    public async Task Execute_WithPersistedDefaultAuthenticationAndConfiguredTls_ShouldForwardProcessScopedSecureBootstrapOptions()
     {
         EnsureDummyBootstrapperExists();
 
@@ -324,7 +327,8 @@ public partial class ConnectToolTests : IDisposable
             null,
             certDirectory,
             new PersistedAuthenticationSecretStore(secretFilePath));
-        var expectedAuthSecret = Convert.ToBase64String(transportSecurity.AuthenticationManager.GetSharedSecret());
+        var expectedAuthSecret = new ProcessAuthenticationSecretProvider(transportSecurity.AuthenticationManager)
+            .GetAuthenticationSecretBase64(12345);
         var expectedCertDirectory = transportSecurity.CertificateManager.CertificateDirectory;
         try
         {

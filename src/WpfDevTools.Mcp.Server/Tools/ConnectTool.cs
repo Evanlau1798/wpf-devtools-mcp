@@ -295,6 +295,7 @@ public sealed partial class ConnectTool
 
             var preInjectionConnectAttempt = await TryConnectToExistingInspectorHostAsync(
                 processId,
+                likelySdkOnlyPackaging,
                 connectStopwatch.Elapsed,
                 existingHostProbeBudget,
                 cancellationToken).ConfigureAwait(false);
@@ -347,7 +348,7 @@ public sealed partial class ConnectTool
                 processInfo,
                 inspectorCandidates,
                 bootstrapperCandidates,
-                _sessionManager.GetAuthenticationSecretBase64(),
+                _sessionManager.GetAuthenticationSecretBase64(processId),
                 _sessionManager.GetCertificateDirectory());
 
             if (injectionRequest == null)
@@ -489,6 +490,7 @@ public sealed partial class ConnectTool
 
     private async Task<object?> TryConnectToExistingInspectorHostAsync(
         int processId,
+        bool preferRootAuthentication,
         TimeSpan elapsedBeforeProbe,
         TimeSpan probeBudget,
         CancellationToken cancellationToken)
@@ -536,7 +538,8 @@ public sealed partial class ConnectTool
             pipeConnectFailure = await _sessionManager.ConnectExistingHostSessionAsync(
                 processId,
                 remainingPipeConnectTimeout,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                preferRootAuthentication).ConfigureAwait(false);
         }
         catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
         {

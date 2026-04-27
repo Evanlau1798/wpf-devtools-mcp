@@ -54,7 +54,7 @@ public sealed class InspectorSdkDispatcherLifecycleTests
     }
 
     [Fact]
-    public async Task InvokeInitializeOnDispatcher_WhenInitializationStartsWithinTimeout_ShouldWaitForCompletion()
+    public async Task InvokeInitializeOnDispatcher_WhenInitializationStartsWithinTimeout_ShouldRespectWholeDeadline()
     {
         using var testContext = new InspectorSdkTestContext();
         var certDirectory = testContext.CreateTemporaryDirectory("wpf-devtools-sdk-dispatcher-entry");
@@ -92,18 +92,19 @@ public sealed class InspectorSdkDispatcherLifecycleTests
                     timeout: TimeSpan.FromMilliseconds(100)));
 
             hostStarted.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
-            initializeTask.IsCompleted.Should().BeFalse(
-                "once initialization has started on the dispatcher, the timeout should no longer apply to the remaining startup work");
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+            initializeTask.IsCompleted.Should().BeTrue(
+                "the dispatcher initialization timeout should bound the whole wait path, including work after the dispatcher starts executing");
 
-            await Task.Delay(TimeSpan.FromMilliseconds(200));
-            initializeTask.IsCompleted.Should().BeFalse(
-                "once initialization has already started on the dispatcher, it should be allowed to continue even after the original marshal timeout window has elapsed");
+            var exception = await Assert.ThrowsAsync<TimeoutException>(() => initializeTask);
+            exception.Message.Should().Contain("while completing WpfDevTools Inspector SDK initialization");
 
             releaseInitialization.Set();
-            await initializeTask;
+            dispatcher!.Invoke(() => { }, DispatcherPriority.Background);
 
-            SdkInspector.IsInitialized.Should().BeTrue();
-            SdkInspector.LastInitializationError.Should().BeNull();
+            SdkInspector.IsInitialized.Should().BeFalse(
+                "a deadline-expired dispatcher initialization must not publish initialized state later");
+            InspectorSdkTestContext.GetInspectorSdkHost().Should().BeNull();
         }
         finally
         {
@@ -114,7 +115,7 @@ public sealed class InspectorSdkDispatcherLifecycleTests
     }
 
     [Fact]
-    public async Task InvokeInitializeOnDispatcher_WhenInitializationStartsDuringTimeoutAbortBoundary_ShouldCompleteWithoutTimeout()
+    public async Task InvokeInitializeOnDispatcher_WhenInitializationStartsDuringTimeoutAbortBoundary_ShouldRespectWholeDeadline()
     {
         using var testContext = new InspectorSdkTestContext();
         var certDirectory = testContext.CreateTemporaryDirectory("wpf-devtools-sdk-dispatcher-boundary");
@@ -164,10 +165,14 @@ public sealed class InspectorSdkDispatcherLifecycleTests
 
             initializationQueued.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
 
-            await initializeTask;
+            var exception = await Assert.ThrowsAsync<TimeoutException>(() => initializeTask);
+            exception.Message.Should().Contain("while completing WpfDevTools Inspector SDK initialization");
 
-            SdkInspector.IsInitialized.Should().BeTrue();
-            SdkInspector.LastInitializationError.Should().BeNull();
+            dispatcher!.Invoke(() => { }, DispatcherPriority.Background);
+
+            SdkInspector.IsInitialized.Should().BeFalse(
+                "initialization that only starts at the timeout boundary should not publish initialized state later");
+            InspectorSdkTestContext.GetInspectorSdkHost().Should().BeNull();
         }
         finally
         {

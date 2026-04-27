@@ -1,11 +1,25 @@
+using System.IO;
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
 public sealed class E2eTestHelpersLifecycleTests
 {
+    [Fact]
+    public void McpStdioClientStartAsync_ShouldUseInitializeAsReadinessProbeInsteadOfFixedSleep()
+    {
+        var content = File.ReadAllText(ReleasePackagingTestHarness.GetRepoFilePath(
+            "tests/WpfDevTools.Tests.Integration/E2E/McpStdioClient.cs"));
+
+        content.Should().NotContain("Task.Delay(200",
+            "E2E startup readiness should be bounded by the MCP initialize response instead of a fixed pre-handshake sleep");
+        content.Should().Contain("SendRequestAsync(\"initialize\"",
+            "the initialize request is the protocol-level readiness probe for STDIO startup");
+    }
+
     [Fact]
     public async Task DrainPendingEventsUntilEmptyAsync_WhenEventsRemain_ShouldContinueUntilEmpty()
     {

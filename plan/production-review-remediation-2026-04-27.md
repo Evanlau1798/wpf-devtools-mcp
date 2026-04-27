@@ -27,7 +27,6 @@
 - [ ] P1: Add server-side MCP policy gates for destructive tools, screenshots, ViewModel inspection, and target allowlisting.
 - [ ] P1: Narrow raw-injection implicit repository-root trust to explicit production-safe opt-in or allowlist behavior.
 - [ ] P1: Add test ownership governance so new test-created `SessionManager` instances are disposed or intentionally weak-root safe.
-- [ ] P1: Replace MCP E2E fixed startup sleep with bounded protocol readiness.
 - [ ] P1: Strengthen live event and screenshot tests to assert semantic identity and valid image content.
 - [ ] P1: Add schema-visible constraints for high-value MCP input parameters.
 - [ ] P1: Validate enum and range parameters at the MCP server boundary before pipe requests.

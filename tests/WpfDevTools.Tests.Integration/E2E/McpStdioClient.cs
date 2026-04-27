@@ -79,9 +79,6 @@ public sealed class McpStdioClient : IDisposable
         _serverProcess.BeginErrorReadLine();
         _readerTask = Task.Run(() => RunReadLoopAsync(_readerCts.Token), _readerCts.Token);
 
-        // Brief wait for server process to spawn and initialize STDIO transport
-        await Task.Delay(200, ct);
-
         if (_serverProcess.HasExited)
         {
             throw new InvalidOperationException(

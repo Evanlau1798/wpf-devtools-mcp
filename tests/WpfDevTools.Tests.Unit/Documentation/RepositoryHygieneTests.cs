@@ -120,6 +120,17 @@ public class RepositoryHygieneTests
             "tests should assert deterministic behavior instead of recording that a code path merely completed");
     }
 
+    [Fact]
+    public void SessionManagerCleanupTimer_ShouldRemainWeakRootSafeForTestCreatedInstances()
+    {
+        var content = ReadRepoFile("src/WpfDevTools.Mcp.Server/SessionManager.cs");
+
+        content.Should().Contain("WeakReference<SessionManager>",
+            "test-created SessionManager instances may intentionally rely on weak-root cleanup safety when a test does not dispose them");
+        content.Should().Contain("callback: static state => CleanupTimerState.Invoke(state)",
+            "the cleanup timer callback must not capture the SessionManager instance strongly");
+    }
+
     private static string ReadRepoFile(string relativePath)
     {
         var path = GetRepoFilePath(relativePath);

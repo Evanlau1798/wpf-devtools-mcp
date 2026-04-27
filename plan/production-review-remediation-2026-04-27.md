@@ -42,7 +42,6 @@
 - [ ] P1: Add protocol-level cancellation coverage for long-running tools and concurrent `connect` cancellation.
 - [ ] P1: Sanitize pipe timeout/reset user-facing errors while preserving diagnostics in logs or structured fields.
 - [ ] P1: Extend packaged server smoke tests beyond `initialize` to `tools/list`, `resources/read`, and a safe tool call.
-- [ ] P1: Fix `.gitignore` so test folders named `Release` are not silently ignored; add a guard test.
 - [ ] P2: Remove blocking waits and sleeps from high-risk lifecycle paths where feasible this loop.
 - [ ] P2: Split or isolate event trace state-machine responsibilities without destabilizing behavior.
 - [ ] P2: Add line-limit governance for current exceptions, including the test app XAML exception.

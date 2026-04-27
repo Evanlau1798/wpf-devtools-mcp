@@ -34,6 +34,16 @@ public class RepositoryHygieneTests
         ignored.Should().BeTrue($"{relativePath} should not be accidentally committed");
     }
 
+    [Theory]
+    [InlineData("tests/WpfDevTools.Tests.Unit/Release/NewReleaseRegressionTests.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Unit/Release/NewInstallerGuardTests.cs")]
+    public void GitIgnore_ShouldNotIgnoreReleaseTestSources(string relativePath)
+    {
+        var ignored = GitIgnoreMatches(relativePath);
+
+        ignored.Should().BeFalse($"{relativePath} is a source test file and must remain commit-visible");
+    }
+
     [Fact]
     public void SourceFiles_ShouldStayUnderLineLimitUnlessExplicitlyExcepted()
     {

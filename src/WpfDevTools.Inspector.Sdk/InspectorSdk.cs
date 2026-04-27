@@ -94,20 +94,25 @@ public static class InspectorSdk
 
     private static void InitializeCore(int pid, InitializationDeadline? deadline = null)
     {
-        var transportSecurity = InspectorSdkTransportSecurityConfiguration.Create(
-            Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET"),
-            Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR"));
-        var authenticationManager = transportSecurity.AuthenticationManager;
-        var certificateManager = transportSecurity.CertificateManager;
+        AuthenticationManager? authenticationManager = null;
+        CertificateManager? certificateManager = null;
         InspectorHost? host = null;
 
         try
         {
             deadline?.ThrowIfExpired();
 
+            var transportSecurity = InspectorSdkTransportSecurityConfiguration.Create(
+                Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET"),
+                Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR"));
+            authenticationManager = transportSecurity.AuthenticationManager;
+            certificateManager = transportSecurity.CertificateManager;
+
+            deadline?.ThrowIfExpired();
+
             host = deadline == null
                 ? new InspectorHost(pid, authenticationManager, certificateManager)
-                : new InspectorHost(pid, authenticationManager, certificateManager, deadline.GetRemainingTimeout());
+                : new InspectorHost(pid, authenticationManager, certificateManager, deadline.GetRemainingTimeoutOrThrow());
             host.Start();
             HostStartedCallback?.Invoke(host);
 
@@ -491,13 +496,21 @@ public static class InspectorSdk
             }
         }
 
+        public TimeSpan GetRemainingTimeoutOrThrow()
+        {
+            var remaining = GetRemainingTimeout();
+            if (remaining > TimeSpan.Zero)
+            {
+                return remaining;
+            }
+
+            MarkTimedOut();
+            throw CreateCompletionTimeoutException();
+        }
+
         public void ThrowIfExpired()
         {
-            if (GetRemainingTimeout() == TimeSpan.Zero)
-            {
-                MarkTimedOut();
-                throw CreateCompletionTimeoutException();
-            }
+            _ = GetRemainingTimeoutOrThrow();
         }
 
         public bool TryClaimPublish()

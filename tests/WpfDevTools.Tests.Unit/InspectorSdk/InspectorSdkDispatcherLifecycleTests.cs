@@ -160,7 +160,11 @@ public sealed class InspectorSdkDispatcherLifecycleTests
 
             var exception = await Assert.ThrowsAsync<TimeoutException>(
                 () => initializeTask.WaitAsync(TimeSpan.FromSeconds(2)));
-            exception.Message.Should().Contain("while marshaling WpfDevTools Inspector SDK initialization");
+            var isDispatcherDeadlineTimeout =
+                exception.Message.Contains("while marshaling WpfDevTools Inspector SDK initialization", StringComparison.Ordinal) ||
+                exception.Message.Contains("while completing WpfDevTools Inspector SDK initialization", StringComparison.Ordinal);
+            isDispatcherDeadlineTimeout.Should().BeTrue(
+                "timeout-boundary races may expire before or just after the dispatcher begins executing, but both paths must preserve the same no-publish contract");
 
             dispatcher!.Invoke(() => { }, DispatcherPriority.Background);
 

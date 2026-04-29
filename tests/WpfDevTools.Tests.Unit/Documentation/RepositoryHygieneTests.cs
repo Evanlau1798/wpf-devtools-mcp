@@ -131,6 +131,19 @@ public class RepositoryHygieneTests
             "the cleanup timer callback must not capture the SessionManager instance strongly");
     }
 
+    [Fact]
+    public void SessionManagerConnectPaths_ShouldShareAttachAfterConnectFlow()
+    {
+        var content = ReadRepoFile("src/WpfDevTools.Mcp.Server/SessionManager.cs");
+
+        content.Should().Contain("ConnectAndAttachSessionAsync(",
+            "injected and existing-host connection paths should share the same attach-after-connect ownership handoff");
+        CountOccurrences(content, "AttachSession(processId, detachedPipeClient);").Should().Be(1,
+            "the connected detached client should be attached in exactly one shared helper");
+        CountOccurrences(content, "SetActiveProcess(processId);").Should().Be(1,
+            "active-process selection should be part of the same shared attach-after-connect flow");
+    }
+
     private static string ReadRepoFile(string relativePath)
     {
         var path = GetRepoFilePath(relativePath);
@@ -138,6 +151,19 @@ public class RepositoryHygieneTests
         File.Exists(path).Should().BeTrue($"{relativePath} should exist");
 
         return File.ReadAllText(path);
+    }
+
+    private static int CountOccurrences(string content, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = content.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
     }
 
     private static string GetRepoFilePath(string relativePath)

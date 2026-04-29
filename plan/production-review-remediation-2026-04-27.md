@@ -23,24 +23,34 @@
 
 ## Active Work
 
-- [ ] P1: Harden elevated installer paths against reparse points, junctions, symlinks, UNC/network paths, and replacement before destructive file operations.
-- [ ] P1: Strengthen live event and screenshot tests to assert semantic identity and valid image content.
-- [ ] P1: Add schema-visible constraints for high-value MCP input parameters.
-- [ ] P1: Validate enum and range parameters at the MCP server boundary before pipe requests.
-- [ ] P1: Formalize structured-output compatibility strategy with versioned contracts or high-value output schema publication.
-- [ ] P1: Replace static MCP tool/helper caches with DI-managed per-host services or prove isolation with regression tests.
-- [ ] P1: Add protocol-level cancellation coverage for long-running tools and concurrent `connect` cancellation.
-- [ ] P1: Sanitize pipe timeout/reset user-facing errors while preserving diagnostics in logs or structured fields.
-- [ ] P2: Remove blocking waits and sleeps from high-risk lifecycle paths where feasible this loop.
-- [ ] P2: Split or isolate event trace state-machine responsibilities without destabilizing behavior.
-- [ ] P2: Extract duplicated session attach flow in `SessionManager`.
+- [x] P1: Harden elevated installer paths against reparse points, junctions, symlinks, UNC/network paths, and replacement before destructive file operations.
+- [x] P1: Strengthen live event and screenshot tests to assert semantic identity and valid image content.
+- [x] P1: Add schema-visible constraints for high-value MCP input parameters.
+- [x] P1: Validate enum and range parameters at the MCP server boundary before pipe requests.
+- [x] P1: Formalize structured-output compatibility strategy with versioned contracts or high-value output schema publication.
+- [x] P1: Replace static MCP tool/helper caches with DI-managed per-host services or prove isolation with regression tests.
+- [x] P1: Add protocol-level cancellation coverage for long-running tools and concurrent `connect` cancellation.
+- [x] P1: Sanitize pipe timeout/reset user-facing errors while preserving diagnostics in logs or structured fields.
+- [x] P2: Remove blocking waits and sleeps from high-risk lifecycle paths where feasible this loop.
+- [x] P2: Split or isolate event trace state-machine responsibilities without destabilizing behavior.
+- [x] P2: Extract duplicated session attach flow in `SessionManager`.
 
 ## Finish Criteria
 
-- [ ] Resolve every remaining active checklist item before starting a new review cycle.
-- [ ] Run separated targeted build/test verification after each fix.
-- [ ] Run separated full-suite verification on the remediation branch.
-- [ ] Dispatch a fresh 5-6 agent objective review after branch verification.
-- [ ] Merge to `master` only after branch verification and review are clean.
-- [ ] After merge, run separated full-suite verification and dispatch a fresh objective master review.
+- [x] Resolve every remaining active checklist item before starting a new review cycle.
+- [x] Run separated targeted build/test verification after each fix.
+- [x] Run separated full-suite verification on the remediation branch before the final review-fix patch set.
+- [x] Run final short verification after the final review-fix patch set: full solution build, focused unit tests, and focused integration tests.
+- [x] Skip any fresh review-agent cycle per 2026-04-29 user instruction.
+- [ ] Merge to `master` after focused verification is clean.
 - [ ] Inspect for residual uncommitted or ignored artifacts before final handoff.
+
+## Verification Notes
+
+- Pre-final-patch full unit suite passed: 3074/3074.
+- Pre-final-patch full integration suite passed: 301/301.
+- Final full unit suite was intentionally stopped by the user after exceeding one hour.
+- Final focused verification passed:
+	- `dotnet build WpfDevTools.sln -m:1`
+	- `dotnet test tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj --no-build --filter "FullyQualifiedName~McpTargetPolicyTests|FullyQualifiedName~McpToolExecutionPolicyTests|FullyQualifiedName~ConnectToolErrorCodeTests|FullyQualifiedName~ConnectToolSecurityErrorTests|FullyQualifiedName~ConnectToolRawInjectionPolicyTests|FullyQualifiedName~ResponseContractResourceTests|FullyQualifiedName~InstallerUninstallBehaviorTests|FullyQualifiedName~InstallerBootstrapTests|FullyQualifiedName~RepositoryHygieneTests"`
+	- `dotnet test tests\WpfDevTools.Tests.Integration\WpfDevTools.Tests.Integration.csproj --no-build --filter "FullyQualifiedName~ConnectAutoDiscoverySelectionTests|FullyQualifiedName~BootstrapInjectionTests"`

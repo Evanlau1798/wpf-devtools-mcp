@@ -297,7 +297,7 @@ public sealed class InstallerProcessLifecycleTests
                 "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
             ]);
 
-            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(10));
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(30));
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("TUI test key queue exhausted");

@@ -4,6 +4,14 @@ namespace WpfDevTools.Mcp.Server.Tools;
 
 public sealed partial class ConnectTool
 {
+    private static readonly AsyncLocal<Func<Task>?> BeforeSingleFlightCompletionForTestingValue = new();
+
+    internal static Func<Task>? BeforeSingleFlightCompletionForTesting
+    {
+        get => BeforeSingleFlightCompletionForTestingValue.Value;
+        set => BeforeSingleFlightCompletionForTestingValue.Value = value;
+    }
+
     private Task<object> RunSingleFlightAsync(
         int processId,
         CancellationToken callerCancellationToken,
@@ -35,6 +43,8 @@ public sealed partial class ConnectTool
                 _ = Task.Run(() => CompleteSingleFlightAsync(operationKey, operation, operationFactory));
                 return operation.WaitAsync(callerCancellationToken);
             }
+
+            operation.Dispose();
         }
     }
 
@@ -43,17 +53,48 @@ public sealed partial class ConnectTool
         InflightConnectOperation operation,
         Func<CancellationToken, Task<object>> operationFactory)
     {
+        object? result = null;
+        Exception? exception = null;
         try
         {
-            operation.SetResult(await operationFactory(operation.CancellationToken).ConfigureAwait(false));
+            result = await operationFactory(operation.CancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            operation.SetException(ex);
+            exception = ex;
         }
         finally
         {
+            operation.StopAcceptingWaiters();
             GlobalInflightConnects.TryRemove(new KeyValuePair<ConnectOperationKey, InflightConnectOperation>(operationKey, operation));
+        }
+
+        try
+        {
+            var beforeCompletion = BeforeSingleFlightCompletionForTesting;
+            if (beforeCompletion is not null)
+            {
+                try
+                {
+                    await beforeCompletion().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    exception = ex;
+                }
+            }
+
+            if (exception is not null)
+            {
+                operation.SetException(exception);
+            }
+            else
+            {
+                operation.SetResult(result!);
+            }
+        }
+        finally
+        {
             operation.Dispose();
         }
     }
@@ -99,6 +140,14 @@ public sealed partial class ConnectTool
 
                 _activeWaiters++;
                 return true;
+            }
+        }
+
+        public void StopAcceptingWaiters()
+        {
+            lock (_waiterLock)
+            {
+                _acceptingWaiters = false;
             }
         }
 

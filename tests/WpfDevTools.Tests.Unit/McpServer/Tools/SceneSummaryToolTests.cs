@@ -40,7 +40,7 @@ public sealed class SceneSummaryToolTests : IDisposable
     }
 
     [Fact]
-    public async Task GetUiSummaryTool_ShouldForwardDepthModeToInspectorRequest()
+    public async Task GetUiSummaryTool_ShouldNormalizeDepthModeBeforeForwardingInspectorRequest()
     {
         const int processId = 60212;
         const string pipeName = "WpfDevTools_Test_SceneDepthMode";
@@ -86,14 +86,14 @@ public sealed class SceneSummaryToolTests : IDisposable
             {
                 processId,
                 depth = 2,
-                depthMode = "semantic"
+                depthMode = " ViSuAl "
             }), CancellationToken.None));
 
             result.GetProperty("success").GetBoolean().Should().BeTrue();
             var request = await requestCompletion.Task.WaitAsync(TimeSpan.FromSeconds(5));
             request.Params.Should().NotBeNull();
             request.Params!.Value.TryGetProperty("depthMode", out var depthMode).Should().BeTrue();
-            depthMode.GetString().Should().Be("semantic");
+            depthMode.GetString().Should().Be("visual");
         }
         finally
         {
@@ -101,6 +101,83 @@ public sealed class SceneSummaryToolTests : IDisposable
             server.Dispose();
             await serverTask;
         }
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(101)]
+    public async Task GetUiSummaryTool_WithDepthOutsideSupportedRange_ShouldReturnInvalidArgument(int depth)
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60214,
+            depth
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depth");
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_WithInvalidDepthMode_ShouldReturnInvalidArgument()
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60215,
+            depthMode = "flat"
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depthMode");
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_WithNonIntegerDepth_ShouldReturnInvalidArgument()
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60216,
+            depth = "abc"
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depth");
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_WithNumericStringDepth_ShouldReturnInvalidArgument()
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60218,
+            depth = "2"
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depth");
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_WithNonStringDepthMode_ShouldReturnInvalidArgument()
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60217,
+            depthMode = true
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depthMode");
     }
 
     [Fact]

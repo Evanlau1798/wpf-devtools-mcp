@@ -33,36 +33,45 @@ internal sealed class TreeRequestOptions
 
     public static bool TryParse(JsonElement? arguments, out TreeRequestOptions options, out object? error)
     {
-        var depth = ParameterParser.ParseIntParam(arguments, "depth");
         var compact = ParameterParser.ParseBoolParam(arguments, "compact") ?? false;
         var summaryOnly = ParameterParser.ParseBoolParam(arguments, "summaryOnly") ?? false;
-        var maxNodes = ParameterParser.ParseIntParam(arguments, "maxNodes");
-        var maxChildrenPerNode = ParameterParser.ParseIntParam(arguments, "maxChildrenPerNode");
 
-        if (depth.HasValue && (depth.Value < 0 || depth.Value > MaxDepthLimit))
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "depth",
+            0,
+            MaxDepthLimit,
+            out var depth,
+            out var depthError))
         {
             options = null!;
-            error = CreateInvalidArgumentError(
-                $"depth must be between 0 and {MaxDepthLimit} to prevent invalid traversal",
-                "Provide a depth value between 0 and 100.");
+            error = depthError;
             return false;
         }
 
-        if (maxNodes.HasValue && (maxNodes.Value <= 0 || maxNodes.Value > MaxNodesLimit))
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "maxNodes",
+            1,
+            MaxNodesLimit,
+            out var maxNodes,
+            out var maxNodesError))
         {
             options = null!;
-            error = CreateInvalidArgumentError(
-                $"maxNodes must be between 1 and {MaxNodesLimit}",
-                "Provide a maxNodes value between 1 and 10000.");
+            error = maxNodesError;
             return false;
         }
 
-        if (maxChildrenPerNode.HasValue && (maxChildrenPerNode.Value <= 0 || maxChildrenPerNode.Value > MaxChildrenPerNodeLimit))
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "maxChildrenPerNode",
+            1,
+            MaxChildrenPerNodeLimit,
+            out var maxChildrenPerNode,
+            out var maxChildrenPerNodeError))
         {
             options = null!;
-            error = CreateInvalidArgumentError(
-                $"maxChildrenPerNode must be between 1 and {MaxChildrenPerNodeLimit}",
-                "Provide a maxChildrenPerNode value between 1 and 1000.");
+            error = maxChildrenPerNodeError;
             return false;
         }
 
@@ -89,11 +98,4 @@ internal sealed class TreeRequestOptions
         };
     }
 
-    private static ToolErrorPayload CreateInvalidArgumentError(string message, string hint) =>
-        new()
-        {
-            Error = message,
-            ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
-            Hint = hint
-        };
 }

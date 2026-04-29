@@ -50,7 +50,7 @@ public static class LayoutMcpTools
             ("elementIds", elementIds));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetLayoutInfoTool>("GetLayoutInfoTool", () => new GetLayoutInfoTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetLayoutInfoTool>(sessionManager, "GetLayoutInfoTool", () => new GetLayoutInfoTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -86,7 +86,7 @@ public static class LayoutMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetClippingInfoTool>("GetClippingInfoTool", () => new GetClippingInfoTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetClippingInfoTool>(sessionManager, "GetClippingInfoTool", () => new GetClippingInfoTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -126,7 +126,7 @@ public static class LayoutMcpTools
             ("duration", duration));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, 
                 "highlight_element",
                 () => new GenericPipeTool(sessionManager, "highlight_element", GenericPipeTool.ExtractHighlightElementParams)
             ).ExecuteAsync(a, ct),
@@ -163,7 +163,7 @@ public static class LayoutMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<InvalidateLayoutTool>("InvalidateLayoutTool", () => new InvalidateLayoutTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<InvalidateLayoutTool>(sessionManager, "InvalidateLayoutTool", () => new InvalidateLayoutTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

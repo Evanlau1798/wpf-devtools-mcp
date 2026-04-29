@@ -254,10 +254,25 @@ public static partial class ToolCallHelper
         return processId;
     }
 
-    private static (bool RequiresReconnect, int? ProcessId) ResolveTimeoutRecovery(string toolName, JsonElement? args)
+    private static (bool RequiresReconnect, int? ProcessId) ResolveTimeoutRecovery(
+        string toolName,
+        JsonElement? args,
+        SessionManager? sessionManager = null)
     {
+        if (TimeoutReconnectOptOutTools.Contains(toolName))
+        {
+            return (false, null);
+        }
+
         var processId = TryGetProcessId(args);
-        if (processId is null || TimeoutReconnectOptOutTools.Contains(toolName))
+        if (processId is null
+            && sessionManager is not null
+            && sessionManager.TryGetActiveProcessId(out var activeProcessId))
+        {
+            processId = activeProcessId;
+        }
+
+        if (processId is null)
         {
             return (false, null);
         }

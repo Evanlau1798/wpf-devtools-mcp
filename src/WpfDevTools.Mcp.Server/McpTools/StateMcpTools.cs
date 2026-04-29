@@ -50,7 +50,7 @@ public static class StateMcpTools
             ("snapshotName", snapshotName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<CaptureStateSnapshotTool>(
+            (a, ct) => ToolCallHelper.CachedTool<CaptureStateSnapshotTool>(sessionManager, 
                 nameof(CaptureStateSnapshotTool),
                 () => new CaptureStateSnapshotTool(sessionManager)).ExecuteAsync(a, ct),
             args,
@@ -97,7 +97,7 @@ public static class StateMcpTools
             ("removeAfterRestore", removeAfterRestore));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<RestoreStateSnapshotTool>(
+            (a, ct) => ToolCallHelper.CachedTool<RestoreStateSnapshotTool>(sessionManager, 
                 nameof(RestoreStateSnapshotTool),
                 () => new RestoreStateSnapshotTool(sessionManager)).ExecuteAsync(a, ct),
             args,

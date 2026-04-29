@@ -1,5 +1,7 @@
 using System.IO;
 using System.IO.Pipes;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
@@ -14,6 +16,53 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public sealed class PipeConnectedToolTimeoutTests : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
+
+    [Fact]
+    public void CreatePipeTimeoutError_ShouldSanitizeUserFacingErrorAndPreserveDiagnostics()
+    {
+        const int processId = 24680;
+        const string rawMessage = "Timeout waiting for pipe WpfDevTools_SecretTarget after 100ms at C:\\Users\\Someone\\AppData\\Local";
+
+        var result = JsonSerializer.SerializeToElement(
+            PipeConnectedToolBase.CreatePipeTimeoutError(processId, rawMessage, requiresReconnect: true));
+
+        result.GetProperty("error").GetString().Should().Be(
+            $"Inspector pipe request timed out for process {processId}. Reconnect before retrying because the pipe session may be stale.");
+        result.GetRawText().Should().NotContain("WpfDevTools_SecretTarget");
+        result.GetRawText().Should().NotContain("C:\\Users\\Someone");
+
+        var diagnostic = result.GetProperty("errorData").GetProperty("transportDiagnostic");
+        diagnostic.GetProperty("failureKind").GetString().Should().Be("Timeout");
+        diagnostic.GetProperty("messageFingerprint").GetString().Should().NotBeNullOrWhiteSpace();
+        diagnostic.GetProperty("messageFingerprint").GetString().Should().NotBe(CreateSha256Hex(rawMessage));
+        diagnostic.GetProperty("fingerprintScope").GetString().Should().Be("process");
+        diagnostic.GetProperty("rawMessageRedacted").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public void CreatePipeTransportResetError_ShouldSanitizeUserFacingErrorAndPreserveDiagnostics()
+    {
+        const int processId = 24681;
+        const string rawMessage = "Pipe WpfDevTools_PrivatePipe broke while reading C:\\Users\\Someone\\target.log";
+
+        var result = JsonSerializer.SerializeToElement(
+            PipeConnectedToolBase.CreatePipeTransportResetError(processId, rawMessage));
+
+        result.GetProperty("error").GetString().Should().Be(
+            $"Inspector pipe transport reset for process {processId}. Reconnect before retrying because the session is stale.");
+        result.GetRawText().Should().NotContain("WpfDevTools_PrivatePipe");
+        result.GetRawText().Should().NotContain("C:\\Users\\Someone");
+
+        var diagnostic = result.GetProperty("errorData").GetProperty("transportDiagnostic");
+        diagnostic.GetProperty("failureKind").GetString().Should().Be("TransportReset");
+        diagnostic.GetProperty("messageFingerprint").GetString().Should().NotBeNullOrWhiteSpace();
+        diagnostic.GetProperty("messageFingerprint").GetString().Should().NotBe(CreateSha256Hex(rawMessage));
+        diagnostic.GetProperty("fingerprintScope").GetString().Should().Be("process");
+        diagnostic.GetProperty("rawMessageRedacted").GetBoolean().Should().BeTrue();
+    }
+
+    private static string CreateSha256Hex(string value) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
     public void Dispose()
     {

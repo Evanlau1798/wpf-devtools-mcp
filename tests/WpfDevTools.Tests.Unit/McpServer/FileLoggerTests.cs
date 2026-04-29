@@ -6,6 +6,7 @@ using System.Threading.Channels;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("TimingSensitive")]
 public class FileLoggerTests : IAsyncDisposable
 {
     private readonly string _testLogPath;
@@ -211,6 +212,45 @@ public class FileLoggerTests : IAsyncDisposable
             releaseWrite.TrySetResult();
             await logger.ProcessingTaskForTesting.WaitAsync(TimeSpan.FromSeconds(5));
         }
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenBackgroundWriterIsBlocked_ShouldReturnBeforeWaitingForShutdownBudget()
+    {
+        var writeStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseWrite = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var shutdownTimeout = TimeSpan.FromMilliseconds(500);
+        var logger = new FileLogger(
+            _testLogPath,
+            shutdownTimeout: shutdownTimeout,
+            writeEntriesOverride: async (_, _) =>
+            {
+                writeStarted.SetResult();
+                await releaseWrite.Task;
+            });
+
+        logger.LogInfo("blocked write");
+        await writeStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Task disposeTask;
+        try
+        {
+            var stopwatch = Stopwatch.StartNew();
+            disposeTask = logger.DisposeAsync().AsTask();
+            stopwatch.Stop();
+
+            stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(100),
+                "DisposeAsync should yield to an asynchronous timeout wait instead of blocking the caller thread");
+            disposeTask.IsCompleted.Should().BeFalse(
+                "shutdown should still be waiting asynchronously while the writer is blocked");
+        }
+        finally
+        {
+            releaseWrite.TrySetResult();
+        }
+
+        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
+        await logger.ProcessingTaskForTesting.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     [Fact]

@@ -56,7 +56,7 @@ public static class StyleMcpTools
             ("compact", compact));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetAppliedStylesTool>("GetAppliedStylesTool", () => new GetAppliedStylesTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetAppliedStylesTool>(sessionManager, "GetAppliedStylesTool", () => new GetAppliedStylesTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -94,7 +94,7 @@ public static class StyleMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetTriggersTool>("GetTriggersTool", () => new GetTriggersTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetTriggersTool>(sessionManager, "GetTriggersTool", () => new GetTriggersTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -135,7 +135,7 @@ public static class StyleMcpTools
             ("resourceKey", resourceKey));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetResourceChainTool>("GetResourceChainTool", () => new GetResourceChainTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetResourceChainTool>(sessionManager, "GetResourceChainTool", () => new GetResourceChainTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -180,7 +180,7 @@ public static class StyleMcpTools
             ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<OverrideStyleSetterTool>("OverrideStyleSetterTool", () => new OverrideStyleSetterTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<OverrideStyleSetterTool>(sessionManager, "OverrideStyleSetterTool", () => new OverrideStyleSetterTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

@@ -14,6 +14,88 @@ if (-not (Get-Command Write-InstallerUtf8NoBomFile -ErrorAction SilentlyContinue
     }
 }
 
+if (-not (Get-Command Resolve-AbsolutePath -ErrorAction SilentlyContinue)) {
+    function Resolve-AbsolutePath {
+        param([Parameter(Mandatory)] [string]$Path)
+
+        if ([System.IO.Path]::IsPathRooted($Path)) {
+            return [System.IO.Path]::GetFullPath($Path)
+        }
+
+        return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
+    }
+}
+
+if (-not (Get-Command Test-InstallerUncOrDevicePath -ErrorAction SilentlyContinue)) {
+    function Test-InstallerUncOrDevicePath {
+        param([Parameter(Mandatory)] [string]$Path)
+
+        return $Path.StartsWith('\\', [System.StringComparison]::Ordinal) -or
+            $Path.StartsWith('\\?\', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $Path.StartsWith('\\.\', [System.StringComparison]::OrdinalIgnoreCase)
+    }
+}
+
+if (-not (Get-Command Assert-InstallerLocalPathTrusted -ErrorAction SilentlyContinue)) {
+    function Assert-InstallerLocalPathTrusted {
+        param(
+            [Parameter(Mandatory)] [string]$Path,
+            [switch]$RejectHardLinks
+        )
+
+        $resolvedPath = Resolve-AbsolutePath -Path $Path
+        if (Test-InstallerUncOrDevicePath -Path $resolvedPath) {
+            throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require a local path."
+        }
+
+        $root = [System.IO.Path]::GetPathRoot($resolvedPath)
+        if ([string]::IsNullOrWhiteSpace($root)) {
+            throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require an absolute local path."
+        }
+
+        try {
+            $drive = [System.IO.DriveInfo]::new($root)
+            if ($drive.DriveType -eq [System.IO.DriveType]::Network) {
+                throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require a local path."
+            }
+        }
+        catch [System.ArgumentException] {
+            throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require a local path."
+        }
+
+        $relativePath = $resolvedPath.Substring($root.Length).Trim('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relativePath)) {
+            return $resolvedPath
+        }
+
+        $currentPath = $root
+        foreach ($segment in $relativePath -split '[\\/]') {
+            if ([string]::IsNullOrWhiteSpace($segment)) {
+                continue
+            }
+
+            $currentPath = Join-Path $currentPath $segment
+            if (-not (Test-Path -LiteralPath $currentPath)) {
+                break
+            }
+
+            $item = Get-Item -LiteralPath $currentPath -Force
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "Installer path '$resolvedPath' is blocked because '$currentPath' is a reparse point."
+            }
+
+            if ($RejectHardLinks -and -not $item.PSIsContainer -and (Get-Command Get-InstallerHardLinkCount -ErrorAction SilentlyContinue)) {
+                $hardLinkCount = Get-InstallerHardLinkCount -Path $currentPath
+                if ($hardLinkCount -gt 1) {
+                    throw "Installer path '$resolvedPath' is blocked because '$currentPath' has multiple hard links."
+                }
+            }
+        }
+
+        return $resolvedPath
+    }
+}
+
 function Install-PackagePayload {
     param(
         [Parameter(Mandatory)] [string]$PackageDirectory,
@@ -35,24 +117,34 @@ function Install-PackagePayload {
         -TrustedArchiveManifestPolicy:$TrustedArchiveManifestPolicy
 
     $installRootFullPath = Resolve-AbsoluteDirectory -Path $ResolvedInstallRoot
-    $installBase = Join-Path $installRootFullPath $ResolvedArchitecture
-    $currentDir = Join-Path $installBase 'current'
-    $installManifestPath = Join-Path $installBase 'install-manifest.json'
-    $registrationArtifactsDir = Join-Path $installBase 'client-registration'
+    $installBase = Assert-InstallerLocalPathTrusted -Path (Join-Path $installRootFullPath $ResolvedArchitecture)
+    $currentDir = Assert-InstallerLocalPathTrusted -Path (Join-Path $installBase 'current')
+    $installManifestPath = Assert-InstallerLocalPathTrusted -Path (Join-Path $installBase 'install-manifest.json')
+    $registrationArtifactsDir = Assert-InstallerLocalPathTrusted -Path (Join-Path $installBase 'client-registration')
     $reusedExistingBinary = $false
     $rollbackBackupCurrentDir = $null
     $rollbackBackupManifestPath = $null
     $rollbackBackupRegistrationDir = $null
 
-    if ((Test-Path $installManifestPath) -and -not $Force) {
-        $existingManifest = Get-Content -Path $installManifestPath -Raw | ConvertFrom-Json
+    if ((Test-Path -LiteralPath $installManifestPath) -and -not $Force) {
+        $existingManifest = Get-Content -LiteralPath $installManifestPath -Raw | ConvertFrom-Json
         $existingExecutable = [string]$existingManifest.executable
         $existingBinaryLooksOwned = $false
-        if (-not [string]::IsNullOrWhiteSpace($existingExecutable) -and (Test-Path $existingExecutable)) {
+        $trustedExistingExecutable = $null
+        if (-not [string]::IsNullOrWhiteSpace($existingExecutable)) {
+            try {
+                $trustedExistingExecutable = Assert-InstallerLocalPathTrusted -Path $existingExecutable
+            }
+            catch {
+                $trustedExistingExecutable = $null
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($trustedExistingExecutable) -and (Test-Path -LiteralPath $trustedExistingExecutable)) {
             $ownershipResolver = Get-Command 'Resolve-InstallerOwnershipFromExecutable' -ErrorAction SilentlyContinue
             $pathComparer = Get-Command 'Test-InstallerPathEqualsCore' -ErrorAction SilentlyContinue
             if ($null -ne $ownershipResolver -and $null -ne $pathComparer) {
-                $existingOwnership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $existingExecutable
+                $existingOwnership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $trustedExistingExecutable
                 $existingBinaryLooksOwned = [bool]$existingOwnership.InstallerOwned -and (Test-InstallerPathEqualsCore -Left ([string]$existingOwnership.InstallBase) -Right $installBase)
             }
             else {
@@ -77,7 +169,9 @@ function Install-PackagePayload {
         }
     }
 
+    Assert-InstallerLocalPathTrusted -Path $installBase | Out-Null
     New-Item -ItemType Directory -Force -Path $installBase | Out-Null
+    Assert-InstallerLocalPathTrusted -Path $installBase | Out-Null
     if (Test-Path $currentDir) {
         $rollbackBackupCurrentDir = "$currentDir.rollback-$([guid]::NewGuid().ToString('N'))"
         Move-InstallerPathWithRetry -SourcePath $currentDir -DestinationPath $rollbackBackupCurrentDir
@@ -88,7 +182,9 @@ function Install-PackagePayload {
     }
 
     try {
+        Assert-InstallerLocalPathTrusted -Path $currentDir | Out-Null
         New-Item -ItemType Directory -Force -Path $currentDir | Out-Null
+        Assert-InstallerLocalPathTrusted -Path $currentDir | Out-Null
         Copy-Item -Path (Join-Path $PackageDirectory '*') -Destination $currentDir -Recurse -Force
         Remove-PathIfExists -Path (Join-Path $currentDir 'run.bat')
 
@@ -107,9 +203,12 @@ function Install-PackagePayload {
                 signaturePolicy = [string]$PackageManifest.signaturePolicy
                 installedUtc = [DateTime]::UtcNow.ToString('o')
             } | ConvertTo-Json -Depth 5)
+        Assert-InstallerLocalPathTrusted -Path $installManifestPath | Out-Null
         Write-InstallerUtf8NoBomFile -Path $installManifestPath -Content $installManifestJson
+        Assert-InstallerLocalPathTrusted -Path $installManifestPath | Out-Null
 
         if (Test-Path $registrationArtifactsDir) {
+            Assert-InstallerLocalPathTrusted -Path $registrationArtifactsDir | Out-Null
             $rollbackBackupRegistrationDir = "$registrationArtifactsDir.rollback-$([guid]::NewGuid().ToString('N'))"
             Move-InstallerPathWithRetry -SourcePath $registrationArtifactsDir -DestinationPath $rollbackBackupRegistrationDir
         }
@@ -158,23 +257,32 @@ function Move-InstallerPathWithRetry {
     )
 
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        $pathsTrusted = $false
+        $resolvedSourcePath = $null
+        $resolvedDestinationPath = $null
         try {
-            $sourceExists = Test-Path -LiteralPath $SourcePath
-            $destinationExists = Test-Path -LiteralPath $DestinationPath
+            $resolvedSourcePath = Assert-InstallerLocalPathTrusted -Path $SourcePath
+            $resolvedDestinationPath = Assert-InstallerLocalPathTrusted -Path $DestinationPath
+            $pathsTrusted = $true
+            $sourceExists = Test-Path -LiteralPath $resolvedSourcePath
+            $destinationExists = Test-Path -LiteralPath $resolvedDestinationPath
 
             if (-not $sourceExists -and $destinationExists) {
                 return
             }
 
             if ($sourceExists -and $destinationExists) {
-                Remove-Item -LiteralPath $DestinationPath -Recurse -Force
+                Assert-InstallerLocalPathTrusted -Path $resolvedDestinationPath | Out-Null
+                Remove-Item -LiteralPath $resolvedDestinationPath -Recurse -Force
             }
 
-            Move-Item -LiteralPath $SourcePath -Destination $DestinationPath -Force
+            Assert-InstallerLocalPathTrusted -Path $resolvedSourcePath | Out-Null
+            Assert-InstallerLocalPathTrusted -Path $resolvedDestinationPath | Out-Null
+            Move-Item -LiteralPath $resolvedSourcePath -Destination $resolvedDestinationPath -Force
             return
         }
         catch {
-            if (-not (Test-Path -LiteralPath $SourcePath) -and (Test-Path -LiteralPath $DestinationPath)) {
+            if ($pathsTrusted -and -not (Test-Path -LiteralPath $resolvedSourcePath) -and (Test-Path -LiteralPath $resolvedDestinationPath)) {
                 return
             }
 
@@ -224,17 +332,26 @@ function Restore-InstallerBackupFile {
         return
     }
 
-    if (-not (Test-Path $BackupPath)) {
+    try {
+        $trustedBackupPath = Assert-InstallerLocalPathTrusted -Path $BackupPath
+        $trustedTargetPath = Assert-InstallerLocalPathTrusted -Path $TargetPath
+    }
+    catch {
         return
     }
 
-    Remove-PathIfExists -Path $TargetPath
-    $targetDirectory = Split-Path -Parent $TargetPath
-    if (-not [string]::IsNullOrWhiteSpace($targetDirectory)) {
-        New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
+    if (-not (Test-Path -LiteralPath $trustedBackupPath)) {
+        return
     }
 
-    Move-InstallerPathWithRetry -SourcePath $BackupPath -DestinationPath $TargetPath
+    Remove-PathIfExists -Path $trustedTargetPath
+    $targetDirectory = Split-Path -Parent $trustedTargetPath
+    if (-not [string]::IsNullOrWhiteSpace($targetDirectory)) {
+        New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
+        Assert-InstallerLocalPathTrusted -Path $targetDirectory | Out-Null
+    }
+
+    Move-InstallerPathWithRetry -SourcePath $trustedBackupPath -DestinationPath $trustedTargetPath
 }
 
 function Restore-InstallerBackupDirectory {
@@ -248,19 +365,43 @@ function Restore-InstallerBackupDirectory {
         return
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($BackupPath) -and (Test-Path $BackupPath)) {
-        Remove-PathIfExists -Path $TargetPath
-        $targetParent = Split-Path -Parent $TargetPath
-        if (-not [string]::IsNullOrWhiteSpace($targetParent)) {
-            New-Item -ItemType Directory -Force -Path $targetParent | Out-Null
+    $trustedTargetPath = $null
+    try {
+        $trustedTargetPath = Assert-InstallerLocalPathTrusted -Path $TargetPath
+    }
+    catch {
+        return
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($BackupPath)) {
+        try {
+            $trustedBackupPath = Assert-InstallerLocalPathTrusted -Path $BackupPath
+        }
+        catch {
+            return
         }
 
-        Move-InstallerPathWithRetry -SourcePath $BackupPath -DestinationPath $TargetPath
+        if (-not (Test-Path -LiteralPath $trustedBackupPath)) {
+            if ($RemoveTargetWhenNoBackup) {
+                Remove-PathIfExists -Path $trustedTargetPath
+            }
+
+            return
+        }
+
+        Remove-PathIfExists -Path $trustedTargetPath
+        $targetParent = Split-Path -Parent $trustedTargetPath
+        if (-not [string]::IsNullOrWhiteSpace($targetParent)) {
+            New-Item -ItemType Directory -Force -Path $targetParent | Out-Null
+            Assert-InstallerLocalPathTrusted -Path $targetParent | Out-Null
+        }
+
+        Move-InstallerPathWithRetry -SourcePath $trustedBackupPath -DestinationPath $trustedTargetPath
         return
     }
 
     if ($RemoveTargetWhenNoBackup) {
-        Remove-PathIfExists -Path $TargetPath
+        Remove-PathIfExists -Path $trustedTargetPath
     }
 }
 
@@ -323,12 +464,18 @@ function Update-InstalledManifestManagedRegistrationTarget {
         return
     }
 
-    $manifestPath = Join-Path $InstallBase 'install-manifest.json'
-    if (-not (Test-Path $manifestPath)) {
+    try {
+        $manifestPath = Assert-InstallerLocalPathTrusted -Path (Join-Path $InstallBase 'install-manifest.json')
+    }
+    catch {
         return
     }
 
-    $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
+        return
+    }
+
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     $managedRegistrationTargets = [ordered]@{}
     $existingTargets = $manifest.PSObject.Properties['managedRegistrationTargets']
     if ($null -ne $existingTargets -and $null -ne $existingTargets.Value) {
@@ -382,14 +529,32 @@ function Restore-RegistrationArtifact {
         return
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($backupPath) -and (Test-Path $backupPath)) {
-        Copy-Item -Path $backupPath -Destination $targetPath -Force
-        Remove-PathIfExists -Path $backupPath
-        return
+    if (-not [string]::IsNullOrWhiteSpace($backupPath)) {
+        try {
+            $trustedBackupPath = Assert-InstallerLocalPathTrusted -Path $backupPath
+            $trustedTargetPath = Assert-InstallerLocalPathTrusted -Path $targetPath
+        }
+        catch {
+            return
+        }
+
+        if (Test-Path -LiteralPath $trustedBackupPath) {
+            Copy-Item -LiteralPath $trustedBackupPath -Destination $trustedTargetPath -Force
+            Remove-PathIfExists -Path $trustedBackupPath
+            return
+        }
     }
 
     if ($RemoveTargetWhenNoBackup -and -not [string]::IsNullOrWhiteSpace($targetPath)) {
-        Remove-PathIfExists -Path $targetPath
+        try {
+            $trustedTargetPath = Assert-InstallerLocalPathTrusted -Path $targetPath
+        }
+        catch {
+            return
+        }
+
+        Remove-PathIfExists -Path $trustedTargetPath
+        return
     }
 }
 

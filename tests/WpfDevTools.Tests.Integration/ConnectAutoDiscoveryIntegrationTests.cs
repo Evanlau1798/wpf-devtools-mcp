@@ -1,4 +1,4 @@
-using System.IO.Pipes;
+﻿using System.IO.Pipes;
 using System.IO;
 using System.Text.Json;
 using System.Runtime.InteropServices;
@@ -143,7 +143,8 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
                 ? []
                 : [_dummyBootstrapperPath],
             pipeReadyProbe: new PipeReadyProbe((_, _) => false, () => DateTime.UtcNow, _ => { }),
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
     }
 
     private void EnsureDummyBootstrapperExists()
@@ -399,7 +400,8 @@ public sealed class ConnectAutoDiscoveryLiveIntegrationTests : IDisposable
     }
 
     private static ConnectTool CreateLiveTool(SessionManager sessionManager, WpfProcessDetector detector)
-        => new(sessionManager, new ProcessInjector(), detector, isRawInjectionTargetAllowed: _ => true);
+        => new(sessionManager, new ProcessInjector(), detector, isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
 
     private static void MinimizeProcessWindow(Process process, FilteringProcessDetector detector)
     {

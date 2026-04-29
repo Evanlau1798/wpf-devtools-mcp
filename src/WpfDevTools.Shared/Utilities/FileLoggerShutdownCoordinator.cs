@@ -100,18 +100,8 @@ internal static class FileLoggerShutdownCoordinator
             throw new TimeoutException();
         }
 
-        bool completed;
-        try
-        {
-            completed = task.Wait(timeout);
-        }
-        catch (AggregateException)
-        {
-            await task.ConfigureAwait(false);
-            return;
-        }
-
-        if (completed)
+        var completedTask = await Task.WhenAny(task, Task.Delay(timeout)).ConfigureAwait(false);
+        if (ReferenceEquals(completedTask, task))
         {
             await task.ConfigureAwait(false);
             return;

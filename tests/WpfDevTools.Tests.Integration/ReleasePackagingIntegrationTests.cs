@@ -20,7 +20,8 @@ public sealed class ReleasePackagingIntegrationTests
             var outputRoot = Path.Combine(tempRoot, "release-output");
             var result = ReleasePackagingTestHarness.RunPowerShellScript(
                 ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
-                new[] { "-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot, "-SkipBuild" });
+                new[] { "-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot, "-SkipBuild" },
+                timeout: BuildReleaseTimeout);
 
             result.ExitCode.Should().Be(0, result.Stderr);
             var archivePath = Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Single();

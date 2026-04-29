@@ -57,8 +57,8 @@ internal static class RawInjectionTargetPolicy
 
         return new RawInjectionAuthorization(
             IsAllowed: false,
-            Error: $"Raw injection into '{normalizedTargetPath}' is blocked by the server's target policy. Raw injection requires an exact allowlist entry for the target executable.",
-            Hint: $"Start the target-side SDK host with InspectorSdk.Initialize() for the safer reuse path, or add the exact absolute executable path to {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} before retrying connect().");
+            Error: "Raw injection into the target is blocked by the server's target policy. Raw injection requires an exact allowlist entry for the target executable.",
+            Hint: $"Start the target-side SDK host with InspectorSdk.Initialize() for the safer reuse path, or add the exact absolute executable path to {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} before retrying connect(). The full denied path is written only to server diagnostics.");
     }
 
     internal static IReadOnlyCollection<string> GetConfiguredAllowedTargets()

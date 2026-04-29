@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 using FluentAssertions;
 using System.Text.Json;
 using System.IO.Pipes;
@@ -253,7 +253,8 @@ public partial class ConnectToolTests
             _ => { },
             () => false,
             pipeReadyProbe: new PipeReadyProbe((_, _) => true, () => DateTime.UtcNow, _ => { }),
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var result = await tool.ExecuteAsync(
             ToJsonElement(new { processId }),

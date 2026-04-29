@@ -59,8 +59,7 @@ public sealed class ElementScreenshotTokenOptimizationE2eTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("rendered").GetBoolean().Should().BeTrue();
         result.GetProperty("width").GetInt32().Should().BeLessOrEqualTo(200);
-        result.TryGetProperty("base64Image", out var image).Should().BeTrue();
-        image.GetString().Should().NotBeNullOrEmpty();
+        E2eTestHelpers.AssertBase64ScreenshotMatchesReportedMetadata(result);
     }
 
     [Fact]
@@ -77,21 +76,17 @@ public sealed class ElementScreenshotTokenOptimizationE2eTests
                 maxWidth = 256
             });
 
-        _output.WriteLine($"File screenshot result: {result.GetRawText()}");
-
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.TryGetProperty("base64Image", out _).Should().BeFalse();
-        var path = result.GetProperty("path").GetString();
-        path.Should().NotBeNullOrEmpty();
         var expectedDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "WpfDevTools",
             "tmp",
             "screenshots");
-        path!.StartsWith(expectedDirectory, StringComparison.OrdinalIgnoreCase).Should().BeTrue();
-        File.Exists(path).Should().BeTrue();
+        var path = E2eTestHelpers.AssertFileScreenshotMatchesReportedMetadata(result, expectedDirectory);
+        _output.WriteLine($"File screenshot metadata: rendered={result.GetProperty("rendered").GetBoolean()}, width={result.GetProperty("width").GetInt32()}, height={result.GetProperty("height").GetInt32()}, underExpectedDirectory=True");
         result.GetProperty("width").GetInt32().Should().BeLessOrEqualTo(256);
 
-        File.Delete(path!);
+        File.Delete(path);
     }
 }

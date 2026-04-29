@@ -20,10 +20,15 @@ public sealed class DrainEventsTool : PipeConnectedToolBase
             return error;
         }
 
-        var maxEvents = ParseIntParam(arguments, "maxEvents");
-        if (maxEvents is <= 0)
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "maxEvents",
+            1,
+            int.MaxValue,
+            out var maxEvents,
+            out var maxEventsError))
         {
-            return CreateInvalidParamError("maxEvents must be a positive integer when provided");
+            return maxEventsError!;
         }
 
         if (!_sessionManager.TryGetSessionGeneration(processId, out var expectedSessionGeneration))

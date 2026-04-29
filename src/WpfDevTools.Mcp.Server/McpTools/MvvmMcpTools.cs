@@ -49,7 +49,7 @@ public static class MvvmMcpTools
             ("propertyNames", propertyNames));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetViewModelTool>("GetViewModelTool", () => new GetViewModelTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetViewModelTool>(sessionManager, "GetViewModelTool", () => new GetViewModelTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -86,7 +86,7 @@ public static class MvvmMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetCommandsTool>("GetCommandsTool", () => new GetCommandsTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetCommandsTool>(sessionManager, "GetCommandsTool", () => new GetCommandsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -132,7 +132,7 @@ public static class MvvmMcpTools
             ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<ExecuteCommandTool>("ExecuteCommandTool", () => new ExecuteCommandTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ExecuteCommandTool>(sessionManager, "ExecuteCommandTool", () => new ExecuteCommandTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
@@ -184,7 +184,7 @@ public static class MvvmMcpTools
             ("elementIds", elementIds));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetValidationErrorsTool>("GetValidationErrorsTool", () => new GetValidationErrorsTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetValidationErrorsTool>(sessionManager, "GetValidationErrorsTool", () => new GetValidationErrorsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             toolName: "get_validation_errors");
@@ -231,7 +231,7 @@ public static class MvvmMcpTools
             ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, 
                 "modify_viewmodel",
                 () => new GenericPipeTool(
                     sessionManager,

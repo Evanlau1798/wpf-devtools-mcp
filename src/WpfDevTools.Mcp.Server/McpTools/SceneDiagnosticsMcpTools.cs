@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Tools;
@@ -54,7 +55,7 @@ public static class SceneDiagnosticsMcpTools
             ("trigger", trigger));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetStateDiffTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GetStateDiffTool>(sessionManager, 
                 nameof(GetStateDiffTool),
                 () => new GetStateDiffTool(sessionManager)).ExecuteAsync(a, ct),
             args,
@@ -89,7 +90,7 @@ public static class SceneDiagnosticsMcpTools
             ("includeProperties", includeProperties));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetElementSnapshotTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GetElementSnapshotTool>(sessionManager, 
                 nameof(GetElementSnapshotTool),
                 () => new GetElementSnapshotTool(sessionManager)).ExecuteAsync(a, ct),
             args,
@@ -130,7 +131,7 @@ public static class SceneDiagnosticsMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<DiagnoseVisibilityTool>(
+            (a, ct) => ToolCallHelper.CachedTool<DiagnoseVisibilityTool>(sessionManager, 
                 nameof(DiagnoseVisibilityTool),
                 () => new DiagnoseVisibilityTool(sessionManager)).ExecuteAsync(a, ct),
             args,
@@ -173,7 +174,7 @@ public static class SceneDiagnosticsMcpTools
             ("interactionType", interactionType));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetInteractionReadinessTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GetInteractionReadinessTool>(sessionManager, 
                 nameof(GetInteractionReadinessTool),
                 () => new GetInteractionReadinessTool(sessionManager)).ExecuteAsync(a, ct),
             args,
@@ -199,7 +200,9 @@ public static class SceneDiagnosticsMcpTools
         SessionManager sessionManager,
         [Description("Optional runtime element ID to scope the semantic summary. Omit to summarize the root window.")] string? elementId = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Range(0, TreeRequestOptions.MaxDepthLimit)]
         [Description("Optional maximum visual depth to summarize. Omit to use the default semantic summary depth budget.")] int? depth = null,
+        [AllowedValues("semantic", "visual")]
         [Description("Optional depth accounting mode: 'semantic' (default) skips layout-only wrapper levels when budgeting depth, while 'visual' counts every traversed level.")] string? depthMode = null,
         [Description("Set true to return only the semantic summary metadata and omit the nodes array for a lighter response.")] bool summaryOnly = false,
         CancellationToken cancellationToken = default)
@@ -212,7 +215,7 @@ public static class SceneDiagnosticsMcpTools
             ("summaryOnly", summaryOnly));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetUiSummaryTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GetUiSummaryTool>(sessionManager, 
                 nameof(GetUiSummaryTool),
                 () => new GetUiSummaryTool(sessionManager)).ExecuteAsync(a, ct),
             args,
@@ -247,7 +250,7 @@ public static class SceneDiagnosticsMcpTools
             ("includeFramework", includeFramework));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetFormSummaryTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GetFormSummaryTool>(sessionManager, 
                 nameof(GetFormSummaryTool),
                 () => new GetFormSummaryTool(sessionManager)).ExecuteAsync(a, ct),
             args,

@@ -38,6 +38,7 @@ public sealed class ResponseContractSchemaMetadataTests
         AssertNumericConstraint(constraints, "wait_for_dp_change", "timeoutMs", 5000, 1, 30000);
         AssertNumericConstraint(constraints, "wait_for_dp_change", "pollIntervalMs", 200, 50, 5000);
         AssertNumericConstraint(constraints, "wait_for_dp_change_after_mutation", "timeoutMs", 5000, 1, 30000);
+        AssertNumericConstraint(constraints, "connect", "processId", null, 1, int.MaxValue);
         AssertNumericConstraint(constraints, "get_visual_tree", "depth", null, 0, 100);
         AssertNumericConstraint(constraints, "get_visual_tree", "maxNodes", TreeTraversalDefaults.DefaultMaxNodes, 1, 10000);
         AssertNumericConstraint(constraints, "get_visual_tree", "maxChildrenPerNode", TreeTraversalDefaults.DefaultMaxChildrenPerNode, 1, 1000);
@@ -46,6 +47,22 @@ public sealed class ResponseContractSchemaMetadataTests
         AssertNumericConstraint(constraints, "trace_routed_events", "maxEvents", null, 1, null);
         AssertNumericConstraint(constraints, "drain_events", "maxEvents", null, 1, null);
         AssertNumericConstraint(constraints, "get_binding_errors", "maxErrors", null, 1, null);
+        AssertNumericConstraint(constraints, "get_ui_summary", "depth", null, 0, 100);
+        AssertNumericConstraint(constraints, "element_screenshot", "maxWidth", null, 1, int.MaxValue);
+        AssertNumericConstraint(constraints, "element_screenshot", "maxHeight", null, 1, int.MaxValue);
+    }
+
+    [Fact]
+    public void ResponseContractResource_ShouldExposeEnumParameterConstraints()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
+        var constraints = document.RootElement.GetProperty("parameterConstraints");
+
+        AssertEnumConstraint(constraints, "get_processes", "windowFilter", "visible", "all", "foreground");
+        AssertEnumConstraint(constraints, "connect", "selectionStrategy", "single_only", "largest_working_set");
+        AssertEnumConstraint(constraints, "connect", "windowFilter", "visible", "all", "foreground");
+        AssertEnumConstraint(constraints, "get_ui_summary", "depthMode", "semantic", "visual");
+        AssertEnumConstraint(constraints, "element_screenshot", "outputMode", "metadata", "file", "base64");
     }
 
     private static void AssertNumericConstraint(
@@ -75,6 +92,25 @@ public sealed class ResponseContractSchemaMetadataTests
         }
 
         element.ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    private static void AssertEnumConstraint(
+        JsonElement constraints,
+        string toolName,
+        string parameterName,
+        params string[] expectedValues)
+    {
+        var constraint = constraints.EnumerateArray().Single(entry =>
+            entry.GetProperty("tool").GetString() == toolName &&
+            entry.GetProperty("parameter").GetString() == parameterName);
+
+        constraint.GetProperty("type").GetString().Should().Be("string");
+        constraint.GetProperty("defaultValue").GetString().Should().Be(expectedValues[0]);
+        var values = constraint.GetProperty("allowedValues")
+            .EnumerateArray()
+            .Select(entry => entry.GetString())
+            .ToArray();
+        values.Should().BeEquivalentTo(expectedValues);
     }
 
     private static void AssertArrayContains(JsonElement arrayElement, params string[] expectedValues)

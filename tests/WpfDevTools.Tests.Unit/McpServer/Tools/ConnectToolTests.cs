@@ -44,7 +44,7 @@ public partial class ConnectToolTests : IDisposable
             bootstrapperCandidateResolver: null,
             pipeReadyProbe: pipeReadyProbe,
             isRawInjectionTargetAllowed: isRawInjectionTargetAllowed ?? (_ => true),
-                targetPolicy: targetPolicy,
+                targetPolicy: targetPolicy ?? ConnectToolTestPolicies.AllowAllTargets,
             connectInjectedSessionAsync: connectInjectedSessionAsync,
             connectTimeout: null);
     }

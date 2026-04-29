@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
@@ -33,7 +33,8 @@ public sealed class ConnectToolActiveProcessTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var result = await tool.ExecuteAsync(
             ToJsonElement(new { processId = connectedProcessId }),

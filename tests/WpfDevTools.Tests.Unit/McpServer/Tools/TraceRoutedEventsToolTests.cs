@@ -81,6 +81,25 @@ public class TraceRoutedEventsToolTests
     }
 
     [Fact]
+    public async Task Execute_WithDurationAboveLimit_ShouldReturnInvalidParamError()
+    {
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(12345);
+        var tool = new TraceRoutedEventsTool(sessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 12345,
+            eventName = "Click",
+            duration = TraceRoutedEventsTool.MaxDurationMs + 1
+        }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("error").GetString().Should().Contain("duration");
+    }
+
+    [Fact]
     public async Task Execute_WithGetMode_ShouldNotRequireEventName()
     {
         var tool = new TraceRoutedEventsTool(new SessionManager());
@@ -253,7 +272,7 @@ public class TraceRoutedEventsToolTests
             processId,
             eventName = "Click",
             elementId = "SaveButton",
-            duration = 120000,
+            duration = 30000,
             mode = "capture"
         }), CancellationToken.None);
 

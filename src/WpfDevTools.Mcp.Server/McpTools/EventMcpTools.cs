@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
@@ -52,7 +53,8 @@ public static class EventMcpTools
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional WPF routed event name to trace, such as Click or MouseDown. Required for `capture` and `start`, optional for `get`.")] string? eventName = null,
         [Description("Optional element ID to scope the event trace. Omit for the root window.")] string? elementId = null,
-        [Description("Optional capture window in milliseconds (default: 5000). Use smaller values (250-2000) for interactive STDIO sessions.")] int? durationMs = null,
+        [Range(0, TraceRoutedEventsTool.MaxDurationMs)]
+        [Description("Optional capture window in milliseconds (default: 5000, maximum: 60000). Use smaller values (250-2000) for interactive STDIO sessions.")] int? durationMs = null,
         [Description("Optional tracing mode: `capture` (default), `start`, or `get`. Use `start` + `get` for AI-friendly non-blocking workflows.")] string? mode = null,
         [Description("Optional opt-in override for start mode. When true, short requested durations are honored instead of being raised to the default 30s minimum.")] bool allowShortStartDuration = false,
         [Description("Optional positive cap on returned trace event records. Responses include returnedEventCount, totalEventCount, eventsTruncated, and maxEvents so agents can detect truncation and retry with a larger cap when needed.")] int? maxEvents = null,
@@ -67,12 +69,13 @@ public static class EventMcpTools
             ("allowShortStartDuration", allowShortStartDuration),
             ("maxEvents", maxEvents));
 
+        var boundedDurationMs = Math.Min(durationMs ?? 5000, TraceRoutedEventsTool.MaxDurationMs);
         var timeoutSeconds = Math.Max(
             McpServerConfiguration.DefaultToolTimeoutSeconds,
-            (int)Math.Ceiling(((durationMs ?? 5000) / 1000d) + 2));
+            (int)Math.Ceiling((boundedDurationMs / 1000d) + 2));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<TraceRoutedEventsTool>("TraceRoutedEventsTool", () => new TraceRoutedEventsTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<TraceRoutedEventsTool>(sessionManager, "TraceRoutedEventsTool", () => new TraceRoutedEventsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             timeoutSeconds: timeoutSeconds);
@@ -117,7 +120,7 @@ public static class EventMcpTools
             ("eventName", eventName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetEventHandlersTool>("GetEventHandlersTool", () => new GetEventHandlersTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetEventHandlersTool>(sessionManager, "GetEventHandlersTool", () => new GetEventHandlersTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             toolName: "get_event_handlers");
@@ -171,7 +174,7 @@ public static class EventMcpTools
             ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<FireRoutedEventTool>("FireRoutedEventTool", () => new FireRoutedEventTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<FireRoutedEventTool>(sessionManager, "FireRoutedEventTool", () => new FireRoutedEventTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),

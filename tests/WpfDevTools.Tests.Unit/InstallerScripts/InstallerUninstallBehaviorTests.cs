@@ -159,6 +159,7 @@ public sealed class InstallerUninstallBehaviorTests
                 [
                     ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Verification.ps1").Replace("'", "''") + "'",
                     "function Resolve-ClientBaseId { param([string]$ClientId) return [string]$ClientId }",
+                    "function Assert-InstallerLocalPathTrusted { param([string]$Path) return [System.IO.Path]::GetFullPath($Path) }",
                     "function Get-TrustedRecordedRegistrationTarget { param([string]$ClientBaseId, $RegistrationRecord) return $null }",
                     "function Get-TrustedOtherRegistrationArtifactTargets { param($RegistrationRecord) return @() }",
                     "function Add-TrustedRegistrationTargetCandidate { param([System.Collections.Generic.List[string]]$Targets, [string]$Candidate) if (-not [string]::IsNullOrWhiteSpace($Candidate) -and -not $Targets.Contains($Candidate)) { [void]$Targets.Add($Candidate) } }",
@@ -172,6 +173,70 @@ public sealed class InstallerUninstallBehaviorTests
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void CliVerification_WhenInstallerIsElevated_ShouldNotResolveCommandFromPath()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var binDirectory = Path.Combine(tempRoot, "bin");
+            var markerPath = Path.Combine(tempRoot, "path-command-ran.txt");
+            Directory.CreateDirectory(binDirectory);
+            File.WriteAllText(
+                Path.Combine(binDirectory, "claude.cmd"),
+                "@echo hacked > \"" + markerPath + "\"\r\n@echo wpf-devtools C:\\Tools\\wpf-devtools-x64.exe\r\n");
+
+            var command = string.Join(Environment.NewLine,
+            [
+                "$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED='1'",
+                "$env:PATH='" + binDirectory.Replace("'", "''") + ";' + $env:PATH",
+                ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Registration.ps1").Replace("'", "''") + "'",
+                ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Verification.ps1").Replace("'", "''") + "'",
+                "$verification = Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true",
+                "$verification | ConvertTo-Json -Compress"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            File.Exists(markerPath).Should().BeFalse("elevated verification must not execute a PATH-resolved CLI shim");
+            using var json = JsonDocument.Parse(result.Stdout);
+            json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeFalse();
+            json.RootElement.GetProperty("Output").GetString().Should().Contain("blocked while the installer is elevated");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void TrustedRecordedRegistrationTarget_WhenNonOtherTargetIsNotAllowlisted_ShouldReturnNull()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var maliciousTarget = Path.Combine(tempRoot, "attacker", "mcp.json");
+            var command = string.Join(" ; ",
+            [
+                "$env:APPDATA='" + Path.Combine(tempRoot, "AppData", "Roaming").Replace("'", "''") + "'",
+                ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Registration.ps1").Replace("'", "''") + "'",
+                "$record = [ordered]@{ target = '" + maliciousTarget.Replace("'", "''") + "'; InstallerOwned = $true; EvidenceSource = 'json-file' }",
+                "$target = Get-TrustedRecordedRegistrationTarget -ClientBaseId 'vscode' -RegistrationRecord $record",
+                "if ($null -eq $target) { 'null' } else { $target }"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be("null");
         }
         finally
         {
@@ -213,4 +278,5 @@ public sealed class InstallerUninstallBehaviorTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
 }

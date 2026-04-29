@@ -172,7 +172,9 @@ Resolve-InstallerScriptRoot
             var command = string.Join(" ; ",
             [
                 "$env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI='http://127.0.0.1:9/installer'",
-                OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Architecture x64 -Client other -NonInteractive"),
+                OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
+                    "-Action install -Architecture x64 -Client other -NonInteractive",
+                    enableInternalTestMode: false),
                 "Resolve-TuiHelperDownloadBaseUri"
             ]);
 
@@ -325,6 +327,105 @@ Assert-InstallerHelperManifestIntegrity -HelperDirectory '{{helperRoot.Replace("
     }
 
     [Fact]
+    public void OnlineInstallerDefinitions_ShouldNotTrustInstalledHelperManifestAsBootstrapAuthority()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var scriptRoot = Path.Combine(tempRoot, "scripts");
+            Directory.CreateDirectory(scriptRoot);
+            var scriptPath = Path.Combine(scriptRoot, "online-installer.ps1");
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"), scriptPath);
+
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
+            Directory.CreateDirectory(installedHelperRoot);
+            var bootstrapPath = Path.Combine(installedHelperRoot, "Installer.BootstrapUi.ps1");
+            File.WriteAllText(bootstrapPath, "$global:MaliciousInstalledBootstrapLoaded = 'yes'");
+            var bootstrapBytes = File.ReadAllBytes(bootstrapPath);
+            var bootstrapHash = Convert.ToHexString(SHA256.HashData(bootstrapBytes)).ToLowerInvariant();
+            var manifest = new
+            {
+                schemaVersion = 1,
+                cacheKey = "sha256:test",
+                helperFiles = new[]
+                {
+                    new
+                    {
+                        path = "Installer.BootstrapUi.ps1",
+                        sha256 = bootstrapHash,
+                        sizeBytes = bootstrapBytes.Length
+                    }
+                }
+            };
+            File.WriteAllText(
+                Path.Combine(installedHelperRoot, "installer-helpers.manifest.json"),
+                JsonSerializer.Serialize(manifest));
+
+            var command = $$"""
+$global:MaliciousInstalledBootstrapLoaded = 'no'
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action uninstall -Architecture x64 -Client other -InstallRoot '" + installRoot.Replace("'", "''") + "' -NonInteractive", scriptPath, enableInternalTestMode: false)}}
+$global:MaliciousInstalledBootstrapLoaded
+""";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be("no");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void TrustedReleaseMetadataDirectory_ShouldRejectUncPathBeforeProbing()
+    {
+        var command = string.Join(" ; ",
+        [
+            OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
+                "-Action install -Architecture x64 -Client other -NonInteractive",
+                enableInternalTestMode: false),
+            ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.PackageIntegrity.ps1").Replace("'", "''") + "'",
+            "$env:WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY='\\\\server\\share\\metadata'",
+            "function Test-Path { param([string]$LiteralPath, [string]$Path) throw 'untrusted Test-Path probe' }",
+            "Get-ExplicitTrustedReleaseMetadataDirectory"
+        ]);
+
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("local path");
+        result.Stderr.Should().NotContain("untrusted Test-Path probe");
+    }
+
+    [Fact]
+    public void InstallerTestMode_ShouldIgnoreAmbientEnvironmentWithoutHarnessAuthority()
+    {
+        var command = string.Join(" ; ",
+        [
+            "$env:WPFDEVTOOLS_INSTALLER_TEST_MODE='1'",
+            "$global:WpfDevToolsInstallerTestModeEnabled=$true",
+            OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
+                "-Action install -Architecture x64 -Client other -NonInteractive",
+                enableInternalTestMode: false),
+            ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.PackageIntegrity.ps1").Replace("'", "''") + "'",
+            "[string](Test-InstallerTestModeEnabled)"
+        ]);
+
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+            command,
+            new Dictionary<string, string?>
+            {
+                ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+            });
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        result.Stdout.Trim().Should().Be("False");
+    }
+
+    [Fact]
     public void OnlineInstallerScript_InlineIexExecution_WhenTuiBootstrapFails_ShouldExplainFallbackAndContinueWithCli()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -422,7 +523,8 @@ finally {
 
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("https://example.invalid/releases/o''clock");
-            result.Stdout.Should().Contain("user''s-temp");
+            result.Stdout.Should().NotContain("Set-Content");
+            result.Stdout.Should().NotContain("user''s-temp");
         }
         finally
         {
@@ -653,7 +755,8 @@ $session = Resolve-PackageSession -Mode online -ResolvedVersion latest -Resolved
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='28'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
                 "Set-Location '" + tempRoot.Replace("'", "''") + "'",
-                "& ([scriptblock]::Create((Get-Content -LiteralPath '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other"
+                "$scriptContent = (Get-Content -LiteralPath '" + repoScriptPath.Replace("'", "''") + "' -Raw).Replace('$script:WpfDevToolsInstallerTestModeEnabled = [bool]$script:WpfDevToolsInstallerTestModeEnabled -and [bool]$script:WpfDevToolsInstallerTestModeHarnessEnabled', '$script:WpfDevToolsInstallerTestModeEnabled = $true')",
+                "& ([scriptblock]::Create($scriptContent)) -Action install -Architecture x64 -Client other"
             ]);
 
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);

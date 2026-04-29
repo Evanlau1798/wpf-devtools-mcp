@@ -4,7 +4,10 @@ namespace WpfDevTools.Tests.Unit.Release;
 
 internal static class OnlineInstallerScriptTestHarness
 {
-    public static string BuildDefinitionOnlyPrelude(string dotSourceArguments, string? scriptPath = null)
+    public static string BuildDefinitionOnlyPrelude(
+        string dotSourceArguments,
+        string? scriptPath = null,
+        bool enableInternalTestMode = true)
     {
         ArgumentNullException.ThrowIfNull(dotSourceArguments);
         scriptPath ??= ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
@@ -20,9 +23,14 @@ $definitionsRoot = Join-Path (Split-Path -Parent $sourceScriptRoot) 'tmp\online-
 New-Item -ItemType Directory -Force -Path $definitionsRoot | Out-Null
 $definitionsPath = Join-Path $definitionsRoot ('online-installer-definitions-' + [guid]::NewGuid().ToString('N') + '.ps1')
 $definitions = $scriptContent.Substring(0, $markerIndex)
+{{BuildInternalTestModeReplacementLine(enableInternalTestMode)}}
+$script:WpfDevToolsInstallerTestModeHarnessEnabled = ${{(enableInternalTestMode ? "true" : "false")}}
+$script:WpfDevToolsInstallerTestModeEnabled = ${{(enableInternalTestMode ? "true" : "false")}}
 try {
     Set-Content -LiteralPath $definitionsPath -Value $definitions -Encoding UTF8
     . $definitionsPath {{dotSourceArguments}}
+    $script:WpfDevToolsInstallerTestModeEnabled = ${{(enableInternalTestMode ? "true" : "false")}}
+    Set-Item -Path Function:\Test-InstallerTestModeEnabled -Value { return ${{(enableInternalTestMode ? "true" : "false")}} }
     $script:DefinitionOnlyInstallerScriptRoot = $sourceScriptRoot
     Set-Item -Path Function:\Resolve-InstallerScriptRoot -Value { $script:DefinitionOnlyInstallerScriptRoot }
 }
@@ -36,5 +44,12 @@ finally {
     {
         ArgumentNullException.ThrowIfNull(value);
         return value.Replace("'", "''", StringComparison.Ordinal);
+    }
+
+    private static string BuildInternalTestModeReplacementLine(bool enableInternalTestMode)
+    {
+        return enableInternalTestMode
+            ? "$definitions = $definitions.Replace('$script:WpfDevToolsInstallerTestModeEnabled = [bool]$script:WpfDevToolsInstallerTestModeEnabled -and [bool]$script:WpfDevToolsInstallerTestModeHarnessEnabled', '$script:WpfDevToolsInstallerTestModeEnabled = [bool]$script:WpfDevToolsInstallerTestModeEnabled -and [bool]$script:WpfDevToolsInstallerTestModeHarnessEnabled')"
+            : "$definitions = $definitions.Replace('$script:WpfDevToolsInstallerTestModeEnabled = [bool]$script:WpfDevToolsInstallerTestModeEnabled -and [bool]$script:WpfDevToolsInstallerTestModeHarnessEnabled', '$script:WpfDevToolsInstallerTestModeEnabled = $false')";
     }
 }

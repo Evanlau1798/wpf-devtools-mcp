@@ -59,7 +59,7 @@ public static class PerformanceMcpTools
             ("warmUp", warmUp));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetRenderStatsTool>("GetRenderStatsTool", () => new GetRenderStatsTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetRenderStatsTool>(sessionManager, "GetRenderStatsTool", () => new GetRenderStatsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -113,7 +113,7 @@ public static class PerformanceMcpTools
             ("warmUp", warmUp));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<FindBindingLeaksTool>("FindBindingLeaksTool", () => new FindBindingLeaksTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<FindBindingLeaksTool>(sessionManager, "FindBindingLeaksTool", () => new FindBindingLeaksTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -152,7 +152,7 @@ public static class PerformanceMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<MeasureElementRenderTimeTool>("MeasureElementRenderTimeTool", () => new MeasureElementRenderTimeTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<MeasureElementRenderTimeTool>(sessionManager, "MeasureElementRenderTimeTool", () => new MeasureElementRenderTimeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -188,7 +188,7 @@ public static class PerformanceMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetVisualCountTool>("GetVisualCountTool", () => new GetVisualCountTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetVisualCountTool>(sessionManager, "GetVisualCountTool", () => new GetVisualCountTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

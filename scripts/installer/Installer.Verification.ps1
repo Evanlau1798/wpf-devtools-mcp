@@ -137,11 +137,18 @@ function Test-JsonConfigRegistrationMatchesExecutable {
         return $false
     }
 
-    if (-not (Test-Path $ConfigPath)) {
+    try {
+        $resolvedConfigPath = Assert-InstallerLocalPathTrusted -Path $ConfigPath
+    }
+    catch {
         return $false
     }
 
-    $root = Get-ExistingConfigMap -Path $ConfigPath
+    if (-not (Test-Path -LiteralPath $resolvedConfigPath)) {
+        return $false
+    }
+
+    $root = Get-ExistingConfigMap -Path $resolvedConfigPath
     $servers = Get-ConfigCollectionMap -Root $root -CollectionName $CollectionName
     if (-not $servers.Contains('wpf-devtools')) {
         return $false
@@ -279,24 +286,42 @@ function Test-VerifiedInstallerPathEquals {
     }
 }
 
-function Invoke-VerificationCommand {
-    param(
-        [Parameter(Mandatory)] [string]$Command,
-        [Parameter(Mandatory)] [string[]]$Arguments,
-        [Parameter(Mandatory)] [string]$ExpectedToken,
-        [Parameter(Mandatory)] [bool]$ExpectPresent
-    )
-
-    $resolvedCommands = @(Get-Command $Command -All -CommandType Application,ExternalScript -ErrorAction SilentlyContinue)
-    if ($resolvedCommands.Count -eq 0) {
-        return [ordered]@{
-            Succeeded = $false
-            Output = "$Command is not installed."
-            ExitCode = -1
-        }
+function Test-InstallerVerificationRunningElevated {
+    $elevationResolver = Get-Command Test-InstallerRunningElevated -ErrorAction SilentlyContinue
+    if ($null -ne $elevationResolver) {
+        return [bool](Test-InstallerRunningElevated)
     }
 
-    $selectedCommandPath = $null
+    try {
+        $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+        if ($null -eq $identity) {
+            return $false
+        }
+
+        $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
+        return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+    }
+    catch {
+        return $false
+    }
+}
+
+function Resolve-InstallerVerificationCommandPath {
+    param(
+        [Parameter(Mandatory)] [string]$Command,
+        [bool]$AllowPathResolution = $true
+    )
+
+    $registrationResolver = Get-Command Resolve-ExecutableCommandPath -ErrorAction SilentlyContinue
+    if ($null -ne $registrationResolver) {
+        return (Resolve-ExecutableCommandPath -Command $Command -AllowPathResolution:$AllowPathResolution)
+    }
+
+    if (-not $AllowPathResolution) {
+        return $null
+    }
+
+    $resolvedCommands = @(Get-Command $Command -All -CommandType Application,ExternalScript -ErrorAction SilentlyContinue)
     foreach ($resolvedCommand in $resolvedCommands) {
         $candidatePath = if (-not [string]::IsNullOrWhiteSpace([string]$resolvedCommand.Path)) {
             [string]$resolvedCommand.Path
@@ -312,15 +337,49 @@ function Invoke-VerificationCommand {
         }
 
         if (-not [string]::IsNullOrWhiteSpace($candidatePath)) {
-            $selectedCommandPath = $candidatePath
-            break
+            return $candidatePath
+        }
+    }
+
+    return $null
+}
+
+function Get-InstallerVerificationCommandBlockedMessage {
+    param([Parameter(Mandatory)] [string]$Command)
+
+    $messageBuilder = Get-Command Get-ElevatedCliCommandBlockMessage -ErrorAction SilentlyContinue
+    if ($null -ne $messageBuilder) {
+        return (Get-ElevatedCliCommandBlockMessage -Command $Command -ClientName $Command -OperationName 'verification')
+    }
+
+    return "Automatic $Command verification is blocked while the installer is elevated because resolving '$Command' from PATH is unsafe."
+}
+
+function Invoke-VerificationCommand {
+    param(
+        [Parameter(Mandatory)] [string]$Command,
+        [Parameter(Mandatory)] [string[]]$Arguments,
+        [Parameter(Mandatory)] [string]$ExpectedToken,
+        [Parameter(Mandatory)] [bool]$ExpectPresent
+    )
+
+    $isElevated = Test-InstallerVerificationRunningElevated
+    $selectedCommandPath = $null
+    try {
+        $selectedCommandPath = Resolve-InstallerVerificationCommandPath -Command $Command -AllowPathResolution:(-not $isElevated)
+    }
+    catch {
+        return [ordered]@{
+            Succeeded = $false
+            Output = $_.Exception.Message
+            ExitCode = -1
         }
     }
 
     if ([string]::IsNullOrWhiteSpace($selectedCommandPath)) {
         return [ordered]@{
             Succeeded = $false
-            Output = "$Command is not installed."
+            Output = if ($isElevated) { Get-InstallerVerificationCommandBlockedMessage -Command $Command } else { "$Command is not installed." }
             ExitCode = -1
         }
     }
@@ -509,15 +568,23 @@ function Invoke-InstallVerification {
     $verificationSucceeded = $false
     $verificationMessage = $null
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
+    $trustedInstalledExecutable = $null
+    try {
+        $trustedInstalledExecutable = Assert-InstallerLocalPathTrusted -Path $InstalledExecutable
+    }
+    catch {
+        $trustedInstalledExecutable = $null
+    }
+
     switch ($clientBaseId) {
         'claude-code' {
             $verification = Test-CliRegistrationMatchesExecutable -Command 'claude' -InstalledExecutable $InstalledExecutable
-            $verificationSucceeded = ($verification.Succeeded -and (Test-Path $InstalledExecutable))
+            $verificationSucceeded = ($verification.Succeeded -and -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and (Test-Path -LiteralPath $trustedInstalledExecutable))
             $verificationMessage = if ($verificationSucceeded) { 'Verified with claude mcp list.' } else { "Claude verification failed: $($verification.Output)" }
         }
         'codex' {
             $verification = Test-CliRegistrationMatchesExecutable -Command 'codex' -InstalledExecutable $InstalledExecutable
-            $verificationSucceeded = ($verification.Succeeded -and (Test-Path $InstalledExecutable))
+            $verificationSucceeded = ($verification.Succeeded -and -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and (Test-Path -LiteralPath $trustedInstalledExecutable))
             $verificationMessage = if ($verificationSucceeded) { 'Verified with codex mcp list.' } else { "Codex verification failed: $($verification.Output)" }
         }
         'cursor' {
@@ -636,7 +703,17 @@ function Invoke-UninstallVerification {
                     $null
                 }
 
-                if (-not [string]::IsNullOrWhiteSpace($recordedTarget) -and (Test-Path -LiteralPath $recordedTarget)) {
+                $trustedRecordedTarget = $null
+                if (-not [string]::IsNullOrWhiteSpace($recordedTarget)) {
+                    try {
+                        $trustedRecordedTarget = Assert-InstallerLocalPathTrusted -Path $recordedTarget
+                    }
+                    catch {
+                        $trustedRecordedTarget = $null
+                    }
+                }
+
+                if (-not [string]::IsNullOrWhiteSpace($trustedRecordedTarget) -and (Test-Path -LiteralPath $trustedRecordedTarget)) {
                     $false
                 }
                 else {
@@ -645,7 +722,15 @@ function Invoke-UninstallVerification {
             }
             else {
                 @($verificationTargets).Where({
-                        Test-Path $_
+                        $trustedVerificationTarget = $null
+                        try {
+                            $trustedVerificationTarget = Assert-InstallerLocalPathTrusted -Path $_
+                        }
+                        catch {
+                            $trustedVerificationTarget = $null
+                        }
+
+                        -not [string]::IsNullOrWhiteSpace($trustedVerificationTarget) -and (Test-Path -LiteralPath $trustedVerificationTarget)
                     }).Count -eq 0
             }
             break

@@ -95,6 +95,18 @@ public sealed class InspectorHostLifecycleReviewTests : IDisposable
             "startup failure should have a single authoritative task signal before rethrowing to the owning caller");
     }
 
+    [Fact]
+    public void CompleteStopAsync_ShouldAwaitServerTaskShutdownWithoutBlockingThreadPoolThread()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector/Host/InspectorHost.cs"));
+        var method = GetMethodBody(content, "private async Task CompleteStopAsync", "private void CompleteStopFinalization");
+
+        method.Should().Contain("WaitForServerTaskShutdownAsync",
+            "stop cleanup should wait asynchronously instead of blocking a thread-pool thread");
+        method.Should().NotContain(".Wait(",
+            "stop cleanup runs on the thread pool and should not block that worker while waiting for server shutdown");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 

@@ -302,13 +302,13 @@ public sealed partial class InspectorHost : IDisposable
             _lifecycleState = LifecycleStopped;
 
             stopOperationId = ++_nextStopOperationId;
-            _stopCompletionTask = Task.Run(() => CompleteStop(serverTask, cancellationTokenSource, stopOperationId));
+            _stopCompletionTask = Task.Run(() => CompleteStopAsync(serverTask, cancellationTokenSource, stopOperationId));
         }
     }
 
-    private void CompleteStop(Task? serverTask, CancellationTokenSource? cancellationTokenSource, long stopOperationId)
+    private async Task CompleteStopAsync(Task? serverTask, CancellationTokenSource? cancellationTokenSource, long stopOperationId)
     {
-        if (!WaitForServerTaskShutdown(serverTask))
+        if (!await WaitForServerTaskShutdownAsync(serverTask).ConfigureAwait(false))
         {
             var deferredCompletionSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -320,32 +320,40 @@ public sealed partial class InspectorHost : IDisposable
                 }
             }
 
-            serverTask!.ContinueWith(
-                completedTask =>
-                {
-                    try
-                    {
-                        if (completedTask.IsFaulted && completedTask.Exception is { } exception)
-                        {
-                            LogError($"Server task failed after shutdown timeout: {exception.Flatten().Message}");
-                        }
-
-                        CompleteStopFinalization(cancellationTokenSource, stopOperationId);
-                        deferredCompletionSource.TrySetResult(null);
-                    }
-                    catch (Exception ex)
-                    {
-                        deferredCompletionSource.TrySetException(ex);
-                    }
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
-
+            _ = CompleteDeferredStopAsync(serverTask!, cancellationTokenSource, stopOperationId, deferredCompletionSource);
             return;
         }
 
         CompleteStopFinalization(cancellationTokenSource, stopOperationId);
+    }
+
+    private async Task CompleteDeferredStopAsync(
+        Task serverTask,
+        CancellationTokenSource? cancellationTokenSource,
+        long stopOperationId,
+        TaskCompletionSource<object?> deferredCompletionSource)
+    {
+        try
+        {
+            try
+            {
+                await serverTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                LogError($"Server task failed after shutdown timeout: {ex.Message}");
+            }
+
+            CompleteStopFinalization(cancellationTokenSource, stopOperationId);
+            deferredCompletionSource.TrySetResult(null);
+        }
+        catch (Exception ex)
+        {
+            deferredCompletionSource.TrySetException(ex);
+        }
     }
 
     private void CompleteStopFinalization(CancellationTokenSource? cancellationTokenSource, long stopOperationId)
@@ -362,7 +370,7 @@ public sealed partial class InspectorHost : IDisposable
         }
     }
 
-    private bool WaitForServerTaskShutdown(Task? serverTask)
+    private async Task<bool> WaitForServerTaskShutdownAsync(Task? serverTask)
     {
         if (serverTask == null)
         {
@@ -371,22 +379,24 @@ public sealed partial class InspectorHost : IDisposable
 
         try
         {
-            bool completed = serverTask.Wait(InspectorConfig.ShutdownTimeout);
-            if (!completed)
+            var completedTask = await Task.WhenAny(
+                serverTask,
+                Task.Delay(InspectorConfig.ShutdownTimeout)).ConfigureAwait(false);
+            if (!ReferenceEquals(completedTask, serverTask))
             {
                 LogError($"Server task did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout");
                 return false;
             }
+
+            await serverTask.ConfigureAwait(false);
         }
-        catch (AggregateException ex) when (
-            serverTask.IsCanceled ||
-            ex.Flatten().InnerExceptions.All(static inner => inner is OperationCanceledException))
+        catch (OperationCanceledException) when (serverTask.IsCanceled)
         {
             // Cancellation is the normal shutdown path for the server loop.
         }
-        catch (AggregateException ex)
+        catch (Exception ex)
         {
-            LogError($"Server task failed during shutdown: {ex.Flatten().Message}");
+            LogError($"Server task failed during shutdown: {ex.Message}");
         }
 
         return true;

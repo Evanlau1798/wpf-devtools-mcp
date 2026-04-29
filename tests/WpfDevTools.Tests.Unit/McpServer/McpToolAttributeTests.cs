@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
 
@@ -350,5 +352,107 @@ public class McpToolAttributeTests
             "AI-facing clients should receive a stable human-friendly tool title");
         attr.UseStructuredContent.Should().BeFalse(
             "process tools should avoid SDK-generated structured-output schema until Claude Code accepts it");
+    }
+
+    [Fact]
+    public void HighValueToolInputSchemas_ShouldExposeParameterConstraints()
+    {
+        var getProcessesSchema = CreateInputSchema(
+            typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools),
+            nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.GetProcesses));
+        AssertEnumConstraint(getProcessesSchema, "windowFilter", "visible", "all", "foreground");
+
+        var connectSchema = CreateInputSchema(
+            typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools),
+            nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Connect));
+        AssertIntegerConstraint(connectSchema, "processId", minimum: 1, maximum: int.MaxValue);
+        AssertEnumConstraint(connectSchema, "selectionStrategy", "single_only", "largest_working_set");
+        AssertEnumConstraint(connectSchema, "windowFilter", "visible", "all", "foreground");
+
+        var visualTreeSchema = CreateInputSchema(
+            typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools),
+            nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.GetVisualTree));
+        AssertIntegerConstraint(visualTreeSchema, "depth", minimum: 0, maximum: 100);
+        AssertIntegerConstraint(visualTreeSchema, "maxNodes", minimum: 1, maximum: 10000);
+        AssertIntegerConstraint(visualTreeSchema, "maxChildrenPerNode", minimum: 1, maximum: 1000);
+
+        var logicalTreeSchema = CreateInputSchema(
+            typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools),
+            nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.GetLogicalTree));
+        AssertIntegerConstraint(logicalTreeSchema, "depth", minimum: 0, maximum: 100);
+        AssertIntegerConstraint(logicalTreeSchema, "maxNodes", minimum: 1, maximum: 10000);
+        AssertIntegerConstraint(logicalTreeSchema, "maxChildrenPerNode", minimum: 1, maximum: 1000);
+
+        var uiSummarySchema = CreateInputSchema(
+            typeof(WpfDevTools.Mcp.Server.McpTools.SceneDiagnosticsMcpTools),
+            nameof(WpfDevTools.Mcp.Server.McpTools.SceneDiagnosticsMcpTools.GetUiSummary));
+        AssertIntegerConstraint(uiSummarySchema, "depth", minimum: 0, maximum: 100);
+        AssertEnumConstraint(uiSummarySchema, "depthMode", "semantic", "visual");
+
+        var screenshotSchema = CreateInputSchema(
+            typeof(WpfDevTools.Mcp.Server.McpTools.InteractionMcpTools),
+            nameof(WpfDevTools.Mcp.Server.McpTools.InteractionMcpTools.ElementScreenshot));
+        AssertEnumConstraint(screenshotSchema, "outputMode", "metadata", "file", "base64");
+        AssertIntegerConstraint(screenshotSchema, "maxWidth", minimum: 1, maximum: int.MaxValue);
+        AssertIntegerConstraint(screenshotSchema, "maxHeight", minimum: 1, maximum: int.MaxValue);
+    }
+
+    private static JsonElement CreateInputSchema(Type toolType, string methodName)
+    {
+        var method = toolType.GetMethod(methodName);
+        method.Should().NotBeNull();
+
+        using var services = new ServiceCollection()
+            .AddSingleton<SessionManager>(_ => throw new InvalidOperationException("Schema tests do not invoke tools."))
+            .BuildServiceProvider();
+        var tool = McpServerTool.Create(method!, target: null, new McpServerToolCreateOptions { Services = services });
+        return tool.ProtocolTool.InputSchema;
+    }
+
+    private static void AssertIntegerConstraint(JsonElement schema, string parameterName, int? minimum, int? maximum)
+    {
+        var parameter = GetSchemaProperty(schema, parameterName);
+        AssertSchemaTypeContains(parameter.GetProperty("type"), "integer");
+        AssertNullableIntSchemaKeyword(parameter, "minimum", minimum);
+        AssertNullableIntSchemaKeyword(parameter, "maximum", maximum);
+    }
+
+    private static void AssertSchemaTypeContains(JsonElement typeElement, string expectedType)
+    {
+        if (typeElement.ValueKind == JsonValueKind.String)
+        {
+            typeElement.GetString().Should().Be(expectedType);
+            return;
+        }
+
+        typeElement.ValueKind.Should().Be(JsonValueKind.Array);
+        typeElement.EnumerateArray()
+            .Select(type => type.GetString())
+            .Should().Contain(expectedType);
+    }
+
+    private static void AssertEnumConstraint(JsonElement schema, string parameterName, params string[] expectedValues)
+    {
+        var values = GetSchemaProperty(schema, parameterName)
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToArray();
+
+        values.Should().BeEquivalentTo(expectedValues);
+    }
+
+    private static JsonElement GetSchemaProperty(JsonElement schema, string parameterName)
+        => schema.GetProperty("properties").GetProperty(parameterName);
+
+    private static void AssertNullableIntSchemaKeyword(JsonElement property, string keyword, int? expectedValue)
+    {
+        if (!expectedValue.HasValue)
+        {
+            property.TryGetProperty(keyword, out _).Should().BeFalse();
+            return;
+        }
+
+        property.GetProperty(keyword).GetInt32().Should().Be(expectedValue.Value);
     }
 }

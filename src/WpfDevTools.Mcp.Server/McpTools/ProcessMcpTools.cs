@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
@@ -32,6 +33,7 @@ public static class ProcessMcpTools
         "- { windowFilter: \"foreground\" }")]
     public static Task<CallToolResult> GetProcesses(
         [Description("Optional case-insensitive substring filter for the target process name.")] string? nameFilter = null,
+        [AllowedValues("visible", "all", "foreground")]
         [Description("Optional window visibility filter: 'visible' (default), 'all', or 'foreground'.")] string? windowFilter = null,
         CancellationToken cancellationToken = default)
     {
@@ -57,13 +59,14 @@ public static class ProcessMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> SelectActiveProcess(
         SessionManager sessionManager,
+        [Range(1, int.MaxValue)]
         [Description("Connected WPF process ID to make active for omitted processId workflows.")] int processId,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(("processId", processId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<SelectActiveProcessTool>(
+            (a, ct) => ToolCallHelper.CachedTool<SelectActiveProcessTool>(sessionManager, 
                 "SelectActiveProcessTool",
                 () => new SelectActiveProcessTool(sessionManager)).ExecuteAsync(a, ct),
             args,
@@ -85,7 +88,7 @@ public static class ProcessMcpTools
         CancellationToken cancellationToken = default)
     {
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetActiveProcessTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GetActiveProcessTool>(sessionManager, 
                 "GetActiveProcessTool",
                 () => new GetActiveProcessTool(sessionManager)).ExecuteAsync(a, ct),
             null,
@@ -112,8 +115,11 @@ public static class ProcessMcpTools
         "- { selectionStrategy: \"largest_working_set\", windowFilter: \"all\" }")]
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
+        [Range(1, int.MaxValue)]
         [Description("Optional target WPF process ID returned by get_processes. Omit to auto-discover when exactly one WPF process is running.")] int? processId = null,
+        [AllowedValues("single_only", "largest_working_set")]
         [Description("Optional auto-discovery strategy: 'single_only' (safe default) or 'largest_working_set' for multi-process auto-selection.")] string? selectionStrategy = null,
+        [AllowedValues("visible", "all", "foreground")]
         [Description("Optional auto-discovery window filter: 'visible' (default), 'all', or 'foreground'.")] string? windowFilter = null,
         CancellationToken cancellationToken = default)
     {
@@ -123,7 +129,7 @@ public static class ProcessMcpTools
             ("windowFilter", windowFilter));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<ConnectTool>("ConnectTool", () => new ConnectTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ConnectTool>(sessionManager, "ConnectTool", () => new ConnectTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             timeoutSeconds: McpServerConfiguration.ConnectTimeoutSeconds);
@@ -153,6 +159,7 @@ public static class ProcessMcpTools
         "- { processId: 12345 }")]
     public static Task<CallToolResult> Ping(
         SessionManager sessionManager,
+        [Range(1, int.MaxValue)]
         [Description("Optional connected WPF process ID to ping. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
@@ -160,7 +167,7 @@ public static class ProcessMcpTools
             ("processId", processId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<PingTool>("PingTool", () => new PingTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<PingTool>(sessionManager, "PingTool", () => new PingTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

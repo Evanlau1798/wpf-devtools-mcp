@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Diagnostics;
+using System.Threading;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -8,6 +9,14 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public sealed class WaitForDpChangeTool : PipeConnectedToolBase
 {
+    private static readonly AsyncLocal<Func<Task>?> BeforePollDelayForTestingValue = new();
+
+    internal static Func<Task>? BeforePollDelayForTesting
+    {
+        get => BeforePollDelayForTestingValue.Value;
+        set => BeforePollDelayForTestingValue.Value = value;
+    }
+
     private readonly Func<JsonElement, CancellationToken, Task<object>> _triggerMutationExecutor;
     private readonly bool _triggerMutationTimeoutRequiresReconnect;
 
@@ -32,12 +41,36 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
 
+        if (!_sessionManager.TryGetSessionGeneration(processId, out var expectedSessionGeneration))
+        {
+            return CreateNotConnectedError(processId);
+        }
+
         var propertyName = ParseStringParam(arguments, "propertyName");
         if (string.IsNullOrEmpty(propertyName))
             return CreateMissingParamError("propertyName");
 
-        var timeoutMs = ParseIntParam(arguments, "timeoutMs");
-        var pollIntervalMs = ParseIntParam(arguments, "pollIntervalMs");
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "timeoutMs",
+            1,
+            30000,
+            out var timeoutMs,
+            out var timeoutMsError))
+        {
+            return timeoutMsError!;
+        }
+
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "pollIntervalMs",
+            50,
+            5000,
+            out var pollIntervalMs,
+            out var pollIntervalMsError))
+        {
+            return pollIntervalMsError!;
+        }
         JsonElement? expectedValue = null;
         if (arguments.HasValue && arguments.Value.TryGetProperty("expectedValue", out var expectedValueProperty))
         {
@@ -109,6 +142,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
                 processId,
                 elementId,
                 triggerMutation.Value,
+                expectedSessionGeneration,
                 GetRemainingBudgetMs(effectiveTimeoutMs, stopwatch),
                 cancellationToken).ConfigureAwait(false);
             if (triggerResult.Error != null)
@@ -183,6 +217,12 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
             if (remainingDelay <= 0)
             {
                 break;
+            }
+
+            var beforePollDelay = BeforePollDelayForTesting;
+            if (beforePollDelay is not null)
+            {
+                await beforePollDelay().ConfigureAwait(false);
             }
 
             await Task.Delay(Math.Min(effectivePollIntervalMs, remainingDelay), cancellationToken).ConfigureAwait(false);
@@ -287,6 +327,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         int processId,
         string? elementId,
         JsonElement triggerMutation,
+        long expectedSessionGeneration,
         int remainingBudgetMs,
         CancellationToken cancellationToken)
     {
@@ -294,7 +335,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         {
             if (_triggerMutationTimeoutRequiresReconnect)
             {
-                _sessionManager.GetPipeClient(processId)?.Dispose();
+                _sessionManager.GetPipeClient(processId, expectedSessionGeneration)?.Dispose();
             }
 
             return TriggerMutationResult.Timeout(
@@ -319,7 +360,7 @@ public sealed class WaitForDpChangeTool : PipeConnectedToolBase
         {
             if (_triggerMutationTimeoutRequiresReconnect)
             {
-                _sessionManager.GetPipeClient(processId)?.Dispose();
+                _sessionManager.GetPipeClient(processId, expectedSessionGeneration)?.Dispose();
             }
 
             return TriggerMutationResult.Timeout(stateAfterTimeoutUnknown: true, requiresReconnect: _triggerMutationTimeoutRequiresReconnect);

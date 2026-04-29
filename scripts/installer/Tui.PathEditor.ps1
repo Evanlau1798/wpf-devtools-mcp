@@ -214,7 +214,43 @@ function Reset-TuiToHomeFromPathEditorCore {
     $State.SelectionIndex = [Math]::Min(3, [Math]::Max(0, $homeItems.Count - 1))
     $State.ScrollOffset = 0
     $State.StatusMessage = $StatusMessage
+    if ($StatusMessage -eq 'Install location unchanged.') {
+        $State.HomeItems = @(Set-TuiHomeItemStatusBadgeCore -HomeItems $State.HomeItems -ItemId 'edit-root' -StatusMessage $StatusMessage)
+    }
     return $State
+}
+
+function Set-TuiHomeItemStatusBadgeCore {
+    param(
+        [Parameter(Mandatory)] [object[]]$HomeItems,
+        [Parameter(Mandatory)] [string]$ItemId,
+        [Parameter(Mandatory)] [string]$StatusMessage
+    )
+
+    $updatedItems = @()
+    foreach ($item in @($HomeItems)) {
+        if ([string]$item.Id -ne $ItemId) {
+            $updatedItems += $item
+            continue
+        }
+
+        $updatedItem = [ordered]@{}
+        if ($item -is [System.Collections.IDictionary]) {
+            foreach ($key in $item.Keys) {
+                $updatedItem[$key] = $item[$key]
+            }
+        }
+        else {
+            foreach ($property in $item.PSObject.Properties) {
+                $updatedItem[$property.Name] = $property.Value
+            }
+        }
+
+        $updatedItem.StatusBadge = $StatusMessage
+        $updatedItems += $updatedItem
+    }
+
+    return @($updatedItems)
 }
 
 function Sync-TuiHomeItemsAfterInstallRootChangeCore {

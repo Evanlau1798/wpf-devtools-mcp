@@ -16,7 +16,8 @@ internal static class ConnectedWaitSessionBuilder
         TState state,
         Func<InspectorRequest, TState, Task<object>> buildResultAsync,
         Action<InspectorRequest>? onRequest = null,
-        List<(string method, bool settleBindings)>? requestPayloads = null)
+        List<(string method, bool settleBindings)>? requestPayloads = null,
+        Action<InspectorRequest>? onResponse = null)
         where TState : class
     {
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
@@ -52,6 +53,7 @@ internal static class ConnectedWaitSessionBuilder
                         server,
                         JsonSerializer.Serialize(response),
                         CancellationToken.None);
+                    onResponse?.Invoke(request);
                 }
             }
             catch (EndOfStreamException)

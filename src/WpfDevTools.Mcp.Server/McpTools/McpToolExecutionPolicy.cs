@@ -36,6 +36,7 @@ internal sealed class McpToolExecutionPolicy
     {
         "get_viewmodel",
         "get_commands",
+        "execute_command",
         "modify_viewmodel"
     };
 
@@ -146,8 +147,7 @@ internal sealed class McpToolExecutionPolicy
             return true;
         }
 
-        if (arguments?.TryGetValue("mutations", out var mutations) != true
-            || mutations.ValueKind != JsonValueKind.Array)
+        if (!TryGetArrayArgument(arguments, "mutations", out var mutations))
         {
             return false;
         }
@@ -156,7 +156,7 @@ internal sealed class McpToolExecutionPolicy
     }
 
     private static bool TriggerMutationUsesViewModel(IDictionary<string, JsonElement>? arguments)
-        => arguments?.TryGetValue("triggerMutation", out var triggerMutation) == true
+        => TryGetObjectArgument(arguments, "triggerMutation", out var triggerMutation)
            && MutationStepUsesViewModel(triggerMutation);
 
     private static bool MutationStepUsesViewModel(JsonElement mutationStep)
@@ -168,19 +168,76 @@ internal sealed class McpToolExecutionPolicy
     private static bool ContainsNestedViewModelPropertyNames(
         IDictionary<string, JsonElement>? arguments,
         string propertyName)
-        => arguments?.TryGetValue(propertyName, out var nested) == true
-           && nested.ValueKind == JsonValueKind.Object
+        => TryGetObjectArgument(arguments, propertyName, out var nested)
            && nested.TryGetProperty("viewModelPropertyNames", out var viewModelPropertyNames)
            && JsonArrayHasValues(viewModelPropertyNames);
 
     private static bool ContainsNonEmptyArray(
         IDictionary<string, JsonElement>? arguments,
         string propertyName)
-        => arguments?.TryGetValue(propertyName, out var value) == true
+        => TryGetArrayArgument(arguments, propertyName, out var value)
            && JsonArrayHasValues(value);
 
     private static bool JsonArrayHasValues(JsonElement value)
         => value.ValueKind == JsonValueKind.Array && value.GetArrayLength() > 0;
+
+    private static bool TryGetObjectArgument(
+        IDictionary<string, JsonElement>? arguments,
+        string propertyName,
+        out JsonElement value)
+        => TryGetJsonArgument(arguments, propertyName, JsonValueKind.Object, out value);
+
+    private static bool TryGetArrayArgument(
+        IDictionary<string, JsonElement>? arguments,
+        string propertyName,
+        out JsonElement value)
+        => TryGetJsonArgument(arguments, propertyName, JsonValueKind.Array, out value);
+
+    private static bool TryGetJsonArgument(
+        IDictionary<string, JsonElement>? arguments,
+        string propertyName,
+        JsonValueKind expectedKind,
+        out JsonElement value)
+    {
+        value = default;
+        if (arguments?.TryGetValue(propertyName, out var rawValue) != true)
+        {
+            return false;
+        }
+
+        if (rawValue.ValueKind == expectedKind)
+        {
+            value = rawValue;
+            return true;
+        }
+
+        if (rawValue.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        var serializedValue = rawValue.GetString();
+        if (string.IsNullOrWhiteSpace(serializedValue))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(serializedValue);
+            if (document.RootElement.ValueKind != expectedKind)
+            {
+                return false;
+            }
+
+            value = document.RootElement.Clone();
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
 
     private static McpToolPolicyDecision EvaluateGate(
         PolicyGate gate,
@@ -220,7 +277,7 @@ internal sealed class McpToolExecutionPolicy
         {
             if (string.IsNullOrWhiteSpace(configuredValue))
             {
-                return new PolicyGate(environmentVariable, IsAllowed: true, ConfigurationError: null);
+                return new PolicyGate(environmentVariable, IsAllowed: false, ConfigurationError: null);
             }
 
             if (IsEnabledValue(configuredValue))

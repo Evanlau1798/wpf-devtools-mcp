@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using WpfDevTools.Shared.ErrorHandling;
 using WpfDevTools.Shared.Messages;
@@ -6,6 +8,8 @@ namespace WpfDevTools.Mcp.Server.Tools;
 
 public abstract partial class PipeConnectedToolBase
 {
+    private static readonly byte[] TransportDiagnosticFingerprintKey = RandomNumberGenerator.GetBytes(32);
+
     /// <summary>
     /// Create error response for missing required parameter.
     /// </summary>
@@ -98,17 +102,27 @@ public abstract partial class PipeConnectedToolBase
             ? $"Reconnect to process {processId} and re-read target state before retrying."
             : "Retry after confirming the target is responsive. Reconnect if subsequent pipe-backed requests fail.";
         const string hint = "The Inspector request timed out; the target process may be frozen or the pipe session may be stale.";
+        var error = requiresReconnect
+            ? $"Inspector pipe request timed out for process {processId}. Reconnect before retrying because the pipe session may be stale."
+            : $"Inspector pipe request timed out for process {processId}. Retry after confirming the target is responsive.";
 
         return new ToolErrorPayload
         {
-            Error = message,
+            Error = error,
             ErrorCode = "Timeout",
             Hint = hint,
             ErrorData = new
             {
                 processId,
                 stateAfterTimeoutUnknown = true,
-                requiresReconnect
+                requiresReconnect,
+                transportDiagnostic = new
+                {
+                    failureKind = "Timeout",
+                    messageFingerprint = CreateDiagnosticFingerprint(message),
+                    fingerprintScope = "process",
+                    rawMessageRedacted = true
+                }
             },
             Recovery = new ToolErrorRecovery
             {
@@ -132,14 +146,21 @@ public abstract partial class PipeConnectedToolBase
 
         return new ToolErrorPayload
         {
-            Error = message,
+            Error = $"Inspector pipe transport reset for process {processId}. Reconnect before retrying because the session is stale.",
             ErrorCode = "TransportReset",
             Hint = hint,
             ErrorData = new
             {
                 processId,
                 stateAfterTimeoutUnknown = true,
-                requiresReconnect = true
+                requiresReconnect = true,
+                transportDiagnostic = new
+                {
+                    failureKind = "TransportReset",
+                    messageFingerprint = CreateDiagnosticFingerprint(message),
+                    fingerprintScope = "process",
+                    rawMessageRedacted = true
+                }
             },
             Recovery = new ToolErrorRecovery
             {
@@ -184,6 +205,9 @@ public abstract partial class PipeConnectedToolBase
             TimeoutSeconds = timeoutSeconds
         };
     }
+
+    private static string CreateDiagnosticFingerprint(string message) =>
+        Convert.ToHexString(HMACSHA256.HashData(TransportDiagnosticFingerprintKey, Encoding.UTF8.GetBytes(message)));
 
     private static string? GetInspectorHint(string errorCode) => errorCode switch
     {

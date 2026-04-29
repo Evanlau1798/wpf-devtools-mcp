@@ -24,6 +24,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
     private readonly Action<UIElement, RoutedEvent, RoutedEventHandler, string, List<HandlerRegistration>>? _registrationInvoker;
     private readonly object _lock = new object();
     private readonly TraceEventRingBuffer _eventTrace = new(MaxEventTraceEntries);
+    private readonly EventTraceTransitionState _traceTransitions = new EventTraceTransitionState();
     private readonly Dictionary<string, CompletedTraceSnapshot> _completedTraceSnapshots = new Dictionary<string, CompletedTraceSnapshot>();
     private readonly Queue<string> _completedTraceSnapshotOrder = new Queue<string>();
     private readonly Dictionary<string, TraceCleanupFailure> _traceCleanupStatuses = new Dictionary<string, TraceCleanupFailure>();
@@ -37,11 +38,6 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
     private TraceCleanupFailure? _lastTraceCleanupFailure;
     private int _handlerInvocationCount;
     private bool _isTraceAcceptingEvents;
-    private bool _isCleanupInProgress;
-    private Dispatcher? _cleanupTransitionDispatcher;
-    private bool _isStartTransitionInProgress;
-    private Dispatcher? _startTransitionDispatcher;
-    private bool _cancelStartTransitionRequested;
 
     /// <summary>
     /// Create a new EventAnalyzer instance
@@ -188,14 +184,12 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                 _lastTraceMetadata = null;
                 _isTracing = true;
                 _isTraceAcceptingEvents = false;
-                _isStartTransitionInProgress = true;
-                _cancelStartTransitionRequested = false;
                 _handlerInvocationCount = 0;
                 _lastTraceCleanupFailure = null;
                 _tracingCts = new CancellationTokenSource();
                 localCts = _tracingCts;
                 _activeTraceSession = null;
-                _startTransitionDispatcher = uiElement.Dispatcher;
+                _traceTransitions.BeginStart(uiElement.Dispatcher);
             }
 
             var registrations = new List<HandlerRegistration>();
@@ -233,7 +227,8 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
 
                 lock (_lock)
                 {
-                    canceledBeforeCommit = _cancelStartTransitionRequested || localCts.IsCancellationRequested;
+                    canceledBeforeCommit = _traceTransitions.CancelStartTransitionRequested
+                        || localCts.IsCancellationRequested;
                     if (!canceledBeforeCommit)
                     {
                         _lastTraceMetadata = traceMetadata;
@@ -241,9 +236,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                         _isTraceAcceptingEvents = true;
                     }
 
-                    _isStartTransitionInProgress = false;
-                    _startTransitionDispatcher = null;
-                    _cancelStartTransitionRequested = false;
+                    _traceTransitions.CompleteStart();
                 }
 
                 if (canceledBeforeCommit)
@@ -273,9 +266,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                     _activeTraceSession = null;
                     _isTracing = false;
                     _isTraceAcceptingEvents = false;
-                    _isStartTransitionInProgress = false;
-                    _startTransitionDispatcher = null;
-                    _cancelStartTransitionRequested = false;
+                    _traceTransitions.CompleteStart();
                     _handlerInvocationCount = 0;
                     _eventTrace.Clear();
                 }
@@ -579,7 +570,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         {
             if (_activeTraceSession == null)
             {
-                if (_isStartTransitionInProgress)
+                if (_traceTransitions.IsStartTransitionInProgress)
                 {
                     cleanupException = new InvalidOperationException("Routed event trace startup is still in progress.");
                     return false;
@@ -588,7 +579,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                 return true;
             }
 
-            if (_isCleanupInProgress)
+            if (_traceTransitions.IsCleanupInProgress)
             {
                 cleanupException = new InvalidOperationException("Routed event trace cleanup is already in progress.");
                 return false;
@@ -602,11 +593,16 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             }
 
             sessionToClean = _activeTraceSession;
-            _isCleanupInProgress = true;
             _isTraceAcceptingEvents = false;
-            _cleanupTransitionDispatcher = sessionToClean.Registrations.Count > 0
+            var cleanupDispatcher = sessionToClean.Registrations.Count > 0
                 ? sessionToClean.Registrations[0].Element.Dispatcher
                 : Application.Current?.Dispatcher;
+            if (!_traceTransitions.TryBeginCleanup(cleanupDispatcher))
+            {
+                cleanupException = new InvalidOperationException("Routed event trace cleanup is already in progress.");
+                return false;
+            }
+
             completedSnapshot = new CompletedTraceSnapshot(_eventTrace.GetSnapshot(), _handlerInvocationCount);
         }
 
@@ -643,8 +639,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
 
                 DeactivateTraceSession(sessionToClean);
 
-                _isCleanupInProgress = false;
-                _cleanupTransitionDispatcher = null;
+                _traceTransitions.CompleteCleanup();
 
                 return removalSucceeded || treatDeferredCleanupAsSuccess;
             }
@@ -656,8 +651,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
                 cleanupException?.Message ?? "Routed event trace cleanup failed.",
                 CleanupStateFailed));
 
-            _isCleanupInProgress = false;
-            _cleanupTransitionDispatcher = null;
+            _traceTransitions.CompleteCleanup();
             _isTracing = true;
             _isTraceAcceptingEvents = false;
 
@@ -972,8 +966,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             _lastTraceCleanupFailure = null;
             _isTracing = false;
             _isTraceAcceptingEvents = false;
-            _isCleanupInProgress = false;
-            _cleanupTransitionDispatcher = null;
+            _traceTransitions.CompleteCleanup();
         }
 
         if (tokenSourceToDispose != null)
@@ -1006,8 +999,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         {
             _isTracing = false;
             _isTraceAcceptingEvents = false;
-            _isStartTransitionInProgress = false;
-            _startTransitionDispatcher = null;
+            _traceTransitions.CompleteStart();
         }
     }
 
@@ -1023,9 +1015,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             _lastTraceCleanupFailure = null;
             _isTracing = false;
             _isTraceAcceptingEvents = false;
-            _isStartTransitionInProgress = false;
-            _startTransitionDispatcher = null;
-            _cancelStartTransitionRequested = false;
+            _traceTransitions.CompleteStart();
         }
 
         if (tokenSourceToDispose != null)
@@ -1085,9 +1075,9 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
 
         lock (_lock)
         {
-            if (_isStartTransitionInProgress)
+            if (_traceTransitions.IsStartTransitionInProgress)
             {
-                _cancelStartTransitionRequested = true;
+                _traceTransitions.RequestStartCancellation();
                 tokenSource = _tracingCts;
             }
             else
@@ -1125,9 +1115,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             _activeTraceSession = null;
             _isTracing = false;
             _isTraceAcceptingEvents = false;
-            _isStartTransitionInProgress = false;
-            _startTransitionDispatcher = null;
-            _cancelStartTransitionRequested = false;
+            _traceTransitions.CompleteStart();
         }
 
         localCts.Dispose();
@@ -1145,7 +1133,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         Dispatcher? transitionDispatcher;
         lock (_lock)
         {
-            transitionDispatcher = _startTransitionDispatcher;
+            transitionDispatcher = _traceTransitions.StartTransitionDispatcher;
         }
 
         if (transitionDispatcher != null && transitionDispatcher.CheckAccess())
@@ -1155,7 +1143,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             {
                 lock (_lock)
                 {
-                    if (!_isStartTransitionInProgress)
+                    if (!_traceTransitions.IsStartTransitionInProgress)
                     {
                         return true;
                     }
@@ -1190,7 +1178,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         {
             lock (_lock)
             {
-                if (!_isStartTransitionInProgress)
+                if (!_traceTransitions.IsStartTransitionInProgress)
                 {
                     return true;
                 }
@@ -1213,7 +1201,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         Dispatcher? cleanupDispatcher;
         lock (_lock)
         {
-            cleanupDispatcher = _cleanupTransitionDispatcher;
+            cleanupDispatcher = _traceTransitions.CleanupTransitionDispatcher;
         }
 
         if (cleanupDispatcher != null && cleanupDispatcher.CheckAccess())
@@ -1223,7 +1211,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
             {
                 lock (_lock)
                 {
-                    if (!_isCleanupInProgress)
+                    if (!_traceTransitions.IsCleanupInProgress)
                     {
                         return true;
                     }
@@ -1252,7 +1240,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
 
             lock (_lock)
             {
-                return !_isCleanupInProgress;
+                return !_traceTransitions.IsCleanupInProgress;
             }
         }
 
@@ -1266,7 +1254,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
 
             lock (_lock)
             {
-                return !_isCleanupInProgress;
+                return !_traceTransitions.IsCleanupInProgress;
             }
         }, timeout);
     }

@@ -83,7 +83,7 @@ public static class MutationBatchMcpTools
             ("mutations", mutations));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<BatchMutateTool>(
+            (a, ct) => ToolCallHelper.CachedTool<BatchMutateTool>(sessionManager, 
                 nameof(BatchMutateTool),
                 () => new BatchMutateTool(sessionManager)).ExecuteAsync(a, ct),
             args,

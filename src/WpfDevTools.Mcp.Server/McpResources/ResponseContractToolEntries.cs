@@ -296,6 +296,88 @@ internal static class ResponseContractToolEntries
                     "elementId",
                     "includeFramework"
                 }
+            },
+            new
+            {
+                tool = "element_screenshot",
+                contractName = "element-screenshot",
+                canonicalPayloadField = "result.structuredContent",
+                textFallbackField = "result.content[0].text",
+                contractResource = resourceUri,
+                topLevelFields = new[]
+                {
+                    "success",
+                    "width",
+                    "height",
+                    "format",
+                    "rendered",
+                    "byteLength",
+                    "screenshotId",
+                    "outputMode",
+                    "fileName",
+                    "localPathRedacted",
+                    "sha256",
+                    "base64Image"
+                },
+                nestedResponsePaths = Array.Empty<string>(),
+                requestParameters = new[]
+                {
+                    "elementId",
+                    "outputMode",
+                    "maxWidth",
+                    "maxHeight"
+                },
+                outputVariants = new[]
+                {
+                    new
+                    {
+                        outputMode = "metadata",
+                        rendered = false,
+                        fields = new[]
+                        {
+                            "success",
+                            "width",
+                            "height",
+                            "format",
+                            "rendered",
+                            "byteLength"
+                        }
+                    },
+                    new
+                    {
+                        outputMode = "file",
+                        rendered = true,
+                        fields = new[]
+                        {
+                            "success",
+                            "screenshotId",
+                            "outputMode",
+                            "fileName",
+                            "localPathRedacted",
+                            "sha256",
+                            "width",
+                            "height",
+                            "format",
+                            "rendered",
+                            "byteLength"
+                        }
+                    },
+                    new
+                    {
+                        outputMode = "base64",
+                        rendered = true,
+                        fields = new[]
+                        {
+                            "success",
+                            "base64Image",
+                            "width",
+                            "height",
+                            "format",
+                            "rendered",
+                            "byteLength"
+                        }
+                    }
+                }
             }
         };
     }

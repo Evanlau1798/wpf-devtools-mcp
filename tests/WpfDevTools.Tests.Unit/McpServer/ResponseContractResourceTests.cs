@@ -301,6 +301,72 @@ public sealed class ResponseContractResourceTests
             ]);
 
         AssertTopLevelFieldsDoNotContain(highValueTools, "get_form_summary", "validationSubmittable", "interactionSubmittable", "isSubmittable");
+
+        AssertHighValueToolContract(
+            highValueTools,
+            "element_screenshot",
+            "element-screenshot",
+            topLevelFields: [
+                "width",
+                "height",
+                "format",
+                "rendered",
+                "byteLength",
+                "screenshotId",
+                "outputMode",
+                "fileName",
+                "localPathRedacted",
+                "sha256",
+                "base64Image"
+            ],
+            requestParameters: [
+                "elementId",
+                "outputMode",
+                "maxWidth",
+                "maxHeight"
+            ]);
+
+        var screenshotContract = highValueTools
+            .EnumerateArray()
+            .Single(entry => entry.GetProperty("tool").GetString() == "element_screenshot");
+        var outputVariants = screenshotContract.GetProperty("outputVariants");
+        AssertOutputVariant(
+            outputVariants,
+            "metadata",
+            rendered: false,
+            fields: ["success", "width", "height", "format", "rendered", "byteLength"]);
+        AssertOutputVariant(
+            outputVariants,
+            "file",
+            rendered: true,
+            fields: ["success", "screenshotId", "outputMode", "fileName", "localPathRedacted", "sha256", "width", "height", "format", "rendered", "byteLength"]);
+        AssertOutputVariant(
+            outputVariants,
+            "base64",
+            rendered: true,
+            fields: ["success", "base64Image", "width", "height", "format", "rendered", "byteLength"]);
+    }
+
+    [Fact]
+    public void ResponseContractResource_ShouldPublishCompatibilityStrategyForOutputContracts()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
+        var root = document.RootElement;
+
+        var compatibility = root.GetProperty("compatibility");
+        compatibility.GetProperty("toolListOutputSchema").GetString().Should().Be("omitted");
+        compatibility.GetProperty("outputSchemaPublication").GetProperty("canonicalLocation").GetString().Should().Be("highValueTools");
+
+        var versioning = compatibility.GetProperty("versioning");
+        versioning.GetProperty("currentVersionField").GetString().Should().Be("responseContractVersion");
+        versioning.GetProperty("additiveChangesRequireVersionBump").GetBoolean().Should().BeFalse();
+        versioning.GetProperty("breakingChangesRequireVersionBump").GetBoolean().Should().BeTrue();
+        AssertArrayContains(
+            versioning.GetProperty("breakingChanges"),
+            "remove-field",
+            "rename-field",
+            "change-field-type",
+            "change-required-field-semantics");
     }
 
     [Fact]
@@ -427,6 +493,20 @@ public sealed class ResponseContractResourceTests
         {
             fields.Should().NotContain(excludedField);
         }
+    }
+
+    private static void AssertOutputVariant(
+        JsonElement outputVariants,
+        string outputMode,
+        bool rendered,
+        string[] fields)
+    {
+        var variant = outputVariants
+            .EnumerateArray()
+            .Single(entry => entry.GetProperty("outputMode").GetString() == outputMode);
+
+        variant.GetProperty("rendered").GetBoolean().Should().Be(rendered);
+        AssertArrayContains(variant.GetProperty("fields"), fields);
     }
 
     private static void AssertArrayContains(JsonElement arrayElement, params string[] expectedValues)

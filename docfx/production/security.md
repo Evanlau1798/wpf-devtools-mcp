@@ -35,11 +35,11 @@ Raw DLL injection into arbitrary same-user WPF processes is blocked by default.
 
 The server evaluates high-risk MCP `tools/call` requests before dispatching them to tool implementations.
 
-- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to exact absolute executable paths, applies before SDK-hosted reuse or raw injection, and fails closed when configured entries are malformed.
-- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=false` blocks runtime mutation, interaction, and render-measurement tools, including `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `restore_state_snapshot`, and `batch_mutate`.
-- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=false` blocks `element_screenshot` at the MCP boundary.
-- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=false` blocks `get_viewmodel`, `get_commands`, and `modify_viewmodel`.
-- Unset boolean gates preserve the local-development tool surface; invalid boolean values fail closed for the affected category.
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to exact absolute executable paths, applies before SDK-hosted reuse or raw injection, and fails closed when unset or malformed.
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` opts into runtime mutation, interaction, and render-measurement tools, including `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `restore_state_snapshot`, and `batch_mutate`.
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command`.
+- Unset, false, or invalid boolean gates fail closed for the affected category.
 
 ### Named-pipe authentication
 
@@ -80,7 +80,7 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 5. Set `WPFDEVTOOLS_CERT_DIR` to the same absolute directory in both processes when certificate storage must be deterministic or shared with SDK mode.
 6. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT`.
 7. Keep raw injection disabled by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed executable paths.
-8. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` when the server should connect only to reviewed production executables.
+8. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed executable paths the server may connect to.
 9. Disable destructive tools, screenshots, or ViewModel inspection with the `WPFDEVTOOLS_MCP_ALLOW_*` gates when those capabilities are not needed.
 10. Restrict who can launch the server on the workstation or VM.
 

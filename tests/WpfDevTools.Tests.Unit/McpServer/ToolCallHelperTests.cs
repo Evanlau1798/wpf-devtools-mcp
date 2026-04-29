@@ -7,6 +7,7 @@ using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Navigation;
 using WpfDevTools.Mcp.Server.Schema;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -91,6 +92,72 @@ public class ToolCallHelperTests
 
         var restoredOuterInstance = ToolCallHelper.CachedTool<object>(cacheKey, static () => new object());
         restoredOuterInstance.Should().BeSameAs(outerInstance);
+    }
+
+    [Fact]
+    public void CachedTool_WhenIndependentTestScopesUseSameKey_ShouldNotShareInstances()
+    {
+        var cacheKey = $"independent-scope-{Guid.NewGuid():N}";
+        object firstScopeInstance;
+        object secondScopeInstance;
+
+        using (ToolCallHelper.BeginTestScope())
+        {
+            firstScopeInstance = ToolCallHelper.CachedTool<object>(cacheKey, static () => new object());
+            ToolCallHelper.CachedTool<object>(cacheKey, static () => new object()).Should().BeSameAs(firstScopeInstance);
+        }
+
+        using (ToolCallHelper.BeginTestScope())
+        {
+            secondScopeInstance = ToolCallHelper.CachedTool<object>(cacheKey, static () => new object());
+            ToolCallHelper.CachedTool<object>(cacheKey, static () => new object()).Should().BeSameAs(secondScopeInstance);
+        }
+
+        secondScopeInstance.Should().NotBeSameAs(firstScopeInstance);
+    }
+
+    [Fact]
+    public void CachedTool_WithDifferentSessionManagers_ShouldNotShareHostScopedInstances()
+    {
+        var cacheKey = $"host-scoped-cache-{Guid.NewGuid():N}";
+        using var firstSessionManager = new SessionManager();
+        using var secondSessionManager = new SessionManager();
+
+        var firstInstance = ToolCallHelper.CachedTool<SessionBoundProbeTool>(
+            firstSessionManager,
+            cacheKey,
+            () => new SessionBoundProbeTool(firstSessionManager));
+        var secondInstance = ToolCallHelper.CachedTool<SessionBoundProbeTool>(
+            secondSessionManager,
+            cacheKey,
+            () => new SessionBoundProbeTool(secondSessionManager));
+        var secondAgain = ToolCallHelper.CachedTool<SessionBoundProbeTool>(
+            secondSessionManager,
+            cacheKey,
+            () => new SessionBoundProbeTool(secondSessionManager));
+
+        secondInstance.Should().NotBeSameAs(firstInstance);
+        secondInstance.SessionManager.Should().BeSameAs(secondSessionManager);
+        secondAgain.Should().BeSameAs(secondInstance);
+    }
+
+    [Fact]
+    public void McpWrappers_WithSessionManagerBoundTools_ShouldUseHostScopedCachedToolOverload()
+    {
+        var mcpToolsDirectory = Path.GetDirectoryName(TestRepositoryPaths.GetRepoFilePath(
+            "src/WpfDevTools.Mcp.Server/McpTools/ProcessMcpTools.cs"))!;
+        var violations = Directory.EnumerateFiles(mcpToolsDirectory, "*.cs")
+            .Where(path => !Path.GetFileName(path).StartsWith("ToolCallHelper", StringComparison.Ordinal))
+            .SelectMany(path => File.ReadLines(path)
+                .Select((line, index) => new { path, line, lineNumber = index + 1 }))
+            .Where(entry => entry.line.Contains("ToolCallHelper.CachedTool<", StringComparison.Ordinal))
+            .Where(entry => !entry.line.Contains("(sessionManager,", StringComparison.Ordinal))
+            .Where(entry => !entry.line.Contains("ToolCallHelper.CachedTool<GetProcessesTool>(", StringComparison.Ordinal))
+            .Select(entry => $"{Path.GetFileName(entry.path)}:{entry.lineNumber}: {entry.line.Trim()}")
+            .ToArray();
+
+        violations.Should().BeEmpty(
+            "wrappers that cache SessionManager-bound tools must use the host-scoped overload; GetProcessesTool is the only process-wide exception");
     }
 
     [Fact]
@@ -332,6 +399,28 @@ public class ToolCallHelperTests
         textContent.Should().NotBeNull();
         textContent!.Text.Should().Contain("timed out");
         textContent.Text.Should().Contain("1 seconds");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WhenProcessIdOmittedAndSessionManagerCaptured_ShouldUseActiveProcessForTimeoutRecovery()
+    {
+        using var sessionManager = new SessionManager();
+        sessionManager.AddSession(12345);
+
+        Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (_, ct) =>
+        {
+            sessionManager.HasSession(12345).Should().BeTrue();
+            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            return new { success = true };
+        };
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None, timeoutSeconds: 1);
+
+        result.IsError.Should().BeTrue();
+        var payload = result.StructuredContent!.Value;
+        payload.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        payload.GetProperty("processId").GetInt32().Should().Be(12345);
+        payload.GetProperty("recovery").GetProperty("processId").GetInt32().Should().Be(12345);
     }
 
     [Fact]
@@ -678,6 +767,11 @@ public class ToolCallHelperTests
 
         errorCode.Should().Be("Timeout");
         message.Should().Be("Operation timed out");
+    }
+
+    private sealed class SessionBoundProbeTool(SessionManager sessionManager)
+    {
+        public SessionManager SessionManager { get; } = sessionManager;
     }
 
 }

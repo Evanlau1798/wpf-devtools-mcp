@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using FluentAssertions;
@@ -28,7 +28,8 @@ public sealed class ConnectToolActiveProcessIntegrationTests : IDisposable
         using var sessionManager = new SessionManager();
         sessionManager.AddSession(54321);
 
-        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(), isRawInjectionTargetAllowed: _ => true);
+        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(), isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
         var connectArgs = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(new { processId = _testApp.Id }));
 

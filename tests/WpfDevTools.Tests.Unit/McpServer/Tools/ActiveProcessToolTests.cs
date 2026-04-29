@@ -35,6 +35,23 @@ public class ActiveProcessToolTests
         json.GetProperty("errorCode").GetString().Should().Be("NotConnected");
     }
 
+    [Theory]
+    [InlineData("{\"processId\":\"12345\"}")]
+    [InlineData("{\"processId\":0}")]
+    [InlineData("{\"processId\":-1}")]
+    public async Task SelectActiveProcess_WithInvalidProcessIdShape_ShouldReturnInvalidArgument(string rawArguments)
+    {
+        using var sessionManager = new SessionManager();
+        var tool = new SelectActiveProcessTool(sessionManager);
+        var arguments = JsonSerializer.Deserialize<JsonElement>(rawArguments);
+
+        var result = await tool.ExecuteAsync(arguments, CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+    }
+
     [Fact]
     public async Task GetActiveProcess_WithoutSelection_ShouldReturnEmptyState()
     {

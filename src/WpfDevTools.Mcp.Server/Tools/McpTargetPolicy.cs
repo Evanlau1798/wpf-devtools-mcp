@@ -2,7 +2,7 @@ using WpfDevTools.Injector.Discovery;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
-internal readonly record struct McpTargetAuthorization(
+public readonly record struct McpTargetAuthorization(
     bool IsAllowed,
     string? Error,
     string? Hint);
@@ -22,7 +22,10 @@ internal static class McpTargetPolicy
     {
         if (string.IsNullOrWhiteSpace(configuredAllowedTargets))
         {
-            return new McpTargetAuthorization(IsAllowed: true, Error: null, Hint: null);
+            return new McpTargetAuthorization(
+                IsAllowed: false,
+                Error: "MCP target allowlist is not configured.",
+                Hint: $"Set {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths, then retry connect(processId).");
         }
 
         var configuredTargetEntries = configuredAllowedTargets.Split(
@@ -66,8 +69,8 @@ internal static class McpTargetPolicy
 
         return new McpTargetAuthorization(
             IsAllowed: false,
-            Error: $"Target '{normalizedTargetPath}' is blocked by the MCP target allowlist.",
-            Hint: $"Add the exact absolute executable path to {McpServerConfiguration.AllowedTargetsEnvVar} only after reviewing the target process.");
+            Error: "Target is blocked by the MCP target allowlist.",
+            Hint: $"Add the exact absolute executable path to {McpServerConfiguration.AllowedTargetsEnvVar} only after reviewing the target process. The full denied path is written only to server diagnostics.");
     }
 
     private static McpTargetAuthorization CreateInvalidConfigurationAuthorization()

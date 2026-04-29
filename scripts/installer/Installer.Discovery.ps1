@@ -1,3 +1,85 @@
+if (-not (Get-Command Resolve-InstallerDiscoveryAbsolutePath -ErrorAction SilentlyContinue)) {
+    function Resolve-InstallerDiscoveryAbsolutePath {
+        param([Parameter(Mandatory)] [string]$Path)
+
+        if ([System.IO.Path]::IsPathRooted($Path)) {
+            return [System.IO.Path]::GetFullPath($Path)
+        }
+
+        return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
+    }
+}
+
+if (-not (Get-Command Test-InstallerUncOrDevicePath -ErrorAction SilentlyContinue)) {
+    function Test-InstallerUncOrDevicePath {
+        param([Parameter(Mandatory)] [string]$Path)
+
+        return $Path.StartsWith('\\', [System.StringComparison]::Ordinal) -or
+            $Path.StartsWith('\\?\', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $Path.StartsWith('\\.\', [System.StringComparison]::OrdinalIgnoreCase)
+    }
+}
+
+if (-not (Get-Command Assert-InstallerLocalPathTrusted -ErrorAction SilentlyContinue)) {
+    function Assert-InstallerLocalPathTrusted {
+        param(
+            [Parameter(Mandatory)] [string]$Path,
+            [switch]$RejectHardLinks
+        )
+
+        $resolvedPath = Resolve-InstallerDiscoveryAbsolutePath -Path $Path
+        if (Test-InstallerUncOrDevicePath -Path $resolvedPath) {
+            throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require a local path."
+        }
+
+        $root = [System.IO.Path]::GetPathRoot($resolvedPath)
+        if ([string]::IsNullOrWhiteSpace($root)) {
+            throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require an absolute local path."
+        }
+
+        try {
+            $drive = [System.IO.DriveInfo]::new($root)
+            if ($drive.DriveType -eq [System.IO.DriveType]::Network) {
+                throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require a local path."
+            }
+        }
+        catch [System.ArgumentException] {
+            throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require a local path."
+        }
+
+        $relativePath = $resolvedPath.Substring($root.Length).Trim('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relativePath)) {
+            return $resolvedPath
+        }
+
+        $currentPath = $root
+        foreach ($segment in $relativePath -split '[\\/]') {
+            if ([string]::IsNullOrWhiteSpace($segment)) {
+                continue
+            }
+
+            $currentPath = Join-Path $currentPath $segment
+            if (-not (Test-Path -LiteralPath $currentPath)) {
+                break
+            }
+
+            $item = Get-Item -LiteralPath $currentPath -Force
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "Installer path '$resolvedPath' is blocked because '$currentPath' is a reparse point."
+            }
+        }
+
+        if ($RejectHardLinks -and (Test-Path -LiteralPath $resolvedPath -PathType Leaf) -and (Get-Command Get-InstallerHardLinkCount -ErrorAction SilentlyContinue)) {
+            $linkCount = Get-InstallerHardLinkCount -Path $resolvedPath
+            if ($linkCount -gt 1) {
+                throw "Installer path '$resolvedPath' is blocked because hardlinked installer write targets are not trusted."
+            }
+        }
+
+        return $resolvedPath
+    }
+}
+
 function New-DetectedInstallerRegistration {
     param(
         [Parameter(Mandatory)] [string]$ClientId,
@@ -100,12 +182,19 @@ function Resolve-InstallerOwnershipFromExecutable {
         return $result
     }
 
-    $architectureMatch = [regex]::Match($InstalledExecutable, 'wpf-devtools-(x64|x86|arm64)\.exe', 'IgnoreCase')
+    try {
+        $trustedInstalledExecutable = Assert-InstallerLocalPathTrusted -Path $InstalledExecutable
+    }
+    catch {
+        return $result
+    }
+
+    $architectureMatch = [regex]::Match($trustedInstalledExecutable, 'wpf-devtools-(x64|x86|arm64)\.exe', 'IgnoreCase')
     if ($architectureMatch.Success) {
         $result.Architecture = [string]$architectureMatch.Groups[1].Value.ToLowerInvariant()
     }
 
-    $binDirectory = Split-Path -Parent $InstalledExecutable
+    $binDirectory = Split-Path -Parent $trustedInstalledExecutable
     if ([string]::IsNullOrWhiteSpace($binDirectory)) {
         return $result
     }
@@ -120,15 +209,21 @@ function Resolve-InstallerOwnershipFromExecutable {
         return $result
     }
 
-    $manifestPath = Join-Path $installBase 'install-manifest.json'
-    if (-not (Test-Path $manifestPath)) {
+    try {
+        $manifestPath = Assert-InstallerLocalPathTrusted -Path (Join-Path $installBase 'install-manifest.json')
+    }
+    catch {
+        return $result
+    }
+
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
         return $result
     }
 
     try {
-        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
         $manifestExecutable = [string]$manifest.executable
-        if (-not [string]::IsNullOrWhiteSpace($manifestExecutable) -and (Test-InstallerPathEqualsCore -Left $manifestExecutable -Right $InstalledExecutable)) {
+        if (-not [string]::IsNullOrWhiteSpace($manifestExecutable) -and (Test-InstallerPathEqualsCore -Left $manifestExecutable -Right $trustedInstalledExecutable)) {
             $result.InstallerOwned = $true
             $result.InstallBase = $installBase
             $result.InstallRoot = [string]$manifest.installRoot
@@ -469,13 +564,19 @@ function Get-ManagedRegistrationsFromInstall {
         return @()
     }
 
-    $manifestPath = Join-Path (Resolve-InstallBasePath -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture) 'install-manifest.json'
-    if (-not (Test-Path $manifestPath)) {
+    try {
+        $manifestPath = Assert-InstallerLocalPathTrusted -Path (Join-Path (Resolve-InstallBasePath -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture) 'install-manifest.json')
+    }
+    catch {
+        return @()
+    }
+
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
         return @()
     }
 
     try {
-        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     }
     catch {
         return @()

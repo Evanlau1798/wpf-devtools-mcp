@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
@@ -55,7 +56,7 @@ public static class InteractionMcpTools
             ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<ClickElementTool>("ClickElementTool", () => new ClickElementTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ClickElementTool>(sessionManager, "ClickElementTool", () => new ClickElementTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
@@ -93,7 +94,7 @@ public static class InteractionMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, 
                 "get_focus_state",
                 () => new GenericPipeTool(sessionManager, "get_focus_state")
             ).ExecuteAsync(a, ct),
@@ -130,7 +131,7 @@ public static class InteractionMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, 
                 "focus_element",
                 () => new GenericPipeTool(sessionManager, "focus_element")
             ).ExecuteAsync(a, ct),
@@ -181,7 +182,7 @@ public static class InteractionMcpTools
             ("dataFormat", dataFormat));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, 
                 "drag_and_drop",
                 () => new GenericPipeTool(sessionManager, "drag_and_drop", GenericPipeTool.ExtractDragAndDropParams)
             ).ExecuteAsync(a, ct),
@@ -218,7 +219,7 @@ public static class InteractionMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<ScrollToElementTool>("ScrollToElementTool", () => new ScrollToElementTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ScrollToElementTool>(sessionManager, "ScrollToElementTool", () => new ScrollToElementTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -269,7 +270,7 @@ public static class InteractionMcpTools
             ("eventType", eventType));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<SimulateKeyboardTool>("SimulateKeyboardTool", () => new SimulateKeyboardTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<SimulateKeyboardTool>(sessionManager, "SimulateKeyboardTool", () => new SimulateKeyboardTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -310,8 +311,11 @@ public static class InteractionMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to capture. Omit for the root window.")] string? elementId = null,
+        [AllowedValues("metadata", "file", "base64")]
         [Description("Optional screenshot output mode: 'metadata' (default), 'file', or explicit 'base64'.")] string? outputMode = null,
+        [Range(1, int.MaxValue)]
         [Description("Optional maximum screenshot width. When provided, the image is downscaled proportionally and never upscaled.")] int? maxWidth = null,
+        [Range(1, int.MaxValue)]
         [Description("Optional maximum screenshot height. When provided, the image is downscaled proportionally and never upscaled.")] int? maxHeight = null,
         CancellationToken cancellationToken = default)
     {
@@ -323,7 +327,7 @@ public static class InteractionMcpTools
             ("maxHeight", maxHeight));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<ElementScreenshotTool>("ElementScreenshotTool", () => new ElementScreenshotTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ElementScreenshotTool>(sessionManager, "ElementScreenshotTool", () => new ElementScreenshotTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

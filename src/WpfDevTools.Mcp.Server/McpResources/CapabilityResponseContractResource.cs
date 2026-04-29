@@ -175,6 +175,24 @@ public static partial class CapabilityResources
             {
                 toolListOutputSchema = "omitted",
                 toolListOutputSchemaReason = "Claude tools/list compatibility while structuredContent remains canonical",
+                outputSchemaPublication = new
+                {
+                    canonicalLocation = "highValueTools",
+                    reason = "Native tools/list outputSchema remains omitted for Claude compatibility; specialized response contracts are published in this resource."
+                },
+                versioning = new
+                {
+                    currentVersionField = "responseContractVersion",
+                    additiveChangesRequireVersionBump = false,
+                    breakingChangesRequireVersionBump = true,
+                    breakingChanges = new[]
+                    {
+                        "remove-field",
+                        "rename-field",
+                        "change-field-type",
+                        "change-required-field-semantics"
+                    }
+                },
                 deprecatedAliases = ResponseContractVersion.DeprecatedAliases
             },
             schemaMetadata = ResponseContractSchemaMetadata.GetSchemaMetadata(),

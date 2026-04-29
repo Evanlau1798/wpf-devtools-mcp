@@ -323,6 +323,8 @@ public sealed class GitHubPagesInstallerScriptTests
                 string.Join(Environment.NewLine,
                 [
                     "$scriptText = Get-Content -Path '" + scriptPath.Replace("'", "''") + "' -Raw",
+                    "$script:WpfDevToolsInstallerTestModeHarnessEnabled = $true",
+                    "$script:WpfDevToolsInstallerTestModeEnabled = $true",
                     "$installer = [scriptblock]::Create($scriptText)",
                     "& $installer -PackageArchivePath '" + archivePath.Replace("'", "''") + "' -InstallRoot '" + installRoot.Replace("'", "''") + "' -Client other -NonInteractive -Force -OutputJson"
                 ]));

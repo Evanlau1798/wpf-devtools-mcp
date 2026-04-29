@@ -59,7 +59,7 @@ public sealed class EventTraceEdgeCaseE2eTests : SharedStateMcpE2eTestBase
         _output.WriteLine(trace.GetRawText());
 
         trace.GetProperty("success").GetBoolean().Should().BeTrue(trace.GetRawText());
-        trace.GetProperty("eventCount").GetInt32().Should().BeGreaterThan(0, trace.GetRawText());
+        E2eTestHelpers.AssertTraceContainsRoutedEvent(trace, "Click", "EventStormButton", buttonId!);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class EventTraceEdgeCaseE2eTests : SharedStateMcpE2eTestBase
         _output.WriteLine(trace.GetRawText());
 
         trace.GetProperty("success").GetBoolean().Should().BeTrue(trace.GetRawText());
-        trace.GetProperty("eventCount").GetInt32().Should().BeGreaterThan(0, trace.GetRawText());
+        E2eTestHelpers.AssertTraceContainsRoutedEvent(trace, "MouseDown", "RoutedProbeBorder", borderId!);
     }
 
     private async Task ActivateEventTraceLabTabAsync()

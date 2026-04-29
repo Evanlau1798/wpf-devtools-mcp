@@ -136,7 +136,11 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             _serverExePath,
             new Dictionary<string, string>
             {
-                [McpServerConfiguration.RawInjectionAllowedTargetsEnvVar] = testAppExePath
+                [McpServerConfiguration.AllowedTargetsEnvVar] = testAppExePath,
+                [McpServerConfiguration.RawInjectionAllowedTargetsEnvVar] = testAppExePath,
+                [McpServerConfiguration.AllowDestructiveToolsEnvVar] = "true",
+                [McpServerConfiguration.AllowScreenshotsEnvVar] = "true",
+                [McpServerConfiguration.AllowViewModelInspectionEnvVar] = "true"
             }).ConfigureAwait(false);
 
         var connectResult = await _client.CallToolAsync(

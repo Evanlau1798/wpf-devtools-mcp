@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.Reflection;
 using System.Text.Json;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Navigation;
@@ -12,18 +14,15 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This type is intentionally a <c>static partial class</c>. It holds process-wide state
-/// (tool instance cache, metrics collector, navigation planner, navigation-opt-out set).
-/// That is acceptable because the MCP server is hosted as a single-tenant process per
-/// connected agent: <c>Program.cs</c> wires <see cref="SetMetricsCollector"/> and the
-/// navigation planner exactly once during DI initialization, and tool invocations only
-/// read from these fields during request handling.
+/// This type is intentionally a <c>static partial class</c>. Stateless tools may use a
+/// process-wide cache, while tools that capture <see cref="SessionManager"/> use a
+/// weakly keyed host-scoped cache. Metrics collector, navigation planner, and
+/// navigation-opt-out state remain process-wide and are wired once during DI
+/// initialization.
 /// </para>
 /// <para>
-/// Do NOT attempt to multi-host or multi-tenant this server without first converting the
-/// static state to a DI-scoped instance or a per-request context. Mutating
-/// <c>_metrics</c>, <c>_navigationPlanner</c>, or <c>NavigationOptOutTools</c> from
-/// multiple hosting contexts is not supported and is not covered by tests.
+/// Do NOT attempt to multi-tenant metrics or navigation behavior without first converting
+/// those remaining static services to DI-scoped instances or a per-request context.
 /// </para>
 /// </remarks>
 public static partial class ToolCallHelper
@@ -32,6 +31,7 @@ public static partial class ToolCallHelper
     private const int WaitForDpChangeDefaultTimeoutMs = 5000;
 
     private static readonly ConcurrentDictionary<string, object> GlobalToolCache = new();
+    private static ConditionalWeakTable<SessionManager, ConcurrentDictionary<string, object>> HostToolCaches = new();
     private static readonly AsyncLocal<ConcurrentDictionary<string, object>?> ToolCacheOverride = new();
     private static readonly AsyncLocal<MetricsCollector?> MetricsCollectorOverride = new();
     private static readonly AsyncLocal<ToolNavigationPlanner?> NavigationPlannerOverride = new();
@@ -223,7 +223,7 @@ public static partial class ToolCallHelper
         {
             sw.Stop();
             // Timeout occurred (our CTS was cancelled, but caller's token was not)
-            var timeoutRecovery = ResolveTimeoutRecovery(toolName, args);
+            var timeoutRecovery = ResolveTimeoutRecovery(toolName, args, TryFindCapturedSessionManager(execute));
             var timeoutPayloadData = new Dictionary<string, object?>
             {
                 ["success"] = false,
@@ -293,6 +293,53 @@ public static partial class ToolCallHelper
                 IsError = true
             };
         }
+
+    }
+
+    private static SessionManager? TryFindCapturedSessionManager(Delegate execute)
+    {
+        return TryFindCapturedSessionManager(execute.Target, new HashSet<object>(ReferenceEqualityComparer.Instance));
+    }
+
+    private static SessionManager? TryFindCapturedSessionManager(object? target, HashSet<object> visited)
+    {
+        if (target is null || target is string || !visited.Add(target))
+        {
+            return null;
+        }
+
+        if (target is SessionManager sessionManager)
+        {
+            return sessionManager;
+        }
+
+        var targetType = target.GetType();
+        if (targetType.IsPrimitive || targetType.IsEnum)
+        {
+            return null;
+        }
+
+        foreach (var field in targetType.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+        {
+            if (typeof(SessionManager).IsAssignableFrom(field.FieldType)
+                && field.GetValue(target) is SessionManager fieldSessionManager)
+            {
+                return fieldSessionManager;
+            }
+
+            if (field.FieldType.IsPrimitive || field.FieldType.IsEnum || field.FieldType == typeof(string))
+            {
+                continue;
+            }
+
+            var nested = TryFindCapturedSessionManager(field.GetValue(target), visited);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     internal static CallToolResult CreateStructuredErrorResult(
@@ -399,18 +446,10 @@ public static partial class ToolCallHelper
     }
 
     /// <summary>
-    /// Get or create a cached tool instance. Tools are stateless wrappers that only hold
-    /// a SessionManager reference and are thread-safe, so a single instance can be reused
-    /// across concurrent calls.
+    /// Get or create a process-wide cached tool instance for tools that do not capture host state.
     /// <para>
-    /// IMPORTANT: This cache is static and process-lifetime. The factory captures the
-    /// SessionManager from the first invocation. This is correct because SessionManager
-    /// is registered as a DI singleton in Program.cs, so only one instance exists per process.
-    /// </para>
-    /// <para>
-    /// CRITICAL ASSUMPTION: If the hosting model ever changes to support multiple server
-    /// instances per process (e.g., multi-tenant scenarios), this cache MUST be scoped
-    /// to the server instance, not static. Current implementation assumes single-server-per-process.
+    /// IMPORTANT: Use <see cref="CachedTool{T}(SessionManager, string, Func{T})"/> for tools
+    /// that capture <see cref="SessionManager"/> or any other host-scoped service.
     /// </para>
     /// <para>
     /// Thread Safety: ConcurrentDictionary.GetOrAdd is thread-safe. The factory delegate may
@@ -425,6 +464,24 @@ public static partial class ToolCallHelper
         => (T)CurrentToolCache.GetOrAdd(key, _ => factory());
 
     /// <summary>
+    /// Get or create a cached tool instance scoped to a host SessionManager.
+    /// </summary>
+    /// <remarks>
+    /// Tool instances usually hold a SessionManager reference. Keeping those instances in
+    /// a process-wide cache would leak the first host into later same-process hosts. The
+    /// host cache is weakly keyed so disposing a SessionManager does not leave a permanent
+    /// cache root.
+    /// </remarks>
+    internal static T CachedTool<T>(SessionManager sessionManager, string key, Func<T> factory) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(sessionManager);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        var cache = ToolCacheOverride.Value ?? HostToolCaches.GetValue(sessionManager, static _ => new ConcurrentDictionary<string, object>());
+        return (T)cache.GetOrAdd(key, _ => factory());
+    }
+
+    /// <summary>
     /// Clear the tool cache and metrics. Only for use in tests to ensure test isolation.
     /// </summary>
     internal static void ResetCacheForTesting()
@@ -436,6 +493,7 @@ public static partial class ToolCallHelper
         }
 
         GlobalToolCache.Clear();
+        HostToolCaches = new ConditionalWeakTable<SessionManager, ConcurrentDictionary<string, object>>();
         _metrics = null;
         MetricsCollectorOverride.Value = null;
         NavigationPlannerOverride.Value = null;

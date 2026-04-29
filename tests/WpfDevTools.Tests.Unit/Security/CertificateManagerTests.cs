@@ -8,6 +8,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Security;
 
+[Collection("TimingSensitive")]
 public class CertificateManagerTests : IDisposable
 {
     private readonly string _tempDir;

@@ -35,6 +35,21 @@ public class PipeConnectedToolProcessResolutionTests
         json.GetProperty("errorCode").GetString().Should().Be("NoActiveProcess");
     }
 
+    [Fact]
+    public async Task Execute_WhenProcessIdIsMalformed_ShouldNotFallbackToActiveProcess()
+    {
+        using var sessionManager = new SessionManager();
+        sessionManager.AddSession(12345);
+        var tool = new ProcessResolvingTestTool(sessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = "not-an-int", elementId = "Button_1" }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("processId");
+    }
+
     private sealed class ProcessResolvingTestTool(SessionManager sessionManager) : PipeConnectedToolBase(sessionManager)
     {
         public Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)

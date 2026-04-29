@@ -57,7 +57,7 @@ public static class EventDrainMcpTools
             ("sinceTimestamp", sinceTimestamp));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<DrainEventsTool>("DrainEventsTool", () => new DrainEventsTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<DrainEventsTool>(sessionManager, "DrainEventsTool", () => new DrainEventsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             toolName: "drain_events");

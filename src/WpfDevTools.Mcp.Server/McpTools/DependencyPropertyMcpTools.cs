@@ -65,7 +65,7 @@ public static class DependencyPropertyMcpTools
             ("compact", compact));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetDpValueSourceTool>("GetDpValueSourceTool", () => new GetDpValueSourceTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetDpValueSourceTool>(sessionManager, "GetDpValueSourceTool", () => new GetDpValueSourceTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -102,7 +102,7 @@ public static class DependencyPropertyMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetDpMetadataTool>("GetDpMetadataTool", () => new GetDpMetadataTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetDpMetadataTool>(sessionManager, "GetDpMetadataTool", () => new GetDpMetadataTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -149,7 +149,7 @@ public static class DependencyPropertyMcpTools
             ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<SetDpValueTool>("SetDpValueTool", () => new SetDpValueTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<SetDpValueTool>(sessionManager, "SetDpValueTool", () => new SetDpValueTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
@@ -192,7 +192,7 @@ public static class DependencyPropertyMcpTools
             ("detail", detail));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<ClearDpValueTool>("ClearDpValueTool", () => new ClearDpValueTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ClearDpValueTool>(sessionManager, "ClearDpValueTool", () => new ClearDpValueTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -232,7 +232,7 @@ public static class DependencyPropertyMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<WatchDpChangesTool>("WatchDpChangesTool", () => new WatchDpChangesTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<WatchDpChangesTool>(sessionManager, "WatchDpChangesTool", () => new WatchDpChangesTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -293,7 +293,7 @@ public static class DependencyPropertyMcpTools
             ("expectedValue", expectedValue));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<WaitForDpChangeTool>("WaitForDpChangeTool", () => new WaitForDpChangeTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<WaitForDpChangeTool>(sessionManager, "WaitForDpChangeTool", () => new WaitForDpChangeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -355,7 +355,7 @@ public static class DependencyPropertyMcpTools
             ("triggerMutation", triggerMutation));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<WaitForDpChangeTool>("WaitForDpChangeTool", () => new WaitForDpChangeTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<WaitForDpChangeTool>(sessionManager, "WaitForDpChangeTool", () => new WaitForDpChangeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

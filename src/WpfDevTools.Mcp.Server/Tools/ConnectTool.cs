@@ -51,7 +51,8 @@ public sealed partial class ConnectTool
         Func<string, IEnumerable<string>>? inspectorCandidateResolver = null,
         Func<string, IEnumerable<string>>? bootstrapperCandidateResolver = null,
         PipeReadyProbe? pipeReadyProbe = null,
-        Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null)
+        Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null,
+        Func<WpfProcessInfo, McpTargetAuthorization>? targetPolicy = null)
         : this(
             sessionManager,
             injector,
@@ -63,7 +64,7 @@ public sealed partial class ConnectTool
             bootstrapperCandidateResolver,
             pipeReadyProbe,
             isRawInjectionTargetAllowed,
-            targetPolicy: null,
+            targetPolicy,
                 connectInjectedSessionAsync: null,
                 connectTimeout: null)
     {
@@ -252,6 +253,7 @@ public sealed partial class ConnectTool
             var targetAuthorization = _targetPolicy(processInfo);
             if (!targetAuthorization.IsAllowed)
             {
+                Trace.WriteLine($"ConnectTool target allowlist denied process {processId}: executable={processInfo.ExecutablePath}");
                 return new
                 {
                     success = false,
@@ -260,7 +262,6 @@ public sealed partial class ConnectTool
                     hint = targetAuthorization.Hint,
                     requiresExplicitTargetOptIn = true,
                     policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar,
-                    targetExecutablePath = processInfo.ExecutablePath,
                     targetProcessName = processInfo.ProcessName
                 };
             }
@@ -327,6 +328,7 @@ public sealed partial class ConnectTool
             if (!isRawInjectionTargetAllowed)
             {
                 var authorization = RawInjectionTargetPolicy.Authorize(processInfo);
+                Trace.WriteLine($"ConnectTool raw injection denied process {processId}: executable={processInfo.ExecutablePath}");
                 return new
                 {
                     success = false,
@@ -335,7 +337,6 @@ public sealed partial class ConnectTool
                     hint = authorization.Hint,
                     requiresExplicitTargetOptIn = true,
                     allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
-                    targetExecutablePath = processInfo.ExecutablePath,
                     targetProcessName = processInfo.ProcessName
                 };
             }
@@ -798,10 +799,10 @@ public sealed partial class ConnectTool
             InjectionError.WriteFailed => "Failed to write injector payload into the target process.",
             InjectionError.CreateThreadFailed => "Failed to start the remote injection thread.",
             InjectionError.Timeout when injectionResult.TimeoutReason == InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart
-                => injectionResult.ErrorMessage ?? InjectionBudgetExhaustedMessage,
+                => InjectionBudgetExhaustedMessage,
             InjectionError.Timeout => "Injection timed out before the target process became ready.",
             InjectionError.PipeReadyTimeout when injectionResult.TimeoutReason == InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart
-                => injectionResult.ErrorMessage ?? PipeReadyBudgetExhaustedMessage,
+                => PipeReadyBudgetExhaustedMessage,
             InjectionError.PipeReadyTimeout => "Bootstrap completed, but the Inspector Named Pipe did not become ready before the timeout expired.",
             InjectionError.BootstrapFailed => DescribeBootstrapFailureMessage(injectionResult),
             InjectionError.Unknown => "Injection failed due to an unexpected internal error. Check server logs for details.",
@@ -819,10 +820,9 @@ public sealed partial class ConnectTool
     private static string DescribeBootstrapFailureMessage(InjectionResult injectionResult)
     {
         if (injectionResult.BootstrapExitCode is int exitCode &&
-            exitCode < 0 &&
-            !string.IsNullOrWhiteSpace(injectionResult.ErrorMessage))
+            exitCode < 0)
         {
-            return injectionResult.ErrorMessage;
+            return "Bootstrap failed while starting the injected inspector.";
         }
 
         return injectionResult.FailedAtStage switch

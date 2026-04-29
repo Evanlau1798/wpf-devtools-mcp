@@ -1,7 +1,9 @@
 using System.IO;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Linq;
 
@@ -161,13 +163,6 @@ internal static class ReleasePackagingTestHarness
         startInfo.ArgumentList.Add("-NoProfile");
         startInfo.ArgumentList.Add("-ExecutionPolicy");
         startInfo.ArgumentList.Add("Bypass");
-        startInfo.ArgumentList.Add("-File");
-        startInfo.ArgumentList.Add(scriptPath);
-
-        foreach (var argument in argumentList)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
 
         if (environmentOverrides is not null)
         {
@@ -190,6 +185,25 @@ internal static class ReleasePackagingTestHarness
             startInfo.Environment["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = "1";
         }
 
+        if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal))
+        {
+            startInfo.ArgumentList.Add("-Command");
+            var isolatedScriptRoot = ShouldIsolateOnlineInstallerTestScript(scriptPath)
+                ? Path.Combine(environmentRoot, "script-root", Guid.NewGuid().ToString("N"))
+                : null;
+            startInfo.ArgumentList.Add(BuildPowerShellScriptInvocation(scriptPath, argumentList, enableInternalTestMode: true, isolatedScriptRoot));
+        }
+        else
+        {
+            startInfo.ArgumentList.Add("-File");
+            startInfo.ArgumentList.Add(scriptPath);
+
+            foreach (var argument in argumentList)
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
+        }
+
         try
         {
             return RunProcess(startInfo, timeout);
@@ -206,6 +220,92 @@ internal static class ReleasePackagingTestHarness
                 DeleteDirectory(environmentRoot);
             }
         }
+    }
+
+    private static bool ShouldIsolateOnlineInstallerTestScript(string scriptPath)
+        => string.Equals(Path.GetFileName(scriptPath), "online-installer.ps1", StringComparison.OrdinalIgnoreCase);
+
+    private static string BuildPowerShellScriptInvocation(
+        string scriptPath,
+        IReadOnlyList<string> arguments,
+        bool enableInternalTestMode,
+        string? isolatedScriptRoot)
+    {
+        var hasParamBlock = HasPowerShellParamBlock(File.ReadAllText(scriptPath));
+        var preserveLastExitCode = ShouldPreserveLastExitCode(scriptPath);
+        var invocation = new StringBuilder();
+        invocation.Append("$sourceScriptPath = ");
+        invocation.Append(QuotePowerShellString(scriptPath));
+        invocation.Append("; $scriptDirectory = Split-Path -Parent $sourceScriptPath; ");
+        if (isolatedScriptRoot is not null)
+        {
+            invocation.Append("$tempScriptRoot = ");
+            invocation.Append(QuotePowerShellString(isolatedScriptRoot));
+            invocation.Append("; New-Item -ItemType Directory -Force -Path $tempScriptRoot | Out-Null; $helperSource = Join-Path $scriptDirectory 'installer'; if (Test-Path -LiteralPath $helperSource) { Copy-Item -LiteralPath $helperSource -Destination (Join-Path $tempScriptRoot 'installer') -Recurse -Force }; $tempScriptPath = Join-Path $tempScriptRoot (Split-Path -Leaf $sourceScriptPath); ");
+        }
+        else
+        {
+            invocation.Append("$tempScriptPath = Join-Path $scriptDirectory ([System.IO.Path]::GetFileNameWithoutExtension($sourceScriptPath) + '.test-' + [guid]::NewGuid().ToString('N') + '.ps1'); ");
+        }
+        invocation.Append("$scriptContent = Get-Content -LiteralPath $sourceScriptPath -Raw; ");
+        if (enableInternalTestMode)
+        {
+            invocation.Append("$scriptContent = $scriptContent.Replace('$script:WpfDevToolsInstallerTestModeEnabled = [bool]$script:WpfDevToolsInstallerTestModeEnabled -and [bool]$script:WpfDevToolsInstallerTestModeHarnessEnabled', '$script:WpfDevToolsInstallerTestModeEnabled = $true'); ");
+            if (!hasParamBlock)
+            {
+                invocation.Append("$scriptContent = '$script:WpfDevToolsInstallerTestModeEnabled = $true' + [Environment]::NewLine + $scriptContent; ");
+            }
+        }
+        else
+        {
+            if (!hasParamBlock)
+            {
+                invocation.Append("$scriptContent = '$script:WpfDevToolsInstallerTestModeEnabled = $false' + [Environment]::NewLine + $scriptContent; ");
+            }
+        }
+
+        invocation.Append("try { Set-Content -LiteralPath $tempScriptPath -Value $scriptContent -Encoding UTF8; $global:LASTEXITCODE = 0; & $tempScriptPath");
+
+        foreach (var argument in arguments)
+        {
+            invocation.Append(' ');
+            invocation.Append(FormatPowerShellArgument(argument));
+        }
+
+        if (preserveLastExitCode)
+        {
+            invocation.Append("; $scriptExitCode = if ($global:LASTEXITCODE -is [int]) { $global:LASTEXITCODE } else { 0 }; if ($scriptExitCode -ne 0) { exit $scriptExitCode }; exit 0 } finally { Remove-Item -LiteralPath $tempScriptPath -Force -ErrorAction SilentlyContinue }");
+        }
+        else
+        {
+            invocation.Append("; exit 0 } finally { Remove-Item -LiteralPath $tempScriptPath -Force -ErrorAction SilentlyContinue }");
+        }
+
+        return invocation.ToString();
+    }
+
+    private static bool ShouldPreserveLastExitCode(string scriptPath)
+        => true;
+
+    private static bool HasPowerShellParamBlock(string scriptContent)
+        => Regex.IsMatch(
+            scriptContent,
+            @"(?is)^\s*(?:(?:#.*?(?:\r?\n|$))\s*|(?:<#.*?#>\s*)|(?:\[CmdletBinding(?:\([^\]]*\))?\]\s*))*param\s*\(",
+            RegexOptions.CultureInvariant);
+
+    private static string QuotePowerShellString(string value)
+    {
+        return "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
+    }
+
+    private static string FormatPowerShellArgument(string value)
+    {
+        return value.Length > 0 &&
+            value[0] == '-' &&
+            value.Length > 1 &&
+            value.Skip(1).All(static character => char.IsLetterOrDigit(character) || character is '_' or '-')
+            ? value
+            : QuotePowerShellString(value);
     }
 
     public static (int ExitCode, string Stdout, string Stderr) RunPowerShellCommand(
@@ -228,7 +328,6 @@ internal static class ReleasePackagingTestHarness
         startInfo.ArgumentList.Add("-ExecutionPolicy");
         startInfo.ArgumentList.Add("Bypass");
         startInfo.ArgumentList.Add("-Command");
-        startInfo.ArgumentList.Add(command);
 
         if (environmentOverrides is not null)
         {
@@ -250,6 +349,11 @@ internal static class ReleasePackagingTestHarness
         {
             startInfo.Environment["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = "1";
         }
+
+        var commandText = string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal)
+            ? "$script:WpfDevToolsInstallerTestModeHarnessEnabled = $true; $script:WpfDevToolsInstallerTestModeEnabled = $true; " + command
+            : command;
+        startInfo.ArgumentList.Add(commandText);
 
         try
         {
@@ -451,10 +555,14 @@ internal static class ReleasePackagingTestHarness
                     : timeoutMessage + " Cleanup failed: " + cleanupFailure);
         }
 
-        return (
-            process.ExitCode,
-            stdoutTask.GetAwaiter().GetResult(),
-            stderrTask.GetAwaiter().GetResult());
+        var stdout = stdoutTask.GetAwaiter().GetResult();
+        var stderr = stderrTask.GetAwaiter().GetResult();
+        if (process.ExitCode != 0 && string.IsNullOrWhiteSpace(stderr) && !string.IsNullOrWhiteSpace(stdout))
+        {
+            stderr = stdout;
+        }
+
+        return (process.ExitCode, stdout, stderr);
     }
 
     private static void TryKillProcessTree(Process process)

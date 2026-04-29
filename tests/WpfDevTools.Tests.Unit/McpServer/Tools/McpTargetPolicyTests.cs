@@ -9,14 +9,16 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 public sealed class McpTargetPolicyTests
 {
     [Fact]
-    public void Authorize_WhenNoTargetAllowlistIsConfigured_ShouldAllowCurrentConnectBehavior()
+    public void Authorize_WhenNoTargetAllowlistIsConfigured_ShouldFailClosed()
     {
         var authorization = McpTargetPolicy.Authorize(
             CreateProcessInfo(@"C:\Allowed\Target.exe"),
             configuredAllowedTargets: null,
             path => Path.GetFullPath(path));
 
-        authorization.IsAllowed.Should().BeTrue();
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("target allowlist is not configured");
+        authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
     }
 
     [Fact]

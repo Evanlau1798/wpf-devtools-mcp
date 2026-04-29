@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Security.Cryptography;
 using FluentAssertions;
 using System.Text.Json;
@@ -57,7 +57,8 @@ public class BootstrapInjectionTests : IDisposable
         using var sessionManager = new SessionManager();
         var injector = new ProcessInjector();
         var detector = new WpfProcessDetector();
-        var connectTool = new ConnectTool(sessionManager, injector, detector, isRawInjectionTargetAllowed: _ => true);
+        var connectTool = new ConnectTool(sessionManager, injector, detector, isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
         var pingTool = new PingTool(sessionManager);
 
         var connectArgs = JsonSerializer.Deserialize<JsonElement>(
@@ -113,7 +114,8 @@ public class BootstrapInjectionTests : IDisposable
                 certManager: new CertificateManager(certDirectory));
             var injector = new ProcessInjector();
             var detector = new WpfProcessDetector();
-            var connectTool = new ConnectTool(sessionManager, injector, detector, isRawInjectionTargetAllowed: _ => true);
+            var connectTool = new ConnectTool(sessionManager, injector, detector, isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
             var pingTool = new PingTool(sessionManager);
 
             var connectArgs = JsonSerializer.Deserialize<JsonElement>(
@@ -227,7 +229,8 @@ public class BootstrapInjectionTests : IDisposable
 
         // Use FakeProcessDetector to avoid starting a real TestApp
         var connectTool = new ConnectTool(
-            sessionManager, faultInjector, new FakeProcessDetector(), isRawInjectionTargetAllowed: _ => true);
+            sessionManager, faultInjector, new FakeProcessDetector(), isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
 
         var args = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(new { processId = 12345 }));
@@ -290,6 +293,7 @@ public class BootstrapInjectionTests : IDisposable
             bootstrapperCandidateResolver: null,
             pipeReadyProbe: null,
             isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null),
             connectInjectedSessionAsync: null,
             connectTimeout: connectTimeout);
     }

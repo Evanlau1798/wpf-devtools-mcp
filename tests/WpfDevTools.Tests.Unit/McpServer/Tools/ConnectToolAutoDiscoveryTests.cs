@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Injector;
@@ -256,7 +256,8 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
             () => false,
                 workingSetResolver,
             pipeReadyProbe: new PipeReadyProbe((_, _) => false, () => DateTime.UtcNow, _ => { }),
-                isRawInjectionTargetAllowed: _ => true);
+                isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
     }
 
     private SessionManager TrackSessionManager(SessionManager sessionManager)

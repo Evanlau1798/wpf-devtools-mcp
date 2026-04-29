@@ -47,7 +47,16 @@ public abstract partial class PipeConnectedToolBase
 
         if (arguments.HasValue)
         {
-            processId = ParameterParser.ParseIntParam(arguments, "processId");
+            if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+                arguments,
+                "processId",
+                1,
+                int.MaxValue,
+                out processId,
+                out var processIdError))
+            {
+                return (-1, null, processIdError);
+            }
 
             if (arguments.Value.TryGetProperty("elementId", out var eidProp))
             {

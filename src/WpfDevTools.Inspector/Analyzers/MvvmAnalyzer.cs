@@ -23,11 +23,10 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
     private readonly ElementFinder _elementFinder;
 
     // Security: Regex pattern to detect sensitive property names
-    // Matches common sensitive property patterns with word boundaries to avoid false positives
+    // Matches common sensitive property tokens, including PascalCase/camelCase compounds.
     // Examples: Password, UserPassword, ApiToken, SecretKey, ConnectionString
-    // Non-matches: PasswordStrength, TokenCount (legitimate properties)
     private static readonly Regex SensitivePropertyPattern = new Regex(
-        @"\b(password|pwd|secret|token|key|credential|auth|session|cookie|api[-_]?key|connection[-_]?string)\b",
+        @"password|pwd|secret|token|key|credential|auth|session|cookie|api[-_]?key|connection[-_]?string",
         RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
 
     /// <summary>

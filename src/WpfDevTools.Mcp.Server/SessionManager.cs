@@ -298,27 +298,11 @@ public sealed partial class SessionManager : IDisposable
 
         EnsureSessionSlotAvailable(processId);
 
-        NamedPipeClient? detachedPipeClient = null;
-        try
-        {
-            detachedPipeClient = CreateDetachedPipeClient(processId);
-            var connected = await detachedPipeClient.ConnectAsync(
-                timeout,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!connected)
-            {
-                return detachedPipeClient.LastConnectFailure;
-            }
-
-            AttachSession(processId, detachedPipeClient);
-            detachedPipeClient = null;
-            SetActiveProcess(processId);
-            return NamedPipeConnectFailure.None;
-        }
-        finally
-        {
-            detachedPipeClient?.Dispose();
-        }
+        return await ConnectAndAttachSessionAsync(
+            processId,
+            timeout,
+            cancellationToken,
+            () => CreateDetachedPipeClient(processId)).ConfigureAwait(false);
     }
 
     internal async Task<NamedPipeConnectFailure> ConnectExistingHostSessionAsync(
@@ -373,12 +357,25 @@ public sealed partial class SessionManager : IDisposable
     {
         ThrowIfDisposed();
 
+        return await ConnectAndAttachSessionAsync(
+            processId,
+            timeout,
+            cancellationToken,
+            () => authenticationMode == ExistingHostAuthenticationMode.ProcessScoped
+                ? CreateProcessScopedPipeClient(processId)
+                : CreateRootAuthenticatedPipeClient(processId)).ConfigureAwait(false);
+    }
+
+    private async Task<NamedPipeConnectFailure> ConnectAndAttachSessionAsync(
+        int processId,
+        TimeSpan timeout,
+        CancellationToken cancellationToken,
+        Func<NamedPipeClient> pipeClientFactory)
+    {
         NamedPipeClient? detachedPipeClient = null;
         try
         {
-            detachedPipeClient = authenticationMode == ExistingHostAuthenticationMode.ProcessScoped
-                ? CreateProcessScopedPipeClient(processId)
-                : CreateRootAuthenticatedPipeClient(processId);
+            detachedPipeClient = pipeClientFactory();
             var connected = await detachedPipeClient.ConnectAsync(
                 timeout,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -387,6 +384,7 @@ public sealed partial class SessionManager : IDisposable
                 return detachedPipeClient.LastConnectFailure;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             AttachSession(processId, detachedPipeClient);
             detachedPipeClient = null;
             SetActiveProcess(processId);

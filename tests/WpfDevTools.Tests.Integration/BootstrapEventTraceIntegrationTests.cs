@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using FluentAssertions;
@@ -36,7 +36,8 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 
         _testApp = StartTestApp();
         using var sessionManager = new SessionManager();
-        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(), isRawInjectionTargetAllowed: _ => true);
+        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(), isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
         var getLogicalTreeTool = new GetLogicalTreeTool(sessionManager);
         var getNamescopeTool = new GenericPipeTool(sessionManager, "get_namescope");
         var getInteractionReadinessTool = new GetInteractionReadinessTool(sessionManager);
@@ -106,7 +107,8 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 
         _testApp = StartTestApp();
         using var sessionManager = new SessionManager();
-        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(), isRawInjectionTargetAllowed: _ => true);
+        var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(), isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
         var getNamescopeTool = new GenericPipeTool(sessionManager, "get_namescope");
         var getInteractionReadinessTool = new GetInteractionReadinessTool(sessionManager);
         var clickTool = new ClickElementTool(sessionManager);

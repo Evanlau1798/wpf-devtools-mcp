@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Injector;
@@ -27,7 +27,8 @@ public class ConnectToolLoggingTests : IDisposable
             new SuccessfulProcessInjector(),
             new FakeProcessDetector(),
             _ => { },
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
         using var listener = new CapturingTraceListener();
 

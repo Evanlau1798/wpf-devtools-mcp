@@ -20,8 +20,28 @@ public sealed class GetUiSummaryTool(SessionManager sessionManager) : PipeConnec
         }
 
         var elementId = ParameterParser.ParseStringParam(arguments, "elementId");
-        var depth = ParameterParser.ParseIntParam(arguments, "depth");
-        var depthMode = ParameterParser.ParseStringParam(arguments, "depthMode");
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "depth",
+            0,
+            TreeRequestOptions.MaxDepthLimit,
+            out var depth,
+            out var depthError))
+        {
+            return depthError!;
+        }
+
+        if (!BoundaryParameterValidator.TryGetOptionalStringEnum(
+            arguments,
+            "depthMode",
+            "semantic",
+            ["semantic", "visual"],
+            out var depthMode,
+            out var depthModeError))
+        {
+            return depthModeError!;
+        }
+
         var summaryOnly = ParameterParser.ParseBoolParam(arguments, "summaryOnly");
 
         return await SendInspectorRequestAsync(

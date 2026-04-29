@@ -24,7 +24,17 @@ public sealed class SelectActiveProcessTool
     /// </summary>
     public Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var processId = ParameterParser.ParseIntParam(arguments, "processId");
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "processId",
+            1,
+            int.MaxValue,
+            out var processId,
+            out var processIdError))
+        {
+            return Task.FromResult(processIdError!);
+        }
+
         if (!processId.HasValue)
         {
             return Task.FromResult<object>(new ToolErrorPayload

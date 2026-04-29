@@ -343,11 +343,22 @@ function Get-JsonConfigRegisteredExecutable {
         [AllowEmptyString()] [string]$ConfigPath
     )
 
-    if ([string]::IsNullOrWhiteSpace($ConfigPath) -or -not (Test-Path $ConfigPath)) {
+    if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
         return $null
     }
 
-    $root = Get-ExistingConfigMap -Path $ConfigPath
+    try {
+        $resolvedConfigPath = Assert-InstallerLocalPathTrusted -Path $ConfigPath
+    }
+    catch {
+        return $null
+    }
+
+    if (-not (Test-Path -LiteralPath $resolvedConfigPath)) {
+        return $null
+    }
+
+    $root = Get-ExistingConfigMap -Path $resolvedConfigPath
     $servers = Get-ConfigCollectionMap -Root $root -CollectionName $CollectionName
     if (-not $servers.Contains('wpf-devtools')) {
         return $null
@@ -444,11 +455,19 @@ function Get-StandaloneDetectedInstallerInstallations {
             continue
         }
 
-        $key = "{0}|{1}" -f ([string]$registration.InstallRoot).ToLowerInvariant(), ([string]$registration.Architecture).ToLowerInvariant()
+        try {
+            $trustedInstallRoot = Assert-InstallerLocalPathTrusted -Path ([string]$registration.InstallRoot)
+            $trustedInstallBase = Assert-InstallerLocalPathTrusted -Path (Resolve-InstallBasePath -ResolvedInstallRoot $trustedInstallRoot -ResolvedArchitecture ([string]$registration.Architecture))
+        }
+        catch {
+            continue
+        }
+
+        $key = "{0}|{1}" -f $trustedInstallRoot.ToLowerInvariant(), ([string]$registration.Architecture).ToLowerInvariant()
         $installations[$key] = [ordered]@{
-            InstallRoot = [string]$registration.InstallRoot
+            InstallRoot = $trustedInstallRoot
             Architecture = [string]$registration.Architecture
-            InstallBase = Resolve-InstallBasePath -ResolvedInstallRoot ([string]$registration.InstallRoot) -ResolvedArchitecture ([string]$registration.Architecture)
+            InstallBase = $trustedInstallBase
             InstalledExecutable = [string]$registration.InstalledExecutable
             ResolvedVersion = [string]$registration.ResolvedVersion
             InstallerOwned = $true
@@ -528,10 +547,29 @@ function Invoke-StandaloneFullUninstall {
     }
 
     foreach ($installation in $removedInstallations) {
-        if (Test-Path ([string]$installation.InstallBase)) {
+        $trustedInstallBase = $null
+        try {
+            $trustedInstallBase = Assert-InstallerLocalPathTrusted -Path ([string]$installation.InstallBase)
+        }
+        catch {
+            $trustedInstallBase = $null
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($trustedInstallBase) -and (Test-Path -LiteralPath $trustedInstallBase)) {
             $verificationFailures += "Installation root still exists: $([string]$installation.InstallBase)"
         }
-        if (-not [string]::IsNullOrWhiteSpace([string]$installation.InstalledExecutable) -and (Test-Path ([string]$installation.InstalledExecutable))) {
+
+        $trustedInstalledExecutable = $null
+        if (-not [string]::IsNullOrWhiteSpace([string]$installation.InstalledExecutable)) {
+            try {
+                $trustedInstalledExecutable = Assert-InstallerLocalPathTrusted -Path ([string]$installation.InstalledExecutable)
+            }
+            catch {
+                $trustedInstalledExecutable = $null
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and (Test-Path -LiteralPath $trustedInstalledExecutable)) {
             $verificationFailures += "Executable still exists: $([string]$installation.InstalledExecutable)"
         }
     }

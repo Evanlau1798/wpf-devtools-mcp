@@ -56,7 +56,7 @@ public static class BindingMcpTools
             ("includeFramework", includeFramework));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetBindingMismatchesTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GetBindingMismatchesTool>(sessionManager, 
                 "GetBindingMismatchesTool",
                 () => new GetBindingMismatchesTool(sessionManager)).ExecuteAsync(a, ct),
             args,
@@ -97,7 +97,7 @@ public static class BindingMcpTools
             ("statusFilter", statusFilter));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetBindingsTool>("GetBindingsTool", () => new GetBindingsTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetBindingsTool>(sessionManager, "GetBindingsTool", () => new GetBindingsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -149,7 +149,7 @@ public static class BindingMcpTools
             ("recursive", recursive));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetAffectedElementsTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GetAffectedElementsTool>(sessionManager, 
                 nameof(GetAffectedElementsTool),
                 () => new GetAffectedElementsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
@@ -194,7 +194,7 @@ public static class BindingMcpTools
             ("navigation", navigation));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetBindingErrorsTool>("GetBindingErrorsTool", () => new GetBindingErrorsTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetBindingErrorsTool>(sessionManager, "GetBindingErrorsTool", () => new GetBindingErrorsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             toolName: "get_binding_errors");
@@ -238,7 +238,7 @@ public static class BindingMcpTools
             ("propertyName", propertyName));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, 
                 "get_binding_value_chain",
                 () => new GenericPipeTool(sessionManager, "get_binding_value_chain", GenericPipeTool.ExtractElementAndPropertyParams)
             ).ExecuteAsync(a, ct),
@@ -277,7 +277,7 @@ public static class BindingMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetDataContextChainTool>("GetDataContextChainTool", () => new GetDataContextChainTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetDataContextChainTool>(sessionManager, "GetDataContextChainTool", () => new GetDataContextChainTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -317,7 +317,7 @@ public static class BindingMcpTools
             ("direction", direction));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, 
                 "force_binding_update",
                 () => new GenericPipeTool(sessionManager, "force_binding_update", GenericPipeTool.ExtractElementAndPropertyParams)
             ).ExecuteAsync(a, ct),

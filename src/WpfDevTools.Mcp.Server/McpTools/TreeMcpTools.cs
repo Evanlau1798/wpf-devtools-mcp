@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
@@ -42,10 +43,13 @@ public static class TreeMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional starting element ID from get_visual_tree or get_logical_tree. Omit for the root window.")] string? elementId = null,
+        [Range(0, TreeRequestOptions.MaxDepthLimit)]
         [Description("Optional maximum traversal depth. Use 2-4 for initial exploration.")] int? depth = null,
         [Description("Set true to omit null names and empty children arrays for smaller responses.")] bool compact = false,
         [Description("Set true to return a flat summary table instead of a nested tree for token-efficient browsing.")] bool summaryOnly = false,
+        [Range(1, TreeRequestOptions.MaxNodesLimit)]
         [Description("Optional hard cap for the number of returned nodes. Defaults to 1000 when omitted.")] int? maxNodes = null,
+        [Range(1, TreeRequestOptions.MaxChildrenPerNodeLimit)]
         [Description("Optional per-node child cap. Defaults to 200; extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
         CancellationToken cancellationToken = default)
     {
@@ -59,7 +63,7 @@ public static class TreeMcpTools
             ("maxChildrenPerNode", maxChildrenPerNode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetVisualTreeTool>("GetVisualTreeTool", () => new GetVisualTreeTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetVisualTreeTool>(sessionManager, "GetVisualTreeTool", () => new GetVisualTreeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -91,10 +95,13 @@ public static class TreeMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional starting element ID from get_logical_tree or get_visual_tree. Omit for the root window.")] string? elementId = null,
+        [Range(0, TreeRequestOptions.MaxDepthLimit)]
         [Description("Optional maximum traversal depth for the logical tree walk.")] int? depth = null,
         [Description("Set true to omit null names and empty children arrays for smaller responses.")] bool compact = false,
         [Description("Set true to return a flat summary table instead of a nested tree for token-efficient browsing.")] bool summaryOnly = false,
+        [Range(1, TreeRequestOptions.MaxNodesLimit)]
         [Description("Optional hard cap for the number of returned nodes. Defaults to 1000 when omitted.")] int? maxNodes = null,
+        [Range(1, TreeRequestOptions.MaxChildrenPerNodeLimit)]
         [Description("Optional per-node child cap. Defaults to 200; extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
         CancellationToken cancellationToken = default)
     {
@@ -108,7 +115,7 @@ public static class TreeMcpTools
             ("maxChildrenPerNode", maxChildrenPerNode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetLogicalTreeTool>("GetLogicalTreeTool", () => new GetLogicalTreeTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetLogicalTreeTool>(sessionManager, "GetLogicalTreeTool", () => new GetLogicalTreeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -142,7 +149,7 @@ public static class TreeMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("serialize_to_xaml", () => new GenericPipeTool(sessionManager, "serialize_to_xaml")).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, "serialize_to_xaml", () => new GenericPipeTool(sessionManager, "serialize_to_xaml")).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -176,7 +183,7 @@ public static class TreeMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("get_namescope", () => new GenericPipeTool(sessionManager, "get_namescope")).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, "get_namescope", () => new GenericPipeTool(sessionManager, "get_namescope")).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -216,7 +223,7 @@ public static class TreeMcpTools
             ("depth", depth));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GetTemplateTreeTool>("GetTemplateTreeTool", () => new GetTemplateTreeTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GetTemplateTreeTool>(sessionManager, "GetTemplateTreeTool", () => new GetTemplateTreeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -254,7 +261,7 @@ public static class TreeMcpTools
             ("processId", processId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("get_windows", () => new GenericPipeTool(sessionManager, "get_windows")).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, "get_windows", () => new GenericPipeTool(sessionManager, "get_windows")).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -315,7 +322,7 @@ public static class TreeMcpTools
             ("matchMode", matchMode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<FindElementsTool>("FindElementsTool", () => new FindElementsTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<FindElementsTool>(sessionManager, "FindElementsTool", () => new FindElementsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }
@@ -351,7 +358,7 @@ public static class TreeMcpTools
             ("elementId", elementId));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>("compare_trees", () => new GenericPipeTool(sessionManager, "compare_trees")).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, "compare_trees", () => new GenericPipeTool(sessionManager, "compare_trees")).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

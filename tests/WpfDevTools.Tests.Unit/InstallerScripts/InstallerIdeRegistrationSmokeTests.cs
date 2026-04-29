@@ -56,7 +56,7 @@ public sealed class InstallerIdeRegistrationShimBackedTests
                 installArguments,
                 environment);
 
-            installResult.ExitCode.Should().Be(0, installResult.Stderr);
+            installResult.ExitCode.Should().Be(0, installResult.Stderr + installResult.Stdout);
             using (var installJson = JsonDocument.Parse(installResult.Stdout))
             {
                 installJson.RootElement.GetProperty("verificationMessage").GetString().Should().NotBeNullOrWhiteSpace();
@@ -80,7 +80,7 @@ public sealed class InstallerIdeRegistrationShimBackedTests
                 uninstallArguments,
                 environment);
 
-            uninstallResult.ExitCode.Should().Be(0, uninstallResult.Stderr);
+            uninstallResult.ExitCode.Should().Be(0, uninstallResult.Stderr + uninstallResult.Stdout);
             using (var uninstallJson = JsonDocument.Parse(uninstallResult.Stdout))
             {
                 uninstallJson.RootElement.GetProperty("verificationMessage").GetString().Should().NotBeNullOrWhiteSpace();

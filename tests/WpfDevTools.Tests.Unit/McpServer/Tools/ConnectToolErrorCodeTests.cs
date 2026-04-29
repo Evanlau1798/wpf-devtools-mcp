@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
@@ -26,7 +26,8 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
             new FailingProcessInjector(injectionError),
             new FakeProcessDetector(),
             _ => { },
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
@@ -43,12 +44,12 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
     [InlineData(
         InjectionError.Timeout,
         BootstrapStage.ManagedEntrypoint,
-        "The remaining timeout budget was exhausted before the bootstrap export thread could start.")]
+        "Injection timed out before the bootstrap phase could start.")]
     [InlineData(
         InjectionError.PipeReadyTimeout,
         BootstrapStage.PipeReady,
         "Bootstrap completed, but the remaining connect budget was exhausted before the Inspector Named Pipe readiness check could start.")]
-    public async Task Execute_WhenSharedBudgetIsExhaustedBeforePhaseStarts_ShouldPreserveAccurateTimeoutMessage(
+    public async Task Execute_WhenSharedBudgetIsExhaustedBeforePhaseStarts_ShouldReturnSanitizedTimeoutMessage(
         InjectionError injectionError,
         BootstrapStage failedStage,
         string expectedMessage)
@@ -63,7 +64,8 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
                 InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart),
             new FakeProcessDetector(),
             _ => { },
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
@@ -74,21 +76,22 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
     }
 
     [Fact]
-    public async Task Execute_WhenNativeBootstrapMechanismFails_ShouldPreserveSanitizedFailureDetail()
+    public async Task Execute_WhenNativeBootstrapMechanismFails_ShouldReturnGenericSanitizedFailureDetail()
     {
         EnsureDummyBootstrapperExists();
-        const string expectedMessage = "LoadLibraryW failed to load the native bootstrapper DLL into the target process.";
+        const string sensitiveMechanismDetail = "LoadLibraryW failed to load the native bootstrapper DLL into the target process.";
         var tool = new ConnectTool(
             new SessionManager(),
             new FailingProcessInjector(
                 InjectionError.BootstrapFailed,
-                expectedMessage,
+                sensitiveMechanismDetail,
                 BootstrapStage.LoadLibrary,
                 timeoutReason: null,
                 bootstrapExitCode: InjectionMechanismFailure.LoadBootstrapperFailed),
             new FakeProcessDetector(),
             _ => { },
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
@@ -96,7 +99,8 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
         json.GetProperty("success").GetBoolean().Should().BeFalse();
         json.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
         json.GetProperty("stage").GetString().Should().Be("LoadLibrary");
-        json.GetProperty("error").GetString().Should().Be(expectedMessage);
+        json.GetProperty("error").GetString().Should().Be("Bootstrap failed while starting the injected inspector.");
+        json.GetProperty("error").GetString().Should().NotContain("LoadLibraryW");
     }
 
     [Fact]

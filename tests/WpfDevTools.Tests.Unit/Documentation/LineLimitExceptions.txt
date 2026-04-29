@@ -3,6 +3,7 @@
 scripts/installer/Installer.Actions.ps1 | Existing installer helper debt; split after online installer stability window.
 scripts/installer/Installer.Discovery.ps1 | Existing installer helper debt; split after installer behavior characterization.
 scripts/installer/Installer.Registration.ps1 | Existing installer registration debt; split after CLI registration contract stabilization.
+scripts/installer/Installer.State.ps1 | Temporary installer state hardening growth; split after path trust policy stabilization.
 scripts/installer/Installer.Uninstall.ps1 | Existing installer helper debt; split after uninstall behavior characterization.
 scripts/installer/Installer.Verification.ps1 | Existing installer helper debt; split after verification contract stabilization.
 scripts/online-installer.ps1 | Temporary user-requested exception; do not split in this remediation loop.
@@ -13,12 +14,15 @@ src/WpfDevTools.Inspector/Analyzers/MvvmAnalyzer.cs | Existing analyzer debt jus
 src/WpfDevTools.Inspector/Analyzers/StyleAnalyzer.cs | Existing analyzer debt just over limit; split with style trigger characterization.
 src/WpfDevTools.Inspector/Host/Handlers/EventHandlers.cs | Existing host handler debt; split with event handling characterization.
 src/WpfDevTools.Inspector/Host/InspectorHost.cs | Existing inspector host debt; split with IPC/request dispatch characterization.
+src/WpfDevTools.Inspector.Sdk/InspectorSdk.cs | Existing SDK facade debt; split after public SDK contract stabilization.
 src/WpfDevTools.Mcp.Server/McpTools/ToolCallHelper.cs | Existing MCP compatibility helper debt; split after text fallback contract decisions.
 src/WpfDevTools.Mcp.Server/NamedPipeClient.cs | Existing pipe client debt; split with timeout/auth characterization.
 src/WpfDevTools.Mcp.Server/SessionManager.cs | Existing session management debt; split with transport lifecycle characterization.
 src/WpfDevTools.Mcp.Server/Tools/ConnectTool.cs | Existing connect workflow debt; split with process selection/security characterization.
 src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs | Existing security validator debt just over limit; split after validation policy characterization.
+src/WpfDevTools.Mcp.Server/Tools/WaitForDpChangeTool.cs | Temporary timeout generation-guard growth; split wait-after-mutation flow after remediation loop.
 tests/WpfDevTools.Tests.Integration/E2E/InteractionE2eTests.cs | Existing live interaction test debt; split after restoration coverage.
+tests/WpfDevTools.Tests.Integration/E2E/E2eTestHelpers.cs | Existing E2E helper debt; split by process/bootstrap concern after live flow stabilization.
 tests/WpfDevTools.Tests.Integration/TestSupport/ReleasePackagingTestHarness.cs | Existing integration harness debt; split after release harness behavior characterization.
 tests/WpfDevTools.Tests.TestApp/MainWindow.xaml | Existing WPF test app scenario surface; split into focused views after live UI coverage stabilization.
 tests/WpfDevTools.Tests.Unit/Documentation/PublicQuickstartDocumentationTests.cs | Existing documentation contract debt just over limit; split by doc area.
@@ -27,9 +31,12 @@ tests/WpfDevTools.Tests.Unit/Inspector/Handlers/EventHandlerTraceModeTests.cs | 
 tests/WpfDevTools.Tests.Unit/Inspector/InspectorHostConcurrencyTests.cs | Existing host concurrency test debt just over limit; split by concurrency scenario.
 tests/WpfDevTools.Tests.Unit/Inspector/RequestDispatcherErrorPathTests.cs | Existing dispatcher error-path test debt; split by error category.
 tests/WpfDevTools.Tests.Unit/InstallerScripts/InstallerBootstrapTests.cs | Existing installer bootstrap test debt; split by bootstrap concern.
+tests/WpfDevTools.Tests.Unit/InstallerScripts/InstallerPathSafetyTests.cs | Temporary installer hardlink/reparse safety coverage growth; split by path attack class after remediation loop.
 tests/WpfDevTools.Tests.Unit/McpServer/NamedPipeClientProtocolTests.cs | Existing pipe protocol test debt; split by protocol phase.
+tests/WpfDevTools.Tests.Unit/McpServer/ResponseContractResourceTests.cs | Temporary response contract coverage growth; split by resource section after contract stabilization.
 tests/WpfDevTools.Tests.Unit/McpServer/SignaturePolicyTests.cs | Existing signature policy test debt; split by policy decision.
 tests/WpfDevTools.Tests.Unit/McpServer/ToolCallHelperTests.cs | Existing MCP helper test debt; split by helper surface.
+tests/WpfDevTools.Tests.Unit/McpServer/Tools/ConnectToolConcurrencyTests.cs | Temporary connect cancellation/concurrency coverage growth; split by race scenario after remediation loop.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/ConnectToolSessionTests.cs | Existing connect session test debt; split by session scenario.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/ConnectToolTests.cs | Existing connect tool test debt; split by connect workflow branch.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/DrainEventsToolReplayTests.cs | Existing event replay test debt; split by replay retention scenario.

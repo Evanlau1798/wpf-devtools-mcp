@@ -20,12 +20,83 @@ function Resolve-InstallerStateAbsolutePath {
     return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
 }
 
+if (-not (Get-Command Test-InstallerUncOrDevicePath -ErrorAction SilentlyContinue)) {
+    function Test-InstallerUncOrDevicePath {
+        param([Parameter(Mandatory)] [string]$Path)
+
+        return $Path.StartsWith('\\', [System.StringComparison]::Ordinal) -or
+            $Path.StartsWith('\\?\', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $Path.StartsWith('\\.\', [System.StringComparison]::OrdinalIgnoreCase)
+    }
+}
+
+if (-not (Get-Command Assert-InstallerLocalPathTrusted -ErrorAction SilentlyContinue)) {
+    function Assert-InstallerLocalPathTrusted {
+        param(
+            [Parameter(Mandatory)] [string]$Path,
+            [switch]$RejectHardLinks
+        )
+
+        $resolvedPath = Resolve-InstallerStateAbsolutePath -Path $Path
+        if (Test-InstallerUncOrDevicePath -Path $resolvedPath) {
+            throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require a local path."
+        }
+
+        $root = [System.IO.Path]::GetPathRoot($resolvedPath)
+        if ([string]::IsNullOrWhiteSpace($root)) {
+            throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require an absolute local path."
+        }
+
+        try {
+            $drive = [System.IO.DriveInfo]::new($root)
+            if ($drive.DriveType -eq [System.IO.DriveType]::Network) {
+                throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require a local path."
+            }
+        }
+        catch [System.ArgumentException] {
+            throw "Installer path '$resolvedPath' is blocked because elevated installer file operations require a local path."
+        }
+
+        $relativePath = $resolvedPath.Substring($root.Length).Trim('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relativePath)) {
+            return $resolvedPath
+        }
+
+        $currentPath = $root
+        foreach ($segment in $relativePath -split '[\\/]') {
+            if ([string]::IsNullOrWhiteSpace($segment)) {
+                continue
+            }
+
+            $currentPath = Join-Path $currentPath $segment
+            if (-not (Test-Path -LiteralPath $currentPath)) {
+                break
+            }
+
+            $item = Get-Item -LiteralPath $currentPath -Force
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "Installer path '$resolvedPath' is blocked because '$currentPath' is a reparse point."
+            }
+        }
+
+        if ($RejectHardLinks -and (Test-Path -LiteralPath $resolvedPath -PathType Leaf) -and (Get-Command Get-InstallerHardLinkCount -ErrorAction SilentlyContinue)) {
+            $linkCount = Get-InstallerHardLinkCount -Path $resolvedPath
+            if ($linkCount -gt 1) {
+                throw "Installer path '$resolvedPath' is blocked because hardlinked installer write targets are not trusted."
+            }
+        }
+
+        return $resolvedPath
+    }
+}
+
 function Resolve-InstallerStatePath {
     param([switch]$CreateRoot)
 
-    $stateRoot = Resolve-InstallerStateAbsolutePath -Path (Join-Path $env:APPDATA 'WpfDevToolsMcp')
+    $stateRoot = Assert-InstallerLocalPathTrusted -Path (Join-Path $env:APPDATA 'WpfDevToolsMcp')
     if ($CreateRoot) {
         New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
+        Assert-InstallerLocalPathTrusted -Path $stateRoot | Out-Null
     }
 
     return (Join-Path $stateRoot 'installer-state.json')
@@ -42,14 +113,17 @@ function Get-EmptyInstallerState {
 function Move-CorruptInstallerStateFile {
     param([Parameter(Mandatory)] [string]$StatePath)
 
-    if (-not (Test-Path $StatePath)) {
+    $resolvedStatePath = Assert-InstallerLocalPathTrusted -Path $StatePath
+    if (-not (Test-Path -LiteralPath $resolvedStatePath)) {
         return $null
     }
 
     $timestamp = [DateTime]::UtcNow.ToString('yyyyMMddHHmmssfff')
-    $corruptPath = "$StatePath.corrupt-$timestamp"
+    $corruptPath = Assert-InstallerLocalPathTrusted -Path "$resolvedStatePath.corrupt-$timestamp"
     try {
-        Move-Item -Path $StatePath -Destination $corruptPath -Force
+        Assert-InstallerLocalPathTrusted -Path $resolvedStatePath | Out-Null
+        Assert-InstallerLocalPathTrusted -Path $corruptPath | Out-Null
+        Move-Item -LiteralPath $resolvedStatePath -Destination $corruptPath -Force
         return $corruptPath
     }
     catch {
@@ -61,11 +135,11 @@ function Get-InstallerState {
     $statePath = Resolve-InstallerStatePath
     $state = Get-EmptyInstallerState
 
-    if (-not (Test-Path $statePath)) {
+    if (-not (Test-Path -LiteralPath $statePath)) {
         return $state
     }
 
-    $raw = Get-Content -Path $statePath -Raw
+    $raw = Get-Content -LiteralPath $statePath -Raw
     if ([string]::IsNullOrWhiteSpace($raw)) {
         return $state
     }
@@ -113,12 +187,16 @@ function Save-InstallerState {
     $statePath = Resolve-InstallerStatePath -CreateRoot
     $tempStatePath = "$statePath.tmp-$([guid]::NewGuid().ToString('N'))"
     try {
+        Assert-InstallerLocalPathTrusted -Path $tempStatePath | Out-Null
         Write-InstallerUtf8NoBomFile -Path $tempStatePath -Content ($State | ConvertTo-Json -Depth 10)
-        Move-Item -Path $tempStatePath -Destination $statePath -Force
+        Assert-InstallerLocalPathTrusted -Path $tempStatePath | Out-Null
+        Assert-InstallerLocalPathTrusted -Path $statePath -RejectHardLinks | Out-Null
+        Move-Item -LiteralPath $tempStatePath -Destination $statePath -Force
     }
     finally {
-        if (Test-Path $tempStatePath) {
-            Remove-Item -Path $tempStatePath -Force
+        if (Test-Path -LiteralPath $tempStatePath) {
+            Assert-InstallerLocalPathTrusted -Path $tempStatePath | Out-Null
+            Remove-Item -LiteralPath $tempStatePath -Force
         }
     }
     return $statePath
@@ -186,16 +264,27 @@ function Resolve-InstallerOwnershipFromExecutable {
         ResolvedVersion = $null
     }
 
-    if ([string]::IsNullOrWhiteSpace($InstalledExecutable) -or -not (Test-Path $InstalledExecutable)) {
+    if ([string]::IsNullOrWhiteSpace($InstalledExecutable)) {
         return $result
     }
 
-    $architectureMatch = [regex]::Match($InstalledExecutable, 'wpf-devtools-(x64|x86|arm64)\.exe', 'IgnoreCase')
+    try {
+        $trustedInstalledExecutable = Assert-InstallerLocalPathTrusted -Path $InstalledExecutable
+    }
+    catch {
+        return $result
+    }
+
+    if (-not (Test-Path -LiteralPath $trustedInstalledExecutable)) {
+        return $result
+    }
+
+    $architectureMatch = [regex]::Match($trustedInstalledExecutable, 'wpf-devtools-(x64|x86|arm64)\.exe', 'IgnoreCase')
     if ($architectureMatch.Success) {
         $result.Architecture = [string]$architectureMatch.Groups[1].Value.ToLowerInvariant()
     }
 
-    $binDirectory = Split-Path -Parent $InstalledExecutable
+    $binDirectory = Split-Path -Parent $trustedInstalledExecutable
     if ([string]::IsNullOrWhiteSpace($binDirectory)) {
         return $result
     }
@@ -210,15 +299,21 @@ function Resolve-InstallerOwnershipFromExecutable {
         return $result
     }
 
-    $manifestPath = Join-Path $installBase 'install-manifest.json'
-    if (-not (Test-Path $manifestPath)) {
+    try {
+        $manifestPath = Assert-InstallerLocalPathTrusted -Path (Join-Path $installBase 'install-manifest.json')
+    }
+    catch {
+        return $result
+    }
+
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
         return $result
     }
 
     try {
-        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
         $manifestExecutable = [string]$manifest.executable
-        if (-not [string]::IsNullOrWhiteSpace($manifestExecutable) -and (Test-InstallerPathEqualsCore -Left $manifestExecutable -Right $InstalledExecutable)) {
+        if (-not [string]::IsNullOrWhiteSpace($manifestExecutable) -and (Test-InstallerPathEqualsCore -Left $manifestExecutable -Right $trustedInstalledExecutable)) {
             $result.InstallerOwned = $true
             $result.InstallBase = $installBase
             $result.InstallRoot = [string]$manifest.installRoot
@@ -281,14 +376,20 @@ function Get-LiveInstallerManifestEvidence {
         return $null
     }
 
-    $installBase = Join-Path $InstallRoot $Architecture
-    $manifestPath = Join-Path $installBase 'install-manifest.json'
-    if (-not (Test-Path $manifestPath)) {
+    try {
+        $installBase = Assert-InstallerLocalPathTrusted -Path (Join-Path $InstallRoot $Architecture)
+        $manifestPath = Assert-InstallerLocalPathTrusted -Path (Join-Path $installBase 'install-manifest.json')
+    }
+    catch {
+        return $null
+    }
+
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
         return $null
     }
 
     try {
-        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     }
     catch {
         return $null

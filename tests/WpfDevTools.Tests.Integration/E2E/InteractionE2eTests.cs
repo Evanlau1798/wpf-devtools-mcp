@@ -40,16 +40,14 @@ public sealed partial class InteractionE2eTests : SharedStateMcpE2eTestBase
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("rendered").GetBoolean().Should().BeTrue();
-        result.TryGetProperty("base64Image", out var image).Should().BeTrue(
-            "screenshot should include base64-encoded PNG data");
-        image.GetString().Should().NotBeNullOrEmpty();
+        var dimensions = E2eTestHelpers.AssertBase64ScreenshotMatchesReportedMetadata(result);
 
         if (result.TryGetProperty("width", out var width) &&
             result.TryGetProperty("height", out var height))
         {
             width.GetInt32().Should().BeGreaterThan(0);
             height.GetInt32().Should().BeGreaterThan(0);
-            _output.WriteLine($"Screenshot size: {width.GetInt32()}x{height.GetInt32()}");
+            _output.WriteLine($"Screenshot size: {dimensions.Width}x{dimensions.Height}");
         }
     }
 

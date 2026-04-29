@@ -8,6 +8,8 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public sealed partial class TraceRoutedEventsTool : PipeConnectedToolBase
 {
+    internal const int MaxDurationMs = 60000;
+
     private static readonly TimeSpan CleanupFailedFollowUpGracePeriod = TimeSpan.FromMinutes(2);
 
     private enum TraceNavigationSyncResult
@@ -34,19 +36,28 @@ public sealed partial class TraceRoutedEventsTool : PipeConnectedToolBase
         }
 
         var eventName = ParseStringParam(arguments, "eventName");
-        var duration = ParseIntParam(arguments, "duration");
-        var maxEvents = ParseIntParam(arguments, "maxEvents");
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "duration",
+            0,
+            MaxDurationMs,
+            out var duration,
+            out var durationError))
+        {
+            return durationError!;
+        }
+
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "maxEvents",
+            1,
+            int.MaxValue,
+            out var maxEvents,
+            out var maxEventsError))
+        {
+            return maxEventsError!;
+        }
         var allowShortStartDuration = ParseBoolParam(arguments, "allowShortStartDuration") ?? false;
-
-        if (duration is < 0)
-        {
-            return CreateInvalidParamError("duration must be non-negative");
-        }
-
-        if (maxEvents is <= 0)
-        {
-            return CreateInvalidParamError("maxEvents must be a positive integer when provided");
-        }
 
         if (mode != "get" && string.IsNullOrEmpty(eventName))
         {

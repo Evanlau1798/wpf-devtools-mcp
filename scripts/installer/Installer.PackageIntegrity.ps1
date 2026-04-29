@@ -203,7 +203,7 @@ function Resolve-PackageExecutable {
 }
 
 function Test-InstallerTestModeEnabled {
-    return [string]::Equals([string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE, '1', [System.StringComparison]::Ordinal)
+    return [bool]$script:WpfDevToolsInstallerTestModeEnabled
 }
 
 function Test-AllowLocalArchiveReleaseMetadataInTestMode {
@@ -236,7 +236,7 @@ function Get-ExplicitTrustedReleaseMetadataDirectory {
         throw 'TrustedReleaseMetadataDirectory must not be empty when specified.'
     }
 
-    $resolvedDirectory = Resolve-AbsolutePath -Path $trustedDirectory
+    $resolvedDirectory = Assert-InstallerLocalPathTrusted -Path $trustedDirectory
     if (-not (Test-Path -LiteralPath $resolvedDirectory -PathType Container)) {
         throw "TrustedReleaseMetadataDirectory was not found: $resolvedDirectory"
     }

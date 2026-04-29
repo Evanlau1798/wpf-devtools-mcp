@@ -134,11 +134,11 @@ public static class ServerInstructions
         - Remember: all destructive changes are runtime-only and NOT persisted to XAML
 
         === SERVER-SIDE POLICY GATES ===
-        - Operators can restrict all connect() targets with WPFDEVTOOLS_MCP_ALLOWED_TARGETS, a semicolon-separated exact absolute executable path allowlist that applies before SDK-hosted reuse or raw injection; malformed configured entries fail closed
-        - WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=false blocks runtime mutation, interaction, and render-measurement tools before they reach the target process
-        - WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=false blocks element_screenshot at the MCP boundary
-        - WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=false blocks get_viewmodel, get_commands, and modify_viewmodel
-        - Disabled gates return errorCode: SecurityError; invalid boolean gate values return errorCode: InvalidPolicyConfiguration
+        - Operators must configure WPFDEVTOOLS_MCP_ALLOWED_TARGETS with a semicolon-separated exact absolute executable path allowlist before connect(); unset or malformed configured entries fail closed
+        - WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true opts into runtime mutation, interaction, and render-measurement tools before they reach the target process
+        - WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true opts into element_screenshot at the MCP boundary
+        - WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true opts into get_viewmodel, get_commands, modify_viewmodel, and execute_command
+        - Unset or disabled gates return errorCode: SecurityError; invalid boolean gate values return errorCode: InvalidPolicyConfiguration
 
         === DESTRUCTIVE TOOLS (modify running app - changes NOT persisted to XAML) ===
         - set_dp_value, clear_dp_value, override_style_setter: change property/style values

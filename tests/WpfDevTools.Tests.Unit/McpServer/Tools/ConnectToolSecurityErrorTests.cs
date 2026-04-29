@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
@@ -39,7 +39,8 @@ public sealed class ConnectToolSecurityErrorTests
                 }),
                 dllPathValidator: _ => { },
                 isCurrentProcessElevated: () => false,
-                isRawInjectionTargetAllowed: _ => true);
+                isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 4242 }), CancellationToken.None);
             var json = ToJsonElement(result);
@@ -92,7 +93,8 @@ public sealed class ConnectToolSecurityErrorTests
                 isCurrentProcessElevated: () => false,
                 inspectorCandidateResolver: _ => [inspectorPath],
                 bootstrapperCandidateResolver: _ => [bootstrapperPath],
-                isRawInjectionTargetAllowed: _ => true);
+                isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 4242 }), CancellationToken.None);
             var json = ToJsonElement(result);
@@ -187,6 +189,98 @@ public sealed class ConnectToolSecurityErrorTests
     }
 
     [Fact]
+    public async Task Execute_WhenMcpTargetPolicyDeniesProcess_ShouldNotReturnExecutablePath()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var executablePath = Path.Combine(tempDirectory.FullName, "PrivateApp.exe");
+            File.WriteAllText(executablePath, "placeholder");
+            using var sessionManager = new SessionManager();
+            var injector = new RecordingProcessInjector();
+            var tool = new ConnectTool(
+                sessionManager,
+                injector,
+                processDetector: new FixedProcessDetector(new WpfProcessInfo
+                {
+                    ProcessId = 4242,
+                    ProcessName = "PrivateApp",
+                    Architecture = ProcessArchitecture.X64,
+                    Runtime = TargetRuntime.NetCore,
+                    IsWpfApplication = true,
+                    IsElevated = false,
+                    ExecutablePath = executablePath
+                }),
+                dllPathValidator: _ => { },
+                isCurrentProcessElevated: () => false,
+                workingSetResolver: null,
+                inspectorCandidateResolver: null,
+                bootstrapperCandidateResolver: null,
+                pipeReadyProbe: null,
+                isRawInjectionTargetAllowed: null,
+                targetPolicy: _ => new McpTargetAuthorization(
+                    IsAllowed: false,
+                    Error: "Target is blocked by the MCP target allowlist.",
+                    Hint: "Review the target process before allowlisting it."),
+                connectInjectedSessionAsync: null,
+                connectTimeout: null);
+
+            var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 4242 }), CancellationToken.None);
+            var json = ToJsonElement(result);
+
+            json.GetProperty("success").GetBoolean().Should().BeFalse();
+            json.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+            json.GetRawText().Should().NotContain(executablePath.Replace("\\", "\\\\"));
+            json.TryGetProperty("targetExecutablePath", out _).Should().BeFalse();
+            json.GetProperty("targetProcessName").GetString().Should().Be("PrivateApp");
+            injector.InjectWithBootstrapCallCount.Should().Be(0);
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Execute_WhenSharedBudgetFailureHasSensitiveDetail_ShouldSanitizeResponse()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+        var inspectorPath = Path.Combine(tempDirectory.FullName, "WpfDevTools.Inspector.net8.0-windows.dll");
+        var bootstrapperPath = Path.Combine(tempDirectory.FullName, "WpfDevTools.Bootstrapper.x64.dll");
+        File.WriteAllText(inspectorPath, "placeholder");
+        File.WriteAllText(bootstrapperPath, "placeholder");
+
+        try
+        {
+            using var sessionManager = new SessionManager();
+            var injector = new RecordingProcessInjector
+            {
+                Failure = InjectionResult.CreateFailure(
+                    4242,
+                    InjectionError.Timeout,
+                    "Timeout before phase at C:\\Users\\Someone\\secret with pipe WpfDevTools_Private",
+                        failedAtStage: null,
+                        bootstrapExitCode: null,
+                    timeoutReason: InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart)
+            };
+            var tool = CreateTool(sessionManager, injector, inspectorPath, bootstrapperPath, tempDirectory.FullName);
+
+            var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 4242 }), CancellationToken.None);
+            var json = ToJsonElement(result);
+
+            json.GetProperty("success").GetBoolean().Should().BeFalse();
+            json.GetProperty("errorCode").GetString().Should().Be("Timeout");
+            json.GetProperty("error").GetString().Should().Be("Injection timed out before the bootstrap phase could start.");
+            json.GetRawText().Should().NotContain("C:\\\\Users\\\\Someone");
+            json.GetRawText().Should().NotContain("WpfDevTools_Private");
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Execute_WhenDllSignatureVerificationFails_ShouldSurfaceSecurityErrorAtToolBoundary()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
@@ -221,7 +315,8 @@ public sealed class ConnectToolSecurityErrorTests
                 isCurrentProcessElevated: () => false,
                 inspectorCandidateResolver: _ => [inspectorPath],
                 bootstrapperCandidateResolver: _ => [bootstrapperPath],
-                isRawInjectionTargetAllowed: _ => true);
+                isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
             var result = await ToolCallHelper.ExecuteAndWrapAsync(
                 tool.ExecuteAsync,
@@ -267,7 +362,8 @@ public sealed class ConnectToolSecurityErrorTests
             isCurrentProcessElevated: () => false,
             inspectorCandidateResolver: _ => [inspectorPath],
             bootstrapperCandidateResolver: _ => [bootstrapperPath],
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
     }
 
     private sealed class FixedProcessDetector : WpfProcessDetector

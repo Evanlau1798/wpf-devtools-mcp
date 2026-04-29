@@ -32,11 +32,11 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 ### 1.6 MCP tool and target policy gates
 
 - The server evaluates high-risk MCP `tools/call` requests before dispatching them to tool implementations.
-- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to a semicolon-separated list of exact absolute executable paths. This applies before SDK-hosted reuse or raw injection, and malformed configured entries fail closed.
-- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=false` blocks runtime mutation, interaction, and render-measurement tools such as `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `restore_state_snapshot`, and `batch_mutate`.
-- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=false` blocks `element_screenshot` at the MCP boundary.
-- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=false` blocks `get_viewmodel`, `get_commands`, and `modify_viewmodel`.
-- When these boolean gates are unset, the existing local-development tool surface remains available. Invalid boolean values fail closed for the affected category with `errorCode: InvalidPolicyConfiguration`.
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to a semicolon-separated list of exact absolute executable paths. This applies before SDK-hosted reuse or raw injection, and unset or malformed configured entries fail closed.
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` opts into runtime mutation, interaction, and render-measurement tools such as `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `restore_state_snapshot`, and `batch_mutate`.
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command`.
+- When these boolean gates are unset, false, or invalid, the affected category fails closed with `errorCode: InvalidPolicyConfiguration` or `errorCode: ToolBlockedByPolicy`.
 
 ### 2. Named pipe authentication
 
@@ -73,10 +73,10 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 | `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory | Use a shared absolute directory with restricted filesystem permissions when certificate storage must be pinned or shared with SDK mode |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Use when you need deterministic certificate selection |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Explicitly allowlists raw-injection targets | Use a semicolon-separated list of exact absolute executable paths only when SDK-hosted reuse is not feasible |
-| `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Restricts all `connect()` targets | Use a semicolon-separated list of exact absolute executable paths for production-scoped targets; malformed configured entries fail closed |
-| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Enables or disables destructive MCP tools | Set `false` for read-mostly production sessions where runtime mutation, interaction, or render measurement is not allowed |
-| `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Enables or disables screenshot capture | Set `false` when target UI pixels may expose sensitive data |
-| `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Enables or disables ViewModel inspection tools | Set `false` when ViewModel property values may expose sensitive data |
+| `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Restricts all `connect()` targets | Required semicolon-separated exact absolute executable paths; unset or malformed configured entries fail closed |
+| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Enables or disables destructive MCP tools | Set `true` only for sessions where runtime mutation, interaction, or render measurement is allowed |
+| `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Enables or disables screenshot capture | Set `true` only when target UI pixels are allowed to leave the target process |
+| `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Enables or disables ViewModel inspection tools | Set `true` only when ViewModel property values may be inspected or commands executed |
 
 This table lists the security-relevant `WPFDEVTOOLS_*` environment variables for transport, certificate, and raw-injection policy.
 
@@ -89,7 +89,7 @@ This table lists the security-relevant `WPFDEVTOOLS_*` environment variables for
 3. Set `WPFDEVTOOLS_CERT_DIR` to the same absolute directory in both processes when certificate storage must be deterministic or shared with SDK mode.
 4. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT` if certificate identity must be fixed explicitly.
 5. Keep raw injection disabled by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed executable paths.
-6. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` when the server should connect only to reviewed production executables.
+6. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed executable paths the server may connect to.
 7. Disable destructive tools, screenshots, or ViewModel inspection with the `WPFDEVTOOLS_MCP_ALLOW_*` gates when those capabilities are not needed for the session.
 
 ### Secret handling

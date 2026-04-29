@@ -1,10 +1,11 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
 using static WpfDevTools.Tests.Unit.TestHelpers;
@@ -29,7 +30,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
         injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
@@ -63,7 +65,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         using var firstCallCts = new CancellationTokenSource();
         var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), firstCallCts.Token);
@@ -87,6 +90,44 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
     }
 
     [Fact]
+    public async Task ProcessMcpToolsConnect_WhenOriginalCallerCancels_ShouldNotCancelOtherProtocolWaiters()
+    {
+        EnsureDummyBootstrapperExists();
+
+        using var toolCallHelperScope = ToolCallHelper.BeginTestScope();
+        using var sessionManager = new SessionManager();
+        using var injector = new BlockingFailureInjector();
+        var connectTool = new ConnectTool(
+            sessionManager,
+            injector,
+            new FakeProcessDetector(),
+            _ => { },
+            () => false,
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
+        ToolCallHelper.CachedTool<ConnectTool>("ConnectTool", () => connectTool);
+
+        using var firstCallCts = new CancellationTokenSource();
+        var firstCall = ProcessMcpTools.Connect(sessionManager, processId: 12345, cancellationToken: firstCallCts.Token);
+        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+
+        var secondCall = ProcessMcpTools.Connect(sessionManager, processId: 12345, cancellationToken: CancellationToken.None);
+
+        firstCallCts.Cancel();
+
+        Func<Task> cancelledWait = async () => await firstCall;
+        await cancelledWait.Should().ThrowAsync<OperationCanceledException>();
+
+        injector.Release();
+        var secondResult = await secondCall;
+
+        injector.InjectWithBootstrapCallCount.Should().Be(1);
+        secondResult.IsError.Should().BeTrue();
+        secondResult.StructuredContent.Should().NotBeNull();
+        secondResult.StructuredContent!.Value.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+    }
+
+    [Fact]
     public async Task Execute_WhenAllSingleFlightWaitersCancel_ShouldCancelInjectorAndAllowFreshRetry()
     {
         EnsureDummyBootstrapperExists();
@@ -99,7 +140,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         using var firstCallCts = new CancellationTokenSource();
         using var secondCallCts = new CancellationTokenSource();
@@ -146,14 +188,16 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
         var secondTool = new ConnectTool(
             sessionManager,
             injector,
             new FakeProcessDetector(),
             _ => { },
             () => false,
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var firstCall = firstTool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
         injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
@@ -175,6 +219,141 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WithParallelConnectCallsAcrossDifferentSessionManagers_ShouldNotShareSingleFlightOperation()
+    {
+        EnsureDummyBootstrapperExists();
+
+        using var firstSessionManager = new SessionManager();
+        using var secondSessionManager = new SessionManager();
+        using var injector = new BlockingFailureInjector();
+        var firstTool = new ConnectTool(
+            firstSessionManager,
+            injector,
+            new FakeProcessDetector(),
+            _ => { },
+            () => false,
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
+        var secondTool = new ConnectTool(
+            secondSessionManager,
+            injector,
+            new FakeProcessDetector(),
+            _ => { },
+            () => false,
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
+
+        var firstCall = firstTool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+
+        var secondCall = secondTool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+        try
+        {
+            injector.AdditionalCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue(
+                "in-flight connect keys include the SessionManager instance, so separate hosts must not share a single-flight operation");
+        }
+        finally
+        {
+            injector.Release();
+        }
+
+        await Task.WhenAll(firstCall, secondCall);
+
+        injector.InjectWithBootstrapCallCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Execute_WhenSingleFlightOperationCompletes_ShouldRemoveInflightEntryAndAllowFreshOperation()
+    {
+        EnsureDummyBootstrapperExists();
+
+        using var sessionManager = new SessionManager();
+        using var injector = new BlockingFailureInjector();
+        var tool = new ConnectTool(
+            sessionManager,
+            injector,
+            new FakeProcessDetector(),
+            _ => { },
+            () => false,
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
+
+        var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.Release();
+        await firstCall;
+
+        injector.ResetReleaseGate();
+        var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+        try
+        {
+            injector.AdditionalCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue(
+                "completed single-flight operations must be removed from the static in-flight cache");
+        }
+        finally
+        {
+            injector.Release();
+        }
+
+        await secondCall;
+
+        injector.InjectWithBootstrapCallCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Execute_WhenNewCallerArrivesAfterInflightEntryRemovedBeforeCompletion_ShouldStartFreshOperation()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var hookEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var hookCallCount = 0;
+        ConnectTool.BeforeSingleFlightCompletionForTesting = () =>
+        {
+            if (Interlocked.Increment(ref hookCallCount) == 1)
+            {
+                hookEntered.SetResult();
+                return allowCompletion.Task;
+            }
+
+            return Task.CompletedTask;
+        };
+
+        try
+        {
+            using var sessionManager = new SessionManager();
+            using var injector = new BlockingFailureInjector();
+            var tool = new ConnectTool(
+                sessionManager,
+                injector,
+                new FakeProcessDetector(),
+                _ => { },
+                () => false,
+                isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
+
+            var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+            injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+            injector.Release();
+            await hookEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+            var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+            injector.AdditionalCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue(
+                "callers arriving after an operation is closed to new waiters must start a fresh connect instead of joining a stale completion");
+
+            allowCompletion.SetResult();
+            await Task.WhenAll(firstCall, secondCall);
+
+            injector.InjectWithBootstrapCallCount.Should().Be(2);
+        }
+        finally
+        {
+            allowCompletion.TrySetResult();
+            ConnectTool.BeforeSingleFlightCompletionForTesting = null;
+        }
+    }
+
+    [Fact]
     public async Task Execute_WithExplicitAndAutoDiscoveryCallsResolvingSameProcess_ShouldShapeResponsesPerCaller()
     {
         EnsureDummyBootstrapperExists();
@@ -188,7 +367,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new SingleProcessDetector(processId),
             _ => { },
             () => false,
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var explicitCall = tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
         injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
@@ -226,7 +406,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
-            isRawInjectionTargetAllowed: _ => true);
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         using var cancelledCallCts = new CancellationTokenSource();
         var cancelledCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), cancelledCallCts.Token);
@@ -354,6 +535,8 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         }
 
         public void Release() => _release.Set();
+
+        public void ResetReleaseGate() => _release.Reset();
 
         public void Dispose()
         {

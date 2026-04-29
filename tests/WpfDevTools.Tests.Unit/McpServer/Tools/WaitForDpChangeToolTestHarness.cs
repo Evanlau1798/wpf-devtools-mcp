@@ -18,6 +18,87 @@ internal static class WaitForDpChangeToolTestHarness
         return await ConnectedWaitSessionBuilder.CreateAsync(processId, state, BuildResultAsync);
     }
 
+    internal static async Task<(ConnectedWaitSession Session, Task InitialSnapshotResponded)> CreateInitialSnapshotSignalSessionAsync(int processId)
+    {
+        var state = new WaitServerState();
+        var initialSnapshotResponded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = await ConnectedWaitSessionBuilder.CreateAsync(
+            processId,
+            state,
+            BuildResultAsync,
+            onResponse: request =>
+            {
+                if (request.Method == "get_dp_value_source")
+                {
+                    initialSnapshotResponded.TrySetResult();
+                }
+            });
+
+        return (session, initialSnapshotResponded.Task);
+    }
+
+    internal static async Task<(ConnectedWaitSession Session, Task TriggerRequestSeen)> CreateDelayedTriggerSignalSessionAsync(
+        int processId,
+        int mutationDelayMs)
+    {
+        var state = new WaitServerState();
+        var triggerRequestSeen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = await ConnectedWaitSessionBuilder.CreateAsync(
+            processId,
+            state,
+            (request, currentState) => BuildDelayedTriggerResultAsync(request, currentState, mutationDelayMs),
+            onRequest: request =>
+            {
+                if (request.Method == "modify_viewmodel")
+                {
+                    triggerRequestSeen.TrySetResult();
+                }
+            });
+
+        return (session, triggerRequestSeen.Task);
+    }
+
+    internal static async Task<(ConnectedWaitSession Session, Task TriggerRequestSeen, TaskCompletionSource ReleaseTrigger)> CreateBlockedTriggerSignalSessionAsync(
+        int processId)
+    {
+        var state = new WaitServerState();
+        var triggerRequestSeen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseTrigger = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = await ConnectedWaitSessionBuilder.CreateAsync(
+            processId,
+            state,
+            async (request, currentState) =>
+            {
+                switch (request.Method)
+                {
+                    case "get_dp_value_source":
+                        return new
+                        {
+                            success = true,
+                            propertyName = "Text",
+                            baseValueSource = "Local",
+                            currentValue = currentState.CurrentValue,
+                            effectiveValue = currentState.CurrentValue
+                        };
+                    case "modify_viewmodel":
+                        triggerRequestSeen.TrySetResult();
+                        await releaseTrigger.Task.ConfigureAwait(false);
+                        currentState.CurrentValue = ExtractRequestedValue(request.Params);
+                        return new
+                        {
+                            success = true,
+                            propertyName = "Name",
+                            oldValue = "before",
+                            newValue = currentState.CurrentValue
+                        };
+                    default:
+                        return new { success = true };
+                }
+            });
+
+        return (session, triggerRequestSeen.Task, releaseTrigger);
+    }
+
     internal static async Task<ConnectedWaitSession> CreateBoundaryConnectedSessionAsync(int processId)
     {
         var state = new BoundaryWaitServerState();

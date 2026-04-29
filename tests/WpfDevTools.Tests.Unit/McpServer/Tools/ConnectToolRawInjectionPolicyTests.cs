@@ -34,7 +34,8 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
             injector,
             new FakeProcessDetector(executablePath: @"C:\ExternalApps\ThirdParty\TestApp.exe"),
             _ => { },
-            () => false);
+            () => false,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
@@ -65,7 +66,8 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 injector,
                 new FakeProcessDetector(executablePath: executablePath),
                 _ => { },
-                () => false);
+                () => false,
+                targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
             stopwatch.Stop();
@@ -115,7 +117,8 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 injector,
                 new FakeProcessDetector(executablePath: executablePath),
                 _ => { },
-                () => false);
+                () => false,
+                targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
             var startTask = Task.Run(async () =>
@@ -164,7 +167,8 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 injector,
                 new FakeProcessDetector(executablePath: executablePath),
                 _ => { },
-                () => false);
+                () => false,
+                targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 
@@ -200,7 +204,8 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
             injector,
             new FakeProcessDetector(executablePath: executablePath),
             _ => { },
-            () => false);
+            () => false,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 

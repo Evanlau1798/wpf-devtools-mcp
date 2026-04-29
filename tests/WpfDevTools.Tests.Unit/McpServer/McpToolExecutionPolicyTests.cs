@@ -69,6 +69,7 @@ public sealed class McpToolExecutionPolicyTests
     [Theory]
     [InlineData("get_viewmodel")]
     [InlineData("get_commands")]
+    [InlineData("execute_command")]
     [InlineData("modify_viewmodel")]
     public void EvaluateToolCall_WhenViewModelInspectionIsDisabled_ShouldDenyViewModelTool(string toolName)
     {
@@ -86,16 +87,17 @@ public sealed class McpToolExecutionPolicyTests
     }
 
     [Fact]
-    public void EvaluateToolCall_WhenPolicyValuesAreUnset_ShouldAllowCurrentToolSurface()
+    public void EvaluateToolCall_WhenPolicyValuesAreUnset_ShouldFailClosedForHighRiskToolSurface()
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: null,
             allowScreenshots: null,
             allowViewModelInspection: null);
 
-        policy.EvaluateToolCall("click_element").IsAllowed.Should().BeTrue();
-        policy.EvaluateToolCall("element_screenshot").IsAllowed.Should().BeTrue();
-        policy.EvaluateToolCall("get_viewmodel").IsAllowed.Should().BeTrue();
+        policy.EvaluateToolCall("click_element").IsAllowed.Should().BeFalse();
+        policy.EvaluateToolCall("element_screenshot").IsAllowed.Should().BeFalse();
+        policy.EvaluateToolCall("get_viewmodel").IsAllowed.Should().BeFalse();
+        policy.EvaluateToolCall("get_visual_tree").IsAllowed.Should().BeTrue();
     }
 
     [Fact]
@@ -115,8 +117,12 @@ public sealed class McpToolExecutionPolicyTests
 
     [Theory]
     [InlineData("batch_mutate", "{\"mutations\":[{\"tool\":\"modify_viewmodel\",\"args\":{\"propertyName\":\"Name\",\"value\":\"Alice\"}}]}")]
+    [InlineData("batch_mutate", "{\"mutations\":\"[{\\\"tool\\\":\\\"modify_viewmodel\\\",\\\"args\\\":{\\\"propertyName\\\":\\\"Name\\\",\\\"value\\\":\\\"Alice\\\"}}]\"}")]
+    [InlineData("batch_mutate", "{\"captureSnapshot\":\"{\\\"viewModelPropertyNames\\\":[\\\"Name\\\"]}\"}")]
     [InlineData("wait_for_dp_change_after_mutation", "{\"triggerMutation\":{\"tool\":\"modify_viewmodel\",\"args\":{\"propertyName\":\"Name\",\"value\":\"Alice\"}}}")]
+    [InlineData("wait_for_dp_change_after_mutation", "{\"triggerMutation\":\"{\\\"tool\\\":\\\"modify_viewmodel\\\",\\\"args\\\":{\\\"propertyName\\\":\\\"Name\\\",\\\"value\\\":\\\"Alice\\\"}}\"}")]
     [InlineData("capture_state_snapshot", "{\"viewModelPropertyNames\":[\"Name\"]}")]
+    [InlineData("capture_state_snapshot", "{\"viewModelPropertyNames\":\"[\\\"Name\\\"]\"}")]
     public void EvaluateToolCall_WhenNestedViewModelAccessIsDisabled_ShouldDeny(string toolName, string argumentsJson)
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(

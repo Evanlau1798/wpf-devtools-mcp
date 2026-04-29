@@ -42,8 +42,8 @@
 - [x] Run separated full-suite verification on the remediation branch before the final review-fix patch set.
 - [x] Run final short verification after the final review-fix patch set: full solution build, focused unit tests, and focused integration tests.
 - [x] Skip any fresh review-agent cycle per 2026-04-29 user instruction.
-- [ ] Merge to `master` after focused verification is clean.
-- [ ] Inspect for residual uncommitted or ignored artifacts before final handoff.
+- [x] Merge to `master` after focused verification is clean.
+- [x] Inspect for residual uncommitted or ignored artifacts before final handoff.
 
 ## Verification Notes
 
@@ -54,3 +54,4 @@
 	- `dotnet build WpfDevTools.sln -m:1`
 	- `dotnet test tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj --no-build --filter "FullyQualifiedName~McpTargetPolicyTests|FullyQualifiedName~McpToolExecutionPolicyTests|FullyQualifiedName~ConnectToolErrorCodeTests|FullyQualifiedName~ConnectToolSecurityErrorTests|FullyQualifiedName~ConnectToolRawInjectionPolicyTests|FullyQualifiedName~ResponseContractResourceTests|FullyQualifiedName~InstallerUninstallBehaviorTests|FullyQualifiedName~InstallerBootstrapTests|FullyQualifiedName~RepositoryHygieneTests"`
 	- `dotnet test tests\WpfDevTools.Tests.Integration\WpfDevTools.Tests.Integration.csproj --no-build --filter "FullyQualifiedName~ConnectAutoDiscoverySelectionTests|FullyQualifiedName~BootstrapInjectionTests"`
+- Merged to `master` with `9854891 fix: complete production review remediation`, then confirmed no leftover `*.test-*.ps1` wrapper artifacts and no uncommitted changes.

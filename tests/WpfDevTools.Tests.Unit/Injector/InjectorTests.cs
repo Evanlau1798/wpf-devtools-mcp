@@ -46,15 +46,16 @@ public class ProcessInjectorTests
     public void ValidateTarget_WithValidWpfProcess_ShouldReturnNone()
     {
         // Arrange
-        var injector = new ProcessInjector();
-        var currentProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
+        var currentProcessId = Process.GetCurrentProcess().Id;
+        var injector = new ProcessInjector(
+            new AlwaysWpfProcessDetector(currentProcessId),
+            new DllInjector());
 
         // Act
         var error = injector.ValidateTarget(currentProcessId);
 
         // Assert
-        // Current process exists, so validation should at least not return ProcessNotFound
-        error.Should().NotBe(InjectionError.Unknown);
+        error.Should().Be(InjectionError.None);
     }
 
     [Fact]

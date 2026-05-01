@@ -12,8 +12,10 @@
 | `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Enables or disables destructive MCP tool calls | Covers runtime mutation, interaction, and render measurement; accepts `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`; unset, invalid, or false values fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Enables or disables `element_screenshot` | Same boolean values as above; unset, invalid, or false values fail closed for screenshot calls |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Enables or disables ViewModel inspection tools | Same boolean values as above; unset, invalid, or false values block `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command` |
-| `WPFDEVTOOLS_RATE_LIMIT_RPM` | Overrides the MCP server request rate limit | Positive integer requests per minute |
+| `WPFDEVTOOLS_RATE_LIMIT_RPM` | Overrides the MCP server request rate limit | Positive integer requests per minute; default is 300; values above 10000 are clamped to 10000 |
 | `WPFDEVTOOLS_TEXT_FALLBACK_MODE` | Controls MCP `content[0].text` fallback verbosity | Set to `full` to emit full JSON text; unset uses the compact fallback |
+
+The internal per-process rate limiter cache is capped at 1000 entries and evicts the least recently used entries when full. This cache capacity is not externally configurable.
 
 ## Installer and package variables
 

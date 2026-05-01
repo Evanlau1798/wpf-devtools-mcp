@@ -47,12 +47,32 @@ public sealed class ConfigurationReferenceDocumentationTests
     }
 
     [Fact]
+    public void EnglishConfigurationReference_ShouldDocumentRateLimitBounds()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("docfx/reference/configuration.md"));
+
+        content.Should().Contain("default is 300");
+        content.Should().Contain("values above 10000 are clamped to 10000");
+        content.Should().Contain("internal per-process rate limiter cache is capped at 1000 entries");
+    }
+
+    [Fact]
     public void TraditionalChineseConfigurationReference_ShouldDescribeSecureTransportVariablesAsOverrides()
     {
         var content = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/reference/configuration.md"));
 
         content.Should().Contain("覆寫 persisted/default HMAC 驗證 secret");
         content.Should().Contain("覆寫預設 TLS certificate directory");
+    }
+
+    [Fact]
+    public void TraditionalChineseConfigurationReference_ShouldDocumentRateLimitBounds()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/reference/configuration.md"));
+
+        content.Should().Contain("預設值為 300");
+        content.Should().Contain("超過 10000 的值會被 clamp 為 10000");
+        content.Should().Contain("internal per-process rate limiter cache 上限為 1000 筆");
     }
 
     private static string GetRepoFilePath(string relativePath)

@@ -384,6 +384,9 @@ public sealed class StateSnapshotRestoreContractTests
             catch (IOException)
             {
             }
+            catch (ObjectDisposedException)
+            {
+            }
         });
 
         var sessionManager = new SessionManager();

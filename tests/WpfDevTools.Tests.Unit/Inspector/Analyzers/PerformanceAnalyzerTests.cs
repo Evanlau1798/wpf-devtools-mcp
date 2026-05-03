@@ -5,6 +5,7 @@ using System.Windows.Data;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("AnalyzerStaticState")]
 public class PerformanceAnalyzerTests
 {
     public PerformanceAnalyzerTests()

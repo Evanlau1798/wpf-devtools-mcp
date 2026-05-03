@@ -6,7 +6,7 @@ using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-[Collection("DependencyPropertyMonitoring")]
+[Collection("AnalyzerStaticState")]
 public sealed class DependencyPropertyAnalyzerWatchEventTests : IDisposable
 {
     public DependencyPropertyAnalyzerWatchEventTests()

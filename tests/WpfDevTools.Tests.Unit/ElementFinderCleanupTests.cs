@@ -6,6 +6,7 @@ using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Tests.Unit;
 
+[Collection("AnalyzerStaticState")]
 public class ElementFinderCleanupTests
 {
     [StaFact]

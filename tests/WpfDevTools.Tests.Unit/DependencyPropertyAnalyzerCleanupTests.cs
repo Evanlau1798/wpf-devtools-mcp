@@ -8,7 +8,7 @@ using WpfDevTools.Tests.Unit.Execution;
 
 namespace WpfDevTools.Tests.Unit;
 
-[Collection("DependencyPropertyMonitoring")]
+[Collection("AnalyzerStaticState")]
 public class DependencyPropertyAnalyzerCleanupTests : IDisposable
 {
     public DependencyPropertyAnalyzerCleanupTests()

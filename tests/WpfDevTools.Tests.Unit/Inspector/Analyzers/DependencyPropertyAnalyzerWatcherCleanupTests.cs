@@ -7,7 +7,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-[Collection("DependencyPropertyMonitoring")]
+[Collection("AnalyzerStaticState")]
 public sealed class DependencyPropertyAnalyzerWatcherCleanupTests : IDisposable
 {
     private readonly Action<System.ComponentModel.DependencyPropertyDescriptor, System.Windows.DependencyObject, EventHandler> _originalDetachWatcherAction;

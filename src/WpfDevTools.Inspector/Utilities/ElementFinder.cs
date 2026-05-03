@@ -182,6 +182,11 @@ public sealed class ElementFinder : IDisposable
         return _elementCache.TryRemove(elementId, out _);
     }
 
+    internal static void ResetIdsForTests()
+    {
+        Interlocked.Exchange(ref _nextId, 0);
+    }
+
     /// <summary>
     /// Find element by ID in the Visual Tree
     /// </summary>

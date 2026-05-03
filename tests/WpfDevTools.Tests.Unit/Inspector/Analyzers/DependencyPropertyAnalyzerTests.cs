@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
-[Collection("DependencyPropertyMonitoring")]
+[Collection("AnalyzerStaticState")]
 public class DependencyPropertyAnalyzerTests : IDisposable
 {
     public DependencyPropertyAnalyzerTests()

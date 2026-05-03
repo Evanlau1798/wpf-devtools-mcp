@@ -8,6 +8,7 @@ using System.Windows.Controls;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
 
+[Collection("AnalyzerStaticState")]
 public class ElementFinderTests
 {
 

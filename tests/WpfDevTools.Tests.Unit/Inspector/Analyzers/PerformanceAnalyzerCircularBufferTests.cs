@@ -6,6 +6,7 @@ using System.Reflection;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("AnalyzerStaticState")]
 public class PerformanceAnalyzerCircularBufferTests
 {
     [Fact]

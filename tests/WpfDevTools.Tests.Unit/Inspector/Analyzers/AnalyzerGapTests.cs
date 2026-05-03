@@ -9,6 +9,7 @@ using System;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("AnalyzerStaticState")]
 public class PerformanceAnalyzerGapTests
 {
 

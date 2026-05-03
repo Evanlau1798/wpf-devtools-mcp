@@ -8,6 +8,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("AnalyzerStaticState")]
 public sealed class PerformanceAnalyzerContractTests
 {
     private const int LegacyVisualCountBudget = 1000;

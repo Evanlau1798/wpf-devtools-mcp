@@ -134,6 +134,15 @@ public class RepositoryHygieneTests
     }
 
     [Fact]
+    public void SessionManagerCleanupTimerRearm_ShouldDocumentDisposeRace()
+    {
+        var content = ReadRepoFile("src/WpfDevTools.Mcp.Server/SessionManager.Cleanup.cs");
+
+        content.Should().Contain("Dispose() may set _disposeState between cleanup work and timer re-arm",
+            "the cleanup timer re-arm guard is subtle concurrency behavior and must stay documented");
+    }
+
+    [Fact]
     public void SessionManagerConnectPaths_ShouldShareAttachAfterConnectFlow()
     {
         var content = ReadRepoFile("src/WpfDevTools.Mcp.Server/SessionManager.cs");

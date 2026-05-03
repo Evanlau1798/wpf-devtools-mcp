@@ -42,7 +42,10 @@ public sealed partial class SessionManager
         }
         finally
         {
-            // Reschedule the one-shot timer for the next cleanup cycle
+            // Dispose() may set _disposeState between cleanup work and timer re-arm.
+            // The volatile read avoids scheduling new cleanup after disposal has begun;
+            // ObjectDisposedException covers the narrower race where the timer is
+            // disposed after the read but before Change() executes.
             if (Volatile.Read(ref _disposeState) == 0)
             {
                 try { _cleanupTimer.Change(McpServerConfiguration.SessionCleanupInterval, Timeout.InfiniteTimeSpan); }

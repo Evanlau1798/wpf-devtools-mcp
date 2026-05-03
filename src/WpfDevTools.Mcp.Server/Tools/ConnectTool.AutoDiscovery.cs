@@ -57,8 +57,10 @@ public sealed partial class ConnectTool
 
             return !File.Exists(runtimeConfigPath) && !File.Exists(depsPath);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Trace.TraceWarning(
+                $"ConnectTool SDK-only packaging heuristic failed: {ex.Message}");
             return false;
         }
     }

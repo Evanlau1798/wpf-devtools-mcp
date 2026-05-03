@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
@@ -108,8 +109,10 @@ internal static class RawInjectionTargetPolicy
             normalizedPath = NormalizePath(tryResolvePhysicalPath(fullPath) ?? fullPath);
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Trace.TraceWarning(
+                $"RawInjectionTargetPolicy path normalization failed: {ex.Message}");
             return false;
         }
     }

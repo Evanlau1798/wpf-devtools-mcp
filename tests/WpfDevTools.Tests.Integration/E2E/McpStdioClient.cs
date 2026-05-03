@@ -206,29 +206,28 @@ public sealed class McpStdioClient : IDisposable
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeoutMs);
 
-        try
+        var completed = await Task.WhenAny(responseTcs.Task, Task.Delay(Timeout.Infinite, cts.Token));
+        if (completed == responseTcs.Task)
         {
-            var completed = await Task.WhenAny(responseTcs.Task, Task.Delay(Timeout.Infinite, cts.Token));
-            if (completed == responseTcs.Task)
-            {
-                return await responseTcs.Task;
-            }
-        }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested && !ct.IsCancellationRequested)
-        {
-            _pendingResponses.TryRemove(id, out _);
-            var serverState = _serverProcess?.HasExited == true
-                ? $"exited with code {_serverProcess.ExitCode}"
-                : "running";
-
-            throw new TimeoutException(
-                $"Timed out ({timeoutMs}ms) waiting for response to '{method}' (id={id}). " +
-                $"Server state: {serverState}. Stderr tail: {TruncateStderr(500)}");
+            return await responseTcs.Task;
         }
 
         _pendingResponses.TryRemove(id, out _);
+
+        if (ct.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(
+                $"Canceled waiting for response to '{method}' (id={id}).",
+                ct);
+        }
+
+        var serverState = _serverProcess?.HasExited == true
+            ? $"exited with code {_serverProcess.ExitCode}"
+            : "running";
+
         throw new TimeoutException(
-            $"Timed out waiting for response to '{method}' (id={id})");
+            $"Timed out ({timeoutMs}ms) waiting for response to '{method}' (id={id}). " +
+            $"Server state: {serverState}. Stderr tail: {TruncateStderr(500)}");
     }
 
     private async Task SendNotificationAsync(string method)

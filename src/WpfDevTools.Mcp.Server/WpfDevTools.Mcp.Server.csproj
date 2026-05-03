@@ -25,7 +25,7 @@
     <!-- System.IO.Pipes v4.3.0 removed - included in .NET 8.0 by default (fixes CVE-2017-0248, CVE-2017-0247) -->
     <PackageReference Include="ModelContextProtocol" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
-    <!-- Central System.Text.Json 10.0.3 is required transitively by ModelContextProtocol SDK -->
+    <!-- Central System.Text.Json 10.x is required transitively by the ModelContextProtocol SDK. -->
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 

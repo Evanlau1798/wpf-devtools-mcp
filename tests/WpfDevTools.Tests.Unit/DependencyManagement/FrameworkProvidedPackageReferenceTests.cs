@@ -44,6 +44,22 @@ public sealed class FrameworkProvidedPackageReferenceTests
     public static IEnumerable<object[]> FrameworkProvidedPackageNames()
         => FrameworkProvidedPackages.Select(packageName => new object[] { packageName });
 
+    [Fact]
+    public void McpServerSystemTextJsonPin_ShouldUseCurrentStablePatch()
+    {
+        var packageVersion = LoadProject("Directory.Packages.props")
+            .Descendants("PackageVersion")
+            .Single(element =>
+                element.Attribute("Include")?.Value == "System.Text.Json" &&
+                element.Attribute("Condition")?.Value == "'$(MSBuildProjectName)' == 'WpfDevTools.Mcp.Server'");
+
+        var version = packageVersion.Attribute("Version")?.Value;
+
+        version.Should().Be("10.0.6",
+            "the MCP SDK requires the 10.x System.Text.Json line, so the server should pin the current stable servicing patch rather than an older build");
+        version.Should().NotContain("-");
+    }
+
     private static XDocument LoadProject(string relativePath)
         => XDocument.Load(TestRepositoryPaths.GetRepoFilePath(relativePath));
 }

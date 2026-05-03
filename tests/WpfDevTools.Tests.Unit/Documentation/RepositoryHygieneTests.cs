@@ -75,7 +75,7 @@ public class RepositoryHygieneTests
     [Theory]
     [InlineData("tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj")]
     [InlineData("tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj")]
-    public void TestProjects_ShouldPinSecurityPatchedCompatibilityPackages(string projectPath)
+    public void TestProjects_ShouldUseCentralPackageManagementWithoutObsoleteBclPins(string projectPath)
     {
         ReadRepoFile(projectPath)
             .Should()
@@ -83,8 +83,10 @@ public class RepositoryHygieneTests
 
         var centralPackages = ReadRepoFile("Directory.Packages.props");
 
-        centralPackages.Should().Contain("<PackageVersion Include=\"System.Net.Http\" Version=\"4.3.4\" />");
-        centralPackages.Should().Contain("<PackageVersion Include=\"System.Text.RegularExpressions\" Version=\"4.3.1\" />");
+        centralPackages.Should().NotContain("<PackageVersion Include=\"System.Net.Http\"",
+            "net8.0 provides System.Net.Http and must not restore obsolete compatibility packages directly");
+        centralPackages.Should().NotContain("<PackageVersion Include=\"System.Text.RegularExpressions\"",
+            "net8.0 provides System.Text.RegularExpressions and must not restore obsolete compatibility packages directly");
     }
 
     [Fact]

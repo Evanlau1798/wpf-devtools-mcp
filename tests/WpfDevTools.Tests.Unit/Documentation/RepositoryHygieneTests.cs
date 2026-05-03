@@ -34,6 +34,19 @@ public class RepositoryHygieneTests
         ignored.Should().BeTrue($"{relativePath} should not be accidentally committed");
     }
 
+    [Fact]
+    public void GitIgnoredMarkdownFiles_ShouldNotBeTracked()
+    {
+        var trackedIgnoredMarkdown = RunGitLines(
+            "ls-files",
+            "-ci",
+            "--exclude-standard",
+            "*.md");
+
+        trackedIgnoredMarkdown.Should().BeEmpty(
+            "non-DocFX local documentation markdown that is ignored by .gitignore must not stay tracked");
+    }
+
     [Theory]
     [InlineData("tests/WpfDevTools.Tests.Unit/Release/NewReleaseRegressionTests.cs")]
     [InlineData("tests/WpfDevTools.Tests.Unit/Release/NewInstallerGuardTests.cs")]
@@ -182,18 +195,44 @@ public class RepositoryHygieneTests
 
     private static bool GitIgnoreMatches(string relativePath)
     {
+        var result = RunGit(
+            "check-ignore",
+            "--quiet",
+            relativePath);
+
+        return result.ExitCode == 0;
+    }
+
+    private static string[] RunGitLines(params string[] arguments)
+    {
+        var result = RunGit(arguments);
+        result.ExitCode.Should().Be(0, result.Error);
+
+        return result.Output
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+    }
+
+    private static GitCommandResult RunGit(params string[] arguments)
+    {
         using var process = new System.Diagnostics.Process();
         process.StartInfo.FileName = "git";
-        process.StartInfo.ArgumentList.Add("check-ignore");
-        process.StartInfo.ArgumentList.Add("--quiet");
-        process.StartInfo.ArgumentList.Add(relativePath);
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
         process.StartInfo.WorkingDirectory = GetRepoRoot();
         process.StartInfo.UseShellExecute = false;
         process.StartInfo.CreateNoWindow = true;
+        process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.RedirectStandardError = true;
 
         process.Start();
+        var output = process.StandardOutput.ReadToEnd();
+        var error = process.StandardError.ReadToEnd();
         process.WaitForExit();
-        return process.ExitCode == 0;
+
+        return new GitCommandResult(process.ExitCode, output, error);
     }
 
     private static string GetRepoRoot()
@@ -240,4 +279,6 @@ public class RepositoryHygieneTests
             .Where(path => !path.Contains("/bin/", StringComparison.Ordinal)
                            && !path.Contains("/obj/", StringComparison.Ordinal));
     }
+
+    private sealed record GitCommandResult(int ExitCode, string Output, string Error);
 }

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Net.Security;
 using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
@@ -28,6 +29,7 @@ internal enum NamedPipeConnectFailure
 
 public sealed partial class NamedPipeClient : IDisposable
 {
+    private const string InspectorCertificateSubject = "CN=WpfDevTools-Inspector";
     private static readonly TimeSpan DisposeSemaphoreWaitTimeout = TimeSpan.FromMilliseconds(250);
 
     private static readonly JsonSerializerOptions IpcSerializerOptions = new()
@@ -340,19 +342,7 @@ public sealed partial class NamedPipeClient : IDisposable
             sslStream = new SslStream(pipe, leaveInnerStreamOpen: true,
                 (sender, cert, chain, errors) =>
                 {
-                    if (cert == null) return false;
-                    using var cert2 = new System.Security.Cryptography.X509Certificates.X509Certificate2(cert);
-
-                    // Verify subject name
-                    if (cert2.Subject != "CN=WpfDevTools-Inspector")
-                        return false;
-
-                    // If thumbprint is configured, pin to that specific certificate
-                    // If no thumbprint available, accept any cert with valid subject name (already checked above)
-                    if (string.IsNullOrWhiteSpace(expectedThumbprint))
-                        return true;
-
-                    return string.Equals(cert2.Thumbprint, expectedThumbprint, StringComparison.OrdinalIgnoreCase);
+                    return IsExpectedServerCertificate(cert, expectedThumbprint);
                 });
 
 #if NET48
@@ -400,6 +390,16 @@ public sealed partial class NamedPipeClient : IDisposable
             SetLastConnectFailure(NamedPipeConnectFailure.SecureTransportFailed);
             return null;
         }
+    }
+
+    internal static bool IsExpectedServerCertificate(X509Certificate? certificate, string? expectedThumbprint)
+    {
+        if (certificate == null || string.IsNullOrWhiteSpace(expectedThumbprint))
+            return false;
+
+        using var certificateCopy = new X509Certificate2(certificate);
+        return string.Equals(certificateCopy.Subject, InspectorCertificateSubject, StringComparison.Ordinal)
+            && string.Equals(certificateCopy.Thumbprint, expectedThumbprint, StringComparison.OrdinalIgnoreCase);
     }
 
     private string? GetExpectedServerThumbprint()

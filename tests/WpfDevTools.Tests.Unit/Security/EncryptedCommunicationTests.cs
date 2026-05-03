@@ -44,6 +44,17 @@ public class EncryptedCommunicationTests : IDisposable
     }
 
     [Fact]
+    public void ValidateServerCertificate_WithoutExpectedThumbprint_ShouldRejectMatchingSubjectCertificate()
+    {
+        var certManager = new CertificateManager(_tempCertDir);
+        using var certificate = certManager.GetOrCreateCertificate();
+
+        var accepted = NamedPipeClient.IsExpectedServerCertificate(certificate, expectedThumbprint: null);
+
+        accepted.Should().BeFalse("TLS must not fall back to subject-only certificate validation");
+    }
+
+    [Fact]
     public async Task EncryptedPipe_WithDifferentPinnedCertificate_ShouldRejectConnection()
     {
         // Arrange

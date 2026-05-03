@@ -5,6 +5,7 @@ using WpfDevTools.Mcp.Server.Schema;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
+[Collection("McpE2E")]
 [Trait("Category", "Integration")]
 public sealed class McpToolSearchMetadataE2eTests
 {

@@ -92,6 +92,15 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Theory]
+    [InlineData(typeof(McpToolSearchMetadataE2eTests))]
+    [InlineData(typeof(ToolErrorContractE2eTests))]
+    public void StdioServerOwningE2eTests_ShouldUseMcpE2ECollection(Type testClass)
+    {
+        GetCollectionName(testClass).Should().Be("McpE2E",
+            "tests that start their own MCP server process should not run concurrently with shared McpE2E server lifecycles");
+    }
+
+    [Theory]
     [InlineData(typeof(BootstrapInjectionTests))]
     [InlineData(typeof(ConnectToolActiveProcessIntegrationTests))]
     [InlineData(typeof(BootstrapEventTraceIntegrationTests))]

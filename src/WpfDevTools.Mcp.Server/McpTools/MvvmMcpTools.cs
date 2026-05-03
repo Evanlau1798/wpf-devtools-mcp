@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
@@ -121,6 +122,7 @@ public static class MvvmMcpTools
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose DataContext provides the command. Omit for the root window.")] string? elementId = null,
         [Description("Optional command parameter serialized as a string.")] string? parameter = null,
+        [AllowedValues("compact", "minimal", "verbose", "standard")]
         [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for the most concise success confirmation, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
@@ -220,6 +222,7 @@ public static class MvvmMcpTools
         [Description("New property value encoded as raw JSON.")] JsonElement value,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose DataContext owns the property. Omit for the root window.")] string? elementId = null,
+        [AllowedValues("compact", "minimal", "verbose", "standard")]
         [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {

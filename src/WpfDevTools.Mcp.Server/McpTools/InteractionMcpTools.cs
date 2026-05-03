@@ -29,7 +29,7 @@ public static class InteractionMcpTools
         "- fire_routed_event('Click'): on ButtonBase calls OnClick() (same ICommand execution); on non-ButtonBase only fires routed event handlers\n" +
         "- For button ICommand testing, both tools work; click_element is preferred for general use\n\n" +
         "WARNING: This triggers real application logic (e.g., button handlers, navigation, data modifications).\n\n" +
-        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core click result. Use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core click result, use `minimal` for the most concise success confirmation, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -47,7 +47,8 @@ public static class InteractionMcpTools
         SessionManager sessionManager,
         [Description("Element ID of the clickable control.")] string elementId,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
-        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
+        [AllowedValues("compact", "minimal", "verbose", "standard")]
+        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success-only confirmation, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

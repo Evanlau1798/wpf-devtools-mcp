@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
@@ -86,6 +87,7 @@ public static class BindingMcpTools
         [Description("Optional element ID to inspect. Omit for the root window.")] string? elementId = null,
         [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
         [Description("When true, inspect descendant elements under the chosen root as well.")] bool? recursive = null,
+        [AllowedValues("All", "Active", "Error")]
         [Description("Optional binding status filter such as 'All', 'Active', or 'Error'. Omit to return every binding.")] string? statusFilter = null,
         CancellationToken cancellationToken = default)
     {
@@ -307,6 +309,7 @@ public static class BindingMcpTools
         [Description("DependencyProperty name whose binding should be refreshed.")] string propertyName,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the binding. Omit for the root window.")] string? elementId = null,
+        [AllowedValues("Source", "Target")]
         [Description("Optional update direction: 'Source' (push UI value to ViewModel) or 'Target' (pull ViewModel value to UI). Default: Source.")] string? direction = null,
         CancellationToken cancellationToken = default)
     {

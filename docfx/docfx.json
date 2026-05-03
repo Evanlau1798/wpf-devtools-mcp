@@ -3,12 +3,12 @@
     {
       "src": [
         {
-          "src": "../src/WpfDevTools.Shared/bin/Debug/net8.0",
-          "files": ["WpfDevTools.Shared.dll"]
-        },
-        {
-          "src": "../src/WpfDevTools.Inspector.Sdk/bin/Debug/net8.0-windows",
-          "files": ["WpfDevTools.Inspector.Sdk.dll"]
+          "src": "..",
+          "files": [
+            "src/WpfDevTools.Shared/WpfDevTools.Shared.csproj",
+            "src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj",
+            "src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj"
+          ]
         }
       ],
       "dest": "api"

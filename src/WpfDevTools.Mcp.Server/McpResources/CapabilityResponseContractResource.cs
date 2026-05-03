@@ -17,7 +17,7 @@ public static partial class CapabilityResources
         Title = "Response Contract",
         UriTemplate = ResponseContractResourceUri,
         MimeType = "application/json")]
-    [Description("Machine-readable JSON contract for structuredContent, navigation, nextSteps, contextRefs, and Claude-compatible tools/list behavior.")]
+    [Description("Machine-readable JSON contract for structuredContent, navigation, nextSteps, contextRefs, and tools/list outputSchema behavior.")]
     public static string GetResponseContract()
     {
         var nextStepEntry = new
@@ -173,12 +173,12 @@ public static partial class CapabilityResources
             },
             compatibility = new
             {
-                toolListOutputSchema = "omitted",
-                toolListOutputSchemaReason = "Claude tools/list compatibility while structuredContent remains canonical",
+                toolListOutputSchema = "advertised",
+                toolListOutputSchemaReason = "UseStructuredContent=true asks the SDK to publish tools/list outputSchema while structuredContent remains canonical",
                 outputSchemaPublication = new
                 {
-                    canonicalLocation = "highValueTools",
-                    reason = "Native tools/list outputSchema remains omitted for Claude compatibility; specialized response contracts are published in this resource."
+                    canonicalLocation = "tools/list",
+                    reason = "Native tools/list outputSchema advertises the CallToolResult envelope; this resource remains the stable contract for WPF-specific structuredContent payload fields."
                 },
                 versioning = new
                 {

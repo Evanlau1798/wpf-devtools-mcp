@@ -28,7 +28,7 @@ public sealed class McpToolSearchMetadataE2eTests
     }
 
     [Fact]
-    public async Task ToolsList_ShouldNotExposeClaudeIncompatibleStructuredContentOutputSchema()
+    public async Task ToolsList_ShouldExposeStructuredContentOutputSchema()
     {
         var serverExe = FindServerExecutable();
         using var client = new McpStdioClient();
@@ -40,16 +40,15 @@ public sealed class McpToolSearchMetadataE2eTests
 
         foreach (var tool in tools.EnumerateArray())
         {
-            tool.TryGetProperty("outputSchema", out var outputSchema).Should().BeFalse(
-                $"tool '{tool.GetProperty("name").GetString()}' should not advertise Claude-incompatible structured content output schema");
-
-            if (tool.TryGetProperty("outputSchema", out outputSchema) &&
-                outputSchema.ValueKind == JsonValueKind.Object &&
-                outputSchema.TryGetProperty("properties", out var properties))
-            {
-                properties.TryGetProperty("structuredContent", out _).Should().BeFalse(
-                    $"tool '{tool.GetProperty("name").GetString()}' should not include outputSchema.properties.structuredContent because Claude rejects it during tools/list validation");
-            }
+            var toolName = tool.GetProperty("name").GetString();
+            tool.TryGetProperty("outputSchema", out var outputSchema).Should().BeTrue(
+                $"tool '{toolName}' should advertise SDK-generated structured content metadata");
+            outputSchema.ValueKind.Should().Be(JsonValueKind.Object,
+                $"tool '{toolName}' should expose outputSchema as an object schema");
+            outputSchema.TryGetProperty("properties", out var properties).Should().BeTrue(
+                $"tool '{toolName}' outputSchema should describe result envelope properties");
+            properties.TryGetProperty("structuredContent", out _).Should().BeTrue(
+                $"tool '{toolName}' should include outputSchema.properties.structuredContent because UseStructuredContent=true changes tools/list metadata");
         }
     }
 
@@ -170,7 +169,7 @@ public sealed class McpToolSearchMetadataE2eTests
         root.GetProperty("toolPayload").GetProperty("canonicalField").GetString().Should().Be("structuredContent");
         root.GetProperty("navigation").GetProperty("field").GetString().Should().Be("navigation");
         root.GetProperty("nextSteps").GetProperty("derivedFrom").GetString().Should().Be("navigation.recommended");
-        root.GetProperty("compatibility").GetProperty("toolListOutputSchema").GetString().Should().Be("omitted");
+        root.GetProperty("compatibility").GetProperty("toolListOutputSchema").GetString().Should().Be("advertised");
     }
 
     [Fact]

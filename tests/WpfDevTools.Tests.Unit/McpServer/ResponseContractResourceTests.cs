@@ -71,7 +71,7 @@ public sealed class ResponseContractResourceTests
         var aliases = root.GetProperty("compatibility").GetProperty("deprecatedAliases");
         aliases.GetArrayLength().Should().Be(ResponseContractVersion.DeprecatedAliases.Count);
         aliases[0].GetString().Should().Be("currentValue -> effectiveValue");
-        root.GetProperty("compatibility").GetProperty("toolListOutputSchema").GetString().Should().Be("omitted");
+        root.GetProperty("compatibility").GetProperty("toolListOutputSchema").GetString().Should().Be("advertised");
     }
 
     [Fact]
@@ -354,8 +354,8 @@ public sealed class ResponseContractResourceTests
         var root = document.RootElement;
 
         var compatibility = root.GetProperty("compatibility");
-        compatibility.GetProperty("toolListOutputSchema").GetString().Should().Be("omitted");
-        compatibility.GetProperty("outputSchemaPublication").GetProperty("canonicalLocation").GetString().Should().Be("highValueTools");
+        compatibility.GetProperty("toolListOutputSchema").GetString().Should().Be("advertised");
+        compatibility.GetProperty("outputSchemaPublication").GetProperty("canonicalLocation").GetString().Should().Be("tools/list");
 
         var versioning = compatibility.GetProperty("versioning");
         versioning.GetProperty("currentVersionField").GetString().Should().Be("responseContractVersion");

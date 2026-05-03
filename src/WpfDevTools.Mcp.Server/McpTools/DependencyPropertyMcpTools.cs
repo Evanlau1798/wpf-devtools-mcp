@@ -15,7 +15,7 @@ public static class DependencyPropertyMcpTools
 {
     private const string DependencyPropertyMetadata = "CATEGORY: DependencyProperty\n\n";
 
-    [McpServerTool(Name = "get_dp_value_source", Title = "Inspect DependencyProperty Value Source", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_dp_value_source", Title = "Inspect DependencyProperty Value Source", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to inspect the runtime source and precedence of a WPF DependencyProperty value.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Get the value source of a DependencyProperty. " +
@@ -70,7 +70,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_dp_metadata", Title = "Inspect DependencyProperty Metadata", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_dp_metadata", Title = "Inspect DependencyProperty Metadata", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to inspect WPF DependencyProperty metadata before changing runtime values.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Get DependencyProperty metadata including default value, " +
@@ -107,7 +107,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "set_dp_value", Title = "Set WPF DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "set_dp_value", Title = "Set WPF DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to set a WPF DependencyProperty value during runtime debugging and UI verification.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Set a DependencyProperty value at runtime. " +
@@ -156,7 +156,7 @@ public static class DependencyPropertyMcpTools
             toolName: "set_dp_value");
     }
 
-    [McpServerTool(Name = "clear_dp_value", Title = "Clear WPF DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "clear_dp_value", Title = "Clear WPF DependencyProperty Value", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to clear a local WPF DependencyProperty override and return to runtime defaults or styles.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Clear a DependencyProperty local value, " +
@@ -197,7 +197,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "watch_dp_changes", Title = "Watch WPF DependencyProperty Changes", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "watch_dp_changes", Title = "Watch WPF DependencyProperty Changes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "CURRENT BEHAVIOR: No observable effect over STDIO transport. Registration is stored internally only until the next successful drain_events readback or piggyback cycle, and change events are never pushed to the client. Use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
         "Use this tool to register WPF DependencyProperty watch state before polling for runtime changes.\n\n" +
@@ -237,7 +237,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "wait_for_dp_change", Title = "Wait For WPF DependencyProperty Change", OpenWorld = false, ReadOnly = true, Destructive = false, UseStructuredContent = false)]
+    [McpServerTool(Name = "wait_for_dp_change", Title = "Wait For WPF DependencyProperty Change", OpenWorld = false, ReadOnly = true, Destructive = false, UseStructuredContent = true)]
     [Description(
         "Use this tool to wait for a WPF DependencyProperty to change over a bounded polling window.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Wait for a DependencyProperty change using polling. " +
@@ -298,7 +298,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "wait_for_dp_change_after_mutation", Title = "Wait For WPF DependencyProperty Change After Mutation", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "wait_for_dp_change_after_mutation", Title = "Wait For WPF DependencyProperty Change After Mutation", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to execute one live runtime mutation and then wait for a WPF DependencyProperty to change over a bounded polling window.\n\n" +
         DependencyPropertyMetadata + "[DependencyProperty] Execute one serialized mutation step, then wait for the resulting DependencyProperty transition using polling. " +

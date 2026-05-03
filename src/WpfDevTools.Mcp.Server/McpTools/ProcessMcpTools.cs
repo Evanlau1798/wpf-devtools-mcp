@@ -17,7 +17,7 @@ public static class ProcessMcpTools
     private const string ContractGuidance =
         "CONTRACT: Canonical payload lives in structuredContent. content[0].text is a compact fallback summary, not the full result. Read wpf://contracts/response for stable fields and MCP envelope semantics.\n\n";
 
-    [McpServerTool(Name = "get_processes", Title = "List Inspectable WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_processes", Title = "List Inspectable WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to resolve target ambiguity after connect() reports multiple candidates, or when you explicitly need process metadata before connecting.\n\n" +
         ProcessMetadata + "[Process] List all running WPF processes available for inspection and surface the metadata needed for explicit target selection.\n\n" +
@@ -47,7 +47,7 @@ public static class ProcessMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "select_active_process", Title = "Select Active WPF Process", OpenWorld = false, Destructive = true, Idempotent = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "select_active_process", Title = "Select Active WPF Process", OpenWorld = false, Destructive = true, Idempotent = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to explicitly choose which connected WPF process should be used when later tool calls omit processId.\n\n" +
         ProcessMetadata + "[Process] Set the active connected process for processId-omission workflows.\n\n" +
@@ -73,7 +73,7 @@ public static class ProcessMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_active_process", Title = "Get Active WPF Process", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_active_process", Title = "Get Active WPF Process", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to verify which connected WPF process is currently active for omitted processId workflows.\n\n" +
         ProcessMetadata + "[Process] Returns the active selected process, if any.\n\n" +
@@ -95,7 +95,7 @@ public static class ProcessMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "connect", Title = "Connect To Running WPF Process", OpenWorld = false, Destructive = true, Idempotent = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "connect", Title = "Connect To Running WPF Process", OpenWorld = false, Destructive = true, Idempotent = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to connect to a running WPF process before any inspection tool is used.\n\n" +
         ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
@@ -135,7 +135,7 @@ public static class ProcessMcpTools
             timeoutSeconds: McpServerConfiguration.ConnectTimeoutSeconds);
     }
 
-    [McpServerTool(Name = "ping", Title = "Ping WPF Inspector Session", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "ping", Title = "Ping WPF Inspector Session", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to verify a connected WPF inspector session is still healthy before deeper runtime inspection.\n\n" +
         ProcessMetadata + "[Process] Check connection health and measure round-trip latency to the Inspector DLL " +

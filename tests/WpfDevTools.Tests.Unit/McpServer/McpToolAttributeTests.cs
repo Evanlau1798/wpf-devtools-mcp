@@ -138,13 +138,28 @@ public class McpToolAttributeTests
     }
 
     [Fact]
-    public void AllTools_ShouldAvoidStructuredContentMetadata_ForClaudeCodeCompatibility()
+    public void AllTools_ShouldAdvertiseStructuredContentMetadata_WhenResultsPopulateStructuredContent()
     {
         foreach (var (_, _, attr) in AllTools)
         {
-            attr.UseStructuredContent.Should().BeFalse(
-                $"tool '{attr.Name}' should avoid SDK-generated structured content output schema because Claude Code rejects it during tools/list validation");
+            attr.UseStructuredContent.Should().BeTrue(
+                $"tool '{attr.Name}' should truthfully advertise structured content and allow SDK-generated tools/list outputSchema metadata");
         }
+    }
+
+    [Theory]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Ping))]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.GetVisualTree))]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools.GetBindingErrors))]
+    public void RepresentativeTools_ShouldExposeStructuredContentOutputSchema_WhenSdkCreatesProtocolTool(Type toolType, string methodName)
+    {
+        var outputSchema = CreateTool(toolType, methodName).ProtocolTool.OutputSchema;
+
+        outputSchema.Should().NotBeNull(
+            "UseStructuredContent=true changes tools/list metadata by asking the SDK to publish outputSchema");
+        outputSchema!.Value.TryGetProperty("properties", out var properties).Should().BeTrue();
+        properties.TryGetProperty("structuredContent", out _).Should().BeTrue(
+            "these tools return CallToolResult and the SDK advertises the structuredContent envelope field");
     }
 
     [Theory]
@@ -341,7 +356,7 @@ public class McpToolAttributeTests
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.GetProcesses), "List Inspectable WPF Processes")]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Connect), "Connect To Running WPF Process")]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Ping), "Ping WPF Inspector Session")]
-    public void ProcessTools_ShouldAdvertiseFriendlyTitlesWithoutClaudeIncompatibleStructuredContentSchema(Type toolType, string methodName, string expectedTitle)
+    public void ProcessTools_ShouldAdvertiseFriendlyTitlesAndStructuredContentMetadata(Type toolType, string methodName, string expectedTitle)
     {
         var method = toolType.GetMethod(methodName);
         method.Should().NotBeNull();
@@ -350,8 +365,8 @@ public class McpToolAttributeTests
         attr.Should().NotBeNull();
         attr!.Title.Should().Be(expectedTitle,
             "AI-facing clients should receive a stable human-friendly tool title");
-        attr.UseStructuredContent.Should().BeFalse(
-            "process tools should avoid SDK-generated structured-output schema until Claude Code accepts it");
+        attr.UseStructuredContent.Should().BeTrue(
+            "process tools return CallToolResult values and should publish SDK-generated outputSchema metadata");
     }
 
     [Fact]
@@ -402,11 +417,18 @@ public class McpToolAttributeTests
         var method = toolType.GetMethod(methodName);
         method.Should().NotBeNull();
 
+        return CreateTool(toolType, methodName).ProtocolTool.InputSchema;
+    }
+
+    private static McpServerTool CreateTool(Type toolType, string methodName)
+    {
+        var method = toolType.GetMethod(methodName);
+        method.Should().NotBeNull();
+
         using var services = new ServiceCollection()
             .AddSingleton<SessionManager>(_ => throw new InvalidOperationException("Schema tests do not invoke tools."))
             .BuildServiceProvider();
-        var tool = McpServerTool.Create(method!, target: null, new McpServerToolCreateOptions { Services = services });
-        return tool.ProtocolTool.InputSchema;
+        return McpServerTool.Create(method!, target: null, new McpServerToolCreateOptions { Services = services });
     }
 
     private static void AssertIntegerConstraint(JsonElement schema, string parameterName, int? minimum, int? maximum)

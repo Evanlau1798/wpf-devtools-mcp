@@ -14,7 +14,7 @@ public static class MutationBatchMcpTools
 {
     private const string BatchMetadata = "CATEGORY: State\n\n";
 
-    [McpServerTool(Name = "batch_mutate", Title = "Execute Sequential WPF Runtime Mutations", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "batch_mutate", Title = "Execute Sequential WPF Runtime Mutations", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to execute multiple WPF runtime mutations in a single ordered batch.\n\n" +
         BatchMetadata +

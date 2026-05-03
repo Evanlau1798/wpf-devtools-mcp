@@ -19,7 +19,7 @@ public sealed class ResponseContractSchemaMetadataTests
         metadata.GetProperty("perToolSchemaStrategy").GetProperty("inputSchemas").GetString()
             .Should().Contain("tools/list inputSchema");
         metadata.GetProperty("perToolSchemaStrategy").GetProperty("outputSchemas").GetString()
-            .Should().Contain("highValueTools");
+            .Should().Contain("tools/list outputSchema");
         AssertArrayContains(
             metadata.GetProperty("constraintFields"),
             "type",

@@ -16,7 +16,7 @@ public static class BindingMcpTools
     private const string ContractGuidance =
         "CONTRACT: Canonical payload lives in structuredContent. content[0].text is a compact fallback summary, not the full result. Read wpf://contracts/response for stable fields and MCP envelope semantics.\n\n";
 
-    [McpServerTool(Name = "get_binding_mismatches", Title = "Detect WPF Binding Mismatches", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_binding_mismatches", Title = "Detect WPF Binding Mismatches", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to detect deterministic WPF binding mismatches before they become silent runtime confusion.\n\n" +
         BindingMetadata + "[Binding] Cross-reference target DependencyProperty types with resolved binding source property types and report deterministic path, type, and nullability mismatches.\n\n" +
@@ -64,7 +64,7 @@ public static class BindingMcpTools
             toolName: "get_binding_mismatches");
     }
 
-    [McpServerTool(Name = "get_bindings", Title = "Inspect WPF Bindings", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_bindings", Title = "Inspect WPF Bindings", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to inspect WPF bindings on a runtime element or subtree before changing UI or ViewModel state.\n\n" +
         BindingMetadata + "[Binding] Get all DataBindings on an element. Shows binding path, mode " +
@@ -102,7 +102,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_affected_elements", Title = "Find Best-Effort Affected Elements", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_affected_elements", Title = "Find Best-Effort Affected Elements", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to cheaply narrow down which WPF elements may be affected by a ViewModel property change before doing a full binding-tree verification pass.\n\n" +
         BindingMetadata + "[Binding] Scan a runtime element or subtree and return candidate elements whose binding declaration deterministically matches the supplied property name.\n\n" +
@@ -157,7 +157,7 @@ public static class BindingMcpTools
             toolName: "get_affected_elements");
     }
 
-    [McpServerTool(Name = "get_binding_errors", Title = "Diagnose WPF Binding Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_binding_errors", Title = "Diagnose WPF Binding Errors", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to diagnose WPF binding failures behind blank, stale, or incorrect UI data.\n\n" +
         BindingMetadata + "[Binding] Get ALL binding errors captured since Inspector connected. " +
@@ -200,7 +200,7 @@ public static class BindingMcpTools
             toolName: "get_binding_errors");
     }
 
-    [McpServerTool(Name = "get_binding_value_chain", Title = "Trace WPF Binding Value Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_binding_value_chain", Title = "Trace WPF Binding Value Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to trace how a WPF binding resolves from source data to the final runtime value.\n\n" +
         BindingMetadata + "[Binding] Get the complete value resolution chain for a binding on a specific property. " +
@@ -246,7 +246,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "get_datacontext_chain", Title = "Trace WPF DataContext Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_datacontext_chain", Title = "Trace WPF DataContext Chain", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to trace WPF DataContext inheritance through a runtime element hierarchy.\n\n" +
         BindingMetadata + "[Binding] Get the DataContext inheritance chain from an element up to the root. " +
@@ -282,7 +282,7 @@ public static class BindingMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "force_binding_update", Title = "Force WPF Binding Update", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "force_binding_update", Title = "Force WPF Binding Update", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to force a WPF binding to refresh when runtime UI state appears stale.\n\n" +
         BindingMetadata + "[Binding] Force a binding to re-evaluate and transfer the current value. " +

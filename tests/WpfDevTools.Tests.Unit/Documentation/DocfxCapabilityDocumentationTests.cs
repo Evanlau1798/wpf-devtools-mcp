@@ -236,9 +236,9 @@ public sealed class DocfxCapabilityDocumentationTests
 
         content.Should().Contain(structuredContentKeyword);
         content.Should().Contain(outputSchemaKeyword,
-            "tool overview pages should explain why tools/list omits outputSchema even though structuredContent remains canonical");
+            "tool overview pages should explain that tools/list advertises outputSchema while structuredContent remains canonical");
         content.Should().Contain(claudeKeyword,
-            "tool overview pages should make the Claude compatibility tradeoff explicit for non-Claude clients");
+            "tool overview pages should describe the current Claude compatibility expectation for structured-output metadata");
     }
 
     [Theory]
@@ -249,7 +249,7 @@ public sealed class DocfxCapabilityDocumentationTests
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
         content.Should().Contain("wpf://contracts/response",
-            "tool overview pages should point clients at the machine-readable response contract resource when tools/list omits outputSchema");
+            "tool overview pages should point clients at the machine-readable response contract resource for stable payload details beyond SDK outputSchema");
         content.Should().Contain("JSON",
             "tool overview pages should clarify that the fallback contract surface is machine-readable JSON rather than prose alone");
     }

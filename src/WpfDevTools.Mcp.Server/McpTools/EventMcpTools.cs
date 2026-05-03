@@ -16,7 +16,7 @@ public static class EventMcpTools
 {
     private const string EventMetadata = "CATEGORY: Event\n\n";
 
-    [McpServerTool(Name = "trace_routed_events", Title = "Trace WPF Routed Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "trace_routed_events", Title = "Trace WPF Routed Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to trace WPF routed events during runtime interaction and diagnose event flow.\n\n" +
         EventMetadata + "[Event] Trace a routed event over a short capture window and return collected records, or run in a two-step non-blocking workflow for AI agents. " +
@@ -81,7 +81,7 @@ public static class EventMcpTools
             timeoutSeconds: timeoutSeconds);
     }
 
-    [McpServerTool(Name = "get_event_handlers", Title = "Inspect WPF Event Handlers", OpenWorld = false, ReadOnly = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "get_event_handlers", Title = "Inspect WPF Event Handlers", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to inspect WPF event handlers attached to a runtime element.\n\n" +
         EventMetadata + "[Event] Get all event handlers attached to a WPF element for a specific routed event. " +
@@ -126,7 +126,7 @@ public static class EventMcpTools
             toolName: "get_event_handlers");
     }
 
-    [McpServerTool(Name = "fire_routed_event", Title = "Fire WPF Routed Event", OpenWorld = false, Destructive = true, UseStructuredContent = false)]
+    [McpServerTool(Name = "fire_routed_event", Title = "Fire WPF Routed Event", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to fire a WPF routed event when you need runtime event semantics without a physical click.\n\n" +
         EventMetadata + "[Event] Raise a routed event on a WPF element. " +

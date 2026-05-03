@@ -25,6 +25,9 @@ public sealed class GetEventHandlersTool : PipeConnectedToolBase
         if (error != null) return error;
         var eventName = ParseStringParam(arguments, "eventName");
 
+        if (elementId == null)
+            return CreateMissingParamError("elementId");
+
         if (string.IsNullOrEmpty(eventName))
             return CreateMissingParamError("eventName");
 

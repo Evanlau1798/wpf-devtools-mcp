@@ -167,8 +167,8 @@ public static class StyleMcpTools
         SessionManager sessionManager,
         [Description("Style-backed property name to override at runtime.")] string propertyName,
         [Description("New property value encoded as raw JSON.")] JsonElement value,
+        [Description("Required element ID whose style setter should be overridden.")] string elementId,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
-        [Description("Optional element ID whose style setter should be overridden.")] string? elementId = null,
         [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {

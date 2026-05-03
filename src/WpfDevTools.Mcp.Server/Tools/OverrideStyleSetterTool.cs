@@ -28,6 +28,9 @@ public sealed class OverrideStyleSetterTool : PipeConnectedToolBase
         var propertyName = ParseStringParam(arguments, "propertyName");
         var value = WpfDevTools.Shared.Utilities.ParameterParser.ParseJsonParam(arguments, "value");
 
+        if (elementId == null)
+            return CreateMissingParamError("elementId");
+
         if (string.IsNullOrEmpty(propertyName))
             return CreateMissingParamError("propertyName");
 

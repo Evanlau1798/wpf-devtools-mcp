@@ -116,7 +116,7 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
 
     /// <summary>
     /// Parameter extractor for highlight_element tool.
-    /// Requires processId, optional elementId, color, and duration.
+    /// Requires processId and elementId; accepts optional color and duration.
     /// </summary>
     public static (int processId, object? parameters, object? error) ExtractHighlightElementParams(
         SessionManager sessionManager,
@@ -124,6 +124,9 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
     {
         var (processId, elementId, error) = ParseCommonParams(arguments, sessionManager);
         if (error != null) return (-1, null, error);
+
+        if (elementId == null)
+            return (-1, null, CreateMissingParamError("elementId"));
 
         var color = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "color");
         var duration = WpfDevTools.Shared.Utilities.ParameterParser.ParseIntParam(arguments, "duration");

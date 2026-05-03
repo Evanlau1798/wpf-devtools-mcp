@@ -28,6 +28,9 @@ public sealed class FireRoutedEventTool : PipeConnectedToolBase
         var eventName = ParseStringParam(arguments, "eventName");
         var eventArgs = WpfDevTools.Shared.Utilities.ParameterParser.ParseJsonParam(arguments, "eventArgs");
 
+        if (elementId == null)
+            return CreateMissingParamError("elementId");
+
         if (string.IsNullOrEmpty(eventName))
             return CreateMissingParamError("eventName");
 

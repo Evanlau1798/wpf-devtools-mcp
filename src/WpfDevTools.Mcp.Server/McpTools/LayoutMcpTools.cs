@@ -113,8 +113,8 @@ public static class LayoutMcpTools
         "- { processId: 12345, elementId: \"SaveButton\", color: \"Red\", duration: 3000 }")]
     public static Task<CallToolResult> HighlightElement(
         SessionManager sessionManager,
+        [Description("Required element ID to highlight.")] string elementId,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
-        [Description("Optional element ID to highlight. Omit for the root window.")] string? elementId = null,
         [Description("Optional WPF color name or hex color string for the highlight overlay.")] string? color = null,
         [Description("Optional highlight duration in milliseconds before the overlay is removed.")] int? duration = null,
         CancellationToken cancellationToken = default)

@@ -157,7 +157,7 @@ public class McpToolsWrapperTests : IDisposable
     public async Task GetEventHandlers_WithUnconnectedProcess_ShouldReturnError()
     {
         var result = await EventMcpTools.GetEventHandlers(
-            _sessionManager, processId: 99999, eventName: "Click");
+            _sessionManager, processId: 99999, eventName: "Click", elementId: "Button_1");
 
         result.Should().NotBeNull();
         result.IsError.Should().BeTrue();
@@ -307,7 +307,7 @@ public class McpToolsWrapperTests : IDisposable
     [Fact]
     public async Task OverrideStyleSetter_WithUnconnectedProcess_ShouldReturnError()
     {
-        var result = await StyleMcpTools.OverrideStyleSetter(_sessionManager, processId: 99999, propertyName: "Background", value: System.Text.Json.JsonSerializer.SerializeToElement("Red"));
+        var result = await StyleMcpTools.OverrideStyleSetter(_sessionManager, processId: 99999, elementId: "Button_1", propertyName: "Background", value: System.Text.Json.JsonSerializer.SerializeToElement("Red"));
         result.IsError.Should().BeTrue();
     }
 
@@ -321,7 +321,7 @@ public class McpToolsWrapperTests : IDisposable
     [Fact]
     public async Task FireRoutedEvent_WithUnconnectedProcess_ShouldReturnError()
     {
-        var result = await EventMcpTools.FireRoutedEvent(_sessionManager, processId: 99999, eventName: "Click");
+        var result = await EventMcpTools.FireRoutedEvent(_sessionManager, processId: 99999, eventName: "Click", elementId: "Button_1");
         result.IsError.Should().BeTrue();
     }
 
@@ -363,7 +363,7 @@ public class McpToolsWrapperTests : IDisposable
     [Fact]
     public async Task HighlightElement_WithUnconnectedProcess_ShouldReturnError()
     {
-        var result = await LayoutMcpTools.HighlightElement(_sessionManager, processId: 99999);
+        var result = await LayoutMcpTools.HighlightElement(_sessionManager, processId: 99999, elementId: "Button_1");
         result.IsError.Should().BeTrue();
     }
 

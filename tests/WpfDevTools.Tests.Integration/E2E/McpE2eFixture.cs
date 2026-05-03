@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -102,11 +103,21 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             _testApp = TestAppProcessLauncher.StartAndWaitForMainWindow(testAppExe, TimeSpan.FromSeconds(15));
             await ReconnectClientAsync();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ShouldConvertInitializationFailureToSkip(ex))
         {
             var stderrFull = _client?.ServerStderr ?? "";
             SkipReason = $"E2E fixture initialization failed: {ex.Message}\n---STDERR---\n{stderrFull}";
         }
+    }
+
+    internal static bool ShouldConvertInitializationFailureToSkip(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return exception is TimeoutException
+            or IOException
+            or Win32Exception
+            or UnauthorizedAccessException;
     }
 
     public async Task ReconnectClientAsync()

@@ -20,9 +20,9 @@ The current project-level verification status combines the latest completed suit
 
 ### Test results
 
-- Unit tests: 2769 total, 2769 passed, 0 failed in the latest completed unit-suite run
-- Integration tests: 291 total, 291 passed, 0 failed in the latest completed integration-suite baseline
-- Verified combined total: 3060 tests, 3060 passed, 0 failed across the latest completed unit and integration suite runs
+- Unit tests: 3135 total, 3135 discoverable via `dotnet test --no-build --list-tests` in the latest count refresh
+- Integration tests: 301 total, 301 discoverable via `dotnet test --no-build --list-tests` in the latest count refresh
+- Verified combined total: 3436 tests discoverable across unit and integration suites in the latest count refresh
 
 ### Coverage
 

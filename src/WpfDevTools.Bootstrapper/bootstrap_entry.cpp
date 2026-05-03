@@ -11,6 +11,7 @@ struct BootstrapConfig
     std::wstring InspectorPath;
     std::wstring PipeName;
     std::wstring AuthSecretBase64;
+    std::wstring AuthSecretFile;
     std::wstring CertDirectory;
     bool AuthEnabled = false;
     bool EncryptionEnabled = false;
@@ -70,7 +71,7 @@ static bool LooksLikeKeyValueParams(const std::wstring& input)
         if (pair.rfind(L"inspectorDllPath=", 0) == 0 ||
             pair.rfind(L"pipeName=", 0) == 0 ||
             pair.rfind(L"auth=", 0) == 0 ||
-            pair.rfind(L"authSecretBase64=", 0) == 0 ||
+            pair.rfind(L"authSecretFile=", 0) == 0 ||
             pair.rfind(L"encryption=", 0) == 0 ||
             pair.rfind(L"certDirectory=", 0) == 0)
         {
@@ -103,9 +104,9 @@ static bool ParseKeyValueParams(const std::wstring& input, BootstrapConfig& conf
             config.PipeName = value;
         else if (key == L"auth")
             config.AuthEnabled = (value == L"enabled" || value == L"Enabled");
-        else if (key == L"authSecretBase64")
+        else if (key == L"authSecretFile")
         {
-            config.AuthSecretBase64 = value;
+            config.AuthSecretFile = value;
             config.AuthEnabled = true;
         }
         else if (key == L"encryption")
@@ -131,6 +132,83 @@ static bool ParseParams(const wchar_t* params, BootstrapConfig& config)
         return ParseLegacyParams(input, config);
 
     return ParseKeyValueParams(input, config);
+}
+
+static std::wstring TrimWhitespace(const std::wstring& value)
+{
+    const wchar_t* whitespace = L" \t\r\n";
+    auto start = value.find_first_not_of(whitespace);
+    if (start == std::wstring::npos)
+        return L"";
+
+    auto end = value.find_last_not_of(whitespace);
+    return value.substr(start, end - start + 1);
+}
+
+static std::wstring Utf8ToWide(const std::string& value)
+{
+    int wideLen = MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, nullptr, 0);
+    if (wideLen <= 1)
+        return L"";
+
+    std::wstring wval(wideLen - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, wval.data(), wideLen);
+    return wval;
+}
+
+static bool ReadUtf8File(const std::wstring& path, std::wstring& value)
+{
+    HANDLE file = CreateFileW(
+        path.c_str(),
+        GENERIC_READ,
+        FILE_SHARE_READ,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+    if (file == INVALID_HANDLE_VALUE)
+        return false;
+
+    LARGE_INTEGER fileSize;
+    if (!GetFileSizeEx(file, &fileSize) || fileSize.QuadPart <= 0 || fileSize.QuadPart > 4096)
+    {
+        CloseHandle(file);
+        return false;
+    }
+
+    std::string content(static_cast<size_t>(fileSize.QuadPart), '\0');
+    DWORD bytesRead = 0;
+    BOOL read = ReadFile(
+        file,
+        content.data(),
+        static_cast<DWORD>(content.size()),
+        &bytesRead,
+        nullptr);
+    CloseHandle(file);
+
+    if (!read || bytesRead == 0)
+        return false;
+
+    content.resize(bytesRead);
+    value = TrimWhitespace(Utf8ToWide(content));
+    return !value.empty();
+}
+
+static bool LoadAuthSecretFromFile(BootstrapConfig& config)
+{
+    if (config.AuthSecretFile.empty())
+        return true;
+
+    std::wstring secret;
+    bool loaded = ReadUtf8File(config.AuthSecretFile, secret);
+    DeleteFileW(config.AuthSecretFile.c_str());
+
+    if (!loaded)
+        return false;
+
+    config.AuthSecretBase64 = secret;
+    config.AuthEnabled = true;
+    return true;
 }
 
 // Fallback: read params from temp config file.
@@ -201,7 +279,7 @@ static bool ReadConfigFile(DWORD pid, BootstrapConfig& config)
 
     config.InspectorPath = findValue("inspectorDllPath");
     config.PipeName = findValue("pipeName");
-    config.AuthSecretBase64 = findValue("authSecretBase64");
+    config.AuthSecretFile = findValue("authSecretFile");
     config.CertDirectory = findValue("certDirectory");
 
     auto auth = findValue("auth");
@@ -216,7 +294,7 @@ static bool ReadConfigFile(DWORD pid, BootstrapConfig& config)
         config.EncryptionEnabled = (encryption == L"enabled" || encryption == L"Enabled");
     }
 
-    if (!config.AuthSecretBase64.empty())
+    if (!config.AuthSecretFile.empty())
         config.AuthEnabled = true;
 
     if (!config.CertDirectory.empty())
@@ -240,6 +318,9 @@ extern "C" __declspec(dllexport) DWORD WINAPI BootstrapInspector(LPVOID lpParame
         if (!ReadConfigFile(pid, config))
             return ExitCodes::InspectorPathInvalid;
     }
+
+    if (!LoadAuthSecretFromFile(config))
+        return ExitCodes::InspectorPathInvalid;
 
     std::wstring managedParams = BuildManagedParams(config);
 

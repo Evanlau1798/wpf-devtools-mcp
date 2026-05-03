@@ -142,6 +142,33 @@ public class ProcessInjectorTests
         result.TimeoutReason.Should().Be(InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart);
     }
 
+    [Fact]
+    public void InjectWithBootstrap_WithAuthenticationSecret_ShouldPassSecretFileInsteadOfRawSecret()
+    {
+        var processId = Process.GetCurrentProcess().Id;
+        var dllInjector = new CapturingDllInjector();
+        var injector = new ProcessInjector(
+            new AlwaysWpfProcessDetector(processId),
+            dllInjector,
+            () => new PipeReadyProbe((_, _) => true, () => DateTime.UtcNow, _ => { }));
+        var request = new InjectionRequest
+        {
+            ProcessId = processId,
+            BootstrapperDllPath = "bootstrapper.dll",
+            InspectorDllPath = "inspector.dll",
+            ExpectedPipeName = "WpfDevTools_TestPipe",
+            AuthenticationSecretBase64 = "YWJjZA=="
+        };
+
+        var result = injector.InjectWithBootstrap(request);
+
+        result.Success.Should().BeTrue();
+        dllInjector.Parameters.Should().NotContain("authSecretBase64=");
+        dllInjector.Parameters.Should().Contain("authSecretFile=");
+        dllInjector.SecretFileExistedDuringInjection.Should().BeTrue();
+        File.Exists(dllInjector.SecretFilePath!).Should().BeFalse();
+    }
+
     private sealed class AlwaysWpfProcessDetector(int expectedProcessId) : WpfProcessDetector
     {
         public override WpfProcessInfo? GetProcessInfo(int processId)
@@ -196,6 +223,31 @@ public class ProcessInjectorTests
                 Thread.Sleep(delay.Value);
             }
 
+            return 0;
+        }
+    }
+
+    private sealed class CapturingDllInjector : DllInjector
+    {
+        public string? Parameters { get; private set; }
+        public string? SecretFilePath { get; private set; }
+        public bool SecretFileExistedDuringInjection { get; private set; }
+
+        public override int InjectAndCallExport(
+            IntPtr hProcess,
+            string bootstrapperPath,
+            string exportName,
+            string parameters,
+            TimeSpan timeout)
+        {
+            Parameters = parameters;
+            SecretFilePath = parameters
+                .Split(';')
+                .Select(pair => pair.Split('=', 2))
+                .Where(parts => parts.Length == 2 && parts[0] == "authSecretFile")
+                .Select(parts => parts[1])
+                .SingleOrDefault();
+            SecretFileExistedDuringInjection = File.Exists(SecretFilePath);
             return 0;
         }
     }

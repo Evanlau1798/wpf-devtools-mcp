@@ -10,8 +10,10 @@ public class BootstrapperSecureTransportContractTests
         var content = File.ReadAllText(GetRepoFilePath(
             "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
 
-        content.Should().Contain("authSecretBase64",
-            "the native bootstrapper must preserve the shared auth secret when secure pipe auth is enabled");
+        content.Should().Contain("authSecretFile",
+            "the native bootstrapper should receive a secret file path instead of a raw secret in bootstrap parameters");
+        content.Should().NotContain("pair.rfind(L\"authSecretBase64=\", 0)",
+            "raw authentication secrets must not be accepted through the injected bootstrap argument string");
         content.Should().Contain("certDirectory",
             "the native bootstrapper must preserve the certificate directory when secure pipe TLS is enabled");
         content.Should().Contain("BuildManagedParams",

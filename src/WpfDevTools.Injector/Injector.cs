@@ -129,7 +129,8 @@ public class ProcessInjector : IProcessInjector
                 $"Target validation failed: {validationError}");
         }
 
-        var parameters = request.ToBootstrapParameters();
+        using var payload = request.CreateBootstrapParameterPayload();
+        var parameters = payload.Parameters;
 
         var hProcess = OpenProcess(
             PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |

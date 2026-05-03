@@ -92,9 +92,25 @@ public sealed class InjectionRequest
     /// </summary>
     public string ToBootstrapParameters()
     {
+        if (!string.IsNullOrWhiteSpace(AuthenticationSecretBase64))
+        {
+            throw new InvalidOperationException(
+                "Authentication secrets must be handed off with CreateBootstrapParameterPayload so raw secrets are not written into bootstrap arguments.");
+        }
+
+        return BuildBootstrapParameters(authenticationSecretFilePath: null);
+    }
+
+    internal BootstrapParameterPayload CreateBootstrapParameterPayload()
+    {
+        return BootstrapParameterPayload.Create(this);
+    }
+
+    internal string BuildBootstrapParameters(string? authenticationSecretFilePath)
+    {
         ValidateReservedDelimiters(nameof(InspectorDllPath), InspectorDllPath);
         ValidateReservedDelimiters(nameof(ExpectedPipeName), ExpectedPipeName);
-        ValidateReservedDelimiters(nameof(AuthenticationSecretBase64), AuthenticationSecretBase64);
+        ValidateReservedDelimiters(nameof(authenticationSecretFilePath), authenticationSecretFilePath);
         ValidateReservedDelimiters(nameof(CertificateDirectory), CertificateDirectory);
 
         var builder = new StringBuilder();
@@ -102,10 +118,10 @@ public sealed class InjectionRequest
         Append(builder, "inspectorDllPath", InspectorDllPath);
         Append(builder, "pipeName", ExpectedPipeName);
 
-        if (!string.IsNullOrWhiteSpace(AuthenticationSecretBase64))
+        if (!string.IsNullOrWhiteSpace(authenticationSecretFilePath))
         {
             Append(builder, "auth", "enabled");
-            Append(builder, "authSecretBase64", AuthenticationSecretBase64);
+            Append(builder, "authSecretFile", authenticationSecretFilePath);
         }
 
         if (!string.IsNullOrWhiteSpace(CertificateDirectory))

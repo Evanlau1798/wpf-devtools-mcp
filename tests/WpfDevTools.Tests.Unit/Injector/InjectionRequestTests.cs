@@ -111,7 +111,7 @@ public class InjectionRequestTests
     }
 
     [Fact]
-    public void ToBootstrapParameters_WithSecuritySettings_ShouldIncludeSecureFlagsAndValues()
+    public void CreateBootstrapParameterPayload_WithSecuritySettings_ShouldUseSecretFile()
     {
         var request = new InjectionRequest
         {
@@ -123,15 +123,39 @@ public class InjectionRequestTests
             CertificateDirectory = @"C:\secure certs"
         };
 
-        var parameters = request.ToBootstrapParameters();
+        using var payload = request.CreateBootstrapParameterPayload();
+        var parameters = payload.Parameters;
 
         parameters.Should().Contain("inspectorDllPath=C:\\app\\net8.0-windows\\Inspector.dll");
         parameters.Should().Contain("pipeName=WpfDevTools_1234");
         parameters.Should().Contain("auth=enabled");
-        parameters.Should().Contain("authSecretBase64=YWJjZA==",
-            "base64 padding must survive parameter formatting");
+        parameters.Should().Contain("authSecretFile=");
+        parameters.Should().NotContain("authSecretBase64=");
+        payload.AuthenticationSecretFilePath.Should().NotBeNull();
+        File.Exists(payload.AuthenticationSecretFilePath!).Should().BeTrue();
+        File.ReadAllText(payload.AuthenticationSecretFilePath!).Should().Be("YWJjZA==");
         parameters.Should().Contain("encryption=enabled");
         parameters.Should().Contain("certDirectory=C:\\secure certs");
+    }
+
+    [Fact]
+    public void CreateBootstrapParameterPayload_Dispose_ShouldDeleteSecretFile()
+    {
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = @"C:\app\Bootstrapper.x64.dll",
+            InspectorDllPath = @"C:\app\net8.0-windows\Inspector.dll",
+            ExpectedPipeName = "WpfDevTools_1234",
+            AuthenticationSecretBase64 = "YWJjZA=="
+        };
+
+        var payload = request.CreateBootstrapParameterPayload();
+        var secretFilePath = payload.AuthenticationSecretFilePath;
+
+        payload.Dispose();
+
+        File.Exists(secretFilePath!).Should().BeFalse();
     }
 
     [Fact]

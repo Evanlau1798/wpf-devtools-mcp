@@ -267,18 +267,18 @@ public sealed partial class SessionManager : IDisposable
         }
     }
 
-    internal NamedPipeClient CreateDetachedPipeClient(int processId)
+    internal NamedPipeClient CreateDetachedPipeClient(int processId, string? pipeName = null)
     {
         ThrowIfDisposed();
-        return CreateProcessScopedPipeClient(processId);
+        return CreateProcessScopedPipeClient(processId, pipeName);
     }
 
-    private NamedPipeClient CreateProcessScopedPipeClient(int processId)
+    private NamedPipeClient CreateProcessScopedPipeClient(int processId, string? pipeName = null)
     {
         var processAuthManager = _processAuthenticationSecrets.CreateAuthenticationManager(processId);
         return new NamedPipeClient(
             processId,
-            $"WpfDevTools_{processId}",
+            string.IsNullOrWhiteSpace(pipeName) ? $"WpfDevTools_{processId}" : pipeName,
             processAuthManager,
             _certManager,
             ownsAuthManager: processAuthManager != null);
@@ -291,6 +291,7 @@ public sealed partial class SessionManager : IDisposable
 
     internal async Task<NamedPipeConnectFailure> ConnectInjectedSessionAsync(
         int processId,
+        string? pipeName,
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
@@ -302,7 +303,15 @@ public sealed partial class SessionManager : IDisposable
             processId,
             timeout,
             cancellationToken,
-            () => CreateDetachedPipeClient(processId)).ConfigureAwait(false);
+            () => CreateDetachedPipeClient(processId, pipeName)).ConfigureAwait(false);
+    }
+
+    internal Task<NamedPipeConnectFailure> ConnectInjectedSessionAsync(
+        int processId,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        return ConnectInjectedSessionAsync(processId, pipeName: null, timeout, cancellationToken);
     }
 
     internal async Task<NamedPipeConnectFailure> ConnectExistingHostSessionAsync(

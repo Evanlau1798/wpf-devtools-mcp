@@ -107,7 +107,16 @@ public class InjectionRequestTests
     {
         var pipeName = InjectionRequest.CreatePipeName(5678);
 
-        pipeName.Should().Be("WpfDevTools_5678");
+        pipeName.Should().MatchRegex("^WpfDevTools_5678_[0-9a-f]{32}$");
+    }
+
+    [Fact]
+    public void CreatePipeName_ShouldUseFreshRandomComponent()
+    {
+        var firstPipeName = InjectionRequest.CreatePipeName(5678);
+        var secondPipeName = InjectionRequest.CreatePipeName(5678);
+
+        secondPipeName.Should().NotBe(firstPipeName);
     }
 
     [Fact]

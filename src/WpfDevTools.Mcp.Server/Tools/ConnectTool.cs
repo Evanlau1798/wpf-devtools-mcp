@@ -35,7 +35,7 @@ public sealed partial class ConnectTool
     private readonly PipeReadyProbe _pipeReadyProbe;
     private readonly Func<WpfProcessInfo, bool> _isRawInjectionTargetAllowed;
     private readonly Func<WpfProcessInfo, McpTargetAuthorization> _targetPolicy;
-    private readonly Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>> _connectInjectedSessionAsync;
+    private readonly Func<int, string?, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>> _connectInjectedSessionAsync;
     private readonly TimeSpan _connectTimeout;
 
     /// <summary>
@@ -97,7 +97,9 @@ public sealed partial class ConnectTool
         _isRawInjectionTargetAllowed = isRawInjectionTargetAllowed ?? RawInjectionTargetPolicy.IsAllowed;
         _targetPolicy = targetPolicy ?? McpTargetPolicy.Authorize;
         _connectInjectedSessionAsync = connectInjectedSessionAsync
-            ?? ((processId, timeout, cancellationToken) => _sessionManager.ConnectInjectedSessionAsync(processId, timeout, cancellationToken));
+            is null
+                ? ((processId, pipeName, timeout, cancellationToken) => _sessionManager.ConnectInjectedSessionAsync(processId, pipeName, timeout, cancellationToken))
+                : ((processId, _, timeout, cancellationToken) => connectInjectedSessionAsync(processId, timeout, cancellationToken));
         _connectTimeout = connectTimeout ?? TimeSpan.FromSeconds(McpServerConfiguration.ConnectTimeoutSeconds);
     }
 
@@ -259,7 +261,8 @@ public sealed partial class ConnectTool
                 processId,
                 targetContext,
                 injectionRequest!,
-                cancellationToken);
+                cancellationToken,
+                out var injectedPipeName);
             if (injectionFailure != null)
             {
                 return injectionFailure;
@@ -267,6 +270,7 @@ public sealed partial class ConnectTool
 
             return await ConnectPipeHandshakeAsync(
                 processId,
+                injectedPipeName,
                 connectStopwatch.Elapsed,
                 cancellationToken).ConfigureAwait(false);
         }

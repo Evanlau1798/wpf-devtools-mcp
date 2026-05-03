@@ -568,7 +568,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             FirstCallStarted.Set();
 
             _release.Wait(TimeSpan.FromSeconds(2), cancellationToken);
-            _host = new InspectorHost(request.ProcessId);
+            _host = new InspectorHost(request.ProcessId, request.ExpectedPipeName);
             _host.Start();
 
             return InjectionResult.CreateSuccess(

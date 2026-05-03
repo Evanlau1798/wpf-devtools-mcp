@@ -343,7 +343,7 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
 
         public override InjectionResult InjectWithBootstrap(InjectionRequest request, CancellationToken cancellationToken = default)
         {
-            var host = new InspectorHost(request.ProcessId);
+            var host = new InspectorHost(request.ProcessId, request.ExpectedPipeName);
             host.Start();
             _hosts.Add(host);
 

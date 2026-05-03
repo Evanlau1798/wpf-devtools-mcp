@@ -97,7 +97,7 @@ public sealed class ConnectToolActiveProcessTests : IDisposable
             InjectionRequest request,
             CancellationToken cancellationToken = default)
         {
-            var host = new InspectorHost(request.ProcessId);
+            var host = new InspectorHost(request.ProcessId, request.ExpectedPipeName);
             host.Start();
             _hosts.Add(host);
 

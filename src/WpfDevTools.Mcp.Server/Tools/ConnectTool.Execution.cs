@@ -306,8 +306,10 @@ public sealed partial class ConnectTool
         int processId,
         ConnectTargetContext context,
         InjectionRequest injectionRequest,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        out string? pipeName)
     {
+        pipeName = null;
         InjectionResult injectionResult;
         try
         {
@@ -319,9 +321,15 @@ public sealed partial class ConnectTool
             return CreateSessionManagerDisposedFailure();
         }
 
-        return injectionResult.Success
-            ? null
-            : CreateInjectionFailure(processId, context, injectionResult);
+        if (!injectionResult.Success)
+        {
+            return CreateInjectionFailure(processId, context, injectionResult);
+        }
+
+        pipeName = string.IsNullOrWhiteSpace(injectionResult.PipeName)
+            ? injectionRequest.ExpectedPipeName
+            : injectionResult.PipeName;
+        return null;
     }
 
     private static object CreateInjectionFailure(
@@ -358,6 +366,7 @@ public sealed partial class ConnectTool
 
     private async Task<object> ConnectPipeHandshakeAsync(
         int processId,
+        string? pipeName,
         TimeSpan elapsedBeforeHandshake,
         CancellationToken cancellationToken)
     {
@@ -365,6 +374,7 @@ public sealed partial class ConnectTool
         {
             return await ConnectPipeHandshakeCoreAsync(
                 processId,
+                pipeName,
                 elapsedBeforeHandshake,
                 cancellationToken).ConfigureAwait(false);
         }
@@ -381,6 +391,7 @@ public sealed partial class ConnectTool
 
     private async Task<object> ConnectPipeHandshakeCoreAsync(
         int processId,
+        string? pipeName,
         TimeSpan elapsedBeforeHandshake,
         CancellationToken cancellationToken)
     {
@@ -403,6 +414,7 @@ public sealed partial class ConnectTool
         {
             pipeConnectFailure = await _connectInjectedSessionAsync(
                 processId,
+                pipeName,
                 remainingPipeConnectTimeout,
                 cancellationToken).ConfigureAwait(false);
         }

@@ -46,7 +46,7 @@ public class InjectionPlanFactoryTests
         result!.ProcessId.Should().Be(5678);
         result.InspectorDllPath.Should().Contain("net8.0-windows");
         result.BootstrapperDllPath.Should().Contain("x64");
-        result.ExpectedPipeName.Should().Be("WpfDevTools_5678");
+        result.ExpectedPipeName.Should().MatchRegex("^WpfDevTools_5678_[0-9a-f]{32}$");
     }
 
     [Fact]

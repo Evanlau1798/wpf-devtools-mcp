@@ -45,7 +45,7 @@ public sealed class InjectionRequest
     /// <summary>
     /// Create the standard pipe name for a given process ID.
     /// </summary>
-    public static string CreatePipeName(int processId) => $"WpfDevTools_{processId}";
+    public static string CreatePipeName(int processId) => $"WpfDevTools_{processId}_{Guid.NewGuid():N}";
 
     internal TimeSpan ResolvePhaseTimeout(TimeSpan elapsed, TimeSpan configuredTimeout)
     {

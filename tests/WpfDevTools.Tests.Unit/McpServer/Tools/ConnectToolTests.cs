@@ -992,7 +992,7 @@ public partial class ConnectToolTests : IDisposable
 
         private InjectionResult StartPipeServer(InjectionRequest request, CancellationToken cancellationToken)
         {
-            _host = new InspectorHost(request.ProcessId);
+            _host = new InspectorHost(request.ProcessId, request.ExpectedPipeName);
             _host.Start();
 
             return InjectionResult.CreateSuccess(

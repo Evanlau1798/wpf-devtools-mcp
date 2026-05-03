@@ -60,6 +60,19 @@ public sealed class FrameworkProvidedPackageReferenceTests
         version.Should().NotContain("-");
     }
 
+    [Theory]
+    [InlineData("System.IO.FileSystem.AccessControl")]
+    [InlineData("System.IO.Pipes.AccessControl")]
+    public void SecurityRelevantAccessControlPackages_ShouldBeNet48CompatibilityOnly(string packageName)
+    {
+        var packageVersion = LoadProject("Directory.Packages.props")
+            .Descendants("PackageVersion")
+            .Single(element => element.Attribute("Include")?.Value == packageName);
+
+        packageVersion.Attribute("Condition")?.Value.Should().Be("'$(TargetFramework)' == 'net48'",
+            $"{packageName} has no net8-era stable NuGet package and should only be pinned for .NET Framework compatibility");
+    }
+
     private static XDocument LoadProject(string relativePath)
         => XDocument.Load(TestRepositoryPaths.GetRepoFilePath(relativePath));
 }

@@ -221,282 +221,54 @@ public sealed partial class ConnectTool
         var connectStopwatch = Stopwatch.StartNew();
         try
         {
-            if (_sessionManager.HasSession(processId))
-            {
-                if (_sessionManager.TryActivateConnectedSession(processId))
-                {
-                    return ConnectOperationResult.AlreadyConnected;
-                }
-
-                _sessionManager.RemoveSession(processId);
-            }
-
-            var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId);
-            if (!rateLimitStatus.Allowed)
-            {
-                return RateLimitResponseFactory.Create(
-                    rateLimitStatus,
-                    "Rate limit exceeded for connect operations. Please slow down your requests.");
-            }
-
-            var processInfo = _processDetector.GetProcessInfo(processId);
-            if (processInfo == null)
-            {
-                return new
-                {
-                    success = false,
-                    error = $"Could not detect process info for {processId}",
-                    errorCode = "ProcessNotFound"
-                };
-            }
-
-            var targetAuthorization = _targetPolicy(processInfo);
-            if (!targetAuthorization.IsAllowed)
-            {
-                Trace.WriteLine($"ConnectTool target allowlist denied process {processId}: executable={processInfo.ExecutablePath}");
-                return new
-                {
-                    success = false,
-                    error = targetAuthorization.Error,
-                    errorCode = "SecurityError",
-                    hint = targetAuthorization.Hint,
-                    requiresExplicitTargetOptIn = true,
-                    policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar,
-                    targetProcessName = processInfo.ProcessName
-                };
-            }
-
-            var access = ProcessConnectionAccessEvaluator.Evaluate(
+            var targetValidationFailure = ValidateAndAuthorizeTarget(
                 processId,
-                processInfo.IsElevated,
-                _isCurrentProcessElevated());
-            if (access.RequiresElevationToConnect)
+                cancellationToken,
+                out var targetContext);
+            if (targetValidationFailure != null)
             {
-                return new
-                {
-                    success = false,
-                    error = access.ConnectionWarning,
-                    errorCode = InjectionError.AccessDenied.ToString(),
-                    targetIsElevated = processInfo.IsElevated,
-                    requiresElevationToConnect = access.RequiresElevationToConnect,
-                    canConnectFromCurrentServer = access.CanConnectFromCurrentServer,
-                    suggestedAction = "Restart the MCP server as administrator and retry connect."
-                };
+                return targetValidationFailure;
             }
 
-            try
-            {
-                _sessionManager.EnsureSecureTransportArtifactsCreated();
-            }
-            catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
-            {
-                return CreateSessionManagerDisposedFailure();
-            }
-            catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is not ObjectDisposedException)
-            {
-                Trace.WriteLine($"ConnectTool secure transport initialization failed for process {processId}: {ex}");
-                return new
-                {
-                    success = false,
-                    error = "Failed to prepare secure transport artifacts. Check server logs for details.",
-                    errorCode = "SecureTransportInitializationFailed",
-                    targetIsElevated = processInfo.IsElevated,
-                    requiresElevationToConnect = access.RequiresElevationToConnect,
-                    canConnectFromCurrentServer = access.CanConnectFromCurrentServer
-                };
-            }
-
-            var likelySdkOnlyPackaging = IsLikelySdkOnlyPackaging(processInfo);
-            var isRawInjectionTargetAllowed = _isRawInjectionTargetAllowed(processInfo);
-            var existingHostProbeBudget = likelySdkOnlyPackaging
-                ? (isRawInjectionTargetAllowed
-                    ? _connectTimeout
-                    : McpServerConfiguration.ExternalSdkHostReuseGracePeriod)
-                : TimeSpan.FromMilliseconds(250);
-
-            var preInjectionConnectAttempt = await TryConnectToExistingInspectorHostAsync(
+            var existingHostResult = await ProbeExistingInspectorHostAsync(
                 processId,
-                likelySdkOnlyPackaging,
+                targetContext!,
                 connectStopwatch.Elapsed,
-                existingHostProbeBudget,
                 cancellationToken).ConfigureAwait(false);
-            if (preInjectionConnectAttempt is object preExistingHostResult)
+            if (existingHostResult != null)
             {
-                return preExistingHostResult;
+                return existingHostResult;
             }
 
-            if (!isRawInjectionTargetAllowed)
+            if (!targetContext!.IsRawInjectionTargetAllowed)
             {
-                var authorization = RawInjectionTargetPolicy.Authorize(processInfo);
-                Trace.WriteLine($"ConnectTool raw injection denied process {processId}: executable={processInfo.ExecutablePath}");
-                return new
-                {
-                    success = false,
-                    error = authorization.Error,
-                    errorCode = "SecurityError",
-                    hint = authorization.Hint,
-                    requiresExplicitTargetOptIn = true,
-                    allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
-                    targetProcessName = processInfo.ProcessName
-                };
+                return CreateRawInjectionDeniedFailure(processId, targetContext.ProcessInfo);
             }
 
-            var validationError = likelySdkOnlyPackaging
-                ? InjectionError.SingleFileApplication
-                : _injector.ValidateTarget(processId);
-
-            if (validationError != InjectionError.None)
-            {
-                return new
-                {
-                    success = false,
-                    error = GetErrorMessage(validationError, processId, processInfo),
-                    errorCode = validationError.ToString(),
-                    targetIsElevated = processInfo.IsElevated,
-                    requiresElevationToConnect = access.RequiresElevationToConnect,
-                    canConnectFromCurrentServer = access.CanConnectFromCurrentServer
-                };
-            }
-
-            var inspectorCandidates = _inspectorCandidateResolver(AppContext.BaseDirectory)
-                .Where(File.Exists)
-                .ToArray();
-            var bootstrapperCandidates = _bootstrapperCandidateResolver(AppContext.BaseDirectory)
-                .Where(File.Exists)
-                .ToArray();
-
-            var injectionRequest = InjectionPlanFactory.CreateRequest(
-                processInfo,
-                inspectorCandidates,
-                bootstrapperCandidates,
-                _sessionManager.GetAuthenticationSecretBase64(processId),
-                _sessionManager.GetCertificateDirectory());
-
-            if (injectionRequest == null)
-            {
-                return new
-                {
-                    success = false,
-                    error = "No matching Inspector or Bootstrapper DLL found for target process. " +
-                        $"Runtime: {processInfo.Runtime}, Architecture: {processInfo.Architecture}",
-                    errorCode = "FileNotFound",
-                    hint = "Verify that the server was built for the correct architecture and that Inspector/Bootstrapper DLLs exist in the output directory."
-                };
-            }
-
-            _dllPathValidator(injectionRequest.InspectorDllPath);
-            _dllPathValidator(injectionRequest.BootstrapperDllPath);
-
-            var remainingConnectTimeoutBeforeInjection = GetRemainingPipeConnectTimeout(
+            var injectionPlanFailure = TryCreateInjectionRequest(
+                processId,
+                targetContext,
                 connectStopwatch.Elapsed,
-                _connectTimeout);
-            if (remainingConnectTimeoutBeforeInjection <= TimeSpan.Zero)
+                out var injectionRequest);
+            if (injectionPlanFailure != null)
             {
-                return new
-                {
-                    success = false,
-                    error = "Connect timed out before bootstrap injection could start.",
-                    errorCode = "Timeout",
-                    hint = "The pre-injection discovery and validation phases consumed the full connect budget. Retry connect or target the process explicitly."
-                };
+                return injectionPlanFailure;
             }
 
-            injectionRequest = injectionRequest.WithTotalTimeout(remainingConnectTimeoutBeforeInjection);
-
-            InjectionResult injectionResult;
-            try
+            var injectionFailure = ExecuteBootstrapInjection(
+                processId,
+                targetContext,
+                injectionRequest!,
+                cancellationToken);
+            if (injectionFailure != null)
             {
-                injectionResult = _sessionManager.ExecuteWithShutdownGuard(
-                    () => _injector.InjectWithBootstrap(injectionRequest, cancellationToken));
-            }
-            catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
-            {
-                return CreateSessionManagerDisposedFailure();
+                return injectionFailure;
             }
 
-            if (!injectionResult.Success)
-            {
-                if (injectionResult.Error == InjectionError.AccessDenied && processInfo.IsElevated)
-                {
-                    return new
-                    {
-                        success = false,
-                        error = GetErrorMessage(InjectionError.AccessDenied, processId, processInfo),
-                        errorCode = InjectionError.AccessDenied.ToString(),
-                        targetIsElevated = processInfo.IsElevated,
-                        requiresElevationToConnect = access.RequiresElevationToConnect,
-                        canConnectFromCurrentServer = access.CanConnectFromCurrentServer,
-                        stage = injectionResult.FailedAtStage?.ToString()
-                    };
-                }
-
-                var injectionFailure = DescribeInjectionFailure(injectionResult, processId, processInfo);
-
-                return new
-                {
-                    success = false,
-                    error = injectionFailure.Error,
-                    errorCode = injectionFailure.ErrorCode,
-                    stage = injectionResult.FailedAtStage?.ToString()
-                };
-            }
-
-            try
-            {
-                var remainingPipeConnectTimeout = GetRemainingPipeConnectTimeout(
-                    connectStopwatch.Elapsed,
-                    _connectTimeout);
-                if (remainingPipeConnectTimeout <= TimeSpan.Zero)
-                {
-                    return new
-                    {
-                        success = false,
-                        error = "Connect timed out before the final Inspector Named Pipe handshake could start",
-                        errorCode = "Timeout",
-                        hint = "The injection phase consumed the full timeout budget. Target process may be slow to load the Inspector DLL."
-                    };
-                }
-
-                NamedPipeConnectFailure pipeConnectFailure;
-                try
-                {
-                    pipeConnectFailure = await _connectInjectedSessionAsync(
-                        processId,
-                        remainingPipeConnectTimeout,
-                        cancellationToken).ConfigureAwait(false);
-                }
-                catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
-                {
-                    return CreateSessionManagerDisposedFailure();
-                }
-                catch (InvalidOperationException ex) when (!cancellationToken.IsCancellationRequested)
-                {
-                    return CreateSessionConnectionFailure(processId, ex);
-                }
-
-                if (pipeConnectFailure != NamedPipeConnectFailure.None)
-                {
-                    var describedFailure = DescribePipeConnectFailure(pipeConnectFailure, processId);
-                    return new
-                    {
-                        success = false,
-                        error = describedFailure.Error,
-                        errorCode = describedFailure.ErrorCode,
-                        hint = describedFailure.Hint
-                    };
-                }
-
-                return ConnectOperationResult.FreshConnect;
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceWarning(
-                    "ConnectTool cleanup triggered for process {0} after pipe handshake failure: {1}: {2}",
-                    processId,
-                    ex.GetType().Name,
-                    ex.Message);
-                throw;
-            }
+            return await ConnectPipeHandshakeAsync(
+                processId,
+                connectStopwatch.Elapsed,
+                cancellationToken).ConfigureAwait(false);
         }
         catch (ObjectDisposedException ex) when (!cancellationToken.IsCancellationRequested && IsSessionManagerDisposed(ex))
         {

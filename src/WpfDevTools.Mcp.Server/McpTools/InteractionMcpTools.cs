@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class InteractionMcpTools
 {
-    private const string InteractionMetadata = "CATEGORY: Interaction\n\n";
+    private const string InteractionMetadata = "CATEGORY: Interaction\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     [McpServerTool(Name = "click_element", Title = "Click WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(

@@ -12,7 +12,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class EventDrainMcpTools
 {
-    private const string EventMetadata = "CATEGORY: Event\n\n";
+    private const string EventMetadata = "CATEGORY: Event\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     [McpServerTool(Name = "drain_events", Title = "Drain Pending Runtime Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(

@@ -12,7 +12,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class SceneDiagnosticsMcpTools
 {
-    private const string SceneMetadata = "CATEGORY: Scene Diagnostics\n\n";
+    private const string SceneMetadata = "CATEGORY: Scene Diagnostics\n" + ToolDescriptionFragments.ConnectPrerequisite;
     private const string ContractGuidance =
         "CONTRACT: Canonical payload lives in structuredContent. content[0].text is a compact fallback summary, not the full result. Read wpf://contracts/response for stable fields and MCP envelope semantics.\n\n";
 

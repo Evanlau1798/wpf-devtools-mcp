@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class DependencyPropertyMcpTools
 {
-    private const string DependencyPropertyMetadata = "CATEGORY: DependencyProperty\n\n";
+    private const string DependencyPropertyMetadata = "CATEGORY: DependencyProperty\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     [McpServerTool(Name = "get_dp_value_source", Title = "Inspect DependencyProperty Value Source", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(

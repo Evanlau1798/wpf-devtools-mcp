@@ -50,7 +50,8 @@ public static class ProcessMcpTools
     [McpServerTool(Name = "select_active_process", Title = "Select Active WPF Process", OpenWorld = false, Destructive = true, Idempotent = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to explicitly choose which connected WPF process should be used when later tool calls omit processId.\n\n" +
-        ProcessMetadata + "[Process] Set the active connected process for processId-omission workflows.\n\n" +
+        ProcessMetadata + ToolDescriptionFragments.ConnectPrerequisite +
+        "[Process] Set the active connected process for processId-omission workflows.\n\n" +
         "USE WHEN: Multiple WPF sessions are connected and you want one explicit default target.\n" +
         "DO NOT USE: Before connect(processId) has succeeded for the chosen process.\n\n" +
         "RESPONSE FORMAT:\n" +
@@ -138,7 +139,8 @@ public static class ProcessMcpTools
     [McpServerTool(Name = "ping", Title = "Ping WPF Inspector Session", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to verify a connected WPF inspector session is still healthy before deeper runtime inspection.\n\n" +
-        ProcessMetadata + "[Process] Check connection health and measure round-trip latency to the Inspector DLL " +
+        ProcessMetadata + ToolDescriptionFragments.ConnectPrerequisite +
+        "[Process] Check connection health and measure round-trip latency to the Inspector DLL " +
         "in the target process. Returns latency in milliseconds.\n\n" +
         "USE WHEN: Verifying connection is still alive; measuring IPC performance.\n" +
         "DO NOT USE: Before calling connect() (will fail).\n\n" +

@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class MvvmMcpTools
 {
-    private const string MvvmMetadata = "CATEGORY: MVVM\n\n";
+    private const string MvvmMetadata = "CATEGORY: MVVM\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     [McpServerTool(Name = "get_viewmodel", Title = "Inspect WPF ViewModel", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(

@@ -11,7 +11,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class StateMcpTools
 {
-    private const string StateMetadata = "CATEGORY: State\n\n";
+    private const string StateMetadata = "CATEGORY: State\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     [McpServerTool(Name = "capture_state_snapshot", Title = "Capture WPF Runtime State Snapshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(

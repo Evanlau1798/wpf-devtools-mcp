@@ -12,7 +12,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class MutationBatchMcpTools
 {
-    private const string BatchMetadata = "CATEGORY: State\n\n";
+    private const string BatchMetadata = "CATEGORY: State\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     [McpServerTool(Name = "batch_mutate", Title = "Execute Sequential WPF Runtime Mutations", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
     [Description(

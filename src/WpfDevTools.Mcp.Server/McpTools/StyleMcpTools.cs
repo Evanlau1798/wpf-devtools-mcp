@@ -13,7 +13,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class StyleMcpTools
 {
-    private const string StyleMetadata = "CATEGORY: Style\n\n";
+    private const string StyleMetadata = "CATEGORY: Style\n" + ToolDescriptionFragments.ConnectPrerequisite;
     [McpServerTool(Name = "get_applied_styles", Title = "Inspect WPF Applied Styles", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to inspect applied WPF styles and understand runtime appearance sources.\n\n" +

@@ -14,7 +14,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class EventMcpTools
 {
-    private const string EventMetadata = "CATEGORY: Event\n\n";
+    private const string EventMetadata = "CATEGORY: Event\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     [McpServerTool(Name = "trace_routed_events", Title = "Trace WPF Routed Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(

@@ -71,8 +71,10 @@ internal static class DllPathValidator
 
         if (signatureAction == SignaturePolicy.Action.Skip)
         {
-            System.Diagnostics.Trace.TraceInformation(
-                "[SECURITY] DLL signature verification skipped per policy (debug build or trusted local opt-in).");
+            System.Diagnostics.Trace.TraceWarning(
+                "[SECURITY WARNING] DLL signature verification skipped per policy. " +
+                "This is intended only for debug builds or explicit trusted-local opt-in via " +
+                $"{SkipSignatureCheckEnvironmentVariable}; do not enable this in production.");
         }
         else
         {

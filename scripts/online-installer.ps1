@@ -28,6 +28,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $script:WpfDevToolsInstallerTestModeEnabled = [bool]$script:WpfDevToolsInstallerTestModeEnabled -and [bool]$script:WpfDevToolsInstallerTestModeHarnessEnabled
 $script:InstallRootWasSpecified = $PSBoundParameters.ContainsKey('InstallRoot')
 $script:PackageArchivePathWasSpecified = $PSBoundParameters.ContainsKey('PackageArchivePath')

@@ -83,6 +83,22 @@ public sealed class OnlineInstallerContractTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldForceTls12BeforeNetworkCalls()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        var tlsIndex = content.IndexOf("[Net.ServicePointManager]::SecurityProtocol", StringComparison.Ordinal);
+        var firstWebRequestIndex = content.IndexOf("Invoke-WebRequest", StringComparison.Ordinal);
+        var firstRestMethodIndex = content.IndexOf("Invoke-RestMethod", StringComparison.Ordinal);
+
+        tlsIndex.Should().BeGreaterThan(0);
+        content.Should().Contain("[Net.SecurityProtocolType]::Tls12");
+        tlsIndex.Should().BeLessThan(firstWebRequestIndex);
+        tlsIndex.Should().BeLessThan(firstRestMethodIndex);
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldAvoidLegacyDecorativeCliBranding()
     {
         var content = File.ReadAllText(

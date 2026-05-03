@@ -12,12 +12,13 @@ namespace WpfDevTools.Tests.Integration.E2E;
 /// </summary>
 [Collection("McpE2E")]
 [Trait("Category", "E2E")]
-public sealed class PerformanceE2eTests
+public sealed class PerformanceE2eTests : SharedStateMcpE2eTestBase
 {
     private readonly McpE2eFixture _fixture;
     private readonly ITestOutputHelper _output;
 
     public PerformanceE2eTests(McpE2eFixture fixture, ITestOutputHelper output)
+        : base(fixture)
     {
         _fixture = fixture;
         _output = output;

@@ -10,7 +10,7 @@ public sealed class McpE2eResetDisciplineContractTests
         "\\[Collection\\(\\\"McpE2E\\\"\\)\\](?<declaration>[\\s\\S]*?public\\s+(?:sealed\\s+)?class\\s+(?<name>\\w+)(?<bases>\\s*:\\s*[^\\{]+)?\\s*\\{)",
         RegexOptions.CultureInvariant);
 
-    private static readonly string[] MutationCallPatterns =
+    private static readonly string[] SharedStateSensitiveCallPatterns =
     {
         "CallToolAsync\\(\\s*\"modify_viewmodel\"",
         "CallToolAsync\\(\\s*\"batch_mutate\"",
@@ -24,7 +24,8 @@ public sealed class McpE2eResetDisciplineContractTests
         "CallToolAsync\\(\\s*\"execute_command\"",
         "CallToolAsync\\(\\s*\"simulate_keyboard\"",
         "CallToolAsync\\(\\s*\"focus_element\"",
-        "CallToolAsync\\(\\s*\"drag_and_drop\""
+        "CallToolAsync\\(\\s*\"drag_and_drop\"",
+        "CallToolAsync\\(\\s*\"get_render_stats\""
     };
 
     private static readonly string[] MutationPayloadPatterns =
@@ -33,7 +34,7 @@ public sealed class McpE2eResetDisciplineContractTests
     };
 
     [Fact]
-    public void SharedMcpE2eTests_WithMutationTools_ShouldInheritSharedStateResetBase()
+    public void SharedMcpE2eTests_WithSharedStateSensitiveTools_ShouldInheritSharedStateResetBase()
     {
         var e2eDirectory = Path.GetDirectoryName(
             TestRepositoryPaths.GetRepoFilePath("tests/WpfDevTools.Tests.Integration/E2E/McpE2eCollection.cs"));
@@ -45,14 +46,14 @@ public sealed class McpE2eResetDisciplineContractTests
                 && !path.EndsWith("McpStdioClient.cs", StringComparison.Ordinal)
                 && !path.EndsWith("SharedStateMcpE2eTestBase.cs", StringComparison.Ordinal))
             .SelectMany(GetMcpE2eClassContracts)
-            .Where(static contract => contract.MutatesSharedState)
+            .Where(static contract => contract.UsesSharedStateSensitiveTool)
             .Where(static contract => !contract.InheritsSharedResetBase)
             .Select(static contract => $"{Path.GetFileName(contract.Path)}::{contract.ClassName}")
             .OrderBy(static name => name, StringComparer.Ordinal)
             .ToArray();
 
         violatingClasses.Should().BeEmpty(
-            "shared McpE2E tests that mutate app or UI state must inherit SharedStateMcpE2eTestBase so each test resets the shared TestApp session before and after execution");
+            "shared McpE2E tests that mutate app/UI state or attach global monitoring must inherit SharedStateMcpE2eTestBase so each test resets the shared TestApp session before and after execution");
     }
 
     private static IEnumerable<McpE2eClassContract> GetMcpE2eClassContracts(string path)
@@ -75,13 +76,13 @@ public sealed class McpE2eResetDisciplineContractTests
                 match.Groups["name"].Value,
                 baseList,
                 classBody,
-                MutatesSharedState(classBody),
+                UsesSharedStateSensitiveTool(classBody),
                 InheritsSharedResetBase(baseList));
         }
     }
 
-    private static bool MutatesSharedState(string classBody)
-        => MutationCallPatterns.Any(pattern => Regex.IsMatch(classBody, pattern, RegexOptions.CultureInvariant))
+    private static bool UsesSharedStateSensitiveTool(string classBody)
+        => SharedStateSensitiveCallPatterns.Any(pattern => Regex.IsMatch(classBody, pattern, RegexOptions.CultureInvariant))
             || MutationPayloadPatterns.Any(pattern => Regex.IsMatch(classBody, pattern, RegexOptions.CultureInvariant));
 
     private static bool InheritsSharedResetBase(string baseList)
@@ -116,6 +117,6 @@ public sealed class McpE2eResetDisciplineContractTests
         string ClassName,
         string BaseList,
         string ClassBody,
-        bool MutatesSharedState,
+        bool UsesSharedStateSensitiveTool,
         bool InheritsSharedResetBase);
 }

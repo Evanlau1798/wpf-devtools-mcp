@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Text.Json;
+using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
@@ -14,6 +15,15 @@ public class DispatcherAnalyzerBaseTests
 
     private class TestAnalyzer : DispatcherAnalyzerBase
     {
+        public TestAnalyzer()
+        {
+        }
+
+        public TestAnalyzer(ElementFinder elementFinder)
+            : base(elementFinder)
+        {
+        }
+
         public T TestInvokeOnUIThread<T>(Func<T> action, TimeSpan? timeout = null)
         {
             return InvokeOnUIThread(action, timeout);
@@ -47,6 +57,11 @@ public class DispatcherAnalyzerBaseTests
         public static DependencyProperty? TestFindDependencyProperty(DependencyObject element, string propertyName)
         {
             return FindDependencyProperty(element, propertyName);
+        }
+
+        public DependencyObject? TestResolveElement(string? elementId)
+        {
+            return ResolveElement(elementId);
         }
     }
 
@@ -106,6 +121,30 @@ public class DispatcherAnalyzerBaseTests
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public void ResolveElement_WithNullElementId_ShouldUseRootElement()
+    {
+        var elementFinder = new ElementFinder();
+        var analyzer = new TestAnalyzer(elementFinder);
+
+        var result = analyzer.TestResolveElement(null);
+
+        result.Should().Be(elementFinder.GetRootElement());
+    }
+
+    [StaFact]
+    public void ResolveElement_WithElementId_ShouldUseFindById()
+    {
+        var elementFinder = new ElementFinder();
+        var analyzer = new TestAnalyzer(elementFinder);
+        var element = new Button();
+        var elementId = elementFinder.GenerateElementId(element);
+
+        var result = analyzer.TestResolveElement(elementId);
+
+        result.Should().BeSameAs(element);
     }
 
     [Fact]

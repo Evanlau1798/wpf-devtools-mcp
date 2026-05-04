@@ -6,13 +6,6 @@ namespace WpfDevTools.Inspector.Analyzers;
 
 public sealed partial class BindingAnalyzer
 {
-    private DependencyObject? ResolveElement(string? elementId)
-    {
-        return elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
-    }
-
     private List<object> CollectBindingsForElement(
         DependencyObject element,
         BindingScanBudget budget)

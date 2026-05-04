@@ -16,9 +16,7 @@ public sealed partial class DependencyPropertyAnalyzer
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {

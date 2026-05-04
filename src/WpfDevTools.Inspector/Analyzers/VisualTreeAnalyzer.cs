@@ -15,14 +15,15 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     private readonly ElementFinder _elementFinder;
 
     internal VisualTreeAnalyzer()
+        : this(new ElementFinder())
     {
-        _elementFinder = new ElementFinder();
     }
 
     /// <summary>
     /// Initializes a visual tree analyzer backed by the provided element finder.
     /// </summary>
     public VisualTreeAnalyzer(ElementFinder elementFinder)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
     }
@@ -35,9 +36,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
     internal object GetVisualTreeWithOptions(TreeTraversalOptions options, string? elementId = null)
     {
-        var root = elementId == null
-            ? GetRootElement()
-            : _elementFinder.FindById(elementId);
+        var root = ResolveElement(elementId);
 
         if (root == null)
         {
@@ -89,11 +88,6 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
         });
     }
 
-    private DependencyObject? GetRootElement()
-    {
-        return _elementFinder.GetRootElement();
-    }
-
     /// <summary>
     /// Compares the immediate visual and logical children of the specified element.
     /// </summary>
@@ -101,9 +95,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -160,9 +152,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {

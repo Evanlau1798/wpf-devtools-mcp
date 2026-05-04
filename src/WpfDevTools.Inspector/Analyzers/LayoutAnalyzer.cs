@@ -21,6 +21,7 @@ public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public LayoutAnalyzer(ElementFinder elementFinder)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
     }
@@ -32,9 +33,7 @@ public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -110,9 +109,7 @@ public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -433,9 +430,7 @@ public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {

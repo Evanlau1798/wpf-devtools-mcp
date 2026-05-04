@@ -34,9 +34,7 @@ public sealed partial class InteractionAnalyzer
                     "Provide a positive maxHeight value, or omit it to keep the rendered height.");
             }
 
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {

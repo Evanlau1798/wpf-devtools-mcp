@@ -17,6 +17,7 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
     /// Initializes a logical tree analyzer backed by the provided element finder.
     /// </summary>
     public LogicalTreeAnalyzer(ElementFinder elementFinder)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
     }
@@ -29,9 +30,7 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
 
     internal object GetLogicalTreeWithOptions(TreeTraversalOptions options, string? elementId)
     {
-        var root = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
+        var root = ResolveElement(elementId);
 
         if (root == null)
         {

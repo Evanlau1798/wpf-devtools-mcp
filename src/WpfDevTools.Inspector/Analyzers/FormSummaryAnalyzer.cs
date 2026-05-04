@@ -22,6 +22,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
     /// Create a form summary analyzer backed by the shared element finder.
     /// </summary>
     public FormSummaryAnalyzer(ElementFinder elementFinder)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
     }
@@ -33,9 +34,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var root = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var root = ResolveElement(elementId);
 
             if (root == null)
             {

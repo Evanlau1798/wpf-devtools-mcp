@@ -81,9 +81,7 @@ public sealed partial class DependencyPropertyAnalyzer
         dp = null;
         error = null;
 
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
+        var element = ResolveElement(elementId);
 
         if (element == null)
         {

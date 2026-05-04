@@ -34,6 +34,7 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public PerformanceAnalyzer(ElementFinder elementFinder)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
     }
@@ -146,9 +147,7 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? GetRootElement()
-                : FindElementById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -176,9 +175,7 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? GetRootElement()
-                : FindElementById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -411,11 +408,6 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
     private DependencyObject? GetRootElement()
     {
         return _elementFinder.GetRootElement();
-    }
-
-    private DependencyObject? FindElementById(string elementId)
-    {
-        return _elementFinder.FindById(elementId);
     }
 
     /// <summary>

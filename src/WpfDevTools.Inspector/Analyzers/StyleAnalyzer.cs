@@ -17,6 +17,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
     public StyleAnalyzer(ElementFinder elementFinder)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
     }
@@ -28,9 +29,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -129,9 +128,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -324,9 +321,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -381,9 +376,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                     "Provide the resource key string you want to resolve.");
             }
 
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -458,9 +451,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                     "Provide the DependencyProperty name to override.");
             }
 
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {

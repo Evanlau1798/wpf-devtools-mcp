@@ -21,6 +21,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
     /// Create a UI summary analyzer backed by the shared element finder.
     /// </summary>
     public UiSummaryAnalyzer(ElementFinder elementFinder)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
     }
@@ -50,9 +51,7 @@ public sealed class UiSummaryAnalyzer : DispatcherAnalyzerBase
                     "Use depthMode='semantic' to skip layout-only wrappers, or omit the parameter to keep the default semantic depth semantics.");
             }
 
-            var root = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var root = ResolveElement(elementId);
 
             if (root == null)
             {

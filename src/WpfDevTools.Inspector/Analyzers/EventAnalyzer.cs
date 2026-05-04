@@ -1,4 +1,4 @@
-﻿using System.Runtime.ExceptionServices;
+using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -53,6 +53,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
         WatchEventBuffer? watchEventBuffer,
         Func<Dispatcher?, Action, Exception?>? cleanupInvoker = null,
         Action<UIElement, RoutedEvent, RoutedEventHandler, string, List<HandlerRegistration>>? registrationInvoker = null)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
         _watchEventBuffer = watchEventBuffer;
@@ -127,9 +128,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
 
         return InvokeOnUIThread(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -378,9 +377,7 @@ public sealed partial class EventAnalyzer : DispatcherAnalyzerBase, IDisposable
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {

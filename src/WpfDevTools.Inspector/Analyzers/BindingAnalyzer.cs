@@ -38,6 +38,7 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
         ElementFinder elementFinder,
         WatchEventBuffer? watchEventBuffer,
         BindingErrorTraceListener? bindingErrorTraceListener)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
         _watchEventBuffer = watchEventBuffer;

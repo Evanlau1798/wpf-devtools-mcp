@@ -68,6 +68,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     internal DependencyPropertyAnalyzer(
         ElementFinder elementFinder,
         WatchEventBuffer? watchEventBuffer)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
         _watchEventBuffer = watchEventBuffer;
@@ -78,9 +79,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     /// </summary>
     public object GetValueSource(string propertyName, string? elementId = null, bool compact = false, bool settleBindings = false)
     {
-        var element = elementId == null
-            ? _elementFinder.GetRootElement()
-            : _elementFinder.FindById(elementId);
+        var element = ResolveElement(elementId);
 
         if (element == null)
         {
@@ -150,9 +149,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -217,9 +214,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -293,9 +288,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {

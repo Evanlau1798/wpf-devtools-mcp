@@ -41,6 +41,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
     internal MvvmAnalyzer(
         ElementFinder elementFinder,
         WatchEventBuffer? watchEventBuffer)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
         _watchEventBuffer = watchEventBuffer;
@@ -61,9 +62,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -151,7 +150,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
+            var element = ResolveElement(elementId);
             if (element == null)
                 return ToolErrorFactory.ElementNotFound(elementId);
 
@@ -199,7 +198,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
                 $"Attempt: {commandName}, ElementId: {elementId ?? "root"}",
                 AuditSeverity.Information);
 
-            var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
+            var element = ResolveElement(elementId);
             if (element == null)
                 return ToolErrorFactory.ElementNotFound(elementId);
 
@@ -268,7 +267,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId != null ? _elementFinder.FindById(elementId) : GetRootElement();
+            var element = ResolveElement(elementId);
             if (element == null)
                 return ToolErrorFactory.ElementNotFound(elementId);
 
@@ -318,11 +317,6 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
         }
     }
 
-    private DependencyObject? GetRootElement()
-    {
-        return _elementFinder.GetRootElement();
-    }
-
     /// <summary>
     /// Modify ViewModel property at runtime
     /// </summary>
@@ -337,9 +331,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
                     "Provide propertyName and value when calling modify_viewmodel.");
             }
 
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {

@@ -28,6 +28,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
     internal InteractionAnalyzer(
         ElementFinder elementFinder,
         WatchEventBuffer? watchEventBuffer)
+        : base(elementFinder)
     {
         _elementFinder = elementFinder;
         _watchEventBuffer = watchEventBuffer;
@@ -40,9 +41,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -119,9 +118,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
     {
         return InvokeOnUIThread<object>(() =>
         {
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {
@@ -172,18 +169,14 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                     "This feature requires internal DragEventArgs reflection support that may be unavailable on the current runtime.");
             }
 
-            var sourceElement = sourceElementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(sourceElementId);
+            var sourceElement = ResolveElement(sourceElementId);
 
             if (sourceElement == null)
             {
                 return ToolErrorFactory.ElementNotFound(sourceElementId);
             }
 
-            var targetElement = targetElementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(targetElementId);
+            var targetElement = ResolveElement(targetElementId);
 
             if (targetElement == null)
             {

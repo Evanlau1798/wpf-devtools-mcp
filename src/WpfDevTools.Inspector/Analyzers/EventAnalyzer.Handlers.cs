@@ -28,9 +28,7 @@ public sealed partial class EventAnalyzer
                     "This feature requires internal WPF event store reflection support that may be unavailable on the current runtime.");
             }
 
-            var element = elementId == null
-                ? _elementFinder.GetRootElement()
-                : _elementFinder.FindById(elementId);
+            var element = ResolveElement(elementId);
 
             if (element == null)
             {

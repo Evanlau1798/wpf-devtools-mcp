@@ -15,6 +15,41 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public abstract partial class DispatcherAnalyzerBase
 {
+    private readonly ElementFinder? _elementFinder;
+
+    /// <summary>
+    /// Initializes a dispatcher analyzer without element resolution support.
+    /// </summary>
+    protected DispatcherAnalyzerBase()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a dispatcher analyzer with shared element resolution support.
+    /// </summary>
+    /// <param name="elementFinder">Element finder used to resolve null or explicit element IDs.</param>
+    protected DispatcherAnalyzerBase(ElementFinder elementFinder)
+    {
+        _elementFinder = elementFinder ?? throw new ArgumentNullException(nameof(elementFinder));
+    }
+
+    /// <summary>
+    /// Resolves an explicit element ID, or the application root element when the ID is null.
+    /// </summary>
+    /// <param name="elementId">Element ID to resolve, or null to resolve the root element.</param>
+    /// <returns>The resolved dependency object, or null when no matching element exists.</returns>
+    protected DependencyObject? ResolveElement(string? elementId)
+    {
+        if (_elementFinder == null)
+        {
+            throw new InvalidOperationException("ResolveElement requires an ElementFinder-backed analyzer instance.");
+        }
+
+        return elementId == null
+            ? _elementFinder.GetRootElement()
+            : _elementFinder.FindById(elementId);
+    }
+
     /// <summary>
     /// Execute an action on the UI thread with optional timeout
     /// </summary>

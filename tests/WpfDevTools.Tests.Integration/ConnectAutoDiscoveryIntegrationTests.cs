@@ -30,21 +30,28 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
         var processId = Environment.ProcessId;
-        using var server = CreateServer(processId);
         using var sessionManager = new SessionManager();
-        var tool = CreateTool(
-            sessionManager,
-            new FakeProcessDetector(CreateProcessInfo(processId, "SingleApp")),
-            new FakeProcessInjector());
+        NamedPipeServerStream? server = null;
+        try
+        {
+            var tool = CreateTool(
+                sessionManager,
+                new FakeProcessDetector(CreateProcessInfo(processId, "SingleApp")),
+                new FakeProcessInjector(request => server = CreateServer(request.ExpectedPipeName, processId)));
 
-        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+            var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
 
-        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
-        json.GetProperty("candidateCount").GetInt32().Should().Be(1);
-        sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
-        activeProcessId.Should().Be(processId);
+            var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+            json.GetProperty("success").GetBoolean().Should().BeTrue();
+            json.GetProperty("autoDiscovered").GetBoolean().Should().BeTrue();
+            json.GetProperty("candidateCount").GetInt32().Should().Be(1);
+            sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
+            activeProcessId.Should().Be(processId);
+        }
+        finally
+        {
+            server?.Dispose();
+        }
     }
 
     [Fact]
@@ -77,26 +84,33 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
         EnsureDummyBootstrapperExists();
         var smallProcessId = NextSyntheticProcessId();
         var largeProcessId = Environment.ProcessId;
-        using var server = CreateServer(largeProcessId);
         using var sessionManager = new SessionManager();
-        var tool = CreateTool(
-            sessionManager,
-            new FakeProcessDetector(
-                CreateProcessInfo(smallProcessId, "AppA"),
-                CreateProcessInfo(largeProcessId, "AppB")),
-            new FakeProcessInjector(),
-            processId => processId == largeProcessId ? 900_000_000 : 100_000_000);
+        NamedPipeServerStream? server = null;
+        try
+        {
+            var tool = CreateTool(
+                sessionManager,
+                new FakeProcessDetector(
+                    CreateProcessInfo(smallProcessId, "AppA"),
+                    CreateProcessInfo(largeProcessId, "AppB")),
+                new FakeProcessInjector(request => server = CreateServer(request.ExpectedPipeName, largeProcessId)),
+                processId => processId == largeProcessId ? 900_000_000 : 100_000_000);
 
-        var result = await tool.ExecuteAsync(
-            ToJsonElement(new { selectionStrategy = "largest_working_set" }),
-            CancellationToken.None);
+            var result = await tool.ExecuteAsync(
+                ToJsonElement(new { selectionStrategy = "largest_working_set" }),
+                CancellationToken.None);
 
-        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.GetProperty("processId").GetInt32().Should().Be(largeProcessId);
-        json.GetProperty("autoSelected").GetBoolean().Should().BeTrue();
-        json.GetProperty("selectionReason").GetString().Should().Be("largest_working_set");
-        json.GetProperty("processes").GetArrayLength().Should().Be(2);
+            var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+            json.GetProperty("success").GetBoolean().Should().BeTrue();
+            json.GetProperty("processId").GetInt32().Should().Be(largeProcessId);
+            json.GetProperty("autoSelected").GetBoolean().Should().BeTrue();
+            json.GetProperty("selectionReason").GetString().Should().Be("largest_working_set");
+            json.GetProperty("processes").GetArrayLength().Should().Be(2);
+        }
+        finally
+        {
+            server?.Dispose();
+        }
     }
 
     [Fact]
@@ -158,10 +172,10 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
         }
     }
 
-    private static NamedPipeServerStream CreateServer(int processId)
+    private static NamedPipeServerStream CreateServer(string pipeName, int processId)
     {
         var server = new NamedPipeServerStream(
-            $"WpfDevTools_{processId}",
+            pipeName,
             PipeDirection.InOut,
             1,
             PipeTransmissionMode.Byte,
@@ -251,7 +265,7 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
             => _processes.FirstOrDefault(process => process.ProcessId == processId);
     }
 
-    private sealed class FakeProcessInjector : IProcessInjector
+    private sealed class FakeProcessInjector(Action<InjectionRequest>? onInjectWithBootstrap = null) : IProcessInjector
     {
         public InjectionError ValidateTarget(int processId) => InjectionError.None;
 
@@ -259,11 +273,14 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
             => InjectionResult.CreateSuccess(processId, dllPath);
 
         public InjectionResult InjectWithBootstrap(InjectionRequest request, CancellationToken cancellationToken = default)
-            => InjectionResult.CreateSuccess(
+        {
+            onInjectWithBootstrap?.Invoke(request);
+            return InjectionResult.CreateSuccess(
                 request.ProcessId,
                 request.InspectorDllPath,
                 bootstrapExitCode: 0,
                 pipeName: request.ExpectedPipeName);
+        }
     }
 }
 

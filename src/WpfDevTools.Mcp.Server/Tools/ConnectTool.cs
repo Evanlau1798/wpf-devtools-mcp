@@ -305,6 +305,7 @@ public sealed partial class ConnectTool
             : remainingPipeConnectTimeout;
 
         var probeStopwatch = Stopwatch.StartNew();
+        string? existingPipeName = null;
         while (true)
         {
             var remainingProbeBudget = effectiveProbeBudget - probeStopwatch.Elapsed;
@@ -317,7 +318,11 @@ public sealed partial class ConnectTool
                 ? TimeSpan.FromMilliseconds(250)
                 : remainingProbeBudget;
 
-            if (_pipeReadyProbe.WaitForPipeReady($"WpfDevTools_{processId}", probeTimeout, cancellationToken))
+            if (_pipeReadyProbe.TryFindReadyPipeByPrefix(
+                $"WpfDevTools_{processId}",
+                probeTimeout,
+                cancellationToken,
+                out existingPipeName))
             {
                 break;
             }
@@ -334,6 +339,7 @@ public sealed partial class ConnectTool
         {
             pipeConnectFailure = await _sessionManager.ConnectExistingHostSessionAsync(
                 processId,
+                existingPipeName,
                 remainingPipeConnectTimeout,
                 cancellationToken,
                 preferRootAuthentication).ConfigureAwait(false);

@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using System.IO.Pipes;
 using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -68,5 +69,48 @@ public class NamedPipeClientTests
 
         // Assert
         pipeName.Should().Be("WpfDevTools_12345");
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WithRandomizedProcessPipe_ShouldValidateHostCompatibility()
+    {
+        var processId = 12345;
+        var pipeName = $"WpfDevTools_{processId}_{Guid.NewGuid():N}";
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        using var client = new NamedPipeClient(
+            processId,
+            pipeName,
+            authManager: null,
+            certManager: null,
+            requestTimeout: TimeSpan.FromMilliseconds(100));
+
+        var serverTask = Task.Run(async () =>
+        {
+            try
+            {
+                await server.WaitForConnectionAsync();
+                await Task.Delay(TimeSpan.FromMilliseconds(500));
+            }
+            catch (IOException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        var result = await client.ConnectAsync(
+            TimeSpan.FromSeconds(1),
+            maxRetries: 1,
+            CancellationToken.None);
+
+        result.Should().BeFalse();
+        client.LastConnectFailure.Should().Be(NamedPipeConnectFailure.ServerProcessMismatch);
+        await serverTask;
     }
 }

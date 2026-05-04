@@ -108,10 +108,9 @@ public sealed partial class NamedPipeClient : IDisposable
             ? requestTimeout.Value
             : InspectorConfig.RequestTimeout;
 
-        var usesDefaultPipeName = string.Equals(
-            _pipeName,
-            BuildPipeName(processId),
-            StringComparison.Ordinal);
+        var defaultPipeName = BuildPipeName(processId);
+        var usesDefaultPipeName = string.Equals(_pipeName, defaultPipeName, StringComparison.Ordinal) ||
+            _pipeName.StartsWith(defaultPipeName + "_", StringComparison.Ordinal);
         _enforceHostCompatibilityValidation =
             enforceHostCompatibilityValidation ?? usesDefaultPipeName;
     }

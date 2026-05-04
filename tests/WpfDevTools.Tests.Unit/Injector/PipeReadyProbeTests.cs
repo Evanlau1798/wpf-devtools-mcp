@@ -86,4 +86,23 @@ public class PipeReadyProbeTests
 
         capturedPipeName.Should().Be(@"\\.\pipe\WpfDevTools_1234");
     }
+
+    [Fact]
+    public void TryFindReadyPipeByPrefix_WhenRandomizedPipeExists_ShouldReturnRandomizedName()
+    {
+        var probe = new PipeReadyProbe(
+            waitNamedPipe: (name, _) => name.EndsWith("WpfDevTools_1234_abcdef", StringComparison.Ordinal),
+            utcNow: () => DateTime.UtcNow,
+            sleep: _ => { },
+            enumeratePipeNames: () => ["WpfDevTools_1234_abcdef", "WpfDevTools_5678_other"]);
+
+        var result = probe.TryFindReadyPipeByPrefix(
+            "WpfDevTools_1234",
+            TimeSpan.FromSeconds(1),
+            CancellationToken.None,
+            out var pipeName);
+
+        result.Should().BeTrue();
+        pipeName.Should().Be("WpfDevTools_1234_abcdef");
+    }
 }

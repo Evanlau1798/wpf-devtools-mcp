@@ -16,6 +16,9 @@ namespace WpfDevTools.Tests.Unit.Execution;
 
 public sealed class UnitTestParallelizationContractTests
 {
+    private const string ReleaseUnitTestProjectPath =
+        "tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj";
+
     [Fact]
     public void XunitRunnerConfig_ShouldEnableAssemblyParallelization()
     {
@@ -36,6 +39,48 @@ public sealed class UnitTestParallelizationContractTests
             .Should().BeTrue("the unit suite should parallelize tests within independent test collections to avoid multi-minute serial runs");
         document.RootElement.GetProperty("maxParallelThreads").GetInt32()
             .Should().Be(0, "the unit suite should scale collection fan-out with the host CPU count instead of pinning itself to two workers");
+    }
+
+    [Fact]
+    public void ReleaseUnitTestProject_ShouldBeIncludedInPrimaryBuildAndTestEntrypoints()
+    {
+        ReadRepoFile("WpfDevTools.sln").Should().Contain(
+            ReleaseUnitTestProjectPath,
+            "the solution build and solution-level test discovery must include the split Release/InstallerScripts test assembly");
+        ReadRepoFile(".github/workflows/ci-cd.yml").Should().Contain(
+            ReleaseUnitTestProjectPath,
+            "CI must execute the split Release/InstallerScripts test assembly");
+        ReadRepoFile("scripts/tools/packaging/Preflight-Release.ps1").Should().Contain(
+            ReleaseUnitTestProjectPath,
+            "release preflight must execute release and installer tests before publishing artifacts");
+    }
+
+    [Fact]
+    public void ReleaseUnitTestCiStep_ShouldNotPassPlatformWhenUsingNoBuild()
+    {
+        var ciLines = ReadRepoFile(".github/workflows/ci-cd.yml")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var releaseTestCommand = ciLines.Single(line => line.Contains(
+            $"dotnet test {ReleaseUnitTestProjectPath}",
+            StringComparison.Ordinal));
+
+        releaseTestCommand.Should().Contain("--no-build");
+        releaseTestCommand.Should().NotContain(
+            "-p:Platform=",
+            "the solution maps the split release test project to Any CPU, so passing Platform to a csproj --no-build test command makes VSTest probe bin/<Platform>/<Configuration> instead of the built output");
+    }
+
+    [Fact]
+    public void ReleaseUnitTests_ShouldNotInspectMovedHarnessFromOldAssemblyPath()
+    {
+        var releaseTestSources = Directory
+            .EnumerateFiles(GetRepoFilePath("tests/WpfDevTools.Tests.Unit.Release"), "*.cs", SearchOption.AllDirectories)
+            .Select(File.ReadAllText)
+            .ToArray();
+
+        releaseTestSources.Should().NotContain(
+            source => source.Contains("tests/WpfDevTools.Tests.Unit/Release/ReleaseScriptTestHarness.cs", StringComparison.Ordinal),
+            "contracts in the split release test assembly must inspect the active harness copy, not the stale file left in the original unit assembly");
     }
 
     [Fact]
@@ -249,6 +294,9 @@ public sealed class UnitTestParallelizationContractTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string ReadRepoFile(string relativePath)
+        => File.ReadAllText(GetRepoFilePath(relativePath)).Replace('\\', '/');
 
     private static string? GetCollectionName(Type testClass)
     {

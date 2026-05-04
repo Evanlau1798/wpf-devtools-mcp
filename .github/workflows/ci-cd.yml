@@ -81,6 +81,9 @@ jobs:
     - name: Run unit tests
       run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}
 
+    - name: Run release unit tests
+      run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
+
     - name: Run integration tests
       run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}
 

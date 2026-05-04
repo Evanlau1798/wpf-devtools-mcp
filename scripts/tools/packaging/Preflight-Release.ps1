@@ -120,6 +120,7 @@ if (-not $SkipBuild) {
 
 if (-not $SkipTest) {
     $null = $steps.Add("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c $Configuration --no-build")
+    $null = $steps.Add("dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj -c $Configuration --no-build")
 }
 
 $null = $steps.Add("powershell -ExecutionPolicy Bypass -File $publishScript -Configuration $Configuration -Architectures $architecturesLiteral -OutputRoot $packageOutputRoot")
@@ -163,6 +164,7 @@ if (-not $SkipBuild) {
 
 if (-not $SkipTest) {
     Invoke-Step -FilePath 'dotnet' -Arguments @('test', 'tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj', '-c', $Configuration, '--no-build')
+    Invoke-Step -FilePath 'dotnet' -Arguments @('test', 'tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj', '-c', $Configuration, '--no-build')
 }
 
 Write-StepMessage -Message "$publishScript -Configuration $Configuration -Architectures $($resolvedArchitectures -join ',') -OutputRoot $packageOutputRoot"

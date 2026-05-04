@@ -110,11 +110,12 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Fact]
-    public void WpfAndBootstrapIntegrationCollection_ShouldDisableParallelization()
+    public void WpfAndBootstrapIntegrationCollection_ShouldRemainParallelizableWithOtherCollections()
     {
         GetCollectionDefinitionAttribute(typeof(WpfAndBootstrapIntegrationCollection))
             .DisableParallelization
-            .Should().BeTrue("WPF-using tests must serialize through shared WPF dispatcher and named-pipe resources");
+            .Should().BeFalse(
+                "tests in the merged WPF/bootstrap collection are already serialized with each other by the shared collection, but the lane should remain eligible to run beside isolated integration collections");
     }
 
     [Fact]

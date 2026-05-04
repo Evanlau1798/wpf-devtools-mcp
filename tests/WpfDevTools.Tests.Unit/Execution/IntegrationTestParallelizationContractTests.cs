@@ -13,7 +13,7 @@ public sealed class IntegrationTestParallelizationContractTests
             File.ReadAllText(TestRepositoryPaths.GetRepoFilePath("tests/WpfDevTools.Tests.Integration/xunit.runner.json")));
 
         document.RootElement.GetProperty("parallelizeAssembly").GetBoolean()
-            .Should().BeFalse("integration tests should keep assembly-level parallelism off and rely on collection-level isolation");
+            .Should().BeTrue("the integration suite should run independent collections in parallel while shared-state lanes opt out explicitly");
         document.RootElement.GetProperty("parallelizeTestCollections").GetBoolean()
             .Should().BeTrue("safe integration collections should be allowed to run in parallel instead of serializing the whole assembly");
         document.RootElement.GetProperty("maxParallelThreads").GetInt32()
@@ -21,9 +21,7 @@ public sealed class IntegrationTestParallelizationContractTests
     }
 
     [Theory]
-    [InlineData("tests/WpfDevTools.Tests.Integration/WpfIntegrationCollection.cs", "[CollectionDefinition(\"WpfIntegration\", DisableParallelization = true)]")]
     [InlineData("tests/WpfDevTools.Tests.Integration/PackagingIntegrationCollection.cs", "[CollectionDefinition(\"PackagingIntegration\", DisableParallelization = true)]")]
-    [InlineData("tests/WpfDevTools.Tests.Integration/LiveBootstrapIntegrationCollection.cs", "[CollectionDefinition(\"LiveBootstrapIntegration\", DisableParallelization = true)]")]
     [InlineData("tests/WpfDevTools.Tests.Integration/E2E/McpE2eCollection.cs", "[CollectionDefinition(\"McpE2E\", DisableParallelization = true)]")]
     public void SharedStateCollections_ShouldStayNonParallel(string relativePath, string expectedAttribute)
     {
@@ -32,6 +30,7 @@ public sealed class IntegrationTestParallelizationContractTests
     }
 
     [Theory]
+    [InlineData("tests/WpfDevTools.Tests.Integration/WpfAndBootstrapIntegrationCollection.cs", "[CollectionDefinition(\"WpfAndBootstrapIntegration\")]")]
     [InlineData("tests/WpfDevTools.Tests.Integration/E2E/VisibilityDiagnosisE2eCollection.cs", "[CollectionDefinition(\"VisibilityMcpE2E\")]")]
     public void IsolatedCollections_ShouldRemainEligibleForParallelScheduling(string relativePath, string expectedAttribute)
     {

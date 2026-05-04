@@ -25,8 +25,8 @@ tests/WpfDevTools.Tests.Unit/Inspector/Analyzers/EventAnalyzerTests.cs | Existin
 tests/WpfDevTools.Tests.Unit/Inspector/Handlers/EventHandlerTraceModeTests.cs | Existing trace-mode test debt; split by trace workflow.
 tests/WpfDevTools.Tests.Unit/Inspector/InspectorHostConcurrencyTests.cs | Existing host concurrency test debt just over limit; split by concurrency scenario.
 tests/WpfDevTools.Tests.Unit/Inspector/RequestDispatcherErrorPathTests.cs | Existing dispatcher error-path test debt; split by error category.
-tests/WpfDevTools.Tests.Unit/InstallerScripts/InstallerBootstrapTests.cs | Existing installer bootstrap test debt; split by bootstrap concern.
-tests/WpfDevTools.Tests.Unit/InstallerScripts/InstallerPathSafetyTests.cs | Temporary installer hardlink/reparse safety coverage growth; split by path attack class after remediation loop.
+tests/WpfDevTools.Tests.Unit.Release/InstallerScripts/InstallerBootstrapTests.cs | Existing installer bootstrap test debt; split by bootstrap concern.
+tests/WpfDevTools.Tests.Unit.Release/InstallerScripts/InstallerPathSafetyTests.cs | Temporary installer hardlink/reparse safety coverage growth; split by path attack class after remediation loop.
 tests/WpfDevTools.Tests.Unit/McpServer/NamedPipeClientProtocolTests.cs | Existing pipe protocol test debt; split by protocol phase.
 tests/WpfDevTools.Tests.Unit/McpServer/ResponseContractResourceTests.cs | Temporary response contract coverage growth; split by resource section after contract stabilization.
 tests/WpfDevTools.Tests.Unit/McpServer/SignaturePolicyTests.cs | Existing signature policy test debt; split by policy decision.
@@ -38,6 +38,7 @@ tests/WpfDevTools.Tests.Unit/McpServer/Tools/DrainEventsToolReplayTests.cs | Exi
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/TraceRoutedEventsToolReplayTests.cs | Existing trace replay test debt; split by trace replay scenario.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/TraceRoutedEventsToolTests.cs | Existing trace routed events test debt; split by trace mode.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/WaitForDpChangeToolConcurrencyTests.cs | Existing wait-for-DP concurrency test debt; split by timeout/concurrency scenario.
-tests/WpfDevTools.Tests.Unit/Release/InstallerScriptTests.cs | Existing release installer test debt; split by installer scenario.
-tests/WpfDevTools.Tests.Unit/Release/ReleasePackagingContractTests.cs | Existing release packaging contract debt; split by packaging artifact.
-tests/WpfDevTools.Tests.Unit/Release/ReleaseScriptTestHarness.cs | Existing release test harness debt; split after harness cleanup quarantine work.
+tests/WpfDevTools.Tests.Unit.Release/Release/InstallerScriptTests.cs | Existing release installer test debt; split by installer scenario.
+tests/WpfDevTools.Tests.Unit.Release/Release/ReleasePackagingContractTests.cs | Existing release packaging contract debt; split by packaging artifact.
+tests/WpfDevTools.Tests.Unit.Release/Release/ReleaseScriptTestHarness.cs | Existing release test harness debt; split after harness cleanup quarantine work.
+tests/WpfDevTools.Tests.Unit/Release/ReleaseScriptTestHarness.cs | Existing release test harness debt retained for SignaturePolicyTests; split after harness cleanup quarantine work.

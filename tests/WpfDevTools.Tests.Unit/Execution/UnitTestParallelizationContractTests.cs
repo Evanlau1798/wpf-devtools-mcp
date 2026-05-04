@@ -8,7 +8,6 @@ using WpfDevTools.Tests.Unit.Inspector.Handlers;
 using WpfDevTools.Tests.Unit.Inspector.Utilities;
 using WpfDevTools.Tests.Unit.McpServer;
 using WpfDevTools.Tests.Unit.McpServer.Tools;
-using WpfDevTools.Tests.Unit.Release;
 using WpfDevTools.Tests.Unit.Security;
 using WpfDevTools.Tests.Unit.InspectorSdk;
 using Xunit;
@@ -168,37 +167,6 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
-    public void InstallerScriptTests_ShouldUseInstallerScriptsCollection()
-    {
-        GetCollectionName(typeof(InstallerTuiRuntimeTests)).Should().Be("InstallerScripts");
-        GetCollectionName(typeof(InstallerTuiInstallLocationEditorTests)).Should().Be("InstallerScripts");
-        GetCollectionName(typeof(InstallerProcessLifecycleTests)).Should().Be("InstallerScripts");
-        GetCollectionName(typeof(InstallerTuiVisualContractTests)).Should().Be("InstallerScripts");
-        GetCollectionName(typeof(InstallerScriptTests)).Should().Be("InstallerScripts");
-        GetCollectionName(typeof(InstallerFullUninstallTests)).Should().Be("InstallerScripts");
-    }
-
-    [Fact]
-    public void ProcessBackedInstallerAndReleaseTests_ShouldUseInstallerScriptsCollection()
-    {
-        var testSources = Directory
-            .EnumerateFiles(GetRepoFilePath("tests/WpfDevTools.Tests.Unit"), "*.cs", SearchOption.AllDirectories)
-            .Select(path => (Path: path, Content: File.ReadAllText(path)))
-            .ToArray();
-        var missingCollection = typeof(SignaturePolicyTests).Assembly
-            .GetTypes()
-            .Where(IsInstallerOrReleaseTestType)
-            .Where(type => SourceUsesInstallerProcessHarness(type, testSources))
-            .Where(type => GetCollectionNameOrNull(type) != "InstallerScripts")
-            .Select(type => type.FullName)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        missingCollection.Should().BeEmpty(
-            "process-backed installer and release tests share PowerShell/process state and must be serialized within the InstallerScripts collection");
-    }
-
-    [Fact]
     public void InstallerScriptsCollection_ShouldRemainParallelizable()
     {
         var collectionType = typeof(SignaturePolicyTests).Assembly
@@ -208,7 +176,7 @@ public sealed class UnitTestParallelizationContractTests
         collectionType.Should().NotBeNull();
         attribute.Should().NotBeNull();
         attribute!.DisableParallelization.Should().BeFalse(
-            "tests in a collection are serialized with each other, but the InstallerScripts lane should still run beside unrelated collections");
+            "the InstallerScripts collection definition is retained as a marker even though its tests now live in the separate WpfDevTools.Tests.Unit.Release assembly");
     }
 
     [Fact]
@@ -303,43 +271,6 @@ public sealed class UnitTestParallelizationContractTests
         attributeData.Should().NotBeNull();
         attributeData!.ConstructorArguments.Should().ContainSingle();
         return attributeData.ConstructorArguments[0].Value as string;
-    }
-
-    private static string? GetCollectionNameOrNull(Type testClass)
-    {
-        var attributeData = testClass.GetCustomAttributesData()
-            .SingleOrDefault(data => data.AttributeType == typeof(CollectionAttribute));
-
-        return attributeData?.ConstructorArguments.Count == 1
-            ? attributeData.ConstructorArguments[0].Value as string
-            : null;
-    }
-
-    private static bool IsInstallerOrReleaseTestType(Type type)
-    {
-        var isRelevantNamespace = type.Namespace is "WpfDevTools.Tests.Unit.Release" or "WpfDevTools.Tests.Unit.InstallerScripts";
-        if (!isRelevantNamespace)
-        {
-            return false;
-        }
-
-        return type.GetMethods().Any(method => method.GetCustomAttributes().Any(attribute => attribute is FactAttribute));
-    }
-
-    private static bool SourceUsesInstallerProcessHarness(Type type, IEnumerable<(string Path, string Content)> testSources)
-    {
-        var sourceContent = string.Concat(
-            testSources
-                .Where(entry => entry.Content.Contains($"class {type.Name}", StringComparison.Ordinal))
-                .Select(entry => entry.Content));
-        if (string.IsNullOrEmpty(sourceContent))
-        {
-            return false;
-        }
-
-        return sourceContent.Contains("ReleaseScriptTestHarness.RunPowerShell", StringComparison.Ordinal)
-            || sourceContent.Contains("Process.Start(", StringComparison.Ordinal)
-            || sourceContent.Contains("StandaloneInstallerRegressionTestSupport.", StringComparison.Ordinal);
     }
 
     private static void AssertCollectionIsNonParallel(string collectionTypeName)

@@ -9,7 +9,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
 
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class BindingCurrentValueIntegrationTests
 {
     private readonly WpfApplicationFixture _fixture;

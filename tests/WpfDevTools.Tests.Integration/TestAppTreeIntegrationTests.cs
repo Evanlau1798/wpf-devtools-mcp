@@ -15,7 +15,7 @@ namespace WpfDevTools.Tests.Integration;
 /// Tests deep nesting (Tab 2), large visual trees (Tab 8 performance),
 /// and logical tree traversal.
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class TestAppTreeIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

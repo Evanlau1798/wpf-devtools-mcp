@@ -14,7 +14,7 @@ namespace WpfDevTools.Tests.Integration;
 /// Tests style inheritance, triggers, and templates matching TestApp Tab 4
 /// (Styles &amp; Templates).
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class TestAppStyleIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

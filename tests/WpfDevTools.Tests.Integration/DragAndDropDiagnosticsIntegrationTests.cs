@@ -7,7 +7,7 @@ using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Tests.Integration;
 
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class DragAndDropDiagnosticsIntegrationTests
 {
     private readonly WpfApplicationFixture _fixture;

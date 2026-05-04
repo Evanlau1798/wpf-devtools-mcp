@@ -15,7 +15,7 @@ namespace WpfDevTools.Tests.Integration;
 /// Tests realistic binding errors, DataContext chains, and valid bindings
 /// matching the TestApp's Tab 1 (Basic Controls) structure.
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class TestAppBindingIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

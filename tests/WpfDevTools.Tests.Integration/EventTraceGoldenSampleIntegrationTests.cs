@@ -11,7 +11,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
 
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class EventTraceGoldenSampleIntegrationTests
 {
     private readonly WpfApplicationFixture _fixture;

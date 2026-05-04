@@ -7,7 +7,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
 
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class TreeHandlersContractIntegrationTests
 {
     private readonly WpfApplicationFixture _fixture;

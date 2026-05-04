@@ -17,7 +17,7 @@ public sealed class IntegrationParallelizationCollectionContractTests
         using var document = JsonDocument.Parse(
             File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "xunit.runner.json")));
 
-        document.RootElement.GetProperty("parallelizeAssembly").GetBoolean().Should().BeFalse();
+        document.RootElement.GetProperty("parallelizeAssembly").GetBoolean().Should().BeTrue("the integration suite should run independent collections in parallel; WpfIntegration and LiveBootstrapIntegration share a common serialization lane via merged collection");
         document.RootElement.GetProperty("parallelizeTestCollections").GetBoolean().Should().BeTrue();
         document.RootElement.GetProperty("maxParallelThreads").GetInt32().Should().Be(0);
     }
@@ -38,7 +38,7 @@ public sealed class IntegrationParallelizationCollectionContractTests
     public void LiveBootstrapFirstCollectionOrderer_ShouldPrioritizeLiveBootstrapCollection()
     {
         var alphaCollection = new StubTestCollection("AlphaCollection");
-        var liveBootstrapCollection = new StubTestCollection("LiveBootstrapIntegration");
+        var liveBootstrapCollection = new StubTestCollection("WpfAndBootstrapIntegration");
         var zetaCollection = new StubTestCollection("ZetaCollection");
 
         var orderedCollections = new LiveBootstrapFirstCollectionOrderer()
@@ -57,19 +57,19 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Fact]
-    public void WpfApplicationFixtureBackedTests_ShouldUseWpfIntegrationCollection()
+    public void WpfApplicationFixtureBackedTests_ShouldUseWpfAndBootstrapIntegrationCollection()
     {
-        var violatingTypes = typeof(WpfIntegrationCollection).Assembly
+        var violatingTypes = typeof(WpfAndBootstrapIntegrationCollection).Assembly
             .GetTypes()
             .Where(IsConcreteTestClass)
             .Where(type => UsesFixture(type, typeof(WpfApplicationFixture)))
-            .Where(type => !string.Equals(GetCollectionName(type), "WpfIntegration", StringComparison.Ordinal))
+            .Where(type => !string.Equals(GetCollectionName(type), "WpfAndBootstrapIntegration", StringComparison.Ordinal))
             .Select(type => type.FullName)
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
 
         violatingTypes.Should().BeEmpty(
-            "tests backed by WpfApplicationFixture share a single STA WPF Application and must remain in the WpfIntegration collection when collection-level parallelization is enabled");
+            "tests backed by WpfApplicationFixture share a single STA WPF Application and must remain in the WpfAndBootstrapIntegration serialization lane");
     }
 
     [Fact]
@@ -104,25 +104,17 @@ public sealed class IntegrationParallelizationCollectionContractTests
     [InlineData(typeof(BootstrapInjectionTests))]
     [InlineData(typeof(ConnectToolActiveProcessIntegrationTests))]
     [InlineData(typeof(BootstrapEventTraceIntegrationTests))]
-    public void LiveBootstrapTests_ShouldUseLiveBootstrapIntegrationCollection(Type testClass)
+    public void LiveBootstrapTests_ShouldUseWpfAndBootstrapIntegrationCollection(Type testClass)
     {
-        GetCollectionName(testClass).Should().Be("LiveBootstrapIntegration");
+        GetCollectionName(testClass).Should().Be("WpfAndBootstrapIntegration");
     }
 
     [Fact]
-    public void LiveBootstrapCollection_ShouldDisableParallelization()
+    public void WpfAndBootstrapIntegrationCollection_ShouldDisableParallelization()
     {
-        GetCollectionDefinitionAttribute(typeof(LiveBootstrapIntegrationCollection))
+        GetCollectionDefinitionAttribute(typeof(WpfAndBootstrapIntegrationCollection))
             .DisableParallelization
-            .Should().BeTrue();
-    }
-
-    [Fact]
-    public void WpfIntegrationCollection_ShouldDisableParallelization()
-    {
-        GetCollectionDefinitionAttribute(typeof(WpfIntegrationCollection))
-            .DisableParallelization
-            .Should().BeTrue();
+            .Should().BeTrue("WPF-using tests must serialize through shared WPF dispatcher and named-pipe resources");
     }
 
     [Fact]

@@ -13,7 +13,7 @@ namespace WpfDevTools.Tests.Integration;
 /// <summary>
 /// Integration tests for BindingAnalyzer requiring full WPF Application context
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class BindingAnalyzerIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

@@ -12,7 +12,7 @@ namespace WpfDevTools.Tests.Integration;
 /// <summary>
 /// Integration tests for VisualTreeAnalyzer requiring full WPF Application context
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class VisualTreeAnalyzerIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

@@ -9,7 +9,7 @@ namespace WpfDevTools.Tests.Integration;
 
 public sealed class LiveBootstrapFirstCollectionOrderer : ITestCollectionOrderer
 {
-    private const string LiveBootstrapCollectionName = "LiveBootstrapIntegration";
+    private const string LiveBootstrapCollectionName = "WpfAndBootstrapIntegration";
 
     public IEnumerable<ITestCollection> OrderTestCollections(IEnumerable<ITestCollection> testCollections)
     {

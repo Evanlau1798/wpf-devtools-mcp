@@ -12,7 +12,7 @@ namespace WpfDevTools.Tests.Integration;
 /// <summary>
 /// Integration tests for DependencyPropertyAnalyzer requiring full WPF Application context
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class DependencyPropertyAnalyzerIntegrationTests
 {
     private readonly WpfApplicationFixture _fixture;

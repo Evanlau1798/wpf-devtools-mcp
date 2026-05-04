@@ -15,7 +15,7 @@ namespace WpfDevTools.Tests.Integration;
 /// <summary>
 /// Integration tests for LayoutAnalyzer requiring full WPF Application context
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class LayoutAnalyzerIntegrationTests
 {
     private readonly WpfApplicationFixture _fixture;

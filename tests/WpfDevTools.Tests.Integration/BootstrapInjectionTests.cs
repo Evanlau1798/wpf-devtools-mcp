@@ -22,7 +22,7 @@ namespace WpfDevTools.Tests.Integration;
 /// ConnectTool_ThenPingTool requires native bootstrapper DLLs built.
 /// ConnectTool_WhenBootstrapFails uses fault injection with FakeProcessDetector (no TestApp needed).
 /// </summary>
-[Collection("LiveBootstrapIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class BootstrapInjectionTests : IDisposable
 {
     private static readonly TimeSpan LiveTestAppStartupTimeout = TimeSpan.FromSeconds(30);

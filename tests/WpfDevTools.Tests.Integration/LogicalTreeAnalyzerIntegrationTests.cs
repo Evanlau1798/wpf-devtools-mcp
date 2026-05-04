@@ -13,7 +13,7 @@ namespace WpfDevTools.Tests.Integration;
 /// <summary>
 /// Integration tests for LogicalTreeAnalyzer requiring a real WPF Application context.
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class LogicalTreeAnalyzerIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

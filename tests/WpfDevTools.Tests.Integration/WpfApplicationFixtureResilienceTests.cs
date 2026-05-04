@@ -5,7 +5,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
 
- [Collection("WpfIntegration")]
+ [Collection("WpfAndBootstrapIntegration")]
 public sealed class WpfApplicationFixtureResilienceTests
 {
     private readonly WpfApplicationFixture _fixture;

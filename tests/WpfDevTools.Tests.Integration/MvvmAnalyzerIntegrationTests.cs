@@ -14,7 +14,7 @@ namespace WpfDevTools.Tests.Integration;
 /// <summary>
 /// Integration tests for MvvmAnalyzer requiring full WPF Application context
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class MvvmAnalyzerIntegrationTests
 {
     private readonly WpfApplicationFixture _fixture;

@@ -15,7 +15,7 @@ namespace WpfDevTools.Tests.Integration;
 /// Tests clipping, transforms, and layout info matching TestApp Tab 6
 /// (Layout &amp; Transforms).
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class TestAppLayoutIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

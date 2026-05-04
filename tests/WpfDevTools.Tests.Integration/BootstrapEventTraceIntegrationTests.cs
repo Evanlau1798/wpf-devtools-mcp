@@ -12,7 +12,7 @@ using Xunit.Abstractions;
 
 namespace WpfDevTools.Tests.Integration;
 
-[Collection("LiveBootstrapIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 {
     private static readonly TimeSpan LiveTestAppStartupTimeout = TimeSpan.FromSeconds(30);

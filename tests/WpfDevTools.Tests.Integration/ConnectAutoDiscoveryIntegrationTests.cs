@@ -284,7 +284,7 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
     }
 }
 
-[Collection("LiveBootstrapIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class ConnectAutoDiscoveryLiveIntegrationTests : IDisposable
 {
     private readonly List<Process> _testApps = [];

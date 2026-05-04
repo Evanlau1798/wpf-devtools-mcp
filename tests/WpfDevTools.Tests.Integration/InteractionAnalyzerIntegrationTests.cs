@@ -8,7 +8,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Integration;
 
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class InteractionAnalyzerIntegrationTests
 {
     private readonly WpfApplicationFixture _fixture;

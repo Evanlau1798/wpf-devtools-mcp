@@ -15,7 +15,7 @@ namespace WpfDevTools.Tests.Integration;
 /// Tests CustomTextBox (DependencyProperty with coercion, attached property)
 /// and CustomButton (custom RoutedEvent) from TestApp Tab 5.
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class TestAppCustomControlIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

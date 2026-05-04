@@ -15,7 +15,7 @@ namespace WpfDevTools.Tests.Integration;
 /// Tests ViewModel inspection, command discovery/execution, property modification,
 /// and IDataErrorInfo validation - all using the actual TestApp golden sample types.
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class TestAppMvvmIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

@@ -11,7 +11,7 @@ namespace WpfDevTools.Tests.Integration;
 /// Integration tests for multi-window targeting support.
 /// Verifies ElementFinder and VisualTreeAnalyzer work across multiple windows.
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class MultiWindowIntegrationTests
 {
     private readonly WpfApplicationFixture _fixture;

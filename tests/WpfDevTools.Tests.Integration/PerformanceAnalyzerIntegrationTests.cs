@@ -14,7 +14,7 @@ namespace WpfDevTools.Tests.Integration;
 /// Integration tests for PerformanceAnalyzer requiring full WPF Application context
 /// These tests verify methods execute without exceptions in real WPF environment
 /// </summary>
-[Collection("WpfIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public class PerformanceAnalyzerIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;

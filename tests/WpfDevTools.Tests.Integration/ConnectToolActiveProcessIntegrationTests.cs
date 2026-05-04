@@ -10,7 +10,7 @@ using WpfDevTools.Tests.Integration.TestSupport;
 
 namespace WpfDevTools.Tests.Integration;
 
-[Collection("LiveBootstrapIntegration")]
+[Collection("WpfAndBootstrapIntegration")]
 public sealed class ConnectToolActiveProcessIntegrationTests : IDisposable
 {
     private Process? _testApp;

@@ -8,6 +8,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Execution;
 
+[Collection("AnalyzerStaticState")]
 public sealed class AnalyzerStaticStateCollectionContractTests
 {
     private const string CollectionName = "AnalyzerStaticState";
@@ -25,7 +26,8 @@ public sealed class AnalyzerStaticStateCollectionContractTests
         typeof(PerformanceAnalyzerContractTests),
         typeof(PerformanceAnalyzerCircularBufferTests),
         typeof(ElementFinderCleanupTests),
-        typeof(ElementFinderTests)
+        typeof(ElementFinderTests),
+        typeof(AnalyzerStaticStateCollectionContractTests)
     };
 
     [Fact]

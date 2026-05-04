@@ -242,7 +242,7 @@ public sealed partial class ConnectTool
             processInfo,
             inspectorCandidates,
             bootstrapperCandidates,
-            _sessionManager.GetAuthenticationSecretBase64(processId),
+            authenticationSecretBase64: null,
             _sessionManager.GetCertificateDirectory());
         if (injectionRequest == null)
         {
@@ -258,6 +258,8 @@ public sealed partial class ConnectTool
 
         _dllPathValidator(injectionRequest.InspectorDllPath);
         _dllPathValidator(injectionRequest.BootstrapperDllPath);
+        injectionRequest = injectionRequest.WithAuthenticationSecretBase64(
+            _sessionManager.GetAuthenticationSecretBase64(processId, injectionRequest.ExpectedPipeName));
         return null;
     }
 

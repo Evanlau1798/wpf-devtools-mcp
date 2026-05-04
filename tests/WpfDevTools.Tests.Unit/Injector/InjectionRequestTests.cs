@@ -168,6 +168,33 @@ public class InjectionRequestTests
     }
 
     [Fact]
+    public void CreateBootstrapParameterPayload_WhenSecretFileCreationFails_ShouldDeletePartialSecretFile()
+    {
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = @"C:\app\Bootstrapper.x64.dll",
+            InspectorDllPath = @"C:\app\net8.0-windows\Inspector.dll",
+            ExpectedPipeName = "WpfDevTools_1234",
+            AuthenticationSecretBase64 = "YWJjZA=="
+        };
+        string? secretFilePath = null;
+
+        var act = () => BootstrapParameterPayload.Create(
+            request,
+            path =>
+            {
+                secretFilePath = path;
+                throw new IOException("simulated secret file creation failure");
+            });
+
+        act.Should().Throw<IOException>()
+            .WithMessage("*simulated secret file creation failure*");
+        secretFilePath.Should().NotBeNullOrWhiteSpace();
+        File.Exists(secretFilePath!).Should().BeFalse();
+    }
+
+    [Fact]
     public void ToBootstrapParameters_WithSemicolonInValue_ShouldThrow()
     {
         var request = new InjectionRequest

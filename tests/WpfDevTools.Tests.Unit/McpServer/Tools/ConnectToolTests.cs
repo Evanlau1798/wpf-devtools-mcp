@@ -302,8 +302,6 @@ public partial class ConnectToolTests : IDisposable
 
         var authSecret = Convert.ToBase64String(new byte[32]);
         using var authManager = new AuthenticationManager(() => authSecret);
-        var expectedAuthSecret = new ProcessAuthenticationSecretProvider(authManager)
-            .GetAuthenticationSecretBase64(12345);
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-certs-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
         try
@@ -322,6 +320,8 @@ public partial class ConnectToolTests : IDisposable
             var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
             resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
             injector.LastInjectionRequest.Should().NotBeNull();
+            var expectedAuthSecret = new ProcessAuthenticationSecretProvider(authManager)
+                .GetAuthenticationSecretBase64(12345, injector.LastInjectionRequest!.ExpectedPipeName);
             injector.LastInjectionRequest!.AuthenticationSecretBase64.Should().Be(expectedAuthSecret);
             injector.LastInjectionRequest.AuthenticationSecretBase64.Should().NotBe(authSecret);
             injector.LastInjectionRequest.CertificateDirectory.Should().Be(certDirectory);
@@ -352,8 +352,6 @@ public partial class ConnectToolTests : IDisposable
             null,
             certDirectory,
             new PersistedAuthenticationSecretStore(secretFilePath));
-        var expectedAuthSecret = new ProcessAuthenticationSecretProvider(transportSecurity.AuthenticationManager)
-            .GetAuthenticationSecretBase64(12345);
         var expectedCertDirectory = transportSecurity.CertificateManager.CertificateDirectory;
         try
         {
@@ -373,6 +371,8 @@ public partial class ConnectToolTests : IDisposable
             var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
             resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
             injector.LastInjectionRequest.Should().NotBeNull();
+            var expectedAuthSecret = new ProcessAuthenticationSecretProvider(transportSecurity.AuthenticationManager)
+                .GetAuthenticationSecretBase64(12345, injector.LastInjectionRequest!.ExpectedPipeName);
             injector.LastInjectionRequest!.AuthenticationSecretBase64.Should().Be(expectedAuthSecret);
             injector.LastInjectionRequest.CertificateDirectory.Should().Be(expectedCertDirectory);
             injector.CertificateFileExistedAtInjection.Should().BeTrue(

@@ -34,6 +34,20 @@ public sealed class ProcessAuthenticationSecretProviderTests
     }
 
     [Fact]
+    public void GetAuthenticationSecretBase64_WithSameProcessDifferentPipeNames_ShouldReturnDifferentSecrets()
+    {
+        using var rootAuthentication = CreateRootAuthenticationManager();
+        var provider = new ProcessAuthenticationSecretProvider(rootAuthentication);
+
+        var firstSecret = provider.GetAuthenticationSecretBase64(303, "WpfDevTools_303_first");
+        var secondSecret = provider.GetAuthenticationSecretBase64(303, "WpfDevTools_303_second");
+
+        firstSecret.Should().NotBeNullOrWhiteSpace();
+        secondSecret.Should().NotBeNullOrWhiteSpace();
+        firstSecret.Should().NotBe(secondSecret);
+    }
+
+    [Fact]
     public void GetAuthenticationSecretBase64_WithDifferentProcesses_ShouldPreventCrossTargetResponses()
     {
         using var rootAuthentication = CreateRootAuthenticationManager();
@@ -57,6 +71,16 @@ public sealed class ProcessAuthenticationSecretProviderTests
 
         sessionManager.GetAuthenticationSecretBase64(101)
             .Should().NotBe(sessionManager.GetAuthenticationSecretBase64(202));
+    }
+
+    [Fact]
+    public void SessionManager_GetAuthenticationSecretBase64_WithPipeName_ShouldScopeSecretToPipeInstance()
+    {
+        using var rootAuthentication = CreateRootAuthenticationManager();
+        using var sessionManager = new SessionManager(authManager: rootAuthentication);
+
+        sessionManager.GetAuthenticationSecretBase64(101, "WpfDevTools_101_first")
+            .Should().NotBe(sessionManager.GetAuthenticationSecretBase64(101, "WpfDevTools_101_second"));
     }
 
     private static AuthenticationManager CreateRootAuthenticationManager()

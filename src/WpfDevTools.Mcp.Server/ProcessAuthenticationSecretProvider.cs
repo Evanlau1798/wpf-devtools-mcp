@@ -16,7 +16,7 @@ internal sealed class ProcessAuthenticationSecretProvider
 
     public bool IsEnabled => _rootAuthenticationManager?.IsAuthenticationEnabled == true;
 
-    public string? GetAuthenticationSecretBase64(int processId)
+    public string? GetAuthenticationSecretBase64(int processId, string? pipeName = null)
     {
         if (processId <= 0)
         {
@@ -32,8 +32,11 @@ internal sealed class ProcessAuthenticationSecretProvider
         byte[]? derivedSecret = null;
         try
         {
+            var effectivePipeName = string.IsNullOrWhiteSpace(pipeName)
+                ? $"WpfDevTools_{processId}"
+                : pipeName;
             var context = Encoding.UTF8.GetBytes(
-                $"{DerivationPurpose}|pid={processId}|pipe=WpfDevTools_{processId}");
+                $"{DerivationPurpose}|pid={processId}|pipe={effectivePipeName}");
             using var hmac = new HMACSHA256(rootSecret);
             derivedSecret = hmac.ComputeHash(context);
             return Convert.ToBase64String(derivedSecret);
@@ -48,9 +51,9 @@ internal sealed class ProcessAuthenticationSecretProvider
         }
     }
 
-    public AuthenticationManager? CreateAuthenticationManager(int processId)
+    public AuthenticationManager? CreateAuthenticationManager(int processId, string? pipeName = null)
     {
-        var secretBase64 = GetAuthenticationSecretBase64(processId);
+        var secretBase64 = GetAuthenticationSecretBase64(processId, pipeName);
         return string.IsNullOrWhiteSpace(secretBase64)
             ? null
             : new AuthenticationManager(() => secretBase64);

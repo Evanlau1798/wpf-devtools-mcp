@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
@@ -19,6 +20,13 @@ internal sealed class BootstrapParameterPayload : IDisposable
 
     public static BootstrapParameterPayload Create(InjectionRequest request)
     {
+        return Create(request, onSecretFileCreated: null);
+    }
+
+    internal static BootstrapParameterPayload Create(
+        InjectionRequest request,
+        Action<string>? onSecretFileCreated)
+    {
         if (request == null)
         {
             throw new ArgumentNullException(nameof(request));
@@ -28,7 +36,8 @@ internal sealed class BootstrapParameterPayload : IDisposable
             ? null
             : CreateAuthenticationSecretFile(
                 request.ProcessId,
-                request.AuthenticationSecretBase64!);
+                request.AuthenticationSecretBase64!,
+                onSecretFileCreated);
 
         try
         {
@@ -48,26 +57,45 @@ internal sealed class BootstrapParameterPayload : IDisposable
         DeleteSecretFile(AuthenticationSecretFilePath);
     }
 
-    private static string CreateAuthenticationSecretFile(int processId, string secretBase64)
+    private static string CreateAuthenticationSecretFile(
+        int processId,
+        string secretBase64,
+        Action<string>? onSecretFileCreated)
     {
         var path = Path.Combine(
             Path.GetTempPath(),
             $"WpfDevTools_AuthSecret_{processId}_{Guid.NewGuid():N}.txt");
 
-        using (var stream = new FileStream(
-            path,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.Read,
-            bufferSize: 4096,
-            FileOptions.WriteThrough))
+        try
         {
-            RestrictSecretFileAcl(path);
-            var bytes = Encoding.UTF8.GetBytes(secretBase64);
-            stream.Write(bytes, 0, bytes.Length);
-        }
+            using (var stream = new FileStream(
+                path,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                FileOptions.WriteThrough))
+            {
+                RestrictSecretFileAcl(path);
+                onSecretFileCreated?.Invoke(path);
+                var bytes = Encoding.UTF8.GetBytes(secretBase64);
+                try
+                {
+                    stream.Write(bytes, 0, bytes.Length);
+                }
+                finally
+                {
+                    Array.Clear(bytes, 0, bytes.Length);
+                }
+            }
 
-        return path;
+            return path;
+        }
+        catch
+        {
+            DeleteSecretFile(path);
+            throw;
+        }
     }
 
     private static void RestrictSecretFileAcl(string path)
@@ -116,11 +144,13 @@ internal sealed class BootstrapParameterPayload : IDisposable
                 File.Delete(path);
             }
         }
-        catch (IOException)
+        catch (IOException ex)
         {
+            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file '{path}': {ex.Message}");
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
+            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file '{path}': {ex.Message}");
         }
     }
 }

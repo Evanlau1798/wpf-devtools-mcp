@@ -42,7 +42,7 @@ public sealed partial class SessionManager
 
     private NamedPipeClient CreateProcessScopedPipeClient(int processId, string? pipeName = null)
     {
-        var processAuthManager = _processAuthenticationSecrets.CreateAuthenticationManager(processId);
+        var processAuthManager = _processAuthenticationSecrets.CreateAuthenticationManager(processId, pipeName);
         return new NamedPipeClient(
             processId,
             string.IsNullOrWhiteSpace(pipeName) ? $"WpfDevTools_{processId}" : pipeName,
@@ -232,10 +232,10 @@ public sealed partial class SessionManager
         }
     }
 
-    internal string? GetAuthenticationSecretBase64(int processId)
+    internal string? GetAuthenticationSecretBase64(int processId, string? pipeName = null)
     {
         ThrowIfDisposed();
-        return _processAuthenticationSecrets.GetAuthenticationSecretBase64(processId);
+        return _processAuthenticationSecrets.GetAuthenticationSecretBase64(processId, pipeName);
     }
 
     internal string? GetCertificateDirectory()

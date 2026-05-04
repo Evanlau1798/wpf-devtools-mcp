@@ -88,6 +88,25 @@ public sealed class InjectionRequest
     }
 
     /// <summary>
+    /// Create a copy of this request with the pipe-instance-scoped authentication secret.
+    /// </summary>
+    public InjectionRequest WithAuthenticationSecretBase64(string? authenticationSecretBase64)
+    {
+        return new InjectionRequest
+        {
+            ProcessId = ProcessId,
+            BootstrapperDllPath = BootstrapperDllPath,
+            InspectorDllPath = InspectorDllPath,
+            ExpectedPipeName = ExpectedPipeName,
+            AuthenticationSecretBase64 = authenticationSecretBase64,
+            CertificateDirectory = CertificateDirectory,
+            InjectionTimeout = InjectionTimeout,
+            PipeReadyTimeout = PipeReadyTimeout,
+            TotalTimeout = TotalTimeout
+        };
+    }
+
+    /// <summary>
     /// Builds the bootstrap parameter string passed through the native bootstrapper.
     /// </summary>
     public string ToBootstrapParameters()

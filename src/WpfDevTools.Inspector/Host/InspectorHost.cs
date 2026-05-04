@@ -157,6 +157,8 @@ public sealed partial class InspectorHost : IDisposable
         _sessionReadTimeout = sessionReadTimeout ?? InspectorConfig.IdleConnectionTimeout;
     }
 
+    // SDK-hosted inspectors cannot receive an injection-time randomized pipe handoff.
+    // InspectorSdk.Initialize() therefore fails closed unless callers provide matching HMAC/TLS settings.
     private static string CreatePipeName(int processId) => $"WpfDevTools_{processId}";
 
     /// <summary>

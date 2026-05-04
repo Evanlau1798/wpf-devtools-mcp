@@ -428,6 +428,19 @@ public class HandlerRoutingTests
     }
 
     [Fact]
+    public async Task PerformanceHandlers_HandleAsync_FindBindingLeaks_ShouldForwardCancellation()
+    {
+        var handler = new PerformanceHandlers(new PerformanceAnalyzer(new ElementFinder()));
+        var parameters = JsonSerializer.SerializeToElement(new { samplingDurationMs = 15000 });
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var act = () => handler.HandleAsync("find_binding_leaks", parameters, cancellation.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public async Task PerformanceHandlers_HandleAsync_MeasureElementRenderTime_ShouldReturnResult()
     {
         var handler = new PerformanceHandlers(new PerformanceAnalyzer(new ElementFinder()));

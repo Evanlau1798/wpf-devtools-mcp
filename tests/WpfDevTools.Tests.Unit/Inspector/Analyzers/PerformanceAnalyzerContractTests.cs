@@ -41,13 +41,13 @@ public sealed class PerformanceAnalyzerContractTests
     }
 
     [Fact]
-    public void FindBindingLeaks_ShouldExposeSuspectsArray()
+    public async Task FindBindingLeaksAsync_ShouldExposeSuspectsArray()
     {
         var analyzer = new PerformanceAnalyzer();
         PerformanceAnalyzer.TrackBinding(new Binding("Name"));
 
         var result = JsonSerializer.Deserialize<JsonElement>(
-            JsonSerializer.Serialize(analyzer.FindBindingLeaks(0)));
+            JsonSerializer.Serialize(await analyzer.FindBindingLeaksAsync(0)));
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.TryGetProperty("suspects", out var suspects).Should().BeTrue();
@@ -57,6 +57,34 @@ public sealed class PerformanceAnalyzerContractTests
         result.TryGetProperty("samplingDurationMs", out _).Should().BeTrue();
         result.TryGetProperty("minimumRecommendedSamplingDurationMs", out _).Should().BeTrue();
         result.TryGetProperty("sampleGuidance", out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task FindBindingLeaksAsync_WithSamplingDuration_ShouldObserveCancellation()
+    {
+        var analyzer = new PerformanceAnalyzer();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var act = () => analyzer.FindBindingLeaksAsync(
+            samplingDurationMs: 15000,
+            cancellationToken: cancellation.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task FindBindingLeaksAsync_WithWarmUpSamplingWindow_ShouldObserveCancellation()
+    {
+        var analyzer = new PerformanceAnalyzer();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var act = () => analyzer.FindBindingLeaksAsync(
+            warmUp: true,
+            cancellationToken: cancellation.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [StaFact]

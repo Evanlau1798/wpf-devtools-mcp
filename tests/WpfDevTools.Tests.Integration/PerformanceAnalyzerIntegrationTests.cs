@@ -44,7 +44,7 @@ public class PerformanceAnalyzerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void FindBindingLeaks_WithNoTrackedBindings_ShouldExecuteSuccessfully()
+    public async Task FindBindingLeaksAsync_WithNoTrackedBindings_ShouldExecuteSuccessfully()
     {
         // Arrange
         using var elementFinder = new ElementFinder();
@@ -52,7 +52,7 @@ public class PerformanceAnalyzerIntegrationTests : IDisposable
         PerformanceAnalyzer.ClearTrackedBindings();
 
         // Act
-        var result = JsonSerializer.SerializeToElement(analyzer.FindBindingLeaks(100));
+        var result = JsonSerializer.SerializeToElement(await analyzer.FindBindingLeaksAsync(100));
 
         // Assert
         result.GetProperty("success").GetBoolean().Should().BeTrue();
@@ -65,7 +65,7 @@ public class PerformanceAnalyzerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void FindBindingLeaks_WithTrackedBindings_ShouldExecuteSuccessfully()
+    public async Task FindBindingLeaksAsync_WithTrackedBindings_ShouldExecuteSuccessfully()
     {
         // Arrange
         using var elementFinder = new ElementFinder();
@@ -82,7 +82,7 @@ public class PerformanceAnalyzerIntegrationTests : IDisposable
         }
 
         // Act
-        var result = JsonSerializer.SerializeToElement(analyzer.FindBindingLeaks(threshold: 10));
+        var result = JsonSerializer.SerializeToElement(await analyzer.FindBindingLeaksAsync(threshold: 10));
 
         // Assert
         result.GetProperty("success").GetBoolean().Should().BeTrue();
@@ -96,7 +96,7 @@ public class PerformanceAnalyzerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void FindBindingLeaks_WithManyTrackedBindings_ShouldExecuteSuccessfully()
+    public async Task FindBindingLeaksAsync_WithManyTrackedBindings_ShouldExecuteSuccessfully()
     {
         // Arrange
         using var elementFinder = new ElementFinder();
@@ -113,7 +113,7 @@ public class PerformanceAnalyzerIntegrationTests : IDisposable
         }
 
         // Act
-        var result = JsonSerializer.SerializeToElement(analyzer.FindBindingLeaks(threshold: 10));
+        var result = JsonSerializer.SerializeToElement(await analyzer.FindBindingLeaksAsync(threshold: 10));
 
         // Assert
         result.GetProperty("success").GetBoolean().Should().BeTrue();
@@ -127,7 +127,7 @@ public class PerformanceAnalyzerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void FindBindingLeaks_AfterGC_ShouldExecuteSuccessfully()
+    public async Task FindBindingLeaksAsync_AfterGC_ShouldExecuteSuccessfully()
     {
         // Arrange
         using var elementFinder = new ElementFinder();
@@ -138,9 +138,9 @@ public class PerformanceAnalyzerIntegrationTests : IDisposable
         var weakReferences = TrackTemporaryBindings(10);
 
         // Act - call off the UI thread so FindBindingLeaks exercises its GC path
-        var result = JsonSerializer.SerializeToElement(analyzer.FindBindingLeaks(0));
+        var result = JsonSerializer.SerializeToElement(await analyzer.FindBindingLeaksAsync(0));
         PerformanceAnalyzer.GetForcedGcPathExecutionCount().Should().Be(1);
-        var cleanupResult = JsonSerializer.SerializeToElement(analyzer.FindBindingLeaks(0));
+        var cleanupResult = JsonSerializer.SerializeToElement(await analyzer.FindBindingLeaksAsync(0));
 
         // Assert
         PerformanceAnalyzer.GetForcedGcPathExecutionCount().Should().Be(2);

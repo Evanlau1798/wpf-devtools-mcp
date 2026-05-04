@@ -210,14 +210,20 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Find binding leaks
     /// </summary>
-    public object FindBindingLeaks(int threshold = 100, int? samplingDurationMs = null, bool warmUp = false)
+    public async Task<object> FindBindingLeaksAsync(
+        int threshold = 100,
+        int? samplingDurationMs = null,
+        bool warmUp = false,
+        CancellationToken cancellationToken = default)
     {
         var effectiveSamplingDurationMs = GetEffectiveBindingLeakSamplingDuration(samplingDurationMs, warmUp);
 
         if (effectiveSamplingDurationMs > 0)
         {
-            Thread.Sleep(Math.Min(effectiveSamplingDurationMs, 15000));
+            await Task.Delay(Math.Min(effectiveSamplingDurationMs, 15000), cancellationToken).ConfigureAwait(false);
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Only force GC when off the UI thread to avoid blocking rendering
         if (Application.Current?.Dispatcher.CheckAccess() != true)

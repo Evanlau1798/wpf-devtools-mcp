@@ -67,8 +67,11 @@ public class PerformanceHandlers : IRequestHandler
         var samplingDurationMs = ParameterHelpers.GetIntParam(@params, "samplingDurationMs");
         var warmUp = ParameterHelpers.GetBoolParam(@params, "warmUp") ?? false;
 
-        return await Task.Run(() =>
-            _performanceAnalyzer.FindBindingLeaks(threshold, samplingDurationMs, warmUp), cancellationToken).ConfigureAwait(false);
+        return await _performanceAnalyzer.FindBindingLeaksAsync(
+            threshold,
+            samplingDurationMs,
+            warmUp,
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleMeasureElementRenderTimeAsync(JsonElement? @params, CancellationToken cancellationToken)

@@ -276,14 +276,14 @@ public class PerformanceAnalyzerGapTests
     }
 
     [Fact]
-    public void FindBindingLeaks_NoUIThread_ShouldTriggerGCPath()
+    public async Task FindBindingLeaksAsync_NoUIThread_ShouldTriggerGCPath()
     {
         // Arrange - not on UI thread, so GC path is taken
         var finder = new ElementFinder();
         var analyzer = new PerformanceAnalyzer(finder);
 
         // Act - calling from non-UI thread triggers the GC.Collect path
-        var result = analyzer.FindBindingLeaks();
+        var result = await analyzer.FindBindingLeaksAsync();
 
         // Assert
         var json = JsonSerializer.Serialize(result);
@@ -293,7 +293,7 @@ public class PerformanceAnalyzerGapTests
     }
 
     [Fact]
-    public void FindBindingLeaks_WithTrackedBindings_ShouldReportAlive()
+    public async Task FindBindingLeaksAsync_WithTrackedBindings_ShouldReportAlive()
     {
         // Arrange - track some bindings that stay alive
         // Use strong references to prevent GC collection
@@ -309,7 +309,7 @@ public class PerformanceAnalyzerGapTests
         }
 
         // Act
-        var result = analyzer.FindBindingLeaks();
+        var result = await analyzer.FindBindingLeaksAsync();
 
         // Assert - verify the method executes successfully and returns correct structure
         var json = JsonSerializer.Serialize(result);
@@ -326,7 +326,7 @@ public class PerformanceAnalyzerGapTests
     }
 
     [Fact]
-    public void FindBindingLeaks_WithCustomThreshold_BelowThreshold_ShouldNotReportLeaks()
+    public async Task FindBindingLeaksAsync_WithCustomThreshold_BelowThreshold_ShouldNotReportLeaks()
     {
         // Arrange
         var finder = new ElementFinder();
@@ -340,7 +340,7 @@ public class PerformanceAnalyzerGapTests
         }
 
         // Act - threshold is higher than alive count
-        var result = analyzer.FindBindingLeaks(threshold: 100);
+        var result = await analyzer.FindBindingLeaksAsync(threshold: 100);
 
         // Assert
         var json = JsonSerializer.Serialize(result);

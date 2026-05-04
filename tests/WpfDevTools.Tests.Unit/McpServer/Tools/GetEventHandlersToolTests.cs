@@ -14,7 +14,7 @@ public class GetEventHandlersToolTests
     {
         // Arrange
         var tool = new GetEventHandlersTool(new SessionManager());
-        var parameters = new { processId = 12345, eventName = "Click" };
+        var parameters = new { processId = 12345, elementId = "myButton", eventName = "Click" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -31,7 +31,7 @@ public class GetEventHandlersToolTests
     {
         // Arrange
         var tool = new GetEventHandlersTool(new SessionManager());
-        var parameters = new { processId = 12345 };
+        var parameters = new { processId = 12345, elementId = "myButton" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -67,7 +67,7 @@ public class GetEventHandlersToolTests
         var sessionManager = new SessionManager();
         sessionManager.AddSession(12345);
         var tool = new GetEventHandlersTool(sessionManager);
-        var parameters = new { processId = 12345, elementId = "myButton" };
+        var parameters = new { processId = 12345, elementId = "myButton", eventName = "Click" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);

@@ -14,7 +14,7 @@ public class OverrideStyleSetterToolTests
     {
         // Arrange
         var tool = new OverrideStyleSetterTool(new SessionManager());
-        var parameters = new { processId = 12345, propertyName = "Background", value = "Red" };
+        var parameters = new { processId = 12345, elementId = "myButton", propertyName = "Background", value = "Red" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -50,7 +50,7 @@ public class OverrideStyleSetterToolTests
         var sessionManager = new SessionManager();
         sessionManager.AddSession(12345);
         var tool = new OverrideStyleSetterTool(sessionManager);
-        var parameters = new { processId = 12345, value = "Red" };
+        var parameters = new { processId = 12345, elementId = "myButton", value = "Red" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -69,7 +69,7 @@ public class OverrideStyleSetterToolTests
         var sessionManager = new SessionManager();
         sessionManager.AddSession(12345);
         var tool = new OverrideStyleSetterTool(sessionManager);
-        var parameters = new { processId = 12345, propertyName = "Background" };
+        var parameters = new { processId = 12345, elementId = "myButton", propertyName = "Background" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);

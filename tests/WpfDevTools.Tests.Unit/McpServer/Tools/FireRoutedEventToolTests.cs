@@ -14,7 +14,7 @@ public class FireRoutedEventToolTests
     {
         // Arrange
         var tool = new FireRoutedEventTool(new SessionManager());
-        var parameters = new { processId = 12345, eventName = "Click" };
+        var parameters = new { processId = 12345, elementId = "myButton", eventName = "Click" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
@@ -50,7 +50,7 @@ public class FireRoutedEventToolTests
         var sessionManager = new SessionManager();
         sessionManager.AddSession(12345);
         var tool = new FireRoutedEventTool(sessionManager);
-        var parameters = new { processId = 12345 };
+        var parameters = new { processId = 12345, elementId = "myButton" };
 
         // Act
         var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);

@@ -52,23 +52,26 @@ public sealed partial class LayoutAnalyzer
                 adornerLayer.Add(adorner);
 
                 var key = elementId ?? "root";
-                _highlights[key] = highlightBorder;
-
-                Task.Delay(duration).ContinueWith(_ =>
-                {
-                    InvokeOnUIThread(() =>
-                    {
-                        adornerLayer.Remove(adorner);
-                        _highlights.TryRemove(key, out Border? _);
-                    });
-                });
+                var createdAtUtc = DateTimeOffset.UtcNow;
+                var effectiveDuration = GetEffectiveHighlightDuration(duration);
+                var effectiveDurationMs = (int)effectiveDuration.TotalMilliseconds;
+                var expiresAtUtc = createdAtUtc.Add(effectiveDuration);
+                var entry = new HighlightEntry(
+                    createdAtUtc,
+                    expiresAtUtc,
+                    CreateHighlightRemoval(adornerLayer, adorner));
+                RegisterHighlight(key, entry);
+                ScheduleHighlightRemoval(key, entry, effectiveDuration);
 
                 return new
                 {
                     success = true,
-                    message = $"Element highlighted with {color} for {duration}ms",
+                    message = $"Element highlighted with {color} for {effectiveDurationMs}ms",
                     color,
-                    duration,
+                    duration = effectiveDurationMs,
+                    requestedDuration = duration,
+                    effectiveDuration = effectiveDurationMs,
+                    durationCapped = effectiveDurationMs != Math.Max(0, duration),
                     elementType = element.GetType().Name
                 };
             }

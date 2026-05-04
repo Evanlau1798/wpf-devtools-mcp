@@ -1,9 +1,7 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -14,7 +12,6 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
-    private static readonly ConcurrentDictionary<string, Border> _highlights = new();
 
     /// <summary>
     /// Create a new LayoutAnalyzer instance

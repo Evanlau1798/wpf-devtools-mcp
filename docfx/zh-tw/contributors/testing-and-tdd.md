@@ -20,9 +20,9 @@ dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.cs
 
 ### 測試結果
 
-- Unit tests：最近一次完整 unit-suite run 總數 3135，可由 `dotnet test --no-build --list-tests` 發現
-- Integration tests：最近一次完整 integration-suite baseline 總數 301，可由 `dotnet test --no-build --list-tests` 發現
-- 合計基準：3436 個測試，可由最近一次 unit 與 integration suite count refresh 發現
+- Unit tests：最近一次完整 unit-suite run 總數 3158，可由 `dotnet test --no-build --list-tests` 發現
+- Integration tests：最近一次完整 integration-suite baseline 總數 311，可由 `dotnet test --no-build --list-tests` 發現
+- 合計基準：3469 個測試，可由最近一次 unit 與 integration suite count refresh 發現
 
 ### Coverage
 

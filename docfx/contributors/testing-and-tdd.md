@@ -20,9 +20,9 @@ The current project-level verification status combines the latest completed suit
 
 ### Test results
 
-- Unit tests: 3135 total, 3135 discoverable via `dotnet test --no-build --list-tests` in the latest count refresh
-- Integration tests: 301 total, 301 discoverable via `dotnet test --no-build --list-tests` in the latest count refresh
-- Verified combined total: 3436 tests discoverable across unit and integration suites in the latest count refresh
+- Unit tests: 3158 total, 3158 discoverable via `dotnet test --no-build --list-tests` in the latest count refresh
+- Integration tests: 311 total, 311 discoverable via `dotnet test --no-build --list-tests` in the latest count refresh
+- Verified combined total: 3469 tests discoverable across unit and integration suites in the latest count refresh
 
 ### Coverage
 

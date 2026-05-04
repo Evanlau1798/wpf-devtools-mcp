@@ -18,13 +18,23 @@ namespace WpfDevTools.Tests.Unit.Execution;
 public sealed class UnitTestParallelizationContractTests
 {
     [Fact]
+    public void XunitRunnerConfig_ShouldEnableAssemblyParallelization()
+    {
+        using var document = JsonDocument.Parse(
+            File.ReadAllText(GetRepoFilePath("tests/WpfDevTools.Tests.Unit/xunit.runner.json")));
+
+        document.RootElement.GetProperty("parallelizeAssembly").GetBoolean()
+            .Should().BeTrue("the unit suite should run independent test collections in parallel; collections with shared mutable state already enforce serialization via DisableParallelization");
+    }
+
+    [Fact]
     public void XunitRunnerConfig_ShouldEnableCollectionParallelization()
     {
         using var document = JsonDocument.Parse(
             File.ReadAllText(GetRepoFilePath("tests/WpfDevTools.Tests.Unit/xunit.runner.json")));
 
         document.RootElement.GetProperty("parallelizeTestCollections").GetBoolean()
-            .Should().BeTrue("the unit suite should parallelize independent test collections to avoid multi-minute serial runs");
+            .Should().BeTrue("the unit suite should parallelize tests within independent test collections to avoid multi-minute serial runs");
         document.RootElement.GetProperty("maxParallelThreads").GetInt32()
             .Should().Be(0, "the unit suite should scale collection fan-out with the host CPU count instead of pinning itself to two workers");
     }
@@ -267,6 +277,19 @@ public sealed class UnitTestParallelizationContractTests
     public void InteractionStateCollection_ShouldDisableParallelization()
     {
         AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.InteractionStateCollection");
+    }
+
+    [Fact]
+    public void VisualTreeAnalyzerPerformanceTests_ShouldUseWpfCollection()
+    {
+        GetCollectionName(typeof(VisualTreeAnalyzerPerformanceTests))
+            .Should().Be("WPF");
+    }
+
+    [Fact]
+    public void WpfDispatcherCollection_ShouldDisableParallelization()
+    {
+        AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.WpfDispatcherCollection");
     }
 
     private static string GetRepoFilePath(string relativePath)

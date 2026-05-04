@@ -31,7 +31,8 @@ public partial class ConnectToolTests : IDisposable
         PipeReadyProbe? pipeReadyProbe = null,
         Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null,
         Func<WpfProcessInfo, McpTargetAuthorization>? targetPolicy = null,
-        Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>>? connectInjectedSessionAsync = null)
+        Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>>? connectInjectedSessionAsync = null,
+        TimeSpan? connectTimeout = null)
     {
         return new ConnectTool(
             sessionManager: sessionManager ?? new SessionManager(),
@@ -46,7 +47,7 @@ public partial class ConnectToolTests : IDisposable
             isRawInjectionTargetAllowed: isRawInjectionTargetAllowed ?? (_ => true),
                 targetPolicy: targetPolicy ?? ConnectToolTestPolicies.AllowAllTargets,
             connectInjectedSessionAsync: connectInjectedSessionAsync,
-            connectTimeout: null);
+            connectTimeout: connectTimeout);
     }
 
     private void EnsureDummyBootstrapperExists()
@@ -753,7 +754,8 @@ public partial class ConnectToolTests : IDisposable
                 authManager: transportSecurity.AuthenticationManager,
                 certManager: transportSecurity.CertificateManager);
             var injector = new FakeProcessInjector();
-            var tool = CreateTool(sessionManager: sessionManager, injector: injector);
+            var tool = CreateTool(sessionManager: sessionManager, injector: injector,
+                connectTimeout: TimeSpan.FromSeconds(3));
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 

@@ -159,7 +159,8 @@ public partial class ConnectToolTests
     {
         var processId = Random.Shared.Next(700_000, 999_999);
         using var sessionManager = new SessionManager();
-        var tool = CreateTool(sessionManager: sessionManager);
+        var tool = CreateTool(sessionManager: sessionManager,
+            connectTimeout: TimeSpan.FromSeconds(3));
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 

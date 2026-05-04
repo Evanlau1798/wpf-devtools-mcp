@@ -8,7 +8,6 @@ namespace WpfDevTools.Tests.Unit.Release;
 /// Contract tests for the <c>Assert-ArchiveSafeEntries</c> zip-slip guard in
 /// <see href="../../../../scripts/installer/Installer.PackageIntegrity.ps1"/>.
 /// </summary>
-[Collection("InstallerScripts")]
 public sealed class InstallerArchiveZipSlipGuardTests
 {
     [Fact]

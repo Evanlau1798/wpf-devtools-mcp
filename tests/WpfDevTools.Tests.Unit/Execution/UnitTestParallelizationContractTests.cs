@@ -167,19 +167,6 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
-    public void InstallerScriptsCollection_ShouldRemainParallelizable()
-    {
-        var collectionType = typeof(SignaturePolicyTests).Assembly
-            .GetType("WpfDevTools.Tests.Unit.Execution.InstallerScriptsCollection");
-        var attribute = collectionType?.GetCustomAttribute<CollectionDefinitionAttribute>();
-
-        collectionType.Should().NotBeNull();
-        attribute.Should().NotBeNull();
-        attribute!.DisableParallelization.Should().BeFalse(
-            "the InstallerScripts collection definition is retained as a marker even though its tests now live in the separate WpfDevTools.Tests.Unit.Release assembly");
-    }
-
-    [Fact]
     public void InspectorHostLifecycleTests_ShouldUseInspectorHostLifecycleCollection()
     {
         GetCollectionName(typeof(InspectorHostConcurrencyTests)).Should().Be("InspectorHostLifecycle");

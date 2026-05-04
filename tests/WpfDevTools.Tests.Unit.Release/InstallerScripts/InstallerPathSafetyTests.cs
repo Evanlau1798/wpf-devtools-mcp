@@ -7,7 +7,6 @@ using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-[Collection("InstallerScripts")]
 public sealed class InstallerPathSafetyTests
 {
     [DllImport("Kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]

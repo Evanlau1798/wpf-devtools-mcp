@@ -6,7 +6,6 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-[Collection("InstallerScripts")]
 public sealed class SigningScriptTests
 {
     private const string TrustedSidecarSignerThumbprint = "0123456789ABCDEF0123456789ABCDEF01234567";

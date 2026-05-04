@@ -6,7 +6,6 @@ using static WpfDevTools.Tests.Unit.Release.InstallerScriptTestSupport;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-[Collection("InstallerScripts")]
 public sealed partial class InstallerScriptTests
 {
     [Fact]

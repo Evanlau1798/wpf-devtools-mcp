@@ -5,7 +5,6 @@ using static WpfDevTools.Tests.Unit.Release.ClientRegistrationArtifactTestSuppor
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-[Collection("InstallerScripts")]
 public sealed class ClientRegistrationArtifactInstallTests
 {
     [Fact]

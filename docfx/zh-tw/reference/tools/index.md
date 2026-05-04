@@ -52,7 +52,7 @@
 | Performance | `get_render_stats` | 作為效能初步診斷入口 |
 | Scene diagnostics | `get_ui_summary` | 在使用 tree-heavy inspection 前先取得語意化上下文 |
 
-近期值得優先熟悉的功能：
+建議優先熟悉的重點功能：
 
 - `select_active_process` 與 `get_active_process`：支援省略 `processId` 的明確 process selection
 - `get_focus_state` 與 `focus_element`：支援 focus-sensitive keyboard 與多視窗流程

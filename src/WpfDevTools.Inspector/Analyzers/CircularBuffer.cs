@@ -4,6 +4,9 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// Fixed-size circular buffer with O(1) add and O(1) space complexity
 /// Used for storing frame times without the O(n) cost of List.RemoveAt(0)
 /// </summary>
+/// <remarks>
+/// Not thread-safe. Callers that share an instance across threads must guard all access with an external lock.
+/// </remarks>
 internal class CircularBuffer<T>
 {
     private readonly T[] _buffer;

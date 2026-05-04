@@ -259,6 +259,7 @@ public static partial class Bootstrap
 
     private static void RunOnDispatcher(Dispatcher? dispatcher, Action action, Action? onTimeout = null)
     {
+        // CheckAccess() must stay before InvokeAsync so UI-thread callers execute inline instead of deadlocking.
         if (dispatcher == null || dispatcher.CheckAccess())
         {
             action();

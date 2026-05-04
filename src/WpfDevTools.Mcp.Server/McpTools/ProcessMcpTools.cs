@@ -14,8 +14,6 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class ProcessMcpTools
 {
     private const string ProcessMetadata = "CATEGORY: Process\n\n";
-    private const string ContractGuidance =
-        "CONTRACT: Canonical payload lives in structuredContent. content[0].text is a compact fallback summary, not the full result. Read wpf://contracts/response for stable fields and MCP envelope semantics.\n\n";
 
     [McpServerTool(Name = "get_processes", Title = "List Inspectable WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
@@ -24,7 +22,7 @@ public static class ProcessMcpTools
         "USE WHEN: connect() reports multiple candidates; you need architecture/elevation/window metadata before choosing a target; you need an explicit visible/all/foreground candidate list before choosing a specific processId.\n" +
         "DO NOT USE: As the default first step when connect() auto-discovery can already resolve the target, repeatedly in a loop (process list changes infrequently), or when connect(windowFilter='all') already expresses the broader auto-discovery scope you need.\n\n" +
         "WINDOW FILTERS: Omit windowFilter for the visible-only default; use windowFilter='all' for hidden/background windows; use windowFilter='foreground' for the active foreground WPF window.\n" +
-        ContractGuidance +
+        ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: processes plus per-candidate processId, processName, windowTitle, runtime, requiresElevationToConnect, canConnectFromCurrentServer, and connectionWarning.\n" +
         "REQUEST OPTIONS: nameFilter narrows candidate names; windowFilter='foreground' scopes enumeration to the active WPF window.\n\n" +
         "EXAMPLES:\n" +
@@ -105,7 +103,7 @@ public static class ProcessMcpTools
         "DO NOT USE: As a health check on an already-connected target; use ping instead.\n\n" +
         "AUTO-DISCOVERY: Omit processId to auto-connect when exactly one WPF process is available. Omit windowFilter for the visible-only default. Use connect(windowFilter='all') when hidden/background targets must participate in auto-discovery without a separate process listing step. Use selectionStrategy='largest_working_set' only when you intentionally want the largest candidate, including connect(selectionStrategy='largest_working_set', windowFilter='all') for broad multi-process auto-selection.\n" +
         "TIMEOUT: Connection attempt times out after 30 seconds.\n" +
-        ContractGuidance +
+        ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: processId, processName, windowTitle, autoDiscovered, autoSelected, selectionReason, candidateCount, candidate processes when ambiguity remains, requiresElevationToConnect, canConnectFromCurrentServer, and suggestedAction.\n" +
         "REQUEST OPTIONS: processId selects an explicit target; selectionStrategy controls auto-selection behavior including largest_working_set; windowFilter widens or narrows auto-discovery scope.\n\n" +
         "EXAMPLES:\n" +

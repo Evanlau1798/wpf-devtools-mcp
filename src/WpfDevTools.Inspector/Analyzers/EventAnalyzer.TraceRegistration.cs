@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Diagnostics;
+using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -114,8 +115,9 @@ public sealed partial class EventAnalyzer
         {
             RemoveAllHandlers(registrations);
         }
-        catch
+        catch (Exception ex)
         {
+            Trace.TraceWarning($"EventAnalyzer failed to rollback partial routed-event trace registrations: {ex}");
         }
     }
 

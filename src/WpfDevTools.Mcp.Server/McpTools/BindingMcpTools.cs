@@ -14,8 +14,6 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class BindingMcpTools
 {
     private const string BindingMetadata = "CATEGORY: Binding\n" + ToolDescriptionFragments.ConnectPrerequisite;
-    private const string ContractGuidance =
-        "CONTRACT: Canonical payload lives in structuredContent. content[0].text is a compact fallback summary, not the full result. Read wpf://contracts/response for stable fields and MCP envelope semantics.\n\n";
 
     [McpServerTool(Name = "get_binding_mismatches", Title = "Detect WPF Binding Mismatches", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
@@ -74,7 +72,7 @@ public static class BindingMcpTools
         "BATCH MODE: Provide `elementIds` to inspect multiple roots in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "DO NOT USE: recursive=true on large apps without elementId scope (will be slow).\n" +
         "FILTERING: Optional `statusFilter` narrows the response to the binding statuses relevant to the current diagnosis.\n\n" +
-        ContractGuidance +
+        ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: bindings for single-target inspection, or results/resultCount/successCount/failureCount for batch inspection; each binding can include bindingType, bindingPaths, and currentValue.\n" +
         "REQUEST OPTIONS: elementId or elementIds choose targets; recursive expands subtree inspection; statusFilter narrows returned binding statuses.\n\n" +
         "EXAMPLES:\n" +
@@ -167,7 +165,7 @@ public static class BindingMcpTools
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
         "DO NOT USE: Before calling connect() - errors are only captured after injection; for validation rule errors use get_validation_errors.\n" +
         "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics. Compact mode is enabled by default to omit the verbose free-form message while preserving structured correlation fields; set `compact=false` when the full message text is required.\n\n" +
-        ContractGuidance +
+        ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: errorCount, errors, navigation, nextSteps, and per-error fields such as timestamp, sourceKind, elementId, suggestedElementId, propertyName, and bindingPath. Validation rule errors remain in get_validation_errors.\n" +
         "REQUEST OPTIONS: maxErrors and sinceTimestamp window the diagnostic stream; set compact=false to recover full trace messages; set navigation=false to omit navigation and nextSteps.\n\n" +
         "sourceKind='BindingTrace': error captured from WPF PresentationTraceSources.\n" +

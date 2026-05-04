@@ -52,7 +52,7 @@ If you only need broader auto-discovery, prefer `connect(windowFilter='all')` an
 | Performance | `get_render_stats` | Start performance triage |
 | Scene diagnostics | `get_ui_summary` | Start with semantic context before using tree-heavy inspection |
 
-Recent additions worth learning early:
+Key capabilities worth learning early:
 
 - `select_active_process` and `get_active_process` for explicit process selection when later calls omit `processId`
 - `get_focus_state` and `focus_element` for focus-sensitive keyboard and multi-window workflows

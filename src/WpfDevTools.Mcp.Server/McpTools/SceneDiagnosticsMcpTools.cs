@@ -13,8 +13,6 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class SceneDiagnosticsMcpTools
 {
     private const string SceneMetadata = "CATEGORY: Scene Diagnostics\n" + ToolDescriptionFragments.ConnectPrerequisite;
-    private const string ContractGuidance =
-        "CONTRACT: Canonical payload lives in structuredContent. content[0].text is a compact fallback summary, not the full result. Read wpf://contracts/response for stable fields and MCP envelope semantics.\n\n";
 
     [McpServerTool(Name = "get_state_diff", Title = "Inspect WPF Runtime State Diff", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
@@ -71,7 +69,7 @@ public static class SceneDiagnosticsMcpTools
         "USE WHEN: Before falling back to screenshots, or when you need one element-centric snapshot instead of multiple diagnostic calls.\n" +
         "PROPERTY PROBES: The default snapshot includes a stable baseline property set. Provide `includeProperties` to append extra DependencyProperty probes such as `IsChecked` or `SelectedIndex` without replacing the defaults.\n" +
         "DO NOT USE: As a full-tree replacement; use get_visual_tree/get_logical_tree for broad structural inspection.\n\n" +
-        ContractGuidance +
+        ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: elementId, elementType, elementName, dataContextType, properties, bindings, validationErrors, style, and layout.\n" +
         "REQUEST OPTIONS: includeProperties appends extra DependencyProperty probes to the default snapshot set.\n\n" +
         "EXAMPLES:\n" +
@@ -189,7 +187,7 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Traverse a WPF runtime subtree, suppress layout-only wrappers, and return a compact semantic overview of user-facing controls.\n\n" +
         "USE WHEN: You need fast screen context for an unfamiliar area before drilling into a specific element. For agent workflows, prefer depthMode='semantic' so layout-only wrapper levels do not consume the depth budget, and prefer summaryOnly=true when you only need summaryText without the node table.\n" +
         "DO NOT USE: As a replacement for full tree inspection when exact structure matters.\n\n" +
-        ContractGuidance +
+        ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: rootElementId, rootElementType, rootElementName, depth, semanticNodeCount, summaryText, and nodes.\n" +
         "REQUEST OPTIONS: elementId scopes the subtree; depth and depthMode='semantic' shape traversal; summaryOnly omits the node table.\n\n" +
         "EXAMPLES:\n" +
@@ -230,7 +228,7 @@ public static class SceneDiagnosticsMcpTools
         "[Scene] Aggregate common input controls, nearby labels, current values, validation errors, command readiness, and overall form submittability.\n\n" +
         "USE WHEN: You want a single triage call for form-style layouts before validating or clicking Save/Submit. By default, framework-internal template controls such as RepeatButton or DataGrid headers are filtered out unless you explicitly set includeFramework=true.\n" +
         "DO NOT USE: For arbitrary non-form regions with no input or action controls.\n\n" +
-        ContractGuidance +
+        ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: formScope, scopeVisibility, isCurrentlyVisible, inputs, commands, summary, and nested summary.totalInputs/summary.emptyInputs/summary.errorCount/summary.validationSubmittable/summary.interactionSubmittable/summary.isSubmittable.\n" +
         "REQUEST OPTIONS: includeFramework keeps framework-internal template controls in the summary.\n\n" +
         "EXAMPLES:\n" +

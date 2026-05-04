@@ -76,4 +76,24 @@ public class RateLimiterTests
         // Assert: Now tokens should be refilled
         limiter.GetAvailableTokens().Should().Be(10);
     }
+
+    [Fact]
+    public async Task TryAcquire_WhenCalledConcurrently_ShouldNotGrantMoreThanAvailableTokens()
+    {
+        var limiter = new RateLimiter(5, TimeSpan.FromMinutes(1));
+        var startGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var workers = Enumerable.Range(0, 10)
+            .Select(_ => Task.Run(async () =>
+            {
+                await startGate.Task;
+                return limiter.TryAcquire();
+            }))
+            .ToArray();
+
+        startGate.SetResult();
+        var results = await Task.WhenAll(workers);
+
+        results.Count(acquired => acquired).Should().Be(5);
+        limiter.GetAvailableTokens().Should().Be(0);
+    }
 }

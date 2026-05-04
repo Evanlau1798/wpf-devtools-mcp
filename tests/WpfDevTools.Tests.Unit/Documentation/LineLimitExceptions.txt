@@ -9,16 +9,11 @@ scripts/installer/Installer.Verification.ps1 | Existing installer helper debt; s
 scripts/online-installer.ps1 | Temporary user-requested exception; do not split in this remediation loop.
 scripts/tools/packaging/Publish-Release.ps1 | Existing release packaging debt; split after release workflow characterization.
 src/WpfDevTools.Injector/Discovery/WpfProcessDetector.cs | Existing process discovery debt; split with detector behavior characterization.
-src/WpfDevTools.Inspector/Analyzers/EventAnalyzer.cs | Existing event analyzer debt; split with routed-event replay characterization.
 src/WpfDevTools.Inspector/Analyzers/MvvmAnalyzer.cs | Existing analyzer debt just over limit; split with MVVM behavior characterization.
 src/WpfDevTools.Inspector/Analyzers/StyleAnalyzer.cs | Existing analyzer debt just over limit; split with style trigger characterization.
 src/WpfDevTools.Inspector/Host/Handlers/EventHandlers.cs | Existing host handler debt; split with event handling characterization.
-src/WpfDevTools.Inspector/Host/InspectorHost.cs | Existing inspector host debt; split with IPC/request dispatch characterization.
 src/WpfDevTools.Inspector.Sdk/InspectorSdk.cs | Existing SDK facade debt; split after public SDK contract stabilization.
 src/WpfDevTools.Mcp.Server/McpTools/ToolCallHelper.cs | Existing MCP compatibility helper debt; split after text fallback contract decisions.
-src/WpfDevTools.Mcp.Server/NamedPipeClient.cs | Existing pipe client debt; split with timeout/auth characterization.
-src/WpfDevTools.Mcp.Server/SessionManager.cs | Existing session management debt; split with transport lifecycle characterization.
-src/WpfDevTools.Mcp.Server/Tools/ConnectTool.cs | Existing connect workflow debt; split with process selection/security characterization.
 src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs | Existing security validator debt just over limit; split after validation policy characterization.
 src/WpfDevTools.Mcp.Server/Tools/WaitForDpChangeTool.cs | Temporary timeout generation-guard growth; split wait-after-mutation flow after remediation loop.
 tests/WpfDevTools.Tests.Integration/E2E/InteractionE2eTests.cs | Existing live interaction test debt; split after restoration coverage.

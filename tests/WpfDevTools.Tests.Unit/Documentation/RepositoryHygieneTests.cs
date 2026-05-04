@@ -158,7 +158,7 @@ public class RepositoryHygieneTests
     [Fact]
     public void SessionManagerConnectPaths_ShouldShareAttachAfterConnectFlow()
     {
-        var content = ReadRepoFile("src/WpfDevTools.Mcp.Server/SessionManager.cs");
+        var content = ReadRepoFiles("src/WpfDevTools.Mcp.Server", "SessionManager*.cs");
 
         content.Should().Contain("ConnectAndAttachSessionAsync(",
             "injected and existing-host connection paths should share the same attach-after-connect ownership handoff");
@@ -175,6 +175,19 @@ public class RepositoryHygieneTests
         File.Exists(path).Should().BeTrue($"{relativePath} should exist");
 
         return File.ReadAllText(path);
+    }
+
+    private static string ReadRepoFiles(string relativeDirectory, string searchPattern)
+    {
+        var directory = GetRepoFilePath(relativeDirectory);
+        Directory.Exists(directory).Should().BeTrue($"{relativeDirectory} should exist");
+
+        var files = Directory.GetFiles(directory, searchPattern, SearchOption.TopDirectoryOnly)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        files.Should().NotBeEmpty($"{searchPattern} should match repository source files");
+
+        return string.Join(Environment.NewLine, files.Select(File.ReadAllText));
     }
 
     private static int CountOccurrences(string content, string value)

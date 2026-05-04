@@ -88,7 +88,7 @@ public sealed class InspectorHostLifecycleReviewTests : IDisposable
     [Fact]
     public void CompleteStartupFailure_ShouldSignalSharedStartupTaskOnce()
     {
-        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector/Host/InspectorHost.cs"));
+        var content = ReadInspectorHostSource();
         var method = GetMethodBody(content, "private void CompleteStartupFailure", "private void WaitForStopCompletion");
 
         CountOccurrences(method, "TrySetException(startupError)").Should().Be(1,
@@ -98,7 +98,7 @@ public sealed class InspectorHostLifecycleReviewTests : IDisposable
     [Fact]
     public void CompleteStopAsync_ShouldAwaitServerTaskShutdownWithoutBlockingThreadPoolThread()
     {
-        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector/Host/InspectorHost.cs"));
+        var content = ReadInspectorHostSource();
         var method = GetMethodBody(content, "private async Task CompleteStopAsync", "private void CompleteStopFinalization");
 
         method.Should().Contain("WaitForServerTaskShutdownAsync",
@@ -109,6 +109,16 @@ public sealed class InspectorHostLifecycleReviewTests : IDisposable
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string ReadInspectorHostSource()
+    {
+        var directory = GetRepoFilePath("src/WpfDevTools.Inspector/Host");
+        var files = Directory.GetFiles(directory, "InspectorHost*.cs", SearchOption.TopDirectoryOnly)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        return string.Join(Environment.NewLine, files.Select(File.ReadAllText));
+    }
 
     private static string GetMethodBody(string content, string startMarker, string endMarker)
     {

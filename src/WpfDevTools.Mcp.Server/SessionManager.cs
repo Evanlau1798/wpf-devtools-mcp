@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using WpfDevTools.Shared.Security;
@@ -238,216 +238,18 @@ public sealed partial class SessionManager : IDisposable
         };
     }
 
-    internal NamedPipeClient? GetPipeClient(int processId, long expectedSessionGeneration)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            if (!_sessionGenerations.TryGetValue(processId, out var currentGeneration)
-                || currentGeneration != expectedSessionGeneration)
-            {
-                return null;
-            }
 
-            return _pipeClients.TryGetValue(processId, out var client) ? client : null;
-        }
-    }
 
-    /// <summary>
-    /// Get the NamedPipeClient for a given process
-    /// </summary>
-    /// <param name="processId">Process ID to get pipe client for</param>
-    /// <returns>NamedPipeClient instance if session exists, null otherwise</returns>
-    public NamedPipeClient? GetPipeClient(int processId)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            return _pipeClients.TryGetValue(processId, out var client) ? client : null;
-        }
-    }
 
-    internal NamedPipeClient CreateDetachedPipeClient(int processId, string? pipeName = null)
-    {
-        ThrowIfDisposed();
-        return CreateProcessScopedPipeClient(processId, pipeName);
-    }
 
-    private NamedPipeClient CreateProcessScopedPipeClient(int processId, string? pipeName = null)
-    {
-        var processAuthManager = _processAuthenticationSecrets.CreateAuthenticationManager(processId);
-        return new NamedPipeClient(
-            processId,
-            string.IsNullOrWhiteSpace(pipeName) ? $"WpfDevTools_{processId}" : pipeName,
-            processAuthManager,
-            _certManager,
-            ownsAuthManager: processAuthManager != null);
-    }
 
-    private NamedPipeClient CreateRootAuthenticatedPipeClient(int processId)
-    {
-        return new NamedPipeClient(processId, _authManager, _certManager);
-    }
 
-    internal async Task<NamedPipeConnectFailure> ConnectInjectedSessionAsync(
-        int processId,
-        string? pipeName,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
-    {
-        ThrowIfDisposed();
 
-        EnsureSessionSlotAvailable(processId);
 
-        return await ConnectAndAttachSessionAsync(
-            processId,
-            timeout,
-            cancellationToken,
-            () => CreateDetachedPipeClient(processId, pipeName)).ConfigureAwait(false);
-    }
 
-    internal Task<NamedPipeConnectFailure> ConnectInjectedSessionAsync(
-        int processId,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
-    {
-        return ConnectInjectedSessionAsync(processId, pipeName: null, timeout, cancellationToken);
-    }
 
-    internal async Task<NamedPipeConnectFailure> ConnectExistingHostSessionAsync(
-        int processId,
-        TimeSpan timeout,
-        CancellationToken cancellationToken,
-        bool preferRootAuthentication = false)
-    {
-        ThrowIfDisposed();
 
-        var stopwatch = Stopwatch.StartNew();
-        var primaryAuthMode = preferRootAuthentication
-            ? ExistingHostAuthenticationMode.Root
-            : ExistingHostAuthenticationMode.ProcessScoped;
-        var primaryFailure = await ConnectExistingHostSessionAsync(
-            processId,
-            timeout,
-            cancellationToken,
-            primaryAuthMode).ConfigureAwait(false);
-        if (primaryFailure != NamedPipeConnectFailure.AuthenticationFailed || !_processAuthenticationSecrets.IsEnabled)
-        {
-            return primaryFailure;
-        }
 
-        var remainingTimeout = timeout - stopwatch.Elapsed;
-        if (remainingTimeout <= TimeSpan.Zero)
-        {
-            return NamedPipeConnectFailure.Timeout;
-        }
-
-        var alternateAuthMode = primaryAuthMode == ExistingHostAuthenticationMode.ProcessScoped
-            ? ExistingHostAuthenticationMode.Root
-            : ExistingHostAuthenticationMode.ProcessScoped;
-        var fallbackTimeout = remainingTimeout < ExistingHostAuthenticationFallbackTimeout
-            ? remainingTimeout
-            : ExistingHostAuthenticationFallbackTimeout;
-        var alternateFailure = await ConnectExistingHostSessionAsync(
-            processId,
-            fallbackTimeout,
-            cancellationToken,
-            alternateAuthMode).ConfigureAwait(false);
-        return alternateFailure == NamedPipeConnectFailure.Timeout
-            ? primaryFailure
-            : alternateFailure;
-    }
-
-    private async Task<NamedPipeConnectFailure> ConnectExistingHostSessionAsync(
-        int processId,
-        TimeSpan timeout,
-        CancellationToken cancellationToken,
-        ExistingHostAuthenticationMode authenticationMode)
-    {
-        ThrowIfDisposed();
-
-        return await ConnectAndAttachSessionAsync(
-            processId,
-            timeout,
-            cancellationToken,
-            () => authenticationMode == ExistingHostAuthenticationMode.ProcessScoped
-                ? CreateProcessScopedPipeClient(processId)
-                : CreateRootAuthenticatedPipeClient(processId)).ConfigureAwait(false);
-    }
-
-    private async Task<NamedPipeConnectFailure> ConnectAndAttachSessionAsync(
-        int processId,
-        TimeSpan timeout,
-        CancellationToken cancellationToken,
-        Func<NamedPipeClient> pipeClientFactory)
-    {
-        NamedPipeClient? detachedPipeClient = null;
-        try
-        {
-            detachedPipeClient = pipeClientFactory();
-            var connected = await detachedPipeClient.ConnectAsync(
-                timeout,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!connected)
-            {
-                return detachedPipeClient.LastConnectFailure;
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-            AttachSession(processId, detachedPipeClient);
-            detachedPipeClient = null;
-            SetActiveProcess(processId);
-            return NamedPipeConnectFailure.None;
-        }
-        finally
-        {
-            detachedPipeClient?.Dispose();
-        }
-    }
-
-    internal void AttachSession(int processId, NamedPipeClient pipeClient)
-    {
-        ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(pipeClient);
-
-        lock (_lock)
-        {
-            if (_sessions.Count >= McpServerConfiguration.MaxSessions)
-            {
-                throw new InvalidOperationException($"Maximum session limit ({McpServerConfiguration.MaxSessions}) reached. Remove existing sessions before adding new sessions.");
-            }
-
-            if (_sessions.ContainsKey(processId))
-            {
-                throw new InvalidOperationException($"Session for process {processId} already exists");
-            }
-
-            InitializeSessionState(processId, pipeClient);
-        }
-    }
-
-    private void EnsureSessionSlotAvailable(int processId)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            if (_sessions.Count >= McpServerConfiguration.MaxSessions)
-            {
-                throw new InvalidOperationException($"Maximum session limit ({McpServerConfiguration.MaxSessions}) reached. Remove existing sessions before adding new sessions.");
-            }
-
-            if (_sessions.ContainsKey(processId))
-            {
-                throw new InvalidOperationException($"Session for process {processId} already exists");
-            }
-        }
-    }
-
-    internal string? GetAuthenticationSecretBase64(int processId)
-    {
-        ThrowIfDisposed();
-        return _processAuthenticationSecrets.GetAuthenticationSecretBase64(processId);
-    }
 
     private enum ExistingHostAuthenticationMode
     {
@@ -455,11 +257,6 @@ public sealed partial class SessionManager : IDisposable
         Root
     }
 
-    internal string? GetCertificateDirectory()
-    {
-        ThrowIfDisposed();
-        return _certManager?.CertificateDirectory;
-    }
 
     internal T ExecuteWithShutdownGuard<T>(Func<T> action)
     {
@@ -472,257 +269,19 @@ public sealed partial class SessionManager : IDisposable
         }
     }
 
-    /// <summary>
-    /// Materialize the shared certificate artifacts required for secure bootstrap
-    /// before the injector launches the inspector. This prevents the server and
-    /// injected process from racing to create the same certificate files.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when the certificate manager reports success but the expected on-disk
-    /// artifacts are still missing.
-    /// </exception>
-    internal void EnsureSecureTransportArtifactsCreated()
-    {
-        ThrowIfDisposed();
 
-        if (_certManager == null)
-        {
-            return;
-        }
 
-        using var certificate = _certManager.GetOrCreateCertificate();
 
-        var certDirectory = _certManager.CertificateDirectory;
-        if (!File.Exists(Path.Combine(certDirectory, "server.pfx")) ||
-            !File.Exists(Path.Combine(certDirectory, "server.pwd")))
-        {
-            throw new InvalidOperationException($"Secure transport certificate artifacts were not created under '{certDirectory}'.");
-        }
-    }
 
-    /// <summary>
-    /// Check if session exists
-    /// </summary>
-    /// <param name="processId">Process ID to check</param>
-    /// <returns>True if session exists, false otherwise</returns>
-    public bool HasSession(int processId)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            return _sessions.ContainsKey(processId);
-        }
-    }
 
-    internal void SaveStateSnapshot(int processId, StoredStateSnapshot snapshot)
-    {
-        ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(snapshot);
 
-        lock (_lock)
-        {
-            if (!_stateSnapshots.TryGetValue(processId, out var snapshots))
-            {
-                snapshots = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
-                _stateSnapshots[processId] = snapshots;
-            }
 
-            snapshots[snapshot.SnapshotId] = snapshot;
-        }
-    }
 
-    internal bool TryGetStateSnapshot(int processId, string snapshotId, out StoredStateSnapshot? snapshot)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            if (_stateSnapshots.TryGetValue(processId, out var snapshots) &&
-                snapshots.TryGetValue(snapshotId, out var storedSnapshot))
-            {
-                snapshot = storedSnapshot;
-                return true;
-            }
-        }
 
-        snapshot = null;
-        return false;
-    }
 
-    internal bool RemoveStateSnapshot(int processId, string snapshotId)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            return _stateSnapshots.TryGetValue(processId, out var snapshots) &&
-                   snapshots.Remove(snapshotId);
-        }
-    }
 
-    /// <summary>
-    /// Get count of active sessions
-    /// </summary>
-    /// <returns>Number of active sessions</returns>
-    public int GetActiveSessionCount()
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            return _sessions.Count;
-        }
-    }
 
-    /// <summary>
-    /// Get all active session process IDs
-    /// </summary>
-    /// <returns>Read-only list of process IDs for all active sessions</returns>
-    public IReadOnlyList<int> GetAllSessions()
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            return _sessions.Keys.ToList();
-        }
-    }
 
-    /// <summary>
-    /// Mark an existing connected session as the active process for process-id omission workflows.
-    /// </summary>
-    /// <param name="processId">Connected process ID to mark active.</param>
-    public void SetActiveProcess(int processId)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            if (!_sessions.ContainsKey(processId))
-            {
-                throw new InvalidOperationException($"Process {processId} is not connected. Connect first or choose an existing session.");
-            }
-
-            _activeProcessSelection = new ActiveProcessSelection
-            {
-                ProcessId = processId,
-                SelectedAtUtc = _utcNowProvider()
-            };
-        }
-    }
-
-    internal bool TryActivateConnectedSession(int processId)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            if (!_sessions.ContainsKey(processId) ||
-                !_pipeClients.TryGetValue(processId, out var pipeClient) ||
-                !pipeClient.IsConnected)
-            {
-                return false;
-            }
-
-            _activeProcessSelection = new ActiveProcessSelection
-            {
-                ProcessId = processId,
-                SelectedAtUtc = _utcNowProvider()
-            };
-
-            return true;
-        }
-    }
-
-    /// <summary>
-    /// Try to get the active process ID for process-id omission workflows.
-    /// </summary>
-    /// <param name="processId">The active process ID when available.</param>
-    /// <returns>True when an active process is selected; otherwise false.</returns>
-    public bool TryGetActiveProcessId(out int processId)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            if (_activeProcessSelection != null)
-            {
-                processId = _activeProcessSelection.ProcessId;
-                return true;
-            }
-        }
-
-        processId = default;
-        return false;
-    }
-
-    /// <summary>
-    /// Try to get the full active-process selection state.
-    /// </summary>
-    /// <param name="selection">Selection payload when available.</param>
-    /// <returns>True when an active process is selected; otherwise false.</returns>
-    internal bool TryGetActiveProcessSelection(out ActiveProcessSelection? selection)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            if (_activeProcessSelection != null)
-            {
-                selection = _activeProcessSelection;
-                return true;
-            }
-        }
-
-        selection = null;
-        return false;
-    }
-
-    /// <summary>
-    /// Update last activity time for session by replacing with a new immutable instance
-    /// </summary>
-    /// <param name="processId">Process ID of session to update</param>
-    public void UpdateLastActivity(int processId)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            if (_sessions.TryGetValue(processId, out var session))
-            {
-                _sessions[processId] = new SessionInfo
-                {
-                    ProcessId = session.ProcessId,
-                    LastActivity = _utcNowProvider()
-                };
-            }
-        }
-    }
-
-    /// <summary>
-    /// Get last activity time for session
-    /// </summary>
-    /// <param name="processId">Process ID to get last activity time for</param>
-    /// <returns>Last activity time in UTC, or DateTimeOffset.MinValue if session does not exist</returns>
-    public DateTimeOffset GetLastActivityTime(int processId)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            return _sessions.TryGetValue(processId, out var session)
-                ? session.LastActivity
-                : DateTimeOffset.MinValue;
-        }
-    }
-
-    /// <summary>
-    /// Get sessions that have been idle for longer than specified timeout
-    /// </summary>
-    /// <param name="idleTimeout">Idle timeout duration</param>
-    /// <returns>Read-only list of process IDs for idle sessions</returns>
-    public IReadOnlyList<int> GetIdleSessions(TimeSpan idleTimeout)
-    {
-        ThrowIfDisposed();
-        lock (_lock)
-        {
-            var now = _utcNowProvider();
-            return _sessions
-                .Where(kvp => now - kvp.Value.LastActivity > idleTimeout)
-                .Select(kvp => kvp.Key)
-                .ToList();
-        }
-    }
 
     private sealed record SessionInfo
     {

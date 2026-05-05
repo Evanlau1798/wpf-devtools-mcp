@@ -275,17 +275,6 @@ public sealed partial class InspectorHost : IDisposable
 
 
 
-
-
-
-
-
-
-
-
-
-
-
     private static readonly JsonSerializerOptions IpcSerializerOptions = new()
     {
         MaxDepth = 32,
@@ -308,10 +297,4 @@ public sealed partial class InspectorHost : IDisposable
 
 
 }
-
-
-
-
-
-
 

@@ -61,6 +61,12 @@ function Read-InstallerInput {
         return $script:InstallerTestResponses.Dequeue()
     }
 
+    if ($script:WpfDevToolsInstallerTestModeEnabled -and
+        -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS) -and
+        -not [string]::IsNullOrWhiteSpace($DefaultValue)) {
+        return $DefaultValue
+    }
+
     if ([string]::IsNullOrWhiteSpace($DefaultValue)) {
         return Read-Host $Prompt
     }
@@ -3643,6 +3649,30 @@ function Read-ValidatedChoice {
         Write-InstallerMessage ("Allowed values: " + ($AllowedValues -join ', '))
     }
 }
+function Read-ValidatedVersion {
+    param(
+        [Parameter(Mandatory)] [string]$Prompt,
+        [Parameter(Mandatory)] [string]$DefaultValue
+    )
+
+    while ($true) {
+        $response = Read-InstallerInput -Prompt $Prompt -DefaultValue $DefaultValue
+        if ([string]::IsNullOrWhiteSpace($response)) {
+            return $DefaultValue
+        }
+
+        $normalized = $response.Trim()
+        if ($normalized -eq 'latest') {
+            return $normalized
+        }
+
+        if ($normalized -match '^v?\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            return $normalized.TrimStart('v', 'V')
+        }
+
+        Write-InstallerMessage 'Allowed values: latest or a SemVer release such as 0.1.0'
+    }
+}
 function Get-CliSelection {
     $defaultInstallRoot = $InstallRoot
     try {
@@ -3656,6 +3686,7 @@ function Get-CliSelection {
     }
 
     $defaultAction = $Action
+    $defaultVersion = $Version
     $defaultArchitecture = if ([string]::IsNullOrWhiteSpace($Architecture)) { Get-SystemDefaultArchitecture } else { $Architecture }
     $defaultClient = if ([string]::IsNullOrWhiteSpace($Client)) { Get-DefaultClient } else { $Client }
 
@@ -3667,6 +3698,7 @@ function Get-CliSelection {
 
         return [ordered]@{
             Action = $defaultAction
+            Version = $defaultVersion
             Architecture = $defaultArchitecture
             Client = $defaultClient
             InstallRoot = $selectedInstallRoot
@@ -3674,6 +3706,12 @@ function Get-CliSelection {
     }
 
     $resolvedAction = Read-ValidatedChoice -Prompt 'Action (install/uninstall)' -DefaultValue $defaultAction -AllowedValues @('install', 'uninstall', 'full-uninstall')
+    $resolvedVersion = if ($resolvedAction -eq 'install' -and -not $script:InteractiveReleaseVersionWasPrompted) {
+        Read-ValidatedVersion -Prompt 'Release version' -DefaultValue $defaultVersion
+    }
+    else {
+        $defaultVersion
+    }
     $resolvedArchitecture = Read-ValidatedChoice -Prompt 'Architecture (x64/x86/arm64)' -DefaultValue $defaultArchitecture -AllowedValues @('x64', 'x86', 'arm64')
     $resolvedClient = Read-ValidatedChoice -Prompt 'Client (claude-code/codex/cursor/vscode/visual-studio/claude-desktop/other)' -DefaultValue $defaultClient -AllowedValues @('claude-code', 'codex', 'cursor', 'vscode', 'visual-studio', 'claude-desktop', 'other')
     $installRootPrompt = Read-InstallerInput -Prompt 'Install root' -DefaultValue $defaultInstallRoot
@@ -3683,6 +3721,7 @@ function Get-CliSelection {
 
     return [ordered]@{
         Action = $resolvedAction
+        Version = $resolvedVersion
         Architecture = $resolvedArchitecture
         Client = $resolvedClient
         InstallRoot = $installRootPrompt.Trim()
@@ -4041,6 +4080,12 @@ function Resolve-Selection {
     $defaultArchitecture = if ([string]::IsNullOrWhiteSpace($Architecture)) { Get-SystemDefaultArchitecture } else { $Architecture }
     $defaultClient = if ([string]::IsNullOrWhiteSpace($Client)) { Get-DefaultClient } else { $Client }
 
+    $script:InteractiveReleaseVersionWasPrompted = $false
+    if (-not $NonInteractive -and -not $OutputJson -and $Action -eq 'install') {
+        $script:Version = Read-ValidatedVersion -Prompt 'Release version' -DefaultValue $Version
+        $script:InteractiveReleaseVersionWasPrompted = $true
+    }
+
     if (Test-TuiSupport) {
         foreach ($helperPath in @(Get-InstallerSharedModulePaths)) {
             . $helperPath
@@ -4051,6 +4096,7 @@ function Resolve-Selection {
         $mode = Resolve-InstallerMode
         $versionHint = Get-OfflineVersionHint -Mode $mode
         $latestVersion = Get-LatestInstallerVersion -UseCacheOnly
+
         $tuiResult = Start-TuiInstaller `
             -DefaultAction $Action `
             -DefaultArchitecture $defaultArchitecture `
@@ -4100,12 +4146,19 @@ if ($selectionContext.HandledInWindow) {
 
 $interactiveSelection = $selectionContext.Selection
 $resolvedAction = [string]$interactiveSelection.Action
+$resolvedVersion = if ($interactiveSelection.PSObject.Properties.Name -contains 'Version' -and
+    -not [string]::IsNullOrWhiteSpace([string]$interactiveSelection.Version)) {
+    [string]$interactiveSelection.Version
+}
+else {
+    [string]$Version
+}
 $resolvedArchitecture = [string]$interactiveSelection.Architecture
 $resolvedClient = [string]$interactiveSelection.Client
 $resolvedInstallRoot = [string]$interactiveSelection.InstallRoot
 $versionHint = [string]$selectionContext.VersionHint
 
-$result = Invoke-InstallerAction -ResolvedAction $resolvedAction -ResolvedArchitecture $resolvedArchitecture -ResolvedClient $resolvedClient -ResolvedInstallRoot $resolvedInstallRoot -RequestedVersion $Version
+$result = Invoke-InstallerAction -ResolvedAction $resolvedAction -ResolvedArchitecture $resolvedArchitecture -ResolvedClient $resolvedClient -ResolvedInstallRoot $resolvedInstallRoot -RequestedVersion $resolvedVersion
 
 if ($OutputJson) {
     $result | ConvertTo-Json -Depth 10

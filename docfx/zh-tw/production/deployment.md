@@ -16,20 +16,20 @@ installer 與 packaging 行為定義在 `scripts/`，而不是文件站台本身
 
 ### 已審查的腳本驅動安裝
 
-請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 作為維護者來源。這支已審查的 installer 會解析對應的 GitHub Release asset、在解壓前驗證 archive integrity，然後執行該 release 內版本相符的 `bin/install.ps1`。
+請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 作為維護者來源。這支已審查的 installer 會解析對應的 GitHub Release asset、在解壓前驗證 archive integrity，然後透過已審查的 installer/helper flow 安裝解壓出的 packaged payload。它會下載已發布的 release artifact，不會從原始碼建置。
 
 建議範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
+irm https://wpf-mcptools.evanlau1798.com | iex
 ```
 
-省略 `-Architecture` 時，installer 會偵測系統架構（`x64`、`x86` 或 `arm64`）。只有在刻意安裝不同套件時才傳入 `-Architecture`。
+預設互動流程會詢問 release 版本，以目前電腦架構（`x64`、`x86` 或 `arm64`）作為預設架構，接著詢問要產生哪一種 MCP client registration。只有在刻意安裝不同套件時才傳入 `-Architecture`。
 
 指定 client 的自動化範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### 公開 release package 備援路徑

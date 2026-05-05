@@ -18,23 +18,23 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 
 ### Online installer path
 
-Review the canonical maintainer source first: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1). The reviewed installer resolves the matching published release asset, validates archive integrity before extraction, and then runs the version-matched `bin/install.ps1` from that release.
+Review the canonical maintainer source first: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1). The reviewed installer resolves the matching published release asset, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow. It downloads the selected GitHub Release package; it does not build from source.
 
 Recommended example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
+irm https://wpf-mcptools.evanlau1798.com | iex
 ```
 
-When you omit `-Architecture`, the installer detects the system architecture (`x64`, `x86`, or `arm64`). Pass `-Architecture` only when you intentionally need to install a different package.
+The default interactive flow asks for the release version, uses the current machine architecture (`x64`, `x86`, or `arm64`) as the default architecture, and then asks which MCP client registration to generate. Pass `-Architecture` only when you intentionally need to install a different package.
 
 Client-specific automation example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
-The repository entrypoint is still only the bootstrap layer; the actual install is performed by the packaged `bin/install.ps1` from the resolved release.
+The repository entrypoint is still only the bootstrap layer; the actual install uses the verified extracted release payload through the reviewed installer/helper flow.
 
 ### Manual release package path
 

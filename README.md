@@ -4,7 +4,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple)](https://dotnet.microsoft.com/)
 [![MCP](https://img.shields.io/badge/MCP-SDK%20v1.0-blue)](https://modelcontextprotocol.io/)
 [![Tests](https://img.shields.io/badge/tests-3400%2B-brightgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)]()
+[![Coverage](https://codecov.io/gh/Evanlau1798/wpf-devtools-mcp/branch/master/graph/badge.svg)](https://codecov.io/gh/Evanlau1798/wpf-devtools-mcp)
 
 `wpf-devtools-mcp` is a Model Context Protocol server for inspecting and interacting with running WPF applications. It bridges MCP clients to an in-process inspector so agents can query visual trees, inspect bindings, analyze dependency properties, and trigger UI interactions that out-of-process tooling cannot access.
 
@@ -41,23 +41,29 @@ If you are building from source instead of using a published release, install:
 
 ### Install with the reviewed online installer
 
-For first-time setup, prefer the reviewed installer flow instead of launching from the source tree or manually expanding a release archive.
+For first-time setup, prefer the reviewed installer flow instead of launching from the source tree or manually expanding a release archive. The public bootstrap script downloads the selected published GitHub Release package; it does not build from source.
 
 Preferred path on Windows:
 
-> **Security note**: Review [scripts/online-installer.ps1](scripts/online-installer.ps1) first. The online installer resolves the versioned GitHub Release asset, validates archive integrity before extraction, and then runs the version-matched packaged installer from that release.
+> **Security note**: Review [scripts/online-installer.ps1](scripts/online-installer.ps1) first. The online installer resolves the versioned GitHub Release asset, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
+irm https://wpf-mcptools.evanlau1798.com | iex
 ```
 
-That script-first path keeps `scripts/online-installer.ps1` as the canonical source entrypoint while still installing from a published release package.
+That script-first path keeps `scripts/online-installer.ps1` as the canonical source entrypoint while still installing from a published release package. The default interactive flow asks for a release version, chooses the current machine architecture by default, and then asks which MCP client registration to generate.
 When you omit `-Architecture`, the installer detects the system architecture (`x64`, `x86`, or `arm64`). Pass `-Architecture` only when you intentionally need to install a different package.
 
 If you want a single-command, non-interactive setup for a specific client, use:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+```
+
+For local audit or offline bootstrap scenarios, you can also run the repository copy directly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
 ```
 
 Manual fallback:

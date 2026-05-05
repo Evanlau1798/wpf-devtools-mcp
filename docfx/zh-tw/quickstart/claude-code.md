@@ -27,7 +27,7 @@ Get-Content $installer | Select-Object -First 60   # 審查後再執行
 範例：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 package-local 回退路徑：

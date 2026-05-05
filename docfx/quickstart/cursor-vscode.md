@@ -12,7 +12,7 @@ Preferred public path:
 Example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client vscode -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client vscode -NonInteractive -Force -OutputJson
 ```
 
 Package-local fallback:

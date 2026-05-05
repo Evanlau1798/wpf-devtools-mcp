@@ -127,10 +127,50 @@ public sealed class InstallerInteractiveUiScriptTests
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
         content.Should().Contain("Read-Host");
+        content.Should().Contain("Release version");
         content.Should().Contain("Action (install/uninstall)");
         content.Should().Contain("Architecture (x64/x86/arm64)");
         content.Should().NotContain("<VisualTree/>");
         content.Should().NotContain("PresentationFramework");
+    }
+
+    [Fact]
+    public void OnlineInstallerScript_CliFallback_ShouldPromptForReleaseVersion()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var escapedRepoScriptPath = repoScriptPath.Replace("'", "''");
+            var escapedInstallRoot = installRoot.Replace("'", "''");
+            var escapedMarker = TestHelpers.OnlineInstallerDefinitionBoundaryMarker.Replace("'", "''");
+            var command = string.Join(" ; ",
+            [
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES='install||1.2.3||x64||other||" + escapedInstallRoot + "'",
+                "$content = Get-Content '" + escapedRepoScriptPath + "' -Raw",
+                "$marker = '" + escapedMarker + "'",
+                "$prefix = $content.Substring(0, $content.IndexOf($marker))",
+                ". ([scriptblock]::Create($prefix))",
+                "$selection = Get-CliSelection",
+                "$selection | ConvertTo-Json -Compress"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var payload = JsonDocument.Parse(result.Stdout);
+            var root = payload.RootElement;
+            root.GetProperty("Action").GetString().Should().Be("install");
+            root.GetProperty("Version").GetString().Should().Be("1.2.3");
+            root.GetProperty("Architecture").GetString().Should().Be("x64");
+            root.GetProperty("Client").GetString().Should().Be("other");
+            root.GetProperty("InstallRoot").GetString().Should().Be(installRoot);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
     }
 
     [Fact]

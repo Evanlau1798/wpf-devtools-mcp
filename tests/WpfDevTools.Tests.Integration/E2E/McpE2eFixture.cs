@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using WpfDevTools.Mcp.Server;
@@ -19,6 +20,8 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
     private McpStdioClient? _client;
     private string? _serverExePath;
     private string? _testAppExePath;
+    private readonly string _authSecret = CreateAuthSecret();
+    private readonly string _certDirectory = CreateCertificateDirectoryPath();
     private readonly int? _testAppProcessIdOverride;
     private readonly Func<Task>? _reconnectClientAsyncOverride;
     private readonly Func<string, object?, Task<JsonElement>>? _callToolAsyncOverride;
@@ -143,16 +146,11 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 
         _client?.Dispose();
         _client = new McpStdioClient();
+        Directory.CreateDirectory(_certDirectory);
+
         await _client.StartAsync(
             _serverExePath,
-            new Dictionary<string, string>
-            {
-                [McpServerConfiguration.AllowedTargetsEnvVar] = testAppExePath,
-                [McpServerConfiguration.RawInjectionAllowedTargetsEnvVar] = testAppExePath,
-                [McpServerConfiguration.AllowDestructiveToolsEnvVar] = "true",
-                [McpServerConfiguration.AllowScreenshotsEnvVar] = "true",
-                [McpServerConfiguration.AllowViewModelInspectionEnvVar] = "true"
-            }).ConfigureAwait(false);
+            CreateServerEnvironment(testAppExePath, _authSecret, _certDirectory)).ConfigureAwait(false);
 
         var connectResult = await _client.CallToolAsync(
             "connect",
@@ -210,7 +208,56 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
                 _testApp = null;
             }
         }
+
+        DeleteCertificateDirectory();
     }
+
+    internal static IReadOnlyDictionary<string, string> CreateServerEnvironment(
+        string testAppExePath,
+        string authSecret,
+        string certDirectory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(testAppExePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(authSecret);
+        ArgumentException.ThrowIfNullOrWhiteSpace(certDirectory);
+
+        return new Dictionary<string, string>
+        {
+            [McpServerConfiguration.AllowedTargetsEnvVar] = testAppExePath,
+            [McpServerConfiguration.RawInjectionAllowedTargetsEnvVar] = testAppExePath,
+            [McpServerConfiguration.AllowDestructiveToolsEnvVar] = "true",
+            [McpServerConfiguration.AllowScreenshotsEnvVar] = "true",
+            [McpServerConfiguration.AllowViewModelInspectionEnvVar] = "true",
+            ["WPFDEVTOOLS_AUTH_SECRET"] = authSecret,
+            ["WPFDEVTOOLS_CERT_DIR"] = certDirectory
+        };
+    }
+
+    private static string CreateAuthSecret()
+    {
+        var secretBytes = new byte[32];
+        RandomNumberGenerator.Fill(secretBytes);
+        return Convert.ToBase64String(secretBytes);
+    }
+
+    private static string CreateCertificateDirectoryPath() =>
+        Path.Combine(Path.GetTempPath(), "WpfDevTools.McpE2eCerts." + Guid.NewGuid().ToString("N"));
+
+    private void DeleteCertificateDirectory()
+    {
+        try
+        {
+            if (Directory.Exists(_certDirectory))
+            {
+                Directory.Delete(_certDirectory, recursive: true);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup; a child process may still be releasing certificate files.
+        }
+    }
+
     private static string? FindExecutable(
         string projectDir, string projectName, string framework, string exeName)
     {

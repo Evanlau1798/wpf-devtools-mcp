@@ -11,15 +11,15 @@ Install WPF DevTools first, then register the installed executable with your pre
 Recommended public path:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
+irm https://wpf-mcptools.evanlau1798.com | iex
 ```
 
-That reviewed installer resolves the versioned release asset, validates archive integrity before extraction, and then runs the version-matched packaged installer from the downloaded release.
+That reviewed installer resolves the versioned release asset, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
 
 Client-specific example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual package alternative:

@@ -16,20 +16,20 @@ Installer and packaging behavior are defined in `scripts/`, not in the documenta
 
 ### Reviewed script-driven install
 
-Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the maintainer source first. The reviewed installer resolves the matching GitHub Release asset, validates archive integrity before extraction, and then runs the version-matched packaged `bin/install.ps1` from that release.
+Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the maintainer source first. The reviewed installer resolves the matching GitHub Release asset, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow. It downloads published release artifacts instead of building from source.
 
 Recommended example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest
+irm https://wpf-mcptools.evanlau1798.com | iex
 ```
 
-When you omit `-Architecture`, the installer detects the system architecture (`x64`, `x86`, or `arm64`). Pass `-Architecture` only when you intentionally need to install a different package.
+The default interactive flow asks for the release version, uses the current machine architecture (`x64`, `x86`, or `arm64`) as the default architecture, and then asks which MCP client registration to generate. Pass `-Architecture` only when you intentionally need to install a different package.
 
 Client-specific automation example:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### Public release package fallback

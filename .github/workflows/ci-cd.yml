@@ -85,7 +85,15 @@ jobs:
       run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
 
     - name: Run integration tests
+      if: matrix.configuration == 'Debug'
       run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}
+
+    - name: Document Release integration test boundary
+      if: matrix.configuration == 'Release'
+      shell: pwsh
+      run: |
+        Write-Host 'Release live-injection integration tests require Authenticode-signed inspector and bootstrapper payloads.'
+        Write-Host 'This unsigned CI lane still builds Release, runs unit and release-policy tests, and leaves signed payload validation to release.yml.'
 
     - name: Upload build artifacts
       if: matrix.configuration == 'Release'

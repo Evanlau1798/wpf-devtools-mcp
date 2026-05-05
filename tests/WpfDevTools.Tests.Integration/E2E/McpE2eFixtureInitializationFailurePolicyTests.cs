@@ -1,11 +1,30 @@
 using System.ComponentModel;
 using System.IO;
 using FluentAssertions;
+using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
 public sealed class McpE2eFixtureInitializationFailurePolicyTests
 {
+    [Fact]
+    public void CreateServerEnvironment_ShouldIncludeIsolatedSecurityCredentials()
+    {
+        var testAppPath = Path.Combine(Path.GetTempPath(), "WpfDevTools.Tests.TestApp.exe");
+        var authSecret = Convert.ToBase64String(new byte[32]);
+        var certDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        var environment = McpE2eFixture.CreateServerEnvironment(testAppPath, authSecret, certDirectory);
+
+        environment.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar, testAppPath);
+        environment.Should().Contain(McpServerConfiguration.RawInjectionAllowedTargetsEnvVar, testAppPath);
+        environment.Should().Contain(McpServerConfiguration.AllowDestructiveToolsEnvVar, "true");
+        environment.Should().Contain(McpServerConfiguration.AllowScreenshotsEnvVar, "true");
+        environment.Should().Contain(McpServerConfiguration.AllowViewModelInspectionEnvVar, "true");
+        environment.Should().Contain("WPFDEVTOOLS_AUTH_SECRET", authSecret);
+        environment.Should().Contain("WPFDEVTOOLS_CERT_DIR", certDirectory);
+    }
+
     [Theory]
     [MemberData(nameof(ExpectedEnvironmentFailures))]
     public void ShouldConvertInitializationFailureToSkip_ShouldAllowExpectedEnvironmentFailures(Exception exception)

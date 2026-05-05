@@ -138,6 +138,21 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void CiWorkflow_ShouldDotSourceOnlineInstallerWithHarnessVariablesForLocalArchiveSmoke()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain(". ./scripts/online-installer.ps1",
+            "CI local archive smoke should dot-source the online installer so $PSScriptRoot remains available while test harness script variables are set");
+        content.Should().Contain("$script:WpfDevToolsInstallerTestModeHarnessEnabled = $true",
+            "online-installer.ps1 intentionally ignores environment-only test mode outside the release test harness");
+        content.Should().Contain("-TrustedReleaseMetadataDirectory 'artifacts/release'",
+            "local archive smoke tests must provide the sidecar metadata directory used by package integrity checks");
+        content.Should().Contain("-PackageArchivePath $packageArchive.FullName",
+            "the workflow should still exercise the local release archive install path");
+    }
+
+    [Fact]
     public void CiWorkflow_ShouldUninstallViaInstalledPackageEntryPoint()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));

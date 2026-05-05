@@ -186,7 +186,9 @@ jobs:
           throw "Could not locate packaged release archive for architecture ${{ matrix.architecture }}"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory 'artifacts/release' -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start online-installed runtime smoke test
       shell: pwsh
@@ -281,7 +283,9 @@ jobs:
           throw 'Could not locate packaged release archive for architecture arm64'
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory 'artifacts/release' -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start online-installed ARM64 runtime smoke test
       shell: pwsh

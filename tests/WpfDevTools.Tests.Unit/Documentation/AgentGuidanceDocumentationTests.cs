@@ -110,12 +110,18 @@ public sealed class AgentGuidanceDocumentationTests
     }
 
     [Fact]
-    public void RepoAgentsGuide_ShouldTrackCurrentToolCount()
+    public void RepoAgentsGuide_WhenPresent_ShouldTrackCurrentToolCount()
     {
-        var content = File.ReadAllText(GetRepoFilePath("AGENTS.md"));
+        var agentGuidePath = GetRepoFilePath("AGENTS.md");
+        if (!File.Exists(agentGuidePath))
+        {
+            return;
+        }
+
+        var content = File.ReadAllText(agentGuidePath);
 
         content.Should().Contain("64 MCP tools",
-            "AGENTS.md is agent-facing repository guidance and should match the current public tool count");
+            "AGENTS.md is local agent-facing guidance and should match the current public tool count when present");
         content.Should().NotContain("63 MCP tools",
             "AGENTS.md should not preserve the stale pre-64 tool count");
     }

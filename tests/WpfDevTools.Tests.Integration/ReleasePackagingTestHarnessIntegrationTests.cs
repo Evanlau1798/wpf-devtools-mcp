@@ -258,6 +258,49 @@ public sealed class ReleasePackagingTestHarnessIntegrationTests
     }
 
     [Fact]
+    public void RunPowerShellScript_WithOwnedEnvironment_ShouldPinNuGetPackagesOutsideDeletedUserProfile()
+    {
+        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
+        try
+        {
+            var scriptPath = Path.Combine(tempRoot, "echo-nuget-env.ps1");
+            File.WriteAllText(
+                scriptPath,
+                "[ordered]@{\n" +
+                "  UserProfile = $env:USERPROFILE\n" +
+                "  NuGetPackages = $env:NUGET_PACKAGES\n" +
+                "} | ConvertTo-Json -Compress\n");
+
+            var result = ReleasePackagingTestHarness.RunPowerShellScript(
+                scriptPath,
+                Array.Empty<string>(),
+                new Dictionary<string, string?>
+                {
+                    ["NUGET_PACKAGES"] = string.Empty
+                },
+                timeout: TimeSpan.FromSeconds(5));
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var payload = JsonDocument.Parse(result.Stdout);
+            var root = payload.RootElement;
+            var userProfile = root.GetProperty("UserProfile").GetString();
+            var nugetPackages = root.GetProperty("NuGetPackages").GetString();
+            var expectedNuGetPackages = Path.Combine(
+                ReleasePackagingTestHarness.GetRepoFilePath("tmp"),
+                "release-integration-nuget",
+                "packages");
+
+            nugetPackages.Should().Be(expectedNuGetPackages);
+            nugetPackages.Should().NotStartWith(userProfile!,
+                "repo obj/project.assets.json must not point at the harness-owned USERPROFILE that is deleted after the process exits");
+        }
+        finally
+        {
+            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void RunPowerShellScript_WhenProcessTimesOut_ShouldTerminateChildProcessTree()
         => AssertTimedOutProcessTreeIsTerminated(forceTaskKillFallback: false);
 

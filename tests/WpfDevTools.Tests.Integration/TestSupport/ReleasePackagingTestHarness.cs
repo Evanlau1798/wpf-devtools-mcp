@@ -495,6 +495,7 @@ internal static class ReleasePackagingTestHarness
         startInfo.Environment["TMP"] = environmentOverrides is not null && TryGetPathOverride(environmentOverrides, "TMP", out var tmpOverride)
             ? tmpOverride
             : startInfo.Environment["TEMP"];
+        ReleasePackagingNuGetEnvironment.EnsureStablePackageCache(startInfo, GetRepoFilePath("tmp"));
     }
 
     private static string ResolveRepoRoot()

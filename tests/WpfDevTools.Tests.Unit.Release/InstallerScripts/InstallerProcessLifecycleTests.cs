@@ -25,6 +25,7 @@ public sealed class InstallerProcessLifecycleTests
             var parentPidPath = Path.Combine(tempRoot, "timed-out-parent.pid");
             var childPidPath = Path.Combine(tempRoot, "timed-out-child.pid");
             var grandchildPidPath = Path.Combine(tempRoot, "timed-out-grandchild.pid");
+            var readyPath = Path.Combine(tempRoot, "process-tree.ready");
             var childScriptPath = Path.Combine(tempRoot, "hang-child.ps1");
             File.WriteAllText(
                 childScriptPath,
@@ -39,16 +40,20 @@ public sealed class InstallerProcessLifecycleTests
                 "$parentPidPath = '" + parentPidPath.Replace("'", "''") + "'",
                 "$childPidPath = '" + childPidPath.Replace("'", "''") + "'",
                 "$grandchildPidPath = '" + grandchildPidPath.Replace("'", "''") + "'",
+                "$readyPath = '" + readyPath.Replace("'", "''") + "'",
                 "$childScriptPath = '" + childScriptPath.Replace("'", "''") + "'",
                 "$PID | Set-Content -Path $parentPidPath",
                 "$child = Start-Process powershell.exe -ArgumentList '-NoProfile', '-File', $childScriptPath, '-ChildPidPath', $childPidPath, '-GrandchildPidPath', $grandchildPidPath -PassThru",
                 "while (!(Test-Path $childPidPath) -or !(Test-Path $grandchildPidPath)) { Start-Sleep -Milliseconds 50 }",
+                "Set-Content -Path $readyPath -Value ready",
                 "Start-Sleep -Seconds 60"
             ]);
 
-            var act = () => ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(3));
+            var act = () => ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(10));
 
             act.Should().Throw<TimeoutException>();
+            File.Exists(readyPath).Should().BeTrue(
+                "the timeout regression should exercise a fully established process tree instead of racing process startup");
             WaitUntil(
                 () => File.Exists(parentPidPath) && File.Exists(childPidPath) && File.Exists(grandchildPidPath),
                 TimeSpan.FromSeconds(5),

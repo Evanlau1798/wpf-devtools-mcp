@@ -42,6 +42,18 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
+    public void ReleaseUnitXunitRunnerConfig_ShouldLimitPowerShellProcessFanOut()
+    {
+        using var document = JsonDocument.Parse(
+            File.ReadAllText(GetRepoFilePath("tests/WpfDevTools.Tests.Unit.Release/xunit.runner.json")));
+
+        document.RootElement.GetProperty("parallelizeTestCollections").GetBoolean()
+            .Should().BeTrue("independent release unit collections can still run concurrently");
+        document.RootElement.GetProperty("maxParallelThreads").GetInt32()
+            .Should().Be(2, "release unit tests launch many PowerShell installer processes and need bounded collection fan-out to avoid suite-level timeout flakes");
+    }
+
+    [Fact]
     public void ReleaseUnitTestProject_ShouldBeIncludedInPrimaryBuildAndTestEntrypoints()
     {
         ReadRepoFile("WpfDevTools.sln").Should().Contain(

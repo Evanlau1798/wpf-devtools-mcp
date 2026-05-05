@@ -100,7 +100,7 @@ public sealed class PublicQuickstartDocumentationTests
         var troubleshooting = File.ReadAllText(GetRepoFilePath("docfx/guides/troubleshooting.md"));
         var toc = File.ReadAllText(GetRepoFilePath("docfx/toc.yml"));
 
-        deployment.Should().Contain(".\\scripts\\online-installer.ps1");
+        deployment.Should().Contain("irm https://wpf-mcptools.evanlau1798.com | iex");
         deployment.Should().Contain("validates archive integrity before extraction");
         deployment.Should().Contain("run.bat");
         deployment.Should().Contain("release layout");
@@ -242,8 +242,8 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain(".\\scripts\\online-installer.ps1",
-                $"{file} should make the reviewed repository installer the primary bootstrap path");
+            content.Should().Contain("irm https://wpf-mcptools.evanlau1798.com | iex",
+                $"{file} should make the public installer alias the primary bootstrap path");
             content.Should().Contain("integrity",
                 $"{file} should explain that the reviewed installer validates the release archive before extraction");
             content.Should().Contain("run.bat",

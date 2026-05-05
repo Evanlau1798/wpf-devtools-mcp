@@ -137,12 +137,12 @@ public sealed class AiFriendlyQuickstartDocumentationTests
 
             content.Should().NotContain("raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1",
                 $"{file} should not tell users to execute the moving master branch installer directly");
-            content.Should().Contain(".\\scripts\\online-installer.ps1",
-                $"{file} should prefer the reviewed repository installer as the public bootstrap path");
+            content.Should().Contain("irm https://wpf-mcptools.evanlau1798.com | iex",
+                $"{file} should prefer the reviewed public installer alias as the public bootstrap path");
             content.Should().Contain("integrity",
                 $"{file} should explain that the reviewed installer validates the release archive before extraction");
-            content.Should().Contain("bin/install.ps1",
-                $"{file} should explain that the reviewed installer still runs the packaged installer from the resolved release");
+            content.Should().Contain("packaged payload",
+                $"{file} should explain that the reviewed installer uses the extracted packaged payload from the resolved release");
         }
     }
 

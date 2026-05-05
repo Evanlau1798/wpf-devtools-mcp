@@ -26,7 +26,7 @@ Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtool
 irm https://wpf-mcptools.evanlau1798.com | iex
 ```
 
-The default interactive flow asks for the release version, uses the current machine architecture (`x64`, `x86`, or `arm64`) as the default architecture, and then asks which MCP client registration to generate. Pass `-Architecture` only when you intentionally need to install a different package.
+The default interactive flow asks for the release version, uses the current machine architecture (`x64`, `x86`, or `arm64`) as the default architecture, and then asks which MCP client registration to generate. When you omit `-Architecture`, the installer detects the system architecture; pass `-Architecture` only when you intentionally need to install a different package.
 
 Client-specific automation example:
 

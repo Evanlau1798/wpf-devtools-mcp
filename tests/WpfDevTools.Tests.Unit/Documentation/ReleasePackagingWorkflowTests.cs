@@ -87,6 +87,17 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void CiWorkflow_ShouldInstallPackageLocalSmokeFromReleaseArchive()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("Expand-Archive -LiteralPath $packageArchive.FullName",
+            "Publish-Release.ps1 should leave release output as GitHub-ready archives plus sidecars, so CI package-local smoke must extract the zip before running bin/install.ps1");
+        content.Should().NotContain("Get-ChildItem 'artifacts/release' -Directory",
+            "release packaging smoke should not depend on expanded package directories in the release output root");
+    }
+
+    [Fact]
     public void PackagedServerRuntimeSmokeScript_ShouldExerciseProtocolBeyondInitialize()
     {
         var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));

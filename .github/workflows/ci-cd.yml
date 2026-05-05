@@ -154,15 +154,21 @@ jobs:
     - name: Install published package smoke test
       shell: pwsh
       run: |
-        $packageDir = Get-ChildItem 'artifacts/release' -Directory -Filter "release_*_win-${{ matrix.architecture }}" |
+        $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter "release_*_win-${{ matrix.architecture }}.zip" |
           Sort-Object Name -Descending |
           Select-Object -First 1
 
-        if ($null -eq $packageDir) {
-          throw "Could not locate packaged release directory for architecture ${{ matrix.architecture }}"
+        if ($null -eq $packageArchive) {
+          throw "Could not locate packaged release archive for architecture ${{ matrix.architecture }}"
         }
 
-        & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir.FullName 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+        $packageDir = Join-Path 'artifacts/release' $packageArchive.BaseName
+        if (Test-Path $packageDir) {
+          Remove-Item -LiteralPath $packageDir -Recurse -Force
+        }
+
+        Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+        & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start installed package runtime smoke test
       shell: pwsh
@@ -251,15 +257,21 @@ jobs:
     - name: Install published ARM64 package smoke test
       shell: pwsh
       run: |
-        $packageDir = Get-ChildItem 'artifacts/release' -Directory -Filter 'release_*_win-arm64' |
+        $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter 'release_*_win-arm64.zip' |
           Sort-Object Name -Descending |
           Select-Object -First 1
 
-        if ($null -eq $packageDir) {
-          throw 'Could not locate packaged release directory for architecture arm64'
+        if ($null -eq $packageArchive) {
+          throw 'Could not locate packaged release archive for architecture arm64'
         }
 
-        & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir.FullName 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+        $packageDir = Join-Path 'artifacts/release' $packageArchive.BaseName
+        if (Test-Path $packageDir) {
+          Remove-Item -LiteralPath $packageDir -Recurse -Force
+        }
+
+        Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+        & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start installed ARM64 runtime smoke test
       shell: pwsh

@@ -973,8 +973,10 @@ internal static class ReleaseScriptTestHarness
         var subject = "CN=WpfDevTools Harness Signed Payload " + Guid.NewGuid().ToString("N");
         var command = string.Join(" ",
             "$ErrorActionPreference = 'Stop';",
-            "Import-Module Microsoft.PowerShell.Security -ErrorAction Stop;",
-            "Import-Module PKI -ErrorAction Stop;",
+            "$previousErrorActionPreference = $ErrorActionPreference;",
+            "try { $ErrorActionPreference = 'SilentlyContinue'; Import-Module Microsoft.PowerShell.Security; Import-Module PKI } finally { $ErrorActionPreference = $previousErrorActionPreference };",
+            "if ($null -eq (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) { New-PSDrive -Name Cert -PSProvider Certificate -Root '\\' -ErrorAction Stop | Out-Null };",
+            "Get-Command New-SelfSignedCertificate -ErrorAction Stop | Out-Null;",
             "$payload = " + QuotePowerShellString(payloadPath) + ";",
             "$thumbprintPath = " + QuotePowerShellString(certificateThumbprintPath) + ";",
             "$subject = " + QuotePowerShellString(subject) + ";",

@@ -92,14 +92,27 @@ public class ConnectToolLoggingTests : IDisposable
     private sealed class CapturingTraceListener : TraceListener
     {
         private readonly List<string> _messages = new();
+        private readonly object _gate = new();
 
-        public IReadOnlyList<string> Messages => _messages;
+        public IReadOnlyList<string> Messages
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _messages.ToArray();
+                }
+            }
+        }
 
         public override void Write(string? message)
         {
             if (!string.IsNullOrEmpty(message))
             {
-                _messages.Add(message);
+                lock (_gate)
+                {
+                    _messages.Add(message);
+                }
             }
         }
 
@@ -107,7 +120,10 @@ public class ConnectToolLoggingTests : IDisposable
         {
             if (!string.IsNullOrEmpty(message))
             {
-                _messages.Add(message);
+                lock (_gate)
+                {
+                    _messages.Add(message);
+                }
             }
         }
     }

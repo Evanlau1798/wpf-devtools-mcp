@@ -318,6 +318,12 @@ public sealed class GetElementSnapshotToolTests : IDisposable
             catch (EndOfStreamException)
             {
             }
+            catch (IOException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         });
 
         var sessionManager = new SessionManager();

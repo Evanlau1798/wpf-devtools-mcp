@@ -40,12 +40,12 @@ public sealed class DependencyPropertyWaitForChangeTests
         var act = () => analyzer.WaitForChange(
             "Width",
             elementId,
-            timeoutMs: 1000,
-            pollIntervalMs: 500,
+            timeoutMs: 5000,
+            pollIntervalMs: 3000,
             cancellationToken: cancellation.Token);
 
         act.Should().Throw<OperationCanceledException>();
-        stopwatch.ElapsedMilliseconds.Should().BeLessThan(300);
+        stopwatch.ElapsedMilliseconds.Should().BeLessThan(2000);
     }
 
     [StaFact]

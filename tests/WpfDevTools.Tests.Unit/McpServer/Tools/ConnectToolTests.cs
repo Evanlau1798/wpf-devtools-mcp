@@ -434,7 +434,11 @@ public partial class ConnectToolTests : IDisposable
                 authManager: restartedTransportSecurity.AuthenticationManager,
                 certManager: restartedTransportSecurity.CertificateManager);
             var injector = new FakeProcessInjector();
-            var tool = CreateTool(sessionManager: sessionManager, injector: injector);
+            var pipeReadyProbe = new PipeReadyProbe(
+                (pipePath, _) => string.Equals(pipePath, $@"\\.\pipe\WpfDevTools_{processId}", StringComparison.Ordinal),
+                () => DateTime.UtcNow,
+                _ => { });
+            var tool = CreateTool(sessionManager: sessionManager, injector: injector, pipeReadyProbe: pipeReadyProbe);
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 

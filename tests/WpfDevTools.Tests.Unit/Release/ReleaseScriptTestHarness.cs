@@ -142,7 +142,7 @@ internal static class ReleaseScriptTestHarness
         }
     }
 
-    public static string CreatePackageDirectory(string tempRoot, string architecture = "x64", bool useSignedPayload = true)
+    public static string CreatePackageDirectory(string tempRoot, string architecture = "x64", bool useSignedPayload = false)
     {
         var packageDir = Path.Combine(tempRoot, "package");
         if (Directory.Exists(packageDir))
@@ -158,7 +158,7 @@ internal static class ReleaseScriptTestHarness
     public static string CreatePackageArchive(
         string tempRoot,
         string architecture = "x64",
-        bool useSignedPayload = true,
+        bool useSignedPayload = false,
         bool isolateArchiveContents = false)
     {
         var archivePath = Path.Combine(tempRoot, $"release_1.2.3_win-{architecture}.zip");
@@ -302,7 +302,7 @@ internal static class ReleaseScriptTestHarness
     {
         var inputs = new List<string>
         {
-            "release-cache-v3",
+            "release-cache-v4",
             architecture,
             useSignedPayload ? "signed" : "unsigned",
             GetFileContentHash(GetRepoFilePath("scripts/online-installer.ps1")),
@@ -394,9 +394,9 @@ internal static class ReleaseScriptTestHarness
                 version = "1.2.3",
                 architecture,
                 runtimeId = architecture == "x86" ? "win-x86" : architecture == "arm64" ? "win-arm64" : "win-x64",
-                channel = "release",
-                buildConfiguration = "Release",
-                signaturePolicy = "RequireAuthenticodeSignature",
+                channel = useSignedPayload ? "release" : "dev",
+                buildConfiguration = useSignedPayload ? "Release" : "Debug",
+                signaturePolicy = useSignedPayload ? "RequireAuthenticodeSignature" : "DebugTrustedRootSkip",
                 entryExecutable = $"bin/wpf-devtools-{architecture}.exe",
                 runBatch = "run.bat",
                 installScript = "bin/install.ps1",

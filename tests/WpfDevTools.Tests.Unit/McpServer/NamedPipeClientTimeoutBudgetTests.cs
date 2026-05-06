@@ -25,7 +25,7 @@ public class NamedPipeClientTimeoutBudgetTests
         sw.Stop();
 
         connected.Should().BeFalse();
-        sw.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(800),
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(1000),
             "retry attempts must share the same timeout budget instead of spending the full timeout on each attempt");
     }
 

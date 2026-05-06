@@ -181,6 +181,9 @@ public sealed class SetupWizardScriptTests
                 Path.Combine(packageBinDir, "install.ps1"),
                 overwrite: true);
 
+            var environment = CreateInstallerEnvironment(tempRoot, null);
+            environment["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "Valid";
+
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 Path.Combine(packageBinDir, "install.ps1"),
                 new[]
@@ -191,7 +194,7 @@ public sealed class SetupWizardScriptTests
                     "-Force",
                     "-OutputJson"
                 },
-                CreateInstallerEnvironment(tempRoot, null));
+                environment);
 
             result.ExitCode.Should().Be(0, result.Stderr);
             File.Exists(Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe")).Should().BeTrue();

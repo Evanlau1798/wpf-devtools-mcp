@@ -586,7 +586,8 @@ public sealed partial class ReleasePackagingContractTests
                 {
                     ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
                     ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
-                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "Valid"
                 });
 
             result.ExitCode.Should().Be(0, result.Stderr);

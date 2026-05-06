@@ -8,12 +8,29 @@ param(
     [Parameter(Mandatory)] [string]$Password
 )
 
+function Initialize-CertificateProvider {
+    # Hosted Windows runners can start without a Cert: drive until the certificate provider is explicitly loaded.
+    Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity -ErrorAction SilentlyContinue
+    Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
+    try { Import-Module PKI -ErrorAction Stop } catch { }
+
+    if ($null -eq (Get-PSProvider Certificate -ErrorAction SilentlyContinue)) {
+        throw 'Certificate provider is unavailable.'
+    }
+
+    if ($null -eq (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) {
+        New-PSDrive -Name Cert -PSProvider Certificate -Root '\' -ErrorAction Stop | Out-Null
+    }
+}
+
 Write-Host "Creating self-signed certificate for code signing..." -ForegroundColor Green
 
 # Create output directory if it doesn't exist
 if (-not (Test-Path $OutputPath)) {
     New-Item -ItemType Directory -Path $OutputPath | Out-Null
 }
+
+Initialize-CertificateProvider
 
 # Create self-signed certificate
 $cert = New-SelfSignedCertificate `

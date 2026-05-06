@@ -75,6 +75,21 @@ function Get-CertificatePassword {
     return (Read-Host -Prompt "Enter the PFX password for $CertificatePath" -AsSecureString)
 }
 
+function Initialize-CertificateProvider {
+    # Hosted Windows runners can start without a Cert: drive until the certificate provider is explicitly loaded.
+    Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity -ErrorAction SilentlyContinue
+    Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
+    try { Import-Module PKI -ErrorAction Stop } catch { }
+
+    if ($null -eq (Get-PSProvider Certificate -ErrorAction SilentlyContinue)) {
+        throw 'Certificate provider is unavailable.'
+    }
+
+    if ($null -eq (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) {
+        New-PSDrive -Name Cert -PSProvider Certificate -Root '\' -ErrorAction Stop | Out-Null
+    }
+}
+
 function Get-CurrentUserMyCertificateThumbprints {
     return @(
         Get-ChildItem -Path 'Cert:\CurrentUser\My' -ErrorAction SilentlyContinue |
@@ -138,6 +153,7 @@ try {
             throw "Certificate file not found: $CertificatePath"
         }
 
+        Initialize-CertificateProvider
         $certificatePassword = Get-CertificatePassword -EnvironmentVariableName $PasswordEnvironmentVariable
         $existingStoreThumbprints = Get-CurrentUserMyCertificateThumbprints
         $importResult = Import-SigningCertificate -Path $CertificatePath -Password $certificatePassword -ExistingThumbprints $existingStoreThumbprints

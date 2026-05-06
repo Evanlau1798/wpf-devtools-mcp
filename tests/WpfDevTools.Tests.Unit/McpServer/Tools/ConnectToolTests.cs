@@ -425,6 +425,11 @@ public partial class ConnectToolTests : IDisposable
 
         try
         {
+            await WaitForSecureInspectorHostAsync(
+                processId,
+                restartedTransportSecurity.AuthenticationManager,
+                restartedTransportSecurity.CertificateManager);
+
             using var sessionManager = new SessionManager(
                 authManager: restartedTransportSecurity.AuthenticationManager,
                 certManager: restartedTransportSecurity.CertificateManager);
@@ -457,6 +462,29 @@ public partial class ConnectToolTests : IDisposable
                 Directory.Delete(certDirectory, recursive: true);
             }
         }
+    }
+
+    private static async Task WaitForSecureInspectorHostAsync(
+        int processId,
+        AuthenticationManager authenticationManager,
+        CertificateManager certificateManager)
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var lastConnectFailure = NamedPipeConnectFailure.None;
+        while (stopwatch.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            using var client = new NamedPipeClient(processId, authenticationManager, certificateManager);
+            if (await client.ConnectAsync(TimeSpan.FromMilliseconds(500), maxRetries: 1))
+            {
+                return;
+            }
+
+            lastConnectFailure = client.LastConnectFailure;
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
+        }
+
+        throw new TimeoutException($"Timed out waiting for the secure inspector host to accept connections. Last connect failure: {lastConnectFailure}.");
     }
 
     [Fact]

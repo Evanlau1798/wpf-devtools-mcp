@@ -371,6 +371,21 @@ function Get-CertificatePassword {
     return (Read-Host -Prompt "Enter the PFX password for $CertificatePath" -AsSecureString)
 }
 
+function Initialize-CertificateProvider {
+    # Hosted Windows runners can start without a Cert: drive until the certificate provider is explicitly loaded.
+    Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity -ErrorAction SilentlyContinue
+    Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
+    try { Import-Module PKI -ErrorAction Stop } catch { }
+
+    if ($null -eq (Get-PSProvider Certificate -ErrorAction SilentlyContinue)) {
+        throw 'Certificate provider is unavailable.'
+    }
+
+    if ($null -eq (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) {
+        New-PSDrive -Name Cert -PSProvider Certificate -Root '\' -ErrorAction Stop | Out-Null
+    }
+}
+
 function Get-PfxCertificateMetadata {
     param(
         [Parameter(Mandatory)] [string]$Path,
@@ -426,6 +441,7 @@ function Import-SigningCertificate {
         [Parameter(Mandatory)] [securestring]$Password
     )
 
+    Initialize-CertificateProvider
     $importedCertificates = @(Import-PfxCertificate -FilePath $Path -CertStoreLocation 'Cert:\CurrentUser\My' -Password $Password)
     if ($importedCertificates.Count -eq 0) {
         throw 'Import-PfxCertificate did not return an imported certificate.'
@@ -481,6 +497,8 @@ function Invoke-ReleasePayloadSigning {
         [string]::IsNullOrWhiteSpace([string]$signingInputs.CertificateThumbprint)) {
         return
     }
+
+    Initialize-CertificateProvider
 
     $signtoolPath = Resolve-SignToolPath
     if ([string]::IsNullOrWhiteSpace($signtoolPath) -or -not (Test-Path $signtoolPath)) {

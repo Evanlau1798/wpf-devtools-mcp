@@ -433,8 +433,10 @@ public sealed partial class ReleasePackagingContractTests
         var harnessSource = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(
             Path.Combine("tests", "WpfDevTools.Tests.Unit.Release", "Release", "ReleaseScriptTestHarness.cs")));
 
-        harnessSource.Should().Contain("try { Import-Module Microsoft.PowerShell.Security -ErrorAction Stop } catch { }");
+        harnessSource.Should().Contain("Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity");
+        harnessSource.Should().Contain("Import-Module Microsoft.PowerShell.Security -ErrorAction Stop");
         harnessSource.Should().Contain("try { Import-Module PKI -ErrorAction Stop } catch { }");
+        harnessSource.Should().Contain("Get-PSProvider Certificate -ErrorAction SilentlyContinue");
         harnessSource.Should().Contain("New-PSDrive -Name Cert -PSProvider Certificate");
         harnessSource.Should().Contain("Get-Command New-SelfSignedCertificate -ErrorAction Stop");
         harnessSource.Should().Contain("RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(60))");

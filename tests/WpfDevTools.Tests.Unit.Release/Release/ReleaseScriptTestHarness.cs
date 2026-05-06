@@ -973,8 +973,10 @@ internal static class ReleaseScriptTestHarness
         var subject = "CN=WpfDevTools Harness Signed Payload " + Guid.NewGuid().ToString("N");
         var command = string.Join(" ",
             "$ErrorActionPreference = 'Stop';",
-            "try { Import-Module Microsoft.PowerShell.Security -ErrorAction Stop } catch { };",
+            "Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity -ErrorAction SilentlyContinue;",
+            "Import-Module Microsoft.PowerShell.Security -ErrorAction Stop;",
             "try { Import-Module PKI -ErrorAction Stop } catch { };",
+            "if ($null -eq (Get-PSProvider Certificate -ErrorAction SilentlyContinue)) { throw 'Certificate provider is unavailable.' };",
             "if ($null -eq (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) { New-PSDrive -Name Cert -PSProvider Certificate -Root '\\' -ErrorAction Stop | Out-Null };",
             "Get-Command New-SelfSignedCertificate -ErrorAction Stop | Out-Null;",
             "$payload = " + QuotePowerShellString(payloadPath) + ";",

@@ -149,7 +149,7 @@ jobs:
     - name: Run release packaging smoke test
       shell: pwsh
       run: |
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Publish-Release.ps1 -Architectures '${{ matrix.architecture }}'
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Publish-Release.ps1 -Architectures '${{ matrix.architecture }}' -OutputRoot 'artifacts/release'
 
     - name: Install published package smoke test
       shell: pwsh
@@ -252,7 +252,7 @@ jobs:
     - name: Run ARM64 release packaging smoke test
       shell: pwsh
       run: |
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Publish-Release.ps1 -Architectures 'arm64'
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Publish-Release.ps1 -Architectures 'arm64' -OutputRoot 'artifacts/release'
 
     - name: Install published ARM64 package smoke test
       shell: pwsh

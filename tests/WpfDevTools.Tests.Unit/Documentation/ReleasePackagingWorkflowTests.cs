@@ -98,6 +98,17 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void CiWorkflow_ShouldWriteReleasePackagingSmokeToSearchedOutputRoot()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("Publish-Release.ps1 -Architectures '${{ matrix.architecture }}' -OutputRoot 'artifacts/release'",
+            "the workflow searches artifacts/release for matrix release archives immediately after packaging");
+        content.Should().Contain("Publish-Release.ps1 -Architectures 'arm64' -OutputRoot 'artifacts/release'",
+            "the ARM64 smoke lane searches artifacts/release for the generated ARM64 archive");
+    }
+
+    [Fact]
     public void PackagedServerRuntimeSmokeScript_ShouldExerciseProtocolBeyondInitialize()
     {
         var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));

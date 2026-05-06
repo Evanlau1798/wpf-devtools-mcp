@@ -384,6 +384,8 @@ function Find-InstallerHelperArchiveEntry {
     foreach ($candidatePath in @(
             "bin/installer/$LeafName"
             "installer/$LeafName"
+            "bin\installer\$LeafName"
+            "installer\$LeafName"
         )) {
         $entry = $Archive.GetEntry($candidatePath)
         if ($null -ne $entry) {

@@ -134,4 +134,16 @@ public sealed class OnlineInstallerContractTests
         content.Should().NotContain("Assert-InstallerHelperRuntimeAvailable -ResolvedAction $ResolvedAction\r\n    foreach ($helperPath in @(Get-InstallerSharedModulePaths))",
             "standalone noninteractive uninstall/full-uninstall must have a recovery path that does not hard-fail before it can inspect state or existing registration artifacts");
     }
+
+    [Fact]
+    public void OnlineInstallerScript_ShouldFindInstallerHelpersInWindowsCreatedArchives()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+
+        content.Should().Contain("\"bin\\installer\\$LeafName\"",
+            "PowerShell Compress-Archive on Windows stores release entries with backslash separators");
+        content.Should().Contain("\"installer\\$LeafName\"",
+            "offline package helper lookup should accept both archive layouts supported by packaged releases");
+    }
 }

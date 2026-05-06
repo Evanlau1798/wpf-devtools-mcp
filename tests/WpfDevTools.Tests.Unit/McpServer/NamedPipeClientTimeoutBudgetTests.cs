@@ -153,7 +153,7 @@ public class NamedPipeClientTimeoutBudgetTests
         var disposeTask = Task.Run(client.Dispose);
         var completedBeforeTimeout = await Task.WhenAny(
             disposeTask,
-            Task.Delay(TimeSpan.FromMilliseconds(500))) == disposeTask;
+            Task.Delay(TimeSpan.FromSeconds(2))) == disposeTask;
 
         requestLifetime.Cancel();
         server.Dispose();

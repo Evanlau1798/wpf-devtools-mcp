@@ -465,8 +465,6 @@ public class NamedPipeClientProtocolTests
         await requestReceived.Task;
 
         var disposeTask = Task.Run(client.Dispose);
-        await Task.Yield();
-
         allowServerCompletion.SetResult();
 
         var response = await sendTask;

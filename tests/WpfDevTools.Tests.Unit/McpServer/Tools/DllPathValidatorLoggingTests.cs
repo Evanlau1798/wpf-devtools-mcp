@@ -12,11 +12,16 @@ public sealed class DllPathValidatorLoggingTests
     public void ValidateDllPath_WhenSignatureVerificationIsSkipped_ShouldEmitSecurityWarning()
     {
         var trustedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
+        var previousSkipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
+        var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
         using var listener = new CapturingTraceListener();
 
         Trace.Listeners.Add(listener);
         try
         {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", "1");
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = true;
+
             DllPathValidator.ValidateDllPath(trustedDllPath);
             Trace.Flush();
 
@@ -29,6 +34,8 @@ public sealed class DllPathValidatorLoggingTests
         finally
         {
             Trace.Listeners.Remove(listener);
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", previousSkipSignatureCheck);
         }
     }
 

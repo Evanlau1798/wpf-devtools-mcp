@@ -65,25 +65,43 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         const int processId = 4343;
         using var connected = await CreateBoundaryConnectedSessionAsync(processId);
         var waitTool = new WaitForDpChangeTool(connected.SessionManager);
+        var previousBeforePollDelay = WaitForDpChangeTool.BeforePollDelayForTesting;
+        var beforePollDelayCalls = 0;
 
-        var waitResult = await waitTool.ExecuteAsync(
-            ToJsonElement(new
+        WaitForDpChangeTool.BeforePollDelayForTesting = async () =>
+        {
+            beforePollDelayCalls++;
+            if (beforePollDelayCalls == 1)
             {
-                processId,
-                propertyName = "Text",
-                expectedValue = JsonSerializer.SerializeToElement("after"),
-                timeoutMs = 75,
-                pollIntervalMs = 50
-            }),
-            CancellationToken.None);
+                await Task.Delay(30);
+            }
+        };
 
-        var waitJson = JsonSerializer.SerializeToElement(waitResult);
+        try
+        {
+            var waitResult = await waitTool.ExecuteAsync(
+                ToJsonElement(new
+                {
+                    processId,
+                    propertyName = "Text",
+                    expectedValue = JsonSerializer.SerializeToElement("after"),
+                    timeoutMs = 60,
+                    pollIntervalMs = 50
+                }),
+                CancellationToken.None);
 
-        waitJson.GetProperty("success").GetBoolean().Should().BeTrue();
-        waitJson.GetProperty("changed").GetBoolean().Should().BeTrue();
-        waitJson.GetProperty("timedOut").GetBoolean().Should().BeFalse();
-        waitJson.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
-        waitJson.GetProperty("currentValue").GetString().Should().Be("after");
+            var waitJson = JsonSerializer.SerializeToElement(waitResult);
+
+            waitJson.GetProperty("success").GetBoolean().Should().BeTrue();
+            waitJson.GetProperty("changed").GetBoolean().Should().BeTrue();
+            waitJson.GetProperty("timedOut").GetBoolean().Should().BeFalse();
+            waitJson.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
+            waitJson.GetProperty("currentValue").GetString().Should().Be("after");
+        }
+        finally
+        {
+            WaitForDpChangeTool.BeforePollDelayForTesting = previousBeforePollDelay;
+        }
     }
 
     [Fact]

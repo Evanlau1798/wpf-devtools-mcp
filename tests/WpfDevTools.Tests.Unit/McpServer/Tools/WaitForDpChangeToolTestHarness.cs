@@ -196,7 +196,7 @@ internal static class WaitForDpChangeToolTestHarness
         {
             case "get_dp_value_source":
                 state.GetDpValueSourceCallCount++;
-                state.CurrentValue = state.GetDpValueSourceCallCount >= 4 ? "after" : "before";
+                state.CurrentValue = state.GetDpValueSourceCallCount >= 3 ? "after" : "before";
                 return new
                 {
                     success = true,

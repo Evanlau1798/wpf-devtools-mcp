@@ -12,6 +12,9 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 [Collection("ProcessEnvironment")]
 public class SignaturePolicyTests
 {
+    private const string TestReleaseSignerThumbprint = "1111111111111111111111111111111111111111";
+    private const string TestReleaseSignerSubject = "CN=WpfDevTools Test Release Signer";
+
     // === Policy decision tests (pure logic, no file system) ===
     // Policy contract: trusted-root-only model
     //   - Release builds ALWAYS verify signatures
@@ -429,25 +432,16 @@ public class SignaturePolicyTests
 
         try
         {
-            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: true);
+            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: false);
             var baseDirectory = Path.Combine(packageRoot, "bin");
             var dllPath = Path.Combine(packageRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll");
-            var signer = ReleaseScriptTestHarness.GetSignedPayloadSigner();
             verifyMethod.Should().NotBeNull();
             DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = false;
-            DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = new DllPathValidator.ValidatedAuthenticodeSigner(
-                signer.Thumbprint,
-                signer.Subject,
-                DateTimeOffset.UtcNow.AddDays(-1),
-                DateTimeOffset.UtcNow.AddDays(1));
+            DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = CreateTestReleaseSigner();
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", null);
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", null);
             DllPathValidator.WinVerifyTrustOverrideForTesting = _ => 0;
-            DllPathValidator.ValidatedSignerOverrideForTesting = _ => new DllPathValidator.ValidatedAuthenticodeSigner(
-                signer.Thumbprint,
-                signer.Subject,
-                DateTimeOffset.UtcNow.AddDays(-1),
-                DateTimeOffset.UtcNow.AddDays(1));
+            DllPathValidator.ValidatedSignerOverrideForTesting = _ => CreateTestReleaseSigner();
 
             var act = () => verifyMethod!.Invoke(null, new object[] { dllPath, baseDirectory });
 
@@ -482,21 +476,16 @@ public class SignaturePolicyTests
 
         try
         {
-            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: true);
+            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: false);
             var baseDirectory = Path.Combine(packageRoot, "bin");
             var dllPath = Path.Combine(packageRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll");
-            var signer = ReleaseScriptTestHarness.GetSignedPayloadSigner();
             verifyMethod.Should().NotBeNull();
             DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = false;
             DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = null;
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", "0000000000000000000000000000000000000000");
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", null);
             DllPathValidator.WinVerifyTrustOverrideForTesting = _ => 0;
-            DllPathValidator.ValidatedSignerOverrideForTesting = _ => new DllPathValidator.ValidatedAuthenticodeSigner(
-                signer.Thumbprint,
-                signer.Subject,
-                DateTimeOffset.UtcNow.AddDays(-1),
-                DateTimeOffset.UtcNow.AddDays(1));
+            DllPathValidator.ValidatedSignerOverrideForTesting = _ => CreateTestReleaseSigner();
 
             var act = () => verifyMethod!.Invoke(null, new object[] { dllPath, baseDirectory });
 
@@ -534,21 +523,16 @@ public class SignaturePolicyTests
 
         try
         {
-            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: true);
+            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: false);
             var baseDirectory = Path.Combine(packageRoot, "bin");
             var dllPath = Path.Combine(packageRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll");
-            var signer = ReleaseScriptTestHarness.GetSignedPayloadSigner();
             verifyMethod.Should().NotBeNull();
             DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = false;
             DllPathValidator.CurrentProcessReleaseSignerOverrideForTesting = null;
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", null);
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", signer.Subject);
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", TestReleaseSignerSubject);
             DllPathValidator.WinVerifyTrustOverrideForTesting = _ => 0;
-            DllPathValidator.ValidatedSignerOverrideForTesting = _ => new DllPathValidator.ValidatedAuthenticodeSigner(
-                signer.Thumbprint,
-                signer.Subject,
-                DateTimeOffset.UtcNow.AddDays(-1),
-                DateTimeOffset.UtcNow.AddDays(1));
+            DllPathValidator.ValidatedSignerOverrideForTesting = _ => CreateTestReleaseSigner();
 
             var act = () => verifyMethod!.Invoke(null, new object[] { dllPath, baseDirectory });
 
@@ -589,5 +573,12 @@ public class SignaturePolicyTests
 
         return baseDirectory;
     }
+
+    private static DllPathValidator.ValidatedAuthenticodeSigner CreateTestReleaseSigner()
+        => new(
+            TestReleaseSignerThumbprint,
+            TestReleaseSignerSubject,
+            DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddDays(1));
 }
 

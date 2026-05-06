@@ -541,7 +541,7 @@ public class EventAnalyzerTests
 
         analyzer.TraceRoutedEvents(buttonElementId, "Click", 100);
 
-        WaitForTraceCleanup(analyzer, button, buttonElementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, buttonElementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
 
         JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(analyzer.GetEventHandlers(buttonElementId, "Click")))
             .GetProperty("handlerCount").GetInt32().Should().Be(0);

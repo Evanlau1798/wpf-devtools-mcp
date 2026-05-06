@@ -428,6 +428,34 @@ public sealed partial class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void ReleaseScriptHarness_ShouldCreateValidSelfSignedPayloadForFallback()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var payload = ReleaseScriptTestHarness.CreateSelfSignedPayloadForTesting(tempRoot);
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                "$sig = Get-AuthenticodeSignature -FilePath " + QuotePowerShellString(payload.Path) + "; " +
+                "[ordered]@{ Status = [string]$sig.Status; Thumbprint = $sig.SignerCertificate.Thumbprint; Subject = $sig.SignerCertificate.Subject } | ConvertTo-Json -Compress");
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var signature = JsonDocument.Parse(result.Stdout);
+            var root = signature.RootElement;
+            root.GetProperty("Status").GetString().Should().Be("Valid");
+            root.GetProperty("Thumbprint").GetString().Should().Be(payload.Thumbprint);
+            root.GetProperty("Subject").GetString().Should().Be(payload.Subject);
+
+            ReleaseScriptTestHarness.CleanupGeneratedCertificateForTesting(payload.Thumbprint);
+            AssertCertificateIsMissing("Root", payload.Thumbprint);
+            AssertCertificateIsMissing("My", payload.Thumbprint);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PublishReleaseScript_WhenSkipBuildUsesFrameworkOnlyServerOutput_ShouldFailInsteadOfPackagingWrongArchitecture()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -747,5 +775,20 @@ public sealed partial class ReleasePackagingContractTests
         }
 
         return (thumbprint, subject, pfxPath);
+    }
+
+    private static string QuotePowerShellString(string value)
+        => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
+
+    private static void AssertCertificateIsMissing(string storeName, string thumbprint)
+    {
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+            "$storeName = " + QuotePowerShellString(storeName) + "; " +
+            "$thumbprint = " + QuotePowerShellString(thumbprint) + "; " +
+            "$matches = @(Get-ChildItem -LiteralPath (\"Cert:\\CurrentUser\\$storeName\") | Where-Object { $_.Thumbprint -eq $thumbprint }); " +
+            "if ($matches.Count -eq 0) { 'MISSING' } else { 'FOUND' }");
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        result.Stdout.Trim().Should().Be("MISSING");
     }
 }

@@ -14,8 +14,10 @@ internal static class ReleaseScriptTestHarness
     private static readonly string RepoRoot = ResolveRepoRoot();
     private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromSeconds(60);
     private static readonly ConcurrentDictionary<string, Lazy<CachedPackageArtifacts>> PackageArtifactCache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, byte> GeneratedCertificateThumbprints = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Lazy<SignedPayloadInfo> SignedPayload =
         new(ResolveSignedPayloadInfo, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static int generatedCertificateCleanupRegistered;
 
     internal static bool ForceTaskKillFallbackForTesting { get; set; }
 
@@ -25,6 +27,11 @@ internal static class ReleaseScriptTestHarness
     private sealed record CachedPackageArtifacts(string PackageDirectoryPath, string ArchivePath, string MetadataDirectoryPath);
 
     private sealed record SignedPayloadInfo(string Path, string Thumbprint, string Subject);
+
+    private static readonly SignedPayloadInfo UnsignedPayload = new(
+        string.Empty,
+        "0000000000000000000000000000000000000000",
+        "CN=WPFDEVTOOLS UNSIGNED TEST PAYLOAD");
 
     public static string CreateTempDirectory()
     {
@@ -268,6 +275,17 @@ internal static class ReleaseScriptTestHarness
         return (signedPayload.Thumbprint, signedPayload.Subject);
     }
 
+    public static (string Path, string Thumbprint, string Subject) CreateSelfSignedPayloadForTesting(string tempRoot)
+    {
+        var signedPayload = CreateSelfSignedPayloadInfo(tempRoot, []);
+        return (signedPayload.Path, signedPayload.Thumbprint, signedPayload.Subject);
+    }
+
+    public static void CleanupGeneratedCertificateForTesting(string thumbprint)
+    {
+        CleanupGeneratedCertificate(thumbprint);
+    }
+
     private static CachedPackageArtifacts GetCachedPackageArtifacts(string architecture, bool useSignedPayload)
     {
         var cacheKey = ComputePackageArtifactCacheKey(architecture, useSignedPayload);
@@ -297,10 +315,17 @@ internal static class ReleaseScriptTestHarness
             inputs.Add(GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", helperFile))));
         }
 
-        var signerMetadata = SignedPayload.Value;
-        inputs.Add(signerMetadata.Thumbprint);
-        inputs.Add(signerMetadata.Subject);
-        inputs.Add(signerMetadata.Path);
+        if (useSignedPayload)
+        {
+            var signerMetadata = SignedPayload.Value;
+            inputs.Add(signerMetadata.Thumbprint);
+            inputs.Add(signerMetadata.Subject);
+            inputs.Add(signerMetadata.Path);
+        }
+        else
+        {
+            inputs.Add("unsigned-payload");
+        }
 
         var content = string.Join("\n", inputs);
         var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content));
@@ -353,7 +378,7 @@ internal static class ReleaseScriptTestHarness
         var inspectorNet8Dir = Path.Combine(binDir, "inspectors", "net8.0-windows");
         var inspectorNet48Dir = Path.Combine(binDir, "inspectors", "net48");
         var bootstrapperDir = Path.Combine(binDir, "bootstrapper", architecture);
-        var signerMetadata = SignedPayload.Value;
+        var signerMetadata = useSignedPayload ? SignedPayload.Value : UnsignedPayload;
         Directory.CreateDirectory(inspectorNet8Dir);
         Directory.CreateDirectory(inspectorNet48Dir);
         Directory.CreateDirectory(bootstrapperDir);
@@ -927,8 +952,143 @@ internal static class ReleaseScriptTestHarness
             errors.Add(error);
         }
 
-        throw new InvalidOperationException(
-            "Could not locate a signed Windows payload that exposes signer metadata. " + string.Join(" | ", errors));
+        return CreateSelfSignedPayloadInfo(
+            Path.Combine(GetRepoFilePath("tmp"), "release-script-harness-signed-payload", Guid.NewGuid().ToString("N")),
+            errors);
+    }
+
+    private static SignedPayloadInfo CreateSelfSignedPayloadInfo(string payloadRoot, IReadOnlyCollection<string> discoveryErrors)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new InvalidOperationException(
+                "Could not locate a signed Windows payload that exposes signer metadata. " + string.Join(" | ", discoveryErrors));
+        }
+
+        Directory.CreateDirectory(payloadRoot);
+        var payloadPath = Path.Combine(payloadRoot, "payload.exe");
+        var certificateThumbprintPath = Path.Combine(payloadRoot, "payload.cert-thumbprint.txt");
+        File.Copy(ResolveSelfSignedPayloadTemplatePath(), payloadPath, overwrite: true);
+
+        var subject = "CN=WpfDevTools Harness Signed Payload " + Guid.NewGuid().ToString("N");
+        var command = string.Join(" ",
+            "$ErrorActionPreference = 'Stop';",
+            "$payload = " + QuotePowerShellString(payloadPath) + ";",
+            "$thumbprintPath = " + QuotePowerShellString(certificateThumbprintPath) + ";",
+            "$subject = " + QuotePowerShellString(subject) + ";",
+            "$cert = $null; $success = $false;",
+            "try {",
+            "$cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject -CertStoreLocation Cert:\\CurrentUser\\My -NotAfter (Get-Date).AddDays(1);",
+            "Set-Content -LiteralPath $thumbprintPath -Value $cert.Thumbprint -Encoding ASCII;",
+            "$store = [System.Security.Cryptography.X509Certificates.X509Store]::new('Root', 'CurrentUser');",
+            "$store.Open('ReadWrite');",
+            "try { $store.Add($cert) } finally { $store.Close() };",
+            "$signature = Set-AuthenticodeSignature -FilePath $payload -Certificate $cert;",
+            "$check = Get-AuthenticodeSignature -FilePath $payload;",
+            "if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or $check.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or $null -eq $check.SignerCertificate) { throw \"Self-signed payload signature did not validate. Set=$($signature.Status); Check=$($check.Status).\" };",
+            "$success = $true;",
+            "[ordered]@{ Thumbprint = $check.SignerCertificate.Thumbprint; Subject = $check.SignerCertificate.Subject; CertificateThumbprint = $cert.Thumbprint } | ConvertTo-Json -Compress",
+            "}",
+            "finally {",
+            "if (-not $success -and $null -ne $cert) { foreach ($storeName in @('Root', 'My')) { $cleanupStore = [System.Security.Cryptography.X509Certificates.X509Store]::new($storeName, 'CurrentUser'); $cleanupStore.Open('ReadWrite'); try { foreach ($cleanupCert in @($cleanupStore.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $cert.Thumbprint, $false))) { $cleanupStore.Remove($cleanupCert) } } finally { $cleanupStore.Close() } } }",
+            "}");
+        var result = RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(30));
+        if (File.Exists(certificateThumbprintPath))
+        {
+            var generatedThumbprint = File.ReadAllText(certificateThumbprintPath).Trim();
+            if (!string.IsNullOrWhiteSpace(generatedThumbprint))
+            {
+                RegisterGeneratedCertificateCleanup(generatedThumbprint);
+            }
+        }
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                "Could not create a self-signed payload for release test harness. " +
+                string.Join(" | ", discoveryErrors) + " | " + result.Stderr);
+        }
+
+        using var payload = JsonDocument.Parse(result.Stdout);
+        var root = payload.RootElement;
+        var thumbprint = root.GetProperty("Thumbprint").GetString();
+        var signerSubject = root.GetProperty("Subject").GetString();
+        var certificateThumbprint = root.GetProperty("CertificateThumbprint").GetString();
+        if (string.IsNullOrWhiteSpace(thumbprint) ||
+            string.IsNullOrWhiteSpace(signerSubject) ||
+            string.IsNullOrWhiteSpace(certificateThumbprint))
+        {
+            throw new InvalidOperationException("Self-signed payload signer metadata was incomplete.");
+        }
+
+        RegisterGeneratedCertificateCleanup(certificateThumbprint);
+        return new SignedPayloadInfo(payloadPath, thumbprint, signerSubject);
+    }
+
+    private static string ResolveSelfSignedPayloadTemplatePath()
+    {
+        foreach (var candidate in EnumerateSelfSignedPayloadTemplatePaths())
+        {
+            if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new FileNotFoundException("Could not locate an executable PE file to use as the self-signed test payload template.");
+    }
+
+    private static IEnumerable<string?> EnumerateSelfSignedPayloadTemplatePaths()
+    {
+        yield return Environment.ProcessPath;
+        yield return Process.GetCurrentProcess().MainModule?.FileName;
+
+        var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+        if (!string.IsNullOrWhiteSpace(dotnetRoot))
+        {
+            yield return Path.Combine(dotnetRoot, "dotnet.exe");
+        }
+
+        yield return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            "dotnet",
+            "dotnet.exe");
+    }
+
+    private static void RegisterGeneratedCertificateCleanup(string thumbprint)
+    {
+        GeneratedCertificateThumbprints.TryAdd(thumbprint, 0);
+        if (Interlocked.Exchange(ref generatedCertificateCleanupRegistered, 1) == 0)
+        {
+            AppDomain.CurrentDomain.ProcessExit += (_, _) => CleanupGeneratedCertificates();
+        }
+    }
+
+    private static void CleanupGeneratedCertificates()
+    {
+        foreach (var thumbprint in GeneratedCertificateThumbprints.Keys)
+        {
+            try
+            {
+                CleanupGeneratedCertificate(thumbprint);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ReleaseScriptTestHarness: certificate cleanup skipped for '{thumbprint}': {ex.Message}");
+            }
+        }
+    }
+
+    private static void CleanupGeneratedCertificate(string thumbprint)
+    {
+        var command = string.Join(" ",
+            "$thumbprint = " + QuotePowerShellString(thumbprint) + ";",
+            "foreach ($storeName in @('Root', 'My')) {",
+            "$store = [System.Security.Cryptography.X509Certificates.X509Store]::new($storeName, 'CurrentUser');",
+            "$store.Open('ReadWrite');",
+            "try { foreach ($cert in @($store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $thumbprint, $false))) { $store.Remove($cert) } } finally { $store.Close() }",
+            "}");
+        RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(10));
     }
 
     private static IEnumerable<string> EnumerateSignedPayloadCandidatePaths()

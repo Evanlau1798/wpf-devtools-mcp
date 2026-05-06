@@ -11,7 +11,7 @@ namespace WpfDevTools.Mcp.Server;
 /// </summary>
 public sealed partial class SessionManager : IDisposable
 {
-    private static readonly TimeSpan ExistingHostAuthenticationFallbackTimeout = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan ExistingHostAuthenticationFallbackTimeout = TimeSpan.FromSeconds(1);
 
     private int _disposeState;
     private readonly Func<DateTimeOffset> _utcNowProvider;

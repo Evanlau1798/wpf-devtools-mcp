@@ -438,8 +438,9 @@ public partial class ConnectToolTests : IDisposable
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 
-            var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-            resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+            var resultPayload = JsonSerializer.Serialize(result);
+            var resultJson = JsonSerializer.Deserialize<JsonElement>(resultPayload);
+            resultJson.GetProperty("success").GetBoolean().Should().BeTrue(resultPayload);
             resultJson.GetProperty("message").GetString().Should().Contain("get_ui_summary");
             resultJson.GetProperty("message").GetString().Should().Contain("get_element_snapshot");
             resultJson.GetProperty("message").GetString().Should().Contain("get_form_summary");

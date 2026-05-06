@@ -79,7 +79,10 @@ public class BuildConfigurationTests
     [Fact]
     public void BuildAndTestWorkflow_ShouldRunExplicitNoBuildTestProjectLanes()
     {
-        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+        var content = string.Join('\n', lines);
+        var unitTestStep = GetNamedStepBlock(lines, "Run unit tests");
+        var integrationTestStep = GetNamedStepBlock(lines, "Run integration tests");
 
         content.Should().Contain("name: Run unit tests");
         content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build",
@@ -89,6 +92,10 @@ public class BuildConfigurationTests
             "CI should shard integration tests into an explicit no-build project invocation instead of a broad solution test run");
         content.Should().NotContain("dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}",
             "the broad solution-level test command should be replaced by project-specific lanes");
+        unitTestStep.Should().Contain("      if: matrix.platform == 'x64'",
+            "x86 matrix builds validate compilation, while unit tests depend on AnyCPU test output and platformed SDK references");
+        integrationTestStep.Should().Contain("      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'",
+            "integration tests should only run on the hosted architecture that has matching runtime dependencies");
     }
 
     private static string GetRepoFilePath(string relativePath)
@@ -100,6 +107,20 @@ public class BuildConfigurationTests
             .Select(line => line.Trim())
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToArray();
+    }
+
+    private static string[] GetNamedStepBlock(string[] lines, string stepName)
+    {
+        var start = Array.FindIndex(lines, line => line == $"    - name: {stepName}");
+        start.Should().BeGreaterThanOrEqualTo(0, $"workflow should define step {stepName}");
+
+        var end = Array.FindIndex(lines, start + 1, line => line.StartsWith("    - name: ", StringComparison.Ordinal));
+        if (end < 0)
+        {
+            end = lines.Length;
+        }
+
+        return lines[start..end];
     }
 
     private static void AssertResponseFileKeepsNodeReuseSuppressionWithoutSingleNodeThrottle(string[] options)

@@ -79,13 +79,15 @@ jobs:
       run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -m:1 -p:Platform=${{ matrix.platform }} -nodeReuse:false -p:UseSharedCompilation=false
 
     - name: Run unit tests
+      if: matrix.platform == 'x64'
       run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
 
     - name: Run release unit tests
+      if: matrix.platform == 'x64'
       run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
 
     - name: Run integration tests
-      if: matrix.configuration == 'Debug'
+      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
       run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
 
     - name: Document Release integration test boundary
@@ -93,7 +95,7 @@ jobs:
       shell: pwsh
       run: |
         Write-Host 'Release live-injection integration tests require Authenticode-signed inspector and bootstrapper payloads.'
-        Write-Host 'This unsigned CI lane still builds Release, runs unit and release-policy tests, and leaves signed payload validation to release.yml.'
+        Write-Host 'This unsigned CI matrix still builds Release on x64/x86, runs tests on x64, and leaves signed payload validation to release.yml.'
 
     - name: Upload build artifacts
       if: matrix.configuration == 'Release'
@@ -173,6 +175,7 @@ jobs:
         . (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start installed package runtime smoke test
+      if: matrix.architecture == 'x64'
       shell: pwsh
       run: |
         $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'
@@ -199,6 +202,7 @@ jobs:
         . ./scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory 'artifacts/release' -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start online-installed runtime smoke test
+      if: matrix.architecture == 'x64'
       shell: pwsh
       run: |
         $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'

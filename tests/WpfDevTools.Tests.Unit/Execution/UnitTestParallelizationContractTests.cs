@@ -72,10 +72,13 @@ public sealed class UnitTestParallelizationContractTests
     {
         var ciLines = ReadRepoFile(".github/workflows/ci-cd.yml")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var releaseTestStep = GetNamedStepBlock(ciLines, "Run release unit tests");
         var releaseTestCommand = ciLines.Single(line => line.Contains(
             $"dotnet test {ReleaseUnitTestProjectPath}",
             StringComparison.Ordinal));
 
+        releaseTestStep.Should().Contain("      if: matrix.platform == 'x64'",
+            "x86 matrix builds validate compilation, while no-build test lanes should run only against the hosted architecture output layout");
         releaseTestCommand.Should().Contain("--no-build");
         releaseTestCommand.Should().NotContain(
             "-p:Platform=",
@@ -309,6 +312,21 @@ public sealed class UnitTestParallelizationContractTests
 
     private static string ReadRepoFile(string relativePath)
         => File.ReadAllText(GetRepoFilePath(relativePath)).Replace('\\', '/');
+
+    private static string[] GetNamedStepBlock(string[] lines, string stepName)
+    {
+        var normalizedLines = lines.Select(line => line.TrimEnd('\r')).ToArray();
+        var start = Array.FindIndex(normalizedLines, line => line == $"    - name: {stepName}");
+        start.Should().BeGreaterThanOrEqualTo(0, $"workflow should define step {stepName}");
+
+        var end = Array.FindIndex(normalizedLines, start + 1, line => line.StartsWith("    - name: ", StringComparison.Ordinal));
+        if (end < 0)
+        {
+            end = normalizedLines.Length;
+        }
+
+        return normalizedLines[start..end];
+    }
 
     private static string? GetCollectionName(Type testClass)
     {

@@ -87,6 +87,20 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void CiWorkflow_ShouldOnlyRunHostedRuntimeSmokeForX64Packages()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        var packageRuntimeSmoke = GetNamedStepBlock(lines, "Start installed package runtime smoke test");
+        var onlineRuntimeSmoke = GetNamedStepBlock(lines, "Start online-installed runtime smoke test");
+
+        packageRuntimeSmoke.Should().Contain("      if: matrix.architecture == 'x64'",
+            "hosted x64 runners do not include the x86 dotnet host needed to launch the x86 packaged server");
+        onlineRuntimeSmoke.Should().Contain("      if: matrix.architecture == 'x64'",
+            "x86 package layout is still install/uninstall tested, but runtime execution needs a matching host");
+    }
+
+    [Fact]
     public void CiWorkflow_ShouldInstallPackageLocalSmokeFromReleaseArchive()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
@@ -235,6 +249,20 @@ public class ReleasePackagingWorkflowTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string[] GetNamedStepBlock(string[] lines, string stepName)
+    {
+        var start = Array.FindIndex(lines, line => line == $"    - name: {stepName}");
+        start.Should().BeGreaterThanOrEqualTo(0, $"workflow should define step {stepName}");
+
+        var end = Array.FindIndex(lines, start + 1, line => line.StartsWith("    - name: ", StringComparison.Ordinal));
+        if (end < 0)
+        {
+            end = lines.Length;
+        }
+
+        return lines[start..end];
+    }
 
     private static string[] GetTopLevelBlock(string[] lines, string header)
     {

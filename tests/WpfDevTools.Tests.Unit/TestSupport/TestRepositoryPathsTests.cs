@@ -8,9 +8,10 @@ public class TestRepositoryPathsTests
     [Fact]
     public void ResolveFromBaseDirectory_ShouldFindRepositoryRoot_ForPlatformedBuildOutput()
     {
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var repoRoot = Path.Combine(tempRoot, "wpf-devtools-mcp");
         var baseDirectory = Path.Combine(
-            "G:\\",
-            "wpf-devtools-mcp",
+            repoRoot,
             "tests",
             "WpfDevTools.Tests.Unit",
             "bin",
@@ -18,10 +19,20 @@ public class TestRepositoryPathsTests
             "Release",
             "net8.0-windows");
 
-        var path = TestRepositoryPaths.ResolveFromBaseDirectory(
-            baseDirectory,
-            "README.md");
+        Directory.CreateDirectory(baseDirectory);
+        File.WriteAllText(Path.Combine(repoRoot, "WpfDevTools.sln"), string.Empty);
 
-        path.Should().Be(Path.Combine("G:\\", "wpf-devtools-mcp", "README.md"));
+        try
+        {
+            var path = TestRepositoryPaths.ResolveFromBaseDirectory(
+                baseDirectory,
+                "README.md");
+
+            path.Should().Be(Path.Combine(repoRoot, "README.md"));
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
     }
 }

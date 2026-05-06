@@ -76,17 +76,17 @@ jobs:
           "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR"
 
     - name: Build
-      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -p:Platform=${{ matrix.platform }} -nodeReuse:false -p:UseSharedCompilation=false
+      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -m:1 -p:Platform=${{ matrix.platform }} -nodeReuse:false -p:UseSharedCompilation=false
 
     - name: Run unit tests
-      run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}
+      run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
 
     - name: Run release unit tests
       run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
 
     - name: Run integration tests
       if: matrix.configuration == 'Debug'
-      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}
+      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
 
     - name: Document Release integration test boundary
       if: matrix.configuration == 'Release'
@@ -121,7 +121,7 @@ jobs:
       run: dotnet restore --locked-mode
 
     - name: Build ARM64 (cross-compile, no test - no ARM64 runner available)
-      run: dotnet build --configuration Release -p:Platform=ARM64 -nodeReuse:false -p:UseSharedCompilation=false
+      run: dotnet build --configuration Release -p:Platform=ARM64 -m:1 -nodeReuse:false -p:UseSharedCompilation=false
 
   release-packaging-smoke:
     runs-on: windows-latest
@@ -168,7 +168,9 @@ jobs:
         }
 
         Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
-        & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start installed package runtime smoke test
       shell: pwsh
@@ -216,7 +218,9 @@ jobs:
           throw "Could not locate installed package-local installer at $installedScript"
         }
 
-        & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
 
     - name: Uninstall online installer smoke test
       shell: pwsh
@@ -227,7 +231,9 @@ jobs:
           throw "Could not locate installed online-installer payload at $installedScript"
         }
 
-        & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
 
   release-packaging-smoke-arm64:
     if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
@@ -271,7 +277,9 @@ jobs:
         }
 
         Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
-        & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start installed ARM64 runtime smoke test
       shell: pwsh
@@ -319,7 +327,9 @@ jobs:
           throw "Could not locate installed package-local installer at $installedScript"
         }
 
-        & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
 
     - name: Uninstall ARM64 online installer smoke test
       shell: pwsh
@@ -330,7 +340,9 @@ jobs:
           throw "Could not locate installed online-installer payload at $installedScript"
         }
 
-        & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
   code-coverage:
     runs-on: windows-latest
 
@@ -381,7 +393,7 @@ jobs:
           "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR"
 
     - name: Build unit tests for coverage
-      run: dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-restore -nodeReuse:false -p:UseSharedCompilation=false
+      run: dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-restore -m:1 -nodeReuse:false -p:UseSharedCompilation=false
 
     - name: Run tests with coverage
       run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-build --settings coverlet.runsettings --collect:"XPlat Code Coverage" --results-directory ./TestResults -nodeReuse:false -p:UseSharedCompilation=false
@@ -410,7 +422,7 @@ jobs:
       run: dotnet restore --locked-mode
 
     - name: Build SDK package
-      run: dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg
+      run: dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg -p:GeneratePackageOnBuild=false
 
     - name: Upload NuGet package
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

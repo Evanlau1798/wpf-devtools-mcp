@@ -109,6 +109,41 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void CiWorkflow_ShouldSerializeDotNetBuildsToAvoidSharedObjLocks()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("dotnet build --configuration ${{ matrix.configuration }} --no-restore -m:1",
+            "solution-level CI builds can compile shared project references for multiple target frameworks into the same obj path on hosted runners");
+        content.Should().Contain("dotnet build --configuration Release -p:Platform=ARM64 -m:1",
+            "the ARM64 solution build should use the same deterministic build scheduling policy");
+        content.Should().Contain("dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-restore -m:1",
+            "coverage builds should avoid parallel shared project-reference compilation before running tests");
+    }
+
+    [Fact]
+    public void CiWorkflow_ShouldPackSdkWithoutGeneratePackageOnBuildRecursion()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg -p:GeneratePackageOnBuild=false",
+            "direct dotnet pack already runs the pack target, so GeneratePackageOnBuild must be disabled to avoid looking for the package artifact before the build output exists");
+    }
+
+    [Fact]
+    public void CiWorkflow_ShouldRunNoBuildTestsFromActualSolutionBuildOutput()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal",
+            "the unit test assembly is emitted under bin/<configuration> by the solution build, not under bin/<platform>/<configuration>");
+        content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal",
+            "integration tests should run from the no-build output that the preceding solution build actually produced");
+        content.Should().NotContain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}");
+        content.Should().NotContain("dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}");
+    }
+
+    [Fact]
     public void PackagedServerRuntimeSmokeScript_ShouldExerciseProtocolBeyondInitialize()
     {
         var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
@@ -172,6 +207,21 @@ public class ReleasePackagingWorkflowTests
             "local archive smoke tests must provide the sidecar metadata directory used by package integrity checks");
         content.Should().Contain("-PackageArchivePath $packageArchive.FullName",
             "the workflow should still exercise the local release archive install path");
+    }
+
+    [Fact]
+    public void CiWorkflow_ShouldDotSourcePackageLocalInstallerWithHarnessVariablesForSmoke()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain(". (Join-Path $packageDir 'bin/install.ps1')",
+            "package-local smoke tests need the same script-variable test harness authority as online-installer local archive smoke");
+        content.Should().Contain(". $installedScript -Action uninstall",
+            "uninstall smoke should preserve package-local script root while test harness variables are set");
+        content.Should().NotContain("-File (Join-Path $packageDir 'bin/install.ps1')",
+            "running package-local install.ps1 with -File ignores harness-only installer test mode and blocks deterministic signature smoke");
+        content.Should().NotContain("-File $installedScript -Action uninstall",
+            "running installed install.ps1 with -File should not be used while deterministic test signature variables are in scope");
     }
 
     [Fact]

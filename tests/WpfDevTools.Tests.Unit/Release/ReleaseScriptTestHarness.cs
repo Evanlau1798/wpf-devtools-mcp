@@ -14,8 +14,8 @@ internal static class ReleaseScriptTestHarness
     private static readonly string RepoRoot = ResolveRepoRoot();
     private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromSeconds(60);
     private static readonly ConcurrentDictionary<string, Lazy<CachedPackageArtifacts>> PackageArtifactCache = new(StringComparer.Ordinal);
-    private static readonly Lazy<(string Thumbprint, string Subject)> SignedPayloadSignerMetadata =
-        new(() => GetSignedPayloadSignerMetadata(Path.Combine("WindowsPowerShell", "v1.0", "powershell.exe")), LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<SignedPayloadInfo> SignedPayload =
+        new(ResolveSignedPayloadInfo, LazyThreadSafetyMode.ExecutionAndPublication);
 
     internal static bool ForceTaskKillFallbackForTesting { get; set; }
 
@@ -23,6 +23,8 @@ internal static class ReleaseScriptTestHarness
     private static extern bool CreateHardLink(string fileName, string existingFileName, nint securityAttributes);
 
     private sealed record CachedPackageArtifacts(string PackageDirectoryPath, string ArchivePath, string MetadataDirectoryPath);
+
+    private sealed record SignedPayloadInfo(string Path, string Thumbprint, string Subject);
 
     public static string CreateTempDirectory()
     {
@@ -261,7 +263,10 @@ internal static class ReleaseScriptTestHarness
     }
 
     public static (string Thumbprint, string Subject) GetSignedPayloadSigner()
-        => SignedPayloadSignerMetadata.Value;
+    {
+        var signedPayload = SignedPayload.Value;
+        return (signedPayload.Thumbprint, signedPayload.Subject);
+    }
 
     private static CachedPackageArtifacts GetCachedPackageArtifacts(string architecture, bool useSignedPayload)
     {
@@ -292,9 +297,10 @@ internal static class ReleaseScriptTestHarness
             inputs.Add(GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", helperFile))));
         }
 
-        var signerMetadata = SignedPayloadSignerMetadata.Value;
+        var signerMetadata = SignedPayload.Value;
         inputs.Add(signerMetadata.Thumbprint);
         inputs.Add(signerMetadata.Subject);
+        inputs.Add(signerMetadata.Path);
 
         var content = string.Join("\n", inputs);
         var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content));
@@ -347,15 +353,14 @@ internal static class ReleaseScriptTestHarness
         var inspectorNet8Dir = Path.Combine(binDir, "inspectors", "net8.0-windows");
         var inspectorNet48Dir = Path.Combine(binDir, "inspectors", "net48");
         var bootstrapperDir = Path.Combine(binDir, "bootstrapper", architecture);
-        var signedPayloadSourceName = Path.Combine("WindowsPowerShell", "v1.0", "powershell.exe");
-        var signerMetadata = SignedPayloadSignerMetadata.Value;
+        var signerMetadata = SignedPayload.Value;
         Directory.CreateDirectory(inspectorNet8Dir);
         Directory.CreateDirectory(inspectorNet48Dir);
         Directory.CreateDirectory(bootstrapperDir);
-        WritePackagePayloadFile(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), signedPayloadSourceName, "stub", useSignedPayload);
-        WritePackagePayloadFile(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), signedPayloadSourceName, "net8-inspector", useSignedPayload);
-        WritePackagePayloadFile(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), signedPayloadSourceName, "net48-inspector", useSignedPayload);
-        WritePackagePayloadFile(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), signedPayloadSourceName, "bootstrapper", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), signerMetadata.Path, "stub", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), signerMetadata.Path, "net8-inspector", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), signerMetadata.Path, "net48-inspector", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), signerMetadata.Path, "bootstrapper", useSignedPayload);
         File.WriteAllText(
             Path.Combine(binDir, "manifest.json"),
             JsonSerializer.Serialize(new
@@ -892,15 +897,11 @@ internal static class ReleaseScriptTestHarness
         }
     }
 
-    private static void WritePackagePayloadFile(string destinationPath, string signedSystemFileName, string unsignedContent, bool useSignedPayload)
+    private static void WritePackagePayloadFile(string destinationPath, string signedSourcePath, string unsignedContent, bool useSignedPayload)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
         if (useSignedPayload)
         {
-            var signedSourcePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-                "System32",
-                signedSystemFileName);
             File.Copy(signedSourcePath, destinationPath, overwrite: true);
             return;
         }
@@ -908,13 +909,65 @@ internal static class ReleaseScriptTestHarness
         File.WriteAllText(destinationPath, unsignedContent);
     }
 
-    private static (string Thumbprint, string Subject) GetSignedPayloadSignerMetadata(string signedSystemFileName)
+    private static SignedPayloadInfo ResolveSignedPayloadInfo()
     {
-        var signedSourcePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-            "System32",
-            signedSystemFileName);
+        var errors = new List<string>();
+        foreach (var candidatePath in EnumerateSignedPayloadCandidatePaths())
+        {
+            if (!File.Exists(candidatePath))
+            {
+                continue;
+            }
 
+            if (TryGetSignedPayloadSignerMetadata(candidatePath, out var signer, out var error))
+            {
+                return new SignedPayloadInfo(candidatePath, signer.Thumbprint, signer.Subject);
+            }
+
+            errors.Add(error);
+        }
+
+        throw new InvalidOperationException(
+            "Could not locate a signed Windows payload that exposes signer metadata. " + string.Join(" | ", errors));
+    }
+
+    private static IEnumerable<string> EnumerateSignedPayloadCandidatePaths()
+    {
+        var system32 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32");
+        foreach (var relativePath in new[]
+                 {
+                     Path.Combine("WindowsPowerShell", "v1.0", "powershell.exe"),
+                     "notepad.exe",
+                     "cmd.exe",
+                     "wscript.exe",
+                     "cscript.exe",
+                     "msiexec.exe",
+                     "regedit.exe"
+                 })
+        {
+            yield return Path.Combine(system32, relativePath);
+        }
+
+        var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+        if (!string.IsNullOrWhiteSpace(dotnetRoot))
+        {
+            yield return Path.Combine(dotnetRoot, "dotnet.exe");
+        }
+
+        yield return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            "PowerShell",
+            "7",
+            "pwsh.exe");
+    }
+
+    private static bool TryGetSignedPayloadSignerMetadata(
+        string signedSourcePath,
+        out (string Thumbprint, string Subject) signer,
+        out string error)
+    {
+        signer = default;
+        error = string.Empty;
         var startInfo = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -932,7 +985,8 @@ internal static class ReleaseScriptTestHarness
         var result = RunProcess(startInfo, TimeSpan.FromSeconds(10));
         if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"Failed to resolve signer metadata for {signedSourcePath}: {result.Stderr}");
+            error = $"Failed to resolve signer metadata for {signedSourcePath}: {result.Stderr}";
+            return false;
         }
 
         using var payload = JsonDocument.Parse(result.Stdout);
@@ -940,10 +994,12 @@ internal static class ReleaseScriptTestHarness
         var subject = payload.RootElement.GetProperty("Subject").GetString();
         if (string.IsNullOrWhiteSpace(thumbprint) || string.IsNullOrWhiteSpace(subject))
         {
-            throw new InvalidOperationException($"Signed payload {signedSourcePath} did not expose signer metadata.");
+            error = $"Signed payload {signedSourcePath} did not expose signer metadata.";
+            return false;
         }
 
-        return (thumbprint, subject);
+        signer = (thumbprint, subject);
+        return true;
     }
 
     private static string ResolveRepoRoot()

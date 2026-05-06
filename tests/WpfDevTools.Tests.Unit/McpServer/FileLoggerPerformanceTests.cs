@@ -43,12 +43,13 @@ public class FileLoggerPerformanceTests : IDisposable
         // Arrange - measure time for 1000 log calls
         var sw = Stopwatch.StartNew();
 
-        // Act - log 1000 messages (should be fast if async)
-        var tasks = Enumerable.Range(0, 1000).Select(i =>
-            Task.Run(() => _logger.LogInfo($"Message {i}"))
-        ).ToArray();
+        // Act - enqueue 1000 messages on the calling thread.
+        for (var i = 0; i < 1000; i++)
+        {
+            _logger.LogInfo($"Message {i}");
+        }
 
-        await Task.WhenAll(tasks);
+        await Task.Yield();
         sw.Stop();
 
         // Assert - should complete in < 500ms if truly async

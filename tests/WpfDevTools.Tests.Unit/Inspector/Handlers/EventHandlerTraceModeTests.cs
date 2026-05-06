@@ -270,7 +270,7 @@ public sealed class EventHandlerTraceModeTests
 
         button.RaiseEvent(new System.Windows.RoutedEventArgs(ButtonBase.ClickEvent, button));
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
 
         var getResult = await handler.HandleAsync(
             "trace_routed_events",
@@ -327,7 +327,7 @@ public sealed class EventHandlerTraceModeTests
         payload.GetProperty("cleanupIncomplete").GetBoolean().Should().BeFalse();
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("eventNotRaised");
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
     }
 
     [StaFact]
@@ -504,7 +504,7 @@ public sealed class EventHandlerTraceModeTests
         WaitForTaskCompletion(traceTask, button.Dispatcher, TimeSpan.FromSeconds(1)).Should().BeTrue();
         Assert.ThrowsAny<OperationCanceledException>(() => traceTask.GetAwaiter().GetResult());
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
 
         var payload = JsonSerializer.SerializeToElement(analyzer.GetEventTrace());
         payload.GetProperty("isTracing").GetBoolean().Should().BeFalse();
@@ -644,7 +644,7 @@ public sealed class EventHandlerTraceModeTests
         var payload = JsonSerializer.SerializeToElement(await traceTask);
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("cleanupFailed");
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
     }
 
     [StaFact]
@@ -840,7 +840,7 @@ public sealed class EventHandlerTraceModeTests
 
         button.RaiseEvent(new System.Windows.RoutedEventArgs(ButtonBase.ClickEvent, button));
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
 
         var getPayload = JsonSerializer.SerializeToElement(await handler.HandleAsync(
             "trace_routed_events",

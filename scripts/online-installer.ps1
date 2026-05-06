@@ -2619,6 +2619,25 @@ function Get-TuiHelperBootstrapTimeoutSeconds {
 function Get-InstallerVerificationTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC' -DefaultValue 2 -MinimumValue 1 -MaximumValue 30)
 }
+function Get-Sha256FileHashHex {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    if (Get-Command Get-FileHash -ErrorAction SilentlyContinue) {
+        return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+    }
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($stream)
+    }
+    finally {
+        $sha256.Dispose()
+        $stream.Dispose()
+    }
+
+    return (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
+}
 function Get-ComputedInstallerHelperCacheKey {
     param(
         [Parameter(Mandatory)] [string]$HelperDirectory,
@@ -2632,7 +2651,7 @@ function Get-ComputedInstallerHelperCacheKey {
             throw "Helper file was not found while computing the installer cache key: $helperPath"
         }
 
-        $fileHash = (Get-FileHash -Algorithm SHA256 -Path $helperPath).Hash.ToLowerInvariant()
+        $fileHash = Get-Sha256FileHashHex -Path $helperPath
         $records.Add("${helperFile}:$fileHash")
     }
 
@@ -2650,7 +2669,7 @@ function Get-ComputedInstallerHelperCacheKey {
 function Get-InstallerHelperFileSha256 {
     param([Parameter(Mandatory)] [string]$Path)
 
-    return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+    return Get-Sha256FileHashHex -Path $Path
 }
 function Assert-InstallerHelperFileRecord {
     param(
@@ -3385,7 +3404,7 @@ function Get-TuiHelperReleaseAssetRecord {
 function Get-TuiHelperArchiveSha256 {
     param([Parameter(Mandatory)] [string]$ArchivePath)
 
-    return (Get-FileHash -Algorithm SHA256 -LiteralPath $ArchivePath).Hash.ToLowerInvariant()
+    return Get-Sha256FileHashHex -Path $ArchivePath
 }
 function Get-TuiHelperArchiveDownloadDetails {
     $resolvedArchitecture = Resolve-TuiHelperBootstrapArchitecture

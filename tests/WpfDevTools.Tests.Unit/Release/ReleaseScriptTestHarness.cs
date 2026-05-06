@@ -973,6 +973,8 @@ internal static class ReleaseScriptTestHarness
         var subject = "CN=WpfDevTools Harness Signed Payload " + Guid.NewGuid().ToString("N");
         var command = string.Join(" ",
             "$ErrorActionPreference = 'Stop';",
+            "Import-Module Microsoft.PowerShell.Security -ErrorAction Stop;",
+            "Import-Module PKI -ErrorAction Stop;",
             "$payload = " + QuotePowerShellString(payloadPath) + ";",
             "$thumbprintPath = " + QuotePowerShellString(certificateThumbprintPath) + ";",
             "$subject = " + QuotePowerShellString(subject) + ";",
@@ -992,18 +994,22 @@ internal static class ReleaseScriptTestHarness
             "finally {",
             "if (-not $success -and $null -ne $cert) { foreach ($storeName in @('Root', 'My')) { $cleanupStore = [System.Security.Cryptography.X509Certificates.X509Store]::new($storeName, 'CurrentUser'); $cleanupStore.Open('ReadWrite'); try { foreach ($cleanupCert in @($cleanupStore.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $cert.Thumbprint, $false))) { $cleanupStore.Remove($cleanupCert) } } finally { $cleanupStore.Close() } } }",
             "}");
-        var result = RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(30));
-        if (File.Exists(certificateThumbprintPath))
+        (int ExitCode, string Stdout, string Stderr) result;
+        try
         {
-            var generatedThumbprint = File.ReadAllText(certificateThumbprintPath).Trim();
-            if (!string.IsNullOrWhiteSpace(generatedThumbprint))
-            {
-                RegisterGeneratedCertificateCleanup(generatedThumbprint);
-            }
+            result = RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(60));
         }
+        catch
+        {
+            CleanupGeneratedCertificateFromFile(certificateThumbprintPath);
+            throw;
+        }
+
+        var generatedThumbprint = RegisterGeneratedCertificateFromFile(certificateThumbprintPath);
 
         if (result.ExitCode != 0)
         {
+            CleanupGeneratedCertificateIfKnown(generatedThumbprint);
             throw new InvalidOperationException(
                 "Could not create a self-signed payload for release test harness. " +
                 string.Join(" | ", discoveryErrors) + " | " + result.Stderr);
@@ -1018,11 +1024,47 @@ internal static class ReleaseScriptTestHarness
             string.IsNullOrWhiteSpace(signerSubject) ||
             string.IsNullOrWhiteSpace(certificateThumbprint))
         {
+            CleanupGeneratedCertificateIfKnown(generatedThumbprint);
             throw new InvalidOperationException("Self-signed payload signer metadata was incomplete.");
         }
 
         RegisterGeneratedCertificateCleanup(certificateThumbprint);
         return new SignedPayloadInfo(payloadPath, thumbprint, signerSubject);
+    }
+
+    private static string? RegisterGeneratedCertificateFromFile(string certificateThumbprintPath)
+    {
+        var thumbprint = TryReadGeneratedCertificateThumbprint(certificateThumbprintPath);
+        if (!string.IsNullOrWhiteSpace(thumbprint))
+        {
+            RegisterGeneratedCertificateCleanup(thumbprint);
+        }
+
+        return thumbprint;
+    }
+
+    private static void CleanupGeneratedCertificateFromFile(string certificateThumbprintPath)
+    {
+        CleanupGeneratedCertificateIfKnown(TryReadGeneratedCertificateThumbprint(certificateThumbprintPath));
+    }
+
+    private static string? TryReadGeneratedCertificateThumbprint(string certificateThumbprintPath)
+    {
+        if (!File.Exists(certificateThumbprintPath))
+        {
+            return null;
+        }
+
+        var thumbprint = File.ReadAllText(certificateThumbprintPath).Trim();
+        return string.IsNullOrWhiteSpace(thumbprint) ? null : thumbprint;
+    }
+
+    private static void CleanupGeneratedCertificateIfKnown(string? thumbprint)
+    {
+        if (!string.IsNullOrWhiteSpace(thumbprint))
+        {
+            CleanupGeneratedCertificate(thumbprint);
+        }
     }
 
     private static string ResolveSelfSignedPayloadTemplatePath()

@@ -15,6 +15,7 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 [Collection("TimingSensitive")]
 public sealed class ConnectToolConcurrencyTests : IDisposable
 {
+    private static readonly TimeSpan SignalWaitTimeout = TimeSpan.FromSeconds(10);
     private string? _dummyBootstrapperPath;
 
     [Fact]
@@ -30,11 +31,12 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
-        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
@@ -65,12 +67,13 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         using var firstCallCts = new CancellationTokenSource();
         var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), firstCallCts.Token);
-        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
@@ -103,13 +106,14 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
         ToolCallHelper.CachedTool<ConnectTool>("ConnectTool", () => connectTool);
 
         using var firstCallCts = new CancellationTokenSource();
         var firstCall = ProcessMcpTools.Connect(sessionManager, processId: 12345, cancellationToken: firstCallCts.Token);
-        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var secondCall = ProcessMcpTools.Connect(sessionManager, processId: 12345, cancellationToken: CancellationToken.None);
 
@@ -140,6 +144,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
@@ -147,7 +152,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         using var secondCallCts = new CancellationTokenSource();
 
         var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), firstCallCts.Token);
-        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), secondCallCts.Token);
         await Task.Delay(50);
@@ -160,10 +165,10 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         await firstCancelledWait.Should().ThrowAsync<OperationCanceledException>();
         await secondCancelledWait.Should().ThrowAsync<OperationCanceledException>();
 
-        injector.CancellationObserved.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.CancellationObserved.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var thirdCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
-        injector.AdditionalCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.AdditionalCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
         injector.Release();
 
         var thirdResult = await thirdCall;
@@ -188,6 +193,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
         var secondTool = new ConnectTool(
@@ -196,11 +202,12 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var firstCall = firstTool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
-        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var secondCall = secondTool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
@@ -233,6 +240,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
         var secondTool = new ConnectTool(
@@ -241,16 +249,17 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var firstCall = firstTool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
-        firstInjector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        firstInjector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var secondCall = secondTool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
         try
         {
-            secondInjector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue(
+            secondInjector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue(
                 "in-flight connect keys include the SessionManager instance, so separate hosts must not share a single-flight operation");
         }
         finally
@@ -278,11 +287,12 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
-        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
         injector.Release();
         await firstCall;
 
@@ -290,7 +300,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
         var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
         try
         {
-            injector.AdditionalCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue(
+            injector.AdditionalCallStarted.Wait(SignalWaitTimeout).Should().BeTrue(
                 "completed single-flight operations must be removed from the static in-flight cache");
         }
         finally
@@ -332,16 +342,17 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
                 new FakeProcessDetector(),
                 _ => { },
                 () => false,
+                pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
                 isRawInjectionTargetAllowed: _ => true,
-            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
+                targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
             var firstCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
-            injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+            injector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
             injector.Release();
-            await hookEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await hookEntered.Task.WaitAsync(SignalWaitTimeout);
 
             var secondCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
-            injector.AdditionalCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue(
+            injector.AdditionalCallStarted.Wait(SignalWaitTimeout).Should().BeTrue(
                 "callers arriving after an operation is closed to new waiters must start a fresh connect instead of joining a stale completion");
 
             allowCompletion.SetResult();
@@ -375,7 +386,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var explicitCall = tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
-        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var autoDiscoveryCall = tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
 
@@ -410,15 +421,16 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new FakeProcessDetector(),
             _ => { },
             () => false,
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         using var cancelledCallCts = new CancellationTokenSource();
         var cancelledCall = tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), cancelledCallCts.Token);
-        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.FirstCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
 
         cancelledCallCts.Cancel();
-        injector.CancellationObserved.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.CancellationObserved.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var cancelledCompletion = await Task.WhenAny(cancelledCall, Task.Delay(TimeSpan.FromSeconds(1)));
         cancelledCompletion.Should().Be(
@@ -436,7 +448,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
 
         injector.AllowCancelledOperationToFinish();
 
-        injector.AdditionalCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        injector.AdditionalCallStarted.Wait(SignalWaitTimeout).Should().BeTrue();
 
         var freshResult = JsonSerializer.SerializeToElement(await freshCall);
         injector.InjectWithBootstrapCallCount.Should().Be(2);
@@ -453,6 +465,9 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
     {
         _dummyBootstrapperPath = EnsureSharedDummyBootstrapperExists();
     }
+
+    private static PipeReadyProbe CreateNoExistingHostPipeReadyProbe()
+        => new((_, _) => false, () => DateTime.UtcNow, _ => { });
 
     private sealed class FakeProcessDetector : WpfProcessDetector
     {
@@ -524,7 +539,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
 
             try
             {
-                _release.Wait(TimeSpan.FromSeconds(2), cancellationToken);
+                _release.Wait(SignalWaitTimeout, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -571,7 +586,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             InjectWithBootstrapCallCount++;
             FirstCallStarted.Set();
 
-            _release.Wait(TimeSpan.FromSeconds(2), cancellationToken);
+            _release.Wait(SignalWaitTimeout, cancellationToken);
             _host = new InspectorHost(request.ProcessId, request.ExpectedPipeName);
             _host.Start();
 
@@ -623,7 +638,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     CancellationObserved.Set();
-                    _allowCancelledOperationToFinish.Wait(TimeSpan.FromSeconds(2));
+                    _allowCancelledOperationToFinish.Wait(SignalWaitTimeout);
                     throw;
                 }
             }

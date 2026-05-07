@@ -21,12 +21,18 @@ public sealed class SessionManagerConnectedPipeCleanupTests
         using var serverLifetime = new CancellationTokenSource();
         var serverTask = Task.Run(async () =>
         {
-            await server.WaitForConnectionAsync(serverLifetime.Token);
             try
             {
+                await server.WaitForConnectionAsync(serverLifetime.Token);
                 await Task.Delay(Timeout.InfiniteTimeSpan, serverLifetime.Token);
             }
+            catch (IOException)
+            {
+            }
             catch (OperationCanceledException)
+            {
+            }
+            catch (ObjectDisposedException)
             {
             }
         });

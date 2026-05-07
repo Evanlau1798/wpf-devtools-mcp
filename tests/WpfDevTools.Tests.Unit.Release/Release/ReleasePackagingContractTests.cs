@@ -439,6 +439,8 @@ public sealed partial class ReleasePackagingContractTests
         harnessSource.Should().Contain("Get-PSProvider Certificate -ErrorAction SilentlyContinue");
         harnessSource.Should().Contain("New-PSDrive -Name Cert -PSProvider Certificate");
         harnessSource.Should().Contain("Get-Command New-SelfSignedCertificate -ErrorAction Stop");
+        harnessSource.Should().Contain("TryGetSignedPayloadSignerMetadata");
+        harnessSource.Should().Contain("RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(10))");
         harnessSource.Should().Contain("SelfSignedPayloadTimeout = TimeSpan.FromMinutes(3)");
         harnessSource.Should().Contain("RunPowerShellCommand(command, timeout: SelfSignedPayloadTimeout)");
         harnessSource.Should().Contain("CleanupGeneratedCertificateFromFile(certificateThumbprintPath);");

@@ -1196,21 +1196,12 @@ internal static class ReleaseScriptTestHarness
     {
         signer = default;
         error = string.Empty;
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        startInfo.ArgumentList.Add("-NoProfile");
-        startInfo.ArgumentList.Add("-Command");
-        startInfo.ArgumentList.Add(
-            "$sig = Get-AuthenticodeSignature -FilePath '" + signedSourcePath.Replace("'", "''") +
-            "'; [ordered]@{ Thumbprint = if ($null -ne $sig.SignerCertificate) { $sig.SignerCertificate.Thumbprint } else { $null }; Subject = if ($null -ne $sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { $null } } | ConvertTo-Json -Compress");
+        var command = string.Join(" ",
+            "$ErrorActionPreference = 'Stop';",
+            "$sig = Get-AuthenticodeSignature -FilePath " + QuotePowerShellString(signedSourcePath) + ";",
+            "[ordered]@{ Status = [string]$sig.Status; Thumbprint = if ($null -ne $sig.SignerCertificate) { $sig.SignerCertificate.Thumbprint } else { $null }; Subject = if ($null -ne $sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { $null } } | ConvertTo-Json -Compress");
 
-        var result = RunProcess(startInfo, TimeSpan.FromSeconds(10));
+        var result = RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(10));
         if (result.ExitCode != 0)
         {
             error = $"Failed to resolve signer metadata for {signedSourcePath}: {result.Stderr}";
@@ -1218,11 +1209,14 @@ internal static class ReleaseScriptTestHarness
         }
 
         using var payload = JsonDocument.Parse(result.Stdout);
+        var status = payload.RootElement.GetProperty("Status").GetString();
         var thumbprint = payload.RootElement.GetProperty("Thumbprint").GetString();
         var subject = payload.RootElement.GetProperty("Subject").GetString();
-        if (string.IsNullOrWhiteSpace(thumbprint) || string.IsNullOrWhiteSpace(subject))
+        if (!string.Equals(status, "Valid", StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(thumbprint) ||
+            string.IsNullOrWhiteSpace(subject))
         {
-            error = $"Signed payload {signedSourcePath} did not expose signer metadata.";
+            error = $"Signed payload {signedSourcePath} did not expose valid signer metadata. Status: {status ?? "<null>"}.";
             return false;
         }
 

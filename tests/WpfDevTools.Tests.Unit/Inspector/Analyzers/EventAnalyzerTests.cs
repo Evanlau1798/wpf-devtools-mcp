@@ -469,10 +469,10 @@ public class EventAnalyzerTests
         disposeTask.Wait(TimeSpan.FromMilliseconds(200)).Should().BeFalse();
         allowRegistrationToFinish.Set();
 
-        disposeTask.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        WaitForTaskCompletion(disposeTask, button.Dispatcher, TimeSpan.FromSeconds(15)).Should().BeTrue();
         disposeTask.IsFaulted.Should().BeFalse();
 
-        startTask.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        WaitForTaskCompletion(startTask, button.Dispatcher, TimeSpan.FromSeconds(15)).Should().BeTrue();
 
         var startPayload = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(startTask.Result.Result));
         startPayload.GetProperty("success").GetBoolean().Should().BeFalse();

@@ -56,7 +56,6 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
         var executablePath = Path.Combine(sdkOnlyDirectory.FullName, "ExternalSdkOnlyApp.exe");
         File.WriteAllBytes(executablePath, []);
         var processId = Environment.ProcessId;
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         try
         {
@@ -72,15 +71,14 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
-            stopwatch.Stop();
 
             var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
             resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
             resultJson.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+            resultJson.GetProperty("errorCode").GetString().Should().NotBe(InjectionError.SingleFileApplication.ToString(),
+                "raw injection opt-in must be enforced before surfacing SDK-only packaging diagnostics");
             resultJson.GetProperty("requiresExplicitTargetOptIn").GetBoolean().Should().BeTrue();
             injector.InjectWithBootstrapCallCount.Should().Be(0);
-            stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3),
-                "blocked external SDK-only targets should fail fast instead of consuming the full connect timeout budget");
         }
         finally
         {

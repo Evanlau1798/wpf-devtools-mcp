@@ -126,7 +126,8 @@ public sealed class InstallerProcessLifecycleTests
             tempPath.Should().Be(Path.Combine(resolvedUserProfile, "Temp"));
             tmpPath.Should().Be(tempPath);
             workingRoot.Should().StartWith(resolvedUserProfile);
-            resolvedUserProfile.Should().StartWith(ReleaseScriptTestHarness.GetRepoFilePath("tmp"));
+            Path.GetFileName(resolvedUserProfile).Should().StartWith("e", "owned harness environment roots use the short temp prefix");
+            resolvedUserProfile.Length.Should().BeLessThan(160, "offline package extraction must stay below Windows PowerShell 5.1 path limits on CI");
         }
         finally
         {
@@ -181,7 +182,7 @@ public sealed class InstallerProcessLifecycleTests
             using var payload = JsonDocument.Parse(result.Stdout);
             var root = payload.RootElement;
             var workingRoot = root.GetProperty("WorkingRoot").GetString();
-            var expectedWorkingRootParent = Path.Combine(sharedRoot, "wpf-devtools-working-root");
+            var expectedWorkingRootParent = Path.Combine(sharedRoot, "wr");
 
             root.GetProperty("UserProfile").GetString().Should().Be(userProfile);
             root.GetProperty("AppData").GetString().Should().Be(appData);

@@ -12,6 +12,8 @@ namespace WpfDevTools.Tests.Unit.Release;
 internal static class ReleaseScriptTestHarness
 {
     private static readonly string RepoRoot = ResolveRepoRoot();
+    private const string HarnessTempDirectoryName = "wdt";
+    private const string WorkingRootDirectoryName = "wr";
     private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan SelfSignedPayloadTimeout = TimeSpan.FromMinutes(3);
     private static readonly ConcurrentDictionary<string, Lazy<CachedPackageArtifacts>> PackageArtifactCache = new(StringComparer.Ordinal);
@@ -36,10 +38,16 @@ internal static class ReleaseScriptTestHarness
 
     public static string CreateTempDirectory()
     {
-        var path = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-tests", Guid.NewGuid().ToString("N"));
+        var path = CreateShortTempDirectory("t");
         Directory.CreateDirectory(path);
         return path;
     }
+
+    private static string CreateShortTempDirectory(string prefix)
+        => Path.Combine(GetHarnessTempRoot(), prefix + Guid.NewGuid().ToString("N")[..16]);
+
+    private static string GetHarnessTempRoot()
+        => Path.Combine(Path.GetTempPath(), HarnessTempDirectoryName);
 
     public static void DeleteDirectory(string path)
     {
@@ -127,7 +135,7 @@ internal static class ReleaseScriptTestHarness
                 return true;
             }
 
-            var quarantineRoot = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-tests-pending-delete");
+            var quarantineRoot = Path.Combine(GetHarnessTempRoot(), "pd");
             Directory.CreateDirectory(quarantineRoot);
             var quarantinePath = Path.Combine(quarantineRoot, Path.GetFileName(path) + "-" + Guid.NewGuid().ToString("N"));
             Directory.Move(path, quarantinePath);
@@ -489,14 +497,14 @@ internal static class ReleaseScriptTestHarness
         var canReuseSharedEnvironmentRoot = string.Equals(Path.GetFileName(scriptPath), "online-installer.ps1", StringComparison.OrdinalIgnoreCase);
         var (environmentRoot, ownsEnvironmentRoot) = canReuseSharedEnvironmentRoot
             ? ResolveProcessEnvironmentRoot(environmentOverrides)
-            : (Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-env", Guid.NewGuid().ToString("N")), true);
+            : (CreateShortTempDirectory("e"), true);
         string? injectedWorkingRoot = null;
         if (string.Equals(Path.GetFileName(scriptPath), "online-installer.ps1", StringComparison.OrdinalIgnoreCase) &&
             !argumentList.Contains("-WorkingRoot", StringComparer.OrdinalIgnoreCase))
         {
             injectedWorkingRoot = ownsEnvironmentRoot
-                ? Path.Combine(environmentRoot, "wpf-devtools-working-root")
-                : Path.Combine(environmentRoot, "wpf-devtools-working-root", Guid.NewGuid().ToString("N"));
+                ? Path.Combine(environmentRoot, WorkingRootDirectoryName)
+                : Path.Combine(environmentRoot, WorkingRootDirectoryName, Guid.NewGuid().ToString("N"));
             argumentList.Add("-WorkingRoot");
             argumentList.Add(injectedWorkingRoot);
         }
@@ -672,7 +680,7 @@ internal static class ReleaseScriptTestHarness
         IReadOnlyDictionary<string, string?>? environmentOverrides = null,
         TimeSpan? timeout = null)
     {
-        var isolatedEnvironmentRoot = Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-env", Guid.NewGuid().ToString("N"));
+        var isolatedEnvironmentRoot = CreateShortTempDirectory("e");
         var startInfo = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -749,7 +757,7 @@ internal static class ReleaseScriptTestHarness
             return (sharedEnvironmentRoot, false);
         }
 
-        return (Path.Combine(GetRepoFilePath("tmp"), "wpf-devtools-env", Guid.NewGuid().ToString("N")), true);
+        return (CreateShortTempDirectory("e"), true);
     }
 
     private static bool TryResolveSharedEnvironmentRoot(

@@ -24,6 +24,10 @@ windows_x64_build_and_test:
     - |
       $ErrorActionPreference = 'Stop'
       Set-StrictMode -Version Latest
+      trap {
+          Write-Error $_
+          exit 1
+      }
 
       function Invoke-External {
           param(
@@ -51,7 +55,8 @@ windows_x64_build_and_test:
           New-Item -ItemType Directory -Force -Path $dotnetRoot | Out-Null
           $installScript = Join-Path $env:TEMP 'dotnet-install.ps1'
           Invoke-WebRequest -Uri 'https://dot.net/v1/dotnet-install.ps1' -OutFile $installScript -UseBasicParsing
-          & powershell -NoProfile -ExecutionPolicy Bypass -File $installScript -Version $sdkVersion -InstallDir $dotnetRoot -NoPath
+          & powershell -NoProfile -ExecutionPolicy Bypass -File $installScript -Version $sdkVersion -InstallDir $dotnetRoot -NoPath |
+              ForEach-Object { Write-Host $_.ToString() }
           if ($LASTEXITCODE -ne 0) {
               throw "dotnet-install.ps1 failed with exit code $LASTEXITCODE."
           }
@@ -63,7 +68,7 @@ windows_x64_build_and_test:
 
           $env:DOTNET_ROOT = $dotnetRoot
           $env:PATH = "$dotnetRoot;$env:PATH"
-          return $dotnetPath
+          return [string]$dotnetPath
       }
 
       function Resolve-MSBuildPath {
@@ -117,7 +122,12 @@ windows_x64_build_and_test:
           throw "Could not locate native host directory for $RuntimeId under: $($candidateRoots -join '; ')"
       }
 
-      $dotnetPath = Install-DotNetSdk
+      $dotnetInstallResult = @(Install-DotNetSdk)
+      if ($dotnetInstallResult.Count -ne 1) {
+          throw "Install-DotNetSdk returned $($dotnetInstallResult.Count) values; expected exactly one dotnet.exe path."
+      }
+
+      $dotnetPath = [string]$dotnetInstallResult[0]
       $msbuildPath = Resolve-MSBuildPath
       $nativeHostDirectory = Resolve-NativeHostDirectory -RuntimeId 'win-x64'
       Write-Host "dotnet: $dotnetPath"
@@ -179,6 +189,8 @@ windows_x64_build_and_test:
               )
           }
       }
+
+      Write-Host 'GitLab Windows x64 verification completed successfully.'
   artifacts:
     when: always
     expire_in: 7 days

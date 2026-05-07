@@ -439,9 +439,31 @@ public sealed partial class ReleasePackagingContractTests
         harnessSource.Should().Contain("Get-PSProvider Certificate -ErrorAction SilentlyContinue");
         harnessSource.Should().Contain("New-PSDrive -Name Cert -PSProvider Certificate");
         harnessSource.Should().Contain("Get-Command New-SelfSignedCertificate -ErrorAction Stop");
-        harnessSource.Should().Contain("RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(60))");
+        harnessSource.Should().Contain("SelfSignedPayloadTimeout = TimeSpan.FromMinutes(3)");
+        harnessSource.Should().Contain("RunPowerShellCommand(command, timeout: SelfSignedPayloadTimeout)");
         harnessSource.Should().Contain("CleanupGeneratedCertificateFromFile(certificateThumbprintPath);");
         harnessSource.Should().Contain("CleanupGeneratedCertificateIfKnown(generatedThumbprint);");
+    }
+
+    [Fact]
+    public void ReleaseScriptHarness_ShouldDefaultInstallerTestProcessesToNonElevated()
+    {
+        var originalAssumeElevated = Environment.GetEnvironmentVariable("WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED");
+
+        try
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED", "1");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand("$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED");
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be("0",
+                "release tests should not inherit the hosted runner's elevated state unless a test opts in explicitly");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED", originalAssumeElevated);
+        }
     }
 
     [Fact]

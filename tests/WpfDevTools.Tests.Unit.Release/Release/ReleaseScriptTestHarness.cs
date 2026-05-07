@@ -13,6 +13,7 @@ internal static class ReleaseScriptTestHarness
 {
     private static readonly string RepoRoot = ResolveRepoRoot();
     private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan SelfSignedPayloadTimeout = TimeSpan.FromMinutes(3);
     private static readonly ConcurrentDictionary<string, Lazy<CachedPackageArtifacts>> PackageArtifactCache = new(StringComparer.Ordinal);
     private static readonly ConcurrentDictionary<string, byte> GeneratedCertificateThumbprints = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Lazy<SignedPayloadInfo> SignedPayload =
@@ -536,6 +537,12 @@ internal static class ReleaseScriptTestHarness
             startInfo.Environment["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = "1";
         }
 
+        if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal) &&
+            !startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED"))
+        {
+            startInfo.Environment["WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED"] = "0";
+        }
+
         if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal))
         {
             startInfo.ArgumentList.Add("-Command");
@@ -703,6 +710,12 @@ internal static class ReleaseScriptTestHarness
             startInfo.Environment["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = "1";
         }
 
+        if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal) &&
+            !startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED"))
+        {
+            startInfo.Environment["WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED"] = "0";
+        }
+
         var commandText = string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal)
             ? GetPowerShellProcessBootstrapCommand() + "$script:WpfDevToolsInstallerTestModeHarnessEnabled = $true; $script:WpfDevToolsInstallerTestModeEnabled = $true; " + command
             : GetPowerShellProcessBootstrapCommand() + command;
@@ -840,6 +853,7 @@ internal static class ReleaseScriptTestHarness
         foreach (var variableName in new[]
                  {
                      "WPFDEVTOOLS_INSTALLER_TEST_MODE",
+                     "WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED",
                      "WPFDEVTOOLS_TEST_SIGNATURE_STATUS",
                      "WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA",
                      "WPFDEVTOOLS_TEST_FORCE_SIGNING_CERTIFICATE_CLEANUP_FAILURE",
@@ -1009,7 +1023,7 @@ internal static class ReleaseScriptTestHarness
         (int ExitCode, string Stdout, string Stderr) result;
         try
         {
-            result = RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(60));
+            result = RunPowerShellCommand(command, timeout: SelfSignedPayloadTimeout);
         }
         catch
         {

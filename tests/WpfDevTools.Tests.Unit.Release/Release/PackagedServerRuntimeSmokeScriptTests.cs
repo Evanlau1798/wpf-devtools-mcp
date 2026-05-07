@@ -9,10 +9,24 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
     public void TestPackagedServerRuntimeScript_ShouldExerciseBuiltServerProtocolSurface()
     {
         var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1");
-        var serverPath = ReleaseScriptTestHarness.GetRepoFilePath("src/WpfDevTools.Mcp.Server/bin/Debug/net8.0/WpfDevTools.Mcp.Server.exe");
+#if DEBUG
+        const string configuration = "Debug";
+#else
+        const string configuration = "Release";
+#endif
+        var serverPathCandidates = new[]
+        {
+            Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", configuration, "net8.0", "WpfDevTools.Mcp.Server.exe"),
+            Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", "x64", configuration, "net8.0", "WpfDevTools.Mcp.Server.exe")
+        }
+        .Select(ReleaseScriptTestHarness.GetRepoFilePath)
+        .ToArray();
+        var serverPath = serverPathCandidates.FirstOrDefault(File.Exists) ?? serverPathCandidates[0];
 
         File.Exists(serverPath).Should().BeTrue(
-            "the unit test build should produce the MCP server executable before the runtime smoke script is exercised");
+            "the unit test build should produce the {0} MCP server executable before the runtime smoke script is exercised; checked {1}",
+            configuration,
+            string.Join(", ", serverPathCandidates));
 
         var result = ReleaseScriptTestHarness.RunPowerShellScript(
             scriptPath,

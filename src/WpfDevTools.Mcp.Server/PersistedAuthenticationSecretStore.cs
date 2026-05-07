@@ -82,7 +82,7 @@ internal sealed class PersistedAuthenticationSecretStore
     {
         CertificateStorageSecurity.PrepareExistingFile(_secretFilePath, "persisted authentication secret");
         var protectedBytes = File.ReadAllBytes(_secretFilePath);
-        var secretBytes = ProtectedData.Unprotect(protectedBytes, null, DataProtectionScope.CurrentUser);
+        var secretBytes = LocalSecretProtector.Unprotect(protectedBytes);
         try
         {
             if (secretBytes.Length != SecretLengthBytes)
@@ -106,7 +106,7 @@ internal sealed class PersistedAuthenticationSecretStore
         var tempFilePath = _secretFilePath + $".tmp-{Guid.NewGuid():N}";
         try
         {
-            var protectedBytes = ProtectedData.Protect(secretBytes, null, DataProtectionScope.CurrentUser);
+            var protectedBytes = LocalSecretProtector.Protect(secretBytes);
             File.WriteAllBytes(tempFilePath, protectedBytes);
             CertificateStorageSecurity.ApplyFileSecurity(tempFilePath);
 

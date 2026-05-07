@@ -182,8 +182,7 @@ public sealed class CertificateManager
         var passwordBytes = System.Text.Encoding.UTF8.GetBytes(password);
         try
         {
-            var protectedBytes = ProtectedData.Protect(
-                passwordBytes, null, DataProtectionScope.CurrentUser);
+            var protectedBytes = LocalSecretProtector.Protect(passwordBytes);
             File.WriteAllBytes(passwordPath, protectedBytes);
         }
         finally
@@ -195,8 +194,7 @@ public sealed class CertificateManager
     internal static string LoadPassword(string passwordPath)
     {
         var protectedBytes = File.ReadAllBytes(passwordPath);
-        var passwordBytes = ProtectedData.Unprotect(
-            protectedBytes, null, DataProtectionScope.CurrentUser);
+        var passwordBytes = LocalSecretProtector.Unprotect(protectedBytes);
         try
         {
             return System.Text.Encoding.UTF8.GetString(passwordBytes);

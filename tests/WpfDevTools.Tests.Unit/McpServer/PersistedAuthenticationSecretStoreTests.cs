@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Security.AccessControl;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -58,7 +59,7 @@ public sealed class PersistedAuthenticationSecretStoreTests
         var secretFilePath = CreateSecretFilePath();
         Directory.CreateDirectory(Path.GetDirectoryName(secretFilePath)!);
         var invalidSecret = new byte[] { 0x42 };
-        var protectedBytes = ProtectedData.Protect(invalidSecret, null, DataProtectionScope.CurrentUser);
+        var protectedBytes = LocalSecretProtector.Protect(invalidSecret);
         File.WriteAllBytes(secretFilePath, protectedBytes);
         var store = new PersistedAuthenticationSecretStore(secretFilePath);
 
@@ -221,7 +222,7 @@ public sealed class PersistedAuthenticationSecretStoreTests
     private static string WriteProtectedSecret(string secretFilePath, byte[] secretBytes)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(secretFilePath)!);
-        var protectedBytes = ProtectedData.Protect(secretBytes, null, DataProtectionScope.CurrentUser);
+        var protectedBytes = LocalSecretProtector.Protect(secretBytes);
         File.WriteAllBytes(secretFilePath, protectedBytes);
         return Convert.ToBase64String(secretBytes);
     }

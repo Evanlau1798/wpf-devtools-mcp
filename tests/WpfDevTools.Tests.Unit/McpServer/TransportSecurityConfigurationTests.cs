@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -103,7 +104,7 @@ public sealed class TransportSecurityConfigurationTests
     {
         var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
         var secretBytes = RandomNumberGenerator.GetBytes(32);
-        var protectedBytes = ProtectedData.Protect(secretBytes, null, DataProtectionScope.CurrentUser);
+        var protectedBytes = LocalSecretProtector.Protect(secretBytes);
         Directory.CreateDirectory(Path.GetDirectoryName(secretFilePath)!);
         File.WriteAllBytes(secretFilePath, protectedBytes);
         var secretStore = new PersistedAuthenticationSecretStore(secretFilePath);

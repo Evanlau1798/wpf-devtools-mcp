@@ -51,7 +51,7 @@ public sealed class LayoutAnalyzerVisibilityTests
             {
                 Name = "ClippingTextSample",
                 Text = "This text is very long and will be clipped by the border because ClipToBounds is True",
-                TextWrapping = TextWrapping.Wrap
+                TextWrapping = TextWrapping.NoWrap
             }
         };
         root.Content = border;

@@ -343,7 +343,7 @@ public sealed class StateSnapshotRestoreVerificationTests
                         CancellationToken.None);
                 }
             }
-            catch (IOException)
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException)
             {
             }
         });

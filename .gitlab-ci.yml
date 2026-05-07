@@ -25,8 +25,18 @@ windows_x64_build_and_test:
       $ErrorActionPreference = 'Stop'
       Set-StrictMode -Version Latest
       trap {
-          Write-Error $_
+          [Console]::Error.WriteLine($_.ToString())
           exit 1
+      }
+
+      function Stop-CI {
+          param(
+              [Parameter(Mandatory = $true)] [string]$Message,
+              [int]$ExitCode = 1
+          )
+
+          [Console]::Error.WriteLine($Message)
+          exit $ExitCode
       }
 
       function Invoke-External {
@@ -40,7 +50,7 @@ windows_x64_build_and_test:
           Write-Host ">>> $Name"
           & $FilePath @Arguments
           if ($LASTEXITCODE -ne 0) {
-              throw "$Name failed with exit code $LASTEXITCODE."
+              Stop-CI "$Name failed with exit code $LASTEXITCODE." $LASTEXITCODE
           }
       }
 

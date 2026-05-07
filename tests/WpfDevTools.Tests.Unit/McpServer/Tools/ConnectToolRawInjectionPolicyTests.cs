@@ -55,6 +55,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
         var sdkOnlyDirectory = Directory.CreateTempSubdirectory("wpf-devtools-external-sdk-only-");
         var executablePath = Path.Combine(sdkOnlyDirectory.FullName, "ExternalSdkOnlyApp.exe");
         File.WriteAllBytes(executablePath, []);
+        var processId = Environment.ProcessId;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         try
@@ -67,9 +68,10 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 new FakeProcessDetector(executablePath: executablePath),
                 _ => { },
                 () => false,
+                pipeReadyProbe: new PipeReadyProbe((_, _) => false, () => DateTime.UtcNow, _ => { }),
                 targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
-            var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+            var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
             stopwatch.Stop();
 
             var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
@@ -92,6 +94,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
         EnsureDummyBootstrapperExists();
 
         var processId = Environment.ProcessId;
+        var pipeName = CreateUniquePipeName($"WpfDevTools_{processId}");
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-external-sdk-grace-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
         var sharedSecret = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
@@ -103,7 +106,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
         using var clientAuthManager = new AuthenticationManager(() => sharedSecret);
         var hostCertificateManager = new CertificateManager(certDirectory);
         var clientCertificateManager = new CertificateManager(certDirectory);
-        using var host = new InspectorHost(processId, hostAuthManager, hostCertificateManager);
+        using var host = new InspectorHost(processId, pipeName, hostAuthManager, hostCertificateManager);
 
         try
         {
@@ -118,6 +121,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 new FakeProcessDetector(executablePath: executablePath),
                 _ => { },
                 () => false,
+                pipeReadyProbe: CreateExactPipeReadyProbe(pipeName),
                 targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
@@ -130,8 +134,9 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), cts.Token);
             await startTask;
 
-            var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-            resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+            var resultPayload = JsonSerializer.Serialize(result);
+            var resultJson = JsonSerializer.Deserialize<JsonElement>(resultPayload);
+            resultJson.GetProperty("success").GetBoolean().Should().BeTrue(resultPayload);
             resultJson.GetProperty("reusedExistingHost").GetBoolean().Should().BeTrue();
             injector.InjectWithBootstrapCallCount.Should().Be(0);
         }
@@ -153,10 +158,11 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
         EnsureDummyBootstrapperExists();
 
         var processId = Environment.ProcessId;
+        var pipeName = CreateUniquePipeName($"WpfDevTools_{processId}");
         var externalDirectory = Directory.CreateTempSubdirectory("wpf-devtools-external-sdk-stale-host-");
         var executablePath = Path.Combine(externalDirectory.FullName, "ExternalSdkOnlyApp.exe");
         File.WriteAllBytes(executablePath, []);
-        using var incompatibleHost = CreateIncompatibleExistingHost(processId);
+        using var incompatibleHost = CreateIncompatibleExistingHost(processId, pipeName);
 
         try
         {
@@ -168,6 +174,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 new FakeProcessDetector(executablePath: executablePath),
                 _ => { },
                 () => false,
+                pipeReadyProbe: CreateExactPipeReadyProbe(pipeName),
                 targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
@@ -189,6 +196,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
     {
         EnsureDummyBootstrapperExists();
 
+        var processId = NextSyntheticProcessId();
         const string executablePath = @"C:\ExternalApps\ThirdParty\AllowedApp.exe";
         using var allowlistScope = new EnvironmentVariableScope(
             McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
@@ -207,7 +215,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
             () => false,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
-        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -319,7 +327,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
     private static WpfProcessInfo CreateProcessInfo(string executablePath, string processName = "TestApp")
         => new()
         {
-            ProcessId = 12345,
+            ProcessId = NextSyntheticProcessId(),
             ProcessName = processName,
             Architecture = ProcessArchitecture.X64,
             Runtime = TargetRuntime.NetCore,
@@ -327,10 +335,10 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
             ExecutablePath = executablePath
         };
 
-    private static NamedPipeServerStream CreateIncompatibleExistingHost(int processId)
+    private static NamedPipeServerStream CreateIncompatibleExistingHost(int processId, string pipeName)
     {
         var server = new NamedPipeServerStream(
-            $"WpfDevTools_{processId}",
+            pipeName,
             PipeDirection.InOut,
             1,
             PipeTransmissionMode.Byte,
@@ -377,6 +385,13 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
 
         return server;
     }
+
+    private static PipeReadyProbe CreateExactPipeReadyProbe(string pipeName)
+        => new(
+            (pipePath, _) => string.Equals(pipePath, $@"\\.\pipe\{pipeName}", StringComparison.Ordinal),
+            () => DateTime.UtcNow,
+            _ => { },
+            () => [pipeName]);
 
     private sealed class EnvironmentVariableScope : IDisposable
     {

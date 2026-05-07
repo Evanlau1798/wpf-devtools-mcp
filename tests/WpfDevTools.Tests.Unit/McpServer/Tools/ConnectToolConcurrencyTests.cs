@@ -367,6 +367,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             new SingleProcessDetector(processId),
             _ => { },
             () => false,
+            pipeReadyProbe: new PipeReadyProbe((_, _) => false, () => DateTime.UtcNow, _ => { }),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 

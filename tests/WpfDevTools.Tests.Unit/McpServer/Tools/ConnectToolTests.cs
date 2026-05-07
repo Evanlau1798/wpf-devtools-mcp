@@ -403,6 +403,7 @@ public partial class ConnectToolTests : IDisposable
         EnsureDummyBootstrapperExists();
 
         var processId = Environment.ProcessId;
+        var pipeName = CreateUniquePipeName($"WpfDevTools_{processId}");
         var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-reconnect-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
@@ -414,6 +415,7 @@ public partial class ConnectToolTests : IDisposable
 
         using var host = new InspectorHost(
             processId,
+            pipeName,
             initialTransportSecurity.AuthenticationManager,
             initialTransportSecurity.CertificateManager);
         host.Start();
@@ -427,6 +429,7 @@ public partial class ConnectToolTests : IDisposable
         {
             await WaitForSecureInspectorHostAsync(
                 processId,
+                pipeName,
                 restartedTransportSecurity.AuthenticationManager,
                 restartedTransportSecurity.CertificateManager);
 
@@ -435,7 +438,7 @@ public partial class ConnectToolTests : IDisposable
                 certManager: restartedTransportSecurity.CertificateManager);
             var injector = new FakeProcessInjector();
             var pipeReadyProbe = new PipeReadyProbe(
-                (pipePath, _) => string.Equals(pipePath, $@"\\.\pipe\WpfDevTools_{processId}", StringComparison.Ordinal),
+                (pipePath, _) => string.Equals(pipePath, $@"\\.\pipe\{pipeName}", StringComparison.Ordinal),
                 () => DateTime.UtcNow,
                 _ => { });
             var tool = CreateTool(sessionManager: sessionManager, injector: injector, pipeReadyProbe: pipeReadyProbe);
@@ -471,6 +474,7 @@ public partial class ConnectToolTests : IDisposable
 
     private static async Task WaitForSecureInspectorHostAsync(
         int processId,
+        string pipeName,
         AuthenticationManager authenticationManager,
         CertificateManager certificateManager)
     {
@@ -478,7 +482,7 @@ public partial class ConnectToolTests : IDisposable
         var lastConnectFailure = NamedPipeConnectFailure.None;
         while (stopwatch.Elapsed < TimeSpan.FromSeconds(5))
         {
-            using var client = new NamedPipeClient(processId, authenticationManager, certificateManager);
+            using var client = new NamedPipeClient(processId, pipeName, authenticationManager, certificateManager);
             if (await client.ConnectAsync(TimeSpan.FromMilliseconds(500), maxRetries: 1))
             {
                 return;
@@ -491,6 +495,13 @@ public partial class ConnectToolTests : IDisposable
 
         throw new TimeoutException($"Timed out waiting for the secure inspector host to accept connections. Last connect failure: {lastConnectFailure}.");
     }
+
+    private static PipeReadyProbe CreateExactPipeReadyProbe(string pipeName)
+        => new(
+            (pipePath, _) => string.Equals(pipePath, $@"\\.\pipe\{pipeName}", StringComparison.Ordinal),
+            () => DateTime.UtcNow,
+            _ => { },
+            () => [pipeName]);
 
     [Fact]
     public async Task Execute_WhenNoExistingHost_ShouldFallbackToInjectionWithoutConsumingConnectBudget()
@@ -589,6 +600,7 @@ public partial class ConnectToolTests : IDisposable
         EnsureDummyBootstrapperExists();
 
         var processId = Environment.ProcessId;
+        var pipeName = CreateUniquePipeName($"WpfDevTools_{processId}");
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-sdk-reuse-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
         var sharedSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
@@ -597,7 +609,7 @@ public partial class ConnectToolTests : IDisposable
         using var clientAuthManager = new AuthenticationManager(() => sharedSecret);
         var hostCertificateManager = new CertificateManager(certDirectory);
         var clientCertificateManager = new CertificateManager(certDirectory);
-        using var host = new InspectorHost(processId, hostAuthManager, hostCertificateManager);
+        using var host = new InspectorHost(processId, pipeName, hostAuthManager, hostCertificateManager);
         host.Start();
 
         try
@@ -610,14 +622,16 @@ public partial class ConnectToolTests : IDisposable
             var tool = CreateTool(
                 sessionManager: sessionManager,
                 injector: injector,
-                processDetector: new FakeProcessDetector(executablePath: executablePath));
+                processDetector: new FakeProcessDetector(executablePath: executablePath),
+                pipeReadyProbe: CreateExactPipeReadyProbe(pipeName));
 
             try
             {
                 var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 
-                var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-                resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+                var resultPayload = JsonSerializer.Serialize(result);
+                var resultJson = JsonSerializer.Deserialize<JsonElement>(resultPayload);
+                resultJson.GetProperty("success").GetBoolean().Should().BeTrue(resultPayload);
                 resultJson.GetProperty("reusedExistingHost").GetBoolean().Should().BeTrue();
                 injector.InjectWithBootstrapCallCount.Should().Be(0);
             }
@@ -642,6 +656,7 @@ public partial class ConnectToolTests : IDisposable
         EnsureDummyBootstrapperExists();
 
         var processId = Environment.ProcessId;
+        var pipeName = CreateUniquePipeName($"WpfDevTools_{processId}");
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-sdk-delayed-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
         var sharedSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
@@ -650,7 +665,7 @@ public partial class ConnectToolTests : IDisposable
         using var clientAuthManager = new AuthenticationManager(() => sharedSecret);
         var hostCertificateManager = new CertificateManager(certDirectory);
         var clientCertificateManager = new CertificateManager(certDirectory);
-        using var host = new InspectorHost(processId, hostAuthManager, hostCertificateManager);
+        using var host = new InspectorHost(processId, pipeName, hostAuthManager, hostCertificateManager);
 
         try
         {
@@ -662,7 +677,8 @@ public partial class ConnectToolTests : IDisposable
             var tool = CreateTool(
                 sessionManager: sessionManager,
                 injector: injector,
-                processDetector: new FakeProcessDetector(executablePath: executablePath));
+                processDetector: new FakeProcessDetector(executablePath: executablePath),
+                pipeReadyProbe: CreateExactPipeReadyProbe(pipeName));
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
             try
@@ -676,8 +692,9 @@ public partial class ConnectToolTests : IDisposable
                 var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), cts.Token);
                 await startTask;
 
-                var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-                resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+                var resultPayload = JsonSerializer.Serialize(result);
+                var resultJson = JsonSerializer.Deserialize<JsonElement>(resultPayload);
+                resultJson.GetProperty("success").GetBoolean().Should().BeTrue(resultPayload);
                 resultJson.GetProperty("reusedExistingHost").GetBoolean().Should().BeTrue();
                 injector.InjectWithBootstrapCallCount.Should().Be(0);
             }

@@ -80,7 +80,10 @@ public class SslStreamDiagnosticTests
             DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
         var pfxBytes = tempCert.Export(X509ContentType.Pfx, "test");
         tempCert.Dispose();
-        using var cert = new X509Certificate2(pfxBytes, "test", X509KeyStorageFlags.Exportable);
+        using var cert = new X509Certificate2(
+            pfxBytes,
+            "test",
+            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
 
         var pipeName = "ssl_diag_" + Guid.NewGuid().ToString("N")[..8];
         _output.WriteLine($"Pipe: {pipeName}");

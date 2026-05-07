@@ -26,6 +26,7 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
             new FailingProcessInjector(injectionError),
             new FakeProcessDetector(),
             _ => { },
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
@@ -64,6 +65,7 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
                 InjectionTimeoutReason.SharedBudgetExhaustedBeforePhaseStart),
             new FakeProcessDetector(),
             _ => { },
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
@@ -90,6 +92,7 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
                 bootstrapExitCode: InjectionMechanismFailure.LoadBootstrapperFailed),
             new FakeProcessDetector(),
             _ => { },
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
             isRawInjectionTargetAllowed: _ => true,
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
@@ -159,6 +162,9 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
     {
         _dummyBootstrapperPath = EnsureSharedDummyBootstrapperExists();
     }
+
+    private static PipeReadyProbe CreateNoExistingHostPipeReadyProbe()
+        => new((_, _) => false, () => DateTime.UtcNow, _ => { });
 
     private sealed class FakeProcessDetector : WpfProcessDetector
     {

@@ -225,10 +225,11 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
 
         using var firstSessionManager = new SessionManager();
         using var secondSessionManager = new SessionManager();
-        using var injector = new BlockingFailureInjector();
+        using var firstInjector = new BlockingFailureInjector();
+        using var secondInjector = new BlockingFailureInjector();
         var firstTool = new ConnectTool(
             firstSessionManager,
-            injector,
+            firstInjector,
             new FakeProcessDetector(),
             _ => { },
             () => false,
@@ -236,7 +237,7 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
         var secondTool = new ConnectTool(
             secondSessionManager,
-            injector,
+            secondInjector,
             new FakeProcessDetector(),
             _ => { },
             () => false,
@@ -244,22 +245,24 @@ public sealed class ConnectToolConcurrencyTests : IDisposable
             targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
         var firstCall = firstTool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
-        injector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        firstInjector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
 
         var secondCall = secondTool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
         try
         {
-            injector.AdditionalCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue(
+            secondInjector.FirstCallStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue(
                 "in-flight connect keys include the SessionManager instance, so separate hosts must not share a single-flight operation");
         }
         finally
         {
-            injector.Release();
+            firstInjector.Release();
+            secondInjector.Release();
         }
 
         await Task.WhenAll(firstCall, secondCall);
 
-        injector.InjectWithBootstrapCallCount.Should().Be(2);
+        firstInjector.InjectWithBootstrapCallCount.Should().Be(1);
+        secondInjector.InjectWithBootstrapCallCount.Should().Be(1);
     }
 
     [Fact]

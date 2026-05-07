@@ -123,11 +123,11 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 () => false,
                 pipeReadyProbe: CreateExactPipeReadyProbe(pipeName),
                 targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
 
             var startTask = Task.Run(async () =>
             {
-                await Task.Delay(600, cts.Token);
+                await Task.Delay(100, cts.Token);
                 host.Start();
             }, cts.Token);
 

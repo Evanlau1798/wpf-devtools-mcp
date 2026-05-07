@@ -1,7 +1,10 @@
 using Xunit;
 using FluentAssertions;
 using System.IO.Pipes;
+using System.Text.Json;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.Serialization;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -94,9 +97,29 @@ public class NamedPipeClientTests
             try
             {
                 await server.WaitForConnectionAsync();
-                await Task.Delay(TimeSpan.FromMilliseconds(500));
+                using var readCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                var requestJson = await MessageFraming.ReadMessageAsync(server, readCts.Token);
+                using var request = JsonDocument.Parse(requestJson);
+                var requestId = request.RootElement.GetProperty("id").GetString();
+                var correlationId = request.RootElement.GetProperty("correlationId").GetString();
+                var responseJson = JsonSerializer.Serialize(new
+                {
+                    id = requestId,
+                    result = new
+                    {
+                        processId = processId + 1,
+                        protocolVersion = InspectorCompatibilityContract.ProtocolVersion,
+                        buildFingerprint = InspectorCompatibilityContract.GetBuildFingerprint(typeof(NamedPipeClient))
+                    },
+                    correlationId
+                });
+
+                await MessageFraming.WriteMessageAsync(server, responseJson, readCts.Token);
             }
             catch (IOException)
+            {
+            }
+            catch (OperationCanceledException)
             {
             }
             catch (ObjectDisposedException)

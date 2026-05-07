@@ -94,9 +94,7 @@ public sealed class CertificateManager
                     try
                     {
                         var password = LoadPassword(passwordPath);
-                        var loaded = new X509Certificate2(
-                            certPath, password,
-                            X509KeyStorageFlags.Exportable);
+                        var loaded = LoadCertificateFromFile(certPath, password);
 
                         if (loaded.NotAfter > DateTime.UtcNow)
                             return loaded;
@@ -158,9 +156,21 @@ public sealed class CertificateManager
         CertificateStorageSecurity.ApplyFileSecurity(certPath);
         cert.Dispose();
 
-        return new X509Certificate2(
-            certPath, password,
-            X509KeyStorageFlags.Exportable);
+        return LoadCertificateFromFile(certPath, password);
+    }
+
+    private static X509Certificate2 LoadCertificateFromFile(string certPath, string password)
+    {
+        const X509KeyStorageFlags preferredFlags = X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet;
+
+        try
+        {
+            return new X509Certificate2(certPath, password, preferredFlags);
+        }
+        catch (CryptographicException)
+        {
+            return new X509Certificate2(certPath, password, X509KeyStorageFlags.Exportable);
+        }
     }
 
     private static string GenerateRandomPassword()

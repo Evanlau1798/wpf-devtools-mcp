@@ -173,6 +173,7 @@ windows_x64_build_and_test:
               '--configuration', $configuration,
               '--no-build',
               '--verbosity', 'normal',
+              '--blame-hang-timeout', '10m',
               '--logger', "trx;LogFileName=unit-$($configuration.ToLowerInvariant()).trx",
               '--results-directory', "TestResults\gitlab\$configuration\unit"
           )
@@ -183,6 +184,7 @@ windows_x64_build_and_test:
               '--configuration', $configuration,
               '--no-build',
               '--verbosity', 'normal',
+              '--blame-hang-timeout', '10m',
               '--logger', "trx;LogFileName=release-unit-$($configuration.ToLowerInvariant()).trx",
               '--results-directory', "TestResults\gitlab\$configuration\release-unit"
           )
@@ -194,6 +196,7 @@ windows_x64_build_and_test:
                   '--configuration', $configuration,
                   '--no-build',
                   '--verbosity', 'normal',
+                  '--blame-hang-timeout', '10m',
                   '--logger', 'trx;LogFileName=integration-debug.trx',
                   '--results-directory', 'TestResults\gitlab\Debug\integration'
               )

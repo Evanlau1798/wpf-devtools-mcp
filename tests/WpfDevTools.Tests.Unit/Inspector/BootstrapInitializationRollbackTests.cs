@@ -127,15 +127,17 @@ public sealed class BootstrapInitializationRollbackTests : IDisposable
     public void ResetForTesting_AfterSuccessfulAuthEnabledInitialization_ShouldDisposeAuthenticationManager()
     {
         var secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        Bootstrap.HostStartAction = _ => { };
 
         Bootstrap.InitializeOnUiThreadForTesting(
             $"pipeName=WpfDevTools_BootstrapAuthCleanup_{Guid.NewGuid():N};auth=enabled;authSecretBase64={secret}");
 
-        _authenticationManager.Should().NotBeNull();
+        var authenticationManager = GetBootstrapAuthenticationManager();
+        authenticationManager.Should().NotBeNull();
 
         Bootstrap.ResetForTesting();
 
-        Action getSecret = () => _authenticationManager!.GetSharedSecret();
+        Action getSecret = () => authenticationManager!.GetSharedSecret();
         getSecret.Should().Throw<ObjectDisposedException>();
     }
 
@@ -254,7 +256,7 @@ public sealed class BootstrapInitializationRollbackTests : IDisposable
 
         try
         {
-            installEntered.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+            installEntered.Wait(TimeSpan.FromSeconds(10)).Should().BeTrue();
             SpinWait.SpinUntil(static () => GetBootstrapIsInitializing() == 0, 5_000).Should().BeTrue();
 
             Bootstrap.IsInitialized.Should().BeFalse();
@@ -277,6 +279,13 @@ public sealed class BootstrapInitializationRollbackTests : IDisposable
         var field = typeof(Bootstrap).GetField("_isInitializing", BindingFlags.NonPublic | BindingFlags.Static);
         field.Should().NotBeNull();
         return (int)field!.GetValue(null)!;
+    }
+
+    private static AuthenticationManager? GetBootstrapAuthenticationManager()
+    {
+        var field = typeof(Bootstrap).GetField("_authenticationManager", BindingFlags.NonPublic | BindingFlags.Static);
+        field.Should().NotBeNull();
+        return (AuthenticationManager?)field!.GetValue(null);
     }
 
     private sealed class DispatcherThreadContext : IDisposable

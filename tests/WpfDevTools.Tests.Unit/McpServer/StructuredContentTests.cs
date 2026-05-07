@@ -91,7 +91,7 @@ public class StructuredContentTests : IDisposable
     {
         Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return new { success = true };
         };
 
@@ -124,7 +124,7 @@ public class StructuredContentTests : IDisposable
     {
         Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return new { success = true };
         };
 

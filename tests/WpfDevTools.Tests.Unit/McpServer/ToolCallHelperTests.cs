@@ -385,7 +385,7 @@ public class ToolCallHelperTests
         // Arrange: Create a tool that exceeds the configured timeout
         Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return new { success = true };
         };
 
@@ -410,7 +410,7 @@ public class ToolCallHelperTests
         Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (_, ct) =>
         {
             sessionManager.HasSession(12345).Should().BeTrue();
-            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return new { success = true };
         };
 
@@ -574,8 +574,8 @@ public class ToolCallHelperTests
         // even for operations that would normally complete quickly
         Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
         {
-            // Delay longer than the configured timeout
-            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            // Never complete naturally; the test is asserting timeout handling.
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return new { success = true };
         };
 

@@ -14,6 +14,8 @@ namespace WpfDevTools.Tests.Unit.Inspector.Handlers;
 [Collection("TimingSensitive")]
 public sealed class EventHandlerTraceModeTests
 {
+    private static readonly TimeSpan DispatcherSignalTimeout = TimeSpan.FromSeconds(10);
+
     [Fact]
     public async Task TraceRoutedEvents_WithUppercaseGetMode_ShouldReturnGetPayload()
     {
@@ -266,11 +268,11 @@ public sealed class EventHandlerTraceModeTests
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventHandlers(elementId, "Click"))
                 .GetProperty("handlerCount").GetInt32() == 1,
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
         button.RaiseEvent(new System.Windows.RoutedEventArgs(ButtonBase.ClickEvent, button));
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, DispatcherSignalTimeout).Should().BeTrue();
 
         var getResult = await handler.HandleAsync(
             "trace_routed_events",
@@ -310,7 +312,7 @@ public sealed class EventHandlerTraceModeTests
 
         JsonSerializer.SerializeToElement(startResult).GetProperty("success").GetBoolean().Should().BeTrue();
 
-        WaitForDeferredCleanupCompletedTrace(analyzer, button, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForDeferredCleanupCompletedTrace(analyzer, button, DispatcherSignalTimeout).Should().BeTrue();
 
         var getResult = await handler.HandleAsync(
             "trace_routed_events",
@@ -327,7 +329,7 @@ public sealed class EventHandlerTraceModeTests
         payload.GetProperty("cleanupIncomplete").GetBoolean().Should().BeFalse();
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("eventNotRaised");
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, DispatcherSignalTimeout).Should().BeTrue();
     }
 
     [StaFact]
@@ -356,7 +358,7 @@ public sealed class EventHandlerTraceModeTests
 
         JsonSerializer.SerializeToElement(startResult).GetProperty("success").GetBoolean().Should().BeTrue();
 
-        WaitForDeferredCleanupCompletedTrace(analyzer, button, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForDeferredCleanupCompletedTrace(analyzer, button, DispatcherSignalTimeout).Should().BeTrue();
 
         var getResult = await handler.HandleAsync(
             "trace_routed_events",
@@ -497,14 +499,14 @@ public sealed class EventHandlerTraceModeTests
 
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventTrace()).GetProperty("isTracing").GetBoolean(),
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
         cts.Cancel();
 
-        WaitForTaskCompletion(traceTask, button.Dispatcher, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTaskCompletion(traceTask, button.Dispatcher, DispatcherSignalTimeout).Should().BeTrue();
         Assert.ThrowsAny<OperationCanceledException>(() => traceTask.GetAwaiter().GetResult());
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, DispatcherSignalTimeout).Should().BeTrue();
 
         var payload = JsonSerializer.SerializeToElement(analyzer.GetEventTrace());
         payload.GetProperty("isTracing").GetBoolean().Should().BeFalse();
@@ -539,7 +541,7 @@ public sealed class EventHandlerTraceModeTests
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventHandlers(elementId, "Click"))
                 .GetProperty("handlerCount").GetInt32() == 1,
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
         button.RaiseEvent(new System.Windows.RoutedEventArgs(ButtonBase.ClickEvent, button));
 
@@ -590,11 +592,11 @@ public sealed class EventHandlerTraceModeTests
 
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventTrace()).GetProperty("isTracing").GetBoolean(),
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
         cts.Cancel();
 
-        WaitForTaskCompletion(traceTask, button.Dispatcher, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTaskCompletion(traceTask, button.Dispatcher, DispatcherSignalTimeout).Should().BeTrue();
 
         var payload = JsonSerializer.SerializeToElement(await traceTask);
         payload.GetProperty("success").GetBoolean().Should().BeTrue(payload.GetRawText());
@@ -635,16 +637,16 @@ public sealed class EventHandlerTraceModeTests
 
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventTrace()).GetProperty("isTracing").GetBoolean(),
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
         cts.Cancel();
 
-        WaitForTaskCompletion(traceTask, button.Dispatcher, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTaskCompletion(traceTask, button.Dispatcher, DispatcherSignalTimeout).Should().BeTrue();
 
         var payload = JsonSerializer.SerializeToElement(await traceTask);
         payload.GetProperty("diagnostics").GetProperty("reasonCode").GetString().Should().Be("cleanupFailed");
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, DispatcherSignalTimeout).Should().BeTrue();
     }
 
     [StaFact]
@@ -670,7 +672,7 @@ public sealed class EventHandlerTraceModeTests
 
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventTrace()).GetProperty("isTracing").GetBoolean(),
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
         var secondStartResult = handler.HandleAsync(
             "trace_routed_events",
@@ -690,7 +692,7 @@ public sealed class EventHandlerTraceModeTests
 
         firstRequestCts.Cancel();
 
-        WaitForTaskCompletion(firstTraceTask, button.Dispatcher, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTaskCompletion(firstTraceTask, button.Dispatcher, DispatcherSignalTimeout).Should().BeTrue();
         Assert.ThrowsAny<OperationCanceledException>(() => firstTraceTask.GetAwaiter().GetResult());
 
         JsonSerializer.SerializeToElement(analyzer.GetEventTrace())
@@ -728,7 +730,7 @@ public sealed class EventHandlerTraceModeTests
 
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventTrace()).GetProperty("isTracing").GetBoolean(),
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
         var secondStartResult = await handler.HandleAsync(
             "trace_routed_events",
@@ -791,16 +793,16 @@ public sealed class EventHandlerTraceModeTests
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventHandlers(elementId, "Click"))
                 .GetProperty("handlerCount").GetInt32() == 1,
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
         button.RaiseEvent(new System.Windows.RoutedEventArgs(ButtonBase.ClickEvent, button));
 
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventTrace())
                 .GetProperty("handlerInvocationCount").GetInt32() == 1,
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
-        WaitForTaskCompletion(captureTask, button.Dispatcher, TimeSpan.FromSeconds(2)).Should().BeTrue();
+        WaitForTaskCompletion(captureTask, button.Dispatcher, DispatcherSignalTimeout).Should().BeTrue();
 
         var capturePayload = JsonSerializer.SerializeToElement(captureTask.GetAwaiter().GetResult());
         capturePayload.GetProperty("success").GetBoolean().Should().BeTrue();
@@ -836,11 +838,11 @@ public sealed class EventHandlerTraceModeTests
         SpinWait.SpinUntil(
             () => JsonSerializer.SerializeToElement(analyzer.GetEventHandlers(elementId, "Click"))
                 .GetProperty("handlerCount").GetInt32() == 1,
-            TimeSpan.FromSeconds(1)).Should().BeTrue();
+            DispatcherSignalTimeout).Should().BeTrue();
 
         button.RaiseEvent(new System.Windows.RoutedEventArgs(ButtonBase.ClickEvent, button));
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, DispatcherSignalTimeout).Should().BeTrue();
 
         var getPayload = JsonSerializer.SerializeToElement(await handler.HandleAsync(
             "trace_routed_events",

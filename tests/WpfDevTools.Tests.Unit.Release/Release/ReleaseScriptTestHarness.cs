@@ -585,6 +585,7 @@ internal static class ReleaseScriptTestHarness
         var hasParamBlock = HasPowerShellParamBlock(File.ReadAllText(scriptPath));
         var preserveLastExitCode = ShouldPreserveLastExitCode(scriptPath);
         var invocation = new StringBuilder();
+        invocation.Append(GetPowerShellProcessBootstrapCommand());
         invocation.Append("$sourceScriptPath = ");
         invocation.Append(QuotePowerShellString(scriptPath));
         invocation.Append("; $scriptDirectory = Split-Path -Parent $sourceScriptPath; ");
@@ -703,8 +704,8 @@ internal static class ReleaseScriptTestHarness
         }
 
         var commandText = string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal)
-            ? "$script:WpfDevToolsInstallerTestModeHarnessEnabled = $true; $script:WpfDevToolsInstallerTestModeEnabled = $true; " + command
-            : command;
+            ? GetPowerShellProcessBootstrapCommand() + "$script:WpfDevToolsInstallerTestModeHarnessEnabled = $true; $script:WpfDevToolsInstallerTestModeEnabled = $true; " + command
+            : GetPowerShellProcessBootstrapCommand() + command;
         startInfo.ArgumentList.Add(commandText);
 
         try
@@ -719,6 +720,13 @@ internal static class ReleaseScriptTestHarness
 
     public static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
+
+    private static string GetPowerShellProcessBootstrapCommand()
+        => string.Join(" ",
+            "Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity -ErrorAction SilentlyContinue;",
+            "Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop;",
+            "Import-Module Microsoft.PowerShell.Security -ErrorAction Stop;",
+            "if ($null -ne (Get-PSProvider Certificate -ErrorAction SilentlyContinue) -and $null -eq (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) { New-PSDrive -Name Cert -PSProvider Certificate -Root '\\' -ErrorAction Stop | Out-Null };");
 
     private static (string EnvironmentRoot, bool OwnsEnvironmentRoot) ResolveProcessEnvironmentRoot(
         IReadOnlyDictionary<string, string?>? environmentOverrides)

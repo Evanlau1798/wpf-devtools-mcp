@@ -194,6 +194,26 @@ function Get-ReleaseArchives {
     return @(Get-ChildItem -Path $Root -Filter 'release_*.zip' -File | Sort-Object Name)
 }
 
+function Get-Sha256FileHashHex {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    if (Get-Command Get-FileHash -ErrorAction SilentlyContinue) {
+        return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+    }
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($stream)
+    }
+    finally {
+        $sha256.Dispose()
+        $stream.Dispose()
+    }
+
+    return (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+
 $archiveRootFullPath = (Resolve-Path $ArchiveRoot).Path
 $trustPolicy = Resolve-ReleaseTrustPolicy -TrustedThumbprint $TrustedSignerThumbprint -PolicyPath $TrustPolicyPath
 $archives = Get-ReleaseArchives -Root $archiveRootFullPath
@@ -202,7 +222,7 @@ if ($archives.Count -eq 0) {
 }
 
 $assets = foreach ($archive in $archives) {
-    $hash = (Get-FileHash -Path $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    $hash = Get-Sha256FileHashHex -Path $archive.FullName
     $signerMetadata = Get-ArchiveSignerMetadata -ArchivePath $archive.FullName
     $signerTrustPolicy = Assert-ArchiveSignerTrustPolicy -SignerMetadata $signerMetadata -TrustPolicy $trustPolicy -ArchiveName $archive.Name
     [pscustomobject]@{

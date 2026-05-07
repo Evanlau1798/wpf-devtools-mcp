@@ -29,6 +29,7 @@ public sealed class InstallerCliCommandResolutionTests
                 Environment.NewLine,
                 [
                     ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Registration.ps1").Replace("'", "''") + "'",
+                    "$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED = '0'",
                     "function Get-Command { param([string]$Name) if ($Name -eq 'codex') { return [pscustomobject]@{ Path='" + trustedCommandPath.Replace("'", "''") + "'; Source='" + trustedCommandPath.Replace("'", "''") + "'; Definition='" + trustedCommandPath.Replace("'", "''") + "'; Name='codex' } } throw 'unexpected command lookup' }",
                     "function codex { throw 'Invoke-RegistrationCommand must not execute the command name after resolution.' }",
                     "$result = Invoke-RegistrationCommand -Command 'codex' -Arguments @('mcp', 'add', 'wpf-devtools', '--', 'server.exe') -ClientName 'codex'",
@@ -71,6 +72,7 @@ public sealed class InstallerCliCommandResolutionTests
                 Environment.NewLine,
                 [
                     ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Registration.ps1").Replace("'", "''") + "'",
+                    "$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED = '0'",
                     "function Get-Command { param([string]$Name) if ($Name -eq 'claude') { return [pscustomobject]@{ Path='" + trustedCommandPath.Replace("'", "''") + "'; Source='" + trustedCommandPath.Replace("'", "''") + "'; Definition='" + trustedCommandPath.Replace("'", "''") + "'; Name='claude' } } throw 'unexpected command lookup' }",
                     "function claude { throw 'Invoke-OptionalRemovalCommand must not execute the command name after resolution.' }",
                     "$result = Invoke-OptionalRemovalCommand -Command 'claude' -Arguments @('mcp', 'remove', 'wpf-devtools') -ClientName 'claude-code'",

@@ -106,7 +106,21 @@ function Get-ReleaseArchiveIdentity {
 function Get-ArchiveSha256 {
     param([Parameter(Mandatory)] [string]$ArchivePath)
 
-    return (Get-FileHash -Algorithm SHA256 -Path $ArchivePath).Hash.ToLowerInvariant()
+    if (Get-Command Get-FileHash -ErrorAction SilentlyContinue) {
+        return (Get-FileHash -Algorithm SHA256 -LiteralPath $ArchivePath).Hash.ToLowerInvariant()
+    }
+
+    $stream = [System.IO.File]::OpenRead($ArchivePath)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($stream)
+    }
+    finally {
+        $sha256.Dispose()
+        $stream.Dispose()
+    }
+
+    return (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
 }
 
 function Normalize-SignerThumbprint {

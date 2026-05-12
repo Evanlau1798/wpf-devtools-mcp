@@ -1,0 +1,259 @@
+param(
+    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull')]
+    [string]$Mode = 'FocusedFlakes',
+
+    [ValidateRange(1, 100)]
+    [int]$Repeat = 1,
+
+    [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
+
+    [string]$WorkRoot = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path 'tmp\sandbox-ci'),
+
+    [ValidateRange(1, 86400)]
+    [int]$WaitTimeoutSeconds = 7200,
+
+    [switch]$GenerateOnly,
+
+    [switch]$NoWait
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+function Convert-ToXmlEscapedValue {
+    param([Parameter(Mandatory = $true)] [string]$Value)
+
+    return [System.Security.SecurityElement]::Escape($Value)
+}
+
+function Resolve-WindowsSandboxPath {
+    $command = Get-Command 'WindowsSandbox.exe' -ErrorAction SilentlyContinue
+    if ($null -eq $command) {
+        return $null
+    }
+
+    return [string]$command.Source
+}
+
+function Resolve-GitInstallRoot {
+    $command = Get-Command 'git.exe' -ErrorAction SilentlyContinue
+    if ($null -eq $command) {
+        return $null
+    }
+
+    $gitCommandPath = [System.IO.Path]::GetFullPath([string]$command.Source)
+    $candidateRoot = Split-Path $gitCommandPath -Parent
+    while (-not [string]::IsNullOrWhiteSpace($candidateRoot)) {
+        if (Test-Path -LiteralPath (Join-Path $candidateRoot 'cmd\git.exe')) {
+            return $candidateRoot
+        }
+
+        $parent = Split-Path $candidateRoot -Parent
+        if ([string]::Equals($parent, $candidateRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+
+        $candidateRoot = $parent
+    }
+
+    return $null
+}
+
+function Resolve-VisualStudioInstallRoot {
+    $vswherePath = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (Test-Path -LiteralPath $vswherePath) {
+        $installPath = & $vswherePath -latest -products * -requires Microsoft.Component.MSBuild -property installationPath 2>$null | Select-Object -First 1
+        if (-not [string]::IsNullOrWhiteSpace($installPath) -and (Test-Path -LiteralPath $installPath -PathType Container)) {
+            return [System.IO.Path]::GetFullPath([string]$installPath)
+        }
+    }
+
+    $msbuildCommand = Get-Command 'MSBuild.exe' -ErrorAction SilentlyContinue
+    if ($null -ne $msbuildCommand) {
+        $candidateRoot = Split-Path ([System.IO.Path]::GetFullPath([string]$msbuildCommand.Source)) -Parent
+        while (-not [string]::IsNullOrWhiteSpace($candidateRoot)) {
+            if (Test-Path -LiteralPath (Join-Path $candidateRoot 'MSBuild\Current\Bin\MSBuild.exe')) {
+                return $candidateRoot
+            }
+
+            $parent = Split-Path $candidateRoot -Parent
+            if ([string]::Equals($parent, $candidateRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                break
+            }
+
+            $candidateRoot = $parent
+        }
+    }
+
+    return $null
+}
+
+function New-MappedFolderXml {
+    param(
+        [Parameter(Mandatory = $true)] [string]$HostFolder,
+        [string]$SandboxFolder,
+        [bool]$ReadOnly = $true
+    )
+
+    if (-not (Test-Path -LiteralPath $HostFolder -PathType Container)) {
+        return ''
+    }
+
+    $sandboxFolderXml = if ([string]::IsNullOrWhiteSpace($SandboxFolder)) {
+        ''
+    }
+    else {
+        "`n      <SandboxFolder>$(Convert-ToXmlEscapedValue $SandboxFolder)</SandboxFolder>"
+    }
+
+    $readOnlyText = if ($ReadOnly) { 'true' } else { 'false' }
+    return @"
+    <MappedFolder>
+      <HostFolder>$(Convert-ToXmlEscapedValue ([System.IO.Path]::GetFullPath($HostFolder)))</HostFolder>$sandboxFolderXml
+      <ReadOnly>$readOnlyText</ReadOnly>
+    </MappedFolder>
+"@
+}
+
+$repoRootPath = [System.IO.Path]::GetFullPath($RepoRoot)
+$workRootPath = [System.IO.Path]::GetFullPath($WorkRoot)
+$sandboxWorkPath = Join-Path $workRootPath 'work'
+$sandboxOutputPath = Join-Path $workRootPath 'output'
+$timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$runId = [guid]::NewGuid().ToString('N')
+$configPath = Join-Path $workRootPath ("WpfDevTools-LocalCi-{0}.wsb" -f $timestamp)
+$resultPath = Join-Path $sandboxOutputPath 'last-result.txt'
+
+New-Item -ItemType Directory -Force -Path $sandboxWorkPath | Out-Null
+New-Item -ItemType Directory -Force -Path $sandboxOutputPath | Out-Null
+Remove-Item -LiteralPath $resultPath -Force -ErrorAction SilentlyContinue
+
+$sandboxRepoPath = 'C:\r'
+$sandboxWorkMappedPath = 'C:\w'
+$sandboxOutputMappedPath = 'C:\o'
+$bootstrapPath = Join-Path $sandboxRepoPath 'scripts\ci\Start-SandboxCi.ps1'
+$gitInstallRoot = Resolve-GitInstallRoot
+$gitMappedFolder = if ([string]::IsNullOrWhiteSpace($gitInstallRoot)) {
+    ''
+}
+else {
+    New-MappedFolderXml -HostFolder $gitInstallRoot -SandboxFolder 'C:\Git'
+}
+
+$visualStudioInstallRoot = Resolve-VisualStudioInstallRoot
+$vsInstallerRoot = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer'
+$windowsKitsRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10'
+$netFxSdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\NETFXSDK'
+$referenceAssembliesRoot = Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies'
+$microsoftSdksRoot = Join-Path ${env:ProgramFiles(x86)} 'Microsoft SDKs'
+$nativeMappedFolders = @(
+    if (-not [string]::IsNullOrWhiteSpace($visualStudioInstallRoot)) {
+        New-MappedFolderXml -HostFolder $visualStudioInstallRoot -SandboxFolder $visualStudioInstallRoot
+    }
+    New-MappedFolderXml -HostFolder $vsInstallerRoot -SandboxFolder $vsInstallerRoot
+    New-MappedFolderXml -HostFolder $windowsKitsRoot -SandboxFolder $windowsKitsRoot
+    New-MappedFolderXml -HostFolder $windowsKitsRoot
+    New-MappedFolderXml -HostFolder $netFxSdkRoot -SandboxFolder $netFxSdkRoot
+    New-MappedFolderXml -HostFolder $netFxSdkRoot
+    New-MappedFolderXml -HostFolder $referenceAssembliesRoot -SandboxFolder $referenceAssembliesRoot
+    New-MappedFolderXml -HostFolder $microsoftSdksRoot -SandboxFolder $microsoftSdksRoot
+    New-MappedFolderXml -HostFolder $microsoftSdksRoot
+) -join ''
+
+$trackedFilesPath = Join-Path $sandboxWorkPath 'git-tracked-files.txt'
+$gitForManifest = Get-Command 'git.exe' -ErrorAction SilentlyContinue
+if ($null -ne $gitForManifest) {
+    $trackedFiles = @(& $gitForManifest.Source -C $repoRootPath ls-files 2>$null)
+    if ($LASTEXITCODE -eq 0) {
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllLines($trackedFilesPath, [string[]]$trackedFiles, $utf8NoBom)
+    }
+}
+
+$command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$bootstrapPath`" -Mode $Mode -Repeat $Repeat -MappedRepoRoot `"$sandboxRepoPath`" -MappedWorkRoot `"$sandboxWorkMappedPath`" -MappedOutputRoot `"$sandboxOutputMappedPath`" -RunId $runId"
+
+$config = @"
+<Configuration>
+  <VGpu>Enable</VGpu>
+  <Networking>Enable</Networking>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>$(Convert-ToXmlEscapedValue $repoRootPath)</HostFolder>
+      <SandboxFolder>$(Convert-ToXmlEscapedValue $sandboxRepoPath)</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>$(Convert-ToXmlEscapedValue $sandboxWorkPath)</HostFolder>
+      <SandboxFolder>$(Convert-ToXmlEscapedValue $sandboxWorkMappedPath)</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>$(Convert-ToXmlEscapedValue $sandboxOutputPath)</HostFolder>
+      <SandboxFolder>$(Convert-ToXmlEscapedValue $sandboxOutputMappedPath)</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+$gitMappedFolder$nativeMappedFolders
+  </MappedFolders>
+  <LogonCommand>
+    <Command>$(Convert-ToXmlEscapedValue $command)</Command>
+  </LogonCommand>
+</Configuration>
+"@
+
+Set-Content -LiteralPath $configPath -Value $config -Encoding UTF8
+
+Write-Host "Windows Sandbox config: $configPath"
+Write-Host "Sandbox work root: $sandboxWorkPath"
+Write-Host "Sandbox output root: $sandboxOutputPath"
+if (-not [string]::IsNullOrWhiteSpace($gitInstallRoot)) {
+  Write-Host "Mapped Git root: $gitInstallRoot"
+}
+if (-not [string]::IsNullOrWhiteSpace($visualStudioInstallRoot)) {
+  Write-Host "Mapped Visual Studio root: $visualStudioInstallRoot"
+}
+Write-Host "Mode: $Mode"
+Write-Host "Run ID: $runId"
+Write-Host "Repeat: $Repeat"
+
+if ($GenerateOnly) {
+    Write-Host 'GenerateOnly was specified; not launching Windows Sandbox.'
+    return
+}
+
+$sandboxPath = Resolve-WindowsSandboxPath
+if ([string]::IsNullOrWhiteSpace($sandboxPath)) {
+    throw 'WindowsSandbox.exe was not found. Enable Windows Sandbox from Windows Features, reboot, then rerun this script. The .wsb file was still generated.'
+}
+
+Start-Process -FilePath $sandboxPath -ArgumentList @("`"$configPath`"") | Out-Null
+
+if ($NoWait) {
+    return
+}
+
+$deadline = [DateTime]::UtcNow.AddSeconds($WaitTimeoutSeconds)
+while ([DateTime]::UtcNow -lt $deadline) {
+    if (Test-Path -LiteralPath $resultPath) {
+        try {
+            $result = (Get-Content -LiteralPath $resultPath -Raw).Trim()
+        }
+        catch [System.IO.IOException], [System.UnauthorizedAccessException] {
+            Start-Sleep -Seconds 1
+            continue
+        }
+
+        if ($result.StartsWith("PASS $runId ", [System.StringComparison]::Ordinal)) {
+            Write-Host $result
+            return
+        }
+
+        if ($result.StartsWith("FAIL $runId ", [System.StringComparison]::Ordinal)) {
+            throw $result
+        }
+    }
+
+    Start-Sleep -Seconds 5
+}
+
+$cleanupCommand = ".\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot `"$sandboxOutputPath`" -WhatIf"
+throw "Timed out waiting for Windows Sandbox CI result after $WaitTimeoutSeconds seconds. RunId: $runId. Inspect cleanup candidates with: $cleanupCommand. Remove -WhatIf only after verifying the candidates are Windows Sandbox compute systems."

@@ -70,12 +70,15 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;_CRT_SECURE_NO_WARNINGS;NETHOST_USE_AS_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat Condition="'$(BootstrapperDebugInformationFormat)' != ''">$(BootstrapperDebugInformationFormat)</DebugInformationFormat>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(NetHostAssetsDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation Condition="'$(BootstrapperGenerateDebugInformation)' == ''">true</GenerateDebugInformation>
+      <GenerateDebugInformation Condition="'$(BootstrapperGenerateDebugInformation)' != ''">$(BootstrapperGenerateDebugInformation)</GenerateDebugInformation>
+      <ProgramDatabaseFile Condition="'$(BootstrapperGenerateDebugInformation)' == 'false'"></ProgramDatabaseFile>
       <ModuleDefinitionFile>exports.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>$(NetHostAssetsDir);$(NetFxSdkLibraryDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libnethost.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -102,6 +105,9 @@
     <ClInclude Include="exit_codes.h" />
     <ClInclude Include="clr_hosting.h" />
     <ClInclude Include="coreclr_hosting.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="bootstrapper.rc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="exports.def" />

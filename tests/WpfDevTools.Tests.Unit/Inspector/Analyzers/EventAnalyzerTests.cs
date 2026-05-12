@@ -15,6 +15,7 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 [Collection("TimingSensitive")]
 public class EventAnalyzerTests
 {
+    private static readonly TimeSpan DispatcherSignalTimeout = TimeSpan.FromSeconds(10);
 
     [StaFact]
     public void TraceRoutedEvents_WithValidElement_ShouldStartTracing()
@@ -541,7 +542,7 @@ public class EventAnalyzerTests
 
         analyzer.TraceRoutedEvents(buttonElementId, "Click", 100);
 
-        WaitForTraceCleanup(analyzer, button, buttonElementId, TimeSpan.FromSeconds(3)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, buttonElementId, DispatcherSignalTimeout).Should().BeTrue();
 
         JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(analyzer.GetEventHandlers(buttonElementId, "Click")))
             .GetProperty("handlerCount").GetInt32().Should().Be(0);

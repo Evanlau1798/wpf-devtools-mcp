@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -1238,7 +1239,8 @@ internal static class ReleaseScriptTestHarness
         while (current is not null)
         {
             if (File.Exists(Path.Combine(current.FullName, ".git")) ||
-                Directory.Exists(Path.Combine(current.FullName, ".git")))
+                Directory.Exists(Path.Combine(current.FullName, ".git")) ||
+                File.Exists(Path.Combine(current.FullName, "WpfDevTools.sln")))
             {
                 return current.FullName;
             }
@@ -1258,7 +1260,7 @@ internal static class ReleaseScriptTestHarness
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
-        var effectiveTimeout = timeout ?? DefaultProcessTimeout;
+        var effectiveTimeout = ScaleTimeout(timeout ?? DefaultProcessTimeout);
         var timeoutMilliseconds = effectiveTimeout.TotalMilliseconds > int.MaxValue
             ? int.MaxValue
             : (int)Math.Ceiling(effectiveTimeout.TotalMilliseconds);
@@ -1298,6 +1300,18 @@ internal static class ReleaseScriptTestHarness
         }
 
         return (process.ExitCode, stdout, stderr);
+    }
+
+    private static TimeSpan ScaleTimeout(TimeSpan timeout)
+    {
+        var rawScale = Environment.GetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE");
+        if (!double.TryParse(rawScale, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale) || scale <= 1)
+        {
+            return timeout;
+        }
+
+        scale = Math.Min(scale, 10);
+        return TimeSpan.FromMilliseconds(timeout.TotalMilliseconds * scale);
     }
 
     private static void TryKillProcessTree(Process process)

@@ -29,9 +29,13 @@ public sealed class InstallerCursorClientInstallTests
             Directory.CreateDirectory(appData);
             Directory.CreateDirectory(localAppData);
             Directory.CreateDirectory(userProfile);
+            var toolShimDirectory = Path.Combine(tempRoot, "tools");
+            Directory.CreateDirectory(toolShimDirectory);
+            File.WriteAllText(Path.Combine(toolShimDirectory, "codex.cmd"), "@echo off\r\nexit /b 0\r\n");
 
             var result = RunInteractiveInstaller(tempRoot, appData, localAppData, userProfile, new[]
             {
+                "$env:PATH='" + toolShimDirectory.Replace("'", "''") + ";' + $env:PATH",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",

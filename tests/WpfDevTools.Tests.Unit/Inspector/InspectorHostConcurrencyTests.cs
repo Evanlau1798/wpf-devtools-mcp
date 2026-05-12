@@ -18,6 +18,8 @@ namespace WpfDevTools.Tests.Unit.Inspector;
 [Collection("InspectorHostLifecycle")]
 public class InspectorHostConcurrencyTests : IDisposable
 {
+    private static readonly TimeSpan SignalTimeout = TimeSpan.FromSeconds(10);
+
     private readonly Action _originalResetMonitoringAction;
     private readonly Action _originalStopAllWatchersAction;
     private readonly Action _originalUninstallBindingTraceListenerAction;
@@ -451,7 +453,7 @@ public class InspectorHostConcurrencyTests : IDisposable
 
         var startTask = Task.Run(() => host.Start());
 
-        beforeStartupCompletionEntered.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+        beforeStartupCompletionEntered.Wait(SignalTimeout).Should().BeTrue();
 
         var concurrentStartTask = Task.Run(() => host.Start());
         await Task.Delay(100);

@@ -51,6 +51,21 @@ public sealed class InstallerTuiHelperPackagingTests
     }
 
     [Fact]
+    public void InstallerHelperBundle_ShouldPinGitLineEndingsForManifestIntegrity()
+    {
+        var attributesPath = ReleaseScriptTestHarness.GetRepoFilePath(".gitattributes");
+
+        File.Exists(attributesPath).Should().BeTrue();
+        var attributes = File.ReadAllLines(attributesPath)
+            .Select(static line => line.Trim())
+            .Where(static line => line.Length > 0 && !line.StartsWith('#'))
+            .ToArray();
+
+        attributes.Should().Contain("/scripts/installer/** text eol=lf");
+        attributes.Should().Contain("/scripts/online-installer.ps1 text eol=lf");
+    }
+
+    [Fact]
     public void PackageArchive_ShouldContainPseudoWindowHelpers()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

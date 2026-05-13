@@ -54,6 +54,32 @@ Unit 與 integration suites 會啟用 collection-level parallelization，並用 
 - 除非某個 collection 不能和任何其他 collection 同時執行，否則避免設定 `DisableParallelization = true`
 - 避免把不相關的慢測試放進過寬的 serial lane；如果較小的 collection 就能保留隔離性，應讓其他 lanes 可以同時執行
 
+## Windows Sandbox 模擬 CI
+
+在 release 或 native verification 相關變更消耗 hosted CI 時數前，優先使用 Windows Sandbox harness 進行本機驗證。Sandbox runner 會以唯讀方式映射 repository，把一次性狀態寫到 `tmp/sandbox-ci`，並執行與 GitLab/GitHub jobs 對齊的 CI PowerShell 入口。
+
+建議的完整本機 smoke：
+
+```powershell
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode NativeSmoke -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
+```
+
+較快的切片驗證：
+
+```powershell
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode UnitDebug -UnitDebugShardCount 4 -MaxParallelLanes 4
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode UnitRelease -ReleaseUnitShardCount 8 -MaxParallelLanes 4
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode FullManaged -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
+```
+
+操作注意事項：
+
+- `NativeSmoke` 會驗證 native compile/resource/archive 覆蓋，接著執行 managed debug 與 release unit shards。它刻意略過在 Windows Sandbox 內較不穩定的 native DLL link 路徑。
+- 結果與 logs 會寫入 `tmp/sandbox-ci/output`；產生的 `.wsb` 與 mapped work state 都是可丟棄狀態。
+- 只想檢查 sandbox 設定檔時可加上 `-GenerateOnly`，避免實際啟動 Windows Sandbox。
+- 不要把 `taskkill` 當成 Windows Sandbox 的主要清理機制。請優先使用 tracked `.\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot .\tmp\sandbox-ci\output` script，讓清理明確針對 Windows Sandbox HCS compute systems。如果既有本機 worktree 已經有 `tmp\sandbox-ci\Kill-WindowsSandboxHcs.ps1`，該 ignored helper 也可用於同樣目的，但它不是 tracked source artifact。
+- 如果機器剛開機且尚未啟動過 Windows Sandbox，任何無關的 HCS objects 都應視為非本次 sandbox 測試殘留；移除前請先用 `-WhatIf` 檢查候選項目。
+
 ## 涉及 installer 與 client registration 的變更
 
 Installer 驗證必須同時涵蓋 registration metadata 與可執行的 MCP server 契約：

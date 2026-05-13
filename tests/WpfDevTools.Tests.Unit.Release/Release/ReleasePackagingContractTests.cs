@@ -430,8 +430,7 @@ public sealed partial class ReleasePackagingContractTests
     [Fact]
     public void ReleaseScriptHarness_ShouldPrepareCertificateProviderAndCleanupSelfSignedFallbackFailures()
     {
-        var harnessSource = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(
-            Path.Combine("tests", "WpfDevTools.Tests.Unit.Release", "Release", "ReleaseScriptTestHarness.cs")));
+        var harnessSource = ReleaseScriptHarnessSource.ReadAll();
 
         harnessSource.Should().Contain("Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity");
         harnessSource.Should().Contain("Import-Module Microsoft.PowerShell.Security -ErrorAction Stop");

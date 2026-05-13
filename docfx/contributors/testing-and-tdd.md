@@ -54,6 +54,32 @@ The unit and integration suites enable collection-level parallelization with CPU
 - avoid setting `DisableParallelization = true` unless a collection must not run beside any other collection
 - avoid moving unrelated slow tests into a broad serial lane when a smaller collection can preserve isolation and still allow other lanes to run concurrently
 
+## Windows Sandbox CI simulation
+
+Use the Windows Sandbox harness before spending hosted CI minutes on release or native verification changes. The sandbox runner maps the repository read-only, writes disposable state under `tmp/sandbox-ci`, and runs the same CI-oriented PowerShell entrypoints that GitLab/GitHub jobs use.
+
+Recommended full local smoke:
+
+```powershell
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode NativeSmoke -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
+```
+
+Useful faster slices:
+
+```powershell
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode UnitDebug -UnitDebugShardCount 4 -MaxParallelLanes 4
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode UnitRelease -ReleaseUnitShardCount 8 -MaxParallelLanes 4
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode FullManaged -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
+```
+
+Operational notes:
+
+- `NativeSmoke` validates native compile/resource/archive coverage, then runs managed debug and release unit shards. It intentionally skips the sandbox-specific native DLL link path that is less reliable under Windows Sandbox.
+- Results and logs are written under `tmp/sandbox-ci/output`; generated `.wsb` files and mapped work state are disposable.
+- Use `-GenerateOnly` when reviewing the generated sandbox configuration without launching Windows Sandbox.
+- Do not use `taskkill` as the primary cleanup mechanism for Windows Sandbox. Use the tracked `.\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot .\tmp\sandbox-ci\output` script so cleanup targets Windows Sandbox HCS compute systems explicitly. If an existing local worktree already has `tmp\sandbox-ci\Kill-WindowsSandboxHcs.ps1`, that ignored helper can be used for the same purpose, but it is not a tracked source artifact.
+- If the machine was freshly booted and Windows Sandbox has not been launched yet, treat any unrelated HCS objects as out of scope. Inspect with `-WhatIf` first before removing candidates.
+
 ## For installer and client registration changes
 
 Installer validation must cover both the registration metadata and the runnable MCP server contract:

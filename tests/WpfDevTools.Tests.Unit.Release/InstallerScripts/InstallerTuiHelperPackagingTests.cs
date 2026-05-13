@@ -86,8 +86,7 @@ public sealed class InstallerTuiHelperPackagingTests
     [Fact]
     public void ReleaseScriptHarness_ShouldBuildArchivesFromInstallerHelperManifest()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("tests/WpfDevTools.Tests.Unit.Release/Release/ReleaseScriptTestHarness.cs"));
+        var content = ReleaseScriptHarnessSource.ReadAll();
 
         content.Should().Contain("installer-helpers.manifest.json");
         content.Should().Contain("GetInstallerHelperFiles");

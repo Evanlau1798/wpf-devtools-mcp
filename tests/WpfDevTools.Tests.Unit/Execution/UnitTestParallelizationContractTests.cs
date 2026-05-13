@@ -118,6 +118,19 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
+    public void InspectorSdkDispatcherLifecycleTests_ShouldUseGenerousAsyncGuards()
+    {
+        var source = ReadRepoFile(
+            "tests/WpfDevTools.Tests.Unit/InspectorSdk/InspectorSdkDispatcherLifecycleTests.cs");
+
+        source.Should().NotContain("WaitAsync(TimeSpan.FromSeconds(3))",
+            "slow Windows CI runners can delay timer continuations long enough for a tight outer guard to hide the SDK timeout being asserted");
+        source.Should().NotContain("WaitAsync(TimeSpan.FromSeconds(2))",
+            "timeout-boundary tests also need the outer guard to be wider than the SDK deadline under VM contention");
+        source.Should().Contain("WaitAsync(TimeSpan.FromSeconds(10))");
+    }
+
+    [Fact]
     public void ProcessEnvironmentCollection_ShouldDisableParallelization()
     {
         var collectionType = typeof(SignaturePolicyTests).Assembly

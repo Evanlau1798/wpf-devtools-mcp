@@ -93,7 +93,7 @@ public sealed class InspectorSdkDispatcherLifecycleTests
 
             hostStarted.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
             var exception = await Assert.ThrowsAsync<TimeoutException>(
-                () => initializeTask.WaitAsync(TimeSpan.FromSeconds(3)));
+                () => initializeTask.WaitAsync(TimeSpan.FromSeconds(10)));
             exception.Message.Should().Contain("while completing WpfDevTools Inspector SDK initialization");
 
             releaseInitialization.Set();
@@ -159,7 +159,7 @@ public sealed class InspectorSdkDispatcherLifecycleTests
             initializationQueued.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
 
             var exception = await Assert.ThrowsAsync<TimeoutException>(
-                () => initializeTask.WaitAsync(TimeSpan.FromSeconds(2)));
+                () => initializeTask.WaitAsync(TimeSpan.FromSeconds(10)));
             var isDispatcherDeadlineTimeout =
                 exception.Message.Contains("while marshaling WpfDevTools Inspector SDK initialization", StringComparison.Ordinal) ||
                 exception.Message.Contains("while completing WpfDevTools Inspector SDK initialization", StringComparison.Ordinal);

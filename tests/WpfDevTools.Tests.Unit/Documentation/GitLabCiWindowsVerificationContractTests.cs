@@ -22,6 +22,27 @@ public sealed class GitLabCiWindowsVerificationContractTests
     }
 
     [Fact]
+    public void GitLabWindowsCi_ShouldFailFastWhenManagedTestLanesReportErrors()
+    {
+        var ci = File.ReadAllText(Path.Combine(RepoRoot, ".gitlab-ci.yml"));
+
+        ci.Should().Contain("try {");
+        ci.Should().Contain("catch {");
+        ci.Should().Contain("Managed test lanes $configuration failed");
+        ci.Should().NotContain("Assert-NoPowerShellErrors");
+        ci.Should().NotContain("$Error.Count");
+    }
+
+    [Fact]
+    public void GitLabWindowsCi_ShouldRunDebugUnitShardsOneLaneAtATime()
+    {
+        var ci = File.ReadAllText(Path.Combine(RepoRoot, ".gitlab-ci.yml"));
+
+        ci.Should().Contain("Invoke-UnitDebugTests");
+        ci.Should().Contain("-MaxParallelLanes 1");
+    }
+
+    [Fact]
     public void SandboxManagedScript_ShouldSupportConfiguredManagedTestShards()
     {
         var managed = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Managed.ps1"));

@@ -176,15 +176,25 @@ windows_x64_build_and_test:
               '-p:UseSharedCompilation=false'
           )
 
-          Invoke-ManagedTestLanes `
-              -DotNetPath $dotnetPath `
-              -ResultsRoot $script:MappedOutputRoot `
-              -Configuration $configuration `
-              -MaxParallelLanes 4 `
-              -UnitDebugShardCount 4 `
-              -ReleaseUnitShardCount 8 `
-              -IncludeUnitDebug `
-              -IncludeReleaseUnit
+          try {
+              Invoke-UnitDebugTests `
+                  -DotNetPath $dotnetPath `
+                  -ResultsRoot $script:MappedOutputRoot `
+                  -Configuration $configuration `
+                  -MaxParallelLanes 1 `
+                  -UnitDebugShardCount 4
+
+              Invoke-ManagedTestLanes `
+                  -DotNetPath $dotnetPath `
+                  -ResultsRoot $script:MappedOutputRoot `
+                  -Configuration $configuration `
+                  -MaxParallelLanes 4 `
+                  -ReleaseUnitShardCount 8 `
+                  -IncludeReleaseUnit
+          }
+          catch {
+              Stop-CI "Managed test lanes $configuration failed: $($_.Exception.Message)" 1
+          }
 
           if ($configuration -eq 'Debug') {
               Invoke-External 'Run integration tests Debug' $dotnetPath @(

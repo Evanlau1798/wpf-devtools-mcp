@@ -56,14 +56,14 @@ public sealed partial class SandboxCiScriptContractTests
                 "-MaxParallelLanes",
                 "4",
                 "-ReleaseUnitShardCount",
-                "4",
+                "8",
                 "-GenerateOnly");
 
             result.ExitCode.Should().Be(0, result.Output);
             var configPath = Directory.GetFiles(workRoot, "WpfDevTools-LocalCi-*.wsb").Should().ContainSingle().Subject;
             var command = XDocument.Load(configPath).Descendants("Command").Single().Value;
 
-            command.Should().Contain("-ReleaseUnitShardCount 4");
+            command.Should().Contain("-ReleaseUnitShardCount 8");
         }
         finally
         {
@@ -310,12 +310,13 @@ public sealed partial class SandboxCiScriptContractTests
 
         managed.Should().Contain("New-ReleaseUnitShardCommands");
         managed.Should().Contain("Get-ReleaseUnitShardFilters");
+        managed.Should().Contain("Get-ReleaseUnitEightShardFilters");
         managed.Should().Contain("ReleaseUnitShardCount");
         managed.Should().Contain("[ValidateScript({");
         managed.Should().Contain("release-unit-debug-shard-$shardNumber.trx");
         managed.Should().Contain("FullyQualifiedName~InstallerTui");
         managed.Should().Contain("FullyQualifiedName!~InstallerTui");
-        managed.Should().Contain("ReleaseUnitShardCount currently supports 1 or 4");
+        managed.Should().Contain("ReleaseUnitShardCount currently supports 1, 4, or 8");
     }
 
     [Fact]
@@ -323,17 +324,26 @@ public sealed partial class SandboxCiScriptContractTests
     {
         var managed = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "SandboxCi.Managed.ps1");
         var filters = ExtractReleaseShardFilters(managed);
-        var releaseRoot = Path.Combine(RepoRoot, "tests", "WpfDevTools.Tests.Unit.Release");
-        var testClasses = Directory.GetFiles(releaseRoot, "*.cs", SearchOption.AllDirectories)
-            .Select(File.ReadAllText)
-            .Where(text => text.Contains("[Fact", StringComparison.Ordinal) || text.Contains("[Theory", StringComparison.Ordinal))
-            .SelectMany(text => System.Text.RegularExpressions.Regex.Matches(text, @"public sealed (?:partial )?class (?<name>[A-Za-z0-9_]+)")
-                .Select(match => match.Groups["name"].Value))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToArray();
+        var testClasses = GetReleaseTestClasses();
 
         filters.Should().HaveCount(4);
+        testClasses.Should().NotBeEmpty();
+        foreach (var testClass in testClasses)
+        {
+            var fullyQualifiedName = $"WpfDevTools.Tests.Unit.Release.{testClass}.SyntheticTest";
+            filters.Count(filter => FilterMatchesFullyQualifiedName(filter, fullyQualifiedName))
+                .Should().Be(1, $"{testClass} should belong to exactly one release-unit shard");
+        }
+    }
+
+    [Fact]
+    public void SandboxManagedScript_ReleaseUnitEightShardFilters_ShouldCoverEveryReleaseTestClassOnce()
+    {
+        var managed = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "SandboxCi.Managed.ps1");
+        var filters = ExtractReleaseEightShardFilters(managed);
+        var testClasses = GetReleaseTestClasses();
+
+        filters.Should().HaveCount(8);
         testClasses.Should().NotBeEmpty();
         foreach (var testClass in testClasses)
         {
@@ -381,6 +391,32 @@ public sealed partial class SandboxCiScriptContractTests
 
         return System.Text.RegularExpressions.Regex.Matches(block, "'(?<filter>FullyQualifiedName[^']+)'")
             .Select(match => match.Groups["filter"].Value)
+            .ToArray();
+    }
+
+    private static string[] ExtractReleaseEightShardFilters(string managedScript)
+    {
+        var start = managedScript.IndexOf("function Get-ReleaseUnitEightShardFilters", StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0);
+        var end = managedScript.IndexOf("function Get-UnitDebugShardFilters", start, StringComparison.Ordinal);
+        end.Should().BeGreaterThan(start);
+        var block = managedScript[start..end];
+
+        return System.Text.RegularExpressions.Regex.Matches(block, "'(?<filter>FullyQualifiedName[^']+)'")
+            .Select(match => match.Groups["filter"].Value)
+            .ToArray();
+    }
+
+    private static string[] GetReleaseTestClasses()
+    {
+        var releaseRoot = Path.Combine(RepoRoot, "tests", "WpfDevTools.Tests.Unit.Release");
+        return Directory.GetFiles(releaseRoot, "*.cs", SearchOption.AllDirectories)
+            .Select(File.ReadAllText)
+            .Where(text => text.Contains("[Fact", StringComparison.Ordinal) || text.Contains("[Theory", StringComparison.Ordinal))
+            .SelectMany(text => System.Text.RegularExpressions.Regex.Matches(text, @"public sealed (?:partial )?class (?<name>[A-Za-z0-9_]+)")
+                .Select(match => match.Groups["name"].Value))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
     }
 

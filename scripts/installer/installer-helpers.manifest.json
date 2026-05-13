@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "cacheKey":  "sha256:d30b18aded52bfdb59d430874e1c08c4b9934502328c19b809a5fee4f5f775f9",
+    "cacheKey":  "sha256:b2790e5433520a69353356f22e0ec4d79a055a9680932141de1aa61acc8fc314",
     "helperFiles":  [
                         {
                             "path":  "Installer.BootstrapUi.ps1",
@@ -24,8 +24,8 @@
                         },
                         {
                             "path":  "Tui.ScreenModel.ps1",
-                            "sha256":  "1c530f4acbd7a4a74276f4978cdf6b41ee99797f0110bf1f851289eb624b3797",
-                            "sizeBytes":  16230
+                            "sha256":  "e304428aa722b8620e3edb34c831233aecff36288c6e2ee7d7a19b1534f07682",
+                            "sizeBytes":  17184
                         },
                         {
                             "path":  "Tui.Sections.ps1",

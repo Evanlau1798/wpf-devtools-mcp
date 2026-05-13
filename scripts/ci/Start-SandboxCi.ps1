@@ -22,7 +22,16 @@ param(
             return $true
         }
 
-        throw 'ReleaseUnitShardCount currently supports 1 or 4.'
+        throw 'UnitDebugShardCount currently supports 1 or 4.'
+    })]
+    [int]$UnitDebugShardCount = 1,
+
+    [ValidateScript({
+        if ($_ -eq 1 -or $_ -eq 4 -or $_ -eq 8) {
+            return $true
+        }
+
+        throw 'ReleaseUnitShardCount currently supports 1, 4, or 8.'
     })]
     [int]$ReleaseUnitShardCount = 1
 )
@@ -346,6 +355,7 @@ try {
     Write-Host "Run ID: $RunId"
     Write-Host "Repeat: $Repeat"
     Write-Host "Max parallel lanes: $MaxParallelLanes"
+    Write-Host "Unit debug shard count: $UnitDebugShardCount"
     Write-Host "Release unit shard count: $ReleaseUnitShardCount"
     Write-SandboxResult -Value "RUNNING $RunId $timestamp $Mode" -Encoding ([System.Text.Encoding]::ASCII)
     Write-Host "Mapped repo root: $MappedRepoRoot"
@@ -386,7 +396,7 @@ try {
         }
         'UnitDebug' {
             Invoke-UnitDebugBuild -DotNetPath $dotnetPath
-            Invoke-UnitDebugTests -DotNetPath $dotnetPath -ResultsRoot $resultsRoot
+            Invoke-UnitDebugTests -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount
         }
         'UnitRelease' {
             Invoke-ReleaseUnitBuild -DotNetPath $dotnetPath
@@ -397,7 +407,7 @@ try {
             Invoke-UnitDebugBuild -DotNetPath $dotnetPath
             Invoke-ReleaseUnitBuild -DotNetPath $dotnetPath
             Invoke-McpServerDebugBuild -DotNetPath $dotnetPath
-            Invoke-ManagedTestLanes -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -MaxParallelLanes $MaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeUnitDebug -IncludeReleaseUnit
+            Invoke-ManagedTestLanes -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeUnitDebug -IncludeReleaseUnit
         }
         'NativeSmoke' {
             Invoke-DotNetRestore -DotNetPath $dotnetPath
@@ -405,7 +415,7 @@ try {
             Invoke-UnitDebugBuild -DotNetPath $dotnetPath
             Invoke-ReleaseUnitBuild -DotNetPath $dotnetPath
             Invoke-McpServerDebugBuild -DotNetPath $dotnetPath
-            Invoke-ManagedTestLanes -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -MaxParallelLanes $MaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeUnitDebug -IncludeReleaseUnit
+            Invoke-ManagedTestLanes -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeUnitDebug -IncludeReleaseUnit
         }
         'NativeFull' {
             Invoke-DotNetRestore -DotNetPath $dotnetPath
@@ -413,7 +423,7 @@ try {
             Invoke-UnitDebugBuild -DotNetPath $dotnetPath
             Invoke-ReleaseUnitBuild -DotNetPath $dotnetPath
             Invoke-McpServerDebugBuild -DotNetPath $dotnetPath
-            Invoke-ManagedTestLanes -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -MaxParallelLanes $MaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeUnitDebug -IncludeReleaseUnit
+            Invoke-ManagedTestLanes -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeUnitDebug -IncludeReleaseUnit
         }
     }
 

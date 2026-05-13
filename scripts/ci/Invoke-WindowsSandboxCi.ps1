@@ -20,7 +20,16 @@ param(
             return $true
         }
 
-        throw 'ReleaseUnitShardCount currently supports 1 or 4.'
+        throw 'UnitDebugShardCount currently supports 1 or 4.'
+    })]
+    [int]$UnitDebugShardCount = 1,
+
+    [ValidateScript({
+        if ($_ -eq 1 -or $_ -eq 4 -or $_ -eq 8) {
+            return $true
+        }
+
+        throw 'ReleaseUnitShardCount currently supports 1, 4, or 8.'
     })]
     [int]$ReleaseUnitShardCount = 1,
 
@@ -182,7 +191,7 @@ if ($null -ne $gitForManifest) {
     }
 }
 
-$command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$bootstrapPath`" -Mode $Mode -Repeat $Repeat -MappedRepoRoot `"$sandboxRepoPath`" -MappedWorkRoot `"$sandboxWorkMappedPath`" -MappedOutputRoot `"$sandboxOutputMappedPath`" -RunId $runId -MaxParallelLanes $MaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount"
+$command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$bootstrapPath`" -Mode $Mode -Repeat $Repeat -MappedRepoRoot `"$sandboxRepoPath`" -MappedWorkRoot `"$sandboxWorkMappedPath`" -MappedOutputRoot `"$sandboxOutputMappedPath`" -RunId $runId -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount"
 
 $config = @"
 <Configuration>
@@ -227,6 +236,7 @@ Write-Host "Mode: $Mode"
 Write-Host "Run ID: $runId"
 Write-Host "Repeat: $Repeat"
 Write-Host "Max parallel lanes: $MaxParallelLanes"
+Write-Host "Unit debug shard count: $UnitDebugShardCount"
 Write-Host "Release unit shard count: $ReleaseUnitShardCount"
 
 if ($GenerateOnly) {

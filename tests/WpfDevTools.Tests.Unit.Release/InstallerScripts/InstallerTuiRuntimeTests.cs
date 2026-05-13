@@ -95,6 +95,36 @@ public sealed partial class InstallerTuiRuntimeTests
     }
 
     [Fact]
+    public void TuiClientAvailability_ShouldFindCodexPowerShellShimWhenCommandDiscoveryOmitsExternalScripts()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var fakeBin = Path.Combine(tempRoot, "bin");
+            Directory.CreateDirectory(fakeBin);
+            File.WriteAllText(Path.Combine(fakeBin, "codex.ps1"), "exit 0" + Environment.NewLine);
+
+            var screenModelPath = ReleaseScriptTestHarness.GetRepoFilePath(Path.Combine("scripts", "installer", "Tui.ScreenModel.ps1"));
+            var command = string.Join(" ; ",
+            [
+                "function Get-Command { param([Parameter(ValueFromRemainingArguments=$true)][object[]]$Arguments) return $null }",
+                ". '" + screenModelPath.Replace("'", "''") + "'",
+                "$env:PATH='" + BuildShimOnlyPath(fakeBin).Replace("'", "''") + "'",
+                "$state = [pscustomobject]@{ registrations = @{} }",
+                "if (-not (Test-TuiClientAvailable -ClientId 'codex' -State $state)) { throw 'codex shim was not detected' }"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_TuiStartup_ShouldDetectCodexViaPowerShellShim()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

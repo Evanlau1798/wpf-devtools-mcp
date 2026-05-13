@@ -11,6 +11,40 @@ function Test-TuiPathChildExists {
     return (Test-Path (Join-Path $BasePath $ChildPath))
 }
 
+function Test-TuiCommandAvailable {
+    param([Parameter(Mandatory)] [string]$CommandName)
+
+    if ($null -ne (Get-Command $CommandName -CommandType Application,ExternalScript -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+        return $true
+    }
+
+    $pathValue = [Environment]::GetEnvironmentVariable('PATH', 'Process')
+    if ([string]::IsNullOrWhiteSpace($pathValue)) {
+        return $false
+    }
+
+    foreach ($directory in $pathValue -split [System.IO.Path]::PathSeparator) {
+        if ([string]::IsNullOrWhiteSpace($directory)) {
+            continue
+        }
+
+        try {
+            $resolvedDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($directory)
+        }
+        catch {
+            continue
+        }
+
+        foreach ($extension in @('.exe', '.cmd', '.bat', '.ps1')) {
+            if (Test-Path -LiteralPath (Join-Path $resolvedDirectory ($CommandName + $extension)) -PathType Leaf) {
+                return $true
+            }
+        }
+    }
+
+    return $false
+}
+
 function Get-TuiRegistrationEntriesCore {
     param(
         [Parameter(Mandatory)] $RegistrationMap,
@@ -69,18 +103,18 @@ function Test-TuiClientAvailable {
     }
 
     switch ($ClientId) {
-        'claude-code' { return ($null -ne (Get-Command 'claude' -ErrorAction SilentlyContinue)) }
-        'codex' { return ($null -ne (Get-Command 'codex' -ErrorAction SilentlyContinue)) }
+        'claude-code' { return (Test-TuiCommandAvailable -CommandName 'claude') }
+        'codex' { return (Test-TuiCommandAvailable -CommandName 'codex') }
         'cursor' {
             return $true
         }
         'vscode' {
-            return ($null -ne (Get-Command 'code' -ErrorAction SilentlyContinue)) -or
+            return (Test-TuiCommandAvailable -CommandName 'code') -or
                 (Test-TuiPathChildExists -BasePath $env:APPDATA -ChildPath 'Code')
         }
         'visual-studio' {
             $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)', 'Process')
-            return ($null -ne (Get-Command 'devenv' -ErrorAction SilentlyContinue)) -or
+            return (Test-TuiCommandAvailable -CommandName 'devenv') -or
                 (Test-TuiPathChildExists -BasePath $programFilesX86 -ChildPath 'Microsoft Visual Studio') -or
                 (Test-TuiPathChildExists -BasePath $env:ProgramFiles -ChildPath 'Microsoft Visual Studio')
         }

@@ -118,37 +118,46 @@ function Invoke-FocusedFlakeTests {
     }
 }
 
-function Invoke-UnitDebugTests {
+function New-UnitDebugTestCommand {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
         [Parameter(Mandatory = $true)] [string]$ResultsRoot
     )
 
-    Invoke-ExternalWithTimeout 'Run unit tests Debug' $DotNetPath @(
-        'test',
-        'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
-        '--configuration',
-        'Debug',
-        '--no-build',
-        '--no-restore',
-        '--verbosity',
-        'normal',
-        '--blame-hang-timeout',
-        '10m',
-        '--logger',
-        'trx;LogFileName=unit-debug.trx',
-        '--results-directory',
-        (Join-Path $ResultsRoot 'Debug\unit')
-    ) -TimeoutSeconds 3600 -OutputRoot $MappedOutputRoot -Timestamp $timestamp
+    return [pscustomobject]@{
+        Name           = 'Run unit tests Debug'
+        FilePath       = $DotNetPath
+        Arguments      = @(
+            'test',
+            'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
+            '--configuration',
+            'Debug',
+            '--no-build',
+            '--no-restore',
+            '--verbosity',
+            'normal',
+            '--blame-hang-timeout',
+            '10m',
+            '--logger',
+            'trx;LogFileName=unit-debug.trx',
+            '--results-directory',
+            (Join-Path $ResultsRoot 'Debug\unit')
+        )
+        TimeoutSeconds = 3600
+    }
 }
 
-function Invoke-ReleaseUnitTests {
+function New-ReleaseUnitTestCommand {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
-        [Parameter(Mandatory = $true)] [string]$ResultsRoot
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [string]$Name = 'Run release unit tests Debug',
+        [string]$LogFileName = 'release-unit-debug.trx',
+        [string]$ResultsSubdirectory = 'Debug\release-unit',
+        [string]$Filter
     )
 
-    Invoke-ExternalWithTimeout 'Run release unit tests Debug' $DotNetPath @(
+    $arguments = @(
         'test',
         'tests\WpfDevTools.Tests.Unit.Release\WpfDevTools.Tests.Unit.Release.csproj',
         '--configuration',
@@ -160,8 +169,126 @@ function Invoke-ReleaseUnitTests {
         '--blame-hang-timeout',
         '10m',
         '--logger',
-        'trx;LogFileName=release-unit-debug.trx',
+        "trx;LogFileName=$LogFileName",
         '--results-directory',
-        (Join-Path $ResultsRoot 'Debug\release-unit')
-    ) -TimeoutSeconds 3600 -OutputRoot $MappedOutputRoot -Timestamp $timestamp
+        (Join-Path $ResultsRoot $ResultsSubdirectory)
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($Filter)) {
+        $arguments += @('--filter', $Filter)
+    }
+
+    return [pscustomobject]@{
+        Name           = $Name
+        FilePath       = $DotNetPath
+        Arguments      = $arguments
+        TimeoutSeconds = 3600
+    }
+}
+
+function Get-ReleaseUnitShardFilters {
+    return @(
+        'FullyQualifiedName~InstallerTui|FullyQualifiedName~InstallerInteractiveUiScriptTests',
+        'FullyQualifiedName~InstallerCursor|FullyQualifiedName~InstallerIdeRegistrationShimBackedTests|FullyQualifiedName~InstallerFullUninstallTests|FullyQualifiedName~StandaloneInstallerRegressionBootstrapTests',
+        'FullyQualifiedName~InstallerScriptTests|FullyQualifiedName~InstallerBootstrapTests|FullyQualifiedName~InstallerPathSafety|FullyQualifiedName~InstallerProcessLifecycleTests',
+        'FullyQualifiedName!~InstallerTui&FullyQualifiedName!~InstallerInteractiveUiScriptTests&FullyQualifiedName!~InstallerCursor&FullyQualifiedName!~InstallerIdeRegistrationShimBackedTests&FullyQualifiedName!~InstallerFullUninstallTests&FullyQualifiedName!~StandaloneInstallerRegressionBootstrapTests&FullyQualifiedName!~InstallerScriptTests&FullyQualifiedName!~InstallerBootstrapTests&FullyQualifiedName!~InstallerPathSafety&FullyQualifiedName!~InstallerProcessLifecycleTests'
+    )
+}
+
+function New-ReleaseUnitShardCommands {
+    param(
+        [Parameter(Mandatory = $true)] [string]$DotNetPath,
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [Parameter(Mandatory = $true)] [int]$ReleaseUnitShardCount
+    )
+
+    if ($ReleaseUnitShardCount -eq 1) {
+        return @(New-ReleaseUnitTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot)
+    }
+
+    if ($ReleaseUnitShardCount -ne 4) {
+        throw 'ReleaseUnitShardCount currently supports 1 or 4.'
+    }
+
+    $filters = Get-ReleaseUnitShardFilters
+    $commands = @()
+    for ($index = 0; $index -lt $filters.Count; $index++) {
+        $shardNumber = $index + 1
+        $commands += New-ReleaseUnitTestCommand `
+            -DotNetPath $DotNetPath `
+            -ResultsRoot $ResultsRoot `
+            -Name "Run release unit tests Debug shard $shardNumber" `
+            -LogFileName "release-unit-debug-shard-$shardNumber.trx" `
+            -ResultsSubdirectory "Debug\release-unit\shard-$shardNumber" `
+            -Filter $filters[$index]
+    }
+
+    return $commands
+}
+
+function Invoke-UnitDebugTests {
+    param(
+        [Parameter(Mandatory = $true)] [string]$DotNetPath,
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot
+    )
+
+    $command = New-UnitDebugTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot
+    Invoke-ExternalWithTimeout $command.Name $command.FilePath $command.Arguments -TimeoutSeconds $command.TimeoutSeconds -OutputRoot $MappedOutputRoot -Timestamp $timestamp
+}
+
+function Invoke-ReleaseUnitTests {
+    param(
+        [Parameter(Mandatory = $true)] [string]$DotNetPath,
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot
+    )
+
+    $command = New-ReleaseUnitTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot
+    Invoke-ExternalWithTimeout $command.Name $command.FilePath $command.Arguments -TimeoutSeconds $command.TimeoutSeconds -OutputRoot $MappedOutputRoot -Timestamp $timestamp
+}
+
+function Invoke-ManagedTestLanes {
+    param(
+        [Parameter(Mandatory = $true)] [string]$DotNetPath,
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [ValidateRange(1, 8)] [int]$MaxParallelLanes = 2,
+        [ValidateScript({
+            if ($_ -eq 1 -or $_ -eq 4) {
+                return $true
+            }
+
+            throw 'ReleaseUnitShardCount currently supports 1 or 4.'
+        })]
+        [int]$ReleaseUnitShardCount = 1,
+        [switch]$IncludeUnitDebug,
+        [switch]$IncludeReleaseUnit
+    )
+
+    $commands = @()
+    if ($IncludeUnitDebug) {
+        $commands += New-UnitDebugTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot
+    }
+
+    if ($IncludeReleaseUnit) {
+        $commands += New-ReleaseUnitShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -ReleaseUnitShardCount $ReleaseUnitShardCount
+    }
+
+    if ($commands.Count -eq 0) {
+        return
+    }
+
+    if (($MaxParallelLanes -le 1) -or ($commands.Count -eq 1)) {
+        foreach ($command in $commands) {
+            Invoke-ExternalWithTimeout $command.Name $command.FilePath $command.Arguments -TimeoutSeconds $command.TimeoutSeconds -OutputRoot $MappedOutputRoot -Timestamp $timestamp
+        }
+
+        return
+    }
+
+    $laneCount = [Math]::Min($MaxParallelLanes, $commands.Count)
+    Invoke-ExternalBatchWithTimeout `
+        -Name 'Run managed test lanes' `
+        -Commands $commands `
+        -MaxParallelLanes $laneCount `
+        -OutputRoot $MappedOutputRoot `
+        -Timestamp $timestamp
 }

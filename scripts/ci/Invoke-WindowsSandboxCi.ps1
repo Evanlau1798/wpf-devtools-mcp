@@ -12,6 +12,18 @@ param(
     [ValidateRange(1, 86400)]
     [int]$WaitTimeoutSeconds = 7200,
 
+    [ValidateRange(1, 8)]
+    [int]$MaxParallelLanes = 2,
+
+    [ValidateScript({
+        if ($_ -eq 1 -or $_ -eq 4) {
+            return $true
+        }
+
+        throw 'ReleaseUnitShardCount currently supports 1 or 4.'
+    })]
+    [int]$ReleaseUnitShardCount = 1,
+
     [switch]$GenerateOnly,
 
     [switch]$NoWait
@@ -170,7 +182,7 @@ if ($null -ne $gitForManifest) {
     }
 }
 
-$command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$bootstrapPath`" -Mode $Mode -Repeat $Repeat -MappedRepoRoot `"$sandboxRepoPath`" -MappedWorkRoot `"$sandboxWorkMappedPath`" -MappedOutputRoot `"$sandboxOutputMappedPath`" -RunId $runId"
+$command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$bootstrapPath`" -Mode $Mode -Repeat $Repeat -MappedRepoRoot `"$sandboxRepoPath`" -MappedWorkRoot `"$sandboxWorkMappedPath`" -MappedOutputRoot `"$sandboxOutputMappedPath`" -RunId $runId -MaxParallelLanes $MaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount"
 
 $config = @"
 <Configuration>
@@ -214,6 +226,8 @@ if (-not [string]::IsNullOrWhiteSpace($visualStudioInstallRoot)) {
 Write-Host "Mode: $Mode"
 Write-Host "Run ID: $runId"
 Write-Host "Repeat: $Repeat"
+Write-Host "Max parallel lanes: $MaxParallelLanes"
+Write-Host "Release unit shard count: $ReleaseUnitShardCount"
 
 if ($GenerateOnly) {
     Write-Host 'GenerateOnly was specified; not launching Windows Sandbox.'

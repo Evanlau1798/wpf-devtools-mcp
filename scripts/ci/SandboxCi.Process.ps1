@@ -86,6 +86,202 @@ function Invoke-ExternalWithTimeout {
     }
 }
 
+function Invoke-ExternalBatchWithTimeout {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Name,
+        [Parameter(Mandatory = $true)] [object[]]$Commands,
+        [ValidateRange(1, 8)] [int]$MaxParallelLanes = 2,
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp
+    )
+
+    if ($Commands.Count -eq 0) {
+        return
+    }
+
+    Write-Host ""
+    Write-Host ">>> $Name"
+    Write-Host "Running $($Commands.Count) command(s) with up to $MaxParallelLanes parallel lane(s)."
+
+    $pending = New-Object 'System.Collections.Generic.Queue[object]'
+    foreach ($command in $Commands) {
+        $pending.Enqueue($command)
+    }
+
+    $running = New-Object 'System.Collections.Generic.List[object]'
+    try {
+        while (($pending.Count -gt 0) -or ($running.Count -gt 0)) {
+            while (($pending.Count -gt 0) -and ($running.Count -lt $MaxParallelLanes)) {
+                $command = $pending.Dequeue()
+                $running.Add((Start-ExternalCommandRun `
+                    -Name ([string]$command.Name) `
+                    -FilePath ([string]$command.FilePath) `
+                    -Arguments ([string[]]$command.Arguments) `
+                    -TimeoutSeconds ([int]$command.TimeoutSeconds) `
+                    -OutputRoot $OutputRoot `
+                    -Timestamp $Timestamp))
+            }
+
+            $readyRuns = @()
+            for ($index = 0; $index -lt $running.Count; $index++) {
+                $run = $running[$index]
+                if ($run.Process.HasExited) {
+                    $readyRuns += [pscustomobject]@{ Run = $run; TimedOut = $false }
+                    continue
+                }
+
+                if ([DateTime]::UtcNow -ge $run.DeadlineUtc) {
+                    $readyRuns += [pscustomobject]@{ Run = $run; TimedOut = $true }
+                }
+            }
+
+            foreach ($readyRun in $readyRuns) {
+                $run = $readyRun.Run
+                [void]$running.Remove($run)
+                if ($readyRun.TimedOut) {
+                    Write-Host "$($run.Name) timed out after $($run.TimeoutSeconds) seconds. Killing process tree for PID $($run.Process.Id)."
+                    Stop-ExternalCommandRun -Run $run
+                    throw "$($run.Name) timed out after $($run.TimeoutSeconds) seconds."
+                }
+
+                $exitCode = Complete-ExternalCommandRun -Run $run
+                if ($exitCode -ne 0) {
+                    throw "$($run.Name) failed with exit code $exitCode."
+                }
+            }
+
+            if ($running.Count -gt 0) {
+                Start-Sleep -Milliseconds 250
+            }
+        }
+    }
+    catch {
+        $failure = $_
+        $cleanupFailures = @()
+        $runningSnapshot = @()
+        for ($index = 0; $index -lt $running.Count; $index++) {
+            $runningSnapshot += $running[$index]
+        }
+
+        foreach ($run in $runningSnapshot) {
+            try {
+                Write-Host "Stopping $($run.Name) after parallel lane failure."
+                Stop-ExternalCommandRun -Run $run
+            }
+            catch {
+                $cleanupFailure = "$($run.Name): $($_.Exception.Message)"
+                $cleanupFailures += $cleanupFailure
+                Write-Host "Peer cleanup failed for $cleanupFailure"
+            }
+        }
+
+        if ($cleanupFailures.Count -gt 0) {
+            throw "$($failure.Exception.Message) Peer cleanup failed: $($cleanupFailures -join '; ')"
+        }
+
+        throw $failure
+    }
+}
+
+function Start-ExternalCommandRun {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Name,
+        [Parameter(Mandatory = $true)] [string]$FilePath,
+        [Parameter(Mandatory = $true)] [string[]]$Arguments,
+        [Parameter(Mandatory = $true)] [int]$TimeoutSeconds,
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp
+    )
+
+    Write-Host ""
+    Write-Host ">>> $Name"
+
+    $safeName = $Name -replace '[^A-Za-z0-9_.-]', '_'
+    $processLogRoot = Join-Path $OutputRoot "logs\process\$Timestamp"
+    New-Item -ItemType Directory -Force -Path $processLogRoot | Out-Null
+    $commandPath = Join-Path $processLogRoot "$safeName.command.log"
+    $stdoutPath = Join-Path $processLogRoot "$safeName.stdout.log"
+    $stderrPath = Join-Path $processLogRoot "$safeName.stderr.log"
+
+    Remove-Item -LiteralPath $commandPath, $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+
+    $processStartInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processStartInfo.FileName = $FilePath
+    $processStartInfo.Arguments = ConvertTo-ProcessArguments -Arguments $Arguments
+    $processStartInfo.WorkingDirectory = (Get-Location).ProviderPath
+    $processStartInfo.UseShellExecute = $false
+    $processStartInfo.CreateNoWindow = $true
+    $processStartInfo.RedirectStandardOutput = $true
+    $processStartInfo.RedirectStandardError = $true
+    $processStartInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    $processStartInfo.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+
+    [System.IO.File]::WriteAllLines(
+        $commandPath,
+        @($FilePath) + $Arguments,
+        [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText($stdoutPath, '', [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText($stderrPath, '', [System.Text.Encoding]::UTF8)
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $processStartInfo
+
+    if (-not $process.Start()) {
+        throw "$Name did not start."
+    }
+
+    return [pscustomobject]@{
+        Name           = $Name
+        Process        = $process
+        StdoutTask     = $process.StandardOutput.ReadToEndAsync()
+        StderrTask     = $process.StandardError.ReadToEndAsync()
+        StdoutPath     = $stdoutPath
+        StderrPath     = $stderrPath
+        TimeoutSeconds = $TimeoutSeconds
+        DeadlineUtc    = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    }
+}
+
+function Complete-ExternalCommandRun {
+    param([Parameter(Mandatory = $true)] [object]$Run)
+
+    $process = $Run.Process
+    $process.WaitForExit()
+    $process.Refresh()
+    Write-CompletedProcessLogs `
+        -Name $Run.Name `
+        -StdoutTask $Run.StdoutTask `
+        -StderrTask $Run.StderrTask `
+        -StdoutPath $Run.StdoutPath `
+        -StderrPath $Run.StderrPath
+    $exitCode = [int]$process.ExitCode
+    $process.Dispose()
+    return $exitCode
+}
+
+function Stop-ExternalCommandRun {
+    param([Parameter(Mandatory = $true)] [object]$Run)
+
+    $process = $Run.Process
+    if (-not $process.HasExited) {
+        KillProcessTree -ProcessId $process.Id
+        if (-not $process.WaitForExit(30000)) {
+            $process.Dispose()
+            throw "$($Run.Name) did not exit within 30 seconds after cleanup."
+        }
+    }
+
+    $process.WaitForExit()
+    $process.Refresh()
+    Write-CompletedProcessLogs `
+        -Name $Run.Name `
+        -StdoutTask $Run.StdoutTask `
+        -StderrTask $Run.StderrTask `
+        -StdoutPath $Run.StdoutPath `
+        -StderrPath $Run.StderrPath
+    $process.Dispose()
+}
+
 function ConvertTo-ProcessArguments {
     param([Parameter(Mandatory = $true)] [string[]]$Arguments)
 

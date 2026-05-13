@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "cacheKey":  "sha256:2512f126e04520084836c398b364be7682857353e6236e3af48d24be4abfa744",
+    "cacheKey":  "sha256:955243473760a121f2ef11d3cc5707954217deef06d1ea840d5ef2b6e7068908",
     "helperFiles":  [
                         {
                             "path":  "Installer.BootstrapUi.ps1",
@@ -99,8 +99,8 @@
                         },
                         {
                             "path":  "Installer.PackageIntegrity.ps1",
-                            "sha256":  "a3e21cea57dbb14016b7a452022ba3c84f366685f0fbfac2185e324b62ed22ff",
-                            "sizeBytes":  18905
+                            "sha256":  "792b76d1cb0ddbed314251953e1a5c97cdd5fe59a32dde4e4407ebe53892b020",
+                            "sizeBytes":  19545
                         },
                         {
                             "path":  "Installer.Encoding.ps1",

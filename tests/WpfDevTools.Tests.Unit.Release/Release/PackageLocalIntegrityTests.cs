@@ -9,6 +9,20 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class PackageLocalIntegrityTests
 {
     [Fact]
+    public void PackageIntegrityHelper_ShouldImportPowerShellSecurityBeforeAuthenticodeChecks()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.PackageIntegrity.ps1"));
+
+        var importIndex = content.IndexOf("Import-Module Microsoft.PowerShell.Security", StringComparison.Ordinal);
+        var signatureIndex = content.IndexOf("Get-AuthenticodeSignature -FilePath", StringComparison.Ordinal);
+
+        importIndex.Should().BeGreaterThanOrEqualTo(0);
+        signatureIndex.Should().BeGreaterThan(importIndex,
+            "package-local production installs should not rely on hosted runner cmdlet autoloading");
+    }
+
+    [Fact]
     public void PackageLocalInstaller_ShouldRejectUnsignedPayloadWhenSignaturePolicyRequiresAuthenticode()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

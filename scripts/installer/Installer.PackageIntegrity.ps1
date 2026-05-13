@@ -271,6 +271,19 @@ function Get-PackageExpectedSignerMetadata {
     }
 }
 
+function Import-PackagePowerShellSecurityModule {
+    try {
+        Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
+    }
+    catch {
+        throw "Package payload signature verification requires Microsoft.PowerShell.Security, but the module could not be loaded. $($_.Exception.Message)"
+    }
+
+    if ($null -eq (Get-Command Get-AuthenticodeSignature -CommandType Cmdlet -ErrorAction SilentlyContinue)) {
+        throw 'Package payload signature verification requires Get-AuthenticodeSignature, but the command is unavailable after loading Microsoft.PowerShell.Security.'
+    }
+}
+
 function Get-PackagePayloadSignature {
     param([Parameter(Mandatory)] [string]$Path)
 
@@ -296,6 +309,7 @@ function Get-PackagePayloadSignature {
         }
     }
 
+    Import-PackagePowerShellSecurityModule
     return Get-AuthenticodeSignature -FilePath $Path
 }
 

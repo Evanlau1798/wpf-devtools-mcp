@@ -130,6 +130,20 @@ public sealed class UnitTestParallelizationContractTests
         source.Should().Contain("WaitAsync(TimeSpan.FromSeconds(10))");
     }
 
+    [Theory]
+    [InlineData("tests/WpfDevTools.Tests.Unit/Serialization/MessageFramingTests.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Unit/Serialization/MessageFramingBufferPoolingTests.cs")]
+    public void MessageFramingPipeTests_ShouldUseBoundedPipeOperations(string relativePath)
+    {
+        var source = ReadRepoFile(relativePath);
+
+        source.Should().Contain("CreatePipeTimeout()");
+        source.Should().Contain("timeout.Token");
+        source.Should().Contain("WaitAsync(TimeSpan.FromSeconds(10))");
+        source.Should().NotContain("ConnectAsync();");
+        source.Should().NotContain("WaitForConnectionAsync();");
+    }
+
     [Fact]
     public void ProcessEnvironmentCollection_ShouldDisableParallelization()
     {

@@ -1,5 +1,4 @@
 using System.IO.Pipes;
-using System.Text;
 using Xunit;
 using FluentAssertions;
 using WpfDevTools.Shared.Serialization;
@@ -15,6 +14,7 @@ public class MessageFramingTests
         var pipeName = "test-pipe-" + Guid.NewGuid();
         var testMessage = "Hello, WPF DevTools!";
         string? result = null;
+        using var timeout = CreatePipeTimeout();
 
         // Act
         var serverTask = Task.Run(async () =>
@@ -26,8 +26,8 @@ public class MessageFramingTests
                 PipeTransmissionMode.Byte,
                 PipeOptions.Asynchronous);
 
-            await server.WaitForConnectionAsync();
-            await MessageFraming.WriteMessageAsync(server, testMessage);
+            await server.WaitForConnectionAsync(timeout.Token);
+            await MessageFraming.WriteMessageAsync(server, testMessage, timeout.Token);
         });
 
         var clientTask = Task.Run(async () =>
@@ -38,11 +38,11 @@ public class MessageFramingTests
                 PipeDirection.InOut,
                 PipeOptions.Asynchronous);
 
-            await client.ConnectAsync(1000);
-            result = await MessageFraming.ReadMessageAsync(client);
+            await client.ConnectAsync(5000, timeout.Token);
+            result = await MessageFraming.ReadMessageAsync(client, timeout.Token);
         });
 
-        await Task.WhenAll(serverTask, clientTask);
+        await AwaitPipeTasksAsync(serverTask, clientTask);
 
         // Assert
         result.Should().Be(testMessage);
@@ -55,6 +55,7 @@ public class MessageFramingTests
         var pipeName = "test-pipe-large-" + Guid.NewGuid();
         var testMessage = new string('A', 100_000); // 100 KB message
         string? result = null;
+        using var timeout = CreatePipeTimeout();
 
         // Act
         var serverTask = Task.Run(async () =>
@@ -66,8 +67,8 @@ public class MessageFramingTests
                 PipeTransmissionMode.Byte,
                 PipeOptions.Asynchronous);
 
-            await server.WaitForConnectionAsync();
-            await MessageFraming.WriteMessageAsync(server, testMessage);
+            await server.WaitForConnectionAsync(timeout.Token);
+            await MessageFraming.WriteMessageAsync(server, testMessage, timeout.Token);
         });
 
         var clientTask = Task.Run(async () =>
@@ -78,11 +79,11 @@ public class MessageFramingTests
                 PipeDirection.InOut,
                 PipeOptions.Asynchronous);
 
-            await client.ConnectAsync(1000);
-            result = await MessageFraming.ReadMessageAsync(client);
+            await client.ConnectAsync(5000, timeout.Token);
+            result = await MessageFraming.ReadMessageAsync(client, timeout.Token);
         });
 
-        await Task.WhenAll(serverTask, clientTask);
+        await AwaitPipeTasksAsync(serverTask, clientTask);
 
         // Assert
         result.Should().Be(testMessage);
@@ -95,6 +96,7 @@ public class MessageFramingTests
         // Arrange
         var pipeName = "test-pipe-invalid-" + Guid.NewGuid();
         Exception? caughtException = null;
+        using var timeout = CreatePipeTimeout();
 
         // Act
         var serverTask = Task.Run(async () =>
@@ -106,12 +108,12 @@ public class MessageFramingTests
                 PipeTransmissionMode.Byte,
                 PipeOptions.Asynchronous);
 
-            await server.WaitForConnectionAsync();
+            await server.WaitForConnectionAsync(timeout.Token);
 
             // Write invalid length (negative)
             var invalidLength = BitConverter.GetBytes(-1);
-            await server.WriteAsync(invalidLength);
-            await server.FlushAsync();
+            await server.WriteAsync(invalidLength, timeout.Token);
+            await server.FlushAsync(timeout.Token);
         });
 
         var clientTask = Task.Run(async () =>
@@ -122,11 +124,11 @@ public class MessageFramingTests
                 PipeDirection.InOut,
                 PipeOptions.Asynchronous);
 
-            await client.ConnectAsync(1000);
+            await client.ConnectAsync(5000, timeout.Token);
 
             try
             {
-                await MessageFraming.ReadMessageAsync(client);
+                await MessageFraming.ReadMessageAsync(client, timeout.Token);
             }
             catch (Exception ex)
             {
@@ -134,10 +136,16 @@ public class MessageFramingTests
             }
         });
 
-        await Task.WhenAll(serverTask, clientTask);
+        await AwaitPipeTasksAsync(serverTask, clientTask);
 
         // Assert
         caughtException.Should().NotBeNull();
         caughtException.Should().BeOfType<InvalidOperationException>();
     }
+
+    private static CancellationTokenSource CreatePipeTimeout()
+        => new(TimeSpan.FromSeconds(10));
+
+    private static async Task AwaitPipeTasksAsync(Task serverTask, Task clientTask)
+        => await Task.WhenAll(serverTask, clientTask).WaitAsync(TimeSpan.FromSeconds(10));
 }

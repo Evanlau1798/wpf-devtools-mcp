@@ -37,6 +37,7 @@ public sealed class InstallerTuiHelperPackagingTests
     {
         using var manifest = JsonDocument.Parse(
             File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json")));
+        var helperRoot = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
 
         var helperEntries = manifest.RootElement.GetProperty("helperFiles").EnumerateArray().ToArray();
         helperEntries.Should().NotBeEmpty();
@@ -44,9 +45,13 @@ public sealed class InstallerTuiHelperPackagingTests
         foreach (var entry in helperEntries)
         {
             entry.ValueKind.Should().Be(JsonValueKind.Object);
-            entry.GetProperty("path").GetString().Should().NotBeNullOrWhiteSpace();
+            var helperPath = entry.GetProperty("path").GetString();
+            helperPath.Should().NotBeNullOrWhiteSpace();
             entry.GetProperty("sha256").GetString().Should().MatchRegex("^[a-f0-9]{64}$");
-            entry.GetProperty("sizeBytes").GetInt64().Should().BePositive();
+
+            var normalizedBytes = NormalizeCrLfToLf(File.ReadAllBytes(Path.Combine(helperRoot, helperPath!)));
+            entry.GetProperty("sizeBytes").GetInt64().Should().Be(normalizedBytes.Length);
+            entry.GetProperty("sha256").GetString().Should().Be(ComputeSha256(normalizedBytes));
         }
     }
 
@@ -106,5 +111,27 @@ public sealed class InstallerTuiHelperPackagingTests
         content.Should().Contain("installer-helpers.manifest.json");
         content.Should().Contain("GetInstallerHelperFiles");
         content.Should().NotContain("Directory.GetFiles(");
+    }
+
+    private static byte[] NormalizeCrLfToLf(byte[] bytes)
+    {
+        using var output = new MemoryStream(bytes.Length);
+        for (var index = 0; index < bytes.Length; index++)
+        {
+            if (bytes[index] == '\r' && index + 1 < bytes.Length && bytes[index + 1] == '\n')
+            {
+                continue;
+            }
+
+            output.WriteByte(bytes[index]);
+        }
+
+        return output.ToArray();
+    }
+
+    private static string ComputeSha256(byte[] bytes)
+    {
+        var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

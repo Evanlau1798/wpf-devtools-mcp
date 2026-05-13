@@ -313,7 +313,7 @@ public sealed partial class SandboxCiScriptContractTests
         managed.Should().Contain("Get-ReleaseUnitEightShardFilters");
         managed.Should().Contain("ReleaseUnitShardCount");
         managed.Should().Contain("[ValidateScript({");
-        managed.Should().Contain("release-unit-debug-shard-$shardNumber.trx");
+        managed.Should().Contain("release-unit-$configurationSlug-shard-$shardNumber.trx");
         managed.Should().Contain("FullyQualifiedName~InstallerTui");
         managed.Should().Contain("FullyQualifiedName!~InstallerTui");
         managed.Should().Contain("ReleaseUnitShardCount currently supports 1, 4, or 8");

@@ -122,18 +122,32 @@ function New-UnitDebugTestCommand {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
         [Parameter(Mandatory = $true)] [string]$ResultsRoot,
-        [string]$Name = 'Run unit tests Debug',
-        [string]$LogFileName = 'unit-debug.trx',
-        [string]$ResultsSubdirectory = 'Debug\unit',
+        [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Debug',
+        [string]$Name = '',
+        [string]$LogFileName = '',
+        [string]$ResultsSubdirectory = '',
         [string]$Verbosity = 'normal',
         [string]$Filter
     )
+
+    $configurationSlug = $Configuration.ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($Name)) {
+        $Name = "Run unit tests $Configuration"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($LogFileName)) {
+        $LogFileName = "unit-$configurationSlug.trx"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ResultsSubdirectory)) {
+        $ResultsSubdirectory = "$Configuration\unit"
+    }
 
     $arguments = @(
         'test',
         'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
         '--configuration',
-        'Debug',
+        $Configuration,
         '--no-build',
         '--no-restore',
         '--verbosity',
@@ -162,17 +176,31 @@ function New-ReleaseUnitTestCommand {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
         [Parameter(Mandatory = $true)] [string]$ResultsRoot,
-        [string]$Name = 'Run release unit tests Debug',
-        [string]$LogFileName = 'release-unit-debug.trx',
-        [string]$ResultsSubdirectory = 'Debug\release-unit',
+        [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Debug',
+        [string]$Name = '',
+        [string]$LogFileName = '',
+        [string]$ResultsSubdirectory = '',
         [string]$Filter
     )
+
+    $configurationSlug = $Configuration.ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($Name)) {
+        $Name = "Run release unit tests $Configuration"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($LogFileName)) {
+        $LogFileName = "release-unit-$configurationSlug.trx"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ResultsSubdirectory)) {
+        $ResultsSubdirectory = "$Configuration\release-unit"
+    }
 
     $arguments = @(
         'test',
         'tests\WpfDevTools.Tests.Unit.Release\WpfDevTools.Tests.Unit.Release.csproj',
         '--configuration',
-        'Debug',
+        $Configuration,
         '--no-build',
         '--no-restore',
         '--verbosity',
@@ -210,11 +238,12 @@ function New-ReleaseUnitShardCommands {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
         [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Debug',
         [Parameter(Mandatory = $true)] [int]$ReleaseUnitShardCount
     )
 
     if ($ReleaseUnitShardCount -eq 1) {
-        return @(New-ReleaseUnitTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot)
+        return @(New-ReleaseUnitTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration)
     }
 
     if (($ReleaseUnitShardCount -ne 4) -and ($ReleaseUnitShardCount -ne 8)) {
@@ -229,14 +258,16 @@ function New-ReleaseUnitShardCommands {
     }
 
     $commands = @()
+    $configurationSlug = $Configuration.ToLowerInvariant()
     for ($index = 0; $index -lt $filters.Count; $index++) {
         $shardNumber = $index + 1
         $commands += New-ReleaseUnitTestCommand `
             -DotNetPath $DotNetPath `
             -ResultsRoot $ResultsRoot `
-            -Name "Run release unit tests Debug shard $shardNumber" `
-            -LogFileName "release-unit-debug-shard-$shardNumber.trx" `
-            -ResultsSubdirectory "Debug\release-unit\shard-$shardNumber" `
+            -Configuration $Configuration `
+            -Name "Run release unit tests $Configuration shard $shardNumber" `
+            -LogFileName "release-unit-$configurationSlug-shard-$shardNumber.trx" `
+            -ResultsSubdirectory "$Configuration\release-unit\shard-$shardNumber" `
             -Filter $filters[$index]
     }
 
@@ -269,11 +300,12 @@ function New-UnitDebugShardCommands {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
         [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Debug',
         [Parameter(Mandatory = $true)] [int]$UnitDebugShardCount
     )
 
     if ($UnitDebugShardCount -eq 1) {
-        return @(New-UnitDebugTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot)
+        return @(New-UnitDebugTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration)
     }
 
     if ($UnitDebugShardCount -ne 4) {
@@ -282,14 +314,16 @@ function New-UnitDebugShardCommands {
 
     $filters = Get-UnitDebugShardFilters
     $commands = @()
+    $configurationSlug = $Configuration.ToLowerInvariant()
     for ($index = 0; $index -lt $filters.Count; $index++) {
         $shardNumber = $index + 1
         $commands += New-UnitDebugTestCommand `
             -DotNetPath $DotNetPath `
             -ResultsRoot $ResultsRoot `
-            -Name "Run unit tests Debug shard $shardNumber" `
-            -LogFileName "unit-debug-shard-$shardNumber.trx" `
-            -ResultsSubdirectory "Debug\unit\shard-$shardNumber" `
+            -Configuration $Configuration `
+            -Name "Run unit tests $Configuration shard $shardNumber" `
+            -LogFileName "unit-$configurationSlug-shard-$shardNumber.trx" `
+            -ResultsSubdirectory "$Configuration\unit\shard-$shardNumber" `
             -Verbosity 'minimal' `
             -Filter $filters[$index]
     }
@@ -301,6 +335,7 @@ function Invoke-UnitDebugTests {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
         [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Debug',
         [ValidateRange(1, 8)] [int]$MaxParallelLanes = 2,
         [ValidateScript({
             if ($_ -eq 1 -or $_ -eq 4) {
@@ -312,7 +347,7 @@ function Invoke-UnitDebugTests {
         [int]$UnitDebugShardCount = 1
     )
 
-    $commands = New-UnitDebugShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -UnitDebugShardCount $UnitDebugShardCount
+    $commands = New-UnitDebugShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration -UnitDebugShardCount $UnitDebugShardCount
     if (($MaxParallelLanes -le 1) -or ($commands.Count -eq 1)) {
         foreach ($command in $commands) {
             Invoke-ExternalWithTimeout $command.Name $command.FilePath $command.Arguments -TimeoutSeconds $command.TimeoutSeconds -OutputRoot $MappedOutputRoot -Timestamp $timestamp
@@ -322,12 +357,12 @@ function Invoke-UnitDebugTests {
     }
 
     $laneCount = [Math]::Min($MaxParallelLanes, $commands.Count)
-    if ($UnitDebugShardCount -gt 1) {
-        $laneCount = [Math]::Min($laneCount, 3)
+    if ($IncludeUnitDebug -and $UnitDebugShardCount -gt 1) {
+        $laneCount = [Math]::Min($laneCount, 2)
     }
 
     Invoke-ExternalBatchWithTimeout `
-        -Name 'Run unit Debug shards' `
+        -Name "Run unit $Configuration shards" `
         -Commands $commands `
         -MaxParallelLanes $laneCount `
         -OutputRoot $MappedOutputRoot `
@@ -337,10 +372,11 @@ function Invoke-UnitDebugTests {
 function Invoke-ReleaseUnitTests {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
-        [Parameter(Mandatory = $true)] [string]$ResultsRoot
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Debug'
     )
 
-    $command = New-ReleaseUnitTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot
+    $command = New-ReleaseUnitTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration
     Invoke-ExternalWithTimeout $command.Name $command.FilePath $command.Arguments -TimeoutSeconds $command.TimeoutSeconds -OutputRoot $MappedOutputRoot -Timestamp $timestamp
 }
 
@@ -348,6 +384,7 @@ function Invoke-ManagedTestLanes {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
         [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Debug',
         [ValidateRange(1, 8)] [int]$MaxParallelLanes = 2,
         [ValidateScript({
             if ($_ -eq 1 -or $_ -eq 4) {
@@ -371,11 +408,11 @@ function Invoke-ManagedTestLanes {
 
     $commands = @()
     if ($IncludeUnitDebug) {
-        $commands += New-UnitDebugShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -UnitDebugShardCount $UnitDebugShardCount
+        $commands += New-UnitDebugShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration -UnitDebugShardCount $UnitDebugShardCount
     }
 
     if ($IncludeReleaseUnit) {
-        $commands += New-ReleaseUnitShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -ReleaseUnitShardCount $ReleaseUnitShardCount
+        $commands += New-ReleaseUnitShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration -ReleaseUnitShardCount $ReleaseUnitShardCount
     }
 
     if ($commands.Count -eq 0) {
@@ -392,7 +429,7 @@ function Invoke-ManagedTestLanes {
 
     $laneCount = [Math]::Min($MaxParallelLanes, $commands.Count)
     if ($UnitDebugShardCount -gt 1) {
-        $laneCount = [Math]::Min($laneCount, 3)
+        $laneCount = [Math]::Min($laneCount, 2)
     }
 
     Invoke-ExternalBatchWithTimeout `

@@ -143,6 +143,15 @@ windows_x64_build_and_test:
       Write-Host "dotnet: $dotnetPath"
       Write-Host "MSBuild: $msbuildPath"
       Write-Host "Native host: $nativeHostDirectory"
+
+      $script:MappedWorkRoot = $env:CI_PROJECT_DIR
+      $script:MappedOutputRoot = Join-Path $env:CI_PROJECT_DIR 'TestResults\gitlab'
+      $script:timestamp = "gitlab-$([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss'))"
+      $script:Repeat = 1
+      $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
+      . (Join-Path $env:CI_PROJECT_DIR 'scripts\ci\SandboxCi.Process.ps1')
+      . (Join-Path $env:CI_PROJECT_DIR 'scripts\ci\SandboxCi.Managed.ps1')
+
       Invoke-External 'dotnet --info' $dotnetPath @('--info')
       Invoke-External 'dotnet restore --locked-mode' $dotnetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')
 
@@ -167,27 +176,15 @@ windows_x64_build_and_test:
               '-p:UseSharedCompilation=false'
           )
 
-          Invoke-External "Run unit tests $configuration" $dotnetPath @(
-              'test',
-              'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
-              '--configuration', $configuration,
-              '--no-build',
-              '--verbosity', 'normal',
-              '--blame-hang-timeout', '10m',
-              '--logger', "trx;LogFileName=unit-$($configuration.ToLowerInvariant()).trx",
-              '--results-directory', "TestResults\gitlab\$configuration\unit"
-          )
-
-          Invoke-External "Run release unit tests $configuration" $dotnetPath @(
-              'test',
-              'tests\WpfDevTools.Tests.Unit.Release\WpfDevTools.Tests.Unit.Release.csproj',
-              '--configuration', $configuration,
-              '--no-build',
-              '--verbosity', 'normal',
-              '--blame-hang-timeout', '10m',
-              '--logger', "trx;LogFileName=release-unit-$($configuration.ToLowerInvariant()).trx",
-              '--results-directory', "TestResults\gitlab\$configuration\release-unit"
-          )
+          Invoke-ManagedTestLanes `
+              -DotNetPath $dotnetPath `
+              -ResultsRoot $script:MappedOutputRoot `
+              -Configuration $configuration `
+              -MaxParallelLanes 4 `
+              -UnitDebugShardCount 4 `
+              -ReleaseUnitShardCount 8 `
+              -IncludeUnitDebug `
+              -IncludeReleaseUnit
 
           if ($configuration -eq 'Debug') {
               Invoke-External 'Run integration tests Debug' $dotnetPath @(

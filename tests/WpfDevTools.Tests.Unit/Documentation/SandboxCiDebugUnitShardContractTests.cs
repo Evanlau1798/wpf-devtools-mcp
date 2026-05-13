@@ -47,7 +47,7 @@ public sealed partial class SandboxCiScriptContractTests
         managed.Should().Contain("New-UnitDebugShardCommands");
         managed.Should().Contain("Get-UnitDebugShardFilters");
         managed.Should().Contain("UnitDebugShardCount");
-        managed.Should().Contain("unit-debug-shard-$shardNumber.trx");
+        managed.Should().Contain("unit-$configurationSlug-shard-$shardNumber.trx");
         managed.Should().Contain("WpfDevTools.Tests.Unit.Documentation");
         managed.Should().Contain("WpfDevTools.Tests.Unit.McpServer.Tools");
         managed.Should().Contain("WpfDevTools.Tests.Unit.InspectorSdk");
@@ -56,7 +56,7 @@ public sealed partial class SandboxCiScriptContractTests
         managed.Should().Contain("WpfDevTools.Tests.Unit.McpServer.PipeConnected");
         managed.Should().Contain("WpfDevTools.Tests.Unit.McpServer.SessionManagerConnectedPipeCleanupTests");
         managed.Should().Contain("UnitDebugShardCount currently supports 1 or 4");
-        managed.Should().Contain("[Math]::Min($laneCount, 3)");
+        managed.Should().Contain("[Math]::Min($laneCount, 2)");
     }
 
     [Fact]

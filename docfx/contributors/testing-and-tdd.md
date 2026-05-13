@@ -20,9 +20,9 @@ The current project-level verification status combines the latest completed suit
 
 ### Test results
 
-- Unit tests: 3158 total, 3158 discoverable via `dotnet test --no-build --list-tests` in the latest count refresh
-- Integration tests: 311 total, 311 discoverable via `dotnet test --no-build --list-tests` in the latest count refresh
-- Verified combined total: 3469 tests discoverable across unit and integration suites in the latest count refresh
+- Unit tests: 3218 total across the main unit and release-unit suites in the latest completed verification (`2909 + 309`)
+- Integration tests: 312 total in the latest completed verification
+- Verified combined total: 3530 tests across unit, release-unit, and integration suites in the latest completed verification
 
 ### Coverage
 
@@ -58,7 +58,13 @@ The unit and integration suites enable collection-level parallelization with CPU
 
 Use the Windows Sandbox harness before spending hosted CI minutes on release or native verification changes. The sandbox runner maps the repository read-only, writes disposable state under `tmp/sandbox-ci`, and runs the same CI-oriented PowerShell entrypoints that GitLab/GitHub jobs use.
 
-Recommended full local smoke:
+Recommended push gate that closely matches the hosted Windows x64 managed lane:
+
+```powershell
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode HostedWindowsX64 -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
+```
+
+Faster native smoke when the change does not need the full hosted Debug/Release matrix:
 
 ```powershell
 .\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode NativeSmoke -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
@@ -74,7 +80,10 @@ Useful faster slices:
 
 Operational notes:
 
+- `HostedWindowsX64` mirrors the GitLab Windows x64 fallback lane and the GitHub hosted x64 managed test scope where Windows Sandbox can do so reliably: sandbox-safe native compiler/resource/archive smoke, solution build for Debug/Release, unit shards for both configurations, and release-unit shards for both configurations.
+- Windows Sandbox is not reliable for the native DLL link step because Visual C++ linker/resource conversion paths can fail inside the sandbox. Validate the exact `.vcxproj` native DLL link and live integration tests in the normal desktop build environment before pushing native bootstrapper changes.
 - `NativeSmoke` validates native compile/resource/archive coverage, then runs managed debug and release unit shards. It intentionally skips the sandbox-specific native DLL link path that is less reliable under Windows Sandbox.
+- The launcher applies host-side scheduling tuning to Windows Sandbox processes by default: `AboveNormal` priority plus disabled execution-speed power throttling. On Intel hybrid CPU systems this helps keep sandbox CI work from being treated as low-QoS E-core-only work. Use `-SkipSandboxHostScheduling` to disable this behavior, or `-SandboxHostProcessorAffinityHex 0x...` only when you intentionally want a machine-specific affinity mask.
 - Results and logs are written under `tmp/sandbox-ci/output`; generated `.wsb` files and mapped work state are disposable.
 - Use `-GenerateOnly` when reviewing the generated sandbox configuration without launching Windows Sandbox.
 - Do not use `taskkill` as the primary cleanup mechanism for Windows Sandbox. Use the tracked `.\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot .\tmp\sandbox-ci\output` script so cleanup targets Windows Sandbox HCS compute systems explicitly. If an existing local worktree already has `tmp\sandbox-ci\Kill-WindowsSandboxHcs.ps1`, that ignored helper can be used for the same purpose, but it is not a tracked source artifact.

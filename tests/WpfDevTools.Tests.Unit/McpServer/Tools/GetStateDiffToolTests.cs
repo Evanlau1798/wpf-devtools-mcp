@@ -230,6 +230,9 @@ public sealed class GetStateDiffToolTests : IDisposable
             catch (EndOfStreamException)
             {
             }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+            {
+            }
         });
 
         var sessionManager = new SessionManager();

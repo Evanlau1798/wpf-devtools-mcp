@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull')]
+    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull', 'HostedWindowsX64')]
     [string]$Mode = 'FocusedFlakes',
 
     [ValidateRange(1, 100)]
@@ -33,6 +33,14 @@ param(
     })]
     [int]$ReleaseUnitShardCount = 1,
 
+    [ValidateSet('Idle', 'BelowNormal', 'Normal', 'AboveNormal', 'High')]
+    [string]$SandboxHostPriority = 'AboveNormal',
+
+    [ValidatePattern('^(0x)?[0-9a-fA-F]+$')]
+    [string]$SandboxHostProcessorAffinityHex = '',
+
+    [switch]$SkipSandboxHostScheduling,
+
     [switch]$GenerateOnly,
 
     [switch]$NoWait
@@ -40,6 +48,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'SandboxCi.HostScheduling.ps1')
 
 function Convert-ToXmlEscapedValue {
     param([Parameter(Mandatory = $true)] [string]$Value)
@@ -238,6 +247,16 @@ Write-Host "Repeat: $Repeat"
 Write-Host "Max parallel lanes: $MaxParallelLanes"
 Write-Host "Unit debug shard count: $UnitDebugShardCount"
 Write-Host "Release unit shard count: $ReleaseUnitShardCount"
+Write-Host "Sandbox host priority: $SandboxHostPriority"
+if (-not [string]::IsNullOrWhiteSpace($SandboxHostProcessorAffinityHex)) {
+    Write-Host "Sandbox host processor affinity: $SandboxHostProcessorAffinityHex"
+}
+if ($SkipSandboxHostScheduling) {
+    Write-Host 'Sandbox host scheduling tuning: disabled'
+}
+else {
+    Write-Host 'Sandbox host scheduling tuning: enabled'
+}
 
 if ($GenerateOnly) {
     Write-Host 'GenerateOnly was specified; not launching Windows Sandbox.'
@@ -250,6 +269,9 @@ if ([string]::IsNullOrWhiteSpace($sandboxPath)) {
 }
 
 Start-Process -FilePath $sandboxPath -ArgumentList @("`"$configPath`"") | Out-Null
+if (-not $SkipSandboxHostScheduling) {
+    Set-SandboxHostScheduling -PriorityClass $SandboxHostPriority -ProcessorAffinityHex $SandboxHostProcessorAffinityHex
+}
 
 if ($NoWait) {
     return

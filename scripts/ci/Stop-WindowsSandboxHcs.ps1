@@ -17,6 +17,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+if (-not $PSBoundParameters.ContainsKey('Confirm')) {
+    $ConfirmPreference = 'None'
+}
 
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path

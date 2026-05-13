@@ -20,9 +20,9 @@ dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.cs
 
 ### 測試結果
 
-- Unit tests：最近一次完整 unit-suite run 總數 3158，可由 `dotnet test --no-build --list-tests` 發現
-- Integration tests：最近一次完整 integration-suite baseline 總數 311，可由 `dotnet test --no-build --list-tests` 發現
-- 合計基準：3469 個測試，可由最近一次 unit 與 integration suite count refresh 發現
+- Unit tests：最近一次完整 unit-suite run 總數 3218（main unit 2909 + release-unit 309）
+- Integration tests：最近一次完整 integration-suite baseline 總數 312
+- 合計基準：3530 個測試，來自最近一次完成驗證的 unit、release-unit 與 integration suites
 
 ### Coverage
 
@@ -58,7 +58,13 @@ Unit 與 integration suites 會啟用 collection-level parallelization，並用 
 
 在 release 或 native verification 相關變更消耗 hosted CI 時數前，優先使用 Windows Sandbox harness 進行本機驗證。Sandbox runner 會以唯讀方式映射 repository，把一次性狀態寫到 `tmp/sandbox-ci`，並執行與 GitLab/GitHub jobs 對齊的 CI PowerShell 入口。
 
-建議的完整本機 smoke：
+建議的推送前 gate，範圍貼近 hosted Windows x64 managed lane：
+
+```powershell
+.\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode HostedWindowsX64 -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
+```
+
+若變更不需要完整 hosted Debug/Release matrix，可使用較快的 native smoke：
 
 ```powershell
 .\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode NativeSmoke -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
@@ -74,7 +80,10 @@ Unit 與 integration suites 會啟用 collection-level parallelization，並用 
 
 操作注意事項：
 
+- `HostedWindowsX64` 會在 Windows Sandbox 可可靠執行的範圍內貼近 GitLab Windows x64 fallback lane 與 GitHub hosted x64 managed test 範圍：sandbox-safe native compiler/resource/archive smoke、Debug/Release solution build、兩種 configuration 的 unit shards，以及兩種 configuration 的 release-unit shards。
+- Windows Sandbox 對 native DLL link step 不可靠，Visual C++ linker/resource conversion path 可能在 sandbox 內失敗。若變更 native bootstrapper，推送前請在一般桌面建置環境驗證精確的 `.vcxproj` native DLL link 與 live integration tests。
 - `NativeSmoke` 會驗證 native compile/resource/archive 覆蓋，接著執行 managed debug 與 release unit shards。它刻意略過在 Windows Sandbox 內較不穩定的 native DLL link 路徑。
+- Launcher 預設會對 Windows Sandbox host processes 套用 host-side scheduling tuning：`AboveNormal` priority，加上關閉 execution-speed power throttling。這可降低 Intel hybrid CPU 系統把 sandbox CI 視為低 QoS、集中排到 E-core 的機率。若需要停用可加 `-SkipSandboxHostScheduling`；只有在明確知道本機核心 mask 時才使用 `-SandboxHostProcessorAffinityHex 0x...` 指定 affinity。
 - 結果與 logs 會寫入 `tmp/sandbox-ci/output`；產生的 `.wsb` 與 mapped work state 都是可丟棄狀態。
 - 只想檢查 sandbox 設定檔時可加上 `-GenerateOnly`，避免實際啟動 Windows Sandbox。
 - 不要把 `taskkill` 當成 Windows Sandbox 的主要清理機制。請優先使用 tracked `.\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot .\tmp\sandbox-ci\output` script，讓清理明確針對 Windows Sandbox HCS compute systems。如果既有本機 worktree 已經有 `tmp\sandbox-ci\Kill-WindowsSandboxHcs.ps1`，該 ignored helper 也可用於同樣目的，但它不是 tracked source artifact。

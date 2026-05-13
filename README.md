@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple)](https://dotnet.microsoft.com/)
 [![MCP](https://img.shields.io/badge/MCP-SDK%20v1.0-blue)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/tests-3400%2B-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-3500%2B-brightgreen)]()
 [![Coverage](https://codecov.io/gh/Evanlau1798/wpf-devtools-mcp/branch/master/graph/badge.svg)](https://codecov.io/gh/Evanlau1798/wpf-devtools-mcp)
 
 `wpf-devtools-mcp` is a Model Context Protocol server for inspecting and interacting with running WPF applications. It bridges MCP clients to an in-process inspector so agents can query visual trees, inspect bindings, analyze dependency properties, and trigger UI interactions that out-of-process tooling cannot access.

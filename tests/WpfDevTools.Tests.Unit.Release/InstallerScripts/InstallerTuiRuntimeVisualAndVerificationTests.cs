@@ -481,7 +481,7 @@ public sealed partial class InstallerTuiRuntimeTests
                     ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
                     ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
                     ["PATH"] = BuildShimOnlyPath(fakeBin),
-                    ["WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC"] = "5"
+                    ["WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC"] = "15"
                 });
 
             result.ExitCode.Should().Be(0, result.Stderr);

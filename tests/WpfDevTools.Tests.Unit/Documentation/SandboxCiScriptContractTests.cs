@@ -15,20 +15,27 @@ public sealed partial class SandboxCiScriptContractTests
         var scriptRoot = Path.Combine(RepoRoot, "scripts", "ci");
         var launcher = ReadScript(scriptRoot, "Invoke-WindowsSandboxCi.ps1");
         var runner = ReadScript(scriptRoot, "Start-SandboxCi.ps1");
+        var hostScheduling = ReadScript(scriptRoot, "SandboxCi.HostScheduling.ps1");
         var process = ReadScript(scriptRoot, "SandboxCi.Process.ps1");
         var native = ReadScript(scriptRoot, "SandboxCi.Native.ps1");
         var managed = ReadScript(scriptRoot, "SandboxCi.Managed.ps1");
+        var hosted = ReadScript(scriptRoot, "SandboxCi.Hosted.ps1");
         var cleanup = ReadScript(scriptRoot, "Stop-WindowsSandboxHcs.ps1");
 
         launcher.Should().Contain("WindowsSandbox.exe");
         launcher.Should().Contain("WaitTimeoutSeconds");
         launcher.Should().Contain("last-result.txt");
         launcher.Should().Contain("-RunId $runId");
+        launcher.Should().Contain("SandboxCi.HostScheduling.ps1");
+
+        hostScheduling.Should().Contain("Set-SandboxHostScheduling");
+        hostScheduling.Should().Contain("SetProcessInformation");
 
         runner.Should().Contain("SandboxCi.Native.ps1");
         runner.Should().Contain("SandboxCi.Managed.ps1");
         runner.Should().Contain("NativeFull");
         runner.Should().Contain("NativeSmoke");
+        runner.Should().Contain("HostedWindowsX64");
         runner.Should().Contain("-SkipDllLink");
         runner.Should().Contain("WPFDEVTOOLS_TEST_TIMEOUT_SCALE");
         runner.Should().Contain("PASS $RunId");
@@ -47,10 +54,15 @@ public sealed partial class SandboxCiScriptContractTests
         managed.Should().Contain("Invoke-FocusedFlakeTests");
         managed.Should().Contain("Invoke-ReleaseUnitTests");
 
+        hosted.Should().Contain("Invoke-HostedWindowsX64Verification");
+        hosted.Should().Contain("Invoke-NativeFullVerification");
+
         cleanup.Should().Contain("hcsdiag.exe");
         cleanup.Should().Contain("WindowsSandbox");
         cleanup.Should().Contain("SupportsShouldProcess");
         cleanup.Should().Contain("ConfirmImpact = 'High'");
+        cleanup.Should().Contain("$PSBoundParameters.ContainsKey('Confirm')");
+        cleanup.Should().Contain("$ConfirmPreference = 'None'");
         cleanup.Should().Contain("LASTEXITCODE");
         cleanup.Should().Contain("ValidateScript");
         cleanup.Should().Contain("Wait-WindowsSandboxShutdown");

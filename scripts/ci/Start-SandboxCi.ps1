@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull')]
+    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull', 'HostedWindowsX64')]
     [string]$Mode = 'FocusedFlakes',
 
     [ValidateRange(1, 100)]
@@ -41,6 +41,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'SandboxCi.Process.ps1')
 . (Join-Path $PSScriptRoot 'SandboxCi.Native.ps1')
 . (Join-Path $PSScriptRoot 'SandboxCi.Managed.ps1')
+. (Join-Path $PSScriptRoot 'SandboxCi.Hosted.ps1')
 
 function Assert-SandboxWorkDestination {
     param(
@@ -416,6 +417,9 @@ try {
             Invoke-ReleaseUnitBuild -DotNetPath $dotnetPath
             Invoke-McpServerDebugBuild -DotNetPath $dotnetPath
             Invoke-ManagedTestLanes -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeUnitDebug -IncludeReleaseUnit
+        }
+        'HostedWindowsX64' {
+            Invoke-HostedWindowsX64Verification -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -OutputRoot $MappedOutputRoot -Timestamp $timestamp -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount
         }
         'NativeFull' {
             Invoke-DotNetRestore -DotNetPath $dotnetPath

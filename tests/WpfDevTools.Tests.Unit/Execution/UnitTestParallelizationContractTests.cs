@@ -50,7 +50,7 @@ public sealed class UnitTestParallelizationContractTests
         document.RootElement.GetProperty("parallelizeTestCollections").GetBoolean()
             .Should().BeTrue("independent release unit collections can still run concurrently");
         document.RootElement.GetProperty("maxParallelThreads").GetInt32()
-            .Should().Be(2, "release unit tests launch many PowerShell installer processes and need bounded collection fan-out to avoid suite-level timeout flakes");
+            .Should().Be(4, "release unit tests launch many PowerShell installer processes, so fan-out should stay bounded while still avoiding the previous multi-minute two-thread bottleneck");
     }
 
     [Fact]

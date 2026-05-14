@@ -157,6 +157,40 @@ public sealed class IntegrationParallelizationCollectionContractTests
         laneMembers.Should().Equal(typeof(VisibilityDiagnosisE2eTests).FullName);
     }
 
+    [Fact]
+    public void IntegrationAssembly_ShouldNotEnableSignatureSkipWithModuleInitializer()
+    {
+        var sourceRoot = FindRepoRoot();
+        var offenders = Directory
+            .EnumerateFiles(Path.Combine(sourceRoot, "tests", "WpfDevTools.Tests.Integration"), "*.cs", SearchOption.AllDirectories)
+            .Where(path =>
+            {
+                var text = File.ReadAllText(path);
+                return text.Contains("[ModuleInitializer]", StringComparison.Ordinal)
+                    && text.Contains("Environment.SetEnvironmentVariable(\"WPFDEVTOOLS_SKIP_SIGNATURE_CHECK\"", StringComparison.Ordinal);
+            })
+            .Select(path => Path.GetRelativePath(sourceRoot, path).Replace('\\', '/'))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        offenders.Should().BeEmpty(
+            "Release signature skip must be scoped to explicit test validators or child-process environments, not enabled globally for the integration assembly");
+    }
+
+    [Fact]
+    public void TrustedLocalReleaseSignatureSkip_ShouldNotMutateProcessEnvironment()
+    {
+        var sourceRoot = FindRepoRoot();
+        var helperPath = Path.Combine(
+            sourceRoot,
+            "tests",
+            "WpfDevTools.Tests.Integration",
+            "TrustedLocalReleaseSignatureSkip.cs");
+
+        File.ReadAllText(helperPath).Should().NotContain("SetEnvironmentVariable",
+            "the live-injection Release signature skip helper must not toggle process-wide environment state while integration tests run in parallel");
+    }
+
     private static bool IsConcreteTestClass(Type type)
         => type is { IsClass: true, IsAbstract: false }
             && !type.IsGenericTypeDefinition;
@@ -182,6 +216,22 @@ public sealed class IntegrationParallelizationCollectionContractTests
 
         attribute.Should().NotBeNull($"{type.FullName} should declare a collection definition attribute");
         return attribute!;
+    }
+
+    private static string FindRepoRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "WpfDevTools.sln")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new InvalidOperationException("Could not locate repository root.");
     }
 
     private sealed class StubTestCollection : LongLivedMarshalByRefObject, ITestCollection

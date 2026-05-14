@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
+using WpfDevTools.Injector;
 using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
@@ -14,6 +15,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class ProcessMcpTools
 {
     private const string ProcessMetadata = "CATEGORY: Process\n\n";
+    private const string TestTrustLocalReleaseSignatureSkipEnvVar = "WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP";
 
     [McpServerTool(Name = "get_processes", Title = "List Inspectable WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
@@ -128,10 +130,34 @@ public static class ProcessMcpTools
             ("windowFilter", windowFilter));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<ConnectTool>(sessionManager, "ConnectTool", () => new ConnectTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ConnectTool>(sessionManager, "ConnectTool", () => CreateConnectTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             timeoutSeconds: McpServerConfiguration.ConnectTimeoutSeconds);
+    }
+
+    private static ConnectTool CreateConnectTool(SessionManager sessionManager)
+    {
+        Action<string>? dllPathValidator = IsTestTrustLocalReleaseSignatureSkipEnabled()
+            ? path => DllPathValidator.ValidateDllPath(
+                path,
+                AppContext.BaseDirectory,
+                trustedLocalDevelopmentSkipOptIn: true)
+            : null;
+
+        return new ConnectTool(
+            sessionManager,
+            new ProcessInjector(),
+            dllPathValidator: dllPathValidator);
+    }
+
+    private static bool IsTestTrustLocalReleaseSignatureSkipEnabled()
+    {
+        var value = Environment.GetEnvironmentVariable(TestTrustLocalReleaseSignatureSkipEnvVar);
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
+            || (bool.TryParse(value, out var enabled) && enabled);
     }
 
     [McpServerTool(Name = "ping", Title = "Ping WPF Inspector Session", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = true)]

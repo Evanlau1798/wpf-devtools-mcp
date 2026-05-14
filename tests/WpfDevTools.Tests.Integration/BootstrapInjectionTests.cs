@@ -13,7 +13,6 @@ using WpfDevTools.Shared.Security;
 using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Integration;
 
@@ -27,6 +26,8 @@ public class BootstrapInjectionTests : IDisposable
 {
     private static readonly TimeSpan LiveTestAppStartupTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan LiveSmokeTimeout = TimeSpan.FromSeconds(60);
+    private const string DebugDelayHookSkipReason =
+        "Live timeout-budget bootstrap coverage requires the Debug-only delay hooks and is skipped in Release test lanes.";
     private readonly ITestOutputHelper _output;
     private System.Diagnostics.Process? _testApp;
     private DummyBootstrapperArtifact? _dummyBootstrapperArtifact;
@@ -57,7 +58,9 @@ public class BootstrapInjectionTests : IDisposable
         using var sessionManager = new SessionManager();
         var injector = new ProcessInjector();
         var detector = new WpfProcessDetector();
-        var connectTool = new ConnectTool(sessionManager, injector, detector, isRawInjectionTargetAllowed: _ => true,
+        var connectTool = new ConnectTool(sessionManager, injector, detector,
+            dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath,
+            isRawInjectionTargetAllowed: _ => true,
             targetPolicy: _ => new McpTargetAuthorization(true, null, null));
         var pingTool = new PingTool(sessionManager);
 
@@ -114,8 +117,10 @@ public class BootstrapInjectionTests : IDisposable
                 certManager: new CertificateManager(certDirectory));
             var injector = new ProcessInjector();
             var detector = new WpfProcessDetector();
-            var connectTool = new ConnectTool(sessionManager, injector, detector, isRawInjectionTargetAllowed: _ => true,
-            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
+            var connectTool = new ConnectTool(sessionManager, injector, detector,
+                dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath,
+                isRawInjectionTargetAllowed: _ => true,
+                targetPolicy: _ => new McpTargetAuthorization(true, null, null));
             var pingTool = new PingTool(sessionManager);
 
             var connectArgs = JsonSerializer.Deserialize<JsonElement>(
@@ -152,12 +157,14 @@ public class BootstrapInjectionTests : IDisposable
     }
 
 
+#if DEBUG
     [Fact]
+#else
+    [Fact(Skip = DebugDelayHookSkipReason)]
+#endif
     [Trait("Category", "Integration")]
     public async Task ConnectTool_WhenBootstrapHostStartConsumesSharedBudget_ShouldReturnStructuredPipeReadyTimeout()
     {
-        EnsureDebugDelayHooksEnabled();
-
         BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
             "the live bootstrap timeout coverage must fail fast when native bootstrapper artifacts are missing; " +
             "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
@@ -182,12 +189,14 @@ public class BootstrapInjectionTests : IDisposable
         connectJson.GetProperty("error").GetString().Should().Contain("Named Pipe");
     }
 
+#if DEBUG
     [Fact]
+#else
+    [Fact(Skip = DebugDelayHookSkipReason)]
+#endif
     [Trait("Category", "Integration")]
     public async Task ConnectTool_WhenFinalAttachConsumesSharedBudget_ShouldReturnStructuredNamedPipeTimeout()
     {
-        EnsureDebugDelayHooksEnabled();
-
         BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory).Should().BeTrue(
             "the live final-attach timeout coverage must fail fast when native bootstrapper artifacts are missing; " +
             "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
@@ -230,7 +239,8 @@ public class BootstrapInjectionTests : IDisposable
         // Use FakeProcessDetector to avoid starting a real TestApp
         var connectTool = new ConnectTool(
             sessionManager, faultInjector, new FakeProcessDetector(), isRawInjectionTargetAllowed: _ => true,
-            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null),
+            dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath);
 
         var args = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(new { processId = 12345 }));
@@ -286,7 +296,7 @@ public class BootstrapInjectionTests : IDisposable
             sessionManager: sessionManager,
             injector: new ProcessInjector(),
             processDetector: new WpfProcessDetector(),
-            dllPathValidator: null,
+            dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath,
             isCurrentProcessElevated: null,
             workingSetResolver: null,
             inspectorCandidateResolver: null,
@@ -296,14 +306,6 @@ public class BootstrapInjectionTests : IDisposable
             targetPolicy: _ => new McpTargetAuthorization(true, null, null),
             connectInjectedSessionAsync: null,
             connectTimeout: connectTimeout);
-    }
-
-    private static void EnsureDebugDelayHooksEnabled()
-    {
-#if !DEBUG
-        throw SkipException.ForSkip(
-            "Live timeout-budget bootstrap coverage requires the Debug-only delay hooks and is skipped in Release test lanes.");
-#endif
     }
 
     private sealed class FakeProcessDetector : WpfProcessDetector

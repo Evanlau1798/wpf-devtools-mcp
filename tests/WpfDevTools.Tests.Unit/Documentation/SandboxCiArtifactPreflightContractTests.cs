@@ -11,6 +11,7 @@ public sealed partial class SandboxCiScriptContractTests
         var scriptRoot = Path.Combine(RepoRoot, "scripts", "ci");
         var launcher = ReadScript(scriptRoot, "Invoke-WindowsSandboxArtifactPreflight.ps1");
         var runner = ReadScript(scriptRoot, "SandboxCi.ArtifactPreflight.ps1");
+        var runtimeSmoke = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "tools", "packaging", "Test-PackagedServerRuntime.ps1"));
 
         launcher.Should().Contain("PackageArchivePath");
         launcher.Should().Contain("SandboxCi.ArtifactPreflight.ps1");
@@ -32,6 +33,10 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain(@"..\tools\packaging\Test-PackagedServerRuntime.ps1");
         runner.Should().Contain("dotnet-install.ps1");
         runner.Should().Contain("DOTNET_ROOT");
+        runner.Should().Contain("DOTNET_ROOT(x86)");
+        runner.Should().Contain("Get-DotNetRuntimeArchitecture");
+        runner.Should().Contain("-Architecture");
+        runner.Should().Contain("$dotNetRuntimeArchitecture");
         runner.Should().Contain("--list-runtimes");
         runner.Should().Contain(".stdout.log");
         runner.Should().Contain(".stderr.log");
@@ -44,8 +49,12 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain(". $ScriptPath @Parameters");
         runner.Should().Contain("Invoke-InstallerStep -Name 'Install package-local release' -ScriptPath $installScript -Parameters @{");
         runner.Should().Contain("Invoke-InstallerStep -Name 'Uninstall package-local release' -ScriptPath $installedScript -Parameters @{");
+        runner.Should().Contain("-TargetProcessPath");
         runner.Should().Contain("PASS $RunId");
         runner.Should().Contain("FAIL $RunId");
+
+        runtimeSmoke.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
+        runtimeSmoke.Should().Contain("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS");
     }
 
     [Fact]
@@ -79,10 +88,137 @@ public sealed partial class SandboxCiScriptContractTests
             document.Descendants("MappedFolder").Should().HaveCount(3);
             document.Descendants("ReadOnly").Select(element => element.Value)
                 .Should().ContainInOrder("true", "true", "false");
-            command.Should().Contain("SandboxCi.ArtifactPreflight.ps1");
-            command.Should().Contain(@"-PackageArchivePath ""C:\release\release_1.0.0_win-x64.zip""");
-            command.Should().Contain(@"-OutputRoot ""C:\preflight-output""");
+            command.Should().StartWith("powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ");
+            command.Should().NotContain("'");
+            var decodedCommand = DecodeSandboxEncodedCommand(command);
+            decodedCommand.Should().Contain("SandboxCi.ArtifactPreflight.ps1");
+            decodedCommand.Should().Contain(@"-PackageArchivePath 'C:\release\release_1.0.0_win-x64.zip'");
+            decodedCommand.Should().Contain(@"-OutputRoot 'C:\preflight-output'");
             command.Should().NotContain("Start-SandboxCi.ps1");
+        }
+        finally
+        {
+            DeleteTempRoot(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void InvokeWindowsSandboxArtifactPreflight_GenerateOnly_ShouldSingleQuotePowerShellExpandableArguments()
+    {
+        var tempRoot = CreateTempRoot();
+        try
+        {
+            var workRoot = Path.Combine(tempRoot, "work root");
+            var packageRoot = Path.Combine(tempRoot, "release output");
+            Directory.CreateDirectory(packageRoot);
+            var packageArchive = Path.Combine(packageRoot, "release_1.0.0_win-x64_$(Write-Output injected).zip");
+            File.WriteAllBytes(packageArchive, []);
+
+            var scriptPath = Path.Combine(RepoRoot, "scripts", "ci", "Invoke-WindowsSandboxArtifactPreflight.ps1");
+            var result = RunPowerShellFile(
+                scriptPath,
+                "-PackageArchivePath",
+                packageArchive,
+                "-WorkRoot",
+                workRoot,
+                "-GenerateOnly");
+
+            result.ExitCode.Should().Be(0, result.Output);
+            var configPath = Directory.GetFiles(workRoot, "WpfDevTools-ArtifactPreflight-*.wsb").Should().ContainSingle().Subject;
+            var command = XDocument.Load(configPath).Descendants("Command").Single().Value;
+            var decodedCommand = DecodeSandboxEncodedCommand(command);
+
+            decodedCommand.Should().Contain(@"-PackageArchivePath 'C:\release\release_1.0.0_win-x64_$(Write-Output injected).zip'");
+            command.Should().NotContain("$(",
+                "the native Windows Sandbox logon command should carry the PowerShell script through EncodedCommand");
+            command.Should().NotContain(@"""C:\release\release_1.0.0_win-x64_$(Write-Output injected).zip""",
+                "double-quoted PowerShell arguments would execute $() subexpressions in the Sandbox logon command");
+        }
+        finally
+        {
+            DeleteTempRoot(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void InvokeWindowsSandboxArtifactPreflight_GenerateOnly_ShouldQuoteLeadingDashValues()
+    {
+        var tempRoot = CreateTempRoot();
+        try
+        {
+            var workRoot = Path.Combine(tempRoot, "work root");
+            var packageRoot = Path.Combine(tempRoot, "release output");
+            Directory.CreateDirectory(packageRoot);
+            var packageArchive = Path.Combine(packageRoot, "release_1.0.0_win-x64.zip");
+            File.WriteAllBytes(packageArchive, []);
+
+            var scriptPath = Path.Combine(RepoRoot, "scripts", "ci", "Invoke-WindowsSandboxArtifactPreflight.ps1");
+            var result = RunPowerShellFile(
+                scriptPath,
+                "-PackageArchivePath",
+                packageArchive,
+                "-WorkRoot",
+                workRoot,
+                "-DotNetChannel:-SkipDotNetProvisioning",
+                "-GenerateOnly");
+
+            result.ExitCode.Should().Be(0, result.Output);
+            var configPath = Directory.GetFiles(workRoot, "WpfDevTools-ArtifactPreflight-*.wsb").Should().ContainSingle().Subject;
+            var command = XDocument.Load(configPath).Descendants("Command").Single().Value;
+            var decodedCommand = DecodeSandboxEncodedCommand(command);
+
+            decodedCommand.Should().Contain("-DotNetChannel '-SkipDotNetProvisioning'");
+            decodedCommand.Should().NotContain("-DotNetChannel -SkipDotNetProvisioning",
+                "leading-dash values must not be treated as switches by the generated PowerShell command");
+        }
+        finally
+        {
+            DeleteTempRoot(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void InvokeWindowsSandboxArtifactPreflight_ShouldRejectUnsupportedArgumentsBeforeGeneratingConfig()
+    {
+        var tempRoot = CreateTempRoot();
+        try
+        {
+            var packageArchive = Path.Combine(tempRoot, "release_1.0.0_win-x64.zip");
+            File.WriteAllBytes(packageArchive, []);
+            var scriptPath = Path.Combine(RepoRoot, "scripts", "ci", "Invoke-WindowsSandboxArtifactPreflight.ps1");
+
+            RunPowerShellFile(
+                    scriptPath,
+                    "-PackageArchivePath",
+                    packageArchive,
+                    "-WorkRoot",
+                    Path.Combine(tempRoot, "client"),
+                    "-Client",
+                    "other;Write-Host unsafe",
+                    "-GenerateOnly")
+                .ExitCode.Should().NotBe(0);
+
+            RunPowerShellFile(
+                    scriptPath,
+                    "-PackageArchivePath",
+                    packageArchive,
+                    "-WorkRoot",
+                    Path.Combine(tempRoot, "url"),
+                    "-DotNetInstallScriptUrl",
+                    "http://example.invalid/dotnet-install.ps1",
+                    "-GenerateOnly")
+                .ExitCode.Should().NotBe(0);
+
+            RunPowerShellFile(
+                    scriptPath,
+                    "-PackageArchivePath",
+                    packageArchive,
+                    "-WorkRoot",
+                    Path.Combine(tempRoot, "arm64"),
+                    "-Architecture",
+                    "arm64",
+                    "-GenerateOnly")
+                .ExitCode.Should().NotBe(0);
         }
         finally
         {
@@ -97,15 +233,40 @@ public sealed partial class SandboxCiScriptContractTests
         var zhTw = File.ReadAllText(Path.Combine(RepoRoot, "docfx", "zh-tw", "contributors", "testing-and-tdd.md"));
 
         english.Should().Contain("Invoke-WindowsSandboxArtifactPreflight.ps1");
+        english.Should().Contain("Windows Sandbox local preflight");
+        english.Should().Contain("not a GitHub Actions parity guarantee");
+        english.Should().Contain("does not cover x86, ARM64, release packaging smoke, coverage, or NuGet pack lanes");
+        english.Should().Contain("unsigned local package smoke");
+        english.Should().Contain("registration metadata checks remain covered by the installer/client registration tests");
         english.Should().Contain("Publish-Release.ps1");
+        english.Should().Contain("Get-ChildItem");
         english.Should().Contain("-DotNetChannel");
         english.Should().Contain("setup-dotnet");
+        english.Should().NotContain("Windows Sandbox CI simulation");
+        english.Should().NotContain("same CI-oriented PowerShell entrypoints that GitLab/GitHub jobs use");
+        english.Should().NotContain("release_0.1.0_win-x64.zip");
 
         zhTw.Should().Contain("Invoke-WindowsSandboxArtifactPreflight.ps1");
+        zhTw.Should().Contain("Windows Sandbox 本機 preflight");
+        zhTw.Should().Contain("不等同 GitHub Actions parity 保證");
+        zhTw.Should().Contain("不涵蓋 x86、ARM64、release packaging smoke、coverage 或 NuGet pack lanes");
+        zhTw.Should().Contain("unsigned local package smoke");
+        zhTw.Should().Contain("registration metadata 仍由 installer/client registration 測試覆蓋");
         zhTw.Should().Contain("Publish-Release.ps1");
+        zhTw.Should().Contain("Get-ChildItem");
         zhTw.Should().Contain(".NET runtime");
         zhTw.Should().Contain("-DotNetChannel");
         zhTw.Should().Contain("setup-dotnet");
+        zhTw.Should().NotContain("Windows Sandbox 模擬 CI");
+        zhTw.Should().NotContain("與 GitLab/GitHub jobs 對齊的 CI PowerShell 入口");
+        zhTw.Should().NotContain("release_0.1.0_win-x64.zip");
     }
 
+    private static string DecodeSandboxEncodedCommand(string command)
+    {
+        const string prefix = "powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ";
+        command.Should().StartWith(prefix);
+        var encodedCommand = command[prefix.Length..].Trim();
+        return System.Text.Encoding.Unicode.GetString(Convert.FromBase64String(encodedCommand));
+    }
 }

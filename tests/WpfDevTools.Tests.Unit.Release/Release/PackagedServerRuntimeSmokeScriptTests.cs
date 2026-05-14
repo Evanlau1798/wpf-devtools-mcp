@@ -12,6 +12,9 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
 
         script.Should().Contain("[int]$TargetProcessId = 0");
+        script.Should().Contain("[string]$TargetProcessPath = ''");
+        script.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
+        script.Should().Contain("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS");
         script.Should().Contain("connect");
         script.Should().Contain("get_ui_summary");
         script.Should().Contain("TargetProcessId");

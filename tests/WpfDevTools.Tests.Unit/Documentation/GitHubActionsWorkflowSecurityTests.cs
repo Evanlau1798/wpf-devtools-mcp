@@ -29,6 +29,27 @@ public sealed class GitHubActionsWorkflowSecurityTests
             "workflow dependencies should be pinned to immutable commit SHAs rather than mutable tags");
     }
 
+    [Fact]
+    public void ReleaseCriticalWindowsJobs_ShouldPinRunnerImage()
+    {
+        var workflowDirectory = TestRepositoryPaths.GetRepoFilePath(".github/workflows");
+        var releaseCriticalWorkflows = new[]
+        {
+            Path.Combine(workflowDirectory, "ci-cd.yml"),
+            Path.Combine(workflowDirectory, "release.yml")
+        };
+
+        var mutableRunnerReferences = releaseCriticalWorkflows
+            .SelectMany(path => File.ReadLines(path)
+                .Select((text, index) => new { Path = path, Text = text, Number = index + 1 }))
+            .Where(line => line.Text.Contains("runs-on: windows-latest", StringComparison.Ordinal))
+            .Select(line => $"{Path.GetRelativePath(TestRepositoryPaths.GetRepoFilePath("."), line.Path).Replace('\\', '/')}:{line.Number}")
+            .ToArray();
+
+        mutableRunnerReferences.Should().BeEmpty(
+            "release-critical validation should pin the Windows runner image instead of relying on the mutable windows-latest alias");
+    }
+
     private static IEnumerable<string> EnumerateUnpinnedActionReferences(string workflowPath)
     {
         var relativePath = Path.GetRelativePath(

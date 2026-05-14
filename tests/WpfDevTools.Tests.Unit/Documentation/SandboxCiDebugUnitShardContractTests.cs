@@ -56,7 +56,8 @@ public sealed partial class SandboxCiScriptContractTests
         managed.Should().Contain("WpfDevTools.Tests.Unit.McpServer.PipeConnected");
         managed.Should().Contain("WpfDevTools.Tests.Unit.McpServer.SessionManagerConnectedPipeCleanupTests");
         managed.Should().Contain("UnitDebugShardCount currently supports 1 or 4");
-        managed.Should().Contain("[Math]::Min($laneCount, 2)");
+        managed.Should().NotContain("[Math]::Min($laneCount, 2)",
+            "MaxParallelLanes should control debug-unit shard concurrency without hidden caps");
     }
 
     [Fact]

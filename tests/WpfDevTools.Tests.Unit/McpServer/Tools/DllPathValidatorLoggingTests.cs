@@ -12,30 +12,30 @@ public sealed class DllPathValidatorLoggingTests
     public void ValidateDllPath_WhenSignatureVerificationIsSkipped_ShouldEmitSecurityWarning()
     {
         var trustedDllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
-        var previousSkipSignatureCheck = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
         var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
         using var listener = new CapturingTraceListener();
 
         Trace.Listeners.Add(listener);
         try
         {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", "1");
             DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = true;
 
-            DllPathValidator.ValidateDllPath(trustedDllPath);
+            DllPathValidator.ValidateDllPath(
+                trustedDllPath,
+                AppContext.BaseDirectory,
+                trustedLocalDevelopmentSkipOptIn: true);
             Trace.Flush();
 
             listener.Events.Should().ContainSingle(
                 entry => entry.Type == TraceEventType.Warning
-                         && entry.Message.Contains("DLL signature verification skipped", StringComparison.Ordinal)
-                         && entry.Message.Contains("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", StringComparison.Ordinal),
+                          && entry.Message.Contains("DLL signature verification skipped", StringComparison.Ordinal)
+                          && entry.Message.Contains("explicit trusted-local", StringComparison.Ordinal),
                 "signature bypasses must be visible in diagnostics");
         }
         finally
         {
             Trace.Listeners.Remove(listener);
             DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", previousSkipSignatureCheck);
         }
     }
 

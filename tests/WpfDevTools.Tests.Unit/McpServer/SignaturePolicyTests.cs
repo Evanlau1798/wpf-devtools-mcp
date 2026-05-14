@@ -308,28 +308,6 @@ public class SignaturePolicyTests
     }
 
     [Fact]
-    public void IsTrustedLocalDevelopmentSignatureSkipOptInEnabled_WithEnvVar_ShouldReturnTrue()
-    {
-        var previousValue = Environment.GetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
-        var baseDirectory = CreateWorkspaceBuildBaseDirectory();
-
-        try
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", "1");
-
-            var enabled = DllPathValidator.IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(baseDirectory);
-
-            enabled.Should().BeTrue(
-                "trusted non-Release workspace builds may relax signature verification after an explicit local opt-in");
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", previousValue);
-            Directory.Delete(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(baseDirectory)!)!)!)!, recursive: true);
-        }
-    }
-
-    [Fact]
     public void ValidateDllPath_ReleaseBuild_WhenWinVerifyTrustFails_ShouldKeepStableInvalidSignatureContract()
     {
         var previousVerifier = DllPathValidator.WinVerifyTrustOverrideForTesting;

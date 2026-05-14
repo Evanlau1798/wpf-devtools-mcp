@@ -23,6 +23,8 @@ public sealed class McpE2eFixtureInitializationFailurePolicyTests
         environment.Should().Contain(McpServerConfiguration.AllowViewModelInspectionEnvVar, "true");
         environment.Should().Contain("WPFDEVTOOLS_AUTH_SECRET", authSecret);
         environment.Should().Contain("WPFDEVTOOLS_CERT_DIR", certDirectory);
+        environment.Should().Contain("WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP", "1");
+        environment.Should().NotContainKey("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
     }
 
     [Theory]

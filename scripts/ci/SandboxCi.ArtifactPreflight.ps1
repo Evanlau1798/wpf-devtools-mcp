@@ -3,14 +3,23 @@ param(
     [Parameter(Mandatory = $true)] [string]$OutputRoot,
     [ValidatePattern('^[A-Za-z0-9_.-]+$')]
     [string]$RunId = (Get-Date -Format 'yyyyMMdd-HHmmss'),
-    [ValidateSet('x64', 'x86', 'arm64')]
+    [ValidateSet('x64', 'x86')]
     [string]$Architecture = 'x64',
+    [ValidateSet('claude-code', 'codex', 'cursor', 'vscode', 'visual-studio', 'claude-desktop', 'other')]
     [string]$Client = 'other',
     [string]$SmokeTargetPath = '',
     [ValidateRange(1, 300)]
     [int]$SmokeTargetStartupTimeoutSeconds = 30,
     [ValidatePattern('^[0-9A-Za-z_.-]+$')]
     [string]$DotNetChannel = '8.0',
+    [ValidateScript({
+        $uri = $null
+        if ([System.Uri]::TryCreate([string]$_, [System.UriKind]::Absolute, [ref]$uri) -and $uri.Scheme -eq 'https') {
+            return $true
+        }
+
+        throw 'DotNetInstallScriptUrl must be an absolute HTTPS URI.'
+    })]
     [string]$DotNetInstallScriptUrl = 'https://dot.net/v1/dotnet-install.ps1',
     [switch]$SkipDotNetProvisioning
 )
@@ -92,17 +101,31 @@ function Get-PreflightLogTail {
 }
 
 function Get-DotNetExecutablePath {
-    $command = Get-Command 'dotnet.exe' -ErrorAction SilentlyContinue
-    if ($null -ne $command) {
-        return [string]$command.Source
-    }
-
-    $localDotNet = Join-Path (Join-Path $localRoot 'dotnet') 'dotnet.exe'
+    $localDotNet = Join-Path (Get-DotNetRoot) 'dotnet.exe'
     if (Test-Path -LiteralPath $localDotNet) {
         return $localDotNet
     }
 
+    if ($Architecture -eq 'x64') {
+        $command = Get-Command 'dotnet.exe' -ErrorAction SilentlyContinue
+        if ($null -ne $command) {
+            return [string]$command.Source
+        }
+    }
+
     return ''
+}
+
+function Get-DotNetRuntimeArchitecture {
+    if ($Architecture -eq 'x86') {
+        return 'x86'
+    }
+
+    return 'x64'
+}
+
+function Get-DotNetRoot {
+    return (Join-Path $localRoot ("dotnet-{0}" -f (Get-DotNetRuntimeArchitecture)))
 }
 
 function Test-DotNetRuntimeAvailable {
@@ -120,7 +143,13 @@ function Test-DotNetRuntimeAvailable {
 function Use-DotNetRoot {
     param([Parameter(Mandatory = $true)] [string]$DotNetRoot)
 
-    $env:DOTNET_ROOT = $DotNetRoot
+    if ((Get-DotNetRuntimeArchitecture) -eq 'x86') {
+        [Environment]::SetEnvironmentVariable('DOTNET_ROOT(x86)', $DotNetRoot, 'Process')
+    }
+    else {
+        $env:DOTNET_ROOT = $DotNetRoot
+    }
+
     $env:PATH = "$DotNetRoot;$env:PATH"
 }
 
@@ -135,7 +164,8 @@ function Ensure-DotNetRuntime {
         return
     }
 
-    $dotNetRoot = Join-Path $localRoot 'dotnet'
+    $dotNetRuntimeArchitecture = Get-DotNetRuntimeArchitecture
+    $dotNetRoot = Get-DotNetRoot
     $dotNetInstallScript = Join-Path $localRoot 'dotnet-install.ps1'
     New-Item -ItemType Directory -Force -Path $dotNetRoot | Out-Null
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -152,6 +182,8 @@ function Ensure-DotNetRuntime {
         $DotNetChannel,
         '-Runtime',
         'dotnet',
+        '-Architecture',
+        $dotNetRuntimeArchitecture,
         '-InstallDir',
         $dotNetRoot,
         '-NoPath'
@@ -227,21 +259,21 @@ function Start-SmokeTarget {
         return $null
     }
 
-    $resolvedPath = (Resolve-Path -LiteralPath $SmokeTargetPath).Path
+    $script:resolvedSmokeTargetPath = (Resolve-Path -LiteralPath $SmokeTargetPath).Path
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $startInfo.FileName = $resolvedPath
-    $startInfo.WorkingDirectory = [System.IO.Path]::GetDirectoryName($resolvedPath)
+    $startInfo.FileName = $script:resolvedSmokeTargetPath
+    $startInfo.WorkingDirectory = [System.IO.Path]::GetDirectoryName($script:resolvedSmokeTargetPath)
     $startInfo.UseShellExecute = $false
 
     $process = [System.Diagnostics.Process]::Start($startInfo)
     if ($null -eq $process) {
-        throw "Failed to start smoke target: $resolvedPath"
+        throw "Failed to start smoke target: $script:resolvedSmokeTargetPath"
     }
 
     $deadline = [DateTime]::UtcNow.AddSeconds($SmokeTargetStartupTimeoutSeconds)
     while ([DateTime]::UtcNow -lt $deadline) {
         if ($process.HasExited) {
-            throw "Smoke target exited before its main window was ready: $resolvedPath"
+            throw "Smoke target exited before its main window was ready: $script:resolvedSmokeTargetPath"
         }
 
         $process.Refresh()
@@ -252,7 +284,7 @@ function Start-SmokeTarget {
         Start-Sleep -Milliseconds 250
     }
 
-    throw "Timed out waiting for smoke target main window: $resolvedPath"
+    throw "Timed out waiting for smoke target main window: $script:resolvedSmokeTargetPath"
 }
 
 function Stop-SmokeTarget {
@@ -306,6 +338,7 @@ $localRoot = Join-Path $env:SystemDrive "sandbox-artifact-preflight-$RunId"
 $extractRoot = Join-Path $localRoot 'package'
 $installRoot = Join-Path $localRoot 'install'
 $smokeProcess = $null
+$resolvedSmokeTargetPath = ''
 
 Start-Transcript -Path $transcriptPath -Force | Out-Null
 try {
@@ -365,7 +398,12 @@ try {
         $serverPath
     )
     if ($null -ne $smokeProcess) {
-        $runtimeSmokeArguments += @('-TargetProcessId', ([string]$smokeProcess.Id))
+        $runtimeSmokeArguments += @(
+            '-TargetProcessId',
+            ([string]$smokeProcess.Id),
+            '-TargetProcessPath',
+            $resolvedSmokeTargetPath
+        )
     }
 
     Invoke-PowerShellStep -Name 'Run packaged server runtime smoke' -Arguments $runtimeSmokeArguments

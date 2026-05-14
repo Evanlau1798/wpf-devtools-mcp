@@ -11,7 +11,6 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 internal static class DllPathValidator
 {
-    private const string SkipSignatureCheckEnvironmentVariable = "WPFDEVTOOLS_SKIP_SIGNATURE_CHECK";
     private const string ReleaseSignerThumbprintEnvironmentVariable = "WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT";
     private const string ReleaseSignerSubjectEnvironmentVariable = "WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT";
     private static readonly Guid WinTrustActionGenericVerifyV2 = new("00AAC56B-CD44-11D0-8CC2-00C04FC295EE");
@@ -34,6 +33,12 @@ internal static class DllPathValidator
         => ValidateDllPath(dllPath, AppContext.BaseDirectory);
 
     internal static void ValidateDllPath(string dllPath, string baseDirectory)
+        => ValidateDllPath(dllPath, baseDirectory, trustedLocalDevelopmentSkipOptIn: false);
+
+    internal static void ValidateDllPath(
+        string dllPath,
+        string baseDirectory,
+        bool trustedLocalDevelopmentSkipOptIn)
     {
         if (string.IsNullOrWhiteSpace(dllPath))
             throw new ArgumentException("DLL path cannot be empty", nameof(dllPath));
@@ -67,14 +72,14 @@ internal static class DllPathValidator
             throw new ArgumentException("Cannot load DLL from system directories", nameof(dllPath));
         }
 
-        var signatureAction = GetSignatureAction(baseDirectory);
+        var signatureAction = GetSignatureAction(baseDirectory, trustedLocalDevelopmentSkipOptIn);
 
         if (signatureAction == SignaturePolicy.Action.Skip)
         {
             System.Diagnostics.Trace.TraceWarning(
                 "[SECURITY WARNING] DLL signature verification skipped per policy. " +
-                "This is intended only for debug builds or explicit trusted-local opt-in via " +
-                $"{SkipSignatureCheckEnvironmentVariable}; do not enable this in production.");
+                "This is intended only for debug builds or explicit trusted-local test opt-in; " +
+                "do not enable this in production.");
         }
         else
         {
@@ -123,13 +128,22 @@ internal static class DllPathValidator
         => GetSignatureAction(AppContext.BaseDirectory);
 
     internal static SignaturePolicy.Action GetSignatureAction(string baseDirectory)
+        => GetSignatureAction(baseDirectory, trustedLocalDevelopmentSkipOptIn: false);
+
+    internal static SignaturePolicy.Action GetSignatureAction(
+        string baseDirectory,
+        bool trustedLocalDevelopmentSkipOptIn)
     {
-        var isTrustedLocalDevelopmentBuild = IsTrustedLocalDevelopmentBuild(baseDirectory);
+        var isTrustedLocalDevelopmentBuild = IsTrustedLocalDevelopmentBuild(
+            baseDirectory,
+            trustedLocalDevelopmentSkipOptIn);
 
         return SignaturePolicy.Evaluate(
             isDebugBuild: IsDebugBuild,
             isTrustedLocalDevelopmentBuild: isTrustedLocalDevelopmentBuild,
-            isTrustedLocalDevelopmentSkipOptIn: IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(isTrustedLocalDevelopmentBuild));
+            isTrustedLocalDevelopmentSkipOptIn: IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(
+                isTrustedLocalDevelopmentBuild,
+                trustedLocalDevelopmentSkipOptIn));
     }
 
     internal static X509RevocationMode GetCurrentBuildRevocationMode()
@@ -139,13 +153,22 @@ internal static class DllPathValidator
         return SignaturePolicy.GetRevocationMode(
             isDebugBuild: IsDebugBuild,
             isTrustedLocalDevelopmentBuild: isTrustedLocalDevelopmentBuild,
-            isTrustedLocalDevelopmentSkipOptIn: IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(isTrustedLocalDevelopmentBuild));
+            isTrustedLocalDevelopmentSkipOptIn: IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(
+                isTrustedLocalDevelopmentBuild,
+                trustedLocalDevelopmentSkipOptIn: false));
     }
 
     internal static bool IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(string baseDirectory)
-        => IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(IsTrustedLocalDevelopmentBuild(baseDirectory));
+        => IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(
+            IsTrustedLocalDevelopmentBuild(baseDirectory),
+            trustedLocalDevelopmentSkipOptIn: false);
 
     internal static bool IsTrustedLocalDevelopmentBuild(string baseDirectory)
+        => IsTrustedLocalDevelopmentBuild(baseDirectory, trustedLocalDevelopmentSkipOptIn: false);
+
+    private static bool IsTrustedLocalDevelopmentBuild(
+        string baseDirectory,
+        bool trustedLocalDevelopmentSkipOptIn)
     {
         if (TrustedLocalDevelopmentBuildOverrideForTesting is bool overrideValue)
         {
@@ -158,32 +181,31 @@ internal static class DllPathValidator
         }
 
         var buildConfiguration = TryGetBuildConfiguration(baseDirectory);
-        if (string.IsNullOrWhiteSpace(buildConfiguration)
-            || string.Equals(buildConfiguration, "Release", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(buildConfiguration))
         {
             return false;
         }
 
-        return RepositoryLayoutLocator.EnumerateSolutionRoots(baseDirectory).Any();
+        var hasTrustedRepositoryRoot = RepositoryLayoutLocator.EnumerateSolutionRoots(baseDirectory).Any();
+        if (!hasTrustedRepositoryRoot)
+        {
+            return false;
+        }
+
+        return !string.Equals(buildConfiguration, "Release", StringComparison.OrdinalIgnoreCase)
+            || trustedLocalDevelopmentSkipOptIn;
     }
 
-    private static bool IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(bool isTrustedLocalDevelopmentBuild)
+    private static bool IsTrustedLocalDevelopmentSignatureSkipOptInEnabled(
+        bool isTrustedLocalDevelopmentBuild,
+        bool trustedLocalDevelopmentSkipOptIn)
     {
         if (!isTrustedLocalDevelopmentBuild)
         {
             return false;
         }
 
-        var value = Environment.GetEnvironmentVariable(SkipSignatureCheckEnvironmentVariable);
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
-            || (bool.TryParse(value, out var enabled) && enabled);
+        return trustedLocalDevelopmentSkipOptIn;
     }
 
     internal static string? TryGetBuildConfiguration(string baseDirectory)

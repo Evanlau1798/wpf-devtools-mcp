@@ -54,9 +54,9 @@ Unit 與 integration suites 會啟用 collection-level parallelization，並用 
 - 除非某個 collection 不能和任何其他 collection 同時執行，否則避免設定 `DisableParallelization = true`
 - 避免把不相關的慢測試放進過寬的 serial lane；如果較小的 collection 就能保留隔離性，應讓其他 lanes 可以同時執行
 
-## Windows Sandbox 模擬 CI
+## Windows Sandbox 本機 preflight
 
-在 release 或 native verification 相關變更消耗 hosted CI 時數前，優先使用 Windows Sandbox harness 進行本機驗證。Sandbox runner 會以唯讀方式映射 repository，把一次性狀態寫到 `tmp/sandbox-ci`，並執行與 GitLab/GitHub jobs 對齊的 CI PowerShell 入口。
+在 release 或 native verification 相關變更消耗 hosted CI 時數前，優先使用 Windows Sandbox harness 進行本機驗證。這是 local preflight，不等同 GitHub Actions parity 保證。Sandbox runner 會以唯讀方式映射 repository，把一次性狀態寫到 `tmp/sandbox-ci`，並執行接近 CI command groups 的 PowerShell 入口；hosted workflow 仍是最後 truth。
 
 建議的推送前 gate，範圍貼近 hosted Windows x64 managed lane：
 
@@ -78,22 +78,24 @@ Unit 與 integration suites 會啟用 collection-level parallelization，並用 
 .\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode FullManaged -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
 ```
 
-artifact-only release preflight：
+artifact-only local package preflight：
 
 ```powershell
 .\scripts\tools\packaging\Publish-Release.ps1 -Configuration Debug -Architectures x64 -OutputRoot .\tmp\sandbox-ci\artifact-preflight\release
-.\scripts\ci\Invoke-WindowsSandboxArtifactPreflight.ps1 -PackageArchivePath .\tmp\sandbox-ci\artifact-preflight\release\release_0.1.0_win-x64.zip -Architecture x64 -Client other
+$package = Get-ChildItem .\tmp\sandbox-ci\artifact-preflight\release -Filter 'release_*_win-x64.zip' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+.\scripts\ci\Invoke-WindowsSandboxArtifactPreflight.ps1 -PackageArchivePath $package.FullName -Architecture x64 -Client other
 ```
 
-當 installer、package layout、registration artifact，或 packaged server 啟動行為有變更時，優先使用 artifact preflight。這條路徑不會在 Windows Sandbox 內重新建置 repository，而是只映射 release archive 與小型 preflight bootstrap 目錄；接著解壓 package、執行 package-local installer、以 STDIO 啟動已安裝的 MCP server、驗證 `initialize`、`tools/list`、`resources/read` 與 `get_processes`，最後 uninstall package。
+Debug package 範例是 unsigned local package smoke。當 installer、package layout，或 packaged server 啟動行為有變更時，優先使用 artifact preflight。這條路徑不會在 Windows Sandbox 內重新建置 repository，而是只映射 release archive 與小型 preflight bootstrap 目錄；接著解壓 package、執行 package-local installer、以 STDIO 啟動已安裝的 MCP server、驗證 `initialize`、`tools/list`、`resources/read` 與 `get_processes`，最後 uninstall package。除非傳入已簽章的 Release archive，否則它不能證明 signed Release gate 行為。它也不會透過產生的 client registration entry 啟動；registration metadata 仍由 installer/client registration 測試覆蓋。
 
 artifact preflight 會在 Sandbox 內依需要 provision .NET runtime channel `8.0`，用來模擬 hosted runner 通常由 `setup-dotnet` 提供的前置條件。若要驗證不同 runtime channel 可使用 `-DotNetChannel`；只有在 Sandbox image 已有必要 runtime 時才使用 `-SkipDotNetProvisioning`。
 
 操作注意事項：
 
-- `HostedWindowsX64` 會在 Windows Sandbox 可可靠執行的範圍內貼近 GitLab Windows x64 fallback lane 與 GitHub hosted x64 managed test 範圍：sandbox-safe native compiler/resource/archive smoke、Debug/Release solution build、兩種 configuration 的 unit shards，以及兩種 configuration 的 release-unit shards。
+- `HostedWindowsX64` 會在 Windows Sandbox 可可靠執行的範圍內貼近 GitLab Windows x64 fallback lane 與 GitHub hosted x64 managed test 範圍：sandbox-safe native compiler/resource/archive smoke、Debug/Release solution build、兩種 configuration 的 unit shards，以及兩種 configuration 的 release-unit shards。它不涵蓋 x86、ARM64、release packaging smoke、coverage 或 NuGet pack lanes。
 - Windows Sandbox 對 native DLL link step 不可靠，Visual C++ linker/resource conversion path 可能在 sandbox 內失敗。若變更 native bootstrapper，推送前請在一般桌面建置環境驗證精確的 `.vcxproj` native DLL link 與 live integration tests。
 - `NativeSmoke` 會驗證 native compile/resource/archive 覆蓋，接著執行 managed debug 與 release unit shards。它刻意略過在 Windows Sandbox 內較不穩定的 native DLL link 路徑。
+- Artifact preflight 的 optional `-SmokeTargetPath` 目前只涵蓋 packaged `connect` 與 scene summary 啟動 smoke。snapshot、mutation、diff、restore 與 cleanup workflow 覆蓋仍需使用一般 integration/E2E suites。
 - Launcher 預設會對 Windows Sandbox host processes 套用 host-side scheduling tuning：`AboveNormal` priority，加上關閉 execution-speed power throttling。這可降低 Intel hybrid CPU 系統把 sandbox CI 視為低 QoS、集中排到 E-core 的機率。若需要停用可加 `-SkipSandboxHostScheduling`；只有在明確知道本機核心 mask 時才使用 `-SandboxHostProcessorAffinityHex 0x...` 指定 affinity。
 - 結果與 logs 會寫入 `tmp/sandbox-ci/output`；產生的 `.wsb` 與 mapped work state 都是可丟棄狀態。
 - 只想檢查 sandbox 設定檔時可加上 `-GenerateOnly`，避免實際啟動 Windows Sandbox。

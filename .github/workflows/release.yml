@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   publish-release-assets:
-    runs-on: windows-latest
+    runs-on: windows-2022
     outputs:
       release-tag: ${{ steps.release-metadata.outputs.tag }}
     env:
@@ -272,7 +272,7 @@ jobs:
       - validate-arm64-release-assets
     permissions:
       contents: write
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
       RELEASE_STAGING_ROOT: artifacts/release/github-assets
 

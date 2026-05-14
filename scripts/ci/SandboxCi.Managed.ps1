@@ -357,9 +357,6 @@ function Invoke-UnitDebugTests {
     }
 
     $laneCount = [Math]::Min($MaxParallelLanes, $commands.Count)
-    if ($IncludeUnitDebug -and $UnitDebugShardCount -gt 1) {
-        $laneCount = [Math]::Min($laneCount, 2)
-    }
 
     Invoke-ExternalBatchWithTimeout `
         -Name "Run unit $Configuration shards" `
@@ -428,10 +425,6 @@ function Invoke-ManagedTestLanes {
     }
 
     $laneCount = [Math]::Min($MaxParallelLanes, $commands.Count)
-    if ($UnitDebugShardCount -gt 1) {
-        $laneCount = [Math]::Min($laneCount, 2)
-    }
-
     Invoke-ExternalBatchWithTimeout `
         -Name 'Run managed test lanes' `
         -Commands $commands `

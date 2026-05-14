@@ -54,9 +54,9 @@ The unit and integration suites enable collection-level parallelization with CPU
 - avoid setting `DisableParallelization = true` unless a collection must not run beside any other collection
 - avoid moving unrelated slow tests into a broad serial lane when a smaller collection can preserve isolation and still allow other lanes to run concurrently
 
-## Windows Sandbox CI simulation
+## Windows Sandbox local preflight
 
-Use the Windows Sandbox harness before spending hosted CI minutes on release or native verification changes. The sandbox runner maps the repository read-only, writes disposable state under `tmp/sandbox-ci`, and runs the same CI-oriented PowerShell entrypoints that GitLab/GitHub jobs use.
+Use the Windows Sandbox harness before spending hosted CI minutes on release or native verification changes. This is a local preflight, not a GitHub Actions parity guarantee. The sandbox runner maps the repository read-only, writes disposable state under `tmp/sandbox-ci`, and runs CI-shaped PowerShell entrypoints that mirror the important command groups while the hosted workflow remains the final source of truth.
 
 Recommended push gate that closely matches the hosted Windows x64 managed lane:
 
@@ -78,22 +78,24 @@ Useful faster slices:
 .\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode FullManaged -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
 ```
 
-Artifact-only release preflight:
+Artifact-only local package preflight:
 
 ```powershell
 .\scripts\tools\packaging\Publish-Release.ps1 -Configuration Debug -Architectures x64 -OutputRoot .\tmp\sandbox-ci\artifact-preflight\release
-.\scripts\ci\Invoke-WindowsSandboxArtifactPreflight.ps1 -PackageArchivePath .\tmp\sandbox-ci\artifact-preflight\release\release_0.1.0_win-x64.zip -Architecture x64 -Client other
+$package = Get-ChildItem .\tmp\sandbox-ci\artifact-preflight\release -Filter 'release_*_win-x64.zip' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+.\scripts\ci\Invoke-WindowsSandboxArtifactPreflight.ps1 -PackageArchivePath $package.FullName -Architecture x64 -Client other
 ```
 
-Use artifact preflight when installer, package layout, registration artifact, or packaged server startup behavior changed. This path does not rebuild the repository inside Windows Sandbox. It maps only the release archive and a small preflight bootstrap folder, expands the package, runs the package-local installer, starts the installed MCP server over STDIO, verifies `initialize`, `tools/list`, `resources/read`, and `get_processes`, then uninstalls the package.
+The Debug package example is an unsigned local package smoke. Use artifact preflight when installer, package layout, or packaged server startup behavior changed. This path does not rebuild the repository inside Windows Sandbox. It maps only the release archive and a small preflight bootstrap folder, expands the package, runs the package-local installer, starts the installed MCP server over STDIO, verifies `initialize`, `tools/list`, `resources/read`, and `get_processes`, then uninstalls the package. It does not prove signed Release gate behavior unless you pass a signed Release archive. It also does not launch through a generated client registration entry; registration metadata checks remain covered by the installer/client registration tests.
 
 The artifact preflight provisions .NET runtime channel `8.0` inside the Sandbox when needed, mirroring the hosted runner prerequisite normally supplied by `setup-dotnet`. Use `-DotNetChannel` when validating a different runtime channel, or `-SkipDotNetProvisioning` only when the Sandbox image already has the required runtime.
 
 Operational notes:
 
-- `HostedWindowsX64` mirrors the GitLab Windows x64 fallback lane and the GitHub hosted x64 managed test scope where Windows Sandbox can do so reliably: sandbox-safe native compiler/resource/archive smoke, solution build for Debug/Release, unit shards for both configurations, and release-unit shards for both configurations.
+- `HostedWindowsX64` mirrors the GitLab Windows x64 fallback lane and the GitHub hosted x64 managed test scope where Windows Sandbox can do so reliably: sandbox-safe native compiler/resource/archive smoke, solution build for Debug/Release, unit shards for both configurations, and release-unit shards for both configurations. It does not cover x86, ARM64, release packaging smoke, coverage, or NuGet pack lanes.
 - Windows Sandbox is not reliable for the native DLL link step because Visual C++ linker/resource conversion paths can fail inside the sandbox. Validate the exact `.vcxproj` native DLL link and live integration tests in the normal desktop build environment before pushing native bootstrapper changes.
 - `NativeSmoke` validates native compile/resource/archive coverage, then runs managed debug and release unit shards. It intentionally skips the sandbox-specific native DLL link path that is less reliable under Windows Sandbox.
+- The optional `-SmokeTargetPath` artifact preflight path currently covers packaged `connect` and scene summary startup smoke only. Use the normal integration/E2E suites for snapshot, mutation, diff, restore, and cleanup workflow coverage.
 - The launcher applies host-side scheduling tuning to Windows Sandbox processes by default: `AboveNormal` priority plus disabled execution-speed power throttling. On Intel hybrid CPU systems this helps keep sandbox CI work from being treated as low-QoS E-core-only work. Use `-SkipSandboxHostScheduling` to disable this behavior, or `-SandboxHostProcessorAffinityHex 0x...` only when you intentionally want a machine-specific affinity mask.
 - Results and logs are written under `tmp/sandbox-ci/output`; generated `.wsb` files and mapped work state are disposable.
 - Use `-GenerateOnly` when reviewing the generated sandbox configuration without launching Windows Sandbox.

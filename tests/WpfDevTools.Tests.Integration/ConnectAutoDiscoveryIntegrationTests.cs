@@ -417,7 +417,9 @@ public sealed class ConnectAutoDiscoveryLiveIntegrationTests : IDisposable
     }
 
     private static ConnectTool CreateLiveTool(SessionManager sessionManager, WpfProcessDetector detector)
-        => new(sessionManager, new ProcessInjector(), detector, isRawInjectionTargetAllowed: _ => true,
+        => new(sessionManager, new ProcessInjector(), detector,
+            dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath,
+            isRawInjectionTargetAllowed: _ => true,
             targetPolicy: _ => new McpTargetAuthorization(true, null, null));
 
     private static void MinimizeProcessWindow(Process process, FilteringProcessDetector detector)

@@ -229,7 +229,8 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             [McpServerConfiguration.AllowScreenshotsEnvVar] = "true",
             [McpServerConfiguration.AllowViewModelInspectionEnvVar] = "true",
             ["WPFDEVTOOLS_AUTH_SECRET"] = authSecret,
-            ["WPFDEVTOOLS_CERT_DIR"] = certDirectory
+            ["WPFDEVTOOLS_CERT_DIR"] = certDirectory,
+            ["WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP"] = "1"
         };
     }
 

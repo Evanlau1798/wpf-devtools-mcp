@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     strategy:
       matrix:
@@ -117,7 +117,7 @@ jobs:
           src/WpfDevTools.Inspector.Sdk/bin/Release/net8.0-windows/
 
   build-arm64:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
     - name: Checkout code
@@ -135,7 +135,7 @@ jobs:
       run: dotnet build --configuration Release -p:Platform=ARM64 -m:1 -nodeReuse:false -p:UseSharedCompilation=false
 
   release-packaging-smoke:
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
       WPFDEVTOOLS_INSTALLER_TEST_MODE: '1'
       WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA: '1'
@@ -357,7 +357,7 @@ jobs:
         $script:WpfDevToolsInstallerTestModeEnabled = $true
         . $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
   code-coverage:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
     - name: Checkout code
@@ -420,7 +420,7 @@ jobs:
         name: codecov-wpf-devtools
 
   build-nuget:
-    runs-on: windows-latest
+    runs-on: windows-2022
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
     steps:

@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)] [string]$ServerPath,
     [int]$TargetProcessId = 0,
+    [string]$TargetProcessPath = '',
     [int]$InitializeTimeoutMilliseconds = 10000,
     [int]$RequestTimeoutMilliseconds = 10000
 )
@@ -198,6 +199,16 @@ $startInfo.CreateNoWindow = $true
 $startInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
 $startInfo.StandardErrorEncoding = [System.Text.Encoding]::UTF8
 $startInfo.Environment['WPFDEVTOOLS_RATE_LIMIT_RPM'] = '2000'
+
+if ($TargetProcessId -gt 0) {
+    if ([string]::IsNullOrWhiteSpace($TargetProcessPath)) {
+        throw 'TargetProcessPath is required when TargetProcessId is specified so packaged smoke can set exact target allowlists.'
+    }
+
+    $resolvedTargetProcessPath = (Resolve-Path -LiteralPath $TargetProcessPath).Path
+    $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOWED_TARGETS'] = $resolvedTargetProcessPath
+    $startInfo.Environment['WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS'] = $resolvedTargetProcessPath
+}
 
 $process = New-Object System.Diagnostics.Process
 $process.StartInfo = $startInfo

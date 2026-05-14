@@ -3,12 +3,21 @@ param(
     [string]$WorkRoot = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path 'tmp\sandbox-ci\artifact-preflight'),
     [ValidateRange(1, 86400)]
     [int]$WaitTimeoutSeconds = 1800,
-    [ValidateSet('x64', 'x86', 'arm64')]
+    [ValidateSet('x64', 'x86')]
     [string]$Architecture = 'x64',
+    [ValidateSet('claude-code', 'codex', 'cursor', 'vscode', 'visual-studio', 'claude-desktop', 'other')]
     [string]$Client = 'other',
     [string]$SmokeTargetPath = '',
     [ValidatePattern('^[0-9A-Za-z_.-]+$')]
     [string]$DotNetChannel = '8.0',
+    [ValidateScript({
+        $uri = $null
+        if ([System.Uri]::TryCreate([string]$_, [System.UriKind]::Absolute, [ref]$uri) -and $uri.Scheme -eq 'https') {
+            return $true
+        }
+
+        throw 'DotNetInstallScriptUrl must be an absolute HTTPS URI.'
+    })]
     [string]$DotNetInstallScriptUrl = 'https://dot.net/v1/dotnet-install.ps1',
     [ValidateSet('Idle', 'BelowNormal', 'Normal', 'AboveNormal', 'High')]
     [string]$SandboxHostPriority = 'AboveNormal',
@@ -28,6 +37,40 @@ function Convert-ToXmlEscapedValue {
     param([Parameter(Mandatory = $true)] [string]$Value)
 
     return [System.Security.SecurityElement]::Escape($Value)
+}
+
+function Convert-ToPowerShellSingleQuotedLiteral {
+    param([Parameter(Mandatory = $true)] [string]$Value)
+
+    if ($Value.IndexOfAny([char[]]@([char]10, [char]13)) -ge 0) {
+        throw "Sandbox command argument contains unsupported newline characters: $Value"
+    }
+
+    return "'" + $Value.Replace("'", "''") + "'"
+}
+
+function Convert-ToEncodedPowerShellCommand {
+    param([Parameter(Mandatory = $true)] [string]$Command)
+
+    return [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($Command))
+}
+
+function New-SandboxCommandSwitch {
+    param([Parameter(Mandatory = $true)] [string]$Text)
+
+    return [pscustomobject]@{
+        Text    = $Text
+        IsValue = $false
+    }
+}
+
+function New-SandboxCommandValue {
+    param([Parameter(Mandatory = $true)] [string]$Text)
+
+    return [pscustomobject]@{
+        Text    = $Text
+        IsValue = $true
+    }
 }
 
 function Resolve-WindowsSandboxPath {
@@ -83,8 +126,23 @@ $sandboxReleasePath = 'C:\release'
 $sandboxPreflightPath = 'C:\preflight'
 $sandboxOutputMappedPath = 'C:\preflight-output'
 $sandboxPackageArchive = Join-Path $sandboxReleasePath $packageFileName
-$sandboxSmokeTargetArgument = ''
-$dotNetProvisioningArgument = ''
+$sandboxCommandArguments = @(
+    (New-SandboxCommandValue (Join-Path $sandboxPreflightPath 'SandboxCi.ArtifactPreflight.ps1')),
+    (New-SandboxCommandSwitch '-PackageArchivePath'),
+    (New-SandboxCommandValue $sandboxPackageArchive),
+    (New-SandboxCommandSwitch '-OutputRoot'),
+    (New-SandboxCommandValue $sandboxOutputMappedPath),
+    (New-SandboxCommandSwitch '-RunId'),
+    (New-SandboxCommandValue $runId),
+    (New-SandboxCommandSwitch '-Architecture'),
+    (New-SandboxCommandValue $Architecture),
+    (New-SandboxCommandSwitch '-Client'),
+    (New-SandboxCommandValue $Client),
+    (New-SandboxCommandSwitch '-DotNetChannel'),
+    (New-SandboxCommandValue $DotNetChannel),
+    (New-SandboxCommandSwitch '-DotNetInstallScriptUrl'),
+    (New-SandboxCommandValue $DotNetInstallScriptUrl)
+)
 $smokeTargetMapping = ''
 if (-not [string]::IsNullOrWhiteSpace($SmokeTargetPath)) {
     $resolvedSmokeTarget = (Resolve-Path -LiteralPath $SmokeTargetPath).Path
@@ -93,13 +151,19 @@ if (-not [string]::IsNullOrWhiteSpace($SmokeTargetPath)) {
     $sandboxSmokeRoot = 'C:\smoke-target'
     $sandboxSmokeTarget = Join-Path $sandboxSmokeRoot $smokeTargetFileName
     $smokeTargetMapping = New-MappedFolderXml -HostFolder $smokeTargetDirectory -SandboxFolder $sandboxSmokeRoot -ReadOnly $true
-    $sandboxSmokeTargetArgument = " -SmokeTargetPath `"$sandboxSmokeTarget`""
+    $sandboxCommandArguments += @(
+        (New-SandboxCommandSwitch '-SmokeTargetPath'),
+        (New-SandboxCommandValue $sandboxSmokeTarget)
+    )
 }
 if ($SkipDotNetProvisioning) {
-    $dotNetProvisioningArgument = ' -SkipDotNetProvisioning'
+    $sandboxCommandArguments += New-SandboxCommandSwitch '-SkipDotNetProvisioning'
 }
 
-$command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$sandboxPreflightPath\SandboxCi.ArtifactPreflight.ps1`" -PackageArchivePath `"$sandboxPackageArchive`" -OutputRoot `"$sandboxOutputMappedPath`" -RunId $runId -Architecture $Architecture -Client $Client -DotNetChannel `"$DotNetChannel`" -DotNetInstallScriptUrl `"$DotNetInstallScriptUrl`"$sandboxSmokeTargetArgument$dotNetProvisioningArgument"
+$sandboxScriptCommand = '& ' + (($sandboxCommandArguments | ForEach-Object {
+            if ($_.IsValue) { Convert-ToPowerShellSingleQuotedLiteral -Value ([string]$_.Text) } else { [string]$_.Text }
+        }) -join ' ')
+$command = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + (Convert-ToEncodedPowerShellCommand -Command $sandboxScriptCommand)
 
 $config = @"
 <Configuration>

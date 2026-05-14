@@ -386,54 +386,38 @@ public sealed class InstallerInteractiveUiScriptTests
     }
 
     [Fact]
-    public void OnlineInstallerScript_TuiUninstall_ShouldRequireTwoStepConfirmationBeforeRemovingRegistration()
+    public void TuiConfirm_Unregister_ShouldRequireTwoEnterPressesBeforePendingUninstall()
     {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        try
-        {
-            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
-            var installRoot = Path.Combine(tempRoot, "install-root");
-            var visualStudioConfigPath = Path.Combine(tempRoot, "config", "VisualStudio", ".mcp.json");
+        var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+        var command = string.Join(" ; ",
+        [
+            "function Resolve-ClientLabel { param([string]$ClientId) if ($ClientId -eq 'visual-studio') { 'Visual Studio' } else { $ClientId } }",
+            ". '" + Path.Combine(helperDirectory, "Tui.Confirm.ps1").Replace("'", "''") + "'",
+            "$state = [ordered]@{ CurrentScreen='UninstallScreen'; PendingAction=$null; PendingClient=$null; ConfirmationMode=$null; ConfirmationStep=0; SelectionIndex=0; ScrollOffset=0 }",
+            "$state = Enter-TuiConfirmationCore -State $state -ConfirmationMode 'unregister' -ClientId 'visual-studio'",
+            "if ($state.CurrentScreen -ne 'ConfirmScreen') { throw 'Expected ConfirmScreen.' }",
+            "if ($state.PendingAction -ne $null) { throw 'PendingAction should stay empty on confirmation entry.' }",
+            "if ($state.PendingClient -ne 'visual-studio') { throw 'PendingClient was not preserved.' }",
+            "if ($state.ConfirmationStep -ne 1) { throw 'Expected first confirmation step.' }",
+            "$step1 = Get-TuiConfirmationLinesCore -State $state",
+            "$state = Handle-TuiConfirmationKeyCore -State $state -KeyInfo ([pscustomobject]@{ Key = [ConsoleKey]::Enter })",
+            "if ($state.PendingAction -ne $null) { throw 'PendingAction should stay empty after first Enter.' }",
+            "if ($state.ConfirmationStep -ne 2) { throw 'Expected second confirmation step after first Enter.' }",
+            "$step2 = Get-TuiConfirmationLinesCore -State $state",
+            "$state = Handle-TuiConfirmationKeyCore -State $state -KeyInfo ([pscustomobject]@{ Key = [ConsoleKey]::Enter })",
+            "if ($state.PendingAction -ne 'uninstall') { throw 'Expected uninstall pending action after second Enter.' }",
+            "if ($state.PendingClient -ne 'visual-studio') { throw 'PendingClient should remain visual-studio.' }",
+            "$step1 -join [Environment]::NewLine",
+            "'---'",
+            "$step2 -join [Environment]::NewLine"
+        ]);
 
-            ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
-                ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "visual-studio", "-VisualStudioConfigPath", visualStudioConfigPath, "-NonInteractive", "-Force", "-OutputJson"],
-                new Dictionary<string, string?>
-                {
-                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
-                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
-                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
-                }).ExitCode.Should().Be(0);
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
 
-            var repoScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
-            var helperDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
-            var fakeBin = Path.Combine(tempRoot, "bin");
-            Directory.CreateDirectory(fakeBin);
-            var command = string.Join(" ; ",
-            [
-                "$env:APPDATA='" + Path.Combine(tempRoot, "AppData", "Roaming").Replace("'", "''") + "'",
-                "$env:LOCALAPPDATA='" + Path.Combine(tempRoot, "AppData", "Local").Replace("'", "''") + "'",
-                "$env:USERPROFILE='" + Path.Combine(tempRoot, "UserProfile").Replace("'", "''") + "'",
-                "$env:PATH='" + fakeBin.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='" + helperDirectory.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='DownArrow||Enter||Enter||Escape||Escape||Escape||Enter'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'",
-                "Set-Location '" + tempRoot.Replace("'", "''") + "'",
-                "& ([scriptblock]::Create((Get-Content '" + repoScriptPath.Replace("'", "''") + "' -Raw))) -Action install -Architecture x64 -Client other -VisualStudioConfigPath '" + visualStudioConfigPath.Replace("'", "''") + "'"
-            ]);
-
-            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("Confirm action");
-            result.Stdout.Should().Contain("Step 1 of 2");
-            File.ReadAllText(visualStudioConfigPath).Should().Contain("wpf-devtools");
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
+        result.ExitCode.Should().Be(0, result.Stderr);
+        result.Stdout.Should().Contain("Step 1 of 2");
+        result.Stdout.Should().Contain("Step 2 of 2");
+        result.Stdout.Should().Contain("Visual Studio");
     }
 
     [Fact]

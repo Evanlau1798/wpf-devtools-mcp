@@ -49,6 +49,52 @@ function Get-BootstrapperPlatform {
     }
 }
 
+function ConvertTo-MSBuildPropertyValue {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return ''
+    }
+
+    return $Value.TrimEnd(';') -replace ';', '%3B'
+}
+
+function Resolve-WindowsSdkDirectory {
+    if (-not [string]::IsNullOrWhiteSpace($env:WindowsSDKDir)) {
+        return $env:WindowsSDKDir.TrimEnd('\')
+    }
+
+    $defaultSdkDirectory = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10'
+    if (Test-Path -LiteralPath $defaultSdkDirectory) {
+        return $defaultSdkDirectory.TrimEnd('\')
+    }
+
+    return ''
+}
+
+function Resolve-WindowsSdkVersion {
+    param([string]$WindowsSdkDirectory)
+
+    if ([string]::IsNullOrWhiteSpace($WindowsSdkDirectory)) {
+        return ''
+    }
+
+    $includeRoot = Join-Path $WindowsSdkDirectory 'Include'
+    if (-not (Test-Path -LiteralPath $includeRoot)) {
+        return ''
+    }
+
+    $versionDirectory = Get-ChildItem -LiteralPath $includeRoot -Directory -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+
+    if ($null -eq $versionDirectory) {
+        return ''
+    }
+
+    return [string]$versionDirectory.Name
+}
+
 function Get-PackageChannel {
     param([Parameter(Mandatory)] [string]$BuildConfiguration)
     if ($BuildConfiguration -eq 'Debug') {
@@ -854,6 +900,11 @@ $installScript = Join-Path $repoRoot 'scripts\online-installer.ps1'
 $installBatchTemplate = Join-Path $repoRoot 'scripts\tools\packaging\run-template.bat'
 $outputRootFullPath = (Resolve-Path (New-Item -ItemType Directory -Force -Path $OutputRoot)).Path
 $msbuildPath = Resolve-MSBuildPath
+$windowsSdkDirectory = Resolve-WindowsSdkDirectory
+$windowsSdkVersion = Resolve-WindowsSdkVersion -WindowsSdkDirectory $windowsSdkDirectory
+$includePath = ConvertTo-MSBuildPropertyValue -Value $env:INCLUDE
+$libraryPath = ConvertTo-MSBuildPropertyValue -Value $env:LIB
+$executablePath = ConvertTo-MSBuildPropertyValue -Value $env:PATH
 
 [xml]$serverProjectXml = Get-Content -Path $serverProject
 $version = $serverProjectXml.Project.PropertyGroup.Version | Select-Object -First 1
@@ -913,11 +964,31 @@ foreach ($architecture in $resolvedArchitectures) {
             '-f', 'net48'
         )
 
-        Invoke-Step -FilePath $msbuildPath -Arguments @(
+        $bootstrapperBuildArguments = @(
             $bootstrapperProject,
             "/p:Configuration=$Configuration",
-            "/p:Platform=$bootstrapperPlatform"
+            "/p:Platform=$bootstrapperPlatform",
+            '/p:LinkIncremental=false'
         )
+        if (-not [string]::IsNullOrWhiteSpace($windowsSdkDirectory)) {
+            $bootstrapperBuildArguments += "/p:WindowsSDKDir=$windowsSdkDirectory"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($windowsSdkVersion)) {
+            $bootstrapperBuildArguments += "/p:WindowsTargetPlatformVersion=$windowsSdkVersion"
+        }
+        if ($bootstrapperPlatform -eq 'x64') {
+            if (-not [string]::IsNullOrWhiteSpace($includePath)) {
+                $bootstrapperBuildArguments += "/p:IncludePath=$includePath"
+            }
+            if (-not [string]::IsNullOrWhiteSpace($libraryPath)) {
+                $bootstrapperBuildArguments += "/p:LibraryPath=$libraryPath"
+            }
+            if (-not [string]::IsNullOrWhiteSpace($executablePath)) {
+                $bootstrapperBuildArguments += "/p:ExecutablePath=$executablePath"
+            }
+        }
+
+        Invoke-Step -FilePath $msbuildPath -Arguments $bootstrapperBuildArguments
 
         $inspectorNet8BuildDir = Join-Path $repoRoot "src\WpfDevTools.Inspector\bin\$Configuration\net8.0-windows"
         $inspectorNet48BuildDir = Join-Path $repoRoot "src\WpfDevTools.Inspector\bin\$Configuration\net48"

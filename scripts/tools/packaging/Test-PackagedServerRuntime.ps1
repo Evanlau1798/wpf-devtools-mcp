@@ -1,5 +1,6 @@
 param(
     [Parameter(Mandatory)] [string]$ServerPath,
+    [int]$TargetProcessId = 0,
     [int]$InitializeTimeoutMilliseconds = 10000,
     [int]$RequestTimeoutMilliseconds = 10000
 )
@@ -136,6 +137,53 @@ function Get-JsonProperty {
     return $property.Value
 }
 
+function Get-McpToolResult {
+    param(
+        [Parameter(Mandatory)] [object]$ToolCallResponse,
+        [Parameter(Mandatory)] [string]$ToolName
+    )
+
+    if ($ToolCallResponse.result.isError -eq $true) {
+        throw "Packaged server $ToolName returned an MCP tool error: $($ToolCallResponse.result | ConvertTo-Json -Compress -Depth 8)"
+    }
+
+    $toolResult = Get-JsonProperty -Object $ToolCallResponse.result -Name 'structuredContent'
+    if ($null -eq $toolResult) {
+        $toolText = @($ToolCallResponse.result.content | ForEach-Object { $_.text } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) | Select-Object -First 1
+        if ($null -ne $toolText) {
+            try {
+                $toolResult = $toolText | ConvertFrom-Json
+            }
+            catch {
+                throw "Packaged server $ToolName returned malformed tool content JSON: $toolText. Error: $($_.Exception.Message)"
+            }
+        }
+    }
+
+    if ($null -eq $toolResult -or $toolResult.success -ne $true) {
+        throw "Packaged server $ToolName did not return success: $($ToolCallResponse.result | ConvertTo-Json -Compress -Depth 8)"
+    }
+
+    return $toolResult
+}
+
+function Invoke-McpTool {
+    param(
+        [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,
+        [Parameter(Mandatory)] [int]$Id,
+        [Parameter(Mandatory)] [string]$Name,
+        [Parameter(Mandatory)] [hashtable]$Arguments,
+        [Parameter(Mandatory)] [int]$TimeoutMilliseconds
+    )
+
+    $response = Invoke-McpRequest -Process $Process -Id $Id -Method 'tools/call' -TimeoutMilliseconds $TimeoutMilliseconds -Params @{
+        name = $Name
+        arguments = $Arguments
+    }
+
+    return Get-McpToolResult -ToolCallResponse $response -ToolName $Name
+}
+
 $resolvedServerPath = (Resolve-Path -LiteralPath $ServerPath).Path
 $serverDirectory = [System.IO.Path]::GetDirectoryName($resolvedServerPath)
 
@@ -188,31 +236,19 @@ try {
         throw 'Packaged server resources/read did not return the expected capabilities resource content.'
     }
 
-    $toolCallResponse = Invoke-McpRequest -Process $process -Id 4 -Method 'tools/call' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Params @{
-        name = 'get_processes'
-        arguments = @{
-            windowFilter = 'visible'
-        }
-    }
-    if ($toolCallResponse.result.isError -eq $true) {
-        throw "Packaged server get_processes safe tool call returned an MCP tool error: $($toolCallResponse.result | ConvertTo-Json -Compress -Depth 8)"
-    }
+    Invoke-McpTool -Process $process -Id 4 -Name 'get_processes' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        windowFilter = 'visible'
+    } | Out-Null
 
-    $toolResult = Get-JsonProperty -Object $toolCallResponse.result -Name 'structuredContent'
-    if ($null -eq $toolResult) {
-        $toolText = @($toolCallResponse.result.content | ForEach-Object { $_.text } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) | Select-Object -First 1
-        if ($null -ne $toolText) {
-            try {
-                $toolResult = $toolText | ConvertFrom-Json
-            }
-            catch {
-                throw "Packaged server get_processes returned malformed tool content JSON: $toolText. Error: $($_.Exception.Message)"
-            }
-        }
-    }
+    if ($TargetProcessId -gt 0) {
+        Invoke-McpTool -Process $process -Id 5 -Name 'connect' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            processId = $TargetProcessId
+        } | Out-Null
 
-    if ($null -eq $toolResult -or $toolResult.success -ne $true) {
-        throw "Packaged server get_processes safe tool call did not return success: $($toolCallResponse.result | ConvertTo-Json -Compress -Depth 8)"
+        Invoke-McpTool -Process $process -Id 6 -Name 'get_ui_summary' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            processId = $TargetProcessId
+            depthMode = 'semantic'
+        } | Out-Null
     }
 }
 finally {

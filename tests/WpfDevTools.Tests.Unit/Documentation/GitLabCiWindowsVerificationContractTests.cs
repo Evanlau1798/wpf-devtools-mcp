@@ -52,7 +52,18 @@ public sealed class GitLabCiWindowsVerificationContractTests
         runner.Should().Contain("SandboxCi.Hosted.ps1");
         runner.Should().Contain("Invoke-HostedWindowsX64Verification");
         hosted.Should().Contain("foreach ($configuration in @('Debug', 'Release'))");
-        hosted.Should().Contain("Invoke-NativeFullVerification -DotNetPath $DotNetPath -OutputRoot $OutputRoot -Timestamp $Timestamp -SkipDllLink");
+        hosted.Should().Contain("Resolve-DotNetNativeHostDirectory -RuntimeId 'win-x64'");
+        hosted.Should().Contain("Invoke-HostedNativeBootstrapperBuild -Configuration $configuration -Platform 'x64'");
+        hosted.Should().Contain("src\\WpfDevTools.Bootstrapper\\WpfDevTools.Bootstrapper.vcxproj");
+        hosted.Should().Contain("$windowsSdkDirectory = $env:WindowsSDKDir.TrimEnd('\\')");
+        hosted.Should().Contain("ConvertTo-MSBuildPropertyValue");
+        hosted.Should().Contain("/p:WindowsSDKDir=$windowsSdkDirectory");
+        hosted.Should().Contain("/p:WindowsTargetPlatformVersion=$windowsSdkVersion");
+        hosted.Should().Contain("/p:IncludePath=$includePath");
+        hosted.Should().Contain("/p:LibraryPath=$libraryPath");
+        hosted.Should().Contain("/p:ExecutablePath=$executablePath");
+        hosted.Should().NotContain("Invoke-NativeFullVerification -DotNetPath $DotNetPath -OutputRoot $OutputRoot -Timestamp $Timestamp -SkipDllLink",
+            "HostedWindowsX64 is meant to mimic the GitHub x64 matrix job, so it must exercise the native DLL link path instead of only the sandbox-safe native smoke archive");
         hosted.Should().Contain("Build solution $configuration x64");
         hosted.Should().Contain("-nodeReuse:false");
         hosted.Should().Contain("-p:UseSharedCompilation=false");
@@ -60,9 +71,64 @@ public sealed class GitLabCiWindowsVerificationContractTests
         hosted.Should().Contain("-Configuration $configuration -MaxParallelLanes 1 -UnitDebugShardCount $UnitDebugShardCount");
         hosted.Should().Contain("Invoke-ManagedTestLanes");
         hosted.Should().Contain("-Configuration $configuration -MaxParallelLanes $MaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeReleaseUnit");
-        hosted.Should().NotContain("Run integration tests Debug",
-            "Windows Sandbox does not reliably produce the native DLL link artifacts required by live bootstrap integration tests");
+        hosted.Should().Contain("Run integration tests Debug");
+        hosted.Should().Contain("tests\\WpfDevTools.Tests.Integration\\WpfDevTools.Tests.Integration.csproj");
         hosted.Should().NotContain("Run integration tests Release");
+    }
+
+    [Fact]
+    public void SandboxHostedWindowsX64Mode_ShouldUseGitHubTimeoutScale()
+    {
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+        var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
+
+        workflow.Should().NotContain("WPFDEVTOOLS_TEST_TIMEOUT_SCALE",
+            "GitHub hosted CI uses the harness default timeout budget");
+        hosted.Should().Contain("$previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE");
+        hosted.Should().Contain("$env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '1'",
+            "HostedWindowsX64 should not inherit the sandbox-only timeout multiplier that can hide GitHub hosted timeouts");
+        hosted.Should().Contain("$env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = $previousTimeoutScale");
+    }
+
+    [Fact]
+    public void HostedWindowsX64Ci_ShouldPrepareRuntimeSpecificServerOutputBeforeIntegrationTests()
+    {
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+        var gitlab = File.ReadAllText(Path.Combine(RepoRoot, ".gitlab-ci.yml"));
+        var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
+        var runtimeBuildStart = hosted.IndexOf("function Invoke-HostedServerRuntimeBuild", StringComparison.Ordinal);
+        var runtimeBuildEnd = hosted.IndexOf("function Invoke-HostedWindowsX64Verification", StringComparison.Ordinal);
+        var runtimeBuildBlock = hosted[runtimeBuildStart..runtimeBuildEnd];
+
+        workflow.Should().Contain("Restore server runtime dependencies");
+        workflow.Should().Contain("dotnet restore src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --locked-mode -r win-x64");
+        workflow.Should().Contain("Prepare server runtime output");
+        workflow.Should().Contain("dotnet build src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --configuration ${{ matrix.configuration }} --runtime win-x64 --self-contained false --no-restore -nodeReuse:false -p:UseSharedCompilation=false");
+
+        gitlab.Should().Contain("Restore server runtime dependencies win-x64");
+        gitlab.Should().Contain("Prepare server runtime output $configuration win-x64");
+
+        hosted.Should().Contain("Invoke-HostedServerRuntimeBuild");
+        hosted.Should().Contain("src\\WpfDevTools.Mcp.Server\\WpfDevTools.Mcp.Server.csproj");
+        hosted.Should().Contain("'--runtime', 'win-x64'");
+        hosted.Should().Contain("Invoke-HostedServerRuntimeBuild -DotNetPath $DotNetPath -Configuration $configuration");
+        hosted.IndexOf("Invoke-HostedServerRuntimeBuild -DotNetPath $DotNetPath -Configuration $configuration", StringComparison.Ordinal)
+            .Should().BeLessThan(hosted.IndexOf("Run integration tests Debug", StringComparison.Ordinal));
+        runtimeBuildBlock.Should().NotContain("'-p:Platform=x64'",
+            "the runtime-specific server output must land under bin/<Configuration>/net8.0/win-x64 for release packaging -SkipBuild");
+    }
+
+    [Fact]
+    public void NativeBootstrapperCiBuilds_ShouldDisableIncrementalLinking()
+    {
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+        var gitlab = File.ReadAllText(Path.Combine(RepoRoot, ".gitlab-ci.yml"));
+        var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
+
+        workflow.Should().Contain("/p:LinkIncremental=false");
+        gitlab.Should().Contain("/p:LinkIncremental=false");
+        hosted.Should().Contain("/p:LinkIncremental=false",
+            "Windows Sandbox mapped folders can make Debug incremental native linking fail inside link.exe before managed tests start");
     }
 
     [Fact]

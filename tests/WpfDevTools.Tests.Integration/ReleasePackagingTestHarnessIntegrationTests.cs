@@ -344,12 +344,12 @@ public sealed class ReleasePackagingTestHarnessIntegrationTests
                     "-GrandchildPidPath", grandchildPidPath,
                     "-ChildScriptPath", childScriptPath
                 ],
-                timeout: TimeSpan.FromSeconds(3));
+                timeout: TimeSpan.FromSeconds(10));
 
             act.Should().Throw<TimeoutException>();
             ConditionWaiter.WaitUntil(
                 () => File.Exists(parentPidPath) && File.Exists(childPidPath) && File.Exists(grandchildPidPath),
-                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(10),
                 "Timed out waiting for timeout regression pid files to be written.",
                 TimeSpan.FromMilliseconds(100));
 

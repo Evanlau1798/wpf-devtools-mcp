@@ -33,7 +33,18 @@ public static class SandboxCiProcessPowerThrottling
         ref PROCESS_POWER_THROTTLING_STATE processInformation,
         int processInformationSize);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr OpenProcess(
+        uint dwDesiredAccess,
+        bool bInheritHandle,
+        int dwProcessId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool CloseHandle(IntPtr hObject);
+
     public const int ProcessPowerThrottling = 4;
+    public const uint PROCESS_SET_INFORMATION = 0x0200;
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
     public const uint PROCESS_POWER_THROTTLING_CURRENT_VERSION = 1;
     public const uint PROCESS_POWER_THROTTLING_EXECUTION_SPEED = 0x1;
 }
@@ -55,15 +66,28 @@ function Disable-ProcessPowerThrottling {
         $state.StateMask = 0
 
         $size = [System.Runtime.InteropServices.Marshal]::SizeOf($state)
-        $ok = [SandboxCiProcessPowerThrottling]::SetProcessInformation(
-            $Process.Handle,
-            [SandboxCiProcessPowerThrottling]::ProcessPowerThrottling,
-            [ref]$state,
-            $size)
-
-        if (-not $ok) {
+        $access = [SandboxCiProcessPowerThrottling]::PROCESS_SET_INFORMATION -bor [SandboxCiProcessPowerThrottling]::PROCESS_QUERY_LIMITED_INFORMATION
+        $processHandle = [SandboxCiProcessPowerThrottling]::OpenProcess($access, $false, $Process.Id)
+        if ($processHandle -eq [IntPtr]::Zero) {
             $errorCode = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error()
-            Write-Host "Could not disable power throttling for $($Process.ProcessName)[$($Process.Id)]: Win32 $errorCode"
+            Write-Host "Could not open process handle for power throttling on $($Process.ProcessName)[$($Process.Id)]: Win32 $errorCode"
+            return
+        }
+
+        try {
+            $ok = [SandboxCiProcessPowerThrottling]::SetProcessInformation(
+                $processHandle,
+                [SandboxCiProcessPowerThrottling]::ProcessPowerThrottling,
+                [ref]$state,
+                $size)
+
+            if (-not $ok) {
+                $errorCode = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error()
+                Write-Host "Could not disable power throttling for $($Process.ProcessName)[$($Process.Id)]: Win32 $errorCode"
+            }
+        }
+        finally {
+            [void][SandboxCiProcessPowerThrottling]::CloseHandle($processHandle)
         }
     }
     catch {
@@ -77,8 +101,16 @@ function Get-WindowsSandboxComputeSystemIdsForScheduling {
         return @()
     }
 
-    $lines = @(& $hcsDiagPath list 2>$null)
+    try {
+        $lines = @(& $hcsDiagPath list 2>$null)
+    }
+    catch {
+        Write-Host "hcsdiag list was unavailable while applying sandbox host scheduling: $($_.Exception.Message)"
+        return @()
+    }
+
     if ($LASTEXITCODE -ne 0) {
+        Write-Host "hcsdiag list was unavailable while applying sandbox host scheduling: exit code $LASTEXITCODE"
         return @()
     }
 

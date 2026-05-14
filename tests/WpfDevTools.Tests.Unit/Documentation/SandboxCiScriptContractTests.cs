@@ -55,7 +55,8 @@ public sealed partial class SandboxCiScriptContractTests
         managed.Should().Contain("Invoke-ReleaseUnitTests");
 
         hosted.Should().Contain("Invoke-HostedWindowsX64Verification");
-        hosted.Should().Contain("Invoke-NativeFullVerification");
+        hosted.Should().Contain("Invoke-HostedNativeBootstrapperBuild");
+        hosted.Should().Contain("WpfDevTools.Bootstrapper.vcxproj");
 
         cleanup.Should().Contain("hcsdiag.exe");
         cleanup.Should().Contain("WindowsSandbox");
@@ -183,6 +184,18 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
         runner.Should().Contain("DestinationRoot must not be a drive root");
         runner.Should().Contain("DestinationRoot must not equal SourceRoot");
         runner.Should().NotContain("Remove-Item -LiteralPath $DestinationRoot -Recurse -Force");
+    }
+
+    [Fact]
+    public void StartSandboxCi_ShouldBuildRepositoryFromSandboxLocalDisk()
+    {
+        var runner = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "Start-SandboxCi.ps1");
+
+        runner.Should().Contain("$sandboxLocalWorkRoot = Join-Path $env:SystemDrive 'sandbox-ci-work'");
+        runner.Should().Contain("$sandboxRepoWorkRoot = Join-Path $sandboxLocalWorkRoot 'repo'");
+        runner.Should().Contain("-WorkRoot $sandboxLocalWorkRoot");
+        runner.Should().NotContain("$sandboxRepoWorkRoot = Join-Path $MappedWorkRoot 'repo'",
+            "building from a Windows Sandbox mapped folder is less GitHub-like and can break native linker temporary resource processing");
     }
 
     [Fact]

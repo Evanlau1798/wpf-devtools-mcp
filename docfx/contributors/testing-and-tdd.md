@@ -78,6 +78,17 @@ Useful faster slices:
 .\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode FullManaged -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
 ```
 
+Artifact-only release preflight:
+
+```powershell
+.\scripts\tools\packaging\Publish-Release.ps1 -Configuration Debug -Architectures x64 -OutputRoot .\tmp\sandbox-ci\artifact-preflight\release
+.\scripts\ci\Invoke-WindowsSandboxArtifactPreflight.ps1 -PackageArchivePath .\tmp\sandbox-ci\artifact-preflight\release\release_0.1.0_win-x64.zip -Architecture x64 -Client other
+```
+
+Use artifact preflight when installer, package layout, registration artifact, or packaged server startup behavior changed. This path does not rebuild the repository inside Windows Sandbox. It maps only the release archive and a small preflight bootstrap folder, expands the package, runs the package-local installer, starts the installed MCP server over STDIO, verifies `initialize`, `tools/list`, `resources/read`, and `get_processes`, then uninstalls the package.
+
+The artifact preflight provisions .NET runtime channel `8.0` inside the Sandbox when needed, mirroring the hosted runner prerequisite normally supplied by `setup-dotnet`. Use `-DotNetChannel` when validating a different runtime channel, or `-SkipDotNetProvisioning` only when the Sandbox image already has the required runtime.
+
 Operational notes:
 
 - `HostedWindowsX64` mirrors the GitLab Windows x64 fallback lane and the GitHub hosted x64 managed test scope where Windows Sandbox can do so reliably: sandbox-safe native compiler/resource/archive smoke, solution build for Debug/Release, unit shards for both configurations, and release-unit shards for both configurations.

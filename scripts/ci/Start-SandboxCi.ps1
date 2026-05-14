@@ -104,6 +104,7 @@ function Copy-RepositoryToWorkRoot {
     param(
         [Parameter(Mandatory = $true)] [string]$SourceRoot,
         [Parameter(Mandatory = $true)] [string]$DestinationRoot,
+        [Parameter(Mandatory = $true)] [string]$WorkRoot,
         [Parameter(Mandatory = $true)] [bool]$IncludeGitMetadata
     )
 
@@ -113,8 +114,8 @@ function Copy-RepositoryToWorkRoot {
         throw "DestinationRoot must not equal SourceRoot: $fullDestination"
     }
 
-    Assert-SandboxWorkDestination -DestinationRoot $DestinationRoot -WorkRoot $MappedWorkRoot
-    Clear-DirectoryContents -DestinationRoot $DestinationRoot -WorkRoot $MappedWorkRoot
+    Assert-SandboxWorkDestination -DestinationRoot $DestinationRoot -WorkRoot $WorkRoot
+    Clear-DirectoryContents -DestinationRoot $DestinationRoot -WorkRoot $WorkRoot
 
     New-Item -ItemType Directory -Force -Path $DestinationRoot | Out-Null
 
@@ -343,10 +344,12 @@ function Write-SandboxResult {
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $logRoot = Join-Path $MappedOutputRoot 'logs'
 $resultsRoot = Join-Path $MappedOutputRoot "TestResults\sandbox\$timestamp"
-$sandboxRepoWorkRoot = Join-Path $MappedWorkRoot 'repo'
+$sandboxLocalWorkRoot = Join-Path $env:SystemDrive 'sandbox-ci-work'
+$sandboxRepoWorkRoot = Join-Path $sandboxLocalWorkRoot 'repo'
 
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $resultsRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $sandboxLocalWorkRoot | Out-Null
 
 $logPath = Join-Path $logRoot "sandbox-ci-$timestamp.log"
 Start-Transcript -Path $logPath -Force | Out-Null
@@ -362,6 +365,7 @@ try {
     Write-Host "Mapped repo root: $MappedRepoRoot"
     Write-Host "Mapped work root: $MappedWorkRoot"
     Write-Host "Mapped output root: $MappedOutputRoot"
+    Write-Host "Sandbox local work root: $sandboxLocalWorkRoot"
 
     Enable-MappedGit
     Enable-NativeBuildEnvironment
@@ -370,7 +374,7 @@ try {
         Write-Host 'Portable Git metadata was not available; running sandbox CI without copied Git metadata.'
     }
 
-    Copy-RepositoryToWorkRoot -SourceRoot $MappedRepoRoot -DestinationRoot $sandboxRepoWorkRoot -IncludeGitMetadata $includeGitMetadata
+    Copy-RepositoryToWorkRoot -SourceRoot $MappedRepoRoot -DestinationRoot $sandboxRepoWorkRoot -WorkRoot $sandboxLocalWorkRoot -IncludeGitMetadata $includeGitMetadata
     Set-Location $sandboxRepoWorkRoot
     if ($includeGitMetadata) {
         Configure-GitForSandbox -RepoRoot $sandboxRepoWorkRoot

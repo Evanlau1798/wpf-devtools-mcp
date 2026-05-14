@@ -22,10 +22,19 @@ public sealed class SandboxCiHostSchedulingContractTests
         launcher.Should().NotContain("taskkill");
 
         hostScheduling.Should().Contain("SetProcessInformation");
+        hostScheduling.Should().Contain("OpenProcess(");
+        hostScheduling.Should().Contain("CloseHandle(");
+        hostScheduling.Should().Contain("PROCESS_SET_INFORMATION");
+        hostScheduling.Should().Contain("PROCESS_QUERY_LIMITED_INFORMATION");
+        hostScheduling.Should().NotContain("$Process.Handle,",
+            "Process.Handle can be unavailable for some sandbox host processes after launch, leaving power throttling enabled");
         hostScheduling.Should().Contain("PROCESS_POWER_THROTTLING_EXECUTION_SPEED");
         hostScheduling.Should().Contain("WindowsSandboxClient");
         hostScheduling.Should().Contain("vmwp.exe");
         hostScheduling.Should().Contain("ProcessorAffinity");
+        hostScheduling.Should().Contain("catch {");
+        hostScheduling.Should().Contain("hcsdiag list was unavailable",
+            "host scheduling is a best-effort optimization and must not abort a sandbox CI run when hcsdiag cannot enumerate compute systems");
     }
 
     private static string FindRepoRoot()

@@ -6,6 +6,18 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class PackagedServerRuntimeSmokeScriptTests
 {
     [Fact]
+    public void TestPackagedServerRuntimeScript_ShouldSupportOptionalTargetProcessInspection()
+    {
+        var script = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        script.Should().Contain("[int]$TargetProcessId = 0");
+        script.Should().Contain("connect");
+        script.Should().Contain("get_ui_summary");
+        script.Should().Contain("TargetProcessId");
+    }
+
+    [Fact]
     public void TestPackagedServerRuntimeScript_ShouldExerciseBuiltServerProtocolSurface()
     {
         var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1");

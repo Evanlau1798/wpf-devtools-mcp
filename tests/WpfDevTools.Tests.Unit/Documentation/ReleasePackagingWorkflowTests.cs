@@ -176,7 +176,7 @@ public class ReleasePackagingWorkflowTests
             "packaged runtime smoke should validate resource serving from the packaged executable");
         content.Should().Contain("wpf://capabilities",
             "capability resource reads are safe and do not require a target process");
-        content.Should().Contain("Invoke-McpRequest -Process $process -Id 4 -Method 'tools/call'",
+        content.Should().Contain("Invoke-McpTool -Process $process -Id 4 -Name 'get_processes'",
             "packaged runtime smoke should execute at least one safe tool call");
         content.Should().Contain("get_processes",
             "get_processes is a safe process-discovery tool that does not mutate target UI state");
@@ -185,7 +185,7 @@ public class ReleasePackagingWorkflowTests
         var initializedIndex = content.IndexOf("-Method 'notifications/initialized'", StringComparison.Ordinal);
         var toolsListIndex = content.IndexOf("-Method 'tools/list'", StringComparison.Ordinal);
         var resourcesReadIndex = content.IndexOf("-Method 'resources/read'", StringComparison.Ordinal);
-        var toolCallIndex = content.IndexOf("-Method 'tools/call'", StringComparison.Ordinal);
+        var toolCallIndex = content.IndexOf("-Name 'get_processes'", StringComparison.Ordinal);
 
         initializeIndex.Should().BeLessThan(initializedIndex);
         initializedIndex.Should().BeLessThan(toolsListIndex);

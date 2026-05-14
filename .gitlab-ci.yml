@@ -154,6 +154,14 @@ windows_x64_build_and_test:
 
       Invoke-External 'dotnet --info' $dotnetPath @('--info')
       Invoke-External 'dotnet restore --locked-mode' $dotnetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')
+      Invoke-External 'Restore server runtime dependencies win-x64' $dotnetPath @(
+          'restore',
+          'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj',
+          '--locked-mode',
+          '-r',
+          'win-x64',
+          '-p:NuGetAudit=true'
+      )
 
       foreach ($configuration in @('Debug', 'Release')) {
           Invoke-External "Build native bootstrapper $configuration x64" $msbuildPath @(
@@ -162,6 +170,7 @@ windows_x64_build_and_test:
               '/nologo',
               "/p:Configuration=$configuration",
               '/p:Platform=x64',
+              '/p:LinkIncremental=false',
               "/p:NetHostIncludeDir=$nativeHostDirectory",
               "/p:NetHostLibDir=$nativeHostDirectory"
           )
@@ -196,9 +205,20 @@ windows_x64_build_and_test:
               Stop-CI "Managed test lanes $configuration failed: $($_.Exception.Message)" 1
           }
 
-          if ($configuration -eq 'Debug') {
-              Invoke-External 'Run integration tests Debug' $dotnetPath @(
-                  'test',
+              if ($configuration -eq 'Debug') {
+                  Invoke-External 'Prepare server runtime output $configuration win-x64' $dotnetPath @(
+                      'build',
+                      'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj',
+                      '--configuration', $configuration,
+                      '--runtime', 'win-x64',
+                      '--self-contained', 'false',
+                      '--no-restore',
+                      '-nodeReuse:false',
+                      '-p:UseSharedCompilation=false'
+                  )
+
+                  Invoke-External 'Run integration tests Debug' $dotnetPath @(
+                      'test',
                   'tests\WpfDevTools.Tests.Integration\WpfDevTools.Tests.Integration.csproj',
                   '--configuration', $configuration,
                   '--no-build',

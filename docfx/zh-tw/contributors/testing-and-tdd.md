@@ -78,6 +78,17 @@ Unit 與 integration suites 會啟用 collection-level parallelization，並用 
 .\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode FullManaged -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
 ```
 
+artifact-only release preflight：
+
+```powershell
+.\scripts\tools\packaging\Publish-Release.ps1 -Configuration Debug -Architectures x64 -OutputRoot .\tmp\sandbox-ci\artifact-preflight\release
+.\scripts\ci\Invoke-WindowsSandboxArtifactPreflight.ps1 -PackageArchivePath .\tmp\sandbox-ci\artifact-preflight\release\release_0.1.0_win-x64.zip -Architecture x64 -Client other
+```
+
+當 installer、package layout、registration artifact，或 packaged server 啟動行為有變更時，優先使用 artifact preflight。這條路徑不會在 Windows Sandbox 內重新建置 repository，而是只映射 release archive 與小型 preflight bootstrap 目錄；接著解壓 package、執行 package-local installer、以 STDIO 啟動已安裝的 MCP server、驗證 `initialize`、`tools/list`、`resources/read` 與 `get_processes`，最後 uninstall package。
+
+artifact preflight 會在 Sandbox 內依需要 provision .NET runtime channel `8.0`，用來模擬 hosted runner 通常由 `setup-dotnet` 提供的前置條件。若要驗證不同 runtime channel 可使用 `-DotNetChannel`；只有在 Sandbox image 已有必要 runtime 時才使用 `-SkipDotNetProvisioning`。
+
 操作注意事項：
 
 - `HostedWindowsX64` 會在 Windows Sandbox 可可靠執行的範圍內貼近 GitLab Windows x64 fallback lane 與 GitHub hosted x64 managed test 範圍：sandbox-safe native compiler/resource/archive smoke、Debug/Release solution build、兩種 configuration 的 unit shards，以及兩種 configuration 的 release-unit shards。

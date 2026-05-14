@@ -58,6 +58,10 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore --locked-mode
 
+    - name: Restore server runtime dependencies
+      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
+      run: dotnet restore src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --locked-mode -r win-x64
+
     - name: Build native bootstrapper
       shell: pwsh
       run: |
@@ -72,6 +76,7 @@ jobs:
           /nologo `
           "/p:Configuration=${{ matrix.configuration }}" `
           "/p:Platform=$platform" `
+          "/p:LinkIncremental=false" `
           "/p:NetHostIncludeDir=$env:BOOTSTRAPPER_NATIVE_DIR" `
           "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR"
 
@@ -85,6 +90,10 @@ jobs:
     - name: Run release unit tests
       if: matrix.platform == 'x64'
       run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
+
+    - name: Prepare server runtime output
+      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
+      run: dotnet build src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --configuration ${{ matrix.configuration }} --runtime win-x64 --self-contained false --no-restore -nodeReuse:false -p:UseSharedCompilation=false
 
     - name: Run integration tests
       if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
@@ -393,6 +402,7 @@ jobs:
           /nologo `
           "/p:Configuration=Debug" `
           "/p:Platform=x64" `
+          "/p:LinkIncremental=false" `
           "/p:NetHostIncludeDir=$env:BOOTSTRAPPER_NATIVE_DIR" `
           "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR"
 

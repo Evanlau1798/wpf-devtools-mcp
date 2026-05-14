@@ -29,6 +29,35 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
     }
 
     [Fact]
+    public void ResolveWindowsSdkVersion_ShouldIgnoreWdfIncludeDirectory()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var sdkDirectory = Path.Combine(tempRoot, "Windows Kits", "10");
+            Directory.CreateDirectory(Path.Combine(sdkDirectory, "Include", "10.0.22621.0"));
+            Directory.CreateDirectory(Path.Combine(sdkDirectory, "Include", "10.0.26100.0"));
+            Directory.CreateDirectory(Path.Combine(sdkDirectory, "Include", "wdf"));
+            var functionOnlyScript = CreateFunctionOnlyPublishReleaseScript(tempRoot);
+            var command = $$"""
+            . '{{EscapePowerShellPath(functionOnlyScript)}}'
+            $actual = Resolve-WindowsSdkVersion -WindowsSdkDirectory '{{EscapePowerShellPath(sdkDirectory)}}'
+            if ($actual -ne '10.0.26100.0') {
+                throw "Expected numeric SDK version 10.0.26100.0 but resolved '$actual'."
+            }
+            """;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr + result.Stdout);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PublishReleaseScript_ShouldOnlyInjectInheritedNativePathsForX64BootstrapperBuilds()
     {
         var script = File.ReadAllText(
@@ -39,4 +68,18 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
         script.Should().Contain("/p:LibraryPath=$libraryPath");
         script.Should().Contain("/p:ExecutablePath=$executablePath");
     }
+
+    private static string CreateFunctionOnlyPublishReleaseScript(string tempRoot)
+    {
+        var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1");
+        var functionLines = File.ReadLines(scriptPath)
+            .TakeWhile(line => !line.StartsWith("$repoRoot =", StringComparison.Ordinal))
+            .ToArray();
+        var functionOnlyScript = Path.Combine(tempRoot, "Publish-Release.Functions.ps1");
+        File.WriteAllLines(functionOnlyScript, functionLines);
+        return functionOnlyScript;
+    }
+
+    private static string EscapePowerShellPath(string path)
+        => path.Replace("'", "''", StringComparison.Ordinal);
 }

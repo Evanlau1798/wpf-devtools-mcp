@@ -85,7 +85,8 @@ function Resolve-WindowsSdkVersion {
     }
 
     $versionDirectory = Get-ChildItem -LiteralPath $includeRoot -Directory -ErrorAction SilentlyContinue |
-        Sort-Object Name -Descending |
+        Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+        Sort-Object { [version]$_.Name } -Descending |
         Select-Object -First 1
 
     if ($null -eq $versionDirectory) {

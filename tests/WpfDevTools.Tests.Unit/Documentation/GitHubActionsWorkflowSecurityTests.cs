@@ -50,6 +50,15 @@ public sealed class GitHubActionsWorkflowSecurityTests
             "release-critical validation should pin the Windows runner image instead of relying on the mutable windows-latest alias");
     }
 
+    [Fact]
+    public void CiCdWorkflow_ShouldSupportManualDispatchForMirrorCiRetry()
+    {
+        var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        workflow.Should().Contain("workflow_dispatch:",
+            "mirror CI repositories should support one-off CI retries without creating extra commits solely to trigger Actions");
+    }
+
     private static IEnumerable<string> EnumerateUnpinnedActionReferences(string workflowPath)
     {
         var relativePath = Path.GetRelativePath(

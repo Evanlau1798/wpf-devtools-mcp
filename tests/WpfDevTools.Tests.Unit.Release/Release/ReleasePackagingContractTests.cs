@@ -266,11 +266,9 @@ public sealed partial class ReleasePackagingContractTests
             var fakeDotnet = Path.Combine(toolRoot, "dotnet.cmd");
             File.WriteAllText(fakeDotnet, "@echo off\r\nexit /b 0\r\n");
 
-            var fakeMsbuild = Path.Combine(toolRoot, "msbuild.cmd");
-            File.WriteAllText(fakeMsbuild, "@echo off\r\nexit /b 0\r\n");
-
             var fakeSigntool = Path.Combine(toolRoot, "signtool.cmd");
             File.WriteAllText(fakeSigntool, "@echo off\r\nexit /b 0\r\n");
+            var fakeToolchain = CreateFakeNativeToolchain(tempRoot, "x64");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 testRepo.PackagingScriptPath,
@@ -279,7 +277,9 @@ public sealed partial class ReleasePackagingContractTests
                 {
                     ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
                     ["PATH"] = toolRoot + ";" + Environment.GetEnvironmentVariable("PATH"),
-                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuild,
+                    ["VCToolsInstallDir"] = fakeToolchain.VCToolsDirectory,
+                    ["WindowsSDKDir"] = fakeToolchain.WindowsSdkDirectory,
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeToolchain.MSBuildPath,
                     ["WPFDEVTOOLS_SIGNTOOL_PATH"] = fakeSigntool,
                     ["WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH"] = pfxPath,
                     ["WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"] = thumbprint,
@@ -312,11 +312,9 @@ public sealed partial class ReleasePackagingContractTests
             var fakeDotnet = Path.Combine(toolRoot, "dotnet.cmd");
             File.WriteAllText(fakeDotnet, "@echo off\r\nexit /b 0\r\n");
 
-            var fakeMsbuild = Path.Combine(toolRoot, "msbuild.cmd");
-            File.WriteAllText(fakeMsbuild, "@echo off\r\nexit /b 0\r\n");
-
             var fakeSigntool = Path.Combine(toolRoot, "signtool.cmd");
             File.WriteAllText(fakeSigntool, "@echo off\r\nexit /b 1\r\n");
+            var fakeToolchain = CreateFakeNativeToolchain(tempRoot, "x64");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 testRepo.PackagingScriptPath,
@@ -325,7 +323,9 @@ public sealed partial class ReleasePackagingContractTests
                 {
                     ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
                     ["PATH"] = toolRoot + ";" + Environment.GetEnvironmentVariable("PATH"),
-                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuild,
+                    ["VCToolsInstallDir"] = fakeToolchain.VCToolsDirectory,
+                    ["WindowsSDKDir"] = fakeToolchain.WindowsSdkDirectory,
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeToolchain.MSBuildPath,
                     ["WPFDEVTOOLS_SIGNTOOL_PATH"] = fakeSigntool,
                     ["WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH"] = pfxPath,
                     ["WPFDEVTOOLS_PFX_PASSWORD"] = "PackagingTest123!"
@@ -368,11 +368,9 @@ public sealed partial class ReleasePackagingContractTests
             var fakeDotnet = Path.Combine(toolRoot, "dotnet.cmd");
             File.WriteAllText(fakeDotnet, "@echo off\r\nexit /b 0\r\n");
 
-            var fakeMsbuild = Path.Combine(toolRoot, "msbuild.cmd");
-            File.WriteAllText(fakeMsbuild, "@echo off\r\nexit /b 0\r\n");
-
             var fakeSigntool = Path.Combine(toolRoot, "signtool.cmd");
             File.WriteAllText(fakeSigntool, "@echo off\r\nexit /b 1\r\n");
+            var fakeToolchain = CreateFakeNativeToolchain(tempRoot, "x64");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 testRepo.PackagingScriptPath,
@@ -381,7 +379,9 @@ public sealed partial class ReleasePackagingContractTests
                 {
                     ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
                     ["PATH"] = toolRoot + ";" + Environment.GetEnvironmentVariable("PATH"),
-                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuild,
+                    ["VCToolsInstallDir"] = fakeToolchain.VCToolsDirectory,
+                    ["WindowsSDKDir"] = fakeToolchain.WindowsSdkDirectory,
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeToolchain.MSBuildPath,
                     ["WPFDEVTOOLS_SIGNTOOL_PATH"] = fakeSigntool,
                     ["WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH"] = pfxPath,
                     ["WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"] = thumbprint,

@@ -17,8 +17,7 @@ public sealed partial class ReleasePackagingContractTests
 
             var fakeDotnet = Path.Combine(toolRoot, "dotnet.cmd");
             File.WriteAllText(fakeDotnet, "@echo off\r\nexit /b 0\r\n");
-            var fakeMsbuild = Path.Combine(toolRoot, "msbuild.cmd");
-            File.WriteAllText(fakeMsbuild, "@echo off\r\nexit /b 0\r\n");
+            var fakeToolchain = CreateFakeNativeToolchain(tempRoot, "x64");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 testRepo.PackagingScriptPath,
@@ -26,7 +25,9 @@ public sealed partial class ReleasePackagingContractTests
                 new Dictionary<string, string?>
                 {
                     ["PATH"] = toolRoot + ";" + Environment.GetEnvironmentVariable("PATH"),
-                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuild,
+                    ["VCToolsInstallDir"] = fakeToolchain.VCToolsDirectory,
+                    ["WindowsSDKDir"] = fakeToolchain.WindowsSdkDirectory,
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeToolchain.MSBuildPath,
                     ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "Valid"
                 });
 

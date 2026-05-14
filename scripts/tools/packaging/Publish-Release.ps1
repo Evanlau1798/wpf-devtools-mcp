@@ -812,68 +812,312 @@ function Resolve-MSBuildPath {
 function Get-VisualStudioInstallationRoot {
     param([Parameter(Mandatory)] [string]$ResolvedMsBuildPath)
 
-    $msbuildDirectory = Split-Path -Parent $ResolvedMsBuildPath
-    if ([string]::IsNullOrWhiteSpace($msbuildDirectory)) {
-        return $null
+    $candidateDirectory = Split-Path -Parent $ResolvedMsBuildPath
+    for ($attempt = 0; $attempt -lt 5; $attempt++) {
+        if ([string]::IsNullOrWhiteSpace($candidateDirectory)) {
+            return $null
+        }
+
+        if ((Split-Path $candidateDirectory -Leaf) -eq 'Current') {
+            $msbuildRoot = Split-Path -Parent $candidateDirectory
+            if (-not [string]::IsNullOrWhiteSpace($msbuildRoot) -and
+                (Split-Path $msbuildRoot -Leaf) -eq 'MSBuild') {
+                return Split-Path -Parent $msbuildRoot
+            }
+        }
+
+        $candidateDirectory = Split-Path -Parent $candidateDirectory
     }
 
-    $currentDirectory = Split-Path -Parent $msbuildDirectory
-    if ([string]::IsNullOrWhiteSpace($currentDirectory) -or
-        (Split-Path $currentDirectory -Leaf) -ne 'Current') {
-        return $null
-    }
-
-    $msbuildRoot = Split-Path -Parent $currentDirectory
-    if ([string]::IsNullOrWhiteSpace($msbuildRoot) -or
-        (Split-Path $msbuildRoot -Leaf) -ne 'MSBuild') {
-        return $null
-    }
-
-    return Split-Path -Parent $msbuildRoot
+    return $null
 }
 
-function Test-Arm64ToolchainInstalled {
+function Resolve-VCToolsDirectory {
     param([Parameter(Mandatory)] [string]$ResolvedMsBuildPath)
+
+    if (-not [string]::IsNullOrWhiteSpace($env:VCToolsInstallDir) -and
+        (Test-Path -LiteralPath $env:VCToolsInstallDir)) {
+        return $env:VCToolsInstallDir.TrimEnd('\')
+    }
 
     $visualStudioRoot = Get-VisualStudioInstallationRoot -ResolvedMsBuildPath $ResolvedMsBuildPath
     if ([string]::IsNullOrWhiteSpace($visualStudioRoot)) {
-        return $true
+        return ''
     }
 
     $msvcRoot = Join-Path $visualStudioRoot 'VC\Tools\MSVC'
-    if (-not (Test-Path $msvcRoot)) {
-        return $false
+    if (-not (Test-Path -LiteralPath $msvcRoot)) {
+        return ''
     }
 
-    $toolDirectories = Get-ChildItem -Path $msvcRoot -Directory -ErrorAction SilentlyContinue
-    foreach ($toolDirectory in $toolDirectories) {
-        $compilerCandidates = @(
-            (Join-Path $toolDirectory.FullName 'bin\Hostx64\arm64\cl.exe'),
-            (Join-Path $toolDirectory.FullName 'bin\Hostx86\arm64\cl.exe')
-        )
+    $toolDirectory = Get-ChildItem -LiteralPath $msvcRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^\d+\.\d+(\.\d+){0,2}$' } |
+        Sort-Object { [version]$_.Name } -Descending |
+        Select-Object -First 1
 
-        foreach ($compilerCandidate in $compilerCandidates) {
-            if (Test-Path $compilerCandidate) {
-                return $true
-            }
+    if ($null -eq $toolDirectory) {
+        return ''
+    }
+
+    return $toolDirectory.FullName.TrimEnd('\')
+}
+
+function Get-NativeBootstrapperTargetArchitecture {
+    param([Parameter(Mandatory)] [string]$BootstrapperPlatform)
+
+    switch ($BootstrapperPlatform) {
+        'x64' { return 'x64' }
+        'Win32' { return 'x86' }
+        'ARM64' { return 'arm64' }
+        default { return '' }
+    }
+}
+
+function Select-ExistingPathSegments {
+    param([string[]]$Candidates)
+
+    $segments = New-Object System.Collections.Generic.List[string]
+    foreach ($candidate in @($Candidates)) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+
+        if (Test-Path -LiteralPath $candidate) {
+            $segments.Add($candidate.TrimEnd('\'))
         }
     }
 
-    return $false
+    return @($segments)
+}
+
+function ConvertTo-NativeBuildPathProperty {
+    param(
+        [string[]]$PathSegments,
+        [string]$ExistingValue
+    )
+
+    $values = New-Object System.Collections.Generic.List[string]
+    foreach ($segment in @(Select-ExistingPathSegments -Candidates $PathSegments)) {
+        if (-not $values.Contains($segment)) {
+            $values.Add($segment)
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExistingValue)) {
+        $values.Add($ExistingValue.TrimEnd(';'))
+    }
+
+    if ($values.Count -eq 0) {
+        return ''
+    }
+
+    return ConvertTo-MSBuildPropertyValue -Value ($values -join ';')
+}
+
+function Assert-NativeBuildDirectory {
+    param(
+        [string]$Path,
+        [Parameter(Mandatory)] [string]$Description,
+        [Parameter(Mandatory)] [string]$BootstrapperPlatform
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or
+        -not (Test-Path -LiteralPath $Path -PathType Container)) {
+        throw "Could not resolve $Description for native bootstrapper platform '$BootstrapperPlatform'. Expected directory: $Path"
+    }
+
+    return $Path.TrimEnd('\')
+}
+
+function Assert-NativeBuildToolDirectory {
+    param(
+        [string[]]$Directories,
+        [Parameter(Mandatory)] [string]$ToolName,
+        [Parameter(Mandatory)] [string]$Description,
+        [Parameter(Mandatory)] [string]$BootstrapperPlatform
+    )
+
+    foreach ($directory in @(Select-ExistingPathSegments -Candidates $Directories)) {
+        $toolPath = Join-Path $directory $ToolName
+        if (Test-Path -LiteralPath $toolPath -PathType Leaf) {
+            return $directory
+        }
+    }
+
+    throw "Could not resolve $Description for native bootstrapper platform '$BootstrapperPlatform'. Expected tool '$ToolName' under: $($Directories -join '; ')"
+}
+
+function Get-NativeBootstrapperBuildProperties {
+    param(
+        [Parameter(Mandatory)] [string]$BootstrapperPlatform,
+        [Parameter(Mandatory)] [string]$ResolvedMsBuildPath,
+        [string]$WindowsSdkDirectory,
+        [string]$WindowsSdkVersion
+    )
+
+    $targetArchitecture = Get-NativeBootstrapperTargetArchitecture -BootstrapperPlatform $BootstrapperPlatform
+    if ([string]::IsNullOrWhiteSpace($targetArchitecture)) {
+        return [ordered]@{
+            IncludePath = ''
+            LibraryPath = ''
+            ExecutablePath = ''
+        }
+    }
+
+    $vcToolsDirectory = Resolve-VCToolsDirectory -ResolvedMsBuildPath $ResolvedMsBuildPath
+    $vcIncludeDirectory = if ([string]::IsNullOrWhiteSpace($vcToolsDirectory)) {
+        ''
+    }
+    else {
+        Join-Path $vcToolsDirectory 'include'
+    }
+
+    $vcLibraryDirectory = if ([string]::IsNullOrWhiteSpace($vcToolsDirectory)) {
+        ''
+    }
+    else {
+        Join-Path $vcToolsDirectory (Join-Path 'lib' $targetArchitecture)
+    }
+
+    $vcExecutableDirectories = if ([string]::IsNullOrWhiteSpace($vcToolsDirectory)) {
+        @()
+    }
+    else {
+        @(
+            (Join-Path $vcToolsDirectory (Join-Path 'bin\HostX64' $targetArchitecture)),
+            (Join-Path $vcToolsDirectory (Join-Path 'bin\HostX86' $targetArchitecture))
+        )
+    }
+
+    $sdkIncludeDirectories = @()
+    $sdkLibraryDirectories = @()
+    $sdkExecutableDirectories = @()
+    $sdkUcrtIncludeDirectory = ''
+    $sdkSharedIncludeDirectory = ''
+    $sdkUmIncludeDirectory = ''
+    $sdkUcrtLibraryDirectory = ''
+    $sdkUmLibraryDirectory = ''
+    if (-not [string]::IsNullOrWhiteSpace($WindowsSdkDirectory) -and
+        -not [string]::IsNullOrWhiteSpace($WindowsSdkVersion)) {
+        $sdkIncludeRoot = Join-Path $WindowsSdkDirectory (Join-Path 'Include' $WindowsSdkVersion)
+        $sdkUcrtIncludeDirectory = Join-Path $sdkIncludeRoot 'ucrt'
+        $sdkSharedIncludeDirectory = Join-Path $sdkIncludeRoot 'shared'
+        $sdkUmIncludeDirectory = Join-Path $sdkIncludeRoot 'um'
+        $sdkIncludeDirectories = @(
+            $sdkUcrtIncludeDirectory,
+            $sdkSharedIncludeDirectory,
+            $sdkUmIncludeDirectory,
+            (Join-Path $sdkIncludeRoot 'winrt'),
+            (Join-Path $sdkIncludeRoot 'cppwinrt')
+        )
+
+        $sdkLibraryRoot = Join-Path $WindowsSdkDirectory (Join-Path 'Lib' $WindowsSdkVersion)
+        $sdkUcrtLibraryDirectory = Join-Path $sdkLibraryRoot (Join-Path 'ucrt' $targetArchitecture)
+        $sdkUmLibraryDirectory = Join-Path $sdkLibraryRoot (Join-Path 'um' $targetArchitecture)
+        $sdkLibraryDirectories = @(
+            $sdkUcrtLibraryDirectory,
+            $sdkUmLibraryDirectory
+        )
+
+        $sdkExecutableRoot = Join-Path $WindowsSdkDirectory (Join-Path 'bin' $WindowsSdkVersion)
+        $sdkExecutableDirectories = @(
+            (Join-Path $sdkExecutableRoot 'x64'),
+            (Join-Path $sdkExecutableRoot $targetArchitecture)
+        )
+    }
+
+    $requiredVcIncludeDirectory = Assert-NativeBuildDirectory `
+        -Path $vcIncludeDirectory `
+        -Description 'VC include path' `
+        -BootstrapperPlatform $BootstrapperPlatform
+    $requiredVcLibraryDirectory = Assert-NativeBuildDirectory `
+        -Path $vcLibraryDirectory `
+        -Description 'VC library path' `
+        -BootstrapperPlatform $BootstrapperPlatform
+    $requiredVcExecutableDirectory = Assert-NativeBuildToolDirectory `
+        -Directories $vcExecutableDirectories `
+        -ToolName 'cl.exe' `
+        -Description 'VC compiler path' `
+        -BootstrapperPlatform $BootstrapperPlatform
+    $requiredVcLinkerDirectory = Assert-NativeBuildToolDirectory `
+        -Directories $vcExecutableDirectories `
+        -ToolName 'link.exe' `
+        -Description 'VC linker path' `
+        -BootstrapperPlatform $BootstrapperPlatform
+    $requiredSdkExecutableDirectory = Assert-NativeBuildToolDirectory `
+        -Directories $sdkExecutableDirectories `
+        -ToolName 'rc.exe' `
+        -Description 'Windows SDK resource compiler path' `
+        -BootstrapperPlatform $BootstrapperPlatform
+    $requiredSdkIncludeDirectories = @(
+        (Assert-NativeBuildDirectory `
+            -Path $sdkUcrtIncludeDirectory `
+            -Description 'Windows SDK UCRT include path' `
+            -BootstrapperPlatform $BootstrapperPlatform),
+        (Assert-NativeBuildDirectory `
+            -Path $sdkSharedIncludeDirectory `
+            -Description 'Windows SDK shared include path' `
+            -BootstrapperPlatform $BootstrapperPlatform),
+        (Assert-NativeBuildDirectory `
+            -Path $sdkUmIncludeDirectory `
+            -Description 'Windows SDK UM include path' `
+            -BootstrapperPlatform $BootstrapperPlatform)
+    )
+    $requiredSdkLibraryDirectories = @(
+        (Assert-NativeBuildDirectory `
+            -Path $sdkUcrtLibraryDirectory `
+            -Description 'Windows SDK UCRT library path' `
+            -BootstrapperPlatform $BootstrapperPlatform),
+        (Assert-NativeBuildDirectory `
+            -Path $sdkUmLibraryDirectory `
+            -Description 'Windows SDK UM library path' `
+            -BootstrapperPlatform $BootstrapperPlatform)
+    )
+
+    $includePath = ConvertTo-NativeBuildPathProperty `
+        -PathSegments (@($requiredVcIncludeDirectory) + $requiredSdkIncludeDirectories + $sdkIncludeDirectories) `
+        -ExistingValue $env:INCLUDE
+    $libraryPath = ConvertTo-NativeBuildPathProperty `
+        -PathSegments (@($requiredVcLibraryDirectory) + $requiredSdkLibraryDirectories + $sdkLibraryDirectories) `
+        -ExistingValue $env:LIB
+    $executablePath = ConvertTo-NativeBuildPathProperty `
+        -PathSegments (@($requiredVcExecutableDirectory, $requiredVcLinkerDirectory) + $vcExecutableDirectories + @($requiredSdkExecutableDirectory) + $sdkExecutableDirectories) `
+        -ExistingValue $env:PATH
+
+    if ([string]::IsNullOrWhiteSpace($includePath) -or
+        [string]::IsNullOrWhiteSpace($libraryPath) -or
+        [string]::IsNullOrWhiteSpace($executablePath)) {
+        throw "Could not resolve native bootstrapper toolchain paths for platform '$BootstrapperPlatform'. Run from a Visual Studio Developer shell or install the Windows SDK and MSVC C++ toolchain."
+    }
+
+    return [ordered]@{
+        IncludePath = $includePath
+        LibraryPath = $libraryPath
+        ExecutablePath = $executablePath
+    }
 }
 
 function Assert-ArchitectureToolchainAvailable {
     param(
         [Parameter(Mandatory)] [string[]]$ResolvedArchitectures,
-        [Parameter(Mandatory)] [string]$ResolvedMsBuildPath
+        [Parameter(Mandatory)] [string]$ResolvedMsBuildPath,
+        [string]$WindowsSdkDirectory,
+        [string]$WindowsSdkVersion
     )
 
     if ($ResolvedArchitectures -notcontains 'arm64') {
         return
     }
 
-    if (-not (Test-Arm64ToolchainInstalled -ResolvedMsBuildPath $ResolvedMsBuildPath)) {
-        throw 'ARM64 bootstrapper build requires the Visual Studio v143 ARM64 C++ toolchain. Install component Microsoft.VisualStudio.Component.VC.Tools.ARM64 and rerun scripts/tools/build-release.ps1.'
+    try {
+        Get-NativeBootstrapperBuildProperties `
+            -BootstrapperPlatform 'ARM64' `
+            -ResolvedMsBuildPath $ResolvedMsBuildPath `
+            -WindowsSdkDirectory $WindowsSdkDirectory `
+            -WindowsSdkVersion $WindowsSdkVersion | Out-Null
+    }
+    catch {
+        throw "ARM64 bootstrapper build requires the Visual Studio v143 ARM64 C++ toolchain and Windows SDK. Install component Microsoft.VisualStudio.Component.VC.Tools.ARM64 and rerun scripts/tools/build-release.ps1. Missing dependency: $($_.Exception.Message)"
     }
 }
 
@@ -903,9 +1147,6 @@ $outputRootFullPath = (Resolve-Path (New-Item -ItemType Directory -Force -Path $
 $msbuildPath = Resolve-MSBuildPath
 $windowsSdkDirectory = Resolve-WindowsSdkDirectory
 $windowsSdkVersion = Resolve-WindowsSdkVersion -WindowsSdkDirectory $windowsSdkDirectory
-$includePath = ConvertTo-MSBuildPropertyValue -Value $env:INCLUDE
-$libraryPath = ConvertTo-MSBuildPropertyValue -Value $env:LIB
-$executablePath = ConvertTo-MSBuildPropertyValue -Value $env:PATH
 
 [xml]$serverProjectXml = Get-Content -Path $serverProject
 $version = $serverProjectXml.Project.PropertyGroup.Version | Select-Object -First 1
@@ -916,7 +1157,11 @@ if ([string]::IsNullOrWhiteSpace($version)) {
 Assert-ExpectedReleaseTagMatchesVersion -Version $version -ExpectedReleaseTag $ExpectedReleaseTag -ProjectPath $serverProject
 
 $resolvedArchitectures = Resolve-ArchitectureList -InputArchitectures $Architectures
-Assert-ArchitectureToolchainAvailable -ResolvedArchitectures $resolvedArchitectures -ResolvedMsBuildPath $msbuildPath
+Assert-ArchitectureToolchainAvailable `
+    -ResolvedArchitectures $resolvedArchitectures `
+    -ResolvedMsBuildPath $msbuildPath `
+    -WindowsSdkDirectory $windowsSdkDirectory `
+    -WindowsSdkVersion $windowsSdkVersion
 foreach ($architecture in $resolvedArchitectures) {
     $runtimeId = Get-RuntimeId -Architecture $architecture
     $bootstrapperPlatform = Get-BootstrapperPlatform -Architecture $architecture
@@ -971,13 +1216,21 @@ foreach ($architecture in $resolvedArchitectures) {
             "/p:Platform=$bootstrapperPlatform",
             '/p:LinkIncremental=false'
         )
+        $nativeBootstrapperBuildProperties = Get-NativeBootstrapperBuildProperties `
+            -BootstrapperPlatform $bootstrapperPlatform `
+            -ResolvedMsBuildPath $msbuildPath `
+            -WindowsSdkDirectory $windowsSdkDirectory `
+            -WindowsSdkVersion $windowsSdkVersion
+        $includePath = $nativeBootstrapperBuildProperties.IncludePath
+        $libraryPath = $nativeBootstrapperBuildProperties.LibraryPath
+        $executablePath = $nativeBootstrapperBuildProperties.ExecutablePath
         if (-not [string]::IsNullOrWhiteSpace($windowsSdkDirectory)) {
             $bootstrapperBuildArguments += "/p:WindowsSDKDir=$windowsSdkDirectory"
         }
         if (-not [string]::IsNullOrWhiteSpace($windowsSdkVersion)) {
             $bootstrapperBuildArguments += "/p:WindowsTargetPlatformVersion=$windowsSdkVersion"
         }
-        if ($bootstrapperPlatform -eq 'x64') {
+        if ($bootstrapperPlatform -in @('x64', 'Win32')) {
             if (-not [string]::IsNullOrWhiteSpace($includePath)) {
                 $bootstrapperBuildArguments += "/p:IncludePath=$includePath"
             }

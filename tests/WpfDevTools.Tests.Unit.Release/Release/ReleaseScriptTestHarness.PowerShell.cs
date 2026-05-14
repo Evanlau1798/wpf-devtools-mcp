@@ -135,7 +135,6 @@ internal static partial class ReleaseScriptTestHarness
         string? isolatedScriptRoot)
     {
         var hasParamBlock = HasPowerShellParamBlock(File.ReadAllText(scriptPath));
-        var preserveLastExitCode = ShouldPreserveLastExitCode(scriptPath);
         var invocation = new StringBuilder();
         invocation.Append(GetPowerShellProcessBootstrapCommand());
         invocation.Append("$sourceScriptPath = ");
@@ -168,6 +167,7 @@ internal static partial class ReleaseScriptTestHarness
             }
         }
 
+        var preserveLastExitCode = ShouldPreserveLastExitCode(scriptPath);
         invocation.Append("try { Set-Content -LiteralPath $tempScriptPath -Value $scriptContent -Encoding UTF8; $global:LASTEXITCODE = 0; & $tempScriptPath");
 
         foreach (var argument in arguments)
@@ -189,7 +189,7 @@ internal static partial class ReleaseScriptTestHarness
     }
 
     private static bool ShouldPreserveLastExitCode(string scriptPath)
-        => true;
+        => !string.Equals(Path.GetFileName(scriptPath), "online-installer.ps1", StringComparison.OrdinalIgnoreCase);
 
     private static bool HasPowerShellParamBlock(string scriptContent)
         => Regex.IsMatch(

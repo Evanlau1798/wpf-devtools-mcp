@@ -58,15 +58,230 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
     }
 
     [Fact]
-    public void PublishReleaseScript_ShouldOnlyInjectInheritedNativePathsForX64BootstrapperBuilds()
+    public void PublishReleaseScript_ShouldInjectInheritedNativePathsForHostedX64AndWin32BootstrapperBuilds()
     {
         var script = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
 
-        script.Should().Contain("if ($bootstrapperPlatform -eq 'x64')",
-            "Win32 and ARM64 builds must not inherit x64 LIB/PATH entries from a hosted x64 developer shell");
+        script.Should().Contain("if ($bootstrapperPlatform -in @('x64', 'Win32'))",
+            "hosted x64 and x86 packaging jobs need inherited SDK include/lib paths, while ARM64 must not inherit incompatible host paths");
         script.Should().Contain("/p:LibraryPath=$libraryPath");
         script.Should().Contain("/p:ExecutablePath=$executablePath");
+    }
+
+    [Fact]
+    public void GetNativeBootstrapperBuildProperties_ShouldResolveHostedWin32SdkAndVCToolchainPaths()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var sdkDirectory = CreateFakeWindowsSdk(tempRoot, "10.0.26100.0", "x86");
+            var msbuildPath = CreateFakeVisualStudioToolchain(tempRoot, "14.44.35207", "x86");
+            var functionOnlyScript = CreateFunctionOnlyPublishReleaseScript(tempRoot);
+            var command = $$"""
+            {{ResetNativeToolchainEnvironmentCommand()}}
+            . '{{EscapePowerShellPath(functionOnlyScript)}}'
+            $actual = Get-NativeBootstrapperBuildProperties -BootstrapperPlatform 'Win32' -ResolvedMsBuildPath '{{EscapePowerShellPath(msbuildPath)}}' -WindowsSdkDirectory '{{EscapePowerShellPath(sdkDirectory)}}' -WindowsSdkVersion '10.0.26100.0'
+            if ($actual.IncludePath -notlike '*Windows Kits\10\Include\10.0.26100.0\um*') {
+                throw "Expected Win32 IncludePath to contain the Windows SDK um include directory but was '$($actual.IncludePath)'."
+            }
+            if ($actual.LibraryPath -notlike '*Windows Kits\10\Lib\10.0.26100.0\um\x86*') {
+                throw "Expected Win32 LibraryPath to contain the Windows SDK um x86 library directory but was '$($actual.LibraryPath)'."
+            }
+            if ($actual.ExecutablePath -notlike '*VC\Tools\MSVC\14.44.35207\bin\HostX64\x86*') {
+                throw "Expected Win32 ExecutablePath to contain the x86 VC compiler directory but was '$($actual.ExecutablePath)'."
+            }
+            if ($actual.ExecutablePath -notlike '*Windows Kits\10\bin\10.0.26100.0\x64*') {
+                throw "Expected Win32 ExecutablePath to contain the x64 Windows SDK tool directory for rc.exe but was '$($actual.ExecutablePath)'."
+            }
+            """;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr + result.Stdout);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void GetNativeBootstrapperBuildProperties_ShouldResolveVisualStudioRootFromAmd64MSBuildPath()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var sdkDirectory = CreateFakeWindowsSdk(tempRoot, "10.0.26100.0", "x64");
+            var msbuildPath = CreateFakeVisualStudioToolchain(tempRoot, "14.44.35207", "x64", useAmd64MsBuildPath: true);
+            var functionOnlyScript = CreateFunctionOnlyPublishReleaseScript(tempRoot);
+            var command = $$"""
+            {{ResetNativeToolchainEnvironmentCommand()}}
+            . '{{EscapePowerShellPath(functionOnlyScript)}}'
+            $actual = Get-NativeBootstrapperBuildProperties -BootstrapperPlatform 'x64' -ResolvedMsBuildPath '{{EscapePowerShellPath(msbuildPath)}}' -WindowsSdkDirectory '{{EscapePowerShellPath(sdkDirectory)}}' -WindowsSdkVersion '10.0.26100.0'
+            if ($actual.ExecutablePath -notlike '*VC\Tools\MSVC\14.44.35207\bin\HostX64\x64*') {
+                throw "Expected x64 ExecutablePath to contain the VC compiler directory but was '$($actual.ExecutablePath)'."
+            }
+            """;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr + result.Stdout);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void GetNativeBootstrapperBuildProperties_ShouldFailBeforeMSBuildWhenCompilerToolIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var sdkDirectory = CreateFakeWindowsSdk(tempRoot, "10.0.26100.0", "x86");
+            var msbuildPath = CreateFakeVisualStudioToolchain(
+                tempRoot,
+                "14.44.35207",
+                "x86",
+                createCompiler: false);
+            var functionOnlyScript = CreateFunctionOnlyPublishReleaseScript(tempRoot);
+            var command = $$"""
+            {{ResetNativeToolchainEnvironmentCommand()}}
+            . '{{EscapePowerShellPath(functionOnlyScript)}}'
+            Get-NativeBootstrapperBuildProperties -BootstrapperPlatform 'Win32' -ResolvedMsBuildPath '{{EscapePowerShellPath(msbuildPath)}}' -WindowsSdkDirectory '{{EscapePowerShellPath(sdkDirectory)}}' -WindowsSdkVersion '10.0.26100.0'
+            """;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("cl.exe");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void GetNativeBootstrapperBuildProperties_ShouldFailBeforeMSBuildWhenLinkerToolIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var sdkDirectory = CreateFakeWindowsSdk(tempRoot, "10.0.26100.0", "x64");
+            var msbuildPath = CreateFakeVisualStudioToolchain(
+                tempRoot,
+                "14.44.35207",
+                "x64",
+                createLinker: false);
+            var functionOnlyScript = CreateFunctionOnlyPublishReleaseScript(tempRoot);
+            var command = $$"""
+            {{ResetNativeToolchainEnvironmentCommand()}}
+            . '{{EscapePowerShellPath(functionOnlyScript)}}'
+            Get-NativeBootstrapperBuildProperties -BootstrapperPlatform 'x64' -ResolvedMsBuildPath '{{EscapePowerShellPath(msbuildPath)}}' -WindowsSdkDirectory '{{EscapePowerShellPath(sdkDirectory)}}' -WindowsSdkVersion '10.0.26100.0'
+            """;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("link.exe");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void GetNativeBootstrapperBuildProperties_ShouldFailBeforeMSBuildWhenArm64LinkerToolIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var sdkDirectory = CreateFakeWindowsSdk(tempRoot, "10.0.26100.0", "arm64");
+            var msbuildPath = CreateFakeVisualStudioToolchain(
+                tempRoot,
+                "14.44.35207",
+                "arm64",
+                createLinker: false);
+            var functionOnlyScript = CreateFunctionOnlyPublishReleaseScript(tempRoot);
+            var command = $$"""
+            {{ResetNativeToolchainEnvironmentCommand()}}
+            . '{{EscapePowerShellPath(functionOnlyScript)}}'
+            Get-NativeBootstrapperBuildProperties -BootstrapperPlatform 'ARM64' -ResolvedMsBuildPath '{{EscapePowerShellPath(msbuildPath)}}' -WindowsSdkDirectory '{{EscapePowerShellPath(sdkDirectory)}}' -WindowsSdkVersion '10.0.26100.0'
+            """;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("link.exe");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void GetNativeBootstrapperBuildProperties_ShouldFailBeforeMSBuildWhenArm64ResourceCompilerToolIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var sdkDirectory = CreateFakeWindowsSdk(
+                tempRoot,
+                "10.0.26100.0",
+                "arm64",
+                createResourceCompiler: false);
+            var msbuildPath = CreateFakeVisualStudioToolchain(tempRoot, "14.44.35207", "arm64");
+            var functionOnlyScript = CreateFunctionOnlyPublishReleaseScript(tempRoot);
+            var command = $$"""
+            {{ResetNativeToolchainEnvironmentCommand()}}
+            . '{{EscapePowerShellPath(functionOnlyScript)}}'
+            Get-NativeBootstrapperBuildProperties -BootstrapperPlatform 'ARM64' -ResolvedMsBuildPath '{{EscapePowerShellPath(msbuildPath)}}' -WindowsSdkDirectory '{{EscapePowerShellPath(sdkDirectory)}}' -WindowsSdkVersion '10.0.26100.0'
+            """;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("rc.exe");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void GetNativeBootstrapperBuildProperties_ShouldFailBeforeMSBuildWhenArm64SdkLibraryIsMissing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var sdkDirectory = CreateFakeWindowsSdk(
+                tempRoot,
+                "10.0.26100.0",
+                "arm64",
+                createUmLibrary: false);
+            var msbuildPath = CreateFakeVisualStudioToolchain(tempRoot, "14.44.35207", "arm64");
+            var functionOnlyScript = CreateFunctionOnlyPublishReleaseScript(tempRoot);
+            var command = $$"""
+            {{ResetNativeToolchainEnvironmentCommand()}}
+            . '{{EscapePowerShellPath(functionOnlyScript)}}'
+            Get-NativeBootstrapperBuildProperties -BootstrapperPlatform 'ARM64' -ResolvedMsBuildPath '{{EscapePowerShellPath(msbuildPath)}}' -WindowsSdkDirectory '{{EscapePowerShellPath(sdkDirectory)}}' -WindowsSdkVersion '10.0.26100.0'
+            """;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("Windows SDK UM library path");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
     }
 
     private static string CreateFunctionOnlyPublishReleaseScript(string tempRoot)
@@ -80,6 +295,78 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
         return functionOnlyScript;
     }
 
+    private static string CreateFakeVisualStudioToolchain(
+        string tempRoot,
+        string toolsVersion,
+        string architecture,
+        bool useAmd64MsBuildPath = false,
+        bool createCompiler = true,
+        bool createLinker = true)
+    {
+        var visualStudioRoot = Path.Combine(tempRoot, "VS");
+        var msbuildDirectory = Path.Combine(visualStudioRoot, "MSBuild", "Current", "Bin");
+        if (useAmd64MsBuildPath)
+        {
+            msbuildDirectory = Path.Combine(msbuildDirectory, "amd64");
+        }
+
+        var toolsDirectory = Path.Combine(visualStudioRoot, "VC", "Tools", "MSVC", toolsVersion);
+        Directory.CreateDirectory(msbuildDirectory);
+        Directory.CreateDirectory(Path.Combine(toolsDirectory, "include"));
+        Directory.CreateDirectory(Path.Combine(toolsDirectory, "lib", architecture));
+        var compilerDirectory = Path.Combine(toolsDirectory, "bin", "HostX64", architecture);
+        Directory.CreateDirectory(compilerDirectory);
+        if (createCompiler)
+        {
+            File.WriteAllText(Path.Combine(compilerDirectory, "cl.exe"), string.Empty);
+        }
+
+        if (createLinker)
+        {
+            File.WriteAllText(Path.Combine(compilerDirectory, "link.exe"), string.Empty);
+        }
+
+        return Path.Combine(msbuildDirectory, "MSBuild.exe");
+    }
+
+    private static string CreateFakeWindowsSdk(
+        string tempRoot,
+        string sdkVersion,
+        string architecture,
+        bool createResourceCompiler = true,
+        bool createUmLibrary = true)
+    {
+        var sdkDirectory = Path.Combine(tempRoot, "Windows Kits", "10");
+        foreach (var includeName in new[] { "ucrt", "shared", "um", "winrt", "cppwinrt" })
+        {
+            Directory.CreateDirectory(Path.Combine(sdkDirectory, "Include", sdkVersion, includeName));
+        }
+
+        Directory.CreateDirectory(Path.Combine(sdkDirectory, "Lib", sdkVersion, "ucrt", architecture));
+        if (createUmLibrary)
+        {
+            Directory.CreateDirectory(Path.Combine(sdkDirectory, "Lib", sdkVersion, "um", architecture));
+        }
+
+        var sdkHostToolsDirectory = Path.Combine(sdkDirectory, "bin", sdkVersion, "x64");
+        Directory.CreateDirectory(sdkHostToolsDirectory);
+        Directory.CreateDirectory(Path.Combine(sdkDirectory, "bin", sdkVersion, architecture));
+        if (createResourceCompiler)
+        {
+            File.WriteAllText(Path.Combine(sdkHostToolsDirectory, "rc.exe"), string.Empty);
+        }
+
+        return sdkDirectory;
+    }
+
     private static string EscapePowerShellPath(string path)
         => path.Replace("'", "''", StringComparison.Ordinal);
+
+    private static string ResetNativeToolchainEnvironmentCommand()
+        => """
+        $env:VCToolsInstallDir = ''
+        $env:INCLUDE = ''
+        $env:LIB = ''
+        $env:PATH = ''
+        """;
 }

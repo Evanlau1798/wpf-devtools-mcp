@@ -14,10 +14,14 @@ public sealed class PackageLocalIntegrityTests
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.PackageIntegrity.ps1"));
 
+        var removeTypeDataIndex = content.IndexOf("Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity", StringComparison.Ordinal);
         var importIndex = content.IndexOf("Import-Module Microsoft.PowerShell.Security", StringComparison.Ordinal);
         var signatureIndex = content.IndexOf("Get-AuthenticodeSignature -FilePath", StringComparison.Ordinal);
 
+        removeTypeDataIndex.Should().BeGreaterThanOrEqualTo(0);
         importIndex.Should().BeGreaterThanOrEqualTo(0);
+        importIndex.Should().BeGreaterThan(removeTypeDataIndex,
+            "GitHub hosted Windows PowerShell can inherit duplicate ObjectSecurity type data before loading Microsoft.PowerShell.Security");
         signatureIndex.Should().BeGreaterThan(importIndex,
             "package-local production installs should not rely on hosted runner cmdlet autoloading");
     }

@@ -272,6 +272,8 @@ function Get-PackageExpectedSignerMetadata {
 }
 
 function Import-PackagePowerShellSecurityModule {
+    Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity -ErrorAction SilentlyContinue
+
     try {
         Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
     }

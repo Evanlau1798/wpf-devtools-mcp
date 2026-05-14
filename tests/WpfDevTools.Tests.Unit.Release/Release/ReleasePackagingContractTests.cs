@@ -639,7 +639,7 @@ public sealed partial class ReleasePackagingContractTests
                 new Dictionary<string, string?> { ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuildPath });
 
             result.ExitCode.Should().NotBe(0);
-            result.Stderr.Should().Contain("ARM64 bootstrapper build requires");
+            result.Stderr.Should().Contain("Release architecture 'arm64'");
             result.Stderr.Should().Contain("Microsoft.VisualStudio.Component.VC.Tools.ARM64");
         }
         finally

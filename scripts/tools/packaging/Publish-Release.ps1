@@ -1117,7 +1117,7 @@ function Assert-ArchitectureToolchainAvailable {
             -WindowsSdkVersion $WindowsSdkVersion | Out-Null
     }
     catch {
-        throw "ARM64 bootstrapper build requires the Visual Studio v143 ARM64 C++ toolchain and Windows SDK. Install component Microsoft.VisualStudio.Component.VC.Tools.ARM64 and rerun scripts/tools/build-release.ps1. Missing dependency: $($_.Exception.Message)"
+        throw "Release architecture 'arm64' bootstrapper platform 'ARM64' requires the Visual Studio v143 ARM64 C++ toolchain and Windows SDK. Install component Microsoft.VisualStudio.Component.VC.Tools.ARM64 and rerun scripts/tools/build-release.ps1. Missing dependency: $($_.Exception.Message)"
     }
 }
 

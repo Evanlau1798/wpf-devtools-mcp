@@ -36,7 +36,7 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` opts into runtime mutation, interaction, and render-measurement tools such as `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `restore_state_snapshot`, and `batch_mutate`.
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command`.
-- When these boolean gates are unset, false, or invalid, the affected category fails closed with `errorCode: InvalidPolicyConfiguration` or `errorCode: ToolBlockedByPolicy`.
+- When these boolean gates are unset or false, the affected category fails closed with `errorCode: SecurityError`; malformed boolean values fail closed with `errorCode: InvalidPolicyConfiguration`.
 
 ### 2. Named pipe authentication
 

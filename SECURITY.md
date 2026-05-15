@@ -50,6 +50,7 @@ The server can inspect and manipulate live WPF UI state. That means the relevant
 ### 3. TLS over named pipes
 
 - Injection-based `connect` sessions use TLS on the pipe connection by default.
+- The secure named-pipe transport currently pins TLS 1.2 for compatibility across .NET 8 and .NET Framework 4.8 runtime paths.
 - The server creates or reuses a certificate inside that directory.
 - If `WPFDEVTOOLS_CERT_DIR` is not set, the server uses the default certificate directory under `%APPDATA%\WpfDevTools\certs`.
 - If you set `WPFDEVTOOLS_CERT_DIR`, it must be an absolute path.

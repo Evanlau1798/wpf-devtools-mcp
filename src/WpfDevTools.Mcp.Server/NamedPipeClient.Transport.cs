@@ -78,14 +78,14 @@ public sealed partial class NamedPipeClient
                 sslStream.AuthenticateAsClientAsync(
                     "WpfDevTools-Inspector",
                     null,
-                    SslProtocols.Tls12,
+                    SecureTransportProtocols.InspectorTransport,
                     checkCertificateRevocation: false),
                 cancellationToken).ConfigureAwait(false);
 #else
             var sslOptions = new SslClientAuthenticationOptions
             {
                 TargetHost = "WpfDevTools-Inspector",
-                EnabledSslProtocols = SslProtocols.Tls12,
+                EnabledSslProtocols = SecureTransportProtocols.InspectorTransport,
                 CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck
             };
             await WaitForConnectPhaseAsync(

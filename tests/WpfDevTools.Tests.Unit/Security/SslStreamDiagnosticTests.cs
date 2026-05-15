@@ -1,10 +1,10 @@
 using System.IO.Pipes;
 using System.Net.Security;
-using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using FluentAssertions;
+using WpfDevTools.Shared.Security;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -42,7 +42,7 @@ public class SslStreamDiagnosticTests
             // Manual TLS handshake
             using var ssl = new SslStream(client, true, (s, c, ch, e) => true);
             await ssl.AuthenticateAsClientAsync("WpfDevTools-Inspector",
-                null, SslProtocols.Tls12, false);
+                null, SecureTransportProtocols.InspectorTransport, false);
             _output.WriteLine($"TLS done: {ssl.SslProtocol}");
 
             // Send a ping request
@@ -103,7 +103,7 @@ public class SslStreamDiagnosticTests
             using var ssl = new SslStream(server, leaveInnerStreamOpen: true,
                 (s, c, ch, e) => true);
 
-            await ssl.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls12, false);
+            await ssl.AuthenticateAsServerAsync(cert, false, SecureTransportProtocols.InspectorTransport, false);
             _output.WriteLine($"Server: TLS done, protocol={ssl.SslProtocol}");
 
             // Read
@@ -130,7 +130,7 @@ public class SslStreamDiagnosticTests
                 (s, c, ch, e) => true);
 
             await ssl.AuthenticateAsClientAsync("WpfDevTools-Inspector",
-                null, SslProtocols.Tls12, false);
+                null, SecureTransportProtocols.InspectorTransport, false);
             _output.WriteLine($"Client: TLS done, protocol={ssl.SslProtocol}");
 
             // Write

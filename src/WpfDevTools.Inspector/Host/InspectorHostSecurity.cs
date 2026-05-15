@@ -158,7 +158,7 @@ public sealed partial class InspectorHost
             var authTask = sslStream.AuthenticateAsServerAsync(
                 certificate,
                 clientCertificateRequired: false,
-                enabledSslProtocols: SslProtocols.Tls12,
+                enabledSslProtocols: SecureTransportProtocols.InspectorTransport,
                 checkCertificateRevocation: false);
             var timeoutTask = Task.Delay(InspectorConfig.TlsHandshakeTimeout, timeoutCts.Token);
             var completed = await Task.WhenAny(authTask, timeoutTask).ConfigureAwait(false);
@@ -173,7 +173,7 @@ public sealed partial class InspectorHost
             {
                 ServerCertificate = certificate,
                 ClientCertificateRequired = false,
-                EnabledSslProtocols = SslProtocols.Tls12,
+                EnabledSslProtocols = SecureTransportProtocols.InspectorTransport,
                 CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck
             };
             await sslStream.AuthenticateAsServerAsync(sslOptions, timeoutCts.Token).ConfigureAwait(false);

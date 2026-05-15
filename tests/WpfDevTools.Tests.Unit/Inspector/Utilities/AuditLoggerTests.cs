@@ -2,6 +2,7 @@ using Xunit;
 using FluentAssertions;
 using WpfDevTools.Inspector.Utilities;
 using System.Diagnostics;
+using System.Security;
 using WpfDevTools.Tests.Unit.Execution;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
@@ -295,6 +296,46 @@ public class EventLogAuditLoggerTests
         act.Should().NotThrow();
     }
 
+    [Fact]
+    public void Log_WhenEventSourceUnavailable_ShouldRetryAvailabilityAfterBoundedInterval()
+    {
+        var currentTime = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var eventLog = new TestEventLogOperations
+        {
+            ThrowOnSourceExists = true
+        };
+        var logger = new EventLogAuditLogger(() => currentTime, eventLog);
+        var listener = new TestTraceListener();
+        Trace.Listeners.Add(listener);
+
+        try
+        {
+            logger.Log("Security", "first fallback", AuditSeverity.Information);
+            logger.Log("Security", "second fallback", AuditSeverity.Warning);
+
+            eventLog.SourceExistsCalls.Should().Be(1,
+                "unavailable Event Log sources should not be checked on every audit event");
+            eventLog.WriteEntries.Should().BeEmpty();
+            listener.Messages.Should().Contain(message => message.Contains("first fallback"));
+            listener.Messages.Should().Contain(message => message.Contains("second fallback"));
+
+            currentTime = currentTime.AddMinutes(5).AddSeconds(1);
+            eventLog.ThrowOnSourceExists = false;
+            eventLog.SourceExistsResult = true;
+
+            logger.Log("Security", "event log restored", AuditSeverity.Error);
+
+            eventLog.SourceExistsCalls.Should().Be(2);
+            eventLog.WriteEntries.Should().ContainSingle();
+            eventLog.WriteEntries[0].Message.Should().Contain("event log restored");
+            eventLog.WriteEntries[0].EventType.Should().Be(EventLogEntryType.Error);
+        }
+        finally
+        {
+            Trace.Listeners.Remove(listener);
+        }
+    }
+
     [Theory]
     [InlineData(AuditSeverity.Information)]
     [InlineData(AuditSeverity.Warning)]
@@ -323,6 +364,34 @@ public class EventLogAuditLoggerTests
         {
             if (message != null)
                 Messages.Add(message);
+        }
+    }
+
+    private sealed class TestEventLogOperations : IEventLogOperations
+    {
+        public bool ThrowOnSourceExists { get; set; }
+        public bool SourceExistsResult { get; set; }
+        public int SourceExistsCalls { get; private set; }
+        public List<(string Source, string Message, EventLogEntryType EventType, int EventId)> WriteEntries { get; } = new();
+
+        public bool SourceExists(string source)
+        {
+            SourceExistsCalls++;
+            if (ThrowOnSourceExists)
+            {
+                throw new SecurityException("event source unavailable");
+            }
+
+            return SourceExistsResult;
+        }
+
+        public void CreateEventSource(string source, string logName)
+        {
+        }
+
+        public void WriteEntry(string source, string message, EventLogEntryType eventType, int eventId)
+        {
+            WriteEntries.Add((source, message, eventType, eventId));
         }
     }
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security;
 
 namespace WpfDevTools.Inspector.Utilities;
 
@@ -128,6 +129,25 @@ public class TraceAuditLogger : IAuditLogger
     }
 }
 
+internal interface IEventLogOperations
+{
+    bool SourceExists(string source);
+
+    void CreateEventSource(string source, string logName);
+
+    void WriteEntry(string source, string message, EventLogEntryType eventType, int eventId);
+}
+
+internal sealed class SystemEventLogOperations : IEventLogOperations
+{
+    public bool SourceExists(string source) => EventLog.SourceExists(source);
+
+    public void CreateEventSource(string source, string logName) => EventLog.CreateEventSource(source, logName);
+
+    public void WriteEntry(string source, string message, EventLogEntryType eventType, int eventId) =>
+        EventLog.WriteEntry(source, message, eventType, eventId);
+}
+
 /// <summary>
 /// Windows Event Log audit logger (for production)
 /// Requires event source registration or admin privileges
@@ -136,9 +156,27 @@ public class EventLogAuditLogger : IAuditLogger
 {
     private const string EventSource = "WpfDevTools";
     private const string EventLog = "Application";
-    private static bool _sourceChecked = false;
-    private static bool _sourceAvailable = false;
-    private static readonly object _sourceLock = new object();
+    private static readonly TimeSpan SourceAvailabilityRetryInterval = TimeSpan.FromMinutes(5);
+
+    private readonly Func<DateTimeOffset> _utcNowProvider;
+    private readonly IEventLogOperations _eventLogOperations;
+    private readonly object _sourceLock = new object();
+    private bool _sourceAvailable;
+    private DateTimeOffset _nextSourceCheckUtc = DateTimeOffset.MinValue;
+
+    /// <summary>
+    /// Create a Windows Event Log audit logger.
+    /// </summary>
+    public EventLogAuditLogger()
+        : this(() => DateTimeOffset.UtcNow, new SystemEventLogOperations())
+    {
+    }
+
+    internal EventLogAuditLogger(Func<DateTimeOffset> utcNowProvider, IEventLogOperations eventLogOperations)
+    {
+        _utcNowProvider = utcNowProvider ?? throw new ArgumentNullException(nameof(utcNowProvider));
+        _eventLogOperations = eventLogOperations ?? throw new ArgumentNullException(nameof(eventLogOperations));
+    }
 
     /// <summary>
     /// Log an audit event to Windows Event Log
@@ -150,9 +188,7 @@ public class EventLogAuditLogger : IAuditLogger
     {
         try
         {
-            EnsureEventSourceExists();
-
-            if (!_sourceAvailable)
+            if (!EnsureEventSourceExists())
             {
                 // Fallback to Trace if Event Log not available
                 Trace.WriteLine($"[AUDIT] [{category}] {message}");
@@ -168,7 +204,7 @@ public class EventLogAuditLogger : IAuditLogger
 
             var fullMessage = $"[{category}] {message}\nUser: {Environment.UserName}\nProcess: {Process.GetCurrentProcess().ProcessName}";
 
-            System.Diagnostics.EventLog.WriteEntry(EventSource, fullMessage, eventType, 1001);
+            _eventLogOperations.WriteEntry(EventSource, fullMessage, eventType, 1001);
         }
         catch (Exception ex)
         {
@@ -178,30 +214,37 @@ public class EventLogAuditLogger : IAuditLogger
         }
     }
 
-    private static void EnsureEventSourceExists()
+    private bool EnsureEventSourceExists()
     {
         lock (_sourceLock)
         {
-            if (_sourceChecked)
-                return;
+            if (_sourceAvailable)
+                return true;
 
-            _sourceChecked = true;
+            var now = _utcNowProvider();
+            if (now < _nextSourceCheckUtc)
+                return false;
 
             try
             {
-                if (!System.Diagnostics.EventLog.SourceExists(EventSource))
+                if (!_eventLogOperations.SourceExists(EventSource))
                 {
                     // Creating event source requires admin privileges
                     // If this fails, we'll fallback to Trace
-                    System.Diagnostics.EventLog.CreateEventSource(EventSource, EventLog);
+                    _eventLogOperations.CreateEventSource(EventSource, EventLog);
                 }
                 _sourceAvailable = true;
+                return true;
             }
-            catch (System.Security.SecurityException)
+            catch (SecurityException)
             {
-                // No admin privileges, use Trace fallback
+                // No admin privileges or source registration access. Use Trace fallback and
+                // retry later so long-running processes can recover after source registration.
                 _sourceAvailable = false;
-                Trace.WriteLine($"[AUDIT] Event Log source '{EventSource}' not available, using Trace fallback");
+                _nextSourceCheckUtc = now + SourceAvailabilityRetryInterval;
+                Trace.WriteLine(
+                    $"[AUDIT] Event Log source '{EventSource}' not available, using Trace fallback; retrying after {SourceAvailabilityRetryInterval.TotalMinutes:0} minutes");
+                return false;
             }
         }
     }

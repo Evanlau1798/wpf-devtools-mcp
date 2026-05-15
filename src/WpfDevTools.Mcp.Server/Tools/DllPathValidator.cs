@@ -1,5 +1,6 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.InteropServices;
+using System.Threading;
 using WpfDevTools.Shared.IO;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -14,11 +15,34 @@ internal static class DllPathValidator
     private const string ReleaseSignerThumbprintEnvironmentVariable = "WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT";
     private const string ReleaseSignerSubjectEnvironmentVariable = "WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT";
     private static readonly Guid WinTrustActionGenericVerifyV2 = new("00AAC56B-CD44-11D0-8CC2-00C04FC295EE");
+    private static readonly AsyncLocal<Func<string, int>?> WinVerifyTrustOverrideForTestingState = new();
+    private static readonly AsyncLocal<Func<string, ValidatedAuthenticodeSigner?>?> ValidatedSignerOverrideForTestingState = new();
+    private static readonly AsyncLocal<ValidatedAuthenticodeSigner?> CurrentProcessReleaseSignerOverrideForTestingState = new();
+    private static readonly AsyncLocal<bool?> TrustedLocalDevelopmentBuildOverrideForTestingState = new();
 
-    internal static Func<string, int>? WinVerifyTrustOverrideForTesting { get; set; }
-    internal static Func<string, ValidatedAuthenticodeSigner?>? ValidatedSignerOverrideForTesting { get; set; }
-    internal static ValidatedAuthenticodeSigner? CurrentProcessReleaseSignerOverrideForTesting { get; set; }
-    internal static bool? TrustedLocalDevelopmentBuildOverrideForTesting { get; set; }
+    internal static Func<string, int>? WinVerifyTrustOverrideForTesting
+    {
+        get => WinVerifyTrustOverrideForTestingState.Value;
+        set => WinVerifyTrustOverrideForTestingState.Value = value;
+    }
+
+    internal static Func<string, ValidatedAuthenticodeSigner?>? ValidatedSignerOverrideForTesting
+    {
+        get => ValidatedSignerOverrideForTestingState.Value;
+        set => ValidatedSignerOverrideForTestingState.Value = value;
+    }
+
+    internal static ValidatedAuthenticodeSigner? CurrentProcessReleaseSignerOverrideForTesting
+    {
+        get => CurrentProcessReleaseSignerOverrideForTestingState.Value;
+        set => CurrentProcessReleaseSignerOverrideForTestingState.Value = value;
+    }
+
+    internal static bool? TrustedLocalDevelopmentBuildOverrideForTesting
+    {
+        get => TrustedLocalDevelopmentBuildOverrideForTestingState.Value;
+        set => TrustedLocalDevelopmentBuildOverrideForTestingState.Value = value;
+    }
 
 #if DEBUG
     private static readonly bool IsDebugBuild = true;

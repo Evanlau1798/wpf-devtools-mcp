@@ -320,7 +320,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI BootstrapInspector(LPVOID lpParame
     }
 
     if (!LoadAuthSecretFromFile(config))
-        return ExitCodes::InspectorPathInvalid;
+        return ExitCodes::AuthSecretLoadFailed;
 
     std::wstring managedParams = BuildManagedParams(config);
 

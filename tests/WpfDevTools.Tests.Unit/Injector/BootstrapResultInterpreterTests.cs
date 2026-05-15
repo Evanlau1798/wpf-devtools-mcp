@@ -23,6 +23,7 @@ public class BootstrapResultInterpreterTests
     [InlineData(0x12, BootstrapStage.ManagedEntrypoint, "ExecuteInDefaultAppDomain")]
     [InlineData(0x13, BootstrapStage.ManagedEntrypoint, "hostfxr")]
     [InlineData(0x14, BootstrapStage.LoadLibrary, "Inspector DLL path")]
+    [InlineData(0x15, BootstrapStage.AuthSecretLoad, "Authentication secret")]
     public void Interpret_KnownErrorCode_ShouldReturnCorrectStageAndMessage(
         int exitCode, BootstrapStage expectedStage, string messageFragment)
     {

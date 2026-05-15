@@ -260,6 +260,7 @@ public sealed partial class ConnectTool
             BootstrapStage.ClrHosting => "Bootstrap failed during CLR hosting initialization.",
             BootstrapStage.ManagedEntrypoint => "Bootstrap failed while invoking the managed bootstrap entrypoint.",
             BootstrapStage.LoadLibrary => "Bootstrap failed while loading the inspector DLL.",
+            BootstrapStage.AuthSecretLoad => "Bootstrap failed while loading the authentication secret file.",
             BootstrapStage.PipeReady => "Bootstrap completed, but the Inspector Named Pipe did not become ready before the timeout expired.",
             _ => "Bootstrap failed while starting the injected inspector."
         };

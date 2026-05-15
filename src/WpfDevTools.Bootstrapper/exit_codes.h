@@ -8,4 +8,5 @@ namespace ExitCodes {
     constexpr DWORD ManagedEntrypointFailed = 0x12;
     constexpr DWORD HostfxrLoadFailed       = 0x13;
     constexpr DWORD InspectorPathInvalid    = 0x14;
+    constexpr DWORD AuthSecretLoadFailed    = 0x15;
 }

@@ -56,6 +56,8 @@ public static class BootstrapResultInterpreter
                 "hostfxr load_assembly_and_get_function_pointer failed"),
             0x14 => (BootstrapStage.LoadLibrary,
                 "Inspector DLL path invalid or not found by bootstrapper"),
+            0x15 => (BootstrapStage.AuthSecretLoad,
+                "Authentication secret file could not be loaded by bootstrapper"),
             _ => (BootstrapStage.Unknown,
                 $"Unknown bootstrap exit code: 0x{exitCode:X}")
         };

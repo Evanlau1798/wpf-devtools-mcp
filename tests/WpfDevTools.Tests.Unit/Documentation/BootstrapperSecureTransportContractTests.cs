@@ -22,6 +22,25 @@ public class BootstrapperSecureTransportContractTests
             "secure transport bootstrap arguments are now carried as key=value pairs instead of the legacy two-token format");
     }
 
+    [Fact]
+    public void BootstrapperExitCodes_ShouldIncludeSpecificAuthSecretLoadFailure()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/exit_codes.h"));
+
+        content.Should().MatchRegex(@"AuthSecretLoadFailed\s*=\s*0x15");
+    }
+
+    [Fact]
+    public void BootstrapEntry_ShouldReturnAuthSecretLoadFailedWhenSecretFileCannotBeRead()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+
+        content.Should().MatchRegex(@"if\s*\(\s*!LoadAuthSecretFromFile\(config\)\s*\)\s*return\s+ExitCodes::AuthSecretLoadFailed\s*;",
+            "auth secret file read failures should not be misclassified as inspector path failures");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

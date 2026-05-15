@@ -19,5 +19,7 @@ public enum BootstrapStage
     /// <summary>Inspector initialization — Bootstrap.Initialize called</summary>
     InspectorInit = 5,
     /// <summary>Named Pipe readiness — WaitNamedPipe check</summary>
-    PipeReady = 6
+    PipeReady = 6,
+    /// <summary>Authentication secret loading — bootstrapper reads the temporary secret file</summary>
+    AuthSecretLoad = 7
 }

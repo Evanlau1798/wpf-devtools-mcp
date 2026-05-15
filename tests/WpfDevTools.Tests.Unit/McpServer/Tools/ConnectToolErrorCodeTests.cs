@@ -107,6 +107,33 @@ public sealed class ConnectToolErrorCodeTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WhenBootstrapAuthSecretLoadFails_ShouldReturnActionableFailureDetail()
+    {
+        EnsureDummyBootstrapperExists();
+        var tool = new ConnectTool(
+            new SessionManager(),
+            new FailingProcessInjector(
+                InjectionError.BootstrapFailed,
+                "Authentication secret file could not be loaded by bootstrapper",
+                BootstrapStage.AuthSecretLoad,
+                timeoutReason: null,
+                bootstrapExitCode: 0x15),
+            new FakeProcessDetector(),
+            _ => { },
+            pipeReadyProbe: CreateNoExistingHostPipeReadyProbe(),
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+        json.GetProperty("stage").GetString().Should().Be("AuthSecretLoad");
+        json.GetProperty("error").GetString().Should().Be("Bootstrap failed while loading the authentication secret file.");
+    }
+
+    [Fact]
     public void DescribePipeConnectFailure_WhenAuthenticationFails_ShouldReturnSecurityError()
     {
         var result = ConnectTool.DescribePipeConnectFailure(

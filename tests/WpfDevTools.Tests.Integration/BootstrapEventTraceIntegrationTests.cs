@@ -75,7 +75,12 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
             testTimeoutCts.Token);
         var checkBoxId = GetNamedElementId(namescope, "EnableHighlightCheckBox");
         checkBoxId.Should().NotBeNullOrEmpty(namescope.GetRawText());
-        await WaitForInteractionReadinessAsync(getInteractionReadinessTool, _testApp.Id, checkBoxId!, testTimeoutCts.Token);
+        await WaitForInteractionReadinessAsync(
+            connectTool,
+            getInteractionReadinessTool,
+            _testApp,
+            checkBoxId!,
+            testTimeoutCts.Token);
         _output.WriteLine($"EnableHighlightCheckBox id: {checkBoxId}");
 
         var traceStart = await ExecuteToolAsync(
@@ -136,7 +141,12 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
             new { processId = _testApp.Id, elementId = tabId },
             testTimeoutCts.Token);
         clickTabResult.GetProperty("success").GetBoolean().Should().BeTrue(clickTabResult.GetRawText());
-        await WaitForInteractionReadinessAsync(getInteractionReadinessTool, _testApp.Id, buttonId!, testTimeoutCts.Token);
+        await WaitForInteractionReadinessAsync(
+            connectTool,
+            getInteractionReadinessTool,
+            _testApp,
+            buttonId!,
+            testTimeoutCts.Token);
 
         var traceStart = await ExecuteToolAsync(
             traceTool,
@@ -157,16 +167,39 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
     }
 
     private async Task<JsonElement> WaitForInteractionReadinessAsync(
+        object connectTool,
         object getInteractionReadinessTool,
-        int processId,
+        Process targetProcess,
         string elementId,
         CancellationToken cancellationToken)
     {
+        var reconnectAttempted = false;
+
         return await ConditionWaiter.WaitForAsync(
-            () => ExecuteToolAsync(getInteractionReadinessTool, new { processId, elementId, interactionType = "Click" }, cancellationToken),
-            readinessPayload => readinessPayload.GetProperty("success").GetBoolean()
-                && readinessPayload.GetProperty("isReady").GetBoolean(),
-            TimeSpan.FromSeconds(5),
+            async () =>
+            {
+                var readinessPayload = await ExecuteToolAsync(
+                    getInteractionReadinessTool,
+                    new { processId = targetProcess.Id, elementId, interactionType = "Click" },
+                    cancellationToken);
+
+                if (!reconnectAttempted
+                    && IsNotConnected(readinessPayload)
+                    && IsTargetProcessStillRunning(targetProcess))
+                {
+                    reconnectAttempted = true;
+                    await ExecuteToolAsync(connectTool, new { processId = targetProcess.Id }, cancellationToken);
+
+                    readinessPayload = await ExecuteToolAsync(
+                        getInteractionReadinessTool,
+                        new { processId = targetProcess.Id, elementId, interactionType = "Click" },
+                        cancellationToken);
+                }
+
+                return readinessPayload;
+            },
+            IsInteractionReady,
+            TimeSpan.FromSeconds(10),
             $"Timed out waiting for get_interaction_readiness to report element {elementId} as ready after activating the target tab.");
     }
 
@@ -193,6 +226,55 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 
         var result = await task!.WaitAsync(cancellationToken);
         return JsonSerializer.SerializeToElement(result);
+    }
+
+    private static bool IsInteractionReady(JsonElement payload)
+        => TryGetBoolean(payload, "success", out var success)
+            && success
+            && TryGetBoolean(payload, "isReady", out var isReady)
+            && isReady;
+
+    private static bool IsNotConnected(JsonElement payload)
+        => TryGetString(payload, "errorCode", out var errorCode)
+            && string.Equals(errorCode, "NotConnected", StringComparison.Ordinal);
+
+    private static bool IsTargetProcessStillRunning(Process targetProcess)
+    {
+        try
+        {
+            targetProcess.Refresh();
+            return !targetProcess.HasExited;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetBoolean(JsonElement payload, string propertyName, out bool value)
+    {
+        if (payload.TryGetProperty(propertyName, out var property)
+            && property.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            value = property.GetBoolean();
+            return true;
+        }
+
+        value = false;
+        return false;
+    }
+
+    private static bool TryGetString(JsonElement payload, string propertyName, out string? value)
+    {
+        if (payload.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.String)
+        {
+            value = property.GetString();
+            return true;
+        }
+
+        value = null;
+        return false;
     }
 
     private static string? GetNthElementId(JsonElement payload, string type, int ordinal)

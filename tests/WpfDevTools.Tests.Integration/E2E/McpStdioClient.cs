@@ -15,7 +15,7 @@ namespace WpfDevTools.Tests.Integration.E2E;
 /// Communicates with the MCP Server via stdin/stdout using newline-delimited JSON (NDJSON).
 /// The C# ModelContextProtocol SDK v1.0.0 StdioServerTransport reads JSON messages line-by-line.
 /// </summary>
-public sealed class McpStdioClient : IDisposable
+public sealed partial class McpStdioClient : IDisposable
 {
     private const string E2eRateLimitOverride = "2000";
     private Process? _serverProcess;
@@ -415,105 +415,4 @@ public sealed class McpStdioClient : IDisposable
         _writeLock.Dispose();
     }
 
-    internal static IReadOnlyDictionary<string, string> CreateProcessEnvironment(
-        IReadOnlyDictionary<string, string>? environmentVariables,
-        string defaultTempRoot)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(defaultTempRoot);
-
-        var mergedEnvironment = CreateMergedEnvironment(environmentVariables);
-
-        var effectiveTempRoot = ResolveTempRoot(mergedEnvironment) ?? defaultTempRoot;
-        if (!mergedEnvironment.TryGetValue("TEMP", out var tempRoot) || string.IsNullOrWhiteSpace(tempRoot))
-        {
-            mergedEnvironment["TEMP"] = effectiveTempRoot;
-        }
-
-        if (!mergedEnvironment.TryGetValue("TMP", out var tmpRoot) || string.IsNullOrWhiteSpace(tmpRoot))
-        {
-            mergedEnvironment["TMP"] = effectiveTempRoot;
-        }
-
-        return mergedEnvironment;
-    }
-
-    internal static Dictionary<string, string> CreateMergedEnvironment(
-        IReadOnlyDictionary<string, string>? environmentVariables)
-    {
-        var mergedEnvironment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (environmentVariables != null)
-        {
-            foreach (var environmentVariable in environmentVariables)
-            {
-                mergedEnvironment[environmentVariable.Key] = environmentVariable.Value;
-            }
-        }
-
-        return mergedEnvironment;
-    }
-
-    internal static string? ResolveTempRoot(IReadOnlyDictionary<string, string>? environmentVariables)
-    {
-        if (environmentVariables == null)
-        {
-            return null;
-        }
-
-        if (environmentVariables.TryGetValue("TEMP", out var tempRoot) &&
-            !string.IsNullOrWhiteSpace(tempRoot))
-        {
-            return tempRoot;
-        }
-
-        if (environmentVariables.TryGetValue("TMP", out var tempRootFromTmp) &&
-            !string.IsNullOrWhiteSpace(tempRootFromTmp))
-        {
-            return tempRootFromTmp;
-        }
-
-        return null;
-    }
-
-    private void DeleteOwnedTempDirectory()
-    {
-        if (string.IsNullOrWhiteSpace(_ownedTempDirectory))
-        {
-            return;
-        }
-
-        try
-        {
-            if (Directory.Exists(_ownedTempDirectory))
-            {
-                Directory.Delete(_ownedTempDirectory, recursive: true);
-            }
-        }
-        catch
-        {
-        }
-        finally
-        {
-            _ownedTempDirectory = null;
-        }
-    }
-
-    private static IReadOnlyCollection<string> GetTempDirectoriesToEnsure(
-        IReadOnlyDictionary<string, string> environmentVariables)
-    {
-        var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        if (environmentVariables.TryGetValue("TEMP", out var tempRoot) &&
-            !string.IsNullOrWhiteSpace(tempRoot))
-        {
-            directories.Add(tempRoot);
-        }
-
-        if (environmentVariables.TryGetValue("TMP", out var tmpRoot) &&
-            !string.IsNullOrWhiteSpace(tmpRoot))
-        {
-            directories.Add(tmpRoot);
-        }
-
-        return directories;
-    }
 }

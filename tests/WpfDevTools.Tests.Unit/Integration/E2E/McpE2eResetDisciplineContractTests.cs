@@ -33,6 +33,11 @@ public sealed class McpE2eResetDisciplineContractTests
         "triggerMutation\\s*="
     };
 
+    private static readonly string[] SelfContainedMcpE2eTestFiles =
+    {
+        "NestedExecuteCommandPolicyE2eTests.cs"
+    };
+
     [Fact]
     public void SharedMcpE2eTests_WithSharedStateSensitiveTools_ShouldInheritSharedStateResetBase()
     {
@@ -44,7 +49,8 @@ public sealed class McpE2eResetDisciplineContractTests
             .Where(path => !path.EndsWith("McpE2eCollection.cs", StringComparison.Ordinal)
                 && !path.EndsWith("McpE2eFixture.cs", StringComparison.Ordinal)
                 && !path.EndsWith("McpStdioClient.cs", StringComparison.Ordinal)
-                && !path.EndsWith("SharedStateMcpE2eTestBase.cs", StringComparison.Ordinal))
+                && !path.EndsWith("SharedStateMcpE2eTestBase.cs", StringComparison.Ordinal)
+                && !SelfContainedMcpE2eTestFiles.Contains(Path.GetFileName(path), StringComparer.Ordinal))
             .SelectMany(GetMcpE2eClassContracts)
             .Where(static contract => contract.UsesSharedStateSensitiveTool)
             .Where(static contract => !contract.InheritsSharedResetBase)

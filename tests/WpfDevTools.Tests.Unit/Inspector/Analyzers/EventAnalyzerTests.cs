@@ -309,7 +309,7 @@ public class EventAnalyzerTests
 
         analyzer.TraceRoutedEvents(elementId, "Click", 100);
 
-        WaitForTraceCleanup(analyzer, button, elementId, TimeSpan.FromSeconds(1)).Should().BeTrue();
+        WaitForTraceCleanup(analyzer, button, elementId, DispatcherSignalTimeout).Should().BeTrue();
 
         var trace = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(analyzer.GetEventTrace()));

@@ -166,6 +166,9 @@ public sealed partial class InspectorHost : IDisposable
     /// </summary>
     /// <remarks>
     /// This method is idempotent - calling it multiple times has no effect if server is already running.
+    /// It blocks the calling thread until startup completes or fails, including waiting for asynchronous
+    /// server startup work through synchronous waits. It must not be called from a WPF UI thread;
+    /// use a background initialization path when hosting the inspector from application code.
     /// </remarks>
     public void Start()
     {

@@ -412,11 +412,15 @@ public partial class ConnectToolTests : IDisposable
             null,
             certDirectory,
             new PersistedAuthenticationSecretStore(secretFilePath));
+        var hostAuthenticationSecretBase64 = new ProcessAuthenticationSecretProvider(
+                initialTransportSecurity.AuthenticationManager)
+            .GetAuthenticationSecretBase64(processId, pipeName);
 
+        using var hostAuthenticationManager = new AuthenticationManager(() => hostAuthenticationSecretBase64);
         using var host = new InspectorHost(
             processId,
             pipeName,
-            initialTransportSecurity.AuthenticationManager,
+            hostAuthenticationManager,
             initialTransportSecurity.CertificateManager);
         host.Start();
 

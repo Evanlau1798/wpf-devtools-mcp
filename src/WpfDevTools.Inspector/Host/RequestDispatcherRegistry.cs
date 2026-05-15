@@ -40,16 +40,17 @@ internal static class RequestDispatcherRegistry
         var elementFinder = new ElementFinder();
         var xamlSerializer = new XamlSerializer();
         var watchEventBuffer = new WatchEventBuffer();
+        var auditLogger = AuditLoggerDefaults.CreateService();
 
         var visualTreeAnalyzer = new VisualTreeAnalyzer(elementFinder);
         var bindingAnalyzer = new BindingAnalyzer(elementFinder, watchEventBuffer);
         var logicalTreeAnalyzer = new LogicalTreeAnalyzer(elementFinder);
         var elementSearchAnalyzer = new ElementSearchAnalyzer(elementFinder);
-        var mvvmAnalyzer = new MvvmAnalyzer(elementFinder, watchEventBuffer);
-        var dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(elementFinder, watchEventBuffer);
+        var mvvmAnalyzer = new MvvmAnalyzer(elementFinder, watchEventBuffer, auditLogger);
+        var dependencyPropertyAnalyzer = new DependencyPropertyAnalyzer(elementFinder, watchEventBuffer, auditLogger);
         var layoutAnalyzer = new LayoutAnalyzer(elementFinder);
         var interactionAnalyzer = new InteractionAnalyzer(elementFinder, watchEventBuffer);
-        var styleAnalyzer = new StyleAnalyzer(elementFinder);
+        var styleAnalyzer = new StyleAnalyzer(elementFinder, auditLogger);
         var eventAnalyzer = new EventAnalyzer(elementFinder, watchEventBuffer, eventTraceCleanupInvoker);
         var performanceAnalyzer = new PerformanceAnalyzer(elementFinder);
         var uiSummaryAnalyzer = new UiSummaryAnalyzer(elementFinder);

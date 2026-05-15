@@ -50,9 +50,10 @@ public class AuditLoggerService : IAuditLoggerService
 /// Static audit logger facade (for backward compatibility)
 /// NOTE: Prefer using IAuditLoggerService with DI for new code
 /// </summary>
+[Obsolete("Use IAuditLoggerService with dependency injection. The static AuditLogger facade is retained only for backward compatibility and uses process-wide mutable state.", false)]
 public static class AuditLogger
 {
-    private static IAuditLoggerService _service = new AuditLoggerService(new TraceAuditLogger());
+    private static IAuditLoggerService _service = AuditLoggerDefaults.CreateService();
     private static readonly object _lock = new object();
 
     /// <summary>
@@ -60,9 +61,19 @@ public static class AuditLogger
     /// </summary>
     public static void Initialize(IAuditLogger logger)
     {
+        SetLogger(logger);
+    }
+
+    internal static void InitializeForTesting(IAuditLogger logger)
+    {
+        SetLogger(logger);
+    }
+
+    internal static void ResetForTesting()
+    {
         lock (_lock)
         {
-            _service = new AuditLoggerService(logger);
+            _service = AuditLoggerDefaults.CreateService();
         }
     }
 
@@ -76,6 +87,19 @@ public static class AuditLogger
             _service.LogSecurityEvent(category, message, severity);
         }
     }
+
+    private static void SetLogger(IAuditLogger logger)
+    {
+        lock (_lock)
+        {
+            _service = new AuditLoggerService(logger);
+        }
+    }
+}
+
+internal static class AuditLoggerDefaults
+{
+    public static IAuditLoggerService CreateService() => new AuditLoggerService(new TraceAuditLogger());
 }
 
 /// <summary>

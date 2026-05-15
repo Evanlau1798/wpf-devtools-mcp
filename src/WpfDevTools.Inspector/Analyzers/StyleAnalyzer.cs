@@ -11,15 +11,18 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed class StyleAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
+    private readonly IAuditLoggerService _auditLogger;
 
     /// <summary>
     /// Create a new StyleAnalyzer instance
     /// </summary>
     /// <param name="elementFinder">Element finder for locating WPF elements</param>
-    public StyleAnalyzer(ElementFinder elementFinder)
+    /// <param name="auditLogger">Optional audit logger service for mutation audit events</param>
+    public StyleAnalyzer(ElementFinder elementFinder, IAuditLoggerService? auditLogger = null)
         : base(elementFinder)
     {
         _elementFinder = elementFinder;
+        _auditLogger = auditLogger ?? AuditLoggerDefaults.CreateService();
     }
 
     /// <summary>
@@ -481,7 +484,7 @@ public sealed class StyleAnalyzer : DispatcherAnalyzerBase
                 var hadLocalValueBefore = localValueBefore != DependencyProperty.UnsetValue;
                 var previousValueSource = DependencyPropertyHelper.GetValueSource(fe, dp);
                 var convertedValue = ConvertValue(value, targetType);
-                AuditLogger.LogSecurityEvent("StyleOverride", $"Property '{propertyName}' overridden on element '{elementId ?? "root"}'");
+                _auditLogger.LogSecurityEvent("StyleOverride", $"Property '{propertyName}' overridden on element '{elementId ?? "root"}'");
                 fe.SetValue(dp, convertedValue);
                 var newValue = fe.GetValue(dp);
 

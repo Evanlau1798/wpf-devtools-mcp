@@ -138,15 +138,13 @@ public class TraceAuditLoggerTests
 }
 
 [Collection("TraceState")]
+#pragma warning disable CS0618 // AU-2 tests cover the legacy static facade deliberately.
 public class AuditLoggerStaticTests
 {
     [Fact]
     public void LogSecurityEvent_WithoutInitialize_ShouldUseDefaultTraceLogger()
     {
-        // Arrange
-        // Note: AuditLogger uses static state, so it might already be initialized by other tests
-        // We'll initialize it with TraceAuditLogger to ensure consistent behavior
-        AuditLogger.Initialize(new TraceAuditLogger());
+        AuditLogger.ResetForTesting();
 
         var listener = new TestTraceListener();
         Trace.Listeners.Add(listener);
@@ -174,7 +172,7 @@ public class AuditLoggerStaticTests
         var customLogger = new TestAuditLogger();
 
         // Act
-        AuditLogger.Initialize(customLogger);
+        AuditLogger.InitializeForTesting(customLogger);
         AuditLogger.LogSecurityEvent("Test", "Custom logger test", AuditSeverity.Information);
 
         // Assert
@@ -187,7 +185,7 @@ public class AuditLoggerStaticTests
     {
         // Arrange
         var customLogger = new TestAuditLogger();
-        AuditLogger.Initialize(customLogger);
+        AuditLogger.InitializeForTesting(customLogger);
 
         // Act - log from multiple threads
         var tasks = Enumerable.Range(0, 100)
@@ -209,7 +207,7 @@ public class AuditLoggerStaticTests
     {
         // Arrange
         var customLogger = new TestAuditLogger();
-        AuditLogger.Initialize(customLogger);
+        AuditLogger.InitializeForTesting(customLogger);
 
         // Act
         AuditLogger.LogSecurityEvent("Test", "Severity test", severity);
@@ -217,6 +215,28 @@ public class AuditLoggerStaticTests
         // Assert
         customLogger.LoggedMessages.Should().ContainSingle();
         customLogger.LoggedMessages[0].severity.Should().Be(severity);
+    }
+
+    [Fact]
+    public void ResetForTesting_ShouldRestoreDefaultTraceLogger()
+    {
+        var customLogger = new TestAuditLogger();
+        AuditLogger.InitializeForTesting(customLogger);
+        AuditLogger.ResetForTesting();
+        var listener = new TestTraceListener();
+        Trace.Listeners.Add(listener);
+
+        try
+        {
+            AuditLogger.LogSecurityEvent("Test", "Reset logger test", AuditSeverity.Information);
+
+            customLogger.LoggedMessages.Should().BeEmpty();
+            listener.Messages.Should().ContainSingle(message => message.Contains("Reset logger test"));
+        }
+        finally
+        {
+            Trace.Listeners.Remove(listener);
+        }
     }
 
     private class TestAuditLogger : IAuditLogger
@@ -249,6 +269,7 @@ public class AuditLoggerStaticTests
         }
     }
 }
+#pragma warning restore CS0618
 
 [Collection("TraceState")]
 public class EventLogAuditLoggerTests

@@ -31,6 +31,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
     private readonly ElementFinder _elementFinder;
     private readonly WatchEventBuffer? _watchEventBuffer;
+    private readonly IAuditLoggerService _auditLogger;
 
     // Static state for global property change tracking
     // Thread-safe via ConcurrentDictionary/ConcurrentQueue
@@ -67,11 +68,13 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
 
     internal DependencyPropertyAnalyzer(
         ElementFinder elementFinder,
-        WatchEventBuffer? watchEventBuffer)
+        WatchEventBuffer? watchEventBuffer,
+        IAuditLoggerService? auditLogger = null)
         : base(elementFinder)
     {
         _elementFinder = elementFinder;
         _watchEventBuffer = watchEventBuffer;
+        _auditLogger = auditLogger ?? AuditLoggerDefaults.CreateService();
     }
 
     /// <summary>
@@ -248,7 +251,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
                 var targetType = dp.PropertyType;
                 var convertedValue = ConvertValue(value, targetType);
 
-                AuditLogger.LogSecurityEvent("DependencyProperty", $"Property '{propertyName}' set on element '{elementId ?? "root"}'");
+                _auditLogger.LogSecurityEvent("DependencyProperty", $"Property '{propertyName}' set on element '{elementId ?? "root"}'");
                 depObj.SetValue(dp, convertedValue);
                 var newValue = depObj.GetValue(dp);
                 var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);

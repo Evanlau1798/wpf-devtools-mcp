@@ -21,6 +21,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
+    private readonly IAuditLoggerService _auditLogger;
 
     // Security: Regex pattern to detect sensitive property names
     // Matches common sensitive property tokens, including PascalCase/camelCase compounds.
@@ -40,10 +41,12 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
 
     internal MvvmAnalyzer(
         ElementFinder elementFinder,
-        WatchEventBuffer? watchEventBuffer)
+        WatchEventBuffer? watchEventBuffer,
+        IAuditLoggerService? auditLogger = null)
         : base(elementFinder)
     {
         _elementFinder = elementFinder;
+        _auditLogger = auditLogger ?? AuditLoggerDefaults.CreateService();
         _watchEventBuffer = watchEventBuffer;
         _validationChangeTracker = new ValidationChangeTracker(elementFinder);
     }
@@ -194,7 +197,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
         return InvokeOnUIThread<object>(() =>
         {
             // SECURITY: Log command execution attempt for audit
-            AuditLogger.LogSecurityEvent("CommandExecution",
+            _auditLogger.LogSecurityEvent("CommandExecution",
                 $"Attempt: {commandName}, ElementId: {elementId ?? "root"}",
                 AuditSeverity.Information);
 
@@ -221,7 +224,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
             var canExecute = cmd.CanExecute(parameter);
             if (!canExecute)
             {
-                AuditLogger.LogSecurityEvent("CommandExecution",
+                _auditLogger.LogSecurityEvent("CommandExecution",
                     $"Blocked by CanExecute: {commandName}",
                     AuditSeverity.Warning);
                 return ToolErrorFactory.Create(
@@ -240,7 +243,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
             cmd.Execute(parameter);
 
             // SECURITY: Log successful execution
-            AuditLogger.LogSecurityEvent("CommandExecution",
+            _auditLogger.LogSecurityEvent("CommandExecution",
                 $"Success: {commandName}",
                 AuditSeverity.Information);
 
@@ -376,7 +379,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
                 if (SensitivePropertyPattern.IsMatch(propertyName))
                 {
                     // Log security violation
-                    AuditLogger.LogSecurityEvent("PropertyModification",
+                    _auditLogger.LogSecurityEvent("PropertyModification",
                         $"Blocked sensitive property: {propertyName}",
                         AuditSeverity.Warning);
 
@@ -460,7 +463,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
                 EnqueueValidationTransition(validationScopeElementId, validationBefore, validationAfter);
 
                 // SECURITY: Log property modification for audit
-                AuditLogger.LogSecurityEvent("PropertyModification",
+                _auditLogger.LogSecurityEvent("PropertyModification",
                     $"Property: {propertyName}, OldValue: {oldValue ?? "null"}, NewValue: {convertedValue ?? "null"}, ElementId: {elementId ?? "root"}",
                     AuditSeverity.Information);
 

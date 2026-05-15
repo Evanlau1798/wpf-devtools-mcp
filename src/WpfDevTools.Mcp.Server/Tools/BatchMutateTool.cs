@@ -3,11 +3,18 @@ using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
+internal delegate Task<object> BatchMutationExecutor(
+    string toolName,
+    JsonElement args,
+    CancellationToken cancellationToken);
+
+internal delegate Task<object> BatchJsonExecutor(JsonElement args, CancellationToken cancellationToken);
+
 public sealed partial class BatchMutateTool : PipeConnectedToolBase
 {
-    private readonly Func<string, JsonElement, CancellationToken, Task<object>> _mutationExecutor;
-    private readonly Func<JsonElement, CancellationToken, Task<object>> _snapshotExecutor;
-    private readonly Func<JsonElement, CancellationToken, Task<object>> _stateDiffExecutor;
+    private readonly BatchMutationExecutor _mutationExecutor;
+    private readonly BatchJsonExecutor _snapshotExecutor;
+    private readonly BatchJsonExecutor _stateDiffExecutor;
 
     public BatchMutateTool(SessionManager sessionManager)
         : this(
@@ -20,9 +27,9 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
 
     internal BatchMutateTool(
         SessionManager sessionManager,
-        Func<string, JsonElement, CancellationToken, Task<object>>? mutationExecutor,
-        Func<JsonElement, CancellationToken, Task<object>>? snapshotExecutor,
-        Func<JsonElement, CancellationToken, Task<object>>? stateDiffExecutor)
+        BatchMutationExecutor? mutationExecutor,
+        BatchJsonExecutor? snapshotExecutor,
+        BatchJsonExecutor? stateDiffExecutor)
         : base(sessionManager)
     {
         _mutationExecutor = mutationExecutor ?? ExecuteMutationAsync;

@@ -80,7 +80,7 @@ internal sealed class WatchEventBuffer
 
     private static WatchEventRecord BoundPayloadStrings(WatchEventRecord record)
     {
-        var truncation = new PayloadTruncationBuilder();
+        using var truncation = new PayloadTruncationBuilder();
         var bounded = record with
         {
             EventType = truncation.LimitRequired("eventType", record.EventType),
@@ -205,12 +205,13 @@ internal sealed class WatchEventBuffer
         return true;
     }
 
-    private sealed class PayloadTruncationBuilder
+    private sealed class PayloadTruncationBuilder : IDisposable
     {
         private const int HashPrefixLength = 8;
         private const string HexDigits = "0123456789ABCDEF";
 
         private readonly Dictionary<string, int> _originalStringLengths = new(StringComparer.Ordinal);
+        private SHA256? _sha256;
 
         public bool Truncated => _originalStringLengths.Count > 0;
 
@@ -230,7 +231,7 @@ internal sealed class WatchEventBuffer
             new[] { "PayloadStringLength" },
             new Dictionary<string, int>(_originalStringLengths, StringComparer.Ordinal));
 
-        private static string TruncateWithHash(string value)
+        private string TruncateWithHash(string value)
         {
             var hash = ComputeHashPrefix(value);
             var suffix = $"...#{hash}";
@@ -238,9 +239,9 @@ internal sealed class WatchEventBuffer
             return value.Substring(0, prefixLength) + suffix;
         }
 
-        private static string ComputeHashPrefix(string value)
+        private string ComputeHashPrefix(string value)
         {
-            using var sha256 = SHA256.Create();
+            var sha256 = _sha256 ??= SHA256.Create();
             var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(value));
             var characters = new char[HashPrefixLength];
             for (var index = 0; index < HashPrefixLength / 2; index++)
@@ -255,5 +256,10 @@ internal sealed class WatchEventBuffer
 
         public string LimitRequired(string propertyName, string value) =>
             Limit(propertyName, value) ?? string.Empty;
+
+        public void Dispose()
+        {
+            _sha256?.Dispose();
+        }
     }
 }

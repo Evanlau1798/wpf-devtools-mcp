@@ -40,6 +40,31 @@ public sealed partial class SessionManager
         return CreateProcessScopedPipeClient(processId, pipeName);
     }
 
+    internal void ReplacePipeClientForTesting(int processId, NamedPipeClient replacement)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(replacement);
+
+        NamedPipeClient? existingClient = null;
+        lock (_lock)
+        {
+            if (!_sessions.ContainsKey(processId))
+            {
+                throw new InvalidOperationException($"Session for process {processId} does not exist");
+            }
+
+            if (_pipeClients.TryGetValue(processId, out var currentClient)
+                && !ReferenceEquals(currentClient, replacement))
+            {
+                existingClient = currentClient;
+            }
+
+            _pipeClients[processId] = replacement;
+        }
+
+        existingClient?.Dispose();
+    }
+
     private NamedPipeClient CreateProcessScopedPipeClient(int processId, string? pipeName = null)
     {
         var processAuthManager = _processAuthenticationSecrets.CreateAuthenticationManager(processId, pipeName);

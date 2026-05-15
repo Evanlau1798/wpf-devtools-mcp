@@ -16,7 +16,7 @@ public sealed partial class SessionManager : IDisposable
     private int _disposeState;
     private readonly Func<DateTimeOffset> _utcNowProvider;
     private readonly Dictionary<int, SessionInfo> _sessions = new();
-    internal readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
+    private readonly Dictionary<int, NamedPipeClient> _pipeClients = new();
     private readonly Dictionary<int, Dictionary<string, StoredStateSnapshot>> _stateSnapshots = new();
     private readonly Dictionary<int, long> _sessionGenerations = new();
     private ActiveProcessSelection? _activeProcessSelection;

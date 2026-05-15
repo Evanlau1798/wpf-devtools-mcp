@@ -45,7 +45,7 @@ public sealed class SessionManagerConnectedPipeCleanupTests
         {
             using var client = new NamedPipeClient(processId, pipeName);
             (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
-            ReplacePipeClient(manager, processId, client);
+            ReplaceSessionManagerPipeClient(manager, processId, client);
 
             InvokeCleanupDeadSessions(manager);
 
@@ -71,15 +71,4 @@ public sealed class SessionManagerConnectedPipeCleanupTests
         manager._cleanupTimer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
-    private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
-    {
-        var pipeClients = sessionManager._pipeClients;
-        pipeClients.Should().NotBeNull();
-        if (pipeClients!.TryGetValue(processId, out var existingClient))
-        {
-            existingClient.Dispose();
-        }
-
-        pipeClients[processId] = replacement;
-    }
 }

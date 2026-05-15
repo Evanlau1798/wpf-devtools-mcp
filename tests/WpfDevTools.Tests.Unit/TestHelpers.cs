@@ -61,12 +61,7 @@ public static class TestHelpers
     /// </summary>
     public static void ReplaceSessionManagerPipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
     {
-        if (sessionManager._pipeClients.TryGetValue(processId, out var existingClient))
-        {
-            existingClient.Dispose();
-        }
-
-        sessionManager._pipeClients[processId] = replacement;
+        sessionManager.ReplacePipeClientForTesting(processId, replacement);
     }
 }
 

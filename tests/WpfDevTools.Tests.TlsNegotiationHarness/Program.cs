@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Pipes;
 using System.Net.Security;
 #if !NET48
@@ -17,7 +18,7 @@ namespace WpfDevTools.Tests.TlsNegotiationHarness;
 internal static class Program
 {
     private const string TargetHost = "WpfDevTools-Inspector";
-    private static readonly TimeSpan PipeConnectTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan DefaultConnectTimeout = TimeSpan.FromSeconds(15);
 
     private static int Main(string[] args)
     {
@@ -94,7 +95,7 @@ internal static class Program
             options.PipeName,
             PipeDirection.InOut,
             PipeOptions.Asynchronous);
-        client.Connect((int)PipeConnectTimeout.TotalMilliseconds);
+        client.Connect((int)options.ConnectTimeout.TotalMilliseconds);
 
         using var ssl = new SslStream(
             client,
@@ -173,12 +174,14 @@ internal static class Program
             string pipeName,
             string certificateDirectory,
             string readyFile,
-            string resultFile)
+            string resultFile,
+            TimeSpan connectTimeout)
         {
             PipeName = pipeName;
             CertificateDirectory = certificateDirectory;
             ReadyFile = readyFile;
             ResultFile = resultFile;
+            ConnectTimeout = connectTimeout;
         }
 
         public string PipeName { get; }
@@ -188,6 +191,8 @@ internal static class Program
         public string ReadyFile { get; }
 
         public string ResultFile { get; }
+
+        public TimeSpan ConnectTimeout { get; }
 
         public static HarnessOptions Parse(string[] args)
         {
@@ -207,7 +212,19 @@ internal static class Program
                 Require(values, "pipe"),
                 Require(values, "cert-dir"),
                 Require(values, "ready-file"),
-                Require(values, "result-file"));
+                Require(values, "result-file"),
+                ParseConnectTimeout(values));
+        }
+
+        private static TimeSpan ParseConnectTimeout(IReadOnlyDictionary<string, string> values)
+        {
+            if (!values.TryGetValue("connect-timeout-seconds", out var value))
+                return DefaultConnectTimeout;
+
+            if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds) || seconds <= 0)
+                throw new ArgumentException("--connect-timeout-seconds must be a positive integer.");
+
+            return TimeSpan.FromSeconds(seconds);
         }
 
         private static string Require(IReadOnlyDictionary<string, string> values, string name)

@@ -35,6 +35,7 @@ public sealed class McpE2eResetDisciplineContractTests
 
     private static readonly string[] SelfContainedMcpE2eTestFiles =
     {
+        // This test file starts its own MCP server and TestApp instead of mutating the shared McpE2E fixture.
         "NestedExecuteCommandPolicyE2eTests.cs"
     };
 

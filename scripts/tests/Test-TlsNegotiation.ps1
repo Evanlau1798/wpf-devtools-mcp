@@ -23,6 +23,76 @@ function Invoke-Checked {
     }
 }
 
+function ConvertTo-WindowsCommandLineArgument {
+    param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Argument)
+
+    if ($Argument.Length -eq 0) {
+        return '""'
+    }
+
+    if ($Argument -notmatch '[\s"]') {
+        return $Argument
+    }
+
+    $builder = New-Object System.Text.StringBuilder
+    $backslash = [char]0x5c
+    $quote = [char]0x22
+    $backslashCount = 0
+
+    [void]$builder.Append($quote)
+    foreach ($character in $Argument.ToCharArray()) {
+        if ($character -eq $backslash) {
+            $backslashCount++
+            continue
+        }
+
+        if ($character -eq $quote) {
+            [void]$builder.Append(($backslash.ToString() * (($backslashCount * 2) + 1)))
+            [void]$builder.Append($quote)
+            $backslashCount = 0
+            continue
+        }
+
+        if ($backslashCount -gt 0) {
+            [void]$builder.Append(($backslash.ToString() * $backslashCount))
+            $backslashCount = 0
+        }
+
+        [void]$builder.Append($character)
+    }
+
+    if ($backslashCount -gt 0) {
+        [void]$builder.Append(($backslash.ToString() * ($backslashCount * 2)))
+    }
+
+    [void]$builder.Append($quote)
+    return $builder.ToString()
+}
+
+function ConvertTo-WindowsCommandLine {
+    param([Parameter(Mandatory)] [string[]]$Arguments)
+
+    return (($Arguments | ForEach-Object { ConvertTo-WindowsCommandLineArgument -Argument $_ }) -join ' ')
+}
+
+function Start-HarnessProcess {
+    param(
+        [Parameter(Mandatory)] [string]$FilePath,
+        [Parameter(Mandatory)] [string[]]$Arguments,
+        [Parameter(Mandatory)] [string]$StandardOutputPath,
+        [Parameter(Mandatory)] [string]$StandardErrorPath
+    )
+
+    $argumentLine = ConvertTo-WindowsCommandLine -Arguments $Arguments
+    return Start-Process `
+        -FilePath $FilePath `
+        -ArgumentList $argumentLine `
+        -PassThru `
+        -WindowStyle Hidden `
+        -RedirectStandardOutput $StandardOutputPath `
+        -RedirectStandardError $StandardErrorPath
+}
+
 function Convert-ScenarioRuntime {
     param([Parameter(Mandatory)] [string]$Value)
 
@@ -151,11 +221,15 @@ if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $OutputRoot = Join-Path $repoRoot 'tmp\tls-negotiation'
 }
 
-$tmpRoot = (Resolve-Path (New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot 'tmp'))).Path
-$outputRootFullPath = (New-Item -ItemType Directory -Force -Path $OutputRoot).FullName
-if (-not $outputRootFullPath.StartsWith($tmpRoot, [StringComparison]::OrdinalIgnoreCase)) {
+$pathSeparators = [char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+$tmpRoot = ((Resolve-Path (New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot 'tmp'))).Path).TrimEnd($pathSeparators)
+$outputRootFullPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputRoot).TrimEnd($pathSeparators)
+$tmpRootWithSeparator = $tmpRoot + [System.IO.Path]::DirectorySeparatorChar
+if (-not ($outputRootFullPath.Equals($tmpRoot, [StringComparison]::OrdinalIgnoreCase) -or $outputRootFullPath.StartsWith($tmpRootWithSeparator, [StringComparison]::OrdinalIgnoreCase))) {
     throw "OutputRoot must be under '$tmpRoot' to keep disposable TLS verification artifacts out of commits."
 }
+
+New-Item -ItemType Directory -Force -Path $outputRootFullPath | Out-Null
 
 $projectPath = Join-Path $repoRoot 'tests\WpfDevTools.Tests.TlsNegotiationHarness\WpfDevTools.Tests.TlsNegotiationHarness.csproj'
 if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
@@ -205,23 +279,19 @@ foreach ($scenario in $Scenarios) {
     $clientStderr = Join-Path $scenarioRoot 'client.stderr.log'
 
     Write-Host "Running TLS negotiation scenario: $scenario"
-    $serverProcess = Start-Process `
+    $serverProcess = Start-HarnessProcess `
         -FilePath $runtimeExecutables[$serverRuntime] `
-        -ArgumentList @('server', '--pipe', $pipeName, '--cert-dir', $certDir, '--ready-file', $readyFile, '--result-file', $serverResult) `
-        -PassThru `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $serverStdout `
-        -RedirectStandardError $serverStderr
+        -Arguments @('server', '--pipe', $pipeName, '--cert-dir', $certDir, '--ready-file', $readyFile, '--result-file', $serverResult, '--connect-timeout-seconds', $TimeoutSeconds.ToString()) `
+        -StandardOutputPath $serverStdout `
+        -StandardErrorPath $serverStderr
 
     try {
         Wait-ForFile -Path $readyFile -TimeoutSeconds $TimeoutSeconds
-        $clientProcess = Start-Process `
+        $clientProcess = Start-HarnessProcess `
             -FilePath $runtimeExecutables[$clientRuntime] `
-            -ArgumentList @('client', '--pipe', $pipeName, '--cert-dir', $certDir, '--ready-file', (Join-Path $scenarioRoot 'client.ready'), '--result-file', $clientResult) `
-            -PassThru `
-            -WindowStyle Hidden `
-            -RedirectStandardOutput $clientStdout `
-            -RedirectStandardError $clientStderr
+            -Arguments @('client', '--pipe', $pipeName, '--cert-dir', $certDir, '--ready-file', (Join-Path $scenarioRoot 'client.ready'), '--result-file', $clientResult, '--connect-timeout-seconds', $TimeoutSeconds.ToString()) `
+            -StandardOutputPath $clientStdout `
+            -StandardErrorPath $clientStderr
 
         Wait-ForProcessExit -Process $clientProcess -TimeoutSeconds $TimeoutSeconds -Description "$scenario client"
         Wait-ForProcessExit -Process $serverProcess -TimeoutSeconds $TimeoutSeconds -Description "$scenario server"

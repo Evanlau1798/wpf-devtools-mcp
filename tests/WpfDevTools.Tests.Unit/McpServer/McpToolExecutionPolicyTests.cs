@@ -117,10 +117,14 @@ public sealed class McpToolExecutionPolicyTests
 
     [Theory]
     [InlineData("batch_mutate", "{\"mutations\":[{\"tool\":\"modify_viewmodel\",\"args\":{\"propertyName\":\"Name\",\"value\":\"Alice\"}}]}")]
+    [InlineData("batch_mutate", "{\"mutations\":[{\"tool\":\"execute_command\",\"args\":{\"commandName\":\"Save\"}}]}")]
     [InlineData("batch_mutate", "{\"mutations\":\"[{\\\"tool\\\":\\\"modify_viewmodel\\\",\\\"args\\\":{\\\"propertyName\\\":\\\"Name\\\",\\\"value\\\":\\\"Alice\\\"}}]\"}")]
+    [InlineData("batch_mutate", "{\"mutations\":\"[{\\\"tool\\\":\\\"execute_command\\\",\\\"args\\\":{\\\"commandName\\\":\\\"Save\\\"}}]\"}")]
     [InlineData("batch_mutate", "{\"captureSnapshot\":\"{\\\"viewModelPropertyNames\\\":[\\\"Name\\\"]}\"}")]
     [InlineData("wait_for_dp_change_after_mutation", "{\"triggerMutation\":{\"tool\":\"modify_viewmodel\",\"args\":{\"propertyName\":\"Name\",\"value\":\"Alice\"}}}")]
+    [InlineData("wait_for_dp_change_after_mutation", "{\"triggerMutation\":{\"tool\":\"execute_command\",\"args\":{\"commandName\":\"Refresh\"}}}")]
     [InlineData("wait_for_dp_change_after_mutation", "{\"triggerMutation\":\"{\\\"tool\\\":\\\"modify_viewmodel\\\",\\\"args\\\":{\\\"propertyName\\\":\\\"Name\\\",\\\"value\\\":\\\"Alice\\\"}}\"}")]
+    [InlineData("wait_for_dp_change_after_mutation", "{\"triggerMutation\":\"{\\\"tool\\\":\\\"execute_command\\\",\\\"args\\\":{\\\"commandName\\\":\\\"Refresh\\\"}}\"}")]
     [InlineData("capture_state_snapshot", "{\"viewModelPropertyNames\":[\"Name\"]}")]
     [InlineData("capture_state_snapshot", "{\"viewModelPropertyNames\":\"[\\\"Name\\\"]\"}")]
     public void EvaluateToolCall_WhenNestedViewModelAccessIsDisabled_ShouldDeny(string toolName, string argumentsJson)
@@ -139,6 +143,25 @@ public sealed class McpToolExecutionPolicyTests
         decision.IsAllowed.Should().BeFalse();
         decision.ErrorCode.Should().Be("SecurityError");
         decision.PolicyCategory.Should().Be("viewmodel-inspection");
+    }
+
+    [Fact]
+    public void EvaluateToolCall_WhenNestedExecuteCommandAllowsViewModelButDestructiveToolsAreDisabled_ShouldDenyDestructiveGate()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "false",
+            allowScreenshots: null,
+            allowViewModelInspection: "true");
+
+        using var document = JsonDocument.Parse("{\"mutations\":[{\"tool\":\"execute_command\",\"args\":{\"commandName\":\"Save\"}}]}");
+        var arguments = document.RootElement.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.Clone());
+
+        var decision = policy.EvaluateToolCall("batch_mutate", arguments);
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("SecurityError");
+        decision.PolicyCategory.Should().Be("destructive-tools");
     }
 
     [Fact]

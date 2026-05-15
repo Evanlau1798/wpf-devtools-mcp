@@ -163,7 +163,7 @@ internal sealed class McpToolExecutionPolicy
         => mutationStep.ValueKind == JsonValueKind.Object
            && mutationStep.TryGetProperty("tool", out var tool)
            && tool.ValueKind == JsonValueKind.String
-           && string.Equals(tool.GetString(), "modify_viewmodel", StringComparison.Ordinal);
+           && ViewModelInspectionTools.Contains(tool.GetString() ?? string.Empty);
 
     private static bool ContainsNestedViewModelPropertyNames(
         IDictionary<string, JsonElement>? arguments,

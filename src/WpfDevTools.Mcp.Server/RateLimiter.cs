@@ -358,25 +358,29 @@ public sealed class RateLimiterManager : IRateLimiterManager, IRateLimiterStatus
         if (_limiters.Count == 0 || count <= 0)
             return;
 
-        var candidates = new List<(int Key, DateTimeOffset LastAccessed)>(count);
+        var candidateCount = Math.Min(count, _limiters.Count);
+        var candidates = new PriorityQueue<(int Key, DateTimeOffset LastAccessed), long>(candidateCount);
         foreach (var kvp in _limiters)
         {
-            var ts = kvp.Value.LastAccessed;
-            if (candidates.Count < count)
+            var lastAccessed = kvp.Value.LastAccessed;
+            var priority = -lastAccessed.UtcTicks;
+
+            if (candidates.Count < candidateCount)
             {
-                candidates.Add((kvp.Key, ts));
-                if (candidates.Count == count)
-                    candidates.Sort((a, b) => b.LastAccessed.CompareTo(a.LastAccessed));
+                candidates.Enqueue((kvp.Key, lastAccessed), priority);
+                continue;
             }
-            else if (ts < candidates[^1].LastAccessed)
+
+            candidates.TryPeek(out var newestCandidate, out _);
+            if (lastAccessed < newestCandidate.LastAccessed)
             {
-                candidates[^1] = (kvp.Key, ts);
-                candidates.Sort((a, b) => b.LastAccessed.CompareTo(a.LastAccessed));
+                candidates.Dequeue();
+                candidates.Enqueue((kvp.Key, lastAccessed), priority);
             }
         }
 
-        foreach (var (key, _) in candidates)
-            _limiters.Remove(key);
+        while (candidates.TryDequeue(out var candidate, out _))
+            _limiters.Remove(candidate.Key);
     }
 
     /// <summary>

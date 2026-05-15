@@ -194,6 +194,25 @@ static bool ReadUtf8File(const std::wstring& path, std::wstring& value)
     return !value.empty();
 }
 
+static void LogAuthSecretDeleteFailure(DWORD errorCode)
+{
+    std::wstring message = L"WpfDevTools Bootstrapper warning: failed to delete authentication secret file. error="
+        + std::to_wstring(errorCode) + L"\n";
+    OutputDebugStringW(message.c_str());
+}
+
+static void DeleteAuthSecretFile(const std::wstring& path)
+{
+    if (DeleteFileW(path.c_str()))
+        return;
+
+    DWORD errorCode = GetLastError();
+    if (errorCode == ERROR_FILE_NOT_FOUND || errorCode == ERROR_PATH_NOT_FOUND)
+        return;
+
+    LogAuthSecretDeleteFailure(errorCode);
+}
+
 static bool LoadAuthSecretFromFile(BootstrapConfig& config)
 {
     if (config.AuthSecretFile.empty())
@@ -201,7 +220,7 @@ static bool LoadAuthSecretFromFile(BootstrapConfig& config)
 
     std::wstring secret;
     bool loaded = ReadUtf8File(config.AuthSecretFile, secret);
-    DeleteFileW(config.AuthSecretFile.c_str());
+    DeleteAuthSecretFile(config.AuthSecretFile);
 
     if (!loaded)
         return false;

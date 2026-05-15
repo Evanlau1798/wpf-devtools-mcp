@@ -41,6 +41,19 @@ public class BootstrapperSecureTransportContractTests
             "auth secret file read failures should not be misclassified as inspector path failures");
     }
 
+    [Fact]
+    public void BootstrapEntry_ShouldLogAuthSecretFileDeletionFailure()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+
+        content.Should().Contain("DeleteAuthSecretFile(config.AuthSecretFile)");
+        content.Should().Contain("GetLastError()");
+        content.Should().Contain("OutputDebugStringW");
+        content.Should().NotContain("DeleteFileW(config.AuthSecretFile.c_str());",
+            "auth secret file deletion failures should produce a diagnostic signal");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

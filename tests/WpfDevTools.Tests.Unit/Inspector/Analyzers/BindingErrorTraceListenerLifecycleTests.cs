@@ -62,6 +62,52 @@ public sealed class BindingErrorTraceListenerLifecycleTests : IDisposable
         source.Switch.Level.Should().Be(SourceLevels.Error);
     }
 
+    [Theory]
+    [InlineData(SourceLevels.Off)]
+    [InlineData(SourceLevels.Warning)]
+    [InlineData(SourceLevels.Verbose)]
+    public void Uninstall_WhenInstalled_ShouldRestorePreviousSwitchLevel(SourceLevels originalLevel)
+    {
+        var source = PresentationTraceSources.DataBindingSource;
+        source.Switch.Level = originalLevel;
+
+        BindingErrorTraceListener.Install();
+        source.Switch.Level.Should().Be(SourceLevels.Error);
+
+        BindingErrorTraceListener.Uninstall();
+
+        source.Switch.Level.Should().Be(originalLevel);
+    }
+
+    [Fact]
+    public void Install_WhenCalledTwice_ShouldRestoreFirstObservedSwitchLevelOnUninstall()
+    {
+        var source = PresentationTraceSources.DataBindingSource;
+        source.Switch.Level = SourceLevels.Off;
+
+        BindingErrorTraceListener.Install();
+        source.Switch.Level = SourceLevels.Critical;
+        BindingErrorTraceListener.Install();
+
+        BindingErrorTraceListener.Uninstall();
+
+        source.Switch.Level.Should().Be(SourceLevels.Off);
+    }
+
+    [Fact]
+    public void ResetInstance_WhenInstalled_ShouldRestorePreviousSwitchLevel()
+    {
+        var source = PresentationTraceSources.DataBindingSource;
+        source.Switch.Level = SourceLevels.Warning;
+
+        BindingErrorTraceListener.Install();
+        source.Switch.Level.Should().Be(SourceLevels.Error);
+
+        BindingErrorTraceListener.ResetInstance();
+
+        source.Switch.Level.Should().Be(SourceLevels.Warning);
+    }
+
     private static int CountInstanceRegistrations()
         => PresentationTraceSources.DataBindingSource.Listeners
             .Cast<TraceListener>()

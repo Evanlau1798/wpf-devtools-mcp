@@ -13,6 +13,7 @@ public sealed class BindingErrorTraceListener : TraceListener
     private static Lazy<BindingErrorTraceListener> _instance =
         new Lazy<BindingErrorTraceListener>(() => new BindingErrorTraceListener(),
             LazyThreadSafetyMode.ExecutionAndPublication);
+    private static SourceLevels? _originalSwitchLevel;
 
     private readonly ConcurrentQueue<BindingErrorInfo> _errors = new();
     private Action<BindingErrorInfo>? _watchEventSink;
@@ -44,6 +45,7 @@ public sealed class BindingErrorTraceListener : TraceListener
         lock (LifecycleLock)
         {
             var source = PresentationTraceSources.DataBindingSource;
+            _originalSwitchLevel ??= source.Switch.Level;
             RemoveAllRegistrations(source, Instance);
             source.Listeners.Add(Instance);
             source.Switch.Level = SourceLevels.Error;
@@ -59,6 +61,7 @@ public sealed class BindingErrorTraceListener : TraceListener
         {
             var source = PresentationTraceSources.DataBindingSource;
             RemoveAllRegistrations(source, Instance);
+            RestoreOriginalSwitchLevel(source);
         }
     }
 
@@ -182,12 +185,13 @@ public sealed class BindingErrorTraceListener : TraceListener
     {
         lock (LifecycleLock)
         {
+            var source = PresentationTraceSources.DataBindingSource;
+
             // Uninstall the old instance first
             if (_instance.IsValueCreated)
             {
                 try
                 {
-                    var source = PresentationTraceSources.DataBindingSource;
                     RemoveAllRegistrations(source, _instance.Value);
                 }
                 catch (Exception ex)
@@ -196,11 +200,24 @@ public sealed class BindingErrorTraceListener : TraceListener
                 }
             }
 
+            RestoreOriginalSwitchLevel(source);
+
             // Create a new Lazy instance
             _instance = new Lazy<BindingErrorTraceListener>(
                 () => new BindingErrorTraceListener(),
                 LazyThreadSafetyMode.ExecutionAndPublication);
         }
+    }
+
+    private static void RestoreOriginalSwitchLevel(TraceSource source)
+    {
+        if (_originalSwitchLevel is not { } originalLevel)
+        {
+            return;
+        }
+
+        source.Switch.Level = originalLevel;
+        _originalSwitchLevel = null;
     }
 
     private static void RemoveAllRegistrations(TraceSource source, BindingErrorTraceListener listener)

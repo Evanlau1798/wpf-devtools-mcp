@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Buffers.Binary;
 using System.IO;
 using System.IO.Pipes;
 using System.Text;
@@ -17,7 +18,7 @@ public static class MessageFraming
 
     /// <summary>
     /// Write a message to the stream with length-prefix framing
-    /// Format: [4 bytes length][message bytes]
+    /// Format: [4 bytes little-endian length][message bytes]
     /// </summary>
     /// <param name="stream">Stream to write to (PipeStream, SslStream, etc.)</param>
     /// <param name="message">Message string to write</param>
@@ -47,7 +48,7 @@ public static class MessageFraming
         var combined = ArrayPool<byte>.Shared.Rent(totalLength);
         try
         {
-            BitConverter.GetBytes(messageByteCount).CopyTo(combined, 0);
+            BinaryPrimitives.WriteInt32LittleEndian(combined.AsSpan(0, LengthPrefixSize), messageByteCount);
             Encoding.UTF8.GetBytes(message, 0, message.Length, combined, LengthPrefixSize);
 
 #if NET48
@@ -100,7 +101,7 @@ public static class MessageFraming
             var lengthBytes = new byte[LengthPrefixSize];
             await ReadExactBytesNet48Async(stream, lengthBytes, LengthPrefixSize, cancellationToken);
 
-            var messageLength = BitConverter.ToInt32(lengthBytes, 0);
+            var messageLength = BinaryPrimitives.ReadInt32LittleEndian(lengthBytes.AsSpan(0, LengthPrefixSize));
 
             if (messageLength < 0 || messageLength > MaxMessageSize)
             {
@@ -139,7 +140,7 @@ public static class MessageFraming
         var lengthBytes = new byte[LengthPrefixSize];
         await ReadExactBytesAsync(stream, lengthBytes, LengthPrefixSize, cancellationToken);
 
-        var messageLength = BitConverter.ToInt32(lengthBytes, 0);
+        var messageLength = BinaryPrimitives.ReadInt32LittleEndian(lengthBytes.AsSpan(0, LengthPrefixSize));
 
         if (messageLength < 0 || messageLength > MaxMessageSize)
         {

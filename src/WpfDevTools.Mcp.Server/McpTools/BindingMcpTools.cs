@@ -164,7 +164,7 @@ public static class BindingMcpTools
         "FIRST tool to use when debugging data display issues.\n\n" +
         "USE WHEN: UI shows blank/wrong data, or you suspect binding path errors.\n" +
         "DO NOT USE: Before calling connect() - errors are only captured after injection; for validation rule errors use get_validation_errors.\n" +
-        "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics. Compact mode is enabled by default to omit the verbose free-form message while preserving structured correlation fields; set `compact=false` when the full message text is required.\n\n" +
+        "WINDOWING: Optional `maxErrors` and `sinceTimestamp` let agents fetch only the newest or most relevant diagnostics. sinceTimestamp must include UTC `Z` or an explicit offset such as `2026-03-11T12:00:00Z` or `2026-03-11T12:00:00+05:00`. Compact mode is enabled by default to omit the verbose free-form message while preserving structured correlation fields; set `compact=false` when the full message text is required.\n\n" +
         ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: errorCount, errors, navigation, nextSteps, and per-error fields such as timestamp, sourceKind, elementId, suggestedElementId, propertyName, and bindingPath. Validation rule errors remain in get_validation_errors.\n" +
         "REQUEST OPTIONS: maxErrors and sinceTimestamp window the diagnostic stream; set compact=false to recover full trace messages; set navigation=false to omit navigation and nextSteps.\n\n" +
@@ -181,7 +181,7 @@ public static class BindingMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID whose captured binding errors should be returned. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional maximum number of errors to return after filtering. Omit to return the full captured list.")] int? maxErrors = null,
-        [Description("Optional ISO-8601 timestamp filter. Only errors at or after this instant are returned.")] string? sinceTimestamp = null,
+        [Description("Optional ISO-8601 timestamp filter with explicit timezone, for example 2026-03-11T12:00:00Z or 2026-03-11T12:00:00+05:00. Only errors at or after this instant are returned.")] string? sinceTimestamp = null,
         [Description("When true, omit the verbose free-form message field and keep only the structured correlation fields for token-efficient triage. Defaults to true; set false when the full binding trace message is required.")] bool compact = true,
         [Description("Optional response contract control. Set navigation=false as an explicit opt-out when you want this call to omit both navigation and compatibility nextSteps.")] bool? navigation = null,
         CancellationToken cancellationToken = default)

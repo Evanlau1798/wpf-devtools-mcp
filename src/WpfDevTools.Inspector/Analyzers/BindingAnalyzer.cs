@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using WpfDevTools.Inspector.Events;
@@ -10,6 +11,13 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposable
 {
+    private static readonly string[] SinceTimestampFormats =
+    {
+        "O",
+        "yyyy-MM-dd'T'HH:mm:ssK",
+        "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK"
+    };
+
     private readonly ElementFinder _elementFinder;
     private readonly BindingErrorTraceListener _bindingErrorTraceListener;
     private readonly bool _usesSharedBindingErrorTraceListener;
@@ -149,11 +157,12 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
             DateTime? sinceUtc = null;
             if (!string.IsNullOrWhiteSpace(sinceTimestamp))
             {
-                if (!DateTimeOffset.TryParse(sinceTimestamp, out var parsed))
+                var timestamp = sinceTimestamp!.Trim();
+                if (!TryParseSinceTimestamp(timestamp, out var parsed))
                 {
                     return ToolErrorFactory.InvalidArgument(
-                        "sinceTimestamp must be a valid ISO-8601 timestamp",
-                        "Use an ISO-8601 UTC timestamp such as 2026-03-11T12:00:00Z.");
+                    "sinceTimestamp must be an ISO-8601 timestamp with an explicit timezone",
+                    "Use UTC with Z, such as 2026-03-11T12:00:00Z, or include an explicit offset such as 2026-03-11T12:00:00+05:00.");
                 }
 
                 sinceUtc = parsed.UtcDateTime;
@@ -216,6 +225,40 @@ public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposabl
 
             return result;
         });
+    }
+
+    private static bool TryParseSinceTimestamp(string sinceTimestamp, out DateTimeOffset parsed)
+    {
+        parsed = default;
+        return HasExplicitTimeZoneDesignator(sinceTimestamp)
+               && DateTimeOffset.TryParseExact(
+                   sinceTimestamp,
+                   SinceTimestampFormats,
+                   CultureInfo.InvariantCulture,
+                   DateTimeStyles.None,
+                   out parsed);
+    }
+
+    private static bool HasExplicitTimeZoneDesignator(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.EndsWith("Z", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (trimmed.Length < 6)
+        {
+            return false;
+        }
+
+        var offsetStart = trimmed.Length - 6;
+        return (trimmed[offsetStart] is '+' or '-')
+               && trimmed[offsetStart + 3] == ':'
+               && char.IsDigit(trimmed[offsetStart + 1])
+               && char.IsDigit(trimmed[offsetStart + 2])
+               && char.IsDigit(trimmed[offsetStart + 4])
+               && char.IsDigit(trimmed[offsetStart + 5]);
     }
 
     /// <summary>

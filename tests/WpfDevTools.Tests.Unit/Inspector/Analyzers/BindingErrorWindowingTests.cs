@@ -54,6 +54,21 @@ public sealed class BindingErrorWindowingTests
     }
 
     [Fact]
+    public void GetBindingErrors_WithSinceTimestampEqualToErrorTimestamp_ShouldIncludeBoundaryError()
+    {
+        var (analyzer, listener) = CreateBindingErrorAnalyzer();
+        listener.TraceEvent(null, "System.Windows.Data", TraceEventType.Error, 40, "Boundary error");
+        var boundary = listener.GetErrors().Single().Timestamp.ToUniversalTime().ToString("O");
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetBindingErrors(sinceTimestamp: boundary));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("errorCount").GetInt32().Should().Be(1);
+        result.GetProperty("errors")[0].GetProperty("message").GetString().Should().Be("Boundary error");
+    }
+
+    [Fact]
     public void GetBindingErrors_WithInvalidSinceTimestamp_ShouldReturnStructuredInvalidArgument()
     {
         var (analyzer, _) = CreateBindingErrorAnalyzer();
@@ -63,5 +78,31 @@ public sealed class BindingErrorWindowingTests
 
         result.GetProperty("success").GetBoolean().Should().BeFalse();
         result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+    }
+
+    [Fact]
+    public void GetBindingErrors_WithTimezoneLessSinceTimestamp_ShouldReturnStructuredInvalidArgument()
+    {
+        var (analyzer, _) = CreateBindingErrorAnalyzer();
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetBindingErrors(sinceTimestamp: "2026-03-11T12:00:00"));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("hint").GetString().Should().Contain("Z");
+    }
+
+    [Theory]
+    [InlineData("2026-03-11T12:00:00Z")]
+    [InlineData("2026-03-11T12:00:00+05:00")]
+    public void GetBindingErrors_WithExplicitTimezoneSinceTimestamp_ShouldSucceed(string sinceTimestamp)
+    {
+        var (analyzer, _) = CreateBindingErrorAnalyzer();
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetBindingErrors(sinceTimestamp: sinceTimestamp));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
     }
 }

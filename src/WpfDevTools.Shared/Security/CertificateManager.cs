@@ -21,6 +21,7 @@ public sealed class CertificateManager
     private const string CertFileName = "server.pfx";
     private const string PasswordFileName = "server.pwd";
     private const string SubjectName = "CN=WpfDevTools-Inspector";
+    private const string ServerAuthenticationOid = "1.3.6.1.5.5.7.3.1";
     private const int RsaKeySize = 2048;
     private const int PasswordLengthBytes = 32;
     private static readonly TimeSpan MutexTimeout = TimeSpan.FromSeconds(30);
@@ -96,10 +97,9 @@ public sealed class CertificateManager
                         var password = LoadPassword(passwordPath);
                         var loaded = LoadCertificateFromFile(certPath, password);
 
-                        if (loaded.NotAfter > DateTime.UtcNow)
+                        if (IsReusableCertificate(loaded))
                             return loaded;
 
-                        // Certificate expired, regenerate
                         loaded.Dispose();
                     }
                     catch (CryptographicException)
@@ -137,7 +137,7 @@ public sealed class CertificateManager
             new X509EnhancedKeyUsageExtension(
                 new OidCollection
                 {
-                    new Oid("1.3.6.1.5.5.7.3.1") // Server Authentication
+                    new Oid(ServerAuthenticationOid)
                 },
                 critical: true));
 
@@ -157,6 +157,40 @@ public sealed class CertificateManager
         cert.Dispose();
 
         return LoadCertificateFromFile(certPath, password);
+    }
+
+    private static bool IsReusableCertificate(X509Certificate2 certificate)
+        => IsWithinValidityPeriod(certificate)
+           && HasExpectedSubject(certificate)
+           && HasExpectedRsaKeySize(certificate)
+           && HasRequiredKeyUsage(certificate)
+           && HasServerAuthenticationEku(certificate);
+
+    private static bool IsWithinValidityPeriod(X509Certificate2 certificate)
+        => certificate.NotBefore <= DateTime.UtcNow && certificate.NotAfter > DateTime.UtcNow;
+
+    private static bool HasExpectedSubject(X509Certificate2 certificate)
+        => string.Equals(certificate.Subject, SubjectName, StringComparison.Ordinal);
+
+    private static bool HasExpectedRsaKeySize(X509Certificate2 certificate)
+    {
+        using var rsa = certificate.GetRSAPublicKey();
+        return rsa?.KeySize >= RsaKeySize;
+    }
+
+    private static bool HasRequiredKeyUsage(X509Certificate2 certificate)
+    {
+        const X509KeyUsageFlags requiredUsages = X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment;
+        var keyUsage = certificate.Extensions.OfType<X509KeyUsageExtension>().FirstOrDefault();
+        return keyUsage is not null && (keyUsage.KeyUsages & requiredUsages) == requiredUsages;
+    }
+
+    private static bool HasServerAuthenticationEku(X509Certificate2 certificate)
+    {
+        var enhancedKeyUsage = certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>().FirstOrDefault();
+        return enhancedKeyUsage is not null
+               && enhancedKeyUsage.EnhancedKeyUsages.Cast<Oid>()
+                   .Any(oid => string.Equals(oid.Value, ServerAuthenticationOid, StringComparison.Ordinal));
     }
 
     private static X509Certificate2 LoadCertificateFromFile(string certPath, string password)

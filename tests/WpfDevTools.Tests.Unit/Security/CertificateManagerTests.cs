@@ -227,6 +227,93 @@ public class CertificateManagerTests : IDisposable
         HasBroadWriteAccess(Path.Combine(_tempDir, "server.pwd"), everyoneSid).Should().BeFalse();
     }
 
+    [Fact]
+    public void GetOrCreateCertificate_WhenExistingCertificateHasWrongSubject_ShouldRegenerate()
+    {
+        using var existing = CreateCertificate(subjectName: "CN=Unexpected-Inspector");
+        var existingThumbprint = SaveExistingCertificate(existing);
+        var manager = new CertificateManager(_tempDir);
+
+        using var cert = manager.GetOrCreateCertificate();
+
+        cert.Thumbprint.Should().NotBe(existingThumbprint);
+        cert.Subject.Should().Be("CN=WpfDevTools-Inspector");
+    }
+
+    [Fact]
+    public void GetOrCreateCertificate_WhenExistingCertificateUsesWeakRsaKey_ShouldRegenerate()
+    {
+        using var existing = CreateCertificate(rsaKeySize: 1024);
+        var existingThumbprint = SaveExistingCertificate(existing);
+        var manager = new CertificateManager(_tempDir);
+
+        using var cert = manager.GetOrCreateCertificate();
+        using var rsa = cert.GetRSAPublicKey();
+
+        cert.Thumbprint.Should().NotBe(existingThumbprint);
+        rsa.Should().NotBeNull();
+        rsa!.KeySize.Should().Be(2048);
+    }
+
+    [Fact]
+    public void GetOrCreateCertificate_WhenExistingCertificateHasWrongKeyUsage_ShouldRegenerate()
+    {
+        using var existing = CreateCertificate(keyUsageFlags: X509KeyUsageFlags.DigitalSignature);
+        var existingThumbprint = SaveExistingCertificate(existing);
+        var manager = new CertificateManager(_tempDir);
+
+        using var cert = manager.GetOrCreateCertificate();
+        var keyUsageExt = cert.Extensions.OfType<X509KeyUsageExtension>().FirstOrDefault();
+
+        cert.Thumbprint.Should().NotBe(existingThumbprint);
+        keyUsageExt.Should().NotBeNull();
+        keyUsageExt!.KeyUsages.Should().HaveFlag(X509KeyUsageFlags.DigitalSignature);
+        keyUsageExt.KeyUsages.Should().HaveFlag(X509KeyUsageFlags.KeyEncipherment);
+    }
+
+    [Fact]
+    public void GetOrCreateCertificate_WhenExistingCertificateHasWrongEnhancedKeyUsage_ShouldRegenerate()
+    {
+        using var existing = CreateCertificate(ekuOids: new[] { "1.3.6.1.5.5.7.3.2" });
+        var existingThumbprint = SaveExistingCertificate(existing);
+        var manager = new CertificateManager(_tempDir);
+
+        using var cert = manager.GetOrCreateCertificate();
+        var ekuExt = cert.Extensions.OfType<X509EnhancedKeyUsageExtension>().FirstOrDefault();
+
+        cert.Thumbprint.Should().NotBe(existingThumbprint);
+        ekuExt.Should().NotBeNull();
+        ekuExt!.EnhancedKeyUsages.Cast<Oid>()
+            .Should().Contain(oid => oid.Value == "1.3.6.1.5.5.7.3.1");
+    }
+
+    [Fact]
+    public void GetOrCreateCertificate_WhenExistingCertificateIsExpired_ShouldRegenerate()
+    {
+        using var existing = CreateCertificate(
+            notBefore: DateTimeOffset.UtcNow.AddYears(-2),
+            notAfter: DateTimeOffset.UtcNow.AddYears(-1));
+        var existingThumbprint = SaveExistingCertificate(existing);
+        var manager = new CertificateManager(_tempDir);
+
+        using var cert = manager.GetOrCreateCertificate();
+
+        cert.Thumbprint.Should().NotBe(existingThumbprint);
+        cert.NotAfter.Should().BeAfter(DateTime.UtcNow);
+    }
+
+    [Fact]
+    public void GetOrCreateCertificate_WhenExistingCertificateMeetsPolicy_ShouldReuseCertificate()
+    {
+        using var existing = CreateCertificate();
+        var existingThumbprint = SaveExistingCertificate(existing);
+        var manager = new CertificateManager(_tempDir);
+
+        using var cert = manager.GetOrCreateCertificate();
+
+        cert.Thumbprint.Should().Be(existingThumbprint);
+    }
+
     private static void GrantEveryoneModifyAccess(string path, SecurityIdentifier everyoneSid)
     {
         var directoryInfo = new DirectoryInfo(path);
@@ -252,5 +339,49 @@ public class CertificateManagerTests : IDisposable
                 rule.AccessControlType == AccessControlType.Allow
                 && Equals(rule.IdentityReference, everyoneSid)
                 && (rule.FileSystemRights & (FileSystemRights.Write | FileSystemRights.Modify | FileSystemRights.FullControl)) != 0);
+    }
+
+    private string SaveExistingCertificate(X509Certificate2 certificate)
+    {
+        const string password = "existing-cert-password";
+        var certificatePath = Path.Combine(_tempDir, "server.pfx");
+        var passwordPath = Path.Combine(_tempDir, "server.pwd");
+        File.WriteAllBytes(certificatePath, certificate.Export(X509ContentType.Pfx, password));
+        CertificateManager.SavePassword(passwordPath, password);
+        return certificate.Thumbprint;
+    }
+
+    private static X509Certificate2 CreateCertificate(
+        string subjectName = "CN=WpfDevTools-Inspector",
+        int rsaKeySize = 2048,
+        X509KeyUsageFlags? keyUsageFlags = X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment,
+        IReadOnlyCollection<string>? ekuOids = null,
+        DateTimeOffset? notBefore = null,
+        DateTimeOffset? notAfter = null)
+    {
+        using var rsa = RSA.Create(rsaKeySize);
+        var request = new CertificateRequest(
+            subjectName,
+            rsa,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+
+        if (keyUsageFlags.HasValue)
+        {
+            request.CertificateExtensions.Add(new X509KeyUsageExtension(keyUsageFlags.Value, critical: true));
+        }
+
+        var effectiveEkuOids = ekuOids ?? new[] { "1.3.6.1.5.5.7.3.1" };
+        var oidCollection = new OidCollection();
+        foreach (var oid in effectiveEkuOids)
+        {
+            oidCollection.Add(new Oid(oid));
+        }
+
+        request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(oidCollection, critical: true));
+
+        return request.CreateSelfSigned(
+            notBefore ?? DateTimeOffset.UtcNow.AddDays(-1),
+            notAfter ?? DateTimeOffset.UtcNow.AddYears(1));
     }
 }

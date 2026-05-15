@@ -12,6 +12,18 @@ public sealed partial class ConnectTool
         set => BeforeSingleFlightCompletionForTestingValue.Value = value;
     }
 
+    /// <summary>
+    /// Runs a connect attempt as a shared in-flight operation for the same SessionManager and processId.
+    /// </summary>
+    /// <remarks>
+    /// Concurrent callers for the same SessionManager and processId share the in-flight connect operation
+    /// and receive its result or exception instead of starting duplicate injection attempts.
+    /// Caller cancellation removes only that waiter while other waiters keep the operation alive; if the
+    /// last waiter cancels, the shared operation is cancelled. Completed single-flight operations are removed and are not cached; later
+    /// calls either return AlreadyConnected through the existing-session path before this helper or start a
+    /// fresh connect attempt. Callers arriving after an operation is closed to new waiters wait for settlement
+    /// and retry.
+    /// </remarks>
     private Task<object> RunSingleFlightAsync(
         int processId,
         CancellationToken callerCancellationToken,

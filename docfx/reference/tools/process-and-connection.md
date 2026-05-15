@@ -24,6 +24,7 @@
 - `get_processes` reports `isElevated`, `requiresElevationToConnect`, and `canConnectFromCurrentServer`
 - `connect()` auto-discovers a single visible WPF target by default and returns deterministic candidate data when multiple targets are found
 - `connect` validates the target, resolves bootstrapper candidates, and blocks early when the current server lacks permission to attach
+- Concurrent `connect` calls for the same `SessionManager` and `processId` share one in-flight operation instead of starting duplicate injection attempts. A caller cancellation stops waiting for that caller only while other waiters keep the shared operation alive; if the last waiter cancels, the shared operation is cancelled. Completed single-flight operations are removed; later calls either return `AlreadyConnected` for an existing connected session or start a fresh connect attempt.
 - After connect succeeds, prefer get_ui_summary, get_element_snapshot, or get_form_summary before any tree-heavy follow-up.
 - `select_active_process` only succeeds for already-connected sessions
 - `get_active_process` exposes whether an active selection exists and when it was chosen

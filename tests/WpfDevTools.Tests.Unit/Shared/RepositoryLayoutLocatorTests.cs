@@ -28,7 +28,7 @@ public class RepositoryLayoutLocatorTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteDirectoryWithRetry(root);
         }
     }
 
@@ -54,7 +54,7 @@ public class RepositoryLayoutLocatorTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteDirectoryWithRetry(root);
         }
     }
 
@@ -76,7 +76,32 @@ public class RepositoryLayoutLocatorTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteDirectoryWithRetry(root);
         }
+    }
+
+    private static void DeleteDirectoryWithRetry(string path)
+    {
+        const int maxAttempts = 10;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                Directory.Delete(path, recursive: true);
+                return;
+            }
+            catch (Exception ex) when (attempt < maxAttempts && IsTransientDeleteFailure(ex))
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                Thread.Sleep(TimeSpan.FromMilliseconds(100));
+            }
+        }
+    }
+
+    private static bool IsTransientDeleteFailure(Exception ex)
+    {
+        return ex is IOException or UnauthorizedAccessException;
     }
 }

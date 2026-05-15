@@ -98,10 +98,12 @@
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="bootstrap_entry.cpp" />
+    <ClCompile Include="bootstrap_config_parser.cpp" />
     <ClCompile Include="clr_hosting.cpp" />
     <ClCompile Include="coreclr_hosting.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="bootstrap_config_parser.h" />
     <ClInclude Include="exit_codes.h" />
     <ClInclude Include="clr_hosting.h" />
     <ClInclude Include="coreclr_hosting.h" />

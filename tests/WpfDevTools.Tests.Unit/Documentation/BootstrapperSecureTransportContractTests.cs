@@ -54,6 +54,30 @@ public class BootstrapperSecureTransportContractTests
             "auth secret file deletion failures should produce a diagnostic signal");
     }
 
+    [Fact]
+    public void BootstrapEntry_ShouldUseFailClosedJsonConfigParser()
+    {
+        var entryContent = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+        var parserContent = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_config_parser.cpp"));
+        var projectContent = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj"));
+
+        entryContent.Should().NotContain("findValue",
+            "the temp-file bootstrap fallback should not locate JSON fields with substring scanning");
+        entryContent.Should().Contain("TryParseBootstrapConfigJson",
+            "the fallback config file should be parsed as a JSON object before values are applied");
+        parserContent.Should().Contain("ParseJsonString",
+            "string values should be parsed with JSON escape and delimiter semantics");
+        parserContent.Should().Contain("MB_ERR_INVALID_CHARS",
+            "malformed UTF-8 config files should fail closed instead of being lossy-decoded");
+        parserContent.Should().Contain("case 'u'",
+            "JSON unicode escapes should be handled explicitly");
+        projectContent.Should().Contain("bootstrap_config_parser.cpp",
+            "the native parser implementation must be compiled into the bootstrapper");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

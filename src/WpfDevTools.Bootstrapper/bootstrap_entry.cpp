@@ -5,17 +5,7 @@
 #include "exit_codes.h"
 #include "clr_hosting.h"
 #include "coreclr_hosting.h"
-
-struct BootstrapConfig
-{
-    std::wstring InspectorPath;
-    std::wstring PipeName;
-    std::wstring AuthSecretBase64;
-    std::wstring AuthSecretFile;
-    std::wstring CertDirectory;
-    bool AuthEnabled = false;
-    bool EncryptionEnabled = false;
-};
+#include "bootstrap_config_parser.h"
 
 static void AppendParam(std::wstring& target, const wchar_t* key, const std::wstring& value)
 {
@@ -245,84 +235,10 @@ static bool ReadConfigFile(DWORD pid, BootstrapConfig& config)
         return false;
 
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    auto findValue = [&](const std::string& key) -> std::wstring {
-        auto pos = content.find("\"" + key + "\"");
-        if (pos == std::string::npos) return L"";
-        auto colonPos = content.find(':', pos);
-        if (colonPos == std::string::npos) return L"";
-        auto quoteStart = content.find('"', colonPos + 1);
-        if (quoteStart == std::string::npos) return L"";
-
-        std::string rawValue;
-        bool escaped = false;
-        for (size_t index = quoteStart + 1; index < content.size(); ++index)
-        {
-            auto ch = content[index];
-            if (escaped)
-            {
-                switch (ch)
-                {
-                case '\\': rawValue.push_back('\\'); break;
-                case '"': rawValue.push_back('"'); break;
-                case 'n': rawValue.push_back('\n'); break;
-                case 'r': rawValue.push_back('\r'); break;
-                case 't': rawValue.push_back('\t'); break;
-                default: rawValue.push_back(ch); break;
-                }
-                escaped = false;
-                continue;
-            }
-
-            if (ch == '\\')
-            {
-                escaped = true;
-                continue;
-            }
-
-            if (ch == '"')
-            {
-                break;
-            }
-
-            rawValue.push_back(ch);
-        }
-
-        int wideLen = MultiByteToWideChar(CP_UTF8, 0, rawValue.c_str(), -1, nullptr, 0);
-        if (wideLen <= 1)
-            return L"";
-
-        std::wstring wval(wideLen - 1, L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, rawValue.c_str(), -1, wval.data(), wideLen);
-        return wval;
-    };
-
-    config.InspectorPath = findValue("inspectorDllPath");
-    config.PipeName = findValue("pipeName");
-    config.AuthSecretFile = findValue("authSecretFile");
-    config.CertDirectory = findValue("certDirectory");
-
-    auto auth = findValue("auth");
-    if (!auth.empty())
-    {
-        config.AuthEnabled = (auth == L"enabled" || auth == L"Enabled");
-    }
-
-    auto encryption = findValue("encryption");
-    if (!encryption.empty())
-    {
-        config.EncryptionEnabled = (encryption == L"enabled" || encryption == L"Enabled");
-    }
-
-    if (!config.AuthSecretFile.empty())
-        config.AuthEnabled = true;
-
-    if (!config.CertDirectory.empty())
-        config.EncryptionEnabled = true;
-
     file.close();
+    bool parsed = TryParseBootstrapConfigJson(content, config);
     DeleteFileW(configPath.c_str());
-
-    return !config.InspectorPath.empty() && !config.PipeName.empty();
+    return parsed;
 }
 
 // Exported function called via CreateRemoteThread (step 2).

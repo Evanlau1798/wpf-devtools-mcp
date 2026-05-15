@@ -4,6 +4,7 @@ obj/
 *.user
 *.suo
 *.cache
+*.lscache
 release/
 !tests/**/Release/
 !tests/**/Release/**

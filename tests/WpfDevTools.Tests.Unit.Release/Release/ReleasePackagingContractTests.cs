@@ -636,7 +636,7 @@ public sealed partial class ReleasePackagingContractTests
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"),
                 ["-Configuration", "Debug", "-Architectures", "arm64", "-SkipBuild", "-OutputRoot", Path.Combine(tempRoot, "release-output")],
-                new Dictionary<string, string?> { ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuildPath });
+                new Dictionary<string, string?> { ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuildPath, ["VCToolsInstallDir"] = "", ["INCLUDE"] = "", ["LIB"] = "" });
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("Release architecture 'arm64'");

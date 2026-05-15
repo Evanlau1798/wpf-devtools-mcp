@@ -20,6 +20,7 @@ public sealed class McpStdioClient : IDisposable
     private const string E2eRateLimitOverride = "2000";
     private Process? _serverProcess;
     private int _nextId;
+    private string? _ownedTempDirectory;
     private readonly ConcurrentQueue<string> _stderrLines = new();
     private readonly ConcurrentDictionary<int, TaskCompletionSource<JsonElement>> _pendingResponses = new();
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -47,6 +48,24 @@ public sealed class McpStdioClient : IDisposable
         IReadOnlyDictionary<string, string>? environmentVariables,
         CancellationToken ct = default)
     {
+        IReadOnlyDictionary<string, string> effectiveEnvironmentVariables = CreateMergedEnvironment(environmentVariables);
+        var effectiveTempRoot = ResolveTempRoot(effectiveEnvironmentVariables);
+        if (string.IsNullOrWhiteSpace(effectiveTempRoot))
+        {
+            _ownedTempDirectory = Path.Combine(
+                Path.GetTempPath(),
+                "WpfDevTools.McpStdioClient." + Guid.NewGuid().ToString("N"));
+            effectiveTempRoot = _ownedTempDirectory;
+        }
+
+        foreach (var tempDirectory in GetTempDirectoriesToEnsure(
+            CreateProcessEnvironment(effectiveEnvironmentVariables, effectiveTempRoot!)))
+        {
+            Directory.CreateDirectory(tempDirectory);
+        }
+
+        effectiveEnvironmentVariables = CreateProcessEnvironment(effectiveEnvironmentVariables, effectiveTempRoot!);
+
         var psi = new ProcessStartInfo
         {
             FileName = serverExePath,
@@ -59,12 +78,9 @@ public sealed class McpStdioClient : IDisposable
             CreateNoWindow = true
         };
 
-        if (environmentVariables != null)
+        foreach (var environmentVariable in effectiveEnvironmentVariables)
         {
-            foreach (var environmentVariable in environmentVariables)
-            {
-                psi.Environment[environmentVariable.Key] = environmentVariable.Value;
-            }
+            psi.Environment[environmentVariable.Key] = environmentVariable.Value;
         }
 
         psi.Environment[McpServerConfiguration.RateLimitRequestsPerMinuteEnvVar] = E2eRateLimitOverride;
@@ -393,7 +409,111 @@ public sealed class McpStdioClient : IDisposable
         {
         }
 
+        DeleteOwnedTempDirectory();
+
         _readerCts.Dispose();
         _writeLock.Dispose();
+    }
+
+    internal static IReadOnlyDictionary<string, string> CreateProcessEnvironment(
+        IReadOnlyDictionary<string, string>? environmentVariables,
+        string defaultTempRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(defaultTempRoot);
+
+        var mergedEnvironment = CreateMergedEnvironment(environmentVariables);
+
+        var effectiveTempRoot = ResolveTempRoot(mergedEnvironment) ?? defaultTempRoot;
+        if (!mergedEnvironment.TryGetValue("TEMP", out var tempRoot) || string.IsNullOrWhiteSpace(tempRoot))
+        {
+            mergedEnvironment["TEMP"] = effectiveTempRoot;
+        }
+
+        if (!mergedEnvironment.TryGetValue("TMP", out var tmpRoot) || string.IsNullOrWhiteSpace(tmpRoot))
+        {
+            mergedEnvironment["TMP"] = effectiveTempRoot;
+        }
+
+        return mergedEnvironment;
+    }
+
+    internal static Dictionary<string, string> CreateMergedEnvironment(
+        IReadOnlyDictionary<string, string>? environmentVariables)
+    {
+        var mergedEnvironment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (environmentVariables != null)
+        {
+            foreach (var environmentVariable in environmentVariables)
+            {
+                mergedEnvironment[environmentVariable.Key] = environmentVariable.Value;
+            }
+        }
+
+        return mergedEnvironment;
+    }
+
+    internal static string? ResolveTempRoot(IReadOnlyDictionary<string, string>? environmentVariables)
+    {
+        if (environmentVariables == null)
+        {
+            return null;
+        }
+
+        if (environmentVariables.TryGetValue("TEMP", out var tempRoot) &&
+            !string.IsNullOrWhiteSpace(tempRoot))
+        {
+            return tempRoot;
+        }
+
+        if (environmentVariables.TryGetValue("TMP", out var tempRootFromTmp) &&
+            !string.IsNullOrWhiteSpace(tempRootFromTmp))
+        {
+            return tempRootFromTmp;
+        }
+
+        return null;
+    }
+
+    private void DeleteOwnedTempDirectory()
+    {
+        if (string.IsNullOrWhiteSpace(_ownedTempDirectory))
+        {
+            return;
+        }
+
+        try
+        {
+            if (Directory.Exists(_ownedTempDirectory))
+            {
+                Directory.Delete(_ownedTempDirectory, recursive: true);
+            }
+        }
+        catch
+        {
+        }
+        finally
+        {
+            _ownedTempDirectory = null;
+        }
+    }
+
+    private static IReadOnlyCollection<string> GetTempDirectoriesToEnsure(
+        IReadOnlyDictionary<string, string> environmentVariables)
+    {
+        var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (environmentVariables.TryGetValue("TEMP", out var tempRoot) &&
+            !string.IsNullOrWhiteSpace(tempRoot))
+        {
+            directories.Add(tempRoot);
+        }
+
+        if (environmentVariables.TryGetValue("TMP", out var tmpRoot) &&
+            !string.IsNullOrWhiteSpace(tmpRoot))
+        {
+            directories.Add(tmpRoot);
+        }
+
+        return directories;
     }
 }

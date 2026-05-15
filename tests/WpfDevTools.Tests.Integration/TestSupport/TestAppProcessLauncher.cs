@@ -10,13 +10,13 @@ internal static class TestAppProcessLauncher
 
     internal readonly record struct ProcessWindowState(bool HasExited, bool HasMainWindow);
 
-    public static Process StartAndWaitForMainWindow(string executablePath, TimeSpan? startupTimeout = null)
+    public static Process StartAndWaitForMainWindow(
+        string executablePath,
+        TimeSpan? startupTimeout = null,
+        IReadOnlyDictionary<string, string>? environmentVariables = null)
     {
-        var process = Process.Start(new ProcessStartInfo
-        {
-            FileName = executablePath,
-            UseShellExecute = true
-        }) ?? throw new InvalidOperationException("Failed to start TestApp process");
+        var process = Process.Start(CreateStartInfo(executablePath, environmentVariables))
+            ?? throw new InvalidOperationException("Failed to start TestApp process");
 
         if (WaitForMainWindow(process, startupTimeout ?? DefaultStartupTimeout))
         {
@@ -37,6 +37,29 @@ internal static class TestAppProcessLauncher
 
         process.Dispose();
         throw new TimeoutException($"Timed out waiting for TestApp main window to become ready within {(startupTimeout ?? DefaultStartupTimeout).TotalSeconds:0.#} seconds.");
+    }
+
+    internal static ProcessStartInfo CreateStartInfo(
+        string executablePath,
+        IReadOnlyDictionary<string, string>? environmentVariables = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executablePath);
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = executablePath,
+            UseShellExecute = environmentVariables == null
+        };
+
+        if (environmentVariables != null)
+        {
+            foreach (var environmentVariable in environmentVariables)
+            {
+                startInfo.Environment[environmentVariable.Key] = environmentVariable.Value;
+            }
+        }
+
+        return startInfo;
     }
 
     public static string FindTestAppExe()

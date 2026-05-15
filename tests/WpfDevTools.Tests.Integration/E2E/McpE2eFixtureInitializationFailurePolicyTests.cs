@@ -23,6 +23,10 @@ public sealed class McpE2eFixtureInitializationFailurePolicyTests
         environment.Should().Contain(McpServerConfiguration.AllowViewModelInspectionEnvVar, "true");
         environment.Should().Contain("WPFDEVTOOLS_AUTH_SECRET", authSecret);
         environment.Should().Contain("WPFDEVTOOLS_CERT_DIR", certDirectory);
+        environment.Should().Contain("TEMP", certDirectory,
+            "live MCP server runs should use an isolated temp root so short-lived temp logs and auth handoff files are cleaned up with the fixture cert directory");
+        environment.Should().Contain("TMP", certDirectory,
+            "Windows temp resolution should stay inside the same isolated fixture root for live runs");
         environment.Should().Contain("WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP", "1");
         environment.Should().NotContainKey("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
     }

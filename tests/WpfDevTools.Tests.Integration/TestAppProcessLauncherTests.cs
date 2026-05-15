@@ -7,6 +7,23 @@ namespace WpfDevTools.Tests.Integration;
 public sealed class TestAppProcessLauncherTests
 {
     [Fact]
+    public void CreateStartInfo_WhenEnvironmentOverridesProvided_ShouldDisableShellExecuteAndApplyOverrides()
+    {
+        var environmentVariables = new Dictionary<string, string>
+        {
+            ["TEMP"] = @"C:\temp\isolated-root",
+            ["TMP"] = @"C:\temp\isolated-root"
+        };
+
+        var startInfo = TestAppProcessLauncher.CreateStartInfo(@"C:\tools\TestApp.exe", environmentVariables);
+
+        startInfo.UseShellExecute.Should().BeFalse(
+            "custom child-process environment variables require direct process creation instead of shell execution");
+        startInfo.Environment["TEMP"].Should().Be(environmentVariables["TEMP"]);
+        startInfo.Environment["TMP"].Should().Be(environmentVariables["TMP"]);
+    }
+
+    [Fact]
     public void WaitForMainWindowCore_ShouldUseSingleTimeoutBudgetAcrossInputIdleAndPolling()
     {
         var elapsed = Stopwatch.StartNew();

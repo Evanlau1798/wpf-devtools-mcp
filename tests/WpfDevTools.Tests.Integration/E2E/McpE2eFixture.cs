@@ -103,7 +103,11 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 
         try
         {
-            _testApp = TestAppProcessLauncher.StartAndWaitForMainWindow(testAppExe, TimeSpan.FromSeconds(15));
+            Directory.CreateDirectory(_certDirectory);
+            _testApp = TestAppProcessLauncher.StartAndWaitForMainWindow(
+                testAppExe,
+                TimeSpan.FromSeconds(15),
+                CreateIsolatedTempEnvironment(_certDirectory));
             await ReconnectClientAsync();
         }
         catch (Exception ex) when (ShouldConvertInitializationFailureToSkip(ex))
@@ -230,7 +234,20 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             [McpServerConfiguration.AllowViewModelInspectionEnvVar] = "true",
             ["WPFDEVTOOLS_AUTH_SECRET"] = authSecret,
             ["WPFDEVTOOLS_CERT_DIR"] = certDirectory,
+            ["TEMP"] = certDirectory,
+            ["TMP"] = certDirectory,
             ["WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP"] = "1"
+        };
+    }
+
+    private static IReadOnlyDictionary<string, string> CreateIsolatedTempEnvironment(string tempDirectory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tempDirectory);
+
+        return new Dictionary<string, string>
+        {
+            ["TEMP"] = tempDirectory,
+            ["TMP"] = tempDirectory
         };
     }
 

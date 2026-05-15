@@ -47,7 +47,9 @@ public class DllInjectorTests
 
         // Assert
         result.Success.Should().BeFalse();
+        result.Error.Should().Be(InjectionError.FileNotFound);
         result.ErrorMessage.Should().NotBeNullOrEmpty();
+        result.ErrorMessage.Should().Contain("not found");
     }
 
     [Fact]
@@ -78,6 +80,21 @@ public class DllInjectorTests
 
         // Assert
         error.Should().Be(InjectionError.ProcessNotFound);
+    }
+
+    [Fact]
+    public void ValidateInjection_WithMissingDllPath_ShouldReturnFileNotFound()
+    {
+        // Arrange
+        var injector = new DllInjector();
+        var currentProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
+        var missingDll = "C:\\NonExistent\\missing.dll";
+
+        // Act
+        var error = injector.ValidateInjection(currentProcessId, missingDll);
+
+        // Assert
+        error.Should().Be(InjectionError.FileNotFound);
     }
 
     [Fact]

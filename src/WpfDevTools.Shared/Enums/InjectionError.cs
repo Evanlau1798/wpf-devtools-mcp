@@ -68,6 +68,11 @@ public enum InjectionError
     PipeReadyTimeout = 11,
 
     /// <summary>
+    /// Required injector or inspector file was not found.
+    /// </summary>
+    FileNotFound = 12,
+
+    /// <summary>
     /// Unknown error
     /// </summary>
     Unknown = 99

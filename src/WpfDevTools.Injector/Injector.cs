@@ -87,7 +87,7 @@ public class ProcessInjector : IProcessInjector
         {
             return InjectionResult.CreateFailure(
                 processId,
-                InjectionError.AllocationFailed,
+                InjectionError.FileNotFound,
                 $"DLL not found: {Path.GetFileName(dllPath)}");
         }
 

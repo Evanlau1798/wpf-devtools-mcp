@@ -43,6 +43,21 @@ public class ProcessInjectorTests
     }
 
     [Fact]
+    public void Inject_WithMissingDllPath_ShouldReturnFileNotFound()
+    {
+        var processId = Process.GetCurrentProcess().Id;
+        var injector = new ProcessInjector(
+            new AlwaysWpfProcessDetector(processId),
+            new DllInjector());
+
+        var result = injector.Inject(processId, "C:\\NonExistent\\missing.dll");
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be(InjectionError.FileNotFound);
+        result.ErrorMessage.Should().Contain("not found");
+    }
+
+    [Fact]
     public void ValidateTarget_WithValidWpfProcess_ShouldReturnNone()
     {
         // Arrange

@@ -108,7 +108,7 @@ public class DllInjector
         // Check if DLL exists
         if (!File.Exists(dllPath))
         {
-            return InjectionError.AllocationFailed;
+            return InjectionError.FileNotFound;
         }
 
         return InjectionError.None;
@@ -333,7 +333,8 @@ public class DllInjector
             InjectionError.AccessDenied => "Access denied to process",
             InjectionError.ArchitectureMismatch => "Architecture mismatch",
             InjectionError.NotWpfApplication => "Not a WPF application",
-            InjectionError.AllocationFailed => "Failed to allocate memory or DLL not found",
+            InjectionError.FileNotFound => "DLL file not found",
+            InjectionError.AllocationFailed => "Failed to allocate memory in target process",
             InjectionError.WriteFailed => "Failed to write to process memory",
             InjectionError.CreateThreadFailed => "Failed to create remote thread",
             InjectionError.Timeout => "Injection operation timed out",

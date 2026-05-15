@@ -223,6 +223,7 @@ public sealed partial class ConnectTool
             InjectionError.ArchitectureMismatch or
             InjectionError.SingleFileApplication => GetErrorMessage(injectionResult.Error, processId, processInfo),
             InjectionError.AccessDenied => "Access denied while starting the injected inspector.",
+            InjectionError.FileNotFound => "Required injection file was not found. Verify the build output and inspector paths.",
             InjectionError.AllocationFailed => "Failed to allocate remote memory during injection.",
             InjectionError.WriteFailed => "Failed to write injector payload into the target process.",
             InjectionError.CreateThreadFailed => "Failed to start the remote injection thread.",

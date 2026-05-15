@@ -46,6 +46,12 @@ public sealed partial class NamedPipeClient : IDisposable
     private readonly TimeSpan _requestTimeout;
     private NamedPipeClientStream? _pipeClient;
     private Stream? _communicationStream;
+
+    // Lock ordering: _pipeSemaphore is the outer async serialization primitive for connect,
+    // request, and dispose paths. _lock protects local pipe state snapshots such as
+    // _pipeClient, _communicationStream, and _disposeState.
+    // Do not wait on _pipeSemaphore while holding _lock; acquire _pipeSemaphore first,
+    // then enter _lock only for short state checks or assignments.
     private readonly object _lock = new();
     private readonly SemaphoreSlim _pipeSemaphore = new(1, 1);
     private int _disposeState;

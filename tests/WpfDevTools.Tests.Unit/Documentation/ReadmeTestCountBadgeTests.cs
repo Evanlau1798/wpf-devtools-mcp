@@ -30,20 +30,20 @@ public sealed class ReadmeTestCountBadgeTests
 
     private static (int Unit, int Integration, int Total) ExtractEnglishCounts(string content) =>
         (
-            ExtractFirstInt(content, @"Unit tests:\s+(\d+) total"),
-            ExtractFirstInt(content, @"Integration tests:\s+(\d+) total"),
+            ExtractFirstInt(content, @"Unit tests:\s+(\d+)"),
+            ExtractFirstInt(content, @"Integration tests:\s+(\d+)"),
             ExtractEnglishCombinedTotal(content)
         );
 
     private static (int Unit, int Integration, int Total) ExtractTraditionalChineseCounts(string content) =>
         (
-            ExtractFirstInt(content, @"Unit tests：最近一次完整 unit-suite run 總數\s+(\d+)"),
-            ExtractFirstInt(content, @"Integration tests：最近一次完整 integration-suite baseline 總數\s+(\d+)"),
-            ExtractFirstInt(content, @"合計基準：(\d+)")
+            ExtractFirstInt(content, @"Unit tests：.*?discover 到\s+(\d+)\s+個"),
+            ExtractFirstInt(content, @"Integration tests：.*?discover 到\s+(\d+)\s+個"),
+            ExtractFirstInt(content, @"合計基準：.*?discover 到\s+(\d+)\s+個測試")
         );
 
     private static int ExtractEnglishCombinedTotal(string content) =>
-        ExtractFirstInt(content, @"Verified combined total:\s+(\d+) tests");
+        ExtractFirstInt(content, @"Verified combined total:\s+(\d+)");
 
     private static int ExtractFirstInt(string content, string pattern)
     {

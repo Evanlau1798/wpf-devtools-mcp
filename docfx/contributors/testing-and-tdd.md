@@ -20,9 +20,9 @@ The current project-level verification status combines the latest completed suit
 
 ### Test results
 
-- Unit tests: 3218 total across the main unit and release-unit suites in the latest completed verification (`2909 + 309`)
-- Integration tests: 312 total in the latest completed verification
-- Verified combined total: 3530 tests across unit, release-unit, and integration suites in the latest completed verification
+- Unit tests: 3301 currently discovered across the main unit and release-unit suites (`2978 + 323`) via `dotnet test --no-build --list-tests`
+- Integration tests: 315 currently discovered in the integration suite via `dotnet test --no-build --list-tests`
+- Verified combined total: 3616 currently discovered tests across unit, release-unit, and integration suites
 
 ### Coverage
 

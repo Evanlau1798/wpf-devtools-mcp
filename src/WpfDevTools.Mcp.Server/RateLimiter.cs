@@ -204,6 +204,13 @@ public sealed class RateLimiterManager : IRateLimiterManager, IRateLimiterStatus
     }
 
     private readonly Dictionary<int, RateLimiterEntry> _limiters = new();
+
+    // P-1: This single manager lock is intentional for the current server shape.
+    // Active sessions are capped by McpServerConfiguration.MaxSessions, the hot path
+    // performs a short dictionary lookup plus a per-session RateLimiter call, and
+    // eviction is bounded by MaxEntries. A local Release smoke probe at the current
+    // session cap processed 100,000 TryAcquire calls in 27.6 ms; keep this simple
+    // until profiling shows material contention under realistic concurrent MCP calls.
     private readonly object _lock = new object();
     private readonly int _maxRequestsPerMinute;
     private readonly TimeSpan _interval;

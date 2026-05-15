@@ -46,7 +46,7 @@ try
 
     var transportSecurity = TransportSecurityConfiguration.Create(authSecretEnv, certDirEnv);
     authManager = transportSecurity.AuthenticationManager;
-    authSecretEnv = null; // Clear secret from local scope to reduce memory residue
+    authSecretEnv = null; // Drop the local reference; immutable string data is reclaimed by GC.
 
     builder.Services.AddSingleton(authManager);
     builder.Services.AddSingleton(transportSecurity.CertificateManager);

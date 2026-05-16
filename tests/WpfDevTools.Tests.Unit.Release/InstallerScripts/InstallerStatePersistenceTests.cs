@@ -7,6 +7,32 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class InstallerStatePersistenceTests
 {
     [Fact]
+    public void OnlineInstallerScript_ShouldDeclareStateInstallationHelper()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var manifestContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
+
+        content.Should().Contain("scripts/installer/Installer.State.Installation.ps1");
+        manifestContent.Should().Contain("Installer.State.Installation.ps1");
+        content.IndexOf(
+                "scripts/installer/Installer.State.ps1",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "scripts/installer/Installer.State.Installation.ps1",
+                StringComparison.Ordinal));
+        content.IndexOf(
+                "'Installer.State.Installation.ps1'",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "'Installer.Registration.ps1'",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void OnlineInstaller_ShouldPersistSharedInstallerStateUnderRoamingAppData()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

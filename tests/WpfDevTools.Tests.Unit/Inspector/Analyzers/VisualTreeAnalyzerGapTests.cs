@@ -214,9 +214,9 @@ public class VisualTreeAnalyzerGapTests
     }
 
     [StaFact]
-    public void GetVisualTree_DefaultDepth_ShouldUse50()
+    public void GetVisualTree_DefaultDepth_ShouldUse10()
     {
-        // Arrange - no depth specified, defaults to 50
+        // Arrange - no depth specified, defaults to the documented tree depth budget
         var finder = new ElementFinder();
         var analyzer = new VisualTreeAnalyzer(finder);
         var button = new Button();
@@ -229,6 +229,7 @@ public class VisualTreeAnalyzerGapTests
         var json = JsonSerializer.Serialize(result);
         var doc = JsonSerializer.Deserialize<JsonElement>(json);
         doc.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.GetProperty("appliedOptions").GetProperty("depth").GetInt32().Should().Be(10);
     }
 
     [StaFact]

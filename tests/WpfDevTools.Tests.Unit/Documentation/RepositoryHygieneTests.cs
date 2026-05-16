@@ -136,6 +136,17 @@ public class RepositoryHygieneTests
     }
 
     [Fact]
+    public void VisualTreeAnalyzerTests_ShouldNotDocumentStaleDefaultDepth()
+    {
+        var content = ReadRepoFile("tests/WpfDevTools.Tests.Unit/Inspector/Analyzers/VisualTreeAnalyzerGapTests.cs");
+
+        content.Should().NotContain("ShouldUse50",
+            "visual tree tests should name the documented default depth contract");
+        content.Should().NotContain("defaults to 50",
+            "tree tools default to depth=10 when depth is omitted");
+    }
+
+    [Fact]
     public void SessionManagerCleanupTimer_ShouldRemainWeakRootSafeForTestCreatedInstances()
     {
         var content = ReadRepoFile("src/WpfDevTools.Mcp.Server/SessionManager.cs");

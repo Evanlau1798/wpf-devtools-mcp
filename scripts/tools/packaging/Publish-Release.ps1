@@ -122,16 +122,14 @@ foreach ($architecture in $resolvedArchitectures) {
         if (-not [string]::IsNullOrWhiteSpace($windowsSdkVersion)) {
             $bootstrapperBuildArguments += "/p:WindowsTargetPlatformVersion=$windowsSdkVersion"
         }
-        if ($bootstrapperPlatform -in @('x64', 'Win32')) {
-            if (-not [string]::IsNullOrWhiteSpace($includePath)) {
-                $bootstrapperBuildArguments += "/p:IncludePath=$includePath"
-            }
-            if (-not [string]::IsNullOrWhiteSpace($libraryPath)) {
-                $bootstrapperBuildArguments += "/p:LibraryPath=$libraryPath"
-            }
-            if (-not [string]::IsNullOrWhiteSpace($executablePath)) {
-                $bootstrapperBuildArguments += "/p:ExecutablePath=$executablePath"
-            }
+        if (-not [string]::IsNullOrWhiteSpace($includePath)) {
+            $bootstrapperBuildArguments += "/p:IncludePath=$includePath"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($libraryPath)) {
+            $bootstrapperBuildArguments += "/p:LibraryPath=$libraryPath"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($executablePath)) {
+            $bootstrapperBuildArguments += "/p:ExecutablePath=$executablePath"
         }
 
         Invoke-Step -FilePath $msbuildPath -Arguments $bootstrapperBuildArguments

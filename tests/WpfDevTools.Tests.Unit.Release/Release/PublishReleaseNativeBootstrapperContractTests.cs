@@ -56,12 +56,12 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
     }
 
     [Fact]
-    public void PublishReleaseScript_ShouldInjectInheritedNativePathsForHostedX64AndWin32BootstrapperBuilds()
+    public void PublishReleaseScript_ShouldPassNativeToolchainPropertiesForEveryBootstrapperBuild()
     {
         var script = PublishReleaseScriptSource.ReadAll();
 
-        script.Should().Contain("if ($bootstrapperPlatform -in @('x64', 'Win32'))",
-            "hosted x64 and x86 packaging jobs need inherited SDK include/lib paths, while ARM64 must not inherit incompatible host paths");
+        script.Should().NotContain("if ($bootstrapperPlatform -in @('x64', 'Win32'))",
+            "ARM64 packaging also needs the resolved target-specific SDK include, library, and executable paths");
         script.Should().Contain("/p:LibraryPath=$libraryPath");
         script.Should().Contain("/p:ExecutablePath=$executablePath");
     }

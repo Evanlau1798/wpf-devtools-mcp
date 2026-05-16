@@ -15,7 +15,6 @@ tests/WpfDevTools.Tests.Unit/Inspector/Analyzers/EventAnalyzerTests.cs | Existin
 tests/WpfDevTools.Tests.Unit/Inspector/Handlers/EventHandlerTraceModeTests.cs | Existing trace-mode test debt; split by trace workflow.
 tests/WpfDevTools.Tests.Unit/Inspector/RequestDispatcherErrorPathTests.cs | Existing dispatcher error-path test debt; split by error category.
 tests/WpfDevTools.Tests.Unit.Release/InstallerScripts/InstallerBootstrapTests.cs | Existing installer bootstrap test debt; split by bootstrap concern.
-tests/WpfDevTools.Tests.Unit/McpServer/NamedPipeClientProtocolTests.cs | Existing pipe protocol test debt; split by protocol phase.
 tests/WpfDevTools.Tests.Unit/McpServer/ToolCallHelperTests.cs | Existing MCP helper test debt; split by helper surface.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/ConnectToolConcurrencyTests.cs | Temporary connect cancellation/concurrency coverage growth; split by race scenario after remediation loop.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/ConnectToolSessionTests.cs | Existing connect session test debt; split by session scenario.

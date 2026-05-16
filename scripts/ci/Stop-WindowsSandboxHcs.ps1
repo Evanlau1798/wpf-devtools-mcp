@@ -26,6 +26,8 @@ if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $OutputRoot = Join-Path $repoRoot 'tmp\sandbox-ci\output'
 }
 
+$hcsDiagPathWasExplicit = -not [string]::IsNullOrWhiteSpace($HcsDiagPath)
+
 function Write-CleanupLog {
     param(
         [Parameter(Mandatory = $true)] [string]$Path,
@@ -204,7 +206,12 @@ if (-not $WhatIfPreference) {
         Wait-WindowsSandboxShutdown -HcsDiagPath $HcsDiagPath -LogPath $logPath -TimeoutSeconds $ShutdownTimeoutSeconds
     }
 
-    Wait-WindowsSandboxProcessesExit -LogPath $logPath -TimeoutSeconds $ShutdownTimeoutSeconds
+    if ($hcsDiagPathWasExplicit) {
+        Write-CleanupLog -Path $logPath -Message 'Skipped Windows Sandbox process-table wait because HcsDiagPath was explicitly provided.'
+    }
+    else {
+        Wait-WindowsSandboxProcessesExit -LogPath $logPath -TimeoutSeconds $ShutdownTimeoutSeconds
+    }
 }
 
 Write-CleanupLog -Path $logPath -Message '--- remaining sandbox processes ---'

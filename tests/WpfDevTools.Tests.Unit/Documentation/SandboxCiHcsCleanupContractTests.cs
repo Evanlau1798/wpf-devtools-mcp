@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Diagnostics;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
 
@@ -95,6 +96,60 @@ public sealed partial class SandboxCiScriptContractTests
         }
         finally
         {
+            DeleteTempRoot(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void StopWindowsSandboxHcs_ShouldNotWaitForProcessTableWhenNoComputeSystemsAreListed()
+    {
+        var tempRoot = CreateTempRoot();
+        Process? process = null;
+        try
+        {
+            var fakeHcsDiagPath = Path.Combine(tempRoot, "fake-empty-hcsdiag.ps1");
+            File.WriteAllText(fakeHcsDiagPath, "param([string]$Command) if ($Command -eq 'list') { exit 0 } exit 64");
+
+            var systemPowerShell = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe");
+            var sandboxNamedPowerShell = Path.Combine(tempRoot, "WindowsSandboxServer.exe");
+            File.Copy(systemPowerShell, sandboxNamedPowerShell);
+
+            process = Process.Start(new ProcessStartInfo
+            {
+                FileName = sandboxNamedPowerShell,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                ArgumentList = { "-NoProfile", "-Command", "Start-Sleep -Seconds 120" }
+            });
+            process.Should().NotBeNull();
+
+            var cleanupScript = Path.Combine(RepoRoot, "scripts", "ci", "Stop-WindowsSandboxHcs.ps1");
+            var result = RunPowerShell($"""
+            & '{EscapePowerShellPath(cleanupScript)}' `
+                -HcsDiagPath '{EscapePowerShellPath(fakeHcsDiagPath)}' `
+                -OutputRoot '{EscapePowerShellPath(tempRoot)}' `
+                -ShutdownTimeoutSeconds 1 `
+                -Confirm:$false
+            """);
+
+            result.ExitCode.Should().Be(0, result.Output);
+            result.Output.Should().NotContain("Windows Sandbox processes did not close");
+            File.ReadAllText(Path.Combine(tempRoot, "hcsdiag-kill.txt"))
+                .Should().Contain("HcsDiagPath was explicitly provided");
+        }
+        finally
+        {
+            if (process is { HasExited: false })
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(30000);
+            }
+
+            process?.Dispose();
             DeleteTempRoot(tempRoot);
         }
     }

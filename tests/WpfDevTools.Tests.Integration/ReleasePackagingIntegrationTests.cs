@@ -1,4 +1,5 @@
 using System.IO;
+using System.IO.Compression;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Tests.Integration.TestSupport;
@@ -30,7 +31,8 @@ public sealed class ReleasePackagingIntegrationTests
             var extractRoot = ReleasePackagingTestHarness.ExtractArchive(archivePath, tempRoot);
 
             File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue(
+                CreateArchiveLayoutDiagnostic(archivePath, extractRoot));
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.ScreenModel.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Renderer.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Input.ps1")).Should().BeTrue();
@@ -170,5 +172,22 @@ public sealed class ReleasePackagingIntegrationTests
         {
             ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    private static string CreateArchiveLayoutDiagnostic(string archivePath, string extractRoot)
+    {
+        using var archive = ZipFile.OpenRead(archivePath);
+        var archiveEntries = archive
+            .Entries
+            .Select(entry => entry.FullName)
+            .Order(StringComparer.Ordinal)
+            .Take(80);
+        var extractedEntries = Directory.EnumerateFileSystemEntries(extractRoot, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(extractRoot, path))
+            .Order(StringComparer.Ordinal)
+            .Take(80);
+
+        return "archive entries: " + string.Join(" | ", archiveEntries) +
+            "; extracted entries: " + string.Join(" | ", extractedEntries);
     }
 }

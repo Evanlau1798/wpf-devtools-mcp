@@ -196,7 +196,9 @@ foreach ($architecture in $resolvedArchitectures) {
         }
 
         $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $binDir 'manifest.json') -Encoding UTF8
-        Invoke-ArchiveCreation -PackageDirectory $packageDir -ArchivePath $packageArchivePath
+        Invoke-ArchiveCreation `
+            -PackageDirectory $packageDir `
+            -ArchivePath $packageArchivePath
         Remove-PathIfExists -Path $packageDir
         Write-Host "Created archive: $packageArchivePath"
     }

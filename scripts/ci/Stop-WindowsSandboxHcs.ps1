@@ -12,7 +12,9 @@ param(
     [string]$HcsDiagPath = '',
 
     [ValidateRange(1, 120)]
-    [int]$ShutdownTimeoutSeconds = 30
+    [int]$ShutdownTimeoutSeconds = 30,
+
+    [switch]$SkipProcessTableWait
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,8 +27,6 @@ if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
     $OutputRoot = Join-Path $repoRoot 'tmp\sandbox-ci\output'
 }
-
-$hcsDiagPathWasExplicit = -not [string]::IsNullOrWhiteSpace($HcsDiagPath)
 
 function Write-CleanupLog {
     param(
@@ -206,8 +206,8 @@ if (-not $WhatIfPreference) {
         Wait-WindowsSandboxShutdown -HcsDiagPath $HcsDiagPath -LogPath $logPath -TimeoutSeconds $ShutdownTimeoutSeconds
     }
 
-    if ($hcsDiagPathWasExplicit) {
-        Write-CleanupLog -Path $logPath -Message 'Skipped Windows Sandbox process-table wait because HcsDiagPath was explicitly provided.'
+    if ($SkipProcessTableWait) {
+        Write-CleanupLog -Path $logPath -Message 'Skipped Windows Sandbox process-table wait because SkipProcessTableWait was provided.'
     }
     else {
         Wait-WindowsSandboxProcessesExit -LogPath $logPath -TimeoutSeconds $ShutdownTimeoutSeconds

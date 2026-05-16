@@ -44,6 +44,7 @@ public sealed partial class SandboxCiScriptContractTests
             & '{EscapePowerShellPath(cleanupScript)}' `
                 -HcsDiagPath '{EscapePowerShellPath(fakeHcsDiagPath)}' `
                 -OutputRoot '{EscapePowerShellPath(tempRoot)}' `
+                -SkipProcessTableWait `
                 -Confirm:$false
             """);
 
@@ -87,6 +88,7 @@ public sealed partial class SandboxCiScriptContractTests
             & '{EscapePowerShellPath(cleanupScript)}' `
                 -HcsDiagPath '{EscapePowerShellPath(fakeHcsDiagPath)}' `
                 -OutputRoot '{EscapePowerShellPath(tempRoot)}' `
+                -SkipProcessTableWait `
                 -Confirm:$false
             """);
 
@@ -101,7 +103,62 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
-    public void StopWindowsSandboxHcs_ShouldNotWaitForProcessTableWhenNoComputeSystemsAreListed()
+    public void StopWindowsSandboxHcs_ShouldAllowTestsToSkipProcessTableWaitWhenNoComputeSystemsAreListed()
+    {
+        var tempRoot = CreateTempRoot();
+        Process? process = null;
+        try
+        {
+            var fakeHcsDiagPath = Path.Combine(tempRoot, "fake-empty-hcsdiag.ps1");
+            File.WriteAllText(fakeHcsDiagPath, "param([string]$Command) if ($Command -eq 'list') { exit 0 } exit 64");
+
+            var systemPowerShell = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe");
+            var sandboxNamedPowerShell = Path.Combine(tempRoot, "WindowsSandboxServer.exe");
+            File.Copy(systemPowerShell, sandboxNamedPowerShell);
+
+            process = Process.Start(new ProcessStartInfo
+            {
+                FileName = sandboxNamedPowerShell,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                ArgumentList = { "-NoProfile", "-Command", "Start-Sleep -Seconds 120" }
+            });
+            process.Should().NotBeNull();
+
+            var cleanupScript = Path.Combine(RepoRoot, "scripts", "ci", "Stop-WindowsSandboxHcs.ps1");
+            var result = RunPowerShell($"""
+            & '{EscapePowerShellPath(cleanupScript)}' `
+                -HcsDiagPath '{EscapePowerShellPath(fakeHcsDiagPath)}' `
+                -OutputRoot '{EscapePowerShellPath(tempRoot)}' `
+                -ShutdownTimeoutSeconds 1 `
+                -SkipProcessTableWait `
+                -Confirm:$false
+            """);
+
+            result.ExitCode.Should().Be(0, result.Output);
+            result.Output.Should().NotContain("Windows Sandbox processes did not close");
+            File.ReadAllText(Path.Combine(tempRoot, "hcsdiag-kill.txt"))
+                .Should().Contain("Skipped Windows Sandbox process-table wait because SkipProcessTableWait was provided.");
+        }
+        finally
+        {
+            if (process is { HasExited: false })
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(30000);
+            }
+
+            process?.Dispose();
+            DeleteTempRoot(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void StopWindowsSandboxHcs_ShouldWaitForProcessTableWhenHcsDiagPathIsExplicit()
     {
         var tempRoot = CreateTempRoot();
         Process? process = null;
@@ -136,10 +193,8 @@ public sealed partial class SandboxCiScriptContractTests
                 -Confirm:$false
             """);
 
-            result.ExitCode.Should().Be(0, result.Output);
-            result.Output.Should().NotContain("Windows Sandbox processes did not close");
-            File.ReadAllText(Path.Combine(tempRoot, "hcsdiag-kill.txt"))
-                .Should().Contain("HcsDiagPath was explicitly provided");
+            result.ExitCode.Should().NotBe(0, result.Output);
+            result.Output.Should().Contain("Windows Sandbox processes did not close");
         }
         finally
         {
@@ -298,6 +353,7 @@ public sealed partial class SandboxCiScriptContractTests
             & '{EscapePowerShellPath(cleanupScript)}' `
                 -HcsDiagPath '{EscapePowerShellPath(fakeHcsDiagPath)}' `
                 -OutputRoot '{EscapePowerShellPath(tempRoot)}' `
+                -SkipProcessTableWait `
                 -Confirm:$false
             """);
 

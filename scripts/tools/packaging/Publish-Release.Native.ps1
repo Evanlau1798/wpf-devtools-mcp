@@ -10,13 +10,15 @@ function Invoke-ArchiveCreation {
 
     for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
         try {
-            Compress-Archive -Path (Join-Path $PackageDirectory '*') -DestinationPath $ArchivePath -Force
             $packageFileRelativePaths = @(Get-PackageFileRelativePaths -PackageDirectory $PackageDirectory)
-            $requiredEntries = @($packageFileRelativePaths + $RequiredRelativePaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
-            Repair-RequiredArchiveEntries `
+            $entryNames = @($packageFileRelativePaths + $RequiredRelativePaths |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                ForEach-Object { ConvertTo-ArchiveEntryName -RelativePath $_ } |
+                Sort-Object -Unique)
+            New-ReleaseArchive `
                 -PackageDirectory $PackageDirectory `
                 -ArchivePath $ArchivePath `
-                -RequiredRelativePaths $requiredEntries
+                -EntryNames $entryNames
             return
         }
         catch {
@@ -25,6 +27,58 @@ function Invoke-ArchiveCreation {
             }
 
             Start-Sleep -Milliseconds $retryDelayMilliseconds
+        }
+    }
+}
+
+function New-ReleaseArchive {
+    param(
+        [Parameter(Mandatory)] [string]$PackageDirectory,
+        [Parameter(Mandatory)] [string]$ArchivePath,
+        [string[]]$EntryNames = @()
+    )
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archiveDirectory = [System.IO.Path]::GetDirectoryName($ArchivePath)
+    if (-not [string]::IsNullOrWhiteSpace($archiveDirectory)) {
+        New-Item -ItemType Directory -Force -Path $archiveDirectory | Out-Null
+    }
+
+    $tempArchivePath = "$ArchivePath.tmp"
+    if (Test-Path -LiteralPath $tempArchivePath) {
+        Remove-Item -LiteralPath $tempArchivePath -Force
+    }
+
+    try {
+        $archive = [System.IO.Compression.ZipFile]::Open($tempArchivePath, [System.IO.Compression.ZipArchiveMode]::Create)
+        try {
+            foreach ($entryName in @($EntryNames)) {
+                $sourcePath = ConvertTo-PackageFilePath -PackageDirectory $PackageDirectory -ArchiveEntryName $entryName
+                if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+                    throw "Required archive entry source was not found: $sourcePath"
+                }
+
+                [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                    $archive,
+                    $sourcePath,
+                    $entryName,
+                    [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
+            }
+        }
+        finally {
+            $archive.Dispose()
+        }
+
+        if (Test-Path -LiteralPath $ArchivePath) {
+            Remove-Item -LiteralPath $ArchivePath -Force
+        }
+
+        Move-Item -LiteralPath $tempArchivePath -Destination $ArchivePath -Force
+    }
+    finally {
+        if (Test-Path -LiteralPath $tempArchivePath) {
+            Remove-Item -LiteralPath $tempArchivePath -Force
         }
     }
 }
@@ -57,87 +111,12 @@ function Get-PackageFileRelativePaths {
 
     $packageRoot = (Resolve-Path -LiteralPath $PackageDirectory).Path.TrimEnd([char[]]@('\', '/'))
     $packageRootWithSeparator = $packageRoot + [System.IO.Path]::DirectorySeparatorChar
-    Get-ChildItem -LiteralPath $packageRoot -Recurse -File | ForEach-Object {
+    Get-ChildItem -LiteralPath $packageRoot -Recurse -File | Sort-Object FullName | ForEach-Object {
         if (-not $_.FullName.StartsWith($packageRootWithSeparator, [System.StringComparison]::OrdinalIgnoreCase)) {
             throw "Package file is outside package directory: $($_.FullName)"
         }
 
         $_.FullName.Substring($packageRootWithSeparator.Length)
-    }
-}
-
-function Get-MissingRequiredArchiveEntries {
-    param(
-        [Parameter(Mandatory)] [string]$ArchivePath,
-        [string[]]$RequiredRelativePaths = @()
-    )
-
-    $requiredEntries = @($RequiredRelativePaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    if ($requiredEntries.Count -eq 0) {
-        return @()
-    }
-
-    Add-Type -AssemblyName System.IO.Compression
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
-    try {
-        $entryNames = @($archive.Entries | ForEach-Object { ConvertTo-ArchiveEntryName -RelativePath $_.FullName })
-        $missing = New-Object System.Collections.Generic.List[string]
-        foreach ($relativePath in $requiredEntries) {
-            $entryName = ConvertTo-ArchiveEntryName -RelativePath $relativePath
-            if ($entryNames -notcontains $entryName) {
-                $missing.Add($entryName)
-            }
-        }
-
-        return @($missing)
-    }
-    finally {
-        $archive.Dispose()
-    }
-}
-
-function Repair-RequiredArchiveEntries {
-    param(
-        [Parameter(Mandatory)] [string]$PackageDirectory,
-        [Parameter(Mandatory)] [string]$ArchivePath,
-        [string[]]$RequiredRelativePaths = @()
-    )
-
-    $missingEntries = @(Get-MissingRequiredArchiveEntries -ArchivePath $ArchivePath -RequiredRelativePaths $RequiredRelativePaths)
-    if ($missingEntries.Count -eq 0) {
-        return
-    }
-
-    Add-Type -AssemblyName System.IO.Compression
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $archive = [System.IO.Compression.ZipFile]::Open($ArchivePath, [System.IO.Compression.ZipArchiveMode]::Update)
-    try {
-        foreach ($entryName in $missingEntries) {
-            $sourcePath = ConvertTo-PackageFilePath -PackageDirectory $PackageDirectory -ArchiveEntryName $entryName
-            if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
-                throw "Required archive entry source was not found: $sourcePath"
-            }
-
-            $existingEntry = $archive.GetEntry($entryName)
-            if ($null -ne $existingEntry) {
-                $existingEntry.Delete()
-            }
-
-            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-                $archive,
-                $sourcePath,
-                $entryName,
-                [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
-        }
-    }
-    finally {
-        $archive.Dispose()
-    }
-
-    $remainingMissingEntries = @(Get-MissingRequiredArchiveEntries -ArchivePath $ArchivePath -RequiredRelativePaths $RequiredRelativePaths)
-    if ($remainingMissingEntries.Count -gt 0) {
-        throw "Release archive is missing required entries: $($remainingMissingEntries -join ', ')"
     }
 }
 

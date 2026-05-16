@@ -78,7 +78,8 @@ public sealed partial class ReleasePackagingContractTests
         var content = PublishReleaseScriptSource.ReadAll();
 
         content.Should().Contain("Invoke-ArchiveCreation");
-        content.Should().Contain("Compress-Archive");
+        content.Should().Contain("New-ReleaseArchive");
+        content.Should().Contain("Move-Item");
         content.Should().Contain("Start-Sleep");
     }
 

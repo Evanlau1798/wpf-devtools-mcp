@@ -35,7 +35,7 @@ public class ReleasePackagingWorkflowTests
     [Fact]
     public void PublishReleaseScript_ShouldBundleCanonicalInstallerScript()
     {
-        var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var content = ReadPublishReleaseScriptSources();
 
         content.Should().Contain("scripts\\online-installer.ps1");
         content.Should().NotContain("Setup-WpfDevTools.ps1");
@@ -45,7 +45,7 @@ public class ReleasePackagingWorkflowTests
     [Fact]
     public void PublishReleaseScript_ShouldCreateZipArchivesForStaticBootstrapInstaller()
     {
-        var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var content = ReadPublishReleaseScriptSources();
 
         content.Should().Contain("Compress-Archive");
         content.Should().Contain("release_${version}_win-$architecture.zip");
@@ -249,6 +249,22 @@ public class ReleasePackagingWorkflowTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string ReadPublishReleaseScriptSources()
+    {
+        var packagingRoot = GetRepoFilePath("scripts/tools/packaging");
+        var files = new[]
+        {
+            "Publish-Release.ps1",
+            "Publish-Release.Core.ps1",
+            "Publish-Release.Signing.ps1",
+            "Publish-Release.Native.ps1"
+        };
+
+        return string.Join(
+            Environment.NewLine,
+            files.Select(fileName => File.ReadAllText(Path.Combine(packagingRoot, fileName))));
+    }
 
     private static string[] GetNamedStepBlock(string[] lines, string stepName)
     {

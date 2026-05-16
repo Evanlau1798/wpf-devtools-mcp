@@ -1,4 +1,3 @@
 # Explicit temporary exceptions for the 500-line source/test/script policy.
 # Format: repository-relative path | reason
 scripts/online-installer.ps1 | Temporary user-requested exception; do not split in this remediation loop.
-scripts/tools/packaging/Publish-Release.ps1 | Existing release packaging debt; split after release workflow characterization.

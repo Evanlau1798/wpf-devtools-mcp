@@ -7,8 +7,7 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
     [Fact]
     public void PublishReleaseScript_ShouldDisableNativeBootstrapperIncrementalLinking()
     {
-        var script = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var script = PublishReleaseScriptSource.ReadAll();
 
         script.Should().Contain("/p:LinkIncremental=false",
             "CI and Windows Sandbox release packaging should not use Debug incremental native linking");
@@ -17,8 +16,7 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
     [Fact]
     public void PublishReleaseScript_ShouldPassNativeToolchainEnvironmentToBootstrapperMsBuild()
     {
-        var script = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var script = PublishReleaseScriptSource.ReadAll();
 
         script.Should().Contain("ConvertTo-MSBuildPropertyValue");
         script.Should().Contain("/p:WindowsSDKDir=$windowsSdkDirectory");
@@ -60,8 +58,7 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
     [Fact]
     public void PublishReleaseScript_ShouldInjectInheritedNativePathsForHostedX64AndWin32BootstrapperBuilds()
     {
-        var script = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var script = PublishReleaseScriptSource.ReadAll();
 
         script.Should().Contain("if ($bootstrapperPlatform -in @('x64', 'Win32'))",
             "hosted x64 and x86 packaging jobs need inherited SDK include/lib paths, while ARM64 must not inherit incompatible host paths");
@@ -292,6 +289,7 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
             .ToArray();
         var functionOnlyScript = Path.Combine(tempRoot, "Publish-Release.Functions.ps1");
         File.WriteAllLines(functionOnlyScript, functionLines);
+        PublishReleaseScriptSource.CopyTo(tempRoot);
         return functionOnlyScript;
     }
 

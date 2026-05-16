@@ -9,8 +9,7 @@ public sealed partial class ReleasePackagingContractTests
     [Fact]
     public void PublishReleaseScript_ShouldSupportWorkflowManagedSigningInputs()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var content = PublishReleaseScriptSource.ReadAll();
 
         content.Should().Contain("WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH",
             "release packaging should be able to consume a workflow-materialized PFX path instead of requiring manual signing before packaging");

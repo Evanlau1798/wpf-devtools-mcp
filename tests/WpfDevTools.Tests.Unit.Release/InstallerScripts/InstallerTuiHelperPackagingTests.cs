@@ -95,8 +95,7 @@ public sealed class InstallerTuiHelperPackagingTests
     [Fact]
     public void ReleasePackagingScript_ShouldCopyManifestDeclaredHelpersInsteadOfWildcardDirectoryContents()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var content = PublishReleaseScriptSource.ReadAll();
 
         content.Should().Contain("Get-InstallerHelperFiles");
         content.Should().Contain("Copy-InstallerHelperFiles");

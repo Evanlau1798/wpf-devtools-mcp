@@ -22,8 +22,7 @@ public sealed partial class ReleasePackagingContractTests
     [Fact]
     public void PublishReleaseScript_ShouldCopyCanonicalInstallerAndAvoidLegacyScriptChain()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var content = PublishReleaseScriptSource.ReadAll();
 
         content.Should().Contain("run-template.bat");
         content.Should().Contain("run.bat");
@@ -39,8 +38,7 @@ public sealed partial class ReleasePackagingContractTests
     [Fact]
     public void PublishReleaseScript_ShouldUseVersionedReleaseArchiveNames()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var content = PublishReleaseScriptSource.ReadAll();
 
         content.Should().Contain("release_${version}_win-$architecture.zip");
         content.Should().NotContain("_dev_win-");
@@ -77,8 +75,7 @@ public sealed partial class ReleasePackagingContractTests
     [Fact]
     public void PublishReleaseScript_ShouldRetryArchiveCreationWhenTransientFileLocksOccur()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"));
+        var content = PublishReleaseScriptSource.ReadAll();
 
         content.Should().Contain("Invoke-ArchiveCreation");
         content.Should().Contain("Compress-Archive");
@@ -103,10 +100,7 @@ public sealed partial class ReleasePackagingContractTests
             Directory.CreateDirectory(inspectorProjectRoot);
             Directory.CreateDirectory(bootstrapperProjectRoot);
 
-            File.Copy(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"),
-                Path.Combine(packagingRoot, "Publish-Release.ps1"),
-                overwrite: true);
+            PublishReleaseScriptSource.CopyTo(packagingRoot);
             File.Copy(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/run-template.bat"),
                 Path.Combine(packagingRoot, "run-template.bat"),
@@ -282,10 +276,7 @@ public sealed partial class ReleasePackagingContractTests
         Directory.CreateDirectory(inspectorProjectRoot);
         Directory.CreateDirectory(bootstrapperProjectRoot);
 
-        File.Copy(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.ps1"),
-            Path.Combine(packagingRoot, "Publish-Release.ps1"),
-            overwrite: true);
+        PublishReleaseScriptSource.CopyTo(packagingRoot);
         File.Copy(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/run-template.bat"),
             Path.Combine(packagingRoot, "run-template.bat"),

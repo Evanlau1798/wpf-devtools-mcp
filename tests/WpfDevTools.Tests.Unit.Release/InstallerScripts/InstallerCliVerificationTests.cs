@@ -7,6 +7,32 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed partial class InstallerScriptTests
 {
     [Fact]
+    public void OnlineInstallerScript_ShouldDeclareVerificationCommandHelper()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var manifestContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
+
+        content.Should().Contain("scripts/installer/Installer.Verification.Commands.ps1");
+        manifestContent.Should().Contain("Installer.Verification.Commands.ps1");
+        content.IndexOf(
+                "scripts/installer/Installer.Verification.Commands.ps1",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "scripts/installer/Installer.Verification.ps1",
+                StringComparison.Ordinal));
+        content.IndexOf(
+                "'Installer.Verification.Commands.ps1'",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "'Installer.Verification.ps1'",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void OnlineInstaller_ShouldFailCliRegistrationWhenListDoesNotExposeExecutablePath()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

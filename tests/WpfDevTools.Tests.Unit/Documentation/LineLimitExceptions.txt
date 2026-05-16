@@ -3,7 +3,6 @@
 scripts/installer/Installer.Actions.ps1 | Existing installer helper debt; split after online installer stability window.
 scripts/installer/Installer.Discovery.ps1 | Existing installer helper debt; split after installer behavior characterization.
 scripts/installer/Installer.Registration.ps1 | Existing installer registration debt; split after CLI registration contract stabilization.
-scripts/installer/Installer.Verification.ps1 | Existing installer helper debt; split after verification contract stabilization.
 scripts/online-installer.ps1 | Temporary user-requested exception; do not split in this remediation loop.
 scripts/tools/packaging/Publish-Release.ps1 | Existing release packaging debt; split after release workflow characterization.
 tests/WpfDevTools.Tests.Unit/Inspector/Handlers/EventHandlerTraceModeTests.cs | Existing trace-mode test debt; split by trace workflow.

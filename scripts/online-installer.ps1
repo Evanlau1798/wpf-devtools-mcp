@@ -312,6 +312,7 @@ $script:InstallerHelperSourcePaths = @(
     'scripts/installer/Installer.State.ps1'
     'scripts/installer/Installer.State.Installation.ps1'
     'scripts/installer/Installer.Registration.ps1'
+    'scripts/installer/Installer.Verification.Commands.ps1'
     'scripts/installer/Installer.Verification.ps1'
     'scripts/installer/Installer.Actions.ps1'
 )
@@ -329,6 +330,7 @@ $script:InstallerSharedHelperLeafNames = @(
     'Installer.State.ps1'
     'Installer.State.Installation.ps1'
     'Installer.Registration.ps1'
+    'Installer.Verification.Commands.ps1'
     'Installer.Verification.ps1'
     'Installer.Actions.ps1'
 )

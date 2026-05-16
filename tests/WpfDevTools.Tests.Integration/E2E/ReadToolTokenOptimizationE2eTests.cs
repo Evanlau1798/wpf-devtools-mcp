@@ -60,7 +60,8 @@ public class ReadToolTokenOptimizationE2eTests
             });
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
-        result.GetProperty("errorCount").GetInt32().Should().BeLessThanOrEqualTo(1);
+        BindingDiagnosticsAssertions.AssertAtLeastOneIntentionalBindingErrorDetected(result)
+            .Should().BeLessThanOrEqualTo(1);
     }
 
     [Fact]
@@ -80,13 +81,10 @@ public class ReadToolTokenOptimizationE2eTests
                 compact = false
             });
 
-        compactByDefault.GetProperty("success").GetBoolean().Should().BeTrue();
-        verbose.GetProperty("success").GetBoolean().Should().BeTrue();
-        if (compactByDefault.GetProperty("errorCount").GetInt32() > 0)
-        {
-            compactByDefault.GetProperty("errors")[0].TryGetProperty("message", out _).Should().BeFalse();
-            verbose.GetProperty("errors")[0].TryGetProperty("message", out _).Should().BeTrue();
-        }
+        BindingDiagnosticsAssertions.AssertAtLeastOneIntentionalBindingErrorDetected(compactByDefault);
+        BindingDiagnosticsAssertions.AssertAtLeastOneIntentionalBindingErrorDetected(verbose);
+        compactByDefault.GetProperty("errors")[0].TryGetProperty("message", out _).Should().BeFalse();
+        verbose.GetProperty("errors")[0].TryGetProperty("message", out _).Should().BeTrue();
 
         compactByDefault.GetRawText().Length.Should().BeLessThan(verbose.GetRawText().Length);
     }

@@ -35,22 +35,8 @@ public sealed class BindingDiagnosticsE2eTests : SharedStateMcpE2eTestBase
 
         _output.WriteLine($"Binding errors: {E2eTestHelpers.Truncate(result.GetRawText(), 500)}");
 
-        result.GetProperty("success").GetBoolean().Should().BeTrue();
-
-        // TestApp Tab 1 has 3 intentional binding errors:
-        // ErrorTextBox1 (invalid property), ErrorTextBox2 (wrong path), ErrorTextBox3 (null context)
-        if (result.TryGetProperty("errors", out var errors))
-        {
-            errors.GetArrayLength().Should().BeGreaterOrEqualTo(1,
-                "TestApp has intentional binding errors on Tab 1 that should be detected");
-
-            _output.WriteLine($"Found {errors.GetArrayLength()} binding error(s)");
-        }
-        else if (result.TryGetProperty("errorCount", out var errorCount))
-        {
-            errorCount.GetInt32().Should().BeGreaterOrEqualTo(0,
-                "error count should be reported");
-        }
+        var errorCount = BindingDiagnosticsAssertions.AssertIntentionalBindingErrorsDetected(result);
+        _output.WriteLine($"Found {errorCount} binding error(s)");
     }
 
     [Fact]

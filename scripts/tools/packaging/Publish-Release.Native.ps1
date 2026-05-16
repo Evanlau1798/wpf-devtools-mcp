@@ -6,7 +6,7 @@ function Invoke-ArchiveCreation {
     )
 
     $retryDelayMilliseconds = 250
-    $maxAttempts = 5
+    $maxAttempts = 40
 
     for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
         try {

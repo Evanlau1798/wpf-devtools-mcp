@@ -272,8 +272,34 @@ function Copy-InstallerHelperFiles {
 function Remove-PathIfExists {
     param([string]$Path)
 
-    if (-not [string]::IsNullOrWhiteSpace($Path) -and (Test-Path $Path)) {
-        Remove-Item -Path $Path -Recurse -Force
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return
+    }
+
+    $retryDelayMilliseconds = 250
+    $maxAttempts = 40
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        if (-not (Test-Path -LiteralPath $Path)) {
+            return
+        }
+
+        try {
+            Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
+            if (-not (Test-Path -LiteralPath $Path)) {
+                return
+            }
+        }
+        catch {
+            if ($attempt -eq $maxAttempts) {
+                throw
+            }
+        }
+
+        Start-Sleep -Milliseconds $retryDelayMilliseconds
+    }
+
+    if (Test-Path -LiteralPath $Path) {
+        throw "Failed to remove path after retries: $Path"
     }
 }
 

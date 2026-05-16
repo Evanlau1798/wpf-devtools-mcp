@@ -75,6 +75,116 @@ public sealed partial class ReleasePackagingContractTests
     }
 
     [Fact]
+    public async Task InvokeArchiveCreation_ShouldRetryWhenPackageEntryIsTemporarilyLocked()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        FileStream? lockStream = null;
+        try
+        {
+            var packageDir = Path.Combine(tempRoot, "package");
+            var binDir = Path.Combine(packageDir, "bin");
+            var archivePath = Path.Combine(tempRoot, "release.zip");
+            Directory.CreateDirectory(binDir);
+            File.WriteAllText(Path.Combine(packageDir, "run.bat"), "run");
+            var lockedFilePath = Path.Combine(binDir, "install.ps1");
+            File.WriteAllText(lockedFilePath, "installer");
+
+            lockStream = new FileStream(lockedFilePath, FileMode.Open, FileAccess.Read, FileShare.None);
+            var markerPath = Path.Combine(tempRoot, "archive-started.marker");
+            var releaseLockTask = ReleaseLockAfterMarkerAsync(markerPath, () =>
+            {
+                lockStream.Dispose();
+                lockStream = null;
+            });
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                BuildArchiveCreationCommand(markerPath),
+                new Dictionary<string, string?>
+                {
+                    ["NATIVE_SCRIPT_PATH"] = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.Native.ps1"),
+                    ["MARKER_PATH"] = markerPath,
+                    ["PACKAGE_DIR"] = packageDir,
+                    ["ARCHIVE_PATH"] = archivePath
+                });
+
+            await releaseLockTask;
+            result.ExitCode.Should().Be(0, result.Stderr);
+            ReadArchiveEntries(archivePath).Should().Contain("bin/install.ps1");
+        }
+        finally
+        {
+            lockStream?.Dispose();
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public async Task RemovePathIfExists_ShouldRetryWhenPackageFileIsTemporarilyLocked()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        FileStream? lockStream = null;
+        try
+        {
+            var packageDir = Path.Combine(tempRoot, "package");
+            var binDir = Path.Combine(packageDir, "bin");
+            Directory.CreateDirectory(binDir);
+            var lockedFilePath = Path.Combine(binDir, "install.ps1");
+            File.WriteAllText(lockedFilePath, "installer");
+
+            lockStream = new FileStream(lockedFilePath, FileMode.Open, FileAccess.Read, FileShare.None);
+            var markerPath = Path.Combine(tempRoot, "remove-started.marker");
+            var releaseLockTask = ReleaseLockAfterMarkerAsync(markerPath, () =>
+            {
+                lockStream.Dispose();
+                lockStream = null;
+            });
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                """
+                . $env:CORE_SCRIPT_PATH
+                $script:RemoveFailureRecorded = $false
+                function Remove-Item {
+                    param(
+                        [string]$LiteralPath,
+                        [switch]$Recurse,
+                        [switch]$Force,
+                        [System.Management.Automation.ActionPreference]$ErrorAction
+                    )
+
+                    try {
+                        Microsoft.PowerShell.Management\Remove-Item @PSBoundParameters
+                    }
+                    catch {
+                        if (-not $script:RemoveFailureRecorded) {
+                            $script:RemoveFailureRecorded = $true
+                            Set-Content -LiteralPath $env:MARKER_PATH -Value 'started' -Encoding UTF8
+                        }
+
+                        throw
+                    }
+                }
+
+                Remove-PathIfExists -Path $env:PACKAGE_DIR
+                """,
+                new Dictionary<string, string?>
+                {
+                    ["CORE_SCRIPT_PATH"] = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Publish-Release.Core.ps1"),
+                    ["MARKER_PATH"] = markerPath,
+                    ["PACKAGE_DIR"] = packageDir
+                });
+
+            await releaseLockTask;
+            result.ExitCode.Should().Be(0, result.Stderr);
+            Directory.Exists(packageDir).Should().BeFalse();
+        }
+        finally
+        {
+            lockStream?.Dispose();
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PublishReleaseScript_ShouldIncludeInstallerHelperEntriesAfterArchiveCreation()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -149,9 +259,38 @@ public sealed partial class ReleasePackagingContractTests
         }
     }
 
-    private static string BuildArchiveCreationCommand()
-        => """
+    private static string BuildArchiveCreationCommand(string? markerPath = null)
+        => markerPath is null
+            ? """
             . $env:NATIVE_SCRIPT_PATH
+            Invoke-ArchiveCreation `
+                -PackageDirectory $env:PACKAGE_DIR `
+                -ArchivePath $env:ARCHIVE_PATH
+            """
+            : """
+            . $env:NATIVE_SCRIPT_PATH
+            $script:ArchiveFailureRecorded = $false
+            $originalNewReleaseArchive = ${function:New-ReleaseArchive}
+            function New-ReleaseArchive {
+                param(
+                    [Parameter(Mandatory)] [string]$PackageDirectory,
+                    [Parameter(Mandatory)] [string]$ArchivePath,
+                    [string[]]$EntryNames = @()
+                )
+
+                try {
+                    & $originalNewReleaseArchive @PSBoundParameters
+                }
+                catch {
+                    if (-not $script:ArchiveFailureRecorded) {
+                        $script:ArchiveFailureRecorded = $true
+                        Set-Content -LiteralPath $env:MARKER_PATH -Value 'started' -Encoding UTF8
+                    }
+
+                    throw
+                }
+            }
+
             Invoke-ArchiveCreation `
                 -PackageDirectory $env:PACKAGE_DIR `
                 -ArchivePath $env:ARCHIVE_PATH
@@ -170,6 +309,24 @@ public sealed partial class ReleasePackagingContractTests
     {
         using var archive = ZipFile.OpenRead(archivePath);
         return archive.Entries.Select(static entry => entry.FullName).ToArray();
+    }
+
+    private static async Task ReleaseLockAfterMarkerAsync(string markerPath, Action releaseLock)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+        while (!File.Exists(markerPath))
+        {
+            if (DateTimeOffset.UtcNow > deadline)
+            {
+                releaseLock();
+                throw new TimeoutException("The packaging retry test marker was not written.");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
+        }
+
+        await Task.Delay(TimeSpan.FromMilliseconds(1800));
+        releaseLock();
     }
 
     private static string CreateArchiveTestVisualStudioToolchain(

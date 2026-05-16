@@ -18,6 +18,32 @@ public sealed class InstallerUninstallBehaviorTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldDeclareStandaloneUninstallHelper()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var manifestContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
+
+        content.Should().Contain("scripts/installer/Installer.Uninstall.Standalone.ps1");
+        manifestContent.Should().Contain("Installer.Uninstall.Standalone.ps1");
+        content.IndexOf(
+                "scripts/installer/Installer.Uninstall.Standalone.ps1",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "scripts/installer/Installer.Uninstall.ps1",
+                StringComparison.Ordinal));
+        content.IndexOf(
+                "'Installer.Uninstall.Standalone.ps1'",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "'Installer.Uninstall.ps1'",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldDeclareHelperCacheKeyAndVerifiedRemovalContracts()
     {
         var content = File.ReadAllText(

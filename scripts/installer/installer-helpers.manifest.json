@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "cacheKey":  "sha256:38e12aebb90cc3095fafc24ab48dc73b97021154c7f7a23bb98936e8245ea1eb",
+    "cacheKey":  "sha256:18728c14aef799f6fc6b3515d35bd11eaf8d43db011e23839e6a590234775f3b",
     "helperFiles":  [
                         {
                             "path":  "Installer.BootstrapUi.ps1",
@@ -89,8 +89,13 @@
                         },
                         {
                             "path":  "Installer.Uninstall.ps1",
-                            "sha256":  "dc195190c997912eac8367afee16139cc3a14ba8d1834f0251c266c04cd9de2a",
-                            "sizeBytes":  26306
+                            "sha256":  "ae431786675147642ed1aa449a8101f98a1d0ca17608cd7558e9ffabd910470b",
+                            "sizeBytes":  11597
+                        },
+                        {
+                            "path":  "Installer.Uninstall.Standalone.ps1",
+                            "sha256":  "7b5e66d2127280a3d0538705f33805e8946ee6b7a4eef67cccec1d94702b2cb2",
+                            "sizeBytes":  14872
                         },
                         {
                             "path":  "Installer.Release.ps1",

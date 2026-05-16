@@ -77,6 +77,21 @@ public class RepositoryHygieneTests
     }
 
     [Fact]
+    public void LineLimitExceptions_ShouldOnlyDocumentCurrentOversizedFiles()
+    {
+        var oversizedFiles = EnumeratePolicyFiles()
+            .Where(path => File.ReadLines(GetRepoFilePath(path)).Count() > SourceFileLineLimit)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var staleExceptions = ReadLineLimitExceptions()
+            .Where(path => !oversizedFiles.Contains(path))
+            .ToArray();
+
+        staleExceptions.Should().BeEmpty(
+            "the line-limit exception manifest should shrink as files are split below 500 lines");
+    }
+
+    [Fact]
     public void LineLimitPolicy_ShouldCoverTestAppXamlFiles()
     {
         EnumeratePolicyFiles()

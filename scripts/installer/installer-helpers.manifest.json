@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "cacheKey":  "sha256:d71ce7cd4081af248068c08390ff94513eadf8eb21ef4ea18b86d9e0efdf74a0",
+    "cacheKey":  "sha256:758ea7880ac4a4547b4e06e45b339c57614f48ab770b08891b4b303d1a81b8ec",
     "helperFiles":  [
                         {
                             "path":  "Installer.BootstrapUi.ps1",
@@ -84,8 +84,13 @@
                         },
                         {
                             "path":  "Installer.Discovery.ps1",
-                            "sha256":  "82411a8319dbf1caf796c83cb2532f30de86dab2844f402bcf6b46349574795d",
-                            "sizeBytes":  33807
+                            "sha256":  "566e300f5f49aacda5eaa5f5e434a0c15abc92d2c2e8ee70d67612acbd34cc36",
+                            "sizeBytes":  14335
+                        },
+                        {
+                            "path":  "Installer.Discovery.Detection.ps1",
+                            "sha256":  "3c79e18ab6586ecbc863435727f28fe094cccdf686fcc67ce396692d2daa0ea9",
+                            "sizeBytes":  19639
                         },
                         {
                             "path":  "Installer.Uninstall.ps1",

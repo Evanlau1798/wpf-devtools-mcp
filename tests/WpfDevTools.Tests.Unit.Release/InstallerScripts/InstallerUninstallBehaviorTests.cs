@@ -11,10 +11,42 @@ public sealed class InstallerUninstallBehaviorTests
     {
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var manifestContent = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
 
         content.Should().Contain("scripts/installer/Installer.Discovery.ps1");
+        content.Should().Contain("scripts/installer/Installer.Discovery.Detection.ps1");
+        manifestContent.Should().Contain("Installer.Discovery.Detection.ps1");
         content.Should().Contain("scripts/installer/Installer.Uninstall.ps1");
         content.Should().Contain("scripts/installer/Tui.Confirm.ps1");
+        content.IndexOf(
+                "scripts/installer/Installer.Discovery.ps1",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "scripts/installer/Installer.Discovery.Detection.ps1",
+                StringComparison.Ordinal));
+        content.IndexOf(
+                "scripts/installer/Installer.Discovery.Detection.ps1",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "scripts/installer/Installer.Uninstall.Standalone.ps1",
+                StringComparison.Ordinal));
+        content.IndexOf(
+                "'Installer.Discovery.ps1'",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "'Installer.Discovery.Detection.ps1'",
+                StringComparison.Ordinal));
+        content.IndexOf(
+                "'Installer.Discovery.Detection.ps1'",
+                StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(content.IndexOf(
+                "'Installer.Uninstall.Standalone.ps1'",
+                StringComparison.Ordinal));
     }
 
     [Fact]

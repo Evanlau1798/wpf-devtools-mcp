@@ -304,6 +304,7 @@ $script:InstallerHelperSourcePaths = @(
     'scripts/installer/Tui.Flow.ps1'
     'scripts/installer/Tui.Confirm.ps1'
     'scripts/installer/Installer.Discovery.ps1'
+    'scripts/installer/Installer.Discovery.Detection.ps1'
     'scripts/installer/Installer.Uninstall.Standalone.ps1'
     'scripts/installer/Installer.Uninstall.ps1'
     'scripts/installer/Installer.Release.ps1'
@@ -322,6 +323,7 @@ $script:InstallerHelperRepositoryRelativePath = 'scripts/installer'
 # the persistent state/update flow.
 $script:InstallerSharedHelperLeafNames = @(
     'Installer.Discovery.ps1'
+    'Installer.Discovery.Detection.ps1'
     'Installer.Uninstall.Standalone.ps1'
     'Installer.Uninstall.ps1'
     'Installer.Release.ps1'

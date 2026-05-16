@@ -363,8 +363,9 @@ public class SignaturePolicyTests
     [Fact]
     public void DllPathValidator_ShouldUseWinVerifyTrustForReleaseAuthenticodeVerification()
     {
-        var content = File.ReadAllText(
-            TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs"));
+        var content = string.Concat(
+            File.ReadAllText(TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs")),
+            File.ReadAllText(TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.WinTrust.cs")));
 
         content.Should().Contain("WinVerifyTrust(",
             "release DLL validation should verify the signed PE file itself instead of trusting only the signer certificate metadata");

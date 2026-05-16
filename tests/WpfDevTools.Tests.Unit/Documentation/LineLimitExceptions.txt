@@ -8,7 +8,6 @@ scripts/installer/Installer.Uninstall.ps1 | Existing installer helper debt; spli
 scripts/installer/Installer.Verification.ps1 | Existing installer helper debt; split after verification contract stabilization.
 scripts/online-installer.ps1 | Temporary user-requested exception; do not split in this remediation loop.
 scripts/tools/packaging/Publish-Release.ps1 | Existing release packaging debt; split after release workflow characterization.
-src/WpfDevTools.Injector/Discovery/WpfProcessDetector.cs | Existing process discovery debt; split with detector behavior characterization.
 src/WpfDevTools.Inspector/Host/Handlers/EventHandlers.cs | Existing host handler debt; split with event handling characterization.
 src/WpfDevTools.Inspector.Sdk/InspectorSdk.cs | Existing SDK facade debt; split after public SDK contract stabilization.
 src/WpfDevTools.Mcp.Server/McpTools/ToolCallHelper.cs | Existing MCP compatibility helper debt; split after text fallback contract decisions.

@@ -45,10 +45,16 @@ public class ReleasePackagingWorkflowTests
     [Fact]
     public void PublishReleaseScript_ShouldCreateZipArchivesForStaticBootstrapInstaller()
     {
-        var content = ReadPublishReleaseScriptSources();
+        var publishScript = ReadPublishReleaseScript("Publish-Release.ps1");
+        var nativeHelper = ReadPublishReleaseScript("Publish-Release.Native.ps1");
 
-        content.Should().Contain("Compress-Archive");
-        content.Should().Contain("release_${version}_win-$architecture.zip");
+        publishScript.Should().Contain("release_${version}_win-$architecture.zip");
+        publishScript.Should().Contain("Invoke-ArchiveCreation `");
+        publishScript.Should().Contain("-PackageDirectory $packageDir `");
+        publishScript.Should().Contain("-ArchivePath $packageArchivePath");
+        nativeHelper.Should().Contain("function New-ReleaseArchive");
+        nativeHelper.Should().Contain("New-ReleaseArchive `");
+        nativeHelper.Should().Contain("Move-Item -LiteralPath $tempArchivePath -Destination $ArchivePath -Force");
     }
 
     [Fact]
@@ -249,6 +255,9 @@ public class ReleasePackagingWorkflowTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string ReadPublishReleaseScript(string fileName)
+        => File.ReadAllText(Path.Combine(GetRepoFilePath("scripts/tools/packaging"), fileName));
 
     private static string ReadPublishReleaseScriptSources()
     {

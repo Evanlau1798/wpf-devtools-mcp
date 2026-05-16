@@ -24,7 +24,6 @@ tests/WpfDevTools.Tests.Unit/Inspector/Analyzers/EventAnalyzerTests.cs | Existin
 tests/WpfDevTools.Tests.Unit/Inspector/Handlers/EventHandlerTraceModeTests.cs | Existing trace-mode test debt; split by trace workflow.
 tests/WpfDevTools.Tests.Unit/Inspector/RequestDispatcherErrorPathTests.cs | Existing dispatcher error-path test debt; split by error category.
 tests/WpfDevTools.Tests.Unit.Release/InstallerScripts/InstallerBootstrapTests.cs | Existing installer bootstrap test debt; split by bootstrap concern.
-tests/WpfDevTools.Tests.Unit.Release/InstallerScripts/InstallerPathSafetyTests.cs | Temporary installer hardlink/reparse safety coverage growth; split by path attack class after remediation loop.
 tests/WpfDevTools.Tests.Unit/McpServer/NamedPipeClientProtocolTests.cs | Existing pipe protocol test debt; split by protocol phase.
 tests/WpfDevTools.Tests.Unit/McpServer/ResponseContractResourceTests.cs | Temporary response contract coverage growth; split by resource section after contract stabilization.
 tests/WpfDevTools.Tests.Unit/McpServer/SignaturePolicyTests.cs | Existing signature policy test debt; split by policy decision.

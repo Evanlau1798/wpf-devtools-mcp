@@ -11,5 +11,4 @@ tests/WpfDevTools.Tests.Unit/McpServer/Tools/ConnectToolTests.cs | Existing conn
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/DrainEventsToolReplayTests.cs | Existing event replay test debt; split by replay retention scenario.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/TraceRoutedEventsToolReplayTests.cs | Existing trace replay test debt; split by trace replay scenario.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/TraceRoutedEventsToolTests.cs | Existing trace routed events test debt; split by trace mode.
-tests/WpfDevTools.Tests.Unit.Release/Release/ReleasePackagingContractTests.cs | Existing release packaging contract debt; split by packaging artifact.
 tests/WpfDevTools.Tests.Unit/Release/ReleaseScriptTestHarness.cs | Existing release test harness debt retained for SignaturePolicyTests; split after harness cleanup quarantine work.

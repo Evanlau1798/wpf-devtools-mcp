@@ -5,7 +5,6 @@ scripts/installer/Installer.Registration.ps1 | Existing installer registration d
 scripts/online-installer.ps1 | Temporary user-requested exception; do not split in this remediation loop.
 scripts/tools/packaging/Publish-Release.ps1 | Existing release packaging debt; split after release workflow characterization.
 tests/WpfDevTools.Tests.Unit/Inspector/Handlers/EventHandlerTraceModeTests.cs | Existing trace-mode test debt; split by trace workflow.
-tests/WpfDevTools.Tests.Unit.Release/InstallerScripts/InstallerBootstrapTests.cs | Existing installer bootstrap test debt; split by bootstrap concern.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/ConnectToolTests.cs | Existing connect tool test debt; split by connect workflow branch.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/DrainEventsToolReplayTests.cs | Existing event replay test debt; split by replay retention scenario.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/TraceRoutedEventsToolReplayTests.cs | Existing trace replay test debt; split by trace replay scenario.

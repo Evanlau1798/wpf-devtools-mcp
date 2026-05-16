@@ -13,7 +13,6 @@ tests/WpfDevTools.Tests.Integration/TestSupport/ReleasePackagingTestHarness.cs |
 tests/WpfDevTools.Tests.TestApp/MainWindow.xaml | Existing WPF test app scenario surface; split into focused views after live UI coverage stabilization.
 tests/WpfDevTools.Tests.Unit/Inspector/Analyzers/EventAnalyzerTests.cs | Existing event analyzer test debt; split by routed-event mode.
 tests/WpfDevTools.Tests.Unit/Inspector/Handlers/EventHandlerTraceModeTests.cs | Existing trace-mode test debt; split by trace workflow.
-tests/WpfDevTools.Tests.Unit/Inspector/RequestDispatcherErrorPathTests.cs | Existing dispatcher error-path test debt; split by error category.
 tests/WpfDevTools.Tests.Unit.Release/InstallerScripts/InstallerBootstrapTests.cs | Existing installer bootstrap test debt; split by bootstrap concern.
 tests/WpfDevTools.Tests.Unit/McpServer/ToolCallHelperTests.cs | Existing MCP helper test debt; split by helper surface.
 tests/WpfDevTools.Tests.Unit/McpServer/Tools/ConnectToolConcurrencyTests.cs | Temporary connect cancellation/concurrency coverage growth; split by race scenario after remediation loop.

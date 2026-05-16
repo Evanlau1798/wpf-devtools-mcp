@@ -266,6 +266,13 @@ function Initialize-EphemeralGitRepository {
         'safe.directory',
         '*'
     )
+    Invoke-External 'Configure ephemeral git autocrlf' $gitPath @(
+        '-C',
+        $RepoRoot,
+        'config',
+        'core.autocrlf',
+        'false'
+    )
     Invoke-External 'Index copied sandbox repository files' $gitPath @(
         '-C',
         $RepoRoot,

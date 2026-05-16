@@ -221,6 +221,21 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
     }
 
     [Fact]
+    public void StartSandboxCi_ShouldDisableAutocrlfBeforeIndexingEphemeralRepository()
+    {
+        var runner = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "Start-SandboxCi.ps1");
+
+        var autocrlfIndex = runner.IndexOf("'Configure ephemeral git autocrlf'", StringComparison.Ordinal);
+        var addIndex = runner.IndexOf("'Index copied sandbox repository files'", StringComparison.Ordinal);
+
+        autocrlfIndex.Should().BeGreaterThan(0);
+        autocrlfIndex.Should().BeLessThan(addIndex,
+            "sandbox ephemeral Git indexing must not inherit host autocrlf settings that emit stderr warnings");
+        runner.Should().Contain("'core.autocrlf'");
+        runner.Should().Contain("'false'");
+    }
+
+    [Fact]
     public void SandboxCiScripts_ShouldStayUnderSingleFileLineLimit()
     {
         var scriptRoot = Path.Combine(RepoRoot, "scripts", "ci");

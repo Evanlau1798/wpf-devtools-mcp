@@ -1,5 +1,4 @@
 using System.IO.Pipes;
-using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
@@ -16,7 +15,7 @@ namespace WpfDevTools.Tests.Unit.Inspector;
 /// Tests for InspectorHost concurrency and shutdown issues
 /// </summary>
 [Collection("InspectorHostLifecycle")]
-public class InspectorHostConcurrencyTests : IDisposable
+public partial class InspectorHostConcurrencyTests : IDisposable
 {
     private static readonly TimeSpan SignalTimeout = TimeSpan.FromSeconds(10);
 
@@ -468,37 +467,4 @@ public class InspectorHostConcurrencyTests : IDisposable
         host.IsRunning.Should().BeFalse();
     }
 
-    private static void SetPrivateField<T>(InspectorHost host, string fieldName, T value)
-    {
-        var field = typeof(InspectorHost).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-        field.Should().NotBeNull();
-        field!.SetValue(host, value);
-    }
-
-    private static async Task<NamedPipeClientStream> ConnectToHostAsync(int processId)
-    {
-        const int maxAttempts = 5;
-
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            var client = new NamedPipeClientStream(
-                ".",
-                $"WpfDevTools_{processId}",
-                PipeDirection.InOut,
-                PipeOptions.Asynchronous);
-
-            try
-            {
-                await client.ConnectAsync(1_000);
-                return client;
-            }
-            catch (TimeoutException) when (attempt < maxAttempts)
-            {
-                client.Dispose();
-                await Task.Delay(100);
-            }
-        }
-
-        throw new TimeoutException($"Timed out waiting for InspectorHost pipe for synthetic process {processId}.");
-    }
 }

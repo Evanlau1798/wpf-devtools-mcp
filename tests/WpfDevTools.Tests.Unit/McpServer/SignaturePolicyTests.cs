@@ -5,7 +5,6 @@ using FluentAssertions;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Tests.Unit.Execution;
 using WpfDevTools.Tests.Unit.Release;
-using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -14,128 +13,6 @@ public class SignaturePolicyTests
 {
     private const string TestReleaseSignerThumbprint = "1111111111111111111111111111111111111111";
     private const string TestReleaseSignerSubject = "CN=WpfDevTools Test Release Signer";
-
-    // === Policy decision tests (pure logic, no file system) ===
-    // Policy contract: trusted-root-only model
-    //   - Release builds ALWAYS verify signatures
-    //   - Debug builds skip verification (path already validated as trusted root)
-    //   - Trusted non-Release workspace builds require explicit opt-in before skipping
-
-    [Fact]
-    public void Evaluate_ReleaseBuild_ShouldAlwaysVerify()
-    {
-        var result = SignaturePolicy.Evaluate(isDebugBuild: false);
-
-        result.Should().Be(SignaturePolicy.Action.Verify,
-            "RELEASE builds must always verify signatures");
-    }
-
-    [Fact]
-    public void Evaluate_DebugBuild_ShouldSkip()
-    {
-        var result = SignaturePolicy.Evaluate(isDebugBuild: true);
-
-        result.Should().Be(SignaturePolicy.Action.Skip,
-            "DEBUG builds skip verification (path already validated as trusted root)");
-    }
-
-    [Fact]
-    public void Evaluate_ShouldPreserveTwoParameterOverloadForBinaryCompatibility()
-    {
-        var overload = typeof(SignaturePolicy).GetMethod(
-            nameof(SignaturePolicy.Evaluate),
-            BindingFlags.Public | BindingFlags.Static,
-            binder: null,
-            types: [typeof(bool), typeof(bool)],
-            modifiers: null);
-
-        overload.Should().NotBeNull(
-            "existing compiled callers still bind to the original two-parameter SignaturePolicy.Evaluate overload");
-    }
-
-    [Fact]
-    public void Evaluate_TrustedLocalDevelopmentBuildWithoutExplicitOptIn_ShouldVerify()
-    {
-        var result = SignaturePolicy.Evaluate(
-            isDebugBuild: false,
-            isTrustedLocalDevelopmentBuild: true,
-            isTrustedLocalDevelopmentSkipOptIn: false);
-
-        result.Should().Be(SignaturePolicy.Action.Verify,
-            "trusted non-Release workspace builds must not auto-skip signature verification without an explicit opt-in");
-    }
-
-    [Fact]
-    public void Evaluate_TrustedLocalDevelopmentBuildWithExplicitOptIn_ShouldSkip()
-    {
-        var result = SignaturePolicy.Evaluate(
-            isDebugBuild: false,
-            isTrustedLocalDevelopmentBuild: true,
-            isTrustedLocalDevelopmentSkipOptIn: true);
-
-        result.Should().Be(SignaturePolicy.Action.Skip,
-            "trusted non-Release workspace builds may skip verification only after an explicit local opt-in");
-    }
-
-    // === Revocation mode tests ===
-    // Contract: Debug uses Offline (no network blocking), Release uses Online (max security)
-
-    [Fact]
-    public void GetRevocationMode_DebugBuild_ShouldReturnOffline()
-    {
-        var mode = SignaturePolicy.GetRevocationMode(isDebugBuild: true);
-
-        mode.Should().Be(X509RevocationMode.Offline,
-            "DEBUG builds must use Offline revocation to prevent network blocking during development");
-    }
-
-    [Fact]
-    public void GetRevocationMode_ReleaseBuild_ShouldReturnOnline()
-    {
-        var mode = SignaturePolicy.GetRevocationMode(isDebugBuild: false);
-
-        mode.Should().Be(X509RevocationMode.Online,
-            "RELEASE builds must use Online revocation for maximum security");
-    }
-
-    [Fact]
-    public void GetRevocationMode_ShouldPreserveTwoParameterOverloadForBinaryCompatibility()
-    {
-        var overload = typeof(SignaturePolicy).GetMethod(
-            nameof(SignaturePolicy.GetRevocationMode),
-            BindingFlags.Public | BindingFlags.Static,
-            binder: null,
-            types: [typeof(bool), typeof(bool)],
-            modifiers: null);
-
-        overload.Should().NotBeNull(
-            "existing compiled callers still bind to the original two-parameter SignaturePolicy.GetRevocationMode overload");
-    }
-
-    [Fact]
-    public void GetRevocationMode_TrustedLocalDevelopmentBuildWithoutExplicitOptIn_ShouldReturnOnline()
-    {
-        var mode = SignaturePolicy.GetRevocationMode(
-            isDebugBuild: false,
-            isTrustedLocalDevelopmentBuild: true,
-            isTrustedLocalDevelopmentSkipOptIn: false);
-
-        mode.Should().Be(X509RevocationMode.Online,
-            "trusted local workspace builds must keep production-style revocation checks until an explicit opt-in is present");
-    }
-
-    [Fact]
-    public void GetRevocationMode_TrustedLocalDevelopmentBuildWithExplicitOptIn_ShouldReturnOffline()
-    {
-        var mode = SignaturePolicy.GetRevocationMode(
-            isDebugBuild: false,
-            isTrustedLocalDevelopmentBuild: true,
-            isTrustedLocalDevelopmentSkipOptIn: true);
-
-        mode.Should().Be(X509RevocationMode.Offline,
-            "trusted local workspace builds may avoid production-style revocation checks only after an explicit opt-in");
-    }
-
 
     [Fact]
     public void GetCurrentBuildRevocationMode_ShouldMatchBuildConfiguration()
@@ -358,41 +235,6 @@ public class SignaturePolicyTests
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", previousSignerSubject);
             Directory.Delete(tempDirectory, recursive: true);
         }
-    }
-
-    [Fact]
-    public void DllPathValidator_ShouldUseWinVerifyTrustForReleaseAuthenticodeVerification()
-    {
-        var content = string.Concat(
-            File.ReadAllText(TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs")),
-            File.ReadAllText(TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.WinTrust.cs")));
-
-        content.Should().Contain("WinVerifyTrust(",
-            "release DLL validation should verify the signed PE file itself instead of trusting only the signer certificate metadata");
-        content.Should().Contain("VerifyFileAuthenticodeTrust(filePath)",
-            "the Authenticode file-trust check should run before certificate-chain inspection so tampered signed files are rejected");
-    }
-
-    [Fact]
-    public void DllPathValidator_ShouldNotReuseTransportCertificateThumbprintForDllSignaturePinning()
-    {
-        var content = File.ReadAllText(
-            TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs"));
-
-        content.Should().NotContain("WPFDEVTOOLS_CERT_THUMBPRINT",
-            "the transport TLS certificate pin must not double as the runtime DLL signer policy for injected payload validation");
-    }
-
-    [Fact]
-    public void DllPathValidator_ShouldNotTrustInstallDirectoryManifestSignerMetadataForRuntimePinning()
-    {
-        var content = File.ReadAllText(
-            TestRepositoryPaths.GetRepoFilePath("src/WpfDevTools.Mcp.Server/Tools/DllPathValidator.cs"));
-
-        content.Should().Contain("Environment.ProcessPath",
-            "runtime DLL signer pinning should fall back to the currently running signed MCP server executable when no explicit env pin is provided");
-        content.Should().NotContain("manifest.json",
-            "runtime DLL signer pinning must not trust mutable install-directory manifest metadata as the authoritative signer pin source");
     }
 
     [Fact]

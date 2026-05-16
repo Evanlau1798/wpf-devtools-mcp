@@ -315,6 +315,11 @@ $script:InstallerHelperSourcePaths = @(
     'scripts/installer/Installer.Registration.ps1'
     'scripts/installer/Installer.Verification.Commands.ps1'
     'scripts/installer/Installer.Verification.ps1'
+    'scripts/installer/Installer.Actions.Paths.ps1'
+    'scripts/installer/Installer.Actions.Payload.ps1'
+    'scripts/installer/Installer.Actions.Rollback.ps1'
+    'scripts/installer/Installer.Actions.State.ps1'
+    'scripts/installer/Installer.Actions.Core.ps1'
     'scripts/installer/Installer.Actions.ps1'
 )
 $script:InstallerHelperRepositoryRelativePath = 'scripts/installer'

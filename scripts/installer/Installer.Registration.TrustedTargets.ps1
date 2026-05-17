@@ -1,5 +1,8 @@
 function Test-InstallerRunningElevated {
-    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED)) {
+    $testModeVariable = Get-Variable -Name WpfDevToolsInstallerTestModeEnabled -Scope Script -ErrorAction SilentlyContinue
+    if ($null -ne $testModeVariable -and
+        [bool]$testModeVariable.Value -and
+        -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED)) {
         $overrideValue = ([string]$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED).Trim().ToLowerInvariant()
         return @('1', 'true', 'yes', 'on') -contains $overrideValue
     }
@@ -28,10 +31,24 @@ function Get-TrustedCliCommandPathEnvVarName {
     }
 }
 
-function Test-ElevatedCliCommandPathOverrideAllowed {
-    $rawValue = [Environment]::GetEnvironmentVariable('WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH')
-    return [string]::Equals($rawValue, '1', [System.StringComparison]::Ordinal) -or
-        [string]::Equals($rawValue, 'true', [System.StringComparison]::OrdinalIgnoreCase)
+function Test-InstallerFullyQualifiedPath {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    if (-not [System.IO.Path]::IsPathRooted($Path)) {
+        return $false
+    }
+
+    $root = [System.IO.Path]::GetPathRoot($Path)
+    if ([string]::IsNullOrWhiteSpace($root)) {
+        return $false
+    }
+
+    if ([string]::Equals($root, '\', [System.StringComparison]::Ordinal) -or
+        [string]::Equals($root, '/', [System.StringComparison]::Ordinal)) {
+        return $false
+    }
+
+    return -not ($root.Length -eq 2 -and $root[1] -eq ':')
 }
 
 function Resolve-TrustedCliCommandPath {
@@ -47,17 +64,23 @@ function Resolve-TrustedCliCommandPath {
         return $null
     }
 
-    if ((Test-InstallerRunningElevated) -and -not (Test-ElevatedCliCommandPathOverrideAllowed)) {
-        throw "$envVarName cannot be used while the installer is elevated unless WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH=1 is set in the elevated environment."
+    if (Test-InstallerRunningElevated) {
+        throw "$envVarName cannot be used while the installer is elevated. Complete the CLI step from an unelevated shell or register manually after install."
     }
 
-    if (-not [System.IO.Path]::IsPathRooted($configuredPath)) {
-        throw "$envVarName must be an absolute path when provided."
+    if (-not (Test-InstallerFullyQualifiedPath -Path $configuredPath)) {
+        throw "$envVarName must be a fully qualified absolute path when provided."
     }
 
-    $resolvedPath = [System.IO.Path]::GetFullPath($configuredPath)
-    if (-not (Test-Path -LiteralPath $resolvedPath)) {
-        throw "$envVarName points to a command path that does not exist: $resolvedPath"
+    $resolvedPath = if (Test-Path Function:\Assert-InstallerLocalPathTrusted) {
+        Assert-InstallerLocalPathTrusted -Path $configuredPath -RejectHardLinks
+    }
+    else {
+        [System.IO.Path]::GetFullPath($configuredPath)
+    }
+
+    if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
+        throw "$envVarName points to a command path that does not exist or is not a file: $resolvedPath"
     }
 
     return $resolvedPath
@@ -70,15 +93,7 @@ function Get-ElevatedCliCommandBlockMessage {
         [Parameter(Mandatory)] [string]$OperationName
     )
 
-    $envVarName = Get-TrustedCliCommandPathEnvVarName -Command $Command
-    $overrideHint = if (-not [string]::IsNullOrWhiteSpace($envVarName)) {
-        " or provide a trusted absolute path via $envVarName with WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH=1 in the elevated environment."
-    }
-    else {
-        "."
-    }
-
-    return "Automatic $ClientName $OperationName is blocked while the installer is elevated because resolving '$Command' from PATH is unsafe. Rerun the packaged launcher with WPFDEVTOOLS_SKIP_ELEVATION=1, complete the CLI step from an unelevated shell, or register manually after install$overrideHint"
+    return "Automatic $ClientName $OperationName is blocked while the installer is elevated because resolving '$Command' from PATH is unsafe. Rerun the packaged launcher with WPFDEVTOOLS_SKIP_ELEVATION=1, complete the CLI step from an unelevated shell, or register manually after install."
 }
 
 function Add-TrustedRegistrationTargetCandidate {

@@ -252,10 +252,10 @@ public sealed class InstallerUninstallBehaviorTests
 
             var command = string.Join(Environment.NewLine,
             [
-                "$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED='1'",
                 "$env:PATH='" + binDirectory.Replace("'", "''") + ";' + $env:PATH",
                 ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Registration.ps1").Replace("'", "''") + "'",
                 ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Verification.ps1").Replace("'", "''") + "'",
+                "function Test-InstallerRunningElevated { return $true }",
                 "$verification = Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true",
                 "$verification | ConvertTo-Json -Compress"
             ]);

@@ -16,7 +16,9 @@ public sealed class SetupWizardScriptTests
             var installRoot = Path.Combine(tempRoot, "install-root");
             var fakeBin = Path.Combine(tempRoot, "bin");
             var claudeLog = Path.Combine(tempRoot, "claude.log");
-            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "claude", claudeLog);
+            var claudeCommandPath = ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "claude", claudeLog);
+            var environment = CreateInstallerEnvironment(tempRoot, fakeBin);
+            environment["WPFDEVTOOLS_CLAUDE_COMMAND_PATH"] = claudeCommandPath;
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -29,7 +31,7 @@ public sealed class SetupWizardScriptTests
                     "-Force",
                     "-OutputJson"
                 },
-                CreateInstallerEnvironment(tempRoot, fakeBin));
+                environment);
 
             result.ExitCode.Should().Be(0, result.Stderr);
             File.ReadAllText(claudeLog)
@@ -59,7 +61,9 @@ public sealed class SetupWizardScriptTests
             var installRoot = Path.Combine(tempRoot, "install-root");
             var fakeBin = Path.Combine(tempRoot, "bin");
             var codexLog = Path.Combine(tempRoot, "codex.log");
-            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "codex", codexLog);
+            var codexCommandPath = ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "codex", codexLog);
+            var environment = CreateInstallerEnvironment(tempRoot, fakeBin);
+            environment["WPFDEVTOOLS_CODEX_COMMAND_PATH"] = codexCommandPath;
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
@@ -72,7 +76,7 @@ public sealed class SetupWizardScriptTests
                     "-Force",
                     "-OutputJson"
                 },
-                CreateInstallerEnvironment(tempRoot, fakeBin));
+                environment);
 
             result.ExitCode.Should().Be(0, result.Stderr);
             File.ReadAllText(codexLog)
@@ -123,7 +127,7 @@ public sealed class SetupWizardScriptTests
             result.ExitCode.Should().NotBe(0);
             File.Exists(codexLog).Should().BeFalse();
             result.Stderr.Should().Contain("WPFDEVTOOLS_SKIP_ELEVATION=1");
-            result.Stderr.Should().Contain("WPFDEVTOOLS_CODEX_COMMAND_PATH");
+            result.Stderr.Should().Contain("PATH is unsafe");
         }
         finally
         {

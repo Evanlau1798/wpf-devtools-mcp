@@ -24,9 +24,8 @@ internal per-process rate limiter cache 上限為 1000 筆；滿額時會淘汰 
 | `WPFDEVTOOLS_SKIP_ELEVATION` | 讓 `run.bat` 與 installer registration 留在目前 shell | CLI registration 必須保持 unelevated 時設為 `1` |
 | `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` | 用 certificate thumbprint pin 預期 release signer | verified release sidecars 不在相鄰位置時供 package-local install 使用 |
 | `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` | 用 certificate subject pin 預期 release signer | package-local install 可用來取代 thumbprint pin |
-| `WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH` | elevated 狀態下啟用可信任 CLI command path override | 必須設為 `1`，否則 elevated Claude/Codex path override 會被忽略 |
-| `WPFDEVTOOLS_CLAUDE_COMMAND_PATH` | 提供可信任的 Claude CLI 絕對路徑 | 只在上述 elevated opt-in 或可信任 unelevated shell 中使用 |
-| `WPFDEVTOOLS_CODEX_COMMAND_PATH` | 提供可信任的 Codex CLI 絕對路徑 | 只在上述 elevated opt-in 或可信任 unelevated shell 中使用 |
+| `WPFDEVTOOLS_CLAUDE_COMMAND_PATH` | 提供可信任的 Claude CLI 絕對路徑 | 只在可信任的 unelevated shell 中使用；elevated installer 會拒絕環境變數提供的 CLI command path |
+| `WPFDEVTOOLS_CODEX_COMMAND_PATH` | 提供可信任的 Codex CLI 絕對路徑 | 只在可信任的 unelevated shell 中使用；elevated installer 會拒絕環境變數提供的 CLI command path |
 
 除了已交付程式碼或 release-only maintainer guide 明確記錄的內容外，不應假設還有其他 `WPFDEVTOOLS_*` 變數存在。
 

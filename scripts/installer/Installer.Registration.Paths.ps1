@@ -9,8 +9,7 @@ if (-not (Get-Command Resolve-InstallerRegistrationAbsolutePath -ErrorAction Sil
     function Resolve-InstallerRegistrationAbsolutePath {
         param([Parameter(Mandatory)] [string]$Path)
 
-        $resolver = Get-Command Resolve-AbsolutePath -ErrorAction SilentlyContinue
-        if ($null -ne $resolver) {
+        if (Test-Path Function:\Resolve-AbsolutePath) {
             return (Resolve-AbsolutePath -Path $Path)
         }
 
@@ -80,7 +79,7 @@ if (-not (Get-Command Assert-InstallerLocalPathTrusted -ErrorAction SilentlyCont
                 throw "Installer path '$resolvedPath' is blocked because '$currentPath' is a reparse point."
             }
 
-            if ($RejectHardLinks -and -not $item.PSIsContainer -and (Get-Command Get-InstallerHardLinkCount -ErrorAction SilentlyContinue)) {
+            if ($RejectHardLinks -and -not $item.PSIsContainer -and (Test-Path Function:\Get-InstallerHardLinkCount)) {
                 $hardLinkCount = Get-InstallerHardLinkCount -Path $currentPath
                 if ($hardLinkCount -gt 1) {
                     throw "Installer path '$resolvedPath' is blocked because '$currentPath' has multiple hard links."

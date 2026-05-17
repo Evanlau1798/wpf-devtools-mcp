@@ -127,6 +127,10 @@ public class ReadmeDocumentationTests
             "README should explain the opt-out for the launcher elevation request");
         content.Should().Contain("requests elevation when the current shell is not already elevated",
             "README should describe the current conditional elevation behavior precisely");
+        content.Should().Contain("register manually after install",
+            "README should document the manual fallback when elevated CLI registration is blocked");
+        content.Should().NotContain("WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH",
+            "README must not document the removed elevated CLI path opt-in");
     }
 
     [Fact]

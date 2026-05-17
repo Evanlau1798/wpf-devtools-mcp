@@ -1863,7 +1863,8 @@ function Get-StandaloneFallbackRegistrationRecord {
     }
 }
 function Test-StandaloneInstallerRunningElevated {
-    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED)) {
+    if ($script:WpfDevToolsInstallerTestModeEnabled -and
+        -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED)) {
         $overrideValue = ([string]$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED).Trim().ToLowerInvariant()
         return @('1', 'true', 'yes', 'on') -contains $overrideValue
     }

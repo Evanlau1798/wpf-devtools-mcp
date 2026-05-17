@@ -73,7 +73,7 @@ Manual fallback:
 3. Keep the verified release zip plus `SHA256SUMS.txt` and `release-assets.json` in the extracted package's parent directory while you run the package-local installer, or explicitly provide `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`.
 4. Extract the archive.
 5. Run `run.bat` from the extracted package. It requests elevation when the current shell is not already elevated and launches the packaged `bin\install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
-  For `claude-code` and `codex`, elevated PATH-based CLI discovery is intentionally blocked. Use `WPFDEVTOOLS_SKIP_ELEVATION=1` for the CLI registration step, register manually after install, or provide a trusted absolute path with `WPFDEVTOOLS_CLAUDE_COMMAND_PATH` or `WPFDEVTOOLS_CODEX_COMMAND_PATH`.
+  For `claude-code` and `codex`, elevated CLI registration intentionally blocks PATH-based CLI discovery and environment-provided command paths. Use `WPFDEVTOOLS_SKIP_ELEVATION=1` for the CLI registration step, or register manually after install.
 6. Register or verify the installed executable in your MCP client.
 
 The installer writes ready-to-copy registration snippets under `<InstallRoot>\<arch>\client-registration\`. If you do not pass `-InstallRoot`, the installer reuses the last live install root when possible; otherwise it falls back to `%APPDATA%\WpfDevToolsMcp`.

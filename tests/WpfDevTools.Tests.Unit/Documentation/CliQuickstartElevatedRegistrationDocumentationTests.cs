@@ -12,18 +12,27 @@ public sealed class CliQuickstartElevatedRegistrationDocumentationTests
     [InlineData("docfx/quickstart/openai-codex.md")]
     [InlineData("docfx/zh-tw/quickstart/claude-code.md")]
     [InlineData("docfx/zh-tw/quickstart/openai-codex.md")]
-    public void CliQuickstarts_ShouldDocumentElevatedCommandPathOptIn(string relativePath)
+    public void CliQuickstarts_ShouldDocumentElevatedCliRegistrationAsManualOrUnelevatedOnly(string relativePath)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
         content.Should().Contain("WPFDEVTOOLS_SKIP_ELEVATION=1",
             $"{relativePath} should keep the safer unelevated registration workaround visible");
-        content.Should().Contain("WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH=1",
-            $"{relativePath} should document the explicit opt-in required before elevated CLI command path overrides are honored");
-        content.Should().Contain("WPFDEVTOOLS_CODEX_COMMAND_PATH",
-            $"{relativePath} should name the Codex CLI path override when elevated registration cannot be avoided");
-        content.Should().Contain("WPFDEVTOOLS_CLAUDE_COMMAND_PATH",
-            $"{relativePath} should name the Claude CLI path override when elevated registration cannot be avoided");
+        if (relativePath.Contains("/zh-tw/", StringComparison.Ordinal))
+        {
+            content.Should().Contain("手動註冊",
+                $"{relativePath} should document the manual fallback when elevated CLI registration is blocked");
+        }
+        else
+        {
+            content.Should().Contain("register manually after install",
+                $"{relativePath} should document the manual fallback when elevated CLI registration is blocked");
+        }
+
+        content.Should().NotContain("WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH",
+            $"{relativePath} must not document the removed elevated CLI path opt-in");
+        content.Should().NotContain("If elevated registration is unavoidable",
+            $"{relativePath} must not imply elevated CLI registration can be made safe with environment variables");
     }
 
     private static string GetRepoFilePath(string relativePath)

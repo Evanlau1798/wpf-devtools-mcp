@@ -25,7 +25,6 @@ public sealed class ConfigurationReferenceDocumentationTests
             "WPFDEVTOOLS_SKIP_ELEVATION",
             "WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
             "WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT",
-            "WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH",
             "WPFDEVTOOLS_CLAUDE_COMMAND_PATH",
             "WPFDEVTOOLS_CODEX_COMMAND_PATH"
         };
@@ -35,6 +34,9 @@ public sealed class ConfigurationReferenceDocumentationTests
             content.Should().Contain(variableName,
                 $"{relativePath} should be the complete public configuration reference for shipping WPFDEVTOOLS_* variables");
         }
+
+        content.Should().NotContain("WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH",
+            $"{relativePath} should not list the removed elevated CLI command path opt-in as a shipping variable");
     }
 
     [Fact]

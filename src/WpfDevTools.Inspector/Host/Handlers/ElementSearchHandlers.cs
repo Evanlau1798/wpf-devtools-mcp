@@ -33,7 +33,7 @@ public sealed class ElementSearchHandlers : IRequestHandler
     public Task<object> HandleAsync(string method, JsonElement? @params, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<object>(_elementSearchAnalyzer.FindElements(
+        return Task.FromResult<object>(_elementSearchAnalyzer.FindElementsWithTraversalBudget(
             rootElementId: ParameterHelpers.GetStringParam(@params, "elementId"),
             typeName: ParameterHelpers.GetStringParam(@params, "typeName"),
             typeNames: ParameterHelpers.GetStringArrayParam(@params, "typeNames"),
@@ -42,6 +42,7 @@ public sealed class ElementSearchHandlers : IRequestHandler
             propertyName: ParameterHelpers.GetStringParam(@params, "propertyName"),
             propertyValue: ParameterHelpers.GetStringParam(@params, "propertyValue"),
             maxResults: ParameterHelpers.GetIntParam(@params, "maxResults"),
+            maxTraversalNodes: ParameterHelpers.GetIntParam(@params, "maxTraversalNodes"),
             matchMode: ParameterHelpers.GetStringParam(@params, "matchMode")));
     }
 }

@@ -8,10 +8,11 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public sealed class ElementSearchContractTests
 {
     [Fact]
-    public void FindElements_ShouldExposeOptionalMatchModeAndTypeNames()
+    public void FindElements_ShouldExposeOptionalSearchParameters()
     {
         AssertOptionalParameter(nameof(TreeMcpTools.FindElements), "matchMode", typeof(string), null);
         AssertOptionalParameter(nameof(TreeMcpTools.FindElements), "typeNames", typeof(string[]), null);
+        AssertOptionalParameter(nameof(TreeMcpTools.FindElements), "maxTraversalNodes", typeof(int?), null);
     }
 
     private static void AssertOptionalParameter(string methodName, string parameterName, Type parameterType, object? defaultValue)

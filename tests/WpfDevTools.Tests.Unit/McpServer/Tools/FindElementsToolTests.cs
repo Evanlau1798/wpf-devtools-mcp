@@ -28,7 +28,7 @@ public class FindElementsToolTests
     }
 
     [Fact]
-    public async Task Execute_WithTypeNamesAndMatchMode_ShouldForwardParametersToInspector()
+    public async Task Execute_WithSearchOptions_ShouldForwardParametersToInspector()
     {
         const int processId = 53002;
         using var connected = await CreateConnectedSessionAsync(
@@ -40,6 +40,7 @@ public class FindElementsToolTests
 
                 var payload = request.Params!.Value;
                 payload.GetProperty("matchMode").GetString().Should().Be("contains");
+                payload.GetProperty("maxTraversalNodes").GetInt32().Should().Be(75);
                 payload.GetProperty("typeNames").EnumerateArray()
                     .Select(item => item.GetString())
                     .Should().Equal("TextBox", "ComboBox");
@@ -52,7 +53,8 @@ public class FindElementsToolTests
         {
             processId,
             typeNames = new[] { "TextBox", "ComboBox" },
-            matchMode = "contains"
+            matchMode = "contains",
+            maxTraversalNodes = 75
         }), CancellationToken.None);
 
         var json = JsonSerializer.SerializeToElement(result);

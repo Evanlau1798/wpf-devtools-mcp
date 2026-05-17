@@ -1,7 +1,9 @@
+using System.Collections.Concurrent;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -10,15 +12,31 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
 {
+    internal const int MaxSearchPropertyNameLength = 256;
+    internal const int MaxDependencyPropertyCacheEntries = 512;
+
     private readonly ElementFinder _elementFinder;
+    private readonly Func<DependencyObject, string, DependencyProperty?> _dependencyPropertyResolver;
+    private readonly ConcurrentDictionary<(Type ElementType, string PropertyName), DependencyPropertyLookupResult> _dependencyPropertyCache = new();
+    private readonly ConcurrentQueue<(Type ElementType, string PropertyName)> _dependencyPropertyCacheInsertionOrder = new();
 
     /// <summary>
     /// Initializes a new analyzer using the shared element finder/cache.
     /// </summary>
     public ElementSearchAnalyzer(ElementFinder elementFinder)
+        : this(elementFinder, static (element, propertyName) => FindDependencyProperty(element, propertyName))
+    {
+    }
+
+    internal ElementSearchAnalyzer(
+        ElementFinder elementFinder,
+        Func<DependencyObject, string, DependencyProperty?> dependencyPropertyResolver)
     {
         _elementFinder = elementFinder;
+        _dependencyPropertyResolver = dependencyPropertyResolver ?? throw new ArgumentNullException(nameof(dependencyPropertyResolver));
     }
+
+    internal int DependencyPropertyCacheEntryCount => _dependencyPropertyCache.Count;
 
     /// <summary>
     /// Finds matching elements under the root window or the specified root element.
@@ -33,6 +51,56 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         string? propertyValue = null,
         int? maxResults = null,
         string? matchMode = null)
+    {
+        return FindElementsCore(
+            rootElementId,
+            typeName,
+            typeNames,
+            elementName,
+            automationId,
+            propertyName,
+            propertyValue,
+            maxResults,
+            maxTraversalNodes: null,
+            matchMode);
+    }
+
+    internal object FindElementsWithTraversalBudget(
+        string? rootElementId = null,
+        string? typeName = null,
+        string[]? typeNames = null,
+        string? elementName = null,
+        string? automationId = null,
+        string? propertyName = null,
+        string? propertyValue = null,
+        int? maxResults = null,
+        int? maxTraversalNodes = null,
+        string? matchMode = null)
+    {
+        return FindElementsCore(
+            rootElementId,
+            typeName,
+            typeNames,
+            elementName,
+            automationId,
+            propertyName,
+            propertyValue,
+            maxResults,
+            maxTraversalNodes,
+            matchMode);
+    }
+
+    private object FindElementsCore(
+        string? rootElementId,
+        string? typeName,
+        string[]? typeNames,
+        string? elementName,
+        string? automationId,
+        string? propertyName,
+        string? propertyValue,
+        int? maxResults,
+        int? maxTraversalNodes,
+        string? matchMode)
     {
         var root = rootElementId == null
             ? ResolveRootElement()
@@ -55,6 +123,18 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
                 return ToolErrorFactory.InvalidArgument("maxResults must be a positive integer.");
             }
 
+            if (maxTraversalNodes is <= 0)
+            {
+                return ToolErrorFactory.InvalidArgument("maxTraversalNodes must be a positive integer.");
+            }
+
+            var traversalLimit = ResolveTraversalLimit(maxTraversalNodes);
+
+            if (propertyName?.Length > MaxSearchPropertyNameLength)
+            {
+                return ToolErrorFactory.InvalidArgument($"propertyName must be {MaxSearchPropertyNameLength} characters or fewer.");
+            }
+
             if (!string.IsNullOrWhiteSpace(typeName) && typeNames is { Length: > 0 })
             {
                 return ToolErrorFactory.InvalidArgument(
@@ -73,9 +153,15 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
 
             var results = new List<object>();
             var truncated = false;
+            var traversalNodeCount = 0;
+            var traversalTruncated = false;
+            string? truncationReason = null;
 
-            foreach (var current in DependencyObjectTraversal.EnumerateDescendantsAndSelf(resolvedRoot))
+            var traversal = DependencyObjectTraversal.EnumerateDescendantsAndSelfWithMetadata(resolvedRoot, maxNodes: traversalLimit);
+            foreach (var current in traversal)
             {
+                traversalNodeCount++;
+
                 if (!Matches(current, typeName, typeNames, elementName, automationId, propertyName, propertyValue, resolvedMatchMode, out var matchedValue))
                 {
                     continue;
@@ -94,8 +180,16 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
                 if (results.Count >= limit)
                 {
                     truncated = true;
+                    truncationReason = "maxResults";
                     break;
                 }
+            }
+
+            if (!truncated && traversal.Truncated)
+            {
+                truncated = true;
+                traversalTruncated = true;
+                truncationReason = "maxTraversalNodes";
             }
 
             return new
@@ -103,12 +197,16 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
                 success = true,
                 resultCount = results.Count,
                 truncated,
+                traversalNodeCount,
+                maxTraversalNodes = traversalLimit,
+                traversalTruncated,
+                truncationReason,
                 results
             };
         });
     }
 
-    private static bool Matches(
+    private bool Matches(
         DependencyObject element,
         string? typeName,
         string[]? typeNames,
@@ -188,9 +286,9 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
             : string.Equals(actualValue, expected, StringComparison.Ordinal);
     }
 
-    private static object? TryGetPropertyValue(DependencyObject element, string propertyName)
+    private object? TryGetPropertyValue(DependencyObject element, string propertyName)
     {
-        var dependencyProperty = FindDependencyProperty(element, propertyName);
+        var dependencyProperty = FindCachedDependencyProperty(element, propertyName);
         if (dependencyProperty != null)
         {
             return element.GetValue(dependencyProperty);
@@ -210,6 +308,39 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         return null;
     }
 
+    private DependencyProperty? FindCachedDependencyProperty(DependencyObject element, string propertyName)
+    {
+        var key = (element.GetType(), propertyName);
+        if (_dependencyPropertyCache.TryGetValue(key, out var cachedResult))
+        {
+            return cachedResult.Property;
+        }
+
+        var result = new DependencyPropertyLookupResult(_dependencyPropertyResolver(element, propertyName));
+        if (_dependencyPropertyCache.TryAdd(key, result))
+        {
+            _dependencyPropertyCacheInsertionOrder.Enqueue(key);
+            TrimDependencyPropertyCache();
+        }
+
+        return result.Property;
+    }
+
+    private void TrimDependencyPropertyCache()
+    {
+        while (_dependencyPropertyCache.Count > MaxDependencyPropertyCacheEntries &&
+               _dependencyPropertyCacheInsertionOrder.TryDequeue(out var oldestKey))
+        {
+            _dependencyPropertyCache.TryRemove(oldestKey, out _);
+        }
+    }
+
+    private static int ResolveTraversalLimit(int? maxTraversalNodes)
+    {
+        var resolved = maxTraversalNodes ?? TreeTraversalDefaults.DefaultMaxNodes;
+        return Math.Max(1, Math.Min(resolved, TreeTraversalDefaults.MaxNodesLimit));
+    }
+
     private DependencyObject? ResolveRootElement()
     {
         var root = _elementFinder.GetRootElement();
@@ -225,5 +356,15 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         }
 
         return null;
+    }
+
+    private readonly struct DependencyPropertyLookupResult
+    {
+        public DependencyPropertyLookupResult(DependencyProperty? property)
+        {
+            Property = property;
+        }
+
+        public DependencyProperty? Property { get; }
     }
 }

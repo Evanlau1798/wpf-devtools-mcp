@@ -112,6 +112,19 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/tree-and-xaml.md")]
+    [InlineData("docfx/zh-tw/reference/tools/tree-and-xaml.md")]
+    public void TreeReferencePages_ShouldDocumentFindElementsTraversalCaps(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("find_elements");
+        content.Should().Contain("maxTraversalNodes");
+        content.Should().Contain("traversalNodeCount");
+        content.Should().Contain("traversalTruncated");
+    }
+
+    [Theory]
     [InlineData("docfx/reference/tools/interaction-events-layout.md")]
     [InlineData("docfx/zh-tw/reference/tools/interaction-events-layout.md")]
     public void InteractionReferencePages_ShouldDocumentFocusAndStateTools(string relativePath)

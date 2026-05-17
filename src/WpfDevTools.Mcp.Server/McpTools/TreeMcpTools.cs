@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
@@ -270,7 +271,7 @@ public static class TreeMcpTools
     [Description(
         "Use this tool to search a running WPF tree for matching runtime elements without expanding the full visual tree first.\n\n" +
         TreeMetadata + "[Tree] Search visual and logical descendants from the chosen root using exact or contains filters. " +
-        "Results are bounded by maxResults and optimized for follow-up tool calls.\n\n" +
+        "Results are bounded by maxResults and traversal is bounded by maxTraversalNodes to protect the target UI thread.\n\n" +
         "USE WHEN: You need a compact lookup entry point before calling get_visual_tree, get_layout_info, get_bindings, or other element-scoped tools.\n" +
         "DO NOT USE: As a full query language. This wave supports exact-match and case-insensitive contains filters only.\n\n" +
         "SUPPORTED FILTERS:\n" +
@@ -285,12 +286,17 @@ public static class TreeMcpTools
         "  success: boolean,\n" +
         "  resultCount: integer,\n" +
         "  truncated: boolean,\n" +
+        "  traversalNodeCount: integer,\n" +
+        "  maxTraversalNodes: integer,\n" +
+        "  traversalTruncated: boolean,\n" +
+        "  truncationReason?: 'maxResults'|'maxTraversalNodes',\n" +
         "  results: [{ elementId, elementType, elementName, automationId, matchedProperty, matchedValue }]\n" +
         "}\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify the root elementId before retrying\n" +
-        "- \"maxResults\" -> must be a positive integer\n\n" +
+        "- \"maxResults\" -> must be a positive integer\n" +
+        "- \"maxTraversalNodes\" -> must be a positive integer\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345, typeName: \"Button\", maxResults: 10 }\n" +
         "- { processId: 12345, elementName: \"SaveButton\" }\n" +
@@ -303,9 +309,12 @@ public static class TreeMcpTools
         [Description("Optional WPF type name filters for OR-style matching. Use either typeName or typeNames, not both.")] string[]? typeNames = null,
         [Description("Optional exact FrameworkElement.Name filter.")] string? elementName = null,
         [Description("Optional exact AutomationProperties.AutomationId filter.")] string? automationId = null,
-        [Description("Optional exact property name filter, such as Text or Content.")] string? propertyName = null,
+        [StringLength(256)]
+        [Description("Optional exact property name filter, such as Text or Content. Maximum length: 256 characters.")] string? propertyName = null,
         [Description("Optional exact property value filter used with propertyName.")] string? propertyValue = null,
         [Description("Optional maximum number of results to return. Default: 20.")] int? maxResults = null,
+        [Range(1, TreeTraversalDefaults.MaxNodesLimit)]
+        [Description("Optional maximum number of elements to inspect before truncating traversal. Default: 1000; capped at 10000.")] int? maxTraversalNodes = null,
         [Description("Optional match mode: 'exact' (default) or 'contains' for case-insensitive substring matching.")] string? matchMode = null,
         CancellationToken cancellationToken = default)
     {
@@ -319,6 +328,7 @@ public static class TreeMcpTools
             ("propertyName", propertyName),
             ("propertyValue", propertyValue),
             ("maxResults", maxResults),
+            ("maxTraversalNodes", maxTraversalNodes),
             ("matchMode", matchMode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(

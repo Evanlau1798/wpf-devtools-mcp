@@ -398,6 +398,12 @@ public class McpToolAttributeTests
         AssertIntegerConstraint(logicalTreeSchema, "maxNodes", minimum: 1, maximum: 10000);
         AssertIntegerConstraint(logicalTreeSchema, "maxChildrenPerNode", minimum: 1, maximum: 1000);
 
+        var findElementsSchema = CreateInputSchema(
+            typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools),
+            nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.FindElements));
+        AssertIntegerConstraint(findElementsSchema, "maxTraversalNodes", minimum: 1, maximum: 10000);
+        AssertStringMaxLength(findElementsSchema, "propertyName", 256);
+
         var uiSummarySchema = CreateInputSchema(
             typeof(WpfDevTools.Mcp.Server.McpTools.SceneDiagnosticsMcpTools),
             nameof(WpfDevTools.Mcp.Server.McpTools.SceneDiagnosticsMcpTools.GetUiSummary));
@@ -466,6 +472,13 @@ public class McpToolAttributeTests
 
     private static JsonElement GetSchemaProperty(JsonElement schema, string parameterName)
         => schema.GetProperty("properties").GetProperty(parameterName);
+
+    private static void AssertStringMaxLength(JsonElement schema, string parameterName, int maxLength)
+    {
+        var parameter = GetSchemaProperty(schema, parameterName);
+        AssertSchemaTypeContains(parameter.GetProperty("type"), "string");
+        parameter.GetProperty("maxLength").GetInt32().Should().Be(maxLength);
+    }
 
     private static void AssertNullableIntSchemaKeyword(JsonElement property, string keyword, int? expectedValue)
     {

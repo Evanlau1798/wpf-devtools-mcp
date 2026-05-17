@@ -28,6 +28,8 @@
 
 `get_template_tree` uses the same default node and fan-out caps. When a tree is capped, inspect `returnedNodeCount`, `omittedNodeCount`, `truncated`, and per-node `omittedChildCount` before deciding whether to request a narrower scope or higher caps.
 
+`find_elements` also applies a traversal cap before evaluating matches: `maxTraversalNodes` defaults to `1000` and is capped at `10000`. When a search returns `traversalTruncated=true`, inspect `traversalNodeCount` and narrow the root or filters before raising the traversal cap.
+
 ## Common pitfall
 
 Do not assume a named control in XAML is present where you expect in the visual tree after templating. Always inspect the live tree.

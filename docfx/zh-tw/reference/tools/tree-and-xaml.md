@@ -28,6 +28,8 @@
 
 `get_template_tree` 使用同樣的預設 node 與 fan-out caps。若回傳被截斷，先檢查 `returnedNodeCount`、`omittedNodeCount`、`truncated` 以及節點上的 `omittedChildCount`，再決定要縮小範圍或提高 caps。
 
+`find_elements` 也會在評估 match 前套用 traversal cap：`maxTraversalNodes` 預設為 `1000`，最高接受 `10000`。若搜尋回傳 `traversalTruncated=true`，先檢查 `traversalNodeCount`，並優先縮小 root 或 filters，再考慮提高 traversal cap。
+
 ## 常見陷阱
 
 不要假設 XAML 中有名字的控制項，一定會出現在你直覺以為的位置。遇到 template、re-parenting 或 secondary window 時，請優先觀察 live tree，必要時先用 `find_elements` 再縮小範圍。

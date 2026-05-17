@@ -145,6 +145,175 @@ public sealed class ElementSearchAnalyzerTests
     }
 
     [StaFact]
+    public void FindElements_WithMaxTraversalNodes_ShouldTruncateBeforeScanningFullSubtree()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new ElementSearchAnalyzer(finder);
+        var window = CreateWindow();
+        try
+        {
+            var panel = new StackPanel();
+            for (var i = 0; i < 8; i++)
+            {
+                panel.Children.Add(new Button { Name = $"Button{i}" });
+            }
+
+            window.Content = panel;
+            window.Show();
+            window.UpdateLayout();
+            var rootId = finder.GenerateElementId(panel);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.FindElementsWithTraversalBudget(
+                rootElementId: rootId,
+                propertyName: "DefinitelyMissing",
+                maxTraversalNodes: 3));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue(JsonSerializer.Serialize(result));
+            result.GetProperty("resultCount").GetInt32().Should().Be(0);
+            result.GetProperty("truncated").GetBoolean().Should().BeTrue();
+            result.GetProperty("traversalTruncated").GetBoolean().Should().BeTrue();
+            result.GetProperty("traversalNodeCount").GetInt32().Should().Be(3);
+            result.GetProperty("maxTraversalNodes").GetInt32().Should().Be(3);
+            result.GetProperty("truncationReason").GetString().Should().Be("maxTraversalNodes");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void FindElements_WithRepeatedMissingDependencyProperty_ShouldCacheNegativeLookupByType()
+    {
+        var finder = new ElementFinder();
+        var dependencyPropertyLookupCount = 0;
+        var analyzer = new ElementSearchAnalyzer(
+            finder,
+            dependencyPropertyResolver: (_, _) =>
+            {
+                dependencyPropertyLookupCount++;
+                return null;
+            });
+        var window = CreateWindow();
+        try
+        {
+            window.Content = new StackPanel
+            {
+                Children =
+                {
+                    new Button { Name = "First" },
+                    new Button { Name = "Second" },
+                    new Button { Name = "Third" }
+                }
+            };
+            window.Show();
+            window.UpdateLayout();
+            var windowId = finder.GenerateElementId(window);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.FindElements(
+                rootElementId: windowId,
+                typeName: "Button",
+                propertyName: "DefinitelyMissing"));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue(JsonSerializer.Serialize(result));
+            result.GetProperty("resultCount").GetInt32().Should().Be(0);
+            dependencyPropertyLookupCount.Should().Be(1);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void FindElements_WithManyUniqueMissingDependencyProperties_ShouldBoundLookupCache()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new ElementSearchAnalyzer(
+            finder,
+            dependencyPropertyResolver: (_, _) => null);
+        var button = new Button { Name = "CacheProbe" };
+        var window = CreateWindow();
+        try
+        {
+            window.Content = button;
+            window.Show();
+            window.UpdateLayout();
+            var buttonId = finder.GenerateElementId(button);
+
+            for (var i = 0; i < ElementSearchAnalyzer.MaxDependencyPropertyCacheEntries + 20; i++)
+            {
+                _ = analyzer.FindElements(
+                    rootElementId: buttonId,
+                    propertyName: $"Missing{i}");
+            }
+
+            analyzer.DependencyPropertyCacheEntryCount.Should()
+                .BeLessThanOrEqualTo(ElementSearchAnalyzer.MaxDependencyPropertyCacheEntries);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void FindElements_WithOverlongPropertyName_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new ElementSearchAnalyzer(finder);
+        var window = CreateWindow();
+        try
+        {
+            window.Content = new Button { Name = "SaveButton" };
+            window.Show();
+            window.UpdateLayout();
+            var windowId = finder.GenerateElementId(window);
+            var propertyName = new string('A', ElementSearchAnalyzer.MaxSearchPropertyNameLength + 1);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.FindElements(
+                rootElementId: windowId,
+                propertyName: propertyName));
+
+            result.GetProperty("success").GetBoolean().Should().BeFalse();
+            result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+            result.GetProperty("error").GetString().Should().Contain("propertyName");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void FindElements_WithNonPositiveMaxTraversalNodes_ShouldReturnStructuredInvalidArgument()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new ElementSearchAnalyzer(finder);
+        var window = CreateWindow();
+        try
+        {
+            window.Content = new Button { Name = "SaveButton" };
+            window.Show();
+            window.UpdateLayout();
+            var windowId = finder.GenerateElementId(window);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.FindElementsWithTraversalBudget(
+                rootElementId: windowId,
+                typeName: "Button",
+                maxTraversalNodes: 0));
+
+            result.GetProperty("success").GetBoolean().Should().BeFalse();
+            result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+            result.GetProperty("error").GetString().Should().Contain("maxTraversalNodes");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
     public void FindElements_WithContainsMatchMode_ShouldUseCaseInsensitiveSubstringMatching()
     {
         var finder = new ElementFinder();

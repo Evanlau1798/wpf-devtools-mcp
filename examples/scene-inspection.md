@@ -135,6 +135,15 @@ failing.
 You want to understand how ViewModels are structured and what commands are
 available.
 
+### Local prerequisites
+
+Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target executable's
+exact absolute path before `connect`. This workflow inspects runtime ViewModel
+state and invokes a command, so enable
+`WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` for `get_viewmodel` and
+`get_commands`, and enable both `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` and
+`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` for `execute_command`.
+
 ### Solution
 
 ```json

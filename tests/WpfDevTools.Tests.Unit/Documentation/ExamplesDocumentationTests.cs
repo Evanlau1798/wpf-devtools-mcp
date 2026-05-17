@@ -76,6 +76,99 @@ public sealed class ExamplesDocumentationTests
         }
     }
 
+    [Theory]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"click_element\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"element_screenshot\"", "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS", null)]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"set_dp_value\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"restore_state_snapshot\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
+    [InlineData("examples/scene-inspection.md", "\"name\": \"get_viewmodel\"", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION", null)]
+    [InlineData("examples/scene-inspection.md", "\"name\": \"get_commands\"", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION", null)]
+    [InlineData("examples/scene-inspection.md", "\"name\": \"execute_command\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION")]
+    [InlineData("docfx/guides/ai-agent-guide.md", "`click_element`", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
+    [InlineData("docfx/guides/ai-agent-guide.md", "`element_screenshot`", "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS", null)]
+    [InlineData("docfx/guides/ai-agent-guide.md", "`get_viewmodel`", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION", null)]
+    [InlineData("docfx/guides/ai-agent-guide.md", "`execute_command`", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION")]
+    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md", "`click_element`", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
+    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md", "`element_screenshot`", "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS", null)]
+    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md", "`get_viewmodel`", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION", null)]
+    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md", "`execute_command`", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION")]
+    public void HighRiskToolExamples_ShouldDocumentLocalPolicyGatesNearUsage(
+        string relativePath,
+        string marker,
+        string expectedGate,
+        string? secondExpectedGate)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var markerIndex = content.IndexOf(marker, StringComparison.Ordinal);
+
+        markerIndex.Should().BeGreaterThanOrEqualTo(0, $"{relativePath} should contain {marker}");
+        var contextStart = Math.Max(0, markerIndex - 2_500);
+        var context = content.Substring(contextStart, markerIndex - contextStart);
+
+        context.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+            $"{relativePath} should keep the connect allowlist prerequisite close to {marker}");
+        context.Should().Contain(expectedGate,
+            $"{relativePath} should keep the local policy gate for {marker} close to the example that uses it");
+        if (!string.IsNullOrWhiteSpace(secondExpectedGate))
+        {
+            context.Should().Contain(secondExpectedGate,
+                $"{relativePath} should keep every local policy gate for {marker} close to the example that uses it");
+        }
+    }
+
+    [Theory]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"set_dp_value\"", "`set_dp_value`")]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"restore_state_snapshot\"", "`restore_state_snapshot`")]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"click_element\"", "`click_element`")]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"element_screenshot\"", "`element_screenshot`")]
+    [InlineData("examples/scene-inspection.md", "\"name\": \"get_viewmodel\"", "`get_viewmodel`")]
+    [InlineData("examples/scene-inspection.md", "\"name\": \"get_commands\"", "`get_commands`")]
+    [InlineData("examples/scene-inspection.md", "\"name\": \"execute_command\"", "`execute_command`")]
+    public void HighRiskJsonExamples_ShouldNameEachGatedToolInLocalPrerequisites(
+        string relativePath,
+        string marker,
+        string expectedToolReference)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var markerIndex = content.IndexOf(marker, StringComparison.Ordinal);
+
+        markerIndex.Should().BeGreaterThanOrEqualTo(0, $"{relativePath} should contain {marker}");
+        var contextStart = Math.Max(0, markerIndex - 2_500);
+        var context = content.Substring(contextStart, markerIndex - contextStart);
+
+        context.Should().Contain("### Local prerequisites",
+            $"{relativePath} should keep a local prerequisites block close to {marker}");
+        context.Should().Contain(expectedToolReference,
+            $"{relativePath} should explicitly name {expectedToolReference} in the local prerequisites near the example");
+    }
+
+    [Theory]
+    [InlineData("docfx/guides/ai-agent-guide.md", "click it", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS")]
+    [InlineData("docfx/guides/ai-agent-guide.md", "ordered batch_mutate sequence", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS")]
+    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md", "確認 command metadata、點擊", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS")]
+    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md", "用 `batch_mutate` 做有順序", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS")]
+    public void AiGuidePromptBlocks_ShouldDocumentRequiredLocalPolicyGatesInsidePrompt(
+        string relativePath,
+        string marker,
+        string expectedGate)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var markerIndex = content.IndexOf(marker, StringComparison.Ordinal);
+
+        markerIndex.Should().BeGreaterThanOrEqualTo(0, $"{relativePath} should contain {marker}");
+        var fenceStart = content.LastIndexOf("```text", markerIndex, StringComparison.Ordinal);
+        var fenceEnd = content.IndexOf("```", markerIndex, StringComparison.Ordinal);
+
+        fenceStart.Should().BeGreaterThanOrEqualTo(0, $"{relativePath} should put {marker} inside a text prompt block");
+        fenceEnd.Should().BeGreaterThan(markerIndex, $"{relativePath} should close the prompt block containing {marker}");
+        var prompt = content.Substring(fenceStart, fenceEnd - fenceStart);
+
+        prompt.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+            $"{relativePath} prompt containing {marker} should keep the allowlist prerequisite inline");
+        prompt.Should().Contain(expectedGate,
+            $"{relativePath} prompt containing {marker} should keep the required local policy gate inline");
+    }
+
     [Fact]
     public void ExamplesMarkdown_ShouldUseParserSafeFencedCodeBlocks()
     {

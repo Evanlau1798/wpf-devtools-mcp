@@ -45,6 +45,16 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 4. 若 snapshot 仍 active，優先呼叫 `get_state_diff`
 5. 如果需要保持 app 不變，再呼叫 `restore_state_snapshot`
 
+使用高風險工具的 prompt 或範例附近，必須明確確認 local policy gates。
+`connect` 前，`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 必須包含 target executable
+的 exact absolute path。此外，`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`
+會 gate `click_element`、`set_dp_value`、`restore_state_snapshot`、
+`batch_mutate` 等 mutation 工具；`WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` 會
+gate `element_screenshot`；`WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` 會
+gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
+`WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` 與
+`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`。
+
 常見的 mutation 工具包含：
 
 - `set_dp_value`
@@ -140,13 +150,13 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 ### 安全互動提示詞
 
 ```text
-先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，對目標表單呼叫 `get_form_summary` 或 `get_interaction_readiness`，再找到 Save 按鈕、確認 command metadata、點擊、視需要排空 buffered runtime event，最後回報 `get_state_diff` 結果。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path，且點擊前已設定 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，對目標表單呼叫 `get_form_summary` 或 `get_interaction_readiness`，再找到 Save 按鈕、確認 command metadata、點擊、視需要排空 buffered runtime event，最後回報 `get_state_diff` 結果。
 ```
 
 ### 可回復 mutation 提示詞
 
 ```text
-先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線並建立 state snapshot，找到目標控制項後執行一次 UI mutation，或用 `batch_mutate` 做有順序的 mutation 序列，再用 `get_state_diff` 驗證結果，最後在結束前還原 snapshot。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path，且 mutation 前已設定 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線並建立 state snapshot，找到目標控制項後執行一次 UI mutation，或用 `batch_mutate` 做有順序的 mutation 序列，再用 `get_state_diff` 驗證結果，最後在結束前還原 snapshot。
 ```
 
 ## 常見反模式

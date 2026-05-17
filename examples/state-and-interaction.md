@@ -11,6 +11,13 @@ send each request one at a time unless your client explicitly supports batching.
 You need to safely modify UI state and be able to revert changes if something
 goes wrong.
 
+### Local prerequisites
+
+Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target executable's
+exact absolute path before `connect`. This workflow mutates live state and
+restores it, so enable `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` for
+`set_dp_value` and `restore_state_snapshot`.
+
 ### Solution
 
 ```json
@@ -78,6 +85,14 @@ goes wrong.
 ### Scenario
 
 You want to automate UI testing by simulating user interactions.
+
+### Local prerequisites
+
+Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target executable's
+exact absolute path before `connect`. This workflow also uses mutation and
+screenshot tools, so enable `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` for
+`click_element`, `set_dp_value`, and `simulate_keyboard`, and enable
+`WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` for `element_screenshot`.
 
 ### Solution
 

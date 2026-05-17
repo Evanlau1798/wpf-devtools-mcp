@@ -45,6 +45,17 @@ For stateful validation, prefer this sequence:
 4. If the snapshot is still active, call `get_state_diff`
 5. `restore_state_snapshot` if the app should be left unchanged
 
+Local policy gates must be confirmed close to any prompt or example that uses
+high-risk tools. `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must include the target
+executable's exact absolute path before `connect`. In addition,
+`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` gates mutation tools such as
+`click_element`, `set_dp_value`, `restore_state_snapshot`, and `batch_mutate`;
+`WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` gates `element_screenshot`; and
+`WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` gates `get_viewmodel` and
+`get_commands`. `execute_command` requires both
+`WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` and
+`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`.
+
 Examples of mutation tools:
 
 - `set_dp_value`
@@ -140,13 +151,13 @@ Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact abso
 ### Safe interaction prompt
 
 ```text
-Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact absolute executable path; unset or malformed values fail closed before connect() attaches. Then connect with connect(), get_form_summary or get_interaction_readiness for the target form, find the Save button, confirm its command metadata, click it, drain buffered runtime events if present, and report the state diff.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact absolute executable path and WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true is set before clicking; unset or malformed values fail closed before connect() attaches. Then connect with connect(), get_form_summary or get_interaction_readiness for the target form, find the Save button, confirm its command metadata, click it, drain buffered runtime events if present, and report the state diff.
 ```
 
 ### Snapshot-safe mutation prompt
 
 ```text
-Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact absolute executable path; unset or malformed values fail closed before connect() attaches. Then connect with connect(), capture a state snapshot, locate the target control, apply one UI mutation or an ordered batch_mutate sequence, verify the result with get_state_diff, and restore the snapshot before finishing.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact absolute executable path and WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true is set before mutation; unset or malformed values fail closed before connect() attaches. Then connect with connect(), capture a state snapshot, locate the target control, apply one UI mutation or an ordered batch_mutate sequence, verify the result with get_state_diff, and restore the snapshot before finishing.
 ```
 
 ## Anti-patterns

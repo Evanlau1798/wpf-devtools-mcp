@@ -61,6 +61,29 @@ public sealed class SigningScriptTests
     }
 
     [Fact]
+    public void SigningScriptTests_ShouldCleanupTestCreatedCertificatesFromFinally()
+    {
+        var content = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("tests/WpfDevTools.Tests.Unit.Release/Release/SigningScriptTests.cs"));
+
+        foreach (var methodName in new[]
+                 {
+                     nameof(SignBinariesScript_ShouldCleanupImportedCertificatesWhenSigningFails),
+                     nameof(SignBinariesScript_ShouldNotDeleteCertificatesThatAlreadyExistedInStore)
+                 })
+        {
+            var methodSource = ExtractTestMethodSource(content, methodName);
+            var cleanupIndex = methodSource.IndexOf("RemoveCurrentUserTestCertificates(thumbprint, certificateName);", StringComparison.Ordinal);
+            var finallyIndex = methodSource.IndexOf("finally", StringComparison.Ordinal);
+
+            finallyIndex.Should().BeGreaterThanOrEqualTo(0, "{0} must have a finally cleanup block", methodName);
+            cleanupIndex.Should().BeGreaterThan(finallyIndex,
+                "{0} must clean up test-created CurrentUser certificates from finally so assertion failures cannot leak them",
+                methodName);
+        }
+    }
+
+    [Fact]
     public void SignBinariesScript_ShouldSupportSigntoolAndRootOverridesForDeterministicTests()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -105,9 +128,11 @@ public sealed class SigningScriptTests
     public void SignBinariesScript_ShouldCleanupImportedCertificatesWhenSigningFails()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        string? certificateName = null;
+        string? thumbprint = null;
         try
         {
-            var certificateName = "WpfDevTools Cleanup Test " + Guid.NewGuid().ToString("N");
+            certificateName = "WpfDevTools Cleanup Test " + Guid.NewGuid().ToString("N");
             var certOutputRoot = Path.Combine(tempRoot, "cert-output");
             var createResult = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/Create-SelfSignedCert.ps1"),
@@ -126,13 +151,11 @@ public sealed class SigningScriptTests
                 RegexOptions.CultureInvariant);
             thumbprintMatch.Success.Should().BeTrue(createResult.Stdout);
 
-            var thumbprint = thumbprintMatch.Groups["thumbprint"].Value;
+            thumbprint = thumbprintMatch.Groups["thumbprint"].Value;
             var pfxPath = Path.Combine(certOutputRoot, "WpfDevTools.pfx");
             File.Exists(pfxPath).Should().BeTrue();
 
-            var removeOriginalCertificate = ReleaseScriptTestHarness.RunPowerShellCommand(
-                $"Remove-Item -LiteralPath 'Cert:\\CurrentUser\\My\\{thumbprint}' -Force -ErrorAction SilentlyContinue");
-            removeOriginalCertificate.ExitCode.Should().Be(0, removeOriginalCertificate.Stderr);
+            RemoveCurrentUserTestCertificates(thumbprint, certificateName, failOnError: true);
 
             var fakeRoot = Path.Combine(tempRoot, "fake-build-root");
             var binaryDir = Path.Combine(fakeRoot, "src", "Sample", "bin", "Release");
@@ -167,6 +190,7 @@ public sealed class SigningScriptTests
         }
         finally
         {
+            RemoveCurrentUserTestCertificates(thumbprint, certificateName);
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
@@ -175,9 +199,11 @@ public sealed class SigningScriptTests
     public void SignBinariesScript_ShouldNotDeleteCertificatesThatAlreadyExistedInStore()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        string? certificateName = null;
+        string? thumbprint = null;
         try
         {
-            var certificateName = "WpfDevTools Existing Store Cert " + Guid.NewGuid().ToString("N");
+            certificateName = "WpfDevTools Existing Store Cert " + Guid.NewGuid().ToString("N");
             var certOutputRoot = Path.Combine(tempRoot, "cert-output");
             var createResult = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/Create-SelfSignedCert.ps1"),
@@ -196,7 +222,7 @@ public sealed class SigningScriptTests
                 RegexOptions.CultureInvariant);
             thumbprintMatch.Success.Should().BeTrue(createResult.Stdout);
 
-            var thumbprint = thumbprintMatch.Groups["thumbprint"].Value;
+            thumbprint = thumbprintMatch.Groups["thumbprint"].Value;
             var pfxPath = Path.Combine(certOutputRoot, "WpfDevTools.pfx");
             File.Exists(pfxPath).Should().BeTrue();
 
@@ -230,13 +256,10 @@ public sealed class SigningScriptTests
             var certExists = ReleaseScriptTestHarness.RunPowerShellCommand(
                 $"Test-Path -LiteralPath 'Cert:\\CurrentUser\\My\\{thumbprint}'");
             certExists.Stdout.Trim().Should().Be("True", "the signing script must not delete a certificate that already existed in the CurrentUser store before this run");
-
-            var removeOriginalCertificate = ReleaseScriptTestHarness.RunPowerShellCommand(
-                $"Remove-Item -LiteralPath 'Cert:\\CurrentUser\\My\\{thumbprint}' -Force -ErrorAction SilentlyContinue");
-            removeOriginalCertificate.ExitCode.Should().Be(0, removeOriginalCertificate.Stderr);
         }
         finally
         {
+            RemoveCurrentUserTestCertificates(thumbprint, certificateName);
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
@@ -320,4 +343,50 @@ public sealed class SigningScriptTests
             signaturePolicy = "RequireAuthenticodeSignature"
         }));
     }
+
+    private static string ExtractTestMethodSource(string content, string methodName)
+    {
+        var signature = "public void " + methodName + "()";
+        var start = content.IndexOf(signature, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0, "test method source should contain {0}", methodName);
+
+        var nextFact = content.IndexOf("\n    [Fact]", start + signature.Length, StringComparison.Ordinal);
+        return nextFact < 0 ? content[start..] : content[start..nextFact];
+    }
+
+    private static void RemoveCurrentUserTestCertificates(
+        string? thumbprint,
+        string? certificateName,
+        bool failOnError = true)
+    {
+        if (string.IsNullOrWhiteSpace(thumbprint) && string.IsNullOrWhiteSpace(certificateName))
+        {
+            return;
+        }
+
+        var subject = string.IsNullOrWhiteSpace(certificateName) ? "" : "CN=" + certificateName;
+        var command = string.Join(" ",
+            "$thumbprint = " + ToPowerShellSingleQuotedLiteral(thumbprint ?? "") + ";",
+            "$subject = " + ToPowerShellSingleQuotedLiteral(subject) + ";",
+            "$matches = @(Get-ChildItem -Path 'Cert:\\CurrentUser\\My' -ErrorAction SilentlyContinue |",
+            "Where-Object {",
+            "(-not [string]::IsNullOrWhiteSpace($thumbprint) -and $_.Thumbprint -eq $thumbprint) -or",
+            "(-not [string]::IsNullOrWhiteSpace($subject) -and $_.Subject -eq $subject)",
+            "});",
+            "foreach ($cert in $matches) { Remove-Item -LiteralPath ('Cert:\\CurrentUser\\My\\' + $cert.Thumbprint) -Force -ErrorAction Stop };",
+            "$remaining = @(Get-ChildItem -Path 'Cert:\\CurrentUser\\My' -ErrorAction SilentlyContinue |",
+            "Where-Object {",
+            "(-not [string]::IsNullOrWhiteSpace($thumbprint) -and $_.Thumbprint -eq $thumbprint) -or",
+            "(-not [string]::IsNullOrWhiteSpace($subject) -and $_.Subject -eq $subject)",
+            "});",
+            "if ($remaining.Count -gt 0) { throw ('CurrentUser certificate cleanup left thumbprints: ' + (($remaining | ForEach-Object { $_.Thumbprint }) -join ', ')) }");
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+        if (failOnError)
+        {
+            result.ExitCode.Should().Be(0, result.Stderr);
+        }
+    }
+
+    private static string ToPowerShellSingleQuotedLiteral(string value)
+        => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
 }

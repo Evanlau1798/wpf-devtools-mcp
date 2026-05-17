@@ -23,7 +23,7 @@ public class DllCandidateResolverTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteDirectoryWithRetry(root);
         }
     }
 
@@ -45,7 +45,7 @@ public class DllCandidateResolverTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteDirectoryWithRetry(root);
         }
     }
 
@@ -69,7 +69,7 @@ public class DllCandidateResolverTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteDirectoryWithRetry(root);
         }
     }
 
@@ -97,7 +97,7 @@ public class DllCandidateResolverTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteDirectoryWithRetry(root);
         }
     }
 
@@ -136,7 +136,31 @@ public class DllCandidateResolverTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteDirectoryWithRetry(root);
+        }
+    }
+
+    private static void DeleteDirectoryWithRetry(string path)
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+
+                return;
+            }
+            catch (IOException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
+            catch (UnauthorizedAccessException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
         }
     }
 }

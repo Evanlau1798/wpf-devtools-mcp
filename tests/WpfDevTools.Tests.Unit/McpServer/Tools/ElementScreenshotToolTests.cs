@@ -131,7 +131,7 @@ public class ElementScreenshotToolTests
                 {
                     Id = request!.Id,
                     CorrelationId = request.CorrelationId,
-                    Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"width":160,"height":80,"format":"png","byteLength":256,"path":"C:\\Users\\alice\\AppData\\Local\\Temp\\wpf-devtools\\shot.png"}""")
+                    Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"screenshotId":"shot_0123456789abcdef0123456789abcdef","width":160,"height":80,"format":"png","byteLength":256,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","path":"C:\\Users\\alice\\AppData\\Local\\Temp\\wpf-devtools\\shot_0123456789abcdef0123456789abcdef.png"}""")
                 };
 
                 await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
@@ -168,7 +168,8 @@ public class ElementScreenshotToolTests
 
             result.GetProperty("success").GetBoolean().Should().BeTrue();
             result.TryGetProperty("path", out _).Should().BeFalse();
-            result.GetProperty("fileName").GetString().Should().Be("shot.png");
+            result.GetProperty("fileName").GetString().Should().Be("shot_0123456789abcdef0123456789abcdef.png");
+            result.GetProperty("resourceUri").GetString().Should().Be("wpf://screenshots/shot_0123456789abcdef0123456789abcdef");
             result.GetProperty("localPathRedacted").GetBoolean().Should().BeTrue();
             var request = await requestCompletion.Task.WaitAsync(TimeSpan.FromSeconds(5));
             request.Params.Should().NotBeNull();

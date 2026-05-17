@@ -82,7 +82,9 @@ public class ReadmeDocumentationTests
         content.Should().Contain("file");
         content.Should().Contain("base64");
         content.Should().Contain("screenshotId");
+        content.Should().Contain("resourceUri");
         content.Should().Contain("sha256");
+        content.Should().NotContain("file mode also returns `screenshotId`, `path`, and `sha256`");
         content.Should().NotContain("`element_screenshot` returns `base64Image`, `width`, `height`, and `format`.");
     }
 

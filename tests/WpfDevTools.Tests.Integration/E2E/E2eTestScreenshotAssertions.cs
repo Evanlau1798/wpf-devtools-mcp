@@ -44,6 +44,9 @@ public static partial class E2eTestHelpers
             "file screenshot output should redact absolute local paths from MCP responses");
         result.GetProperty("localPathRedacted").GetBoolean().Should().BeTrue(
             "file screenshot output should advertise path redaction");
+        result.GetProperty("resourceUri").GetString().Should().StartWith(
+            "wpf://screenshots/",
+            "file screenshot output should include the MCP resource locator for the retained PNG");
         result.TryGetProperty("fileName", out var fileNameProperty).Should().BeTrue(
             "file screenshot output should include the safe file name");
         fileNameProperty.ValueKind.Should().Be(JsonValueKind.String, "fileName should be a string");

@@ -314,6 +314,7 @@ public sealed partial class ResponseContractResourceTests
                 "byteLength",
                 "screenshotId",
                 "outputMode",
+                "resourceUri",
                 "fileName",
                 "localPathRedacted",
                 "sha256",
@@ -339,7 +340,7 @@ public sealed partial class ResponseContractResourceTests
             outputVariants,
             "file",
             rendered: true,
-            fields: ["success", "screenshotId", "outputMode", "fileName", "localPathRedacted", "sha256", "width", "height", "format", "rendered", "byteLength"]);
+            fields: ["success", "screenshotId", "outputMode", "resourceUri", "fileName", "localPathRedacted", "sha256", "width", "height", "format", "rendered", "byteLength"]);
         AssertOutputVariant(
             outputVariants,
             "base64",

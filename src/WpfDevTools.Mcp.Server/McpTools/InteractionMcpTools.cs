@@ -280,7 +280,7 @@ public static class InteractionMcpTools
     [Description(
         "Use this tool to capture a WPF element screenshot for runtime visual verification.\n\n" +
         InteractionMetadata + "[Interaction] Capture a PNG screenshot of a specific element. " +
-        "Returns compact metadata by default, inline base64 image data when explicitly requested, or a temporary PNG file path in file mode. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
+        "Returns compact metadata by default, inline base64 image data when explicitly requested, or a retained PNG resource URI in file mode. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
         "USE WHEN: Visual verification needed; documenting UI state; debugging rendering issues.\n" +
         "DO NOT USE: As a first-pass scene exploration tool (prefer get_ui_summary or get_element_snapshot), or on off-screen elements (use scroll_to_element first).\n\n" +
         "PERFORMANCE: The default `metadata` mode does not render or return PNG bytes. Use `outputMode: \"file\"` or explicit `outputMode: \"base64\"` plus `maxWidth` / `maxHeight` when pixels are required.\n\n" +
@@ -289,7 +289,9 @@ public static class InteractionMcpTools
         "  success: boolean,\n" +
         "  base64Image?: string,\n" +
         "  screenshotId?: string,\n" +
-        "  path?: string,\n" +
+        "  resourceUri?: string,\n" +
+        "  fileName?: string,\n" +
+        "  localPathRedacted?: boolean,\n" +
         "  sha256?: string,\n" +
         "  width: number,\n" +
         "  height: number,\n" +

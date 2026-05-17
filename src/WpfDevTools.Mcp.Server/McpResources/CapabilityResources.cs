@@ -27,7 +27,7 @@ public static partial class CapabilityResources
         - Transport: `stdio`
         - Tool surface: WPF process discovery, connection, exact-match element search, tree inspection, binding diagnostics, DependencyProperty analysis, MVVM inspection, style/template inspection, interaction, layout, performance, and routed-event diagnostics
         - Prompt surface: workflow entry points for connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, performance profiling, and secondary-window inspection
-        - Resource surface: capability summary, response contract JSON, workflow references, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
+        - Resource surface: capability summary, response contract JSON, workflow references, retained screenshot PNG resources, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
         - Feature flags: `prompts=true`, `resources=true`, `stateSnapshots=true`, `diagnosticNormalization=true`, `elevatedTargetDiagnostics=true`
 
         ## Recommended workflow shape

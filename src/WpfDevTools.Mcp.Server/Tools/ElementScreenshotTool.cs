@@ -18,7 +18,7 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
     /// </summary>
     /// <param name="arguments">JSON arguments containing processId and optional elementId</param>
     /// <param name="cancellationToken">Cancellation token for async operation</param>
-    /// <returns>Tool result containing screenshot path or error</returns>
+    /// <returns>Tool result containing screenshot metadata or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
@@ -66,11 +66,11 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
             }, cancellationToken);
 
         return outputMode == "file"
-            ? RedactFilePathFromScreenshotResult(result)
+            ? RedactFilePathFromScreenshotResult(processId, result)
             : result;
     }
 
-    private static object RedactFilePathFromScreenshotResult(object result)
+    private object RedactFilePathFromScreenshotResult(int processId, object result)
     {
         var payload = result is JsonElement jsonElement
             ? jsonElement
@@ -85,22 +85,50 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
         {
             writer.WriteStartObject();
             string? fileName = null;
+            string? path = null;
+            string? screenshotId = null;
+            string? sha256 = null;
             foreach (var property in payload.EnumerateObject())
             {
                 if (IsLocalPathProperty(property.Name))
                 {
                     if (property.Value.ValueKind == JsonValueKind.String)
                     {
-                        fileName ??= Path.GetFileName(property.Value.GetString());
+                        path = property.Value.GetString();
+                        fileName ??= Path.GetFileName(path);
                     }
 
                     continue;
+                }
+
+                if (string.Equals(property.Name, "outputMode", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (string.Equals(property.Name, "screenshotId", StringComparison.OrdinalIgnoreCase) &&
+                    property.Value.ValueKind == JsonValueKind.String)
+                {
+                    screenshotId = property.Value.GetString();
+                }
+
+                if (string.Equals(property.Name, "sha256", StringComparison.OrdinalIgnoreCase) &&
+                    property.Value.ValueKind == JsonValueKind.String)
+                {
+                    sha256 = property.Value.GetString();
                 }
 
                 property.WriteTo(writer);
             }
 
             writer.WriteString("outputMode", "file");
+            if (!string.IsNullOrWhiteSpace(path) &&
+                !string.IsNullOrWhiteSpace(screenshotId))
+            {
+                var screenshot = _sessionManager.RegisterScreenshotResource(processId, screenshotId, path, sha256);
+                writer.WriteString("resourceUri", screenshot.ResourceUri);
+            }
+
             if (!string.IsNullOrWhiteSpace(fileName))
             {
                 writer.WriteString("fileName", fileName);

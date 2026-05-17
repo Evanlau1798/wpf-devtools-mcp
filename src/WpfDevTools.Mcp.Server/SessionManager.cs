@@ -204,6 +204,7 @@ public sealed partial class SessionManager : IDisposable
             _stateSnapshots.Remove(processId);
             _pendingEventReplay.Remove(processId);
             _pendingEventReplayLocks.Remove(processId);
+            RemoveScreenshotResources(processId);
             _sessionGenerations.Remove(processId);
             _navigationStateStore.RemoveProcess(processId);
 
@@ -356,6 +357,8 @@ public sealed partial class SessionManager : IDisposable
                 _sessions.Clear();
                 _stateSnapshots.Clear();
                 _pendingEventReplay.Clear();
+                _screenshotResources.Clear();
+                _screenshotResourceOrder.Clear();
                 _navigationStateStore.Clear();
             }
 

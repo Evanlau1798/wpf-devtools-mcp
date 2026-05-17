@@ -10,7 +10,8 @@
 
 ## 什麼時候用哪一個
 
-- 一般情況先用 `connect()`。它會自動發現單一可見的 WPF 目標並直接建立連線。
+- 呼叫任何 `connect` 變體前，先將已審查 target 的 exact absolute executable path 設到 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。未設定、relative path 或 malformed entry 會以 `SecurityError` fail closed。
+- target 已 allowlist 後，一般情況先用 `connect()`。它會自動發現單一可見的 WPF 目標並直接建立連線。
 - 當 hidden 或 background 的 WPF 視窗也必須參與 auto-discovery，但你不想先多做一次 process listing 時，使用 `connect(windowFilter='all')`。
 - 當你預期同時有多個 WPF target，且你是有意識地要直接挑選最大 working set 候選者時，使用 `connect(selectionStrategy='largest_working_set', windowFilter='all')`，而不是先 list 再 connect。
 - 當 auto-discovery 有歧義、你想先看架構/權限資訊，或你需要把背景目標也列出來時，再用 `get_processes(windowFilter)`。
@@ -22,6 +23,7 @@
 ## 重要行為
 
 - `get_processes` 會回傳 `isElevated`、`requiresElevationToConnect` 與 `canConnectFromCurrentServer`
+- `connect` 會先套用 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` target allowlist，再進入 SDK-hosted reuse 或 raw injection；policy denial 會回傳帶有 `policyEnvVar` 的 `SecurityError`
 - `connect()` 預設會對單一可見 WPF 目標做 auto-discovery；若找到多個目標，會回傳候選清單而不是隨機連線
 - `connect` 會驗證目標、解析 bootstrapper 候選項，並在目前 server 權限不足時提早阻擋
 - 同一個 `SessionManager` 與 `processId` 的並行 `connect` 會共享同一個 in-flight operation，而不是重複啟動 injection。單一 caller cancellation 只會停止該 caller 等待；只要還有其他 waiter，shared operation 會繼續；如果最後一個 waiter 也取消，shared operation 會被取消。完成後的 single-flight operation 會被移除；後續呼叫若已有 connected session 會回傳 `AlreadyConnected`，否則會開始新的 connect 嘗試。

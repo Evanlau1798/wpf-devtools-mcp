@@ -32,6 +32,7 @@ Published releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](h
 
 - Windows with the .NET runtime required by the published package
 - A target WPF application running under the same user account
+- The exact absolute executable path of that target reviewed and listed in `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`; unset or malformed values fail closed before `connect()` attaches
 
 If you are building from source instead of using a published release, install:
 
@@ -103,6 +104,7 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 > If either value is missing, or both are unset, `InspectorSdk.Initialize()` now fails closed instead of starting a plaintext SDK host. Legacy plaintext or otherwise unresponsive existing hosts can still surface as timeout during reuse detection.
 > `connect()` can also reuse an existing SDK-hosted Inspector when the target app calls `InspectorSdk.Initialize()` with matching transport settings, including the same absolute `WPFDEVTOOLS_CERT_DIR` value.
 > Raw DLL injection into same-user WPF processes is blocked by default, including project-scoped targets under the current repository root.
+> `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts every `connect()` target before SDK-hosted reuse or raw injection. Set it to a semicolon-separated list of exact absolute executable paths for reviewed targets; unset, relative, or malformed entries fail closed with `errorCode: SecurityError`.
 > `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` accepts a semicolon-separated list of exact absolute executable paths. Prefer the SDK-hosted reuse path first, and use the allowlist only when raw injection into a specific target is an intentional production decision.
 > When `connect()` blocks raw injection, it returns `errorCode: SecurityError` together with `requiresExplicitTargetOptIn: true` so clients can distinguish this policy boundary from packaging or transport failures.
 > See [SECURITY.md](SECURITY.md) for details.
@@ -113,7 +115,7 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 
 ### Typical MCP workflow
 
-1. Call `connect()` first and let the server auto-discover the target when only one visible WPF app is available.
+1. After `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the target executable, call `connect()` first and let the server auto-discover the target when only one visible WPF app is available.
 2. Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you intentionally need background / foreground filtering before connecting.
 3. Build initial context with `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before expanding full trees.
 4. Use tree tools only when scene-level summaries are insufficient and you need stable `elementId` values.

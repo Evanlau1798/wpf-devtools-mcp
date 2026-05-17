@@ -32,7 +32,8 @@ public static partial class CapabilityResources
 
         ## Recommended workflow shape
 
-        - Start with `connect()` and let auto-discovery pick the single visible WPF target when possible.
+        - Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect()` attaches.
+        - Start with `connect()` and let auto-discovery pick the single visible allowlisted WPF target when possible.
         - Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you explicitly need a filtered process list before connecting.
         - Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.
         - After each diagnostic, interaction, or mutation, prefer returned `navigation.recommended`; treat compatibility `nextSteps` as the fallback for older clients before guessing the next tool.
@@ -92,15 +93,16 @@ public static partial class CapabilityResources
 
         Use this when UI data is blank, wrong, or stale.
 
-        1. `connect()`
-        2. If `connect()` reports multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`
-        3. `get_binding_errors`
-        4. Follow `navigation.recommended` or `nextSteps` from the latest diagnostic result
-        5. If the latest diagnostic still leaves the failing element ambiguous, call `get_element_snapshot` for one-call local context
-        6. `get_bindings`
-        7. `get_binding_value_chain`
-        8. `get_datacontext_chain`
-        9. `get_validation_errors` when validation may block updates
+        1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect()` attaches.
+        2. `connect()`
+        3. If `connect()` reports multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`
+        4. `get_binding_errors`
+        5. Follow `navigation.recommended` or `nextSteps` from the latest diagnostic result
+        6. If the latest diagnostic still leaves the failing element ambiguous, call `get_element_snapshot` for one-call local context
+        7. `get_bindings`
+        8. `get_binding_value_chain`
+        9. `get_datacontext_chain`
+        10. `get_validation_errors` when validation may block updates
 
         Cross-tool semantics:
         - `get_binding_errors` reports failures captured by WPF binding tracing and returns compact payloads by default.

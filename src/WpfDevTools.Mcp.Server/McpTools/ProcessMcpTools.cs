@@ -101,9 +101,10 @@ public static class ProcessMcpTools
         "Use this tool to connect to a running WPF process before any inspection tool is used.\n\n" +
         ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +
-        "USE WHEN: Before using any inspection tools. If processId is omitted, connect auto-discovers the target when exactly one WPF process is running under the chosen window filter. After connect succeeds, build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees or relying on screenshots.\n" +
+        "POLICY PRECONDITION: WPFDEVTOOLS_MCP_ALLOWED_TARGETS must contain the reviewed target's exact absolute executable path before this tool can attach; unset or malformed values fail closed with SecurityError.\n" +
+        "USE WHEN: Before using any inspection tools after the target executable is allowlisted. If processId is omitted, connect auto-discovers the allowlisted target when exactly one WPF process is running under the chosen window filter. After connect succeeds, build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees or relying on screenshots.\n" +
         "DO NOT USE: As a health check on an already-connected target; use ping instead.\n\n" +
-        "AUTO-DISCOVERY: Omit processId to auto-connect when exactly one WPF process is available. Omit windowFilter for the visible-only default. Use connect(windowFilter='all') when hidden/background targets must participate in auto-discovery without a separate process listing step. Use selectionStrategy='largest_working_set' only when you intentionally want the largest candidate, including connect(selectionStrategy='largest_working_set', windowFilter='all') for broad multi-process auto-selection.\n" +
+        "AUTO-DISCOVERY: Omit processId to auto-connect when exactly one allowlisted WPF process is available. Omit windowFilter for the visible-only default. Use connect(windowFilter='all') when hidden/background targets must participate in auto-discovery without a separate process listing step. Use selectionStrategy='largest_working_set' only when you intentionally want the largest allowlisted candidate, including connect(selectionStrategy='largest_working_set', windowFilter='all') for broad multi-process auto-selection.\n" +
         "TIMEOUT: Connection attempt times out after 30 seconds.\n" +
         ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: processId, processName, windowTitle, autoDiscovered, autoSelected, selectionReason, candidateCount, candidate processes when ambiguity remains, requiresElevationToConnect, canConnectFromCurrentServer, and suggestedAction.\n" +
@@ -117,7 +118,7 @@ public static class ProcessMcpTools
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
         [Range(1, int.MaxValue)]
-        [Description("Optional target WPF process ID returned by get_processes. Omit to auto-discover when exactly one WPF process is running.")] int? processId = null,
+        [Description("Optional target WPF process ID returned by get_processes. WPFDEVTOOLS_MCP_ALLOWED_TARGETS must contain the target's exact absolute executable path or connect will fail closed. Omit to auto-discover when exactly one allowlisted WPF process is running.")] int? processId = null,
         [AllowedValues("single_only", "largest_working_set")]
         [Description("Optional auto-discovery strategy: 'single_only' (safe default) or 'largest_working_set' for multi-process auto-selection.")] string? selectionStrategy = null,
         [AllowedValues("visible", "all", "foreground")]

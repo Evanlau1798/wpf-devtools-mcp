@@ -20,6 +20,8 @@ The server currently exposes 64 tools across eleven categories.
 
 Most real sessions should follow this progression:
 
+Before step 1, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect` attaches.
+
 1. `connect()` for the default auto-discovery path
 2. `get_active_process`
 3. `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` for scene-first context
@@ -40,7 +42,7 @@ If you only need broader auto-discovery, prefer `connect(windowFilter='all')` an
 
 | Category | Typical first call | Why |
 | --- | --- | --- |
-| Process management | `connect()` | Auto-discover and connect to the most relevant WPF target quickly |
+| Process management | `connect()` | Auto-discover and connect to the most relevant allowlisted WPF target quickly |
 | Tree and XAML | `find_elements` | Perform a compact lookup before expanding a full tree |
 | Binding diagnostics | `get_binding_errors` | Find the most actionable binding failures quickly |
 | Dependency properties | `get_dp_value_source` | Understand precedence and effective values |

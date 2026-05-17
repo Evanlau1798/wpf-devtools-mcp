@@ -5,14 +5,15 @@ This server is explicitly intended for AI-assisted WPF debugging and testing. Th
 ## Recommended workflow
 
 1. Discover tools and schemas.
-2. Call `connect()` first and let the server auto-discover the target when there is only one visible WPF app.
-3. If auto-discovery returns multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`.
-4. Use scene-level tools such as `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before falling back to tree-heavy inspection.
-5. Explore the tree to obtain stable `elementId` values only after the scene summary is insufficient.
-6. Run focused diagnostics and prefer the `navigation.recommended` or `nextSteps` guidance returned by each tool.
-7. Perform controlled interaction or mutation only when needed.
-8. After each interaction or mutation, inspect the recommended follow-up from that response first. If the session has an active snapshot, `get_state_diff` is usually the first verification step.
-9. Call `ping` only when you need an explicit health check or reconnect confirmation.
+2. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect` attaches.
+3. Call `connect()` first and let the server auto-discover the target when there is only one visible WPF app.
+4. If auto-discovery returns multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`.
+5. Use scene-level tools such as `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before falling back to tree-heavy inspection.
+6. Explore the tree to obtain stable `elementId` values only after the scene summary is insufficient.
+7. Run focused diagnostics and prefer the `navigation.recommended` or `nextSteps` guidance returned by each tool.
+8. Perform controlled interaction or mutation only when needed.
+9. After each interaction or mutation, inspect the recommended follow-up from that response first. If the session has an active snapshot, `get_state_diff` is usually the first verification step.
+10. Call `ping` only when you need an explicit health check or reconnect confirmation.
 
 ## Best practices
 
@@ -127,25 +128,25 @@ When a workflow needs multiple ordered live mutations, prefer `batch_mutate` ove
 ### Scene-first prompt
 
 ```text
-Connect to the WPF test app with connect(), get_ui_summary(depthMode: "semantic"), then inspect the visual tree only if the summary is insufficient.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the WPF test app's exact absolute executable path; unset or malformed values fail closed before connect() attaches. Then connect with connect(), get_ui_summary(depthMode: "semantic"), and inspect the visual tree only if the summary is insufficient.
 ```
 
 ### Binding triage prompt
 
 ```text
-Connect to the target WPF app with connect(), inspect binding errors with compact defaults, use get_affected_elements or get_element_snapshot on the failing path, and explain which bindings are failing and why. Do not modify the UI unless a fix requires it.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact absolute executable path; unset or malformed values fail closed before connect() attaches. Then connect with connect(), inspect binding errors with compact defaults, use get_affected_elements or get_element_snapshot on the failing path, and explain which bindings are failing and why. Do not modify the UI unless a fix requires it.
 ```
 
 ### Safe interaction prompt
 
 ```text
-Connect with connect(), get_form_summary or get_interaction_readiness for the target form, then find the Save button, confirm its command metadata, click it, drain buffered runtime events if present, and report the state diff.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact absolute executable path; unset or malformed values fail closed before connect() attaches. Then connect with connect(), get_form_summary or get_interaction_readiness for the target form, find the Save button, confirm its command metadata, click it, drain buffered runtime events if present, and report the state diff.
 ```
 
 ### Snapshot-safe mutation prompt
 
 ```text
-Connect with connect(), capture a state snapshot, locate the target control, apply one UI mutation or an ordered batch_mutate sequence, verify the result with get_state_diff, and restore the snapshot before finishing.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact absolute executable path; unset or malformed values fail closed before connect() attaches. Then connect with connect(), capture a state snapshot, locate the target control, apply one UI mutation or an ordered batch_mutate sequence, verify the result with get_state_diff, and restore the snapshot before finishing.
 ```
 
 ## Anti-patterns
@@ -161,14 +162,15 @@ Connect with connect(), capture a state snapshot, locate the target control, app
 
 For end-to-end automated validation, use this order whenever possible:
 
-1. `connect()`
-2. If needed, `get_processes(windowFilter)` and `connect(processId)`
-3. `get_ui_summary` or `get_element_snapshot`
-4. One or more focused diagnostics
-5. One mutation or interaction at a time
-6. Follow `navigation.recommended` or `nextSteps` from the latest tool result
-7. If the session has an active snapshot, call `get_state_diff`
-8. If the session has buffered runtime events, call `drain_events`
-9. Use another focused verification tool only when more detail is still required
+1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target's exact absolute executable path; unset or malformed values fail closed before `connect()` attaches
+2. `connect()`
+3. If needed, `get_processes(windowFilter)` and `connect(processId)`
+4. `get_ui_summary` or `get_element_snapshot`
+5. One or more focused diagnostics
+6. One mutation or interaction at a time
+7. Follow `navigation.recommended` or `nextSteps` from the latest tool result
+8. If the session has an active snapshot, call `get_state_diff`
+9. If the session has buffered runtime events, call `drain_events`
+10. Use another focused verification tool only when more detail is still required
 
 This keeps failures easy to localize and makes agent traces easier to trust.

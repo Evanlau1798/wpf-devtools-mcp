@@ -7,6 +7,7 @@ This quickstart is optimized for the current public distribution model: use the 
 - Windows 10 or later
 - A live WPF application running under the same user account as the MCP server
 - An architecture choice that matches the target process: `x64`, `x86`, or `arm64`
+- The exact absolute executable path of the WPF target reviewed and listed in `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`; unset or malformed allowlist values fail closed before `connect()` attaches
 
 ## Architecture rule first
 
@@ -78,23 +79,24 @@ The server only inspects live WPF processes. Start the app first, then launch th
 
 Use this sequence in your MCP client:
 
-1. `connect`
-2. If auto-discovery reports multiple candidates, `get_processes(windowFilter)` and retry `connect(processId)`
-3. `get_ui_summary(depthMode: "semantic")`
-4. `get_element_snapshot` or `get_visual_tree` only if the summary is still insufficient
-5. `ping` only if you want an explicit health check
-6. After each diagnostic, interaction, or mutation, follow `navigation.recommended` first; use `nextSteps` as the compatibility fallback for clients that do not surface navigation yet
+1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the target's exact absolute executable path.
+2. `connect`
+3. If auto-discovery reports multiple candidates, `get_processes(windowFilter)` and retry `connect(processId)`
+4. `get_ui_summary(depthMode: "semantic")`
+5. `get_element_snapshot` or `get_visual_tree` only if the summary is still insufficient
+6. `ping` only if you want an explicit health check
+7. After each diagnostic, interaction, or mutation, follow `navigation.recommended` first; use `nextSteps` as the compatibility fallback for clients that do not surface navigation yet
 
 Healthy first-run signs:
 
-- `connect()` succeeds immediately when there is only one visible WPF target
+- `connect()` succeeds when the target is allowlisted, architecture-compatible, and there is only one visible WPF target
 - if multiple targets exist, `get_processes(windowFilter)` returns the correct candidate list
 - `get_ui_summary` returns a stable semantic summary of the root scene
 
 ## Fast useful prompt for an AI client
 
 ```text
-Connect to the running WPF app, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
+After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
 ## Need deeper installation details?

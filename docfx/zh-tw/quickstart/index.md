@@ -7,6 +7,7 @@
 - Windows 10 以上
 - 與 MCP server 使用同一個使用者帳號執行的 WPF 應用程式
 - 已確認 target process 架構為 `x64`、`x86` 或 `arm64`
+- 已審查 WPF target 的 exact absolute executable path，並將它加入 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`；未設定或 malformed allowlist 會在 `connect()` attach 前 fail closed
 
 ## 先確認架構規則
 
@@ -78,16 +79,17 @@ server 只能檢查 live WPF process。先啟動目標應用程式，再啟動 M
 
 在 MCP client 中使用以下順序：
 
-1. `connect`
-2. 如果 auto-discovery 回報多個候選，先呼叫 `get_processes(windowFilter)`，再重試 `connect(processId)`
-3. `get_ui_summary(depthMode: "semantic")`
-4. 只有當 summary 還不夠時，才使用 `get_element_snapshot` 或 `get_visual_tree`
-5. 只有需要明確健康檢查時才呼叫 `ping`
-6. 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`；若 client 尚未呈現 navigation，則把 `nextSteps` 當成相容欄位
+1. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含 target 的 exact absolute executable path。
+2. `connect`
+3. 如果 auto-discovery 回報多個候選，先呼叫 `get_processes(windowFilter)`，再重試 `connect(processId)`
+4. `get_ui_summary(depthMode: "semantic")`
+5. 只有當 summary 還不夠時，才使用 `get_element_snapshot` 或 `get_visual_tree`
+6. 只有需要明確健康檢查時才呼叫 `ping`
+7. 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`；若 client 尚未呈現 navigation，則把 `nextSteps` 當成相容欄位
 
 健康的首次執行徵象：
 
-- `connect()` 在只有一個可見 WPF target 時立即成功
+- `connect()` 在 target 已 allowlist、架構相容，且只有一個可見 WPF target 時成功
 - 若存在多個 target，`get_processes(windowFilter)` 能回傳正確候選清單
 - `get_ui_summary` 能穩定回傳 root scene 的語意摘要
 
@@ -96,7 +98,7 @@ server 只能檢查 live WPF process。先啟動目標應用程式，再啟動 M
 以下保留英文，是為了方便直接貼給 client：
 
 ```text
-Connect to the running WPF app, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
+After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
 ## 想看更深入的安裝說明？

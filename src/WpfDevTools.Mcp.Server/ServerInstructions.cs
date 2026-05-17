@@ -17,11 +17,12 @@ public static class ServerInstructions
         Use this server for runtime desktop UI diagnostics, WPF element lookup, exact-match element search, XAML structure inspection, multi-window investigation, and safe temporary automation against a connected WPF process.
 
         === MANDATORY WORKFLOW ===
-        1. connect() -> try auto-discovery against visible WPF apps, then reuse a compatible existing SDK host or apply the raw-injection target policy before injecting Inspector DLL
-        2. If connect() reports multiple candidates, call get_processes(windowFilter) and retry connect(processId)
-        3. Build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees
-        4. Use focused inspection/interaction tools against the connected process
-        5. Do not call get_processes before connect() unless auto-discovery is ambiguous or you explicitly need filtered discovery before connecting
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path; unset or malformed values fail closed with SecurityError before connect() attaches
+        2. connect() -> try auto-discovery against visible allowlisted WPF apps, then reuse a compatible existing SDK host or apply the raw-injection target policy before injecting Inspector DLL
+        3. If connect() reports multiple candidates, call get_processes(windowFilter) and retry connect(processId)
+        4. Build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees
+        5. Use focused inspection/interaction tools against the connected process
+        6. Do not call get_processes before connect() unless auto-discovery is ambiguous or you explicitly need filtered discovery before connecting
 
         === PARAMETER CONVENTIONS ===
         - processId: integer, from get_processes, optional after connect()/select_active_process() establishes the active process
@@ -103,7 +104,8 @@ public static class ServerInstructions
         - Use nameFilter on get_processes to reduce response size
 
         === AI AGENT BEST PRACTICES ===
-        - Start with connect() unless you already know you need a specific processId or non-default windowFilter
+        - Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path before connect(); unset or malformed values fail closed
+        - Start with connect() after the target is allowlisted unless you already know you need a specific processId or non-default windowFilter
         - After connect() succeeds, immediately build context with get_ui_summary, get_element_snapshot, or get_form_summary before tree-heavy inspection or screenshots
         - When connect() reports multiple candidates, use get_processes(windowFilter) to disambiguate and retry
         - If connect() returns SecurityError with requiresExplicitTargetOptIn=true, prefer SDK-hosted reuse first. Only use WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS for explicitly reviewed external executables.
@@ -154,6 +156,8 @@ public static class ServerInstructions
         - measure_element_render_time: force bounded render passes for timing measurement
 
         === COMMON WORKFLOWS ===
+
+        All common workflows assume WPFDEVTOOLS_MCP_ALLOWED_TARGETS already contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before connect() attaches.
 
         Workflow 1 - Debug Binding Error:
         connect() -> get_binding_errors -> follow navigation.recommended -> get_element_snapshot(elementId) -> get_bindings(elementId) -> get_datacontext_chain(elementId)

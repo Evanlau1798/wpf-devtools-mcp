@@ -10,7 +10,8 @@
 
 ## When to use which
 
-- Use `connect()` first for the common case. It auto-discovers a single visible WPF target and connects in one step.
+- Before any `connect` variant, set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact absolute executable path. Unset, relative, or malformed entries fail closed with `SecurityError`.
+- Use `connect()` first for the common case after the target is allowlisted. It auto-discovers a single visible WPF target and connects in one step.
 - Use `connect(windowFilter='all')` when hidden or background WPF windows should participate in auto-discovery without a separate process-listing step.
 - Use `connect(selectionStrategy='largest_working_set', windowFilter='all')` when multiple WPF targets are expected and you intentionally want the largest candidate instead of a list-then-connect disambiguation round trip.
 - Use `get_processes(windowFilter)` when auto-discovery is ambiguous, when you need architecture/elevation details up front, or when you want to inspect background targets.
@@ -22,6 +23,7 @@
 ## Important behavior
 
 - `get_processes` reports `isElevated`, `requiresElevationToConnect`, and `canConnectFromCurrentServer`
+- `connect` applies the `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` target allowlist before SDK-hosted reuse or raw injection; policy denials return `SecurityError` with `policyEnvVar`
 - `connect()` auto-discovers a single visible WPF target by default and returns deterministic candidate data when multiple targets are found
 - `connect` validates the target, resolves bootstrapper candidates, and blocks early when the current server lacks permission to attach
 - Concurrent `connect` calls for the same `SessionManager` and `processId` share one in-flight operation instead of starting duplicate injection attempts. A caller cancellation stops waiting for that caller only while other waiters keep the shared operation alive; if the last waiter cancels, the shared operation is cancelled. Completed single-flight operations are removed; later calls either return `AlreadyConnected` for an existing connected session or start a fresh connect attempt.

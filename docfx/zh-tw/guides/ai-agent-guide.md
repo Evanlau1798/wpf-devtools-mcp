@@ -5,14 +5,15 @@
 ## 建議工作流程
 
 1. 先探索工具與 schema。
-2. 先呼叫 `connect()`，若目前只有一個可見的 WPF app，讓 server 自動完成連線。
-3. 若 auto-discovery 回傳多個候選，再呼叫 `get_processes(windowFilter)`，之後用 `connect(processId)` 明確指定目標。
-4. 先用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 建立場景理解，再決定是否需要完整 tree。
-5. 當 scene-level 摘要仍不足時，再瀏覽 tree 取得穩定的 `elementId`。
-6. 執行聚焦式診斷工具，並優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`。
-7. 只有在必要時，才進行受控互動或 mutation。
-8. 每次互動或 mutation 後，都先看該工具回應建議的 follow-up；若目前 session 有 active snapshot，通常第一步應是 `get_state_diff`。
-9. 只有在需要明確健康檢查或 reconnect 驗證時，才呼叫 `ping`。
+2. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
+3. 先呼叫 `connect()`，若目前只有一個可見的 WPF app，讓 server 自動完成連線。
+4. 若 auto-discovery 回傳多個候選，再呼叫 `get_processes(windowFilter)`，之後用 `connect(processId)` 明確指定目標。
+5. 先用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 建立場景理解，再決定是否需要完整 tree。
+6. 當 scene-level 摘要仍不足時，再瀏覽 tree 取得穩定的 `elementId`。
+7. 執行聚焦式診斷工具，並優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`。
+8. 只有在必要時，才進行受控互動或 mutation。
+9. 每次互動或 mutation 後，都先看該工具回應建議的 follow-up；若目前 session 有 active snapshot，通常第一步應是 `get_state_diff`。
+10. 只有在需要明確健康檢查或 reconnect 驗證時，才呼叫 `ping`。
 
 ## 最佳實務
 
@@ -127,25 +128,25 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 ### 先看 scene 的提示詞
 
 ```text
-先用 `connect()` 連線到 WPF 測試應用程式，呼叫 `get_ui_summary(depthMode: "semantic")` 建立語義上下文，只有在摘要不足時才展開 visual tree。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含 WPF 測試應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，呼叫 `get_ui_summary(depthMode: "semantic")` 建立語義上下文，只有在摘要不足時才展開 visual tree。
 ```
 
 ### Binding triage 提示詞
 
 ```text
-先用 `connect()` 連線到目標 WPF 應用程式，以 compact 預設檢查 binding errors，再用 `get_affected_elements` 或 `get_element_snapshot` 檢查失敗 path，說明哪些 bindings 失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，以 compact 預設檢查 binding errors，再用 `get_affected_elements` 或 `get_element_snapshot` 檢查失敗 path，說明哪些 bindings 失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
 ```
 
 ### 安全互動提示詞
 
 ```text
-先用 `connect()` 連線，對目標表單呼叫 `get_form_summary` 或 `get_interaction_readiness`，再找到 Save 按鈕、確認 command metadata、點擊、視需要排空 buffered runtime event，最後回報 `get_state_diff` 結果。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，對目標表單呼叫 `get_form_summary` 或 `get_interaction_readiness`，再找到 Save 按鈕、確認 command metadata、點擊、視需要排空 buffered runtime event，最後回報 `get_state_diff` 結果。
 ```
 
 ### 可回復 mutation 提示詞
 
 ```text
-先用 `connect()` 連線並建立 state snapshot，找到目標控制項後執行一次 UI mutation，或用 `batch_mutate` 做有順序的 mutation 序列，再用 `get_state_diff` 驗證結果，最後在結束前還原 snapshot。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線並建立 state snapshot，找到目標控制項後執行一次 UI mutation，或用 `batch_mutate` 做有順序的 mutation 序列，再用 `get_state_diff` 驗證結果，最後在結束前還原 snapshot。
 ```
 
 ## 常見反模式
@@ -161,14 +162,15 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 
 若要做端到端自動化驗證，建議盡量遵守以下順序：
 
-1. `connect()`
-2. 若需要，再呼叫 `get_processes(windowFilter)` 並使用 `connect(processId)`
-3. `get_ui_summary` 或 `get_element_snapshot`
-4. 一個或多個聚焦式診斷工具
-5. 一次只做一個 mutation 或 interaction
-6. 先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`
-7. 若目前 session 有 active snapshot，優先呼叫 `get_state_diff`
-8. 若目前 session 有 buffered runtime event，呼叫 `drain_events`
-9. 其餘情況再用其他聚焦 verification tool 補強
+1. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed
+2. `connect()`
+3. 若需要，再呼叫 `get_processes(windowFilter)` 並使用 `connect(processId)`
+4. `get_ui_summary` 或 `get_element_snapshot`
+5. 一個或多個聚焦式診斷工具
+6. 一次只做一個 mutation 或 interaction
+7. 先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`
+8. 若目前 session 有 active snapshot，優先呼叫 `get_state_diff`
+9. 若目前 session 有 buffered runtime event，呼叫 `drain_events`
+10. 其餘情況再用其他聚焦 verification tool 補強
 
 這能讓失敗點更容易定位，也讓 agent trace 更值得信任。

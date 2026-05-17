@@ -54,16 +54,18 @@ codex mcp add wpf-devtools -- "C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<ar
 codex mcp list
 ```
 
+Before using this prompt, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the running WPF app's exact absolute executable path; unset or malformed values fail closed before `connect` attaches.
+
 ## 5. First useful prompt
 
 ```text
-Connect to the running WPF app, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
+After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
 ## Notes
 
 - Keep the MCP server on Windows even if your editor tooling spans multiple environments.
-- Start with `connect()` in the common case. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you want explicit target metadata first.
+- Start with `connect()` in the common case after `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact absolute executable path. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you want explicit target metadata first.
 - Prefer scene-level tools before tree-heavy inspection.
 - After each diagnostic, interaction, or mutation, follow `navigation.recommended` first and use `nextSteps` only as the compatibility field.
 - If you already know the next tool and want a leaner payload, capable clients may pass `navigation=false` on `get_binding_errors`. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the `get_binding_errors` tool schema today, but should not assume other tools expose it yet.

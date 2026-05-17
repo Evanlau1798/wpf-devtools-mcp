@@ -3622,6 +3622,7 @@ function Initialize-TrustedLocalPackageArchiveCopy {
 
         $script:TrustedLocalPackageArchivePath = $trustedArchivePath
         $script:PackageArchivePath = $trustedArchivePath
+        Copy-TestLocalPackageReleaseMetadataSidecars -SourceArchivePath $sourceArchivePath -DestinationRoot $trustedDestinationRoot
         Copy-InstallerHelperBundleFromArchive -ArchivePath $trustedArchivePath -DestinationRoot $trustedDestinationRoot -HelperFiles $HelperFiles
     }
     finally {
@@ -3629,6 +3630,26 @@ function Initialize-TrustedLocalPackageArchiveCopy {
     }
 
     return $trustedArchivePath
+}
+function Copy-TestLocalPackageReleaseMetadataSidecars {
+    param(
+        [Parameter(Mandatory)] [string]$SourceArchivePath,
+        [Parameter(Mandatory)] [string]$DestinationRoot
+    )
+
+    if (-not ((Test-InstallerTestModeEnabled) -and
+            [string]::Equals([string]$env:WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA, '1', [System.StringComparison]::Ordinal))) {
+        return
+    }
+
+    $sourceRoot = Assert-InstallerLocalPathTrusted -Path (Split-Path -Parent $SourceArchivePath)
+    $trustedDestinationRoot = Assert-InstallerLocalPathTrusted -Path $DestinationRoot
+    foreach ($sidecarName in @('release-assets.json', 'SHA256SUMS.txt')) {
+        $sourcePath = Assert-InstallerLocalPathTrusted -Path (Join-Path $sourceRoot $sidecarName)
+        if (Test-Path -LiteralPath $sourcePath -PathType Leaf) {
+            Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $trustedDestinationRoot $sidecarName) -Force -ErrorAction Stop
+        }
+    }
 }
 function Get-TuiHelperArchiveSha256 {
     param([Parameter(Mandatory)] [string]$ArchivePath)

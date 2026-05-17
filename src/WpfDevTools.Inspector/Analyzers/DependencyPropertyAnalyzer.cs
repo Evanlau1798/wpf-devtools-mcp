@@ -213,7 +213,7 @@ public sealed partial class DependencyPropertyAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Set local value for a DependencyProperty
     /// </summary>
-    public object SetValue(string propertyName, object value, string? elementId = null)
+    public object SetValue(string propertyName, object? value, string? elementId = null)
     {
         return InvokeOnUIThread<object>(() =>
         {

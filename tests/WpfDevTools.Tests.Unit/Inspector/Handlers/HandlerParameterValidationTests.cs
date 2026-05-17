@@ -109,6 +109,26 @@ public class HandlerParameterValidationTests
     }
 
     [Fact]
+    public async Task DependencyPropertyHandlers_SetDpValue_WithExplicitJsonNull_ShouldReachAnalyzer()
+    {
+        var handler = new DependencyPropertyHandlers(new DependencyPropertyAnalyzer(new ElementFinder()));
+        var @params = JsonSerializer.SerializeToElement(new
+        {
+            elementId = "missing-element",
+            propertyName = "Tag",
+            value = (string?)null
+        });
+
+        var result = JsonSerializer.SerializeToElement(await handler.HandleAsync(
+            "set_dp_value",
+            @params,
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+    }
+
+    [Fact]
     public async Task DependencyPropertyHandlers_ClearDpValue_WithoutPropertyName_ShouldThrowArgumentException()
     {
         var handler = new DependencyPropertyHandlers(new DependencyPropertyAnalyzer(new ElementFinder()));

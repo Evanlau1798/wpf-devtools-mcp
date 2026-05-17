@@ -71,6 +71,22 @@ public class DependencyPropertyAnalyzerTests : IDisposable
     }
 
     [StaFact]
+    public void SetValue_WithNullObjectProperty_ShouldSetLocalNull()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var button = new Button { Tag = "before" };
+        var elementId = finder.GenerateElementId(button);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.SetValue("Tag", null, elementId));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("newValue").ValueKind.Should().Be(JsonValueKind.Null);
+        button.Tag.Should().BeNull();
+        button.ReadLocalValue(System.Windows.FrameworkElement.TagProperty).Should().BeNull();
+    }
+
+    [StaFact]
     public void ClearValue_WithLocalValue_ShouldClearValue()
     {
         // Arrange

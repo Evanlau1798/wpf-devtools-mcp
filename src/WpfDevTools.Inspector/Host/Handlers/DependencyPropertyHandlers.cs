@@ -80,13 +80,16 @@ public class DependencyPropertyHandlers : IRequestHandler
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
         var propertyName = ParameterHelpers.GetStringParam(@params, "propertyName");
-        var value = ParameterHelpers.GetObjectParam<object>(@params, "value");
 
         if (string.IsNullOrEmpty(propertyName))
             throw new ArgumentException("Missing required parameter: propertyName");
 
-        if (value == null)
+        if (@params == null || !@params.HasValue || !@params.Value.TryGetProperty("value", out var valueProperty))
             throw new ArgumentException("Missing required parameter: value");
+
+        var value = valueProperty.ValueKind == JsonValueKind.Null
+            ? null
+            : ParameterHelpers.GetObjectParam<object>(@params, "value");
 
         return await Task.Run(() =>
             _dependencyPropertyAnalyzer.SetValue(propertyName!, value, elementId), cancellationToken).ConfigureAwait(false);

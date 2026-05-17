@@ -131,6 +131,61 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
     }
 
     [Fact]
+    public async Task RestoreStateSnapshot_ShouldReplayCapturedLocalNullDependencyProperty()
+    {
+        var processId = NextSyntheticProcessId();
+        var valueSourceCallCount = 0;
+        JsonElement? setDpValueParams = null;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "get_dp_value_source" => (object)new
+                {
+                    success = true,
+                    propertyName = "Tag",
+                    currentValue = (string?)null,
+                    hadLocalValue = true,
+                    localValue = (string?)null,
+                    localValueType = (string?)null,
+                    baseValueSource = "LocalValue",
+                    isExpression = false,
+                    call = ++valueSourceCallCount
+                },
+                "set_dp_value" => CaptureSetDpValueParams(request, ref setDpValueParams),
+                "get_binding_errors" => EmptyErrors(),
+                "get_validation_errors" => EmptyErrors(),
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+
+        var captureTool = new CaptureStateSnapshotTool(connected.SessionManager);
+        var captureResult = JsonSerializer.SerializeToElement(await captureTool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "Button_1",
+            propertyNames = new[] { "Tag" }
+        }), CancellationToken.None));
+
+        var snapshotId = captureResult.GetProperty("snapshotId").GetString();
+        var restoreTool = new RestoreStateSnapshotTool(connected.SessionManager);
+        var restoreResult = JsonSerializer.SerializeToElement(await restoreTool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            snapshotId
+        }), CancellationToken.None));
+
+        restoreResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        restoreResult.GetProperty("restoredDependencyPropertyCount").GetInt32().Should().Be(1);
+        setDpValueParams.Should().NotBeNull();
+        setDpValueParams!.Value.TryGetProperty("value", out var valueProperty).Should().BeTrue();
+        valueProperty.ValueKind.Should().Be(JsonValueKind.Null);
+        connected.RequestMethods.Should().ContainInOrder(
+            "get_dp_value_source",
+            "set_dp_value",
+            "get_dp_value_source");
+    }
+
+    [Fact]
     public async Task CaptureStateSnapshot_ShouldKeepNonBindingExpressionAsSkippedCapabilityBoundary()
     {
         var processId = NextSyntheticProcessId();
@@ -222,6 +277,18 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
         errorCount = 0,
         errors = Array.Empty<object>()
     };
+
+    private static object CaptureSetDpValueParams(InspectorRequest request, ref JsonElement? capturedParams)
+    {
+        capturedParams = request.Params?.Clone();
+        return new
+        {
+            success = true,
+            propertyName = "Tag",
+            oldValue = "mutated",
+            newValue = (string?)null
+        };
+    }
 
     private static async Task<ConnectedStateSession> CreateConnectedSessionAsync(
         int processId,

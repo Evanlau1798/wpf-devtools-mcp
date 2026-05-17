@@ -119,6 +119,24 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Fact]
+    public void BootstrapDelayHookTests_ShouldScopeDelayEnvironmentToTargetProcess()
+    {
+        var sourceRoot = FindRepoRoot();
+        var source = File.ReadAllText(Path.Combine(
+            sourceRoot,
+            "tests",
+            "WpfDevTools.Tests.Integration",
+            "BootstrapInjectionTests.cs"));
+
+        source.Should().NotContain("Environment.SetEnvironmentVariable",
+            "Debug bootstrap delay hooks must not mutate process-wide environment while integration collections run in parallel");
+        source.Should().NotContain("EnvironmentVariableScope",
+            "delay hooks should be scoped to the launched TestApp process instead of the parent test process");
+        source.Should().Contain("IReadOnlyDictionary<string, string>? environmentVariables = null");
+        source.Should().Contain("environmentVariables: new Dictionary<string, string>");
+    }
+
+    [Fact]
     public void McpE2eCollection_ShouldDisableParallelization()
     {
         GetCollectionDefinitionAttribute(typeof(McpE2eCollection))

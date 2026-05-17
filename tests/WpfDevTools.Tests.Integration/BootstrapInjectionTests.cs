@@ -37,11 +37,13 @@ public class BootstrapInjectionTests : IDisposable
         _output = output;
     }
 
-    private System.Diagnostics.Process StartTestApp()
+    private System.Diagnostics.Process StartTestApp(
+        IReadOnlyDictionary<string, string>? environmentVariables = null)
     {
         return TestAppProcessLauncher.StartAndWaitForMainWindow(
             TestAppProcessLauncher.FindTestAppExe(),
-            LiveTestAppStartupTimeout);
+            LiveTestAppStartupTimeout,
+            environmentVariables);
     }
 
     [Fact]
@@ -169,11 +171,11 @@ public class BootstrapInjectionTests : IDisposable
             "the live bootstrap timeout coverage must fail fast when native bootstrapper artifacts are missing; " +
             "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
 
-        using var hostStartDelayScope = new EnvironmentVariableScope(
-            IntegrationTestDelayHooks.DelayBeforeHostStartEnvVar,
-            "2500");
-
-        _testApp = StartTestApp();
+        _testApp = StartTestApp(
+            environmentVariables: new Dictionary<string, string>
+            {
+                [IntegrationTestDelayHooks.DelayBeforeHostStartEnvVar] = "2500"
+            });
 
         using var sessionManager = new SessionManager();
         var connectTool = CreateLiveConnectTool(sessionManager, TimeSpan.FromMilliseconds(1800));
@@ -201,11 +203,11 @@ public class BootstrapInjectionTests : IDisposable
             "the live final-attach timeout coverage must fail fast when native bootstrapper artifacts are missing; " +
             "build src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj first");
 
-        using var attachDelayScope = new EnvironmentVariableScope(
-            IntegrationTestDelayHooks.DelayAfterPipeConnectEnvVar,
-            "3000");
-
-        _testApp = StartTestApp();
+        _testApp = StartTestApp(
+            environmentVariables: new Dictionary<string, string>
+            {
+                [IntegrationTestDelayHooks.DelayAfterPipeConnectEnvVar] = "3000"
+            });
 
         using var sessionManager = new SessionManager();
         var connectTool = CreateLiveConnectTool(sessionManager, TimeSpan.FromMilliseconds(2200));
@@ -338,24 +340,6 @@ public class BootstrapInjectionTests : IDisposable
         public InjectionResult InjectWithBootstrap(
             InjectionRequest request,
             CancellationToken cancellationToken = default) => _result;
-    }
-
-    private sealed class EnvironmentVariableScope : IDisposable
-    {
-        private readonly string _name;
-        private readonly string? _originalValue;
-
-        public EnvironmentVariableScope(string name, string? value)
-        {
-            _name = name;
-            _originalValue = Environment.GetEnvironmentVariable(name);
-            Environment.SetEnvironmentVariable(name, value);
-        }
-
-        public void Dispose()
-        {
-            Environment.SetEnvironmentVariable(_name, _originalValue);
-        }
     }
 
     private sealed class DummyBootstrapperArtifact : IDisposable

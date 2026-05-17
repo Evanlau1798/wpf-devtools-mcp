@@ -246,7 +246,7 @@ public sealed class PersistedAuthenticationSecretStoreTests
     {
         if (File.Exists(secretFilePath))
         {
-            File.Delete(secretFilePath);
+            DeleteFileWithRetry(secretFilePath);
         }
 
         var directory = Path.GetDirectoryName(secretFilePath);
@@ -257,16 +257,68 @@ public sealed class PersistedAuthenticationSecretStoreTests
 
         foreach (var artifact in Directory.GetFiles(directory, Path.GetFileName(secretFilePath) + ".*") )
         {
-            File.Delete(artifact);
+            DeleteFileWithRetry(artifact);
         }
 
         var parent = Directory.GetParent(directory);
         if (parent?.Name == "wpf-devtools-auth-tests")
         {
-            Directory.Delete(directory, recursive: true);
+            DeleteDirectoryWithRetry(directory, throwOnFailure: true);
             if (!Directory.EnumerateFileSystemEntries(parent.FullName).Any())
             {
-                Directory.Delete(parent.FullName);
+                DeleteDirectoryWithRetry(parent.FullName, throwOnFailure: false);
+            }
+        }
+    }
+
+    private static void DeleteFileWithRetry(string path)
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+
+                return;
+            }
+            catch (IOException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
+            catch (UnauthorizedAccessException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
+        }
+    }
+
+    private static void DeleteDirectoryWithRetry(string path, bool throwOnFailure)
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+
+                return;
+            }
+            catch (IOException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
+            catch (UnauthorizedAccessException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
+            catch when (!throwOnFailure)
+            {
+                return;
             }
         }
     }

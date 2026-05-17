@@ -463,15 +463,20 @@ public sealed partial class SandboxCiScriptContractTests
         var launcherPath = CreateGrandchildLauncher(projectRoot, token);
         var launcherPathLiteral = System.Text.Json.JsonSerializer.Serialize(launcherPath);
         File.WriteAllText(Path.Combine(projectRoot, "Program.cs"), $$"""
-            using System.Windows;
-            var startInfo = new System.Diagnostics.ProcessStartInfo("powershell.exe") { UseShellExecute = false };
-            Thread.Sleep(TimeSpan.FromMilliseconds(500));
-            startInfo.ArgumentList.Add("-NoProfile"); startInfo.ArgumentList.Add("-ExecutionPolicy"); startInfo.ArgumentList.Add("Bypass"); startInfo.ArgumentList.Add("-File"); startInfo.ArgumentList.Add({{launcherPathLiteral}});
-            System.Diagnostics.Process.Start(startInfo);
-            Thread.Sleep(TimeSpan.FromSeconds(2));
-            var app = new Application();
-            var window = new Window { Width = 240, Height = 120, Title = "Startup snapshot target" };
-            app.Run(window);
+            internal static class Program
+            {
+                [System.STAThread]
+                private static void Main()
+                {
+                    var startInfo = new System.Diagnostics.ProcessStartInfo("powershell.exe") { UseShellExecute = false };
+                    System.Threading.Thread.Sleep(System.TimeSpan.FromMilliseconds(500));
+                    startInfo.ArgumentList.Add("-NoProfile"); startInfo.ArgumentList.Add("-ExecutionPolicy"); startInfo.ArgumentList.Add("Bypass"); startInfo.ArgumentList.Add("-File"); startInfo.ArgumentList.Add({{launcherPathLiteral}});
+                    System.Diagnostics.Process.Start(startInfo);
+                    System.Threading.Thread.Sleep(System.TimeSpan.FromSeconds(2));
+                    var app = new System.Windows.Application();
+                    app.Run(new System.Windows.Window { Width = 240, Height = 120, Title = "Startup snapshot target" });
+                }
+            }
             """);
         var publishRoot = Path.Combine(projectRoot, "publish");
         var result = RunProcess("dotnet", "publish", projectPath, "-c", "Release", "-o", publishRoot, "-v", "q");

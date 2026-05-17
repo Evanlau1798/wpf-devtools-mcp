@@ -351,6 +351,9 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
     }
 
     private static CommandResult RunProcess(string fileName, params string[] arguments)
+        => RunProcess(fileName, TimeSpan.FromSeconds(60), arguments);
+
+    private static CommandResult RunProcess(string fileName, TimeSpan timeout, params string[] arguments)
     {
         using var process = new Process();
         process.StartInfo.FileName = fileName;
@@ -369,7 +372,26 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
         process.Start().Should().BeTrue();
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
-        process.WaitForExit(60000).Should().BeTrue("PowerShell verification should finish within 60 seconds");
+        if (!process.WaitForExit(timeout))
+        {
+            var processTreeIds = GetProcessTreeIds(process.Id);
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            process.WaitForExit(30000).Should().BeTrue($"{fileName} should exit after timeout cleanup");
+            WaitForProcessesToExit(processTreeIds, TimeSpan.FromSeconds(30), fileName);
+            Task.WaitAll(new Task[] { stdout, stderr }, TimeSpan.FromSeconds(30))
+                .Should().BeTrue("redirected process output should close after timeout cleanup");
+            throw new TimeoutException($"{fileName} timed out after {timeout.TotalSeconds:0.###} seconds.");
+        }
 
         return new CommandResult(process.ExitCode, stdout.Result + stderr.Result);
     }

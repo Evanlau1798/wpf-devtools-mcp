@@ -26,6 +26,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'SandboxCi.ProcessCleanup.ps1')
 
 function Write-PreflightResult {
     param(
@@ -254,63 +255,8 @@ function Invoke-InstallerStep {
     }
 }
 
-function Start-SmokeTarget {
-    if ([string]::IsNullOrWhiteSpace($SmokeTargetPath)) {
-        return $null
-    }
-
-    $script:resolvedSmokeTargetPath = (Resolve-Path -LiteralPath $SmokeTargetPath).Path
-    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $startInfo.FileName = $script:resolvedSmokeTargetPath
-    $startInfo.WorkingDirectory = [System.IO.Path]::GetDirectoryName($script:resolvedSmokeTargetPath)
-    $startInfo.UseShellExecute = $false
-
-    $process = [System.Diagnostics.Process]::Start($startInfo)
-    if ($null -eq $process) {
-        throw "Failed to start smoke target: $script:resolvedSmokeTargetPath"
-    }
-
-    $deadline = [DateTime]::UtcNow.AddSeconds($SmokeTargetStartupTimeoutSeconds)
-    while ([DateTime]::UtcNow -lt $deadline) {
-        if ($process.HasExited) {
-            throw "Smoke target exited before its main window was ready: $script:resolvedSmokeTargetPath"
-        }
-
-        $process.Refresh()
-        if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
-            return $process
-        }
-
-        Start-Sleep -Milliseconds 250
-    }
-
-    throw "Timed out waiting for smoke target main window: $script:resolvedSmokeTargetPath"
-}
-
-function Stop-SmokeTarget {
-    param([System.Diagnostics.Process]$Process)
-
-    if ($null -eq $Process) {
-        return
-    }
-
-    try {
-        if (-not $Process.HasExited) {
-            $Process.CloseMainWindow() | Out-Null
-            if (-not $Process.WaitForExit(5000)) {
-                $Process.Kill()
-                $Process.WaitForExit(5000) | Out-Null
-            }
-        }
-    }
-    finally {
-        $Process.Dispose()
-    }
-}
-
 function Assert-NoPreflightProcessesRemain {
     param([Parameter(Mandatory = $true)] [string]$RootPath)
-
     $root = [System.IO.Path]::GetFullPath($RootPath).TrimEnd('\') + '\'
     $matches = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
         try {
@@ -321,7 +267,6 @@ function Assert-NoPreflightProcessesRemain {
             $false
         }
     })
-
     if ($matches.Count -gt 0) {
         throw "Preflight left process(es) running from ${RootPath}: $($matches.ProcessName -join ', ')"
     }
@@ -339,6 +284,7 @@ $extractRoot = Join-Path $localRoot 'package'
 $installRoot = Join-Path $localRoot 'install'
 $smokeProcess = $null
 $resolvedSmokeTargetPath = ''
+$preflightFailureMessage = ''
 
 Start-Transcript -Path $transcriptPath -Force | Out-Null
 try {
@@ -419,8 +365,7 @@ try {
         OutputJson = $true
     }
 
-    Stop-SmokeTarget -Process $smokeProcess
-    $smokeProcess = $null
+    try { Stop-SmokeTarget -Process $smokeProcess } finally { $smokeProcess = $null }
     Assert-NoPreflightProcessesRemain -RootPath $localRoot
     Write-PreflightSummary -Status 'PASS' -Message 'Artifact preflight completed successfully.' -PackagePath $resolvedPackagePath -InstallRoot $installRoot
     Write-PreflightResult -Value "PASS $RunId $timestamp ArtifactPreflight" -Encoding $ascii
@@ -428,15 +373,27 @@ try {
 }
 catch {
     $message = $_.Exception.Message
+    $preflightFailureMessage = $message
     Write-PreflightSummary -Status 'FAIL' -Message $message -PackagePath $PackageArchivePath -InstallRoot $installRoot
     Write-PreflightResult -Value "FAIL $RunId $timestamp ArtifactPreflight $message" -Encoding $utf8NoBom
     throw
 }
 finally {
-    Stop-SmokeTarget -Process $smokeProcess
+    $cleanupFailureMessage = ''
     try {
-        Stop-Transcript | Out-Null
+        if ($null -ne $smokeProcess) {
+            try { Stop-SmokeTarget -Process $smokeProcess } finally { $smokeProcess = $null }
+        }
     }
-    catch {
+    catch { $cleanupFailureMessage = $_.Exception.Message }
+    try { Stop-Transcript | Out-Null } catch {}
+    if (-not [string]::IsNullOrWhiteSpace($cleanupFailureMessage)) {
+        if (-not [string]::IsNullOrWhiteSpace($preflightFailureMessage)) {
+            $combinedMessage = "Preflight cleanup failed after primary failure. Primary failure: $preflightFailureMessage Cleanup failure: $cleanupFailureMessage"
+            Write-PreflightSummary -Status 'FAIL' -Message $combinedMessage -PackagePath $PackageArchivePath -InstallRoot $installRoot
+            Write-PreflightResult -Value "FAIL $RunId $timestamp ArtifactPreflight $combinedMessage" -Encoding $utf8NoBom
+            throw $combinedMessage
+        }
+        throw $cleanupFailureMessage
     }
 }

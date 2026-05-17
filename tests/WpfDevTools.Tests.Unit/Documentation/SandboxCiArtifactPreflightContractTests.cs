@@ -80,10 +80,14 @@ public sealed partial class SandboxCiScriptContractTests
 
             result.ExitCode.Should().Be(0, result.Output);
             var configPath = Directory.GetFiles(workRoot, "WpfDevTools-ArtifactPreflight-*.wsb").Should().ContainSingle().Subject;
+            var preflightRoot = Path.Combine(workRoot, "preflight");
             var document = XDocument.Load(configPath);
             var sandboxFolders = document.Descendants("SandboxFolder").Select(element => element.Value).ToArray();
             var command = document.Descendants("Command").Single().Value;
 
+            File.Exists(Path.Combine(preflightRoot, "SandboxCi.ArtifactPreflight.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(preflightRoot, "SandboxCi.ProcessCleanup.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(preflightRoot, "Test-PackagedServerRuntime.ps1")).Should().BeTrue();
             sandboxFolders.Should().Contain(new[] { @"C:\release", @"C:\preflight", @"C:\preflight-output" });
             document.Descendants("MappedFolder").Should().HaveCount(3);
             document.Descendants("ReadOnly").Select(element => element.Value)

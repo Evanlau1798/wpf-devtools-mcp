@@ -101,7 +101,7 @@ public sealed partial class InteractionAnalyzer
 
                 if (normalizedOutputMode == "file")
                 {
-                    var screenshot = ScreenshotStorage.WritePng(imageBytes);
+                    var screenshot = ScreenshotStorage.WritePng(imageBytes, _screenshotDirectoryOverride);
                     return new
                     {
                         success = true,

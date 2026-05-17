@@ -31,6 +31,15 @@ public static partial class E2eTestHelpers
 
     public static string AssertFileScreenshotMatchesReportedMetadata(JsonElement result, string expectedDirectory)
     {
+        AssertFileScreenshotMatchesReportedMetadata(result, expectedDirectory, out var fullPath);
+        return fullPath;
+    }
+
+    public static void AssertFileScreenshotMatchesReportedMetadata(
+        JsonElement result,
+        string expectedDirectory,
+        out string fullPath)
+    {
         result.TryGetProperty("path", out _).Should().BeFalse(
             "file screenshot output should redact absolute local paths from MCP responses");
         result.GetProperty("localPathRedacted").GetBoolean().Should().BeTrue(
@@ -42,13 +51,12 @@ public static partial class E2eTestHelpers
         fileName.Should().NotBeNullOrWhiteSpace("fileName should identify the written PNG without exposing an absolute path");
         Path.GetFileName(fileName!).Should().Be(fileName, "fileName should not include directory components");
 
-        var fullPath = Path.GetFullPath(Path.Combine(expectedDirectory, fileName!));
+        fullPath = Path.GetFullPath(Path.Combine(expectedDirectory, fileName!));
         IsPathUnderDirectory(fullPath, expectedDirectory).Should().BeTrue(
             $"file screenshot should be written under {expectedDirectory}");
         File.Exists(fullPath).Should().BeTrue("file screenshot path should exist before cleanup");
 
         AssertPngMatchesReportedMetadata(File.ReadAllBytes(fullPath), result);
-        return fullPath;
     }
 
     private static ImageDimensions AssertPngMatchesReportedMetadata(byte[] bytes, JsonElement result)

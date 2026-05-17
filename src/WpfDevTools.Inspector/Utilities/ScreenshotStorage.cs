@@ -5,6 +5,7 @@ namespace WpfDevTools.Inspector.Utilities;
 
 internal static class ScreenshotStorage
 {
+    internal const string DirectoryEnvironmentVariable = "WPFDEVTOOLS_SCREENSHOT_DIR";
     internal const int MaxEncodedPngBytes = 6 * 1024 * 1024;
     internal const int MaxStoredScreenshots = 100;
     internal static readonly TimeSpan RetentionMaxAge = TimeSpan.FromHours(24);
@@ -77,6 +78,17 @@ internal static class ScreenshotStorage
 
     private static string GetScreenshotDirectory()
     {
+        var configuredDirectory = Environment.GetEnvironmentVariable(DirectoryEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(configuredDirectory))
+        {
+            return ValidateConfiguredDirectory(configuredDirectory);
+        }
+
+        return GetDefaultScreenshotDirectory();
+    }
+
+    internal static string GetDefaultScreenshotDirectory()
+    {
         var localApplicationData = Environment.GetFolderPath(
             Environment.SpecialFolder.LocalApplicationData,
             Environment.SpecialFolderOption.Create);
@@ -90,6 +102,21 @@ internal static class ScreenshotStorage
             ProductDirectoryName,
             TempDirectoryName,
             ScreenshotDirectoryName);
+    }
+
+    private static string ValidateConfiguredDirectory(string configuredDirectory)
+    {
+        var root = Path.GetPathRoot(configuredDirectory);
+        if (string.IsNullOrWhiteSpace(root) ||
+            root.Length < 3 ||
+            root.StartsWith(@"\\", StringComparison.Ordinal) ||
+            !root.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"{DirectoryEnvironmentVariable} must be an absolute local directory path.");
+        }
+
+        return Path.GetFullPath(configuredDirectory);
     }
 
     private static string ComputeSha256Hex(byte[] imageBytes)

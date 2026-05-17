@@ -15,6 +15,7 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private readonly WatchEventBuffer? _watchEventBuffer;
+    private readonly string? _screenshotDirectoryOverride;
 
     /// <summary>
     /// Create a new InteractionAnalyzer instance
@@ -27,11 +28,13 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 
     internal InteractionAnalyzer(
         ElementFinder elementFinder,
-        WatchEventBuffer? watchEventBuffer)
+        WatchEventBuffer? watchEventBuffer,
+        string? screenshotDirectoryOverride = null)
         : base(elementFinder)
     {
         _elementFinder = elementFinder;
         _watchEventBuffer = watchEventBuffer;
+        _screenshotDirectoryOverride = screenshotDirectoryOverride;
     }
 
     /// <summary>

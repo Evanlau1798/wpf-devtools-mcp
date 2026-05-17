@@ -115,6 +115,7 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(InspectorSdkInitializationConfigurationTests)).Should().Be("ProcessEnvironment");
         GetCollectionName(typeof(InspectorSdkCleanupTests)).Should().Be("ProcessEnvironment");
         GetCollectionName(typeof(InspectorSdkDispatcherLifecycleTests)).Should().Be("ProcessEnvironment");
+        GetCollectionName(typeof(ScreenshotStorageTests)).Should().Be("ProcessEnvironment");
     }
 
     [Fact]

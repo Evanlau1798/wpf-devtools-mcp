@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.IO;
 using FluentAssertions;
+using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Tests.Integration.E2E;
@@ -29,6 +30,16 @@ public sealed class McpE2eFixtureInitializationFailurePolicyTests
             "Windows temp resolution should stay inside the same isolated fixture root for live runs");
         environment.Should().Contain("WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP", "1");
         environment.Should().NotContainKey("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK");
+    }
+
+    [Fact]
+    public void CreateIsolatedTempEnvironment_ShouldRouteScreenshotsUnderFixtureTempRoot()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "WpfDevTools.McpE2e." + Guid.NewGuid().ToString("N"));
+        var environment = McpE2eFixture.CreateIsolatedTempEnvironment(tempRoot);
+
+        environment.Should().Contain(ScreenshotStorage.DirectoryEnvironmentVariable, Path.Combine(tempRoot, "screenshots"),
+            "file screenshot E2E output should be isolated from real LocalApplicationData and cleaned up with the fixture root");
     }
 
     [Theory]

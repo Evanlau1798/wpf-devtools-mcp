@@ -5,6 +5,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
+using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Tests.Integration.TestSupport;
 
@@ -50,6 +51,8 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
     public int TestAppProcessId => _testAppProcessIdOverride
         ?? _testApp?.Id
         ?? throw new InvalidOperationException("TestApp not started");
+
+    public string ScreenshotDirectory => CreateScreenshotDirectoryPath(_certDirectory);
 
     /// <summary>
     /// Non-null if the fixture could not start (missing prerequisites).
@@ -240,16 +243,20 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
         };
     }
 
-    private static IReadOnlyDictionary<string, string> CreateIsolatedTempEnvironment(string tempDirectory)
+    internal static IReadOnlyDictionary<string, string> CreateIsolatedTempEnvironment(string tempDirectory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tempDirectory);
 
         return new Dictionary<string, string>
         {
             ["TEMP"] = tempDirectory,
-            ["TMP"] = tempDirectory
+            ["TMP"] = tempDirectory,
+            [ScreenshotStorage.DirectoryEnvironmentVariable] = CreateScreenshotDirectoryPath(tempDirectory)
         };
     }
+
+    private static string CreateScreenshotDirectoryPath(string tempDirectory) =>
+        Path.Combine(tempDirectory, "screenshots");
 
     private static string CreateAuthSecret()
     {

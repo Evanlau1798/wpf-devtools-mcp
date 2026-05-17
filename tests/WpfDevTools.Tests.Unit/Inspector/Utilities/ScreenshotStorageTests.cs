@@ -4,33 +4,26 @@ using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
 
+[Collection("ProcessEnvironment")]
 public sealed class ScreenshotStorageTests
 {
+    private const string ScreenshotDirectoryEnvironmentVariable = ScreenshotStorage.DirectoryEnvironmentVariable;
+
     [Fact]
-    public void WritePng_ShouldStoreScreenshotUnderLocalApplicationData()
+    public void GetDefaultScreenshotDirectory_ShouldResolveUnderLocalApplicationData()
     {
-        var imageBytes = new byte[] { 1, 2, 3, 4 };
         var expectedDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "WpfDevTools",
             "tmp",
             "screenshots");
+        var directoryExistedBefore = Directory.Exists(expectedDirectory);
 
-        var screenshot = ScreenshotStorage.WritePng(imageBytes);
+        var directory = ScreenshotStorage.GetDefaultScreenshotDirectory();
 
-        try
-        {
-            screenshot.Path.StartsWith(expectedDirectory, StringComparison.OrdinalIgnoreCase).Should().BeTrue();
-            File.Exists(screenshot.Path).Should().BeTrue();
-            Directory.Exists(expectedDirectory).Should().BeTrue();
-        }
-        finally
-        {
-            if (File.Exists(screenshot.Path))
-            {
-                File.Delete(screenshot.Path);
-            }
-        }
+        directory.Should().Be(expectedDirectory);
+        Directory.Exists(directory).Should().Be(directoryExistedBefore,
+            "default directory resolution should not write to the real LocalApplicationData profile during unit tests");
     }
 
     [Fact]
@@ -44,6 +37,58 @@ public sealed class ScreenshotStorageTests
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*exceeds*");
         Directory.EnumerateFiles(tempDirectory.Path).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void WritePng_ShouldUseConfiguredScreenshotDirectory()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var previousValue = Environment.GetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable);
+        ScreenshotStorage.ScreenshotFile? screenshot = null;
+
+        try
+        {
+            Environment.SetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable, tempDirectory.Path);
+
+            screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 });
+
+            screenshot.Path.Should().StartWith(
+                Path.GetFullPath(tempDirectory.Path) + Path.DirectorySeparatorChar,
+                "test-configured screenshot output should not write under the real LocalApplicationData directory");
+            File.Exists(screenshot.Path).Should().BeTrue();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable, previousValue);
+            if (screenshot != null && File.Exists(screenshot.Path))
+            {
+                File.Delete(screenshot.Path);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(@"relative\screenshots")]
+    [InlineData(@"C:relative\screenshots")]
+    [InlineData(@"\rooted\screenshots")]
+    [InlineData(@"\\server\share\screenshots")]
+    public void WritePng_WithInvalidConfiguredScreenshotDirectory_ShouldRejectBeforeWriting(string configuredDirectory)
+    {
+        var previousValue = Environment.GetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable, configuredDirectory);
+
+            var act = () => ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 });
+
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*WPFDEVTOOLS_SCREENSHOT_DIR*absolute local directory path*");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable, previousValue);
+        }
     }
 
     [Fact]

@@ -105,22 +105,59 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
     [StaFact]
     public void TakeScreenshot_WithFileOutputMode_ShouldWritePngAndOmitBase64()
     {
+        using var tempDirectory = new TemporaryDirectory();
         var finder = new ElementFinder();
-        var analyzer = new InteractionAnalyzer(finder);
+        var analyzer = new InteractionAnalyzer(
+            finder,
+            watchEventBuffer: null,
+            screenshotDirectoryOverride: tempDirectory.Path);
         var button = new Button { Width = 140, Height = 70 };
         var elementId = finder.GenerateElementId(button);
+        string? path = null;
 
-        var result = analyzer.TakeScreenshot(elementId, "file");
-        var json = JsonSerializer.SerializeToElement(result);
+        try
+        {
+            var result = analyzer.TakeScreenshot(elementId, "file");
+            var json = JsonSerializer.SerializeToElement(result);
 
-        json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.TryGetProperty("base64Image", out _).Should().BeFalse();
-        var path = json.GetProperty("path").GetString();
-        path.Should().NotBeNullOrEmpty();
-        File.Exists(path).Should().BeTrue();
-        json.GetProperty("rendered").GetBoolean().Should().BeTrue();
-        json.GetProperty("byteLength").GetInt32().Should().BeGreaterThan(0);
+            json.GetProperty("success").GetBoolean().Should().BeTrue();
+            json.TryGetProperty("base64Image", out _).Should().BeFalse();
+            path = json.GetProperty("path").GetString();
+            path.Should().NotBeNullOrEmpty();
+            path.Should().StartWith(
+                Path.GetFullPath(tempDirectory.Path) + Path.DirectorySeparatorChar,
+                "unit screenshot tests should not write under real LocalApplicationData");
+            File.Exists(path).Should().BeTrue();
+            json.GetProperty("rendered").GetBoolean().Should().BeTrue();
+            json.GetProperty("byteLength").GetInt32().Should().BeGreaterThan(0);
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
 
-        File.Delete(path!);
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "wpf-devtools-interaction-screenshot-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
     }
 }

@@ -25,6 +25,7 @@
 - `hint`
 - `suggestedAction`
 - `requiresReconnect`
+- `stateAfterTimeoutUnknown`
 - `processId`
 - `timeoutSeconds`
 - `retryAfterSeconds`
@@ -52,13 +53,14 @@
 
 - `recovery.suggestedAction`：給人類或 agent 的明確下一步，例如 retry、reconnect，或以系統管理員權限重新啟動 MCP server。
 - `recovery.requiresReconnect`：表示先前的 pipe-backed session 應視為 stale，重試前需要重新呼叫 `connect`。
+- `recovery.stateAfterTimeoutUnknown`：表示 timeout 的 mutation 或 pipe-backed 操作可能已改變 target state；應先 reconnect 並重新讀取狀態，再判斷成功或失敗。
 - `recovery.processId`：與 reconnect 或 timeout 提示相關的目標 process。
 - `recovery.timeoutSeconds`：本次逾時所對應的 server-side timeout 預算。
 - `recovery.retryAfterSeconds` 與 `recovery.retryAfter`：提供 rate limit 的 deterministic backoff 提示。
 
 例子：
 
-- Timeout 回應可能同時帶有 `errorCode`、`recovery.requiresReconnect`、`recovery.processId` 與 `recovery.timeoutSeconds`，讓 client 分辨是 stale pipe 還是單純操作太慢。
+- Timeout 回應可能同時帶有 `errorCode`、`recovery.requiresReconnect`、`recovery.stateAfterTimeoutUnknown`、`recovery.processId` 與 `recovery.timeoutSeconds`，讓 client 分辨是 stale pipe、target state unknown，還是單純操作太慢。
 - Rate-limit 回應可能帶有 `recovery.retryAfterSeconds` 與 `recovery.retryAfter`，方便 agent 排程重試。
 - Elevation 或 access denied 回應可能將 `errorCode` 與 `recovery.suggestedAction` 配對，避免 client 只能從錯誤文字猜測下一步。
 
@@ -69,7 +71,7 @@
 - 工具名稱
 - 目標 process ID
 - 完整錯誤文字
-- `recovery` object，以及任何 mirror 出來的 `suggestedAction`、`requiresReconnect` 或 `retryAfterSeconds` compatibility 欄位
+- `recovery` object，以及任何 mirror 出來的 `suggestedAction`、`requiresReconnect`、`stateAfterTimeoutUnknown` 或 `retryAfterSeconds` compatibility 欄位
 - 涉及的架構
 - 目前 build 是 Debug 還是 Release
 

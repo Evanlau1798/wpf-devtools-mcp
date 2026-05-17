@@ -53,6 +53,8 @@ public sealed class AgentGuidanceDocumentationTests
             "the primary agent-facing instructions should advertise structured recovery hints");
         serverInstructions.Should().Contain("requiresReconnect",
             "the primary agent-facing instructions should describe reconnect guidance for stale pipe sessions");
+        serverInstructions.Should().Contain("stateAfterTimeoutUnknown",
+            "the primary agent-facing instructions should describe timeout recovery cases where target state is unknown");
         serverInstructions.Should().Contain("retryAfterSeconds",
             "the primary agent-facing instructions should mention rate-limit backoff fields");
     }
@@ -68,6 +70,8 @@ public sealed class AgentGuidanceDocumentationTests
             "error-model docs should describe the recovery hints returned by modern tool contracts");
         content.Should().Contain("requiresReconnect",
             "error-model docs should explain reconnect guidance for stale or timed-out pipe sessions");
+        content.Should().Contain("stateAfterTimeoutUnknown",
+            "error-model docs should explain timeout recovery cases where mutation state is unknown");
         content.Should().Contain("retryAfterSeconds",
             "error-model docs should document rate-limit recovery fields for agents");
     }

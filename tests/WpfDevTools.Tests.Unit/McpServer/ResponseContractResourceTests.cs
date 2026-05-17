@@ -383,6 +383,7 @@ public sealed partial class ResponseContractResourceTests
             "hint",
             "suggestedAction",
             "requiresReconnect",
+            "stateAfterTimeoutUnknown",
             "processId",
             "timeoutSeconds",
             "retryAfterSeconds",
@@ -394,6 +395,7 @@ public sealed partial class ResponseContractResourceTests
         recovery.GetProperty("field").GetString().Should().Be("recovery");
         recovery.GetProperty("properties").GetProperty("suggestedAction").GetProperty("type").GetString().Should().Be("string");
         recovery.GetProperty("properties").GetProperty("requiresReconnect").GetProperty("type").GetString().Should().Be("boolean");
+        recovery.GetProperty("properties").GetProperty("stateAfterTimeoutUnknown").GetProperty("type").GetString().Should().Be("boolean");
         recovery.GetProperty("properties").GetProperty("retryAfterSeconds").GetProperty("type").GetString().Should().Be("integer");
 
         var parameterVocabularies = root.GetProperty("parameterVocabularies");

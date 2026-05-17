@@ -242,12 +242,13 @@ public static class ServerInstructions
 
         === RESPONSE FORMAT ===
         All tools return JSON: { success: boolean, ...fields }
-        On error: { success: false, error: string, errorCode?: string, errorData?: object, recovery?: { hint?: string, suggestedAction?: string, requiresReconnect?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string, availableTokens?: number, availableEvents?: string[] }, hint?: string, suggestedAction?: string, requiresReconnect?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string, availableTokens?: number, availableEvents?: string[] }
+        On error: { success: false, error: string, errorCode?: string, errorData?: object, recovery?: { hint?: string, suggestedAction?: string, requiresReconnect?: boolean, stateAfterTimeoutUnknown?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string, availableTokens?: number, availableEvents?: string[] }, hint?: string, suggestedAction?: string, requiresReconnect?: boolean, stateAfterTimeoutUnknown?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string, availableTokens?: number, availableEvents?: string[] }
         - errorCode is the Inspector error enum name when the request reached the in-process Inspector
         - errorData is optional structured context for automated recovery logic
-        - recovery is the canonical machine-readable recovery surface; compatibility fields such as suggestedAction/requiresReconnect/retryAfterSeconds remain projected at the top level for older clients
+        - recovery is the canonical machine-readable recovery surface; compatibility fields such as suggestedAction/requiresReconnect/stateAfterTimeoutUnknown/retryAfterSeconds remain projected at the top level for older clients
         - suggestedAction is a human-readable recovery hint when the next step is deterministic
         - requiresReconnect indicates the current pipe-backed session should be treated as stale before retrying
+        - stateAfterTimeoutUnknown indicates a timeout may have left target state changed but unverified; reconnect and re-read before assuming success or failure
         - retryAfterSeconds and retryAfter are additive rate-limit backoff hints when throttling occurs
         - Common closed vocabularies for string parameters such as windowFilter, selectionStrategy, depthMode, detail, and outputMode are published in parameterVocabularies inside `wpf://contracts/response`
 

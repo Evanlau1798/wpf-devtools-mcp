@@ -1,7 +1,10 @@
 using System.Text.Json;
+using System.Text;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.Serialization;
 
 namespace WpfDevTools.Inspector.Host.Handlers;
 
@@ -14,6 +17,9 @@ public class TreeHandlers : IRequestHandler
     private readonly LogicalTreeAnalyzer _logicalTreeAnalyzer;
     private readonly XamlSerializer _xamlSerializer;
     private readonly ElementFinder _elementFinder;
+    private readonly TimeSpan? _serializeToXamlDispatcherTimeout;
+    private readonly int _maxSerializedXamlCharacters;
+    private readonly int _maxSerializedXamlUtf8Bytes;
 
     /// <summary>
     /// Initializes a tree request handler with the required analyzers and utilities.
@@ -23,11 +29,39 @@ public class TreeHandlers : IRequestHandler
         LogicalTreeAnalyzer logicalTreeAnalyzer,
         XamlSerializer xamlSerializer,
         ElementFinder elementFinder)
+        : this(
+            visualTreeAnalyzer,
+            logicalTreeAnalyzer,
+            xamlSerializer,
+            elementFinder,
+            serializeToXamlDispatcherTimeout: null,
+            maxSerializedXamlCharacters: null,
+            maxSerializedXamlUtf8Bytes: null)
+    {
+    }
+
+    internal TreeHandlers(
+        VisualTreeAnalyzer visualTreeAnalyzer,
+        LogicalTreeAnalyzer logicalTreeAnalyzer,
+        XamlSerializer xamlSerializer,
+        ElementFinder elementFinder,
+        TimeSpan? serializeToXamlDispatcherTimeout = null,
+        int? maxSerializedXamlCharacters = null,
+        int? maxSerializedXamlUtf8Bytes = null)
     {
         _visualTreeAnalyzer = visualTreeAnalyzer;
         _logicalTreeAnalyzer = logicalTreeAnalyzer;
         _xamlSerializer = xamlSerializer;
         _elementFinder = elementFinder;
+        _serializeToXamlDispatcherTimeout = ValidateTimeout(serializeToXamlDispatcherTimeout);
+        _maxSerializedXamlCharacters = ValidatePositiveBudget(
+            maxSerializedXamlCharacters,
+            XamlSerializer.DefaultMaxSerializedXamlCharacters,
+            nameof(maxSerializedXamlCharacters));
+        _maxSerializedXamlUtf8Bytes = ValidatePositiveBudget(
+            maxSerializedXamlUtf8Bytes,
+            XamlSerializer.DefaultMaxSerializedXamlUtf8Bytes,
+            nameof(maxSerializedXamlUtf8Bytes));
     }
 
     /// <summary>
@@ -108,20 +142,46 @@ public class TreeHandlers : IRequestHandler
             return Task.FromResult<object>(ToolErrorFactory.ElementNotFound(elementId));
         }
 
-        object SerializeElement() => new
+        object SerializeElement()
         {
-            success = true,
-            xaml = _xamlSerializer.SerializeToXaml(element)
-        };
+            try
+            {
+                var xaml = _xamlSerializer.SerializeToXaml(element, _maxSerializedXamlCharacters);
+                var rawXamlByteLength = Encoding.UTF8.GetByteCount(xaml);
+                var successResult = new
+                {
+                    success = true,
+                    xaml
+                };
+                var byteLength = JsonSerializer.SerializeToUtf8Bytes(successResult).Length;
+                if (byteLength > _maxSerializedXamlUtf8Bytes)
+                {
+                    return CreateXamlPayloadTooLargeError(xaml.Length, byteLength, rawXamlByteLength);
+                }
+
+                return successResult;
+            }
+            catch (XamlPayloadTooLargeException ex)
+            {
+                return CreateXamlPayloadTooLargeError(
+                    ex.CharacterCount,
+                    byteLength: null,
+                    rawXamlByteLength: null);
+            }
+        }
 
         if (dispatcher.CheckAccess())
         {
             return Task.FromResult(SerializeElement());
         }
 
-        return Task.FromResult(dispatcher.Invoke(
+        return Task.FromResult(DispatcherOperationRunner.Invoke(
+            dispatcher,
             SerializeElement,
-            System.Windows.Threading.DispatcherPriority.Normal));
+            _serializeToXamlDispatcherTimeout ?? InspectorConfig.UIThreadTimeout,
+            cancellationToken,
+            "serialize_to_xaml dispatcher operation",
+            "serialize_to_xaml dispatcher operation"));
     }
 
     private async Task<object> HandleGetNameScopeAsync(JsonElement? @params, CancellationToken cancellationToken)
@@ -171,5 +231,44 @@ public class TreeHandlers : IRequestHandler
         var maxChildrenPerNode = ParameterHelpers.GetIntParam(@params, "maxChildrenPerNode");
 
         return TreeTraversalOptions.Create(depth, compact, summaryOnly, maxNodes, maxChildrenPerNode);
+    }
+
+    private object CreateXamlPayloadTooLargeError(
+        int characterCount,
+        int? byteLength,
+        int? rawXamlByteLength)
+    {
+        return ToolErrorFactory.PayloadTooLarge(
+            "Serialized XAML exceeds the serialize_to_xaml payload budget.",
+            "Target a smaller element, use get_ui_summary or get_element_snapshot first, or inspect a narrower subtree before retrying serialize_to_xaml.",
+            new
+            {
+                characterCount,
+                byteLength,
+                rawXamlByteLength,
+                maxCharacterCount = _maxSerializedXamlCharacters,
+                maxByteLength = _maxSerializedXamlUtf8Bytes,
+                messageFramingMaxByteLength = MessageFraming.MaxMessageSizeBytes
+            });
+    }
+
+    private static TimeSpan? ValidateTimeout(TimeSpan? timeout)
+    {
+        if (timeout.HasValue && timeout.Value <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), "Dispatcher timeout must be positive.");
+        }
+
+        return timeout;
+    }
+
+    private static int ValidatePositiveBudget(int? value, int defaultValue, string parameterName)
+    {
+        if (value is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, "Serialized XAML budget must be positive.");
+        }
+
+        return value ?? defaultValue;
     }
 }

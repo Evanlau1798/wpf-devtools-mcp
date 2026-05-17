@@ -13,7 +13,10 @@ namespace WpfDevTools.Shared.Serialization;
 /// </summary>
 public static class MessageFraming
 {
-    private const int MaxMessageSize = 10 * 1024 * 1024; // 10 MB
+    /// <summary>
+    /// Maximum UTF-8 payload size accepted by the length-prefixed IPC frame.
+    /// </summary>
+    public const int MaxMessageSizeBytes = 10 * 1024 * 1024; // 10 MB
     private const int LengthPrefixSize = 4;
 
     /// <summary>
@@ -37,10 +40,10 @@ public static class MessageFraming
 
         var messageByteCount = Encoding.UTF8.GetByteCount(message);
 
-        if (messageByteCount > MaxMessageSize)
+        if (messageByteCount > MaxMessageSizeBytes)
         {
             throw new InvalidOperationException(
-                $"Message size ({messageByteCount} bytes) exceeds maximum allowed size ({MaxMessageSize} bytes)");
+                $"Message size ({messageByteCount} bytes) exceeds maximum allowed size ({MaxMessageSizeBytes} bytes)");
         }
 
         // Combine length prefix and message into single pooled buffer (zero intermediate allocation)
@@ -103,7 +106,7 @@ public static class MessageFraming
 
             var messageLength = BinaryPrimitives.ReadInt32LittleEndian(lengthBytes.AsSpan(0, LengthPrefixSize));
 
-            if (messageLength < 0 || messageLength > MaxMessageSize)
+            if (messageLength < 0 || messageLength > MaxMessageSizeBytes)
             {
                 throw new InvalidOperationException(
                     $"Invalid message length: {messageLength}");
@@ -142,7 +145,7 @@ public static class MessageFraming
 
         var messageLength = BinaryPrimitives.ReadInt32LittleEndian(lengthBytes.AsSpan(0, LengthPrefixSize));
 
-        if (messageLength < 0 || messageLength > MaxMessageSize)
+        if (messageLength < 0 || messageLength > MaxMessageSizeBytes)
         {
             throw new InvalidOperationException(
                 $"Invalid message length: {messageLength}");

@@ -1,13 +1,11 @@
-using System.Runtime.ExceptionServices;
 using System.Windows.Threading;
+using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
 public abstract partial class DispatcherAnalyzerBase
 {
-    private const int DispatcherWaitPollMilliseconds = 25;
-
     /// <summary>
     /// Execute an action on the specified dispatcher with optional timeout.
     /// Returns a structured unavailable result for object-returning analyzer calls.
@@ -100,107 +98,12 @@ public abstract partial class DispatcherAnalyzerBase
         Func<T> action,
         TimeSpan? timeout)
     {
-        DispatcherOperation? operation = null;
-        ExceptionDispatchInfo? capturedException = null;
-        T? result = default;
-        var started = 0;
-        var completed = 0;
-        using var completion = new ManualResetEventSlim(false);
-
-        operation = targetDispatcher.BeginInvoke(new Action(() =>
-        {
-            Interlocked.Exchange(ref started, 1);
-            try
-            {
-                result = action();
-            }
-            catch (Exception ex)
-            {
-                capturedException = ExceptionDispatchInfo.Capture(ex);
-            }
-            finally
-            {
-                Interlocked.Exchange(ref completed, 1);
-                completion.Set();
-            }
-        }), DispatcherPriority.Normal);
-
-        WaitForDispatcherOperation(
-            operation,
-            completion,
-            () => Volatile.Read(ref started) != 0,
-            () => Volatile.Read(ref completed) != 0,
+        return DispatcherOperationRunner.Invoke(
+            targetDispatcher,
+            action,
             timeout ?? InspectorConfig.UIThreadTimeout,
-            DispatcherRequestContext.CancellationToken);
-
-        capturedException?.Throw();
-        return result!;
-    }
-
-    private static void WaitForDispatcherOperation(
-        DispatcherOperation operation,
-        ManualResetEventSlim completion,
-        Func<bool> hasStarted,
-        Func<bool> hasCompleted,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
-    {
-        var timeoutAt = DateTime.UtcNow + timeout;
-        while (true)
-        {
-            if (completion.Wait(GetPollDelay(timeoutAt)))
-            {
-                return;
-            }
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                AbortPendingOperation(operation, hasStarted);
-                throw new OperationCanceledException(
-                    "Dispatcher operation was canceled before it completed.",
-                    cancellationToken);
-            }
-
-            if (DateTime.UtcNow < timeoutAt)
-            {
-                continue;
-            }
-
-            AbortPendingOperation(operation, hasStarted);
-            if (!hasCompleted())
-            {
-                throw new TimeoutException(
-                    $"Timed out waiting for WPF dispatcher operation after {timeout.TotalMilliseconds:0}ms.");
-            }
-        }
-    }
-
-    private static TimeSpan GetPollDelay(DateTime timeoutAt)
-    {
-        var remaining = timeoutAt - DateTime.UtcNow;
-        if (remaining <= TimeSpan.Zero)
-        {
-            return TimeSpan.Zero;
-        }
-
-        var pollDelay = TimeSpan.FromMilliseconds(DispatcherWaitPollMilliseconds);
-        return remaining < pollDelay ? remaining : pollDelay;
-    }
-
-    private static void AbortPendingOperation(DispatcherOperation operation, Func<bool> hasStarted)
-    {
-        if (hasStarted())
-        {
-            return;
-        }
-
-        try
-        {
-            operation.Abort();
-        }
-        catch (InvalidOperationException)
-        {
-            // Dispatcher is already shutting down or the operation state changed.
-        }
+            DispatcherRequestContext.CancellationToken,
+            "WPF dispatcher operation",
+            "Dispatcher operation");
     }
 }

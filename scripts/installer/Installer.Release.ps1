@@ -366,8 +366,8 @@ function Get-LocalPackageTrustedReleaseMetadata {
             -ArchiveHash $archiveHash
         if ($null -ne $releaseRecord -and [string]$releaseRecord.Sha256 -eq $archiveHash) {
             return [ordered]@{
-                TrustedSignerThumbprint = [string]$releaseRecord.SignerThumbprint
-                TrustedSignerSubject = [string]$releaseRecord.SignerSubject
+                TrustedSignerThumbprint = $null
+                TrustedSignerSubject = $null
                 PackageAssetName = [string]$releaseRecord.AssetName
                 DownloadUri = Get-ReleaseDownloadUri -ResolvedVersion $resolvedVersion -ResolvedArchitecture $resolvedArchitecture
                 HasTrustedReleaseMetadata = $true
@@ -401,10 +401,9 @@ function Resolve-PackageSession {
         New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
         Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
         Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
-        # Shipping PackageArchivePath installs accept trusted archive provenance
-        # only when release metadata can be resolved from the trusted release
-        # source. Archive-adjacent release-assets.json/SHA256SUMS.txt remain a
-        # test-only emulation path and are not a production trust root.
+        # PackageArchivePath installs may trust release metadata for archive
+        # provenance, but payload signer pins must still come from an
+        # independent trust root such as WPFDEVTOOLS_RELEASE_SIGNER_*.
         return [ordered]@{
             PackageDirectory = $extractRoot
             SessionRoot = $sessionRoot
@@ -423,11 +422,9 @@ function Resolve-PackageSession {
         $localRoot = Resolve-LocalPackageRoot
         $manifest = Get-Content -Path (Resolve-PackageManifestPath -PackageDirectory $localRoot) -Raw | ConvertFrom-Json
         $trustedLocalReleaseMetadata = Get-LocalPackageTrustedReleaseMetadata -PackageDirectory $localRoot -PackageManifest $manifest
-        # Package-local directories must never trust embedded manifest fields to
-        # relax payload signature validation. Manual archive fallback may reuse
-        # adjacent release sidecars only when the original verified release zip
-        # is still present beside the extracted package so the signer metadata
-        # remains hash-bound to a concrete archive.
+        # Package-local directories must never trust embedded manifest fields or
+        # adjacent release sidecars as payload signer pins. Adjacent archive
+        # metadata is archive provenance only; signer pins stay independent.
         return [ordered]@{
             PackageDirectory = $localRoot
             SessionRoot = $null

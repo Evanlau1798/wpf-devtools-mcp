@@ -94,8 +94,8 @@ function Assert-ArchiveIntegrity {
             ResolvedVersion = if ($null -ne $finalIdentity) { [string]$finalIdentity.ResolvedVersion } else { $ResolvedVersion }
             ResolvedArchitecture = if ($null -ne $finalIdentity) { [string]$finalIdentity.ResolvedArchitecture } else { $ResolvedArchitecture }
             Sha256 = $archiveHash
-            TrustedSignerThumbprint = [string]$releaseRecord.SignerThumbprint
-            TrustedSignerSubject = [string]$releaseRecord.SignerSubject
+            TrustedSignerThumbprint = $null
+            TrustedSignerSubject = $null
         }
     }
 
@@ -424,7 +424,7 @@ function Assert-PackagePayloadIntegrity {
     if (-not (Test-InstallerTestModeEnabled) -and
         [string]::IsNullOrWhiteSpace([string]$expectedSigner.Thumbprint) -and
         [string]::IsNullOrWhiteSpace([string]$expectedSigner.Subject)) {
-        throw 'Package payload signature verification requires pinned signer metadata from a trusted release source or WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT/WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT.'
+        throw 'Package payload signature verification requires pinned signer metadata from WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT/WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT or another independent trust root.'
     }
 
     foreach ($targetPath in $targets) {

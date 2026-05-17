@@ -202,7 +202,7 @@ public sealed class PackageLocalIntegrityTests
     }
 
     [Fact]
-    public void PackageLocalInstaller_ShouldTrustAdjacentReleaseMetadataForExtractedSignedPackage()
+    public void PackageLocalInstaller_ShouldRequireTrustedSignerOverrideWhenAdjacentArchiveMetadataMatches()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -218,7 +218,9 @@ public sealed class PackageLocalIntegrityTests
                 ["-InstallRoot", Path.Combine(tempRoot, "install-root"), "-Client", "other", "-NonInteractive", "-Force", "-OutputJson"],
                 CreateInstallerEnvironment(tempRoot, enforceProductionMode: true));
 
-            result.ExitCode.Should().Be(0, result.Stderr);
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("requires pinned signer metadata");
         }
         finally
         {
@@ -247,7 +249,7 @@ public sealed class PackageLocalIntegrityTests
             result.ExitCode.Should().NotBe(0);
             (result.Stdout + Environment.NewLine + result.Stderr)
                 .Should().Contain("requires pinned signer metadata",
-                    "package-local installs must not trust adjacent signer sidecars unless the original verified release archive is still present beside the extracted package");
+                    "package-local installs must not trust adjacent signer sidecars as payload signer pins");
         }
         finally
         {

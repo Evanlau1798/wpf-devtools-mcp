@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace WpfDevTools.Shared.Utilities;
 
@@ -49,6 +50,11 @@ internal static class FileLoggerShutdownCoordinator
         TimeSpan shutdownTimeout)
     {
         var stopwatch = Stopwatch.StartNew();
+
+        if (!processingTask.IsCompleted)
+        {
+            await ThreadPoolYieldAwaitable.Instance;
+        }
 
         try
         {
@@ -125,5 +131,30 @@ internal static class FileLoggerShutdownCoordinator
         return innerException is null
             ? new TimeoutException(message)
             : new TimeoutException(message, innerException);
+    }
+
+    private readonly struct ThreadPoolYieldAwaitable
+    {
+        internal static ThreadPoolYieldAwaitable Instance => default;
+
+        public ThreadPoolYieldAwaiter GetAwaiter() => default;
+    }
+
+    private readonly struct ThreadPoolYieldAwaiter : ICriticalNotifyCompletion
+    {
+        public bool IsCompleted => false;
+
+        public void GetResult()
+        {
+        }
+
+        public void OnCompleted(Action continuation) => QueueContinuation(continuation);
+
+        public void UnsafeOnCompleted(Action continuation) => QueueContinuation(continuation);
+
+        private static void QueueContinuation(Action continuation)
+        {
+            ThreadPool.QueueUserWorkItem(static state => ((Action)state!).Invoke(), continuation);
+        }
     }
 }

@@ -254,6 +254,54 @@ public class FileLoggerTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task DisposeAsync_WhenCalledOnBlockedSynchronizationContext_ShouldStillArmShutdownTimeout()
+    {
+        var writeStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseWrite = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var shutdownTimeout = TimeSpan.FromMilliseconds(100);
+        var logger = new FileLogger(
+            _testLogPath,
+            shutdownTimeout: shutdownTimeout,
+            writeEntriesOverride: async (_, _) =>
+            {
+                writeStarted.SetResult();
+                await releaseWrite.Task;
+            });
+
+        logger.LogInfo("blocked write");
+        await writeStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        var previousContext = SynchronizationContext.Current;
+        var blockedContext = new QueuedSynchronizationContext();
+        Task disposeTask;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(blockedContext);
+            disposeTask = logger.DisposeAsync().AsTask();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+        }
+
+        try
+        {
+            var completed = await Task.WhenAny(disposeTask, Task.Delay(TimeSpan.FromSeconds(2)));
+
+            completed.Should().BeSameAs(disposeTask,
+                "async shutdown timeout must not depend on the caller SynchronizationContext being pumped");
+            logger.LastShutdownErrorForTesting.Should().BeOfType<TimeoutException>();
+        }
+        finally
+        {
+            releaseWrite.TrySetResult();
+            blockedContext.Drain();
+            await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
+            await logger.ProcessingTaskForTesting.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Fact]
     public void GetRemainingShutdownTimeout_ShouldReduceTheSingleSharedBudget()
     {
         var remaining = FileLogger.GetRemainingShutdownTimeout(
@@ -303,5 +351,37 @@ public class FileLoggerTests : IAsyncDisposable
         cts.Cancel();
 
         FileLogger.ShouldContinueNet48ConsumerLoop(canRead: true, cts.Token).Should().BeFalse();
+    }
+
+    private sealed class QueuedSynchronizationContext : SynchronizationContext
+    {
+        private readonly Queue<(SendOrPostCallback Callback, object? State)> _callbacks = new();
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            lock (_callbacks)
+            {
+                _callbacks.Enqueue((d, state));
+            }
+        }
+
+        public void Drain()
+        {
+            while (true)
+            {
+                (SendOrPostCallback Callback, object? State) item;
+                lock (_callbacks)
+                {
+                    if (_callbacks.Count == 0)
+                    {
+                        return;
+                    }
+
+                    item = _callbacks.Dequeue();
+                }
+
+                item.Callback(item.State);
+            }
+        }
     }
 }

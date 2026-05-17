@@ -6,7 +6,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-public sealed class GitHubPagesInstallerScriptTests
+public sealed partial class GitHubPagesInstallerScriptTests
 {
     [Fact]
     public void OnlineInstallerScript_ShouldInstallFromLocalArchiveWithoutLegacySetupChain()
@@ -304,6 +304,67 @@ public sealed class GitHubPagesInstallerScriptTests
     }
 
     [Fact]
+    public void StandaloneOnlineInstaller_ShouldRejectLocalArchiveBeforeLoadingArchiveHelpers()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64", isolateArchiveContents: true);
+            var extractRoot = Path.Combine(tempRoot, "malicious-package");
+            ZipFile.ExtractToDirectory(archivePath, extractRoot);
+
+            var markerPath = Path.Combine(tempRoot, "malicious-helper.marker");
+            var helperPath = Path.Combine(extractRoot, "bin", "installer", "Installer.Actions.ps1");
+            File.AppendAllText(
+                helperPath,
+                Environment.NewLine +
+                "Set-Content -LiteralPath $env:WPFDEVTOOLS_MALICIOUS_HELPER_MARKER -Value 'executed' -Encoding UTF8" +
+                Environment.NewLine);
+            UpdateInstallerHelperManifestRecord(
+                Path.Combine(extractRoot, "bin", "installer", "installer-helpers.manifest.json"),
+                "Installer.Actions.ps1",
+                helperPath);
+
+            File.Delete(archivePath);
+            ZipFile.CreateFromDirectory(extractRoot, archivePath);
+            var scriptPath = Path.Combine(tempRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                scriptPath,
+                overwrite: true);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                scriptPath,
+                new[]
+                {
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", Path.Combine(tempRoot, "install-root"),
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                },
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["PATH"] = string.Empty,
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
+                    ["WPFDEVTOOLS_MALICIOUS_HELPER_MARKER"] = markerPath
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr).Should().Contain("Archive integrity");
+            File.Exists(markerPath).Should().BeFalse("local archive provenance must be verified before archive helper scripts are loaded");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldSupportIrmStyleScriptblockExecution()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -380,5 +441,26 @@ public sealed class GitHubPagesInstallerScriptTests
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    private static void UpdateInstallerHelperManifestRecord(string manifestPath, string helperName, string helperPath)
+    {
+        var manifest = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+        var helperFiles = manifest["helperFiles"]!.AsArray();
+        var helperBytes = File.ReadAllBytes(helperPath);
+        var sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(helperBytes)).ToLowerInvariant();
+        foreach (var helperEntry in helperFiles)
+        {
+            var helperObject = helperEntry!.AsObject();
+            if (helperObject["path"]?.GetValue<string>() == helperName)
+            {
+                helperObject["sha256"] = sha256;
+                helperObject["sizeBytes"] = helperBytes.Length;
+                File.WriteAllText(manifestPath, manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                return;
+            }
+        }
+
+        throw new InvalidOperationException($"Installer helper manifest record was not found: {helperName}");
     }
 }

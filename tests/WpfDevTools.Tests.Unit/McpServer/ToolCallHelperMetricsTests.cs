@@ -89,6 +89,75 @@ public class ToolCallHelperMetricsTests
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_WithLargePayloadMetrics_ShouldRecordBoundedPayloadEstimate()
+    {
+        var metrics = new MetricsCollector();
+        using var toolCallHelperScope = ToolCallHelper.BeginTestScope(metricsCollector: metrics);
+
+        await ToolCallHelper.ExecuteAndWrapAsync(
+            (args, ct) => Task.FromResult<object>(new
+            {
+                success = true,
+                payload = new string('x', 1024 * 1024)
+            }),
+            null,
+            CancellationToken.None,
+            toolName: nameof(ExecuteAndWrapAsync_WithLargePayloadMetrics_ShouldRecordBoundedPayloadEstimate));
+
+        var snapshot = metrics.GetSnapshot();
+        snapshot.TotalPayloadBytes.Should().BeGreaterThan(0);
+        snapshot.TotalPayloadBytes.Should().BeLessThan(
+            64 * 1024,
+            "metrics should keep payload size observability bounded for large structured payloads");
+    }
+
+    [Fact]
+    public void EstimatePayloadBytesForMetrics_WithLargePayload_ShouldUseBoundedAllocation()
+    {
+        var json = $$"""
+            {"success":true,"payload":"{{new string('x', 1024 * 1024)}}"}
+            """;
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+
+        var byteEstimate = ToolCallHelper.EstimatePayloadBytesForMetrics(document.RootElement);
+
+        var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        byteEstimate.Should().BePositive();
+        byteEstimate.Should().BeLessThan(64 * 1024);
+        allocatedBytes.Should().BeLessThan(
+            64 * 1024,
+            "metrics payload sizing should use a bounded estimate instead of materializing a raw JSON string copy");
+    }
+
+    [Fact]
+    public void EstimatePayloadBytesForMetrics_WithLargePropertyName_ShouldUseBoundedAllocation()
+    {
+        var json = $$"""
+            {"{{new string('x', 1024 * 1024)}}":true}
+            """;
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+
+        var byteEstimate = ToolCallHelper.EstimatePayloadBytesForMetrics(document.RootElement);
+
+        var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        byteEstimate.Should().BePositive();
+        byteEstimate.Should().BeLessThan(64 * 1024);
+        allocatedBytes.Should().BeLessThan(
+            64 * 1024,
+            "metrics payload sizing should not materialize oversized JSON property names");
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_WithMetrics_WhenExceptionThrown_ShouldRecordAsError()
     {
         var metrics = new MetricsCollector();

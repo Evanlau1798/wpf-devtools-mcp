@@ -299,17 +299,17 @@ public sealed record MetricsSnapshot
     public double P99Latency { get; init; }
 
     /// <summary>
-    /// Gets the total structured payload size recorded across requests
+    /// Gets the total estimated structured payload size recorded across requests
     /// </summary>
     public long TotalPayloadBytes { get; init; }
 
     /// <summary>
-    /// Gets the largest structured payload size recorded for one request
+    /// Gets the largest estimated structured payload size recorded for one request
     /// </summary>
     public long MaxPayloadBytes { get; init; }
 
     /// <summary>
-    /// Gets the average structured payload size in bytes
+    /// Gets the average estimated structured payload size in bytes
     /// </summary>
     public double AveragePayloadBytes { get; init; }
 
@@ -351,17 +351,17 @@ public sealed record MethodMetricsSnapshot
     public double AverageLatency { get; init; }
 
     /// <summary>
-    /// Total structured payload size recorded for this method
+    /// Total estimated structured payload size recorded for this method
     /// </summary>
     public long TotalPayloadBytes { get; init; }
 
     /// <summary>
-    /// Largest structured payload size recorded for this method
+    /// Largest estimated structured payload size recorded for this method
     /// </summary>
     public long MaxPayloadBytes { get; init; }
 
     /// <summary>
-    /// Average structured payload size in bytes for this method
+    /// Average estimated structured payload size in bytes for this method
     /// </summary>
     public double AveragePayloadBytes { get; init; }
 

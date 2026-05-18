@@ -101,10 +101,18 @@ public sealed class AgentGuidanceDocumentationTests
 
         content.Should().Contain("UseStructuredContent",
             "maintainer docs should explain the repository's MCP C# SDK wrapper convention");
+        content.Should().Contain("UseStructuredContent = true",
+            "maintainer docs should describe the current SDK outputSchema publishing convention");
+        content.Should().NotContain("UseStructuredContent = false",
+            "maintainer docs must not invert the current SDK wrapper convention");
+        content.Should().Contain("outputSchema",
+            "maintainer docs should explain what the SDK publishes through tools/list");
         content.Should().Contain("ToolCallHelper",
             "maintainer docs should point contributors to the shared response-contract wrapper");
         content.Should().Contain("StructuredContent",
             "maintainer docs should describe where the real JSON payload lives");
+        content.Should().Contain("compact fallback",
+            "maintainer docs should preserve the text fallback contract for text-only clients");
         content.Should().Contain("navigation",
             "maintainer docs should explain the shared follow-up guidance envelope");
         content.Should().Contain("nextSteps",

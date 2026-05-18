@@ -304,13 +304,28 @@ public abstract partial class DispatcherAnalyzerBase
             return null;
         }
 
-        var generation = EnsureDependencyPropertyCacheInvalidationRegistered();
-        var key = new DependencyPropertyLookupKey(element.GetType(), propertyName.Trim(), generation);
-        return DependencyPropertyLookupCache.GetOrAdd(
-            key,
-            static entry => new DependencyPropertyLookupResult(
-                Cached: true,
-                FindDependencyPropertyUncached(entry.ElementType, entry.PropertyName))).Property;
+        var elementType = element.GetType();
+        var trimmedPropertyName = propertyName.Trim();
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var generation = EnsureDependencyPropertyCacheInvalidationRegistered();
+            var key = new DependencyPropertyLookupKey(elementType, trimmedPropertyName, generation);
+            if (DependencyPropertyLookupCache.TryGetValue(key, out var cachedResult))
+            {
+                return cachedResult.Property;
+            }
+
+            var property = FindDependencyPropertyUncached(elementType, trimmedPropertyName);
+            if (Volatile.Read(ref _dependencyPropertyLookupGeneration) != generation)
+            {
+                continue;
+            }
+
+            DependencyPropertyLookupCache.TryAdd(key, new DependencyPropertyLookupResult(property));
+            return property;
+        }
+
+        return FindDependencyPropertyUncached(elementType, trimmedPropertyName);
     }
 
     private static DependencyProperty? FindDependencyPropertyUncached(Type elementType, string propertyName)
@@ -479,5 +494,5 @@ public abstract partial class DispatcherAnalyzerBase
 
     private readonly record struct DependencyPropertyLookupKey(Type ElementType, string PropertyName, long Generation);
 
-    private readonly record struct DependencyPropertyLookupResult(bool Cached, DependencyProperty? Property);
+    private readonly record struct DependencyPropertyLookupResult(DependencyProperty? Property);
 }

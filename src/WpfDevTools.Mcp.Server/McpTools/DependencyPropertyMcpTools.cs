@@ -200,7 +200,7 @@ public static class DependencyPropertyMcpTools
             cancellationToken);
     }
 
-    [McpServerTool(Name = "watch_dp_changes", Title = "Watch WPF DependencyProperty Changes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "watch_dp_changes", Title = "Watch WPF DependencyProperty Changes", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
     [Description(
         "CURRENT BEHAVIOR: No observable effect over STDIO transport. Registration is stored internally only until the next successful drain_events readback or piggyback cycle, and change events are never pushed to the client. Use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
         "Use this tool to register WPF DependencyProperty watch state before polling for runtime changes.\n\n" +

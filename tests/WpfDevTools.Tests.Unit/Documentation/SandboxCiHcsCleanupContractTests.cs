@@ -59,6 +59,99 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
+    public void StopWindowsSandboxHcs_WithoutExplicitOptIn_ShouldNotKillMatchingComputeSystems()
+    {
+        var tempRoot = CreateTempRoot();
+        try
+        {
+            var fakeHcsDiagPath = Path.Combine(tempRoot, "fake-hcsdiag.ps1");
+            var killedPath = Path.Combine(tempRoot, "killed.txt");
+            File.WriteAllText(
+                fakeHcsDiagPath,
+                $$"""
+                param([string]$Command, [string]$Id)
+                if ($Command -eq 'list') {
+                    '11111111-1111-1111-1111-111111111111'
+                    '    VM, Running, 11111111-1111-1111-1111-111111111111, WindowsSandbox'
+                    exit 0
+                }
+
+                if ($Command -eq 'kill') {
+                    Add-Content -LiteralPath '{{EscapePowerShellPath(killedPath)}}' -Value $Id -Encoding UTF8
+                    exit 0
+                }
+
+                exit 64
+                """);
+
+            var cleanupScript = Path.Combine(RepoRoot, "scripts", "ci", "Stop-WindowsSandboxHcs.ps1");
+            var result = RunPowerShell($"""
+            & '{EscapePowerShellPath(cleanupScript)}' `
+                -HcsDiagPath '{EscapePowerShellPath(fakeHcsDiagPath)}' `
+                -OutputRoot '{EscapePowerShellPath(tempRoot)}' `
+                -SkipProcessTableWait
+            """);
+
+            result.ExitCode.Should().NotBe(0, result.Output);
+            result.Output.Should().Contain("-Force");
+            result.Output.Should().Contain("-Confirm:$false");
+            File.Exists(killedPath).Should().BeFalse();
+        }
+        finally
+        {
+            DeleteTempRoot(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void StopWindowsSandboxHcs_Force_ShouldKillMatchingComputeSystemsWithoutConfirmParameter()
+    {
+        var tempRoot = CreateTempRoot();
+        try
+        {
+            var fakeHcsDiagPath = Path.Combine(tempRoot, "fake-hcsdiag.ps1");
+            var killedPath = Path.Combine(tempRoot, "killed.txt");
+            File.WriteAllText(
+                fakeHcsDiagPath,
+                $$"""
+                param([string]$Command, [string]$Id)
+                if ($Command -eq 'list') {
+                    if (Test-Path '{{EscapePowerShellPath(killedPath)}}') {
+                        exit 0
+                    }
+
+                    '11111111-1111-1111-1111-111111111111'
+                    '    VM, Running, 11111111-1111-1111-1111-111111111111, WindowsSandbox'
+                    exit 0
+                }
+
+                if ($Command -eq 'kill') {
+                    Add-Content -LiteralPath '{{EscapePowerShellPath(killedPath)}}' -Value $Id -Encoding UTF8
+                    exit 0
+                }
+
+                exit 64
+                """);
+
+            var cleanupScript = Path.Combine(RepoRoot, "scripts", "ci", "Stop-WindowsSandboxHcs.ps1");
+            var result = RunPowerShell($"""
+            & '{EscapePowerShellPath(cleanupScript)}' `
+                -HcsDiagPath '{EscapePowerShellPath(fakeHcsDiagPath)}' `
+                -OutputRoot '{EscapePowerShellPath(tempRoot)}' `
+                -SkipProcessTableWait `
+                -Force
+            """);
+
+            result.ExitCode.Should().Be(0, result.Output);
+            File.ReadAllLines(killedPath).Should().Equal("11111111-1111-1111-1111-111111111111");
+        }
+        finally
+        {
+            DeleteTempRoot(tempRoot);
+        }
+    }
+
+    [Fact]
     public void StopWindowsSandboxHcs_ShouldSucceedWhenNoComputeSystemsAreListed()
     {
         var tempRoot = CreateTempRoot();

@@ -246,6 +246,9 @@ public sealed partial class SandboxCiScriptContractTests
         english.Should().Contain("Get-ChildItem");
         english.Should().Contain("-DotNetChannel");
         english.Should().Contain("setup-dotnet");
+        english.Should().Contain("-WhatIf");
+        english.Should().Contain("-Force");
+        english.Should().Contain("-Confirm:$false");
         english.Should().NotContain("Windows Sandbox CI simulation");
         english.Should().NotContain("same CI-oriented PowerShell entrypoints that GitLab/GitHub jobs use");
         english.Should().NotContain("release_0.1.0_win-x64.zip");
@@ -261,6 +264,9 @@ public sealed partial class SandboxCiScriptContractTests
         zhTw.Should().Contain(".NET runtime");
         zhTw.Should().Contain("-DotNetChannel");
         zhTw.Should().Contain("setup-dotnet");
+        zhTw.Should().Contain("-WhatIf");
+        zhTw.Should().Contain("-Force");
+        zhTw.Should().Contain("-Confirm:$false");
         zhTw.Should().NotContain("Windows Sandbox 模擬 CI");
         zhTw.Should().NotContain("與 GitLab/GitHub jobs 對齊的 CI PowerShell 入口");
         zhTw.Should().NotContain("release_0.1.0_win-x64.zip");

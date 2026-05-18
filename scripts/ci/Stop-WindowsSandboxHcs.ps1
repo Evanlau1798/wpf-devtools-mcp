@@ -11,6 +11,8 @@ param(
 
     [string]$HcsDiagPath = '',
 
+    [switch]$Force,
+
     [ValidateRange(1, 120)]
     [int]$ShutdownTimeoutSeconds = 30,
 
@@ -19,9 +21,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-if (-not $PSBoundParameters.ContainsKey('Confirm')) {
-    $ConfirmPreference = 'None'
-}
 
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -187,6 +186,17 @@ Write-CleanupLog -Path $logPath -Message "hcsdiag path: $HcsDiagPath"
 $sandboxSystems = @(Get-WindowsSandboxComputeSystems -HcsDiagPath $HcsDiagPath -LogPath $logPath)
 if ($sandboxSystems.Count -eq 0) {
     Write-CleanupLog -Path $logPath -Message 'No matching Windows Sandbox HCS compute systems were found.'
+}
+
+$explicitConfirmFalse = $PSBoundParameters.ContainsKey('Confirm') -and -not [bool]$PSBoundParameters['Confirm']
+if ($sandboxSystems.Count -gt 0 -and -not $WhatIfPreference -and -not $Force -and -not $explicitConfirmFalse) {
+    $optInMessage = 'Refusing to kill Windows Sandbox HCS compute systems without explicit opt-in. Re-run with -WhatIf to inspect candidates, or pass -Force or -Confirm:$false after verifying the candidates are Windows Sandbox compute systems.'
+    Write-CleanupLog -Path $logPath -Message $optInMessage
+    throw $optInMessage
+}
+
+if ($Force) {
+    $ConfirmPreference = 'None'
 }
 
 foreach ($sandboxSystem in $sandboxSystems) {

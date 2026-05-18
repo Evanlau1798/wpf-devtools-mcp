@@ -105,8 +105,8 @@ artifact preflight 會在 Sandbox 內依需要 provision .NET runtime channel `8
 - Launcher 預設會對 Windows Sandbox host processes 套用 host-side scheduling tuning：`AboveNormal` priority，加上關閉 execution-speed power throttling。這可降低 Intel hybrid CPU 系統把 sandbox CI 視為低 QoS、集中排到 E-core 的機率。若需要停用可加 `-SkipSandboxHostScheduling`；只有在明確知道本機核心 mask 時才使用 `-SandboxHostProcessorAffinityHex 0x...` 指定 affinity。
 - 結果與 logs 會寫入 `tmp/sandbox-ci/output`；產生的 `.wsb` 與 mapped work state 都是可丟棄狀態。
 - 只想檢查 sandbox 設定檔時可加上 `-GenerateOnly`，避免實際啟動 Windows Sandbox。
-- 不要把 `taskkill` 當成 Windows Sandbox 的主要清理機制。請優先使用 tracked `.\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot .\tmp\sandbox-ci\output` script，讓清理明確針對 Windows Sandbox HCS compute systems。如果既有本機 worktree 已經有 `tmp\sandbox-ci\Kill-WindowsSandboxHcs.ps1`，該 ignored helper 也可用於同樣目的，但它不是 tracked source artifact。
-- 如果機器剛開機且尚未啟動過 Windows Sandbox，任何無關的 HCS objects 都應視為非本次 sandbox 測試殘留；移除前請先用 `-WhatIf` 檢查候選項目。
+- 不要把 `taskkill` 當成 Windows Sandbox 的主要清理機制。請先使用 tracked `.\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot .\tmp\sandbox-ci\output -WhatIf` script，讓候選清理目標明確限制在 Windows Sandbox HCS compute systems。如果既有本機 worktree 已經有 `tmp\sandbox-ci\Kill-WindowsSandboxHcs.ps1`，該 ignored helper 也可用於同樣目的，但它不是 tracked source artifact。
+- 如果機器剛開機且尚未啟動過 Windows Sandbox，任何無關的 HCS objects 都應視為非本次 sandbox 測試殘留；移除前請先用 `-WhatIf` 檢查候選項目，只有在確認所有候選項目都是 Windows Sandbox compute system 後，才用 `-Force` 或明確的 `-Confirm:$false` 重新執行。
 
 ## 涉及 installer 與 client registration 的變更
 

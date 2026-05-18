@@ -105,8 +105,8 @@ Operational notes:
 - The launcher applies host-side scheduling tuning to Windows Sandbox processes by default: `AboveNormal` priority plus disabled execution-speed power throttling. On Intel hybrid CPU systems this helps keep sandbox CI work from being treated as low-QoS E-core-only work. Use `-SkipSandboxHostScheduling` to disable this behavior, or `-SandboxHostProcessorAffinityHex 0x...` only when you intentionally want a machine-specific affinity mask.
 - Results and logs are written under `tmp/sandbox-ci/output`; generated `.wsb` files and mapped work state are disposable.
 - Use `-GenerateOnly` when reviewing the generated sandbox configuration without launching Windows Sandbox.
-- Do not use `taskkill` as the primary cleanup mechanism for Windows Sandbox. Use the tracked `.\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot .\tmp\sandbox-ci\output` script so cleanup targets Windows Sandbox HCS compute systems explicitly. If an existing local worktree already has `tmp\sandbox-ci\Kill-WindowsSandboxHcs.ps1`, that ignored helper can be used for the same purpose, but it is not a tracked source artifact.
-- If the machine was freshly booted and Windows Sandbox has not been launched yet, treat any unrelated HCS objects as out of scope. Inspect with `-WhatIf` first before removing candidates.
+- Do not use `taskkill` as the primary cleanup mechanism for Windows Sandbox. Use the tracked `.\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot .\tmp\sandbox-ci\output -WhatIf` script first so cleanup candidates are explicitly limited to Windows Sandbox HCS compute systems. If an existing local worktree already has `tmp\sandbox-ci\Kill-WindowsSandboxHcs.ps1`, that ignored helper can be used for the same purpose, but it is not a tracked source artifact.
+- If the machine was freshly booted and Windows Sandbox has not been launched yet, treat any unrelated HCS objects as out of scope. Inspect with `-WhatIf` first before removing candidates; only rerun with `-Force` or explicit `-Confirm:$false` after verifying every candidate is a Windows Sandbox compute system.
 
 ## For installer and client registration changes
 

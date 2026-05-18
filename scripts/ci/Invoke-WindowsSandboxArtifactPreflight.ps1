@@ -247,4 +247,4 @@ while ([DateTime]::UtcNow -lt $deadline) {
 }
 
 $cleanupCommand = ".\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot `"$sandboxOutputPath`" -WhatIf"
-throw "Timed out waiting for Windows Sandbox artifact preflight result after $WaitTimeoutSeconds seconds. RunId: $runId. Inspect cleanup candidates with: $cleanupCommand. Remove -WhatIf only after verifying the candidates are Windows Sandbox compute systems."
+throw ("Timed out waiting for Windows Sandbox artifact preflight result after $WaitTimeoutSeconds seconds. RunId: $runId. Inspect cleanup candidates with: $cleanupCommand. After verifying the candidates are Windows Sandbox compute systems, rerun cleanup with " + '-Force or -Confirm:$false.')

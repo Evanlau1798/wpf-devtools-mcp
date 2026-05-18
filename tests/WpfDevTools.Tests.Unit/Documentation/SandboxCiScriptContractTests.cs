@@ -63,7 +63,8 @@ public sealed partial class SandboxCiScriptContractTests
         cleanup.Should().Contain("SupportsShouldProcess");
         cleanup.Should().Contain("ConfirmImpact = 'High'");
         cleanup.Should().Contain("$PSBoundParameters.ContainsKey('Confirm')");
-        cleanup.Should().Contain("$ConfirmPreference = 'None'");
+        cleanup.Should().Contain("[switch]$Force");
+        cleanup.Should().Contain("Refusing to kill Windows Sandbox HCS compute systems without explicit opt-in");
         cleanup.Should().Contain("LASTEXITCODE");
         cleanup.Should().Contain("ValidateScript");
         cleanup.Should().Contain("Wait-WindowsSandboxShutdown");
@@ -90,6 +91,22 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
 ";
 
         RunPowerShell(command).ExitCode.Should().Be(0);
+    }
+
+    [Fact]
+    public void SandboxCiLaunchers_ShouldKeepHcsCleanupTimeoutGuidanceNonDestructive()
+    {
+        var scriptRoot = Path.Combine(RepoRoot, "scripts", "ci");
+        var launcher = ReadScript(scriptRoot, "Invoke-WindowsSandboxCi.ps1");
+        var artifactPreflight = ReadScript(scriptRoot, "Invoke-WindowsSandboxArtifactPreflight.ps1");
+
+        foreach (var script in new[] { launcher, artifactPreflight })
+        {
+            script.Should().Contain("Stop-WindowsSandboxHcs.ps1");
+            script.Should().Contain("-WhatIf");
+            script.Should().Contain("-Force or -Confirm:$false");
+            script.Should().NotContain("Remove -WhatIf");
+        }
     }
 
     [Fact]

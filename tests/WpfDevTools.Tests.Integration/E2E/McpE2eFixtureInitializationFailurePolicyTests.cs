@@ -42,6 +42,21 @@ public sealed class McpE2eFixtureInitializationFailurePolicyTests
             "file screenshot E2E output should be isolated from real LocalApplicationData and cleaned up with the fixture root");
     }
 
+    [Fact]
+    public void RecordInitializationFailureForTesting_ShouldCleanFixtureTempRootBeforePublishingSkipReason()
+    {
+        var fixture = new McpE2eFixture();
+        var certDirectory = fixture.CertificateDirectoryForTesting;
+        Directory.CreateDirectory(certDirectory);
+        File.WriteAllText(Path.Combine(certDirectory, "sentinel.txt"), "created before reconnect failure");
+
+        fixture.RecordInitializationFailureForTesting(new TimeoutException("connect timed out"));
+
+        fixture.SkipReason.Should().Contain("connect timed out");
+        Directory.Exists(certDirectory).Should().BeFalse(
+            "partial-start fixture resources should be cleaned before tests continue with SkipReason");
+    }
+
     [Theory]
     [MemberData(nameof(ExpectedEnvironmentFailures))]
     public void ShouldConvertInitializationFailureToSkip_ShouldAllowExpectedEnvironmentFailures(Exception exception)

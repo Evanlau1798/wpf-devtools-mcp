@@ -54,6 +54,8 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 
     public string ScreenshotDirectory => CreateScreenshotDirectoryPath(_certDirectory);
 
+    internal string CertificateDirectoryForTesting => _certDirectory;
+
     /// <summary>
     /// Non-null if the fixture could not start (missing prerequisites).
     /// Tests should check this and fail with this message.
@@ -115,10 +117,12 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
         }
         catch (Exception ex) when (ShouldConvertInitializationFailureToSkip(ex))
         {
-            var stderrFull = _client?.ServerStderr ?? "";
-            SkipReason = $"E2E fixture initialization failed: {ex.Message}\n---STDERR---\n{stderrFull}";
+            RecordInitializationFailure(ex);
         }
     }
+
+    internal void RecordInitializationFailureForTesting(Exception exception) =>
+        RecordInitializationFailure(exception);
 
     internal static bool ShouldConvertInitializationFailureToSkip(Exception exception)
     {
@@ -128,6 +132,13 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             or IOException
             or Win32Exception
             or UnauthorizedAccessException;
+    }
+
+    private void RecordInitializationFailure(Exception exception)
+    {
+        var stderrFull = _client?.ServerStderr ?? string.Empty;
+        Dispose();
+        SkipReason = $"E2E fixture initialization failed: {exception.Message}\n---STDERR---\n{stderrFull}";
     }
 
     public async Task ReconnectClientAsync()

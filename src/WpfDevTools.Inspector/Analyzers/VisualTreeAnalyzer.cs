@@ -215,7 +215,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     }
 
     private static int NormalizeTraversalLimit(int? maxNodes)
-        => Math.Max(1, Math.Min(maxNodes ?? TreeTraversalDefaults.DefaultMaxNodes, TreeTraversalDefaults.MaxNodesLimit));
+        => Math.Max(1, Math.Min(maxNodes ?? TreeTraversalDefaults.DefaultNameScopeMaxNodes, TreeTraversalDefaults.MaxNodesLimit));
 
     /// <summary>
     /// Gets the template visual tree for the specified templated control.

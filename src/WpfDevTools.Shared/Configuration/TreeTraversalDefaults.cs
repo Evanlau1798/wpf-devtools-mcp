@@ -17,6 +17,9 @@ public static class TreeTraversalDefaults
     /// <summary>Default node cap applied when callers omit maxNodes.</summary>
     public const int DefaultMaxNodes = 1000;
 
+    /// <summary>Default node cap for namescope discovery, where late registered names are common.</summary>
+    public const int DefaultNameScopeMaxNodes = MaxNodesLimit;
+
     /// <summary>Default per-node fan-out cap applied when callers omit maxChildrenPerNode.</summary>
     public const int DefaultMaxChildrenPerNode = 200;
 }

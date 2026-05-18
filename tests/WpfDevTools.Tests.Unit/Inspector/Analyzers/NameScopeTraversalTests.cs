@@ -87,6 +87,47 @@ public sealed class NameScopeTraversalTests
     }
 
     [StaFact]
+    public void GetNameScope_WithOmittedTraversalBudget_ShouldReachLargeRegisteredScope()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new VisualTreeAnalyzer(finder);
+        var window = EnsureWindowWithNameScope();
+        try
+        {
+            const string lateButtonName = "LateScopeButton";
+            var panel = new StackPanel();
+
+            for (var index = 0; index < 1100; index++)
+            {
+                panel.Children.Add(new TextBlock { Text = index.ToString() });
+            }
+
+            var button = new Button { Name = lateButtonName, Content = "Late" };
+            panel.Children.Add(button);
+            window.Content = panel;
+            window.RegisterName(button.Name, button);
+            window.Show();
+            window.UpdateLayout();
+
+            var windowId = finder.GenerateElementId(window);
+            var result = JsonSerializer.SerializeToElement(analyzer.GetNameScope(windowId));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("maxTraversalNodes").GetInt32().Should().Be(10000);
+            result.GetProperty("traversalTruncated").GetBoolean().Should().BeFalse();
+            result.GetProperty("namedElements")
+                .EnumerateArray()
+                .Select(element => element.GetProperty("name").GetString())
+                .Should()
+                .Contain(lateButtonName);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
     public void GetNameScope_WithDeepSubtreeWithinNodeBudget_ShouldNotDepthTruncate()
     {
         var finder = new ElementFinder();

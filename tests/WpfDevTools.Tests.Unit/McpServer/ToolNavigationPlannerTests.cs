@@ -297,6 +297,13 @@ public sealed class ToolNavigationPlannerTests : IDisposable
         firstStep.GetProperty("tool").GetString().Should().Be("get_ui_summary");
         firstStep.GetProperty("params").GetProperty("processId").GetInt32().Should().Be(12345);
         firstStep.GetProperty("whyNow").GetString().Should().Contain("scene");
+
+        navigation
+            .GetProperty("alternatives")
+            .EnumerateArray()
+            .Select(step => step.GetProperty("tool").GetString())
+            .Should().NotContain("get_element_snapshot",
+                "post-connect navigation should only advertise directly executable follow-ups unless an elementId is known");
     }
 
     [Fact]

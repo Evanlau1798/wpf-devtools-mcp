@@ -22,7 +22,7 @@ internal static class ProcessNavigationRules
                         "Build the first scene-level summary for the connected WPF process before expanding tree-heavy diagnostics.",
                         1,
                         "The process is connected; scene-first context is now the most useful next read.",
-                        ["get_element_snapshot", "get_form_summary"])
+                        ["get_form_summary"])
                 ],
                 alternatives:
                 [
@@ -31,14 +31,7 @@ internal static class ProcessNavigationRules
                         BuildConnectedProcessParams(context),
                         "Summarize form controls when the next task is interaction or validation focused.",
                         2,
-                        "Use this after connect when forms and commands are the immediate target."),
-                    CreateNavigation(
-                        "get_element_snapshot",
-                        BuildConnectedProcessParams(context),
-                        "Inspect a focused element after connect when an elementId is already known.",
-                        3,
-                        "Use this after connect for a known element instead of dumping full trees.",
-                        preconditions: ["A runtime elementId is already known from the task or a prior scene summary."])
+                        "Use this after connect when forms and commands are the immediate target.")
                 ]);
         }
 

@@ -197,6 +197,21 @@ public sealed partial class ReleaseReadinessDocumentationTests
     }
 
     [Theory]
+    [InlineData("1. Produces release packages without building WpfDevTools.sln or running tests.")]
+    [InlineData("1. Produces release packages without running tests or building WpfDevTools.sln.")]
+    [InlineData("1. Produces release packages without running tests and building WpfDevTools.sln.")]
+    public void BuildReleaseValidationGuard_ShouldAllowCoordinatedWithoutGerundNegationClaims(string negatedClaim)
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            negatedClaim);
+
+        GetBuildReleaseValidationClaims(guide).Should().BeEmpty(
+            "coordinated without-gerund negations should not become false positive build-release validation claims");
+    }
+
+    [Theory]
     [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
     [InlineData("1. build-release.ps1 builds, tests, and packages the release.")]
@@ -292,12 +307,21 @@ public sealed partial class ReleaseReadinessDocumentationTests
 
     private static IEnumerable<string> GetBuildReleaseValidationClauses(string line)
     {
+        line = RemoveCoordinatedWithoutGerundValidationPhrases(line);
         return Regex.Split(
             line,
             @";|,(?=\s*(?:(?:it|this|build-release\.ps1|the\s+wrapper)\s+)?(?:runs?|builds?|executes?|release|preflight|unit\s+tests?|integration\s+tests?|full\s+test\s+suite|dotnet)\b)|\.(?=\s|$|(?-i:Builds?\b|Runs?\b|Executes?\b|Release\b|Preflight\b|Unit\s+tests?\b|Integration\s+tests?\b|Full\s+test\s+suite\b|Dotnet\b))|\b(?:but|however|yet|although|though|and|then|while)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
             .Select(clause => clause.Trim())
             .Where(clause => clause.Length > 0);
+    }
+
+    private static string RemoveCoordinatedWithoutGerundValidationPhrases(string line)
+    {
+        return Regex.Replace(line,
+            @"\bwithout\s+(?:building\s+`?WpfDevTools\.sln`?|running\s+(?:tests?|unit\s+tests?|integration\s+tests?|the\s+full\s+test\s+suite|full\s+test\s+suite))(?:\s+(?:and|or)\s+(?:building\s+`?WpfDevTools\.sln`?|running\s+(?:tests?|unit\s+tests?|integration\s+tests?|the\s+full\s+test\s+suite|full\s+test\s+suite)))+\b",
+            " ",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     private static string RemoveNegatedBuildReleaseValidationPhrases(string clause)

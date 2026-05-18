@@ -21,13 +21,26 @@ public sealed partial class SessionManager
         }
     }
 
-    internal void SaveStateSnapshot(int processId, StoredStateSnapshot snapshot)
+    internal bool SaveStateSnapshot(
+        int processId,
+        StoredStateSnapshot snapshot,
+        long? expectedSessionGeneration = null)
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(snapshot);
 
         lock (_lock)
         {
+            if (!_sessionGenerations.TryGetValue(processId, out var currentSessionGeneration))
+            {
+                return false;
+            }
+
+            if (expectedSessionGeneration.HasValue && currentSessionGeneration != expectedSessionGeneration.Value)
+            {
+                return false;
+            }
+
             if (!_stateSnapshots.TryGetValue(processId, out var snapshots))
             {
                 snapshots = new Dictionary<string, StoredStateSnapshot>(StringComparer.Ordinal);
@@ -35,8 +48,11 @@ public sealed partial class SessionManager
             }
 
             TrimStateSnapshotsLocked(processId, snapshots, _utcNowProvider());
-            snapshots[snapshot.SnapshotId] = snapshot;
+            snapshots[snapshot.SnapshotId] = snapshot.SessionGeneration == currentSessionGeneration
+                ? snapshot
+                : snapshot with { SessionGeneration = currentSessionGeneration };
             TrimStateSnapshotsLocked(processId, snapshots, _utcNowProvider(), snapshot.SnapshotId);
+            return true;
         }
     }
 
@@ -45,12 +61,25 @@ public sealed partial class SessionManager
         ThrowIfDisposed();
         lock (_lock)
         {
+            if (!_sessionGenerations.TryGetValue(processId, out var currentSessionGeneration))
+            {
+                snapshot = null;
+                return false;
+            }
+
             if (_stateSnapshots.TryGetValue(processId, out var snapshots))
             {
                 TrimStateSnapshotsLocked(processId, snapshots, _utcNowProvider());
 
                 if (snapshots.TryGetValue(snapshotId, out var storedSnapshot))
                 {
+                    if (storedSnapshot.SessionGeneration != currentSessionGeneration)
+                    {
+                        RemoveStateSnapshotLocked(processId, snapshots, snapshotId);
+                        snapshot = null;
+                        return false;
+                    }
+
                     snapshot = storedSnapshot;
                     return true;
                 }

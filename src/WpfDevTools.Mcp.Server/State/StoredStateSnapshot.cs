@@ -11,7 +11,8 @@ internal sealed record StoredStateSnapshot(
     bool HasBindingErrorBaseline,
     IReadOnlyList<StoredValidationErrorSnapshot> ValidationErrors,
     bool HasValidationBaseline,
-    DateTimeOffset CapturedAtUtc);
+    DateTimeOffset CapturedAtUtc,
+    long SessionGeneration = 0);
 
 internal sealed record StoredDependencyPropertySnapshot(
     string? ElementId,

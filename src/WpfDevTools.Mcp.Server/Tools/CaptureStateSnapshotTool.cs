@@ -4,7 +4,7 @@ using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
-public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : PipeConnectedToolBase(sessionManager)
+public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManager) : PipeConnectedToolBase(sessionManager)
 {
     internal const int MaxSnapshotPropertyNameCount = BatchItemLimits.MaxQueryInputItems;
     internal const int MaxSnapshotPropertyNameLength = 256;
@@ -37,14 +37,21 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             return CreateMissingParamError("propertyNames / viewModelPropertyNames / includeFocus");
         }
 
+        if (!_sessionManager.TryGetSessionGeneration(processId, out var sessionGeneration))
+        {
+            return CreateNotConnectedError(processId);
+        }
+
         var dependencyProperties = new List<StoredDependencyPropertySnapshot>();
         foreach (var propertyName in propertyNames.Values)
         {
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
                 processId,
+                sessionGeneration,
                 "get_dp_value_source",
                 new { elementId, propertyName },
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken,
+                piggybackPendingEvents: false).ConfigureAwait(false));
 
             if (!IsSuccess(response))
             {
@@ -60,6 +67,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             var expressionRestore = isExpression
                 ? await TryCaptureDependencyPropertyExpressionRestoreAsync(
                     processId,
+                    sessionGeneration,
                     elementId,
                     propertyName,
                     cancellationToken).ConfigureAwait(false)
@@ -82,11 +90,13 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         var viewModelProperties = new List<StoredViewModelPropertySnapshot>();
         if (viewModelPropertyNames.Values.Count > 0)
         {
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
                 processId,
+                sessionGeneration,
                 "get_viewmodel",
                 new { elementId },
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken,
+                piggybackPendingEvents: false).ConfigureAwait(false));
 
             if (!IsSuccess(response))
             {
@@ -130,11 +140,13 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         StoredFocusSnapshot? focus = null;
         if (includeFocus)
         {
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
                 processId,
+                sessionGeneration,
                 "get_focus_state",
                 new { elementId },
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken,
+                piggybackPendingEvents: false).ConfigureAwait(false));
 
             if (!IsSuccess(response))
             {
@@ -148,9 +160,11 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
 
         var (bindingErrors, hasBindingErrorBaseline) = await TryCaptureBindingErrorBaselineAsync(
             processId,
+            sessionGeneration,
             cancellationToken).ConfigureAwait(false);
         var (validationErrors, hasValidationBaseline) = await TryCaptureValidationBaselineAsync(
             processId,
+            sessionGeneration,
             elementId,
             cancellationToken).ConfigureAwait(false);
         var warnings = new List<string>();
@@ -165,7 +179,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         }
 
         var snapshotId = $"snapshot_{Guid.NewGuid():N}";
-        _sessionManager.SaveStateSnapshot(processId, new StoredStateSnapshot(
+        var snapshot = new StoredStateSnapshot(
             snapshotId,
             snapshotName,
             elementId,
@@ -176,8 +190,18 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             hasBindingErrorBaseline,
             validationErrors,
             hasValidationBaseline,
-            DateTimeOffset.UtcNow));
-        _sessionManager.SetActiveSnapshotId(processId, snapshotId);
+            DateTimeOffset.UtcNow,
+            sessionGeneration);
+        if (!_sessionManager.SaveStateSnapshot(processId, snapshot, sessionGeneration))
+        {
+            return CreateNotConnectedError(processId);
+        }
+
+        if (!_sessionManager.TrySetActiveSnapshotId(processId, snapshotId, sessionGeneration))
+        {
+            _sessionManager.RemoveStateSnapshot(processId, snapshotId);
+            return CreateNotConnectedError(processId);
+        }
 
         return new
         {
@@ -201,287 +225,4 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         };
     }
 
-    private static (IReadOnlyList<string> Values, object? Error) ParsePropertyNameArray(
-        JsonElement? arguments,
-        string parameterName)
-    {
-        if (arguments == null ||
-            !arguments.Value.TryGetProperty(parameterName, out var property) ||
-            property.ValueKind != JsonValueKind.Array)
-        {
-            return (Array.Empty<string>(), null);
-        }
-
-        var rawItemCount = property.GetArrayLength();
-        if (rawItemCount > MaxSnapshotPropertyNameCount)
-        {
-            return (Array.Empty<string>(), BatchItemLimits.CreateInvalidArgumentError(
-                parameterName,
-                rawItemCount,
-                MaxSnapshotPropertyNameCount,
-                $"{parameterName} must contain at most {MaxSnapshotPropertyNameCount} items; received {rawItemCount}.",
-                $"Split large state snapshot captures into requests with {MaxSnapshotPropertyNameCount} or fewer property names."));
-        }
-
-        var values = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in property.EnumerateArray())
-        {
-            if (item.ValueKind != JsonValueKind.String)
-            {
-                continue;
-            }
-
-            var rawValue = item.GetString();
-            if (rawValue?.Length > MaxSnapshotPropertyNameLength)
-            {
-                return (Array.Empty<string>(), CreatePropertyNameLengthError(parameterName, rawValue.Length));
-            }
-
-            var value = rawValue?.Trim();
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                continue;
-            }
-
-            if (seen.Add(value))
-            {
-                values.Add(value);
-            }
-        }
-
-        return (values, null);
-    }
-
-    private static ToolErrorPayload CreatePropertyNameLengthError(string parameterName, int actualLength) =>
-        new()
-        {
-            Error = $"{parameterName} values must be {MaxSnapshotPropertyNameLength} characters or fewer; received {actualLength}.",
-            ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
-            Hint = "Use exact WPF DependencyProperty or ViewModel property names and split unusually large capture sets into smaller requests.",
-            ErrorData = new Dictionary<string, object?>
-            {
-                ["parameter"] = parameterName,
-                ["actualLength"] = actualLength,
-                ["maxLength"] = MaxSnapshotPropertyNameLength
-            }
-        };
-
-    private static bool IsSuccess(JsonElement response) =>
-        response.TryGetProperty("success", out var successProperty) && successProperty.GetBoolean();
-
-    private static string? GetOptionalString(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property) && property.ValueKind != JsonValueKind.Null
-            ? property.ToString()
-            : null;
-
-    private static bool GetOptionalBool(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.True;
-
-    private static bool IsRestorableViewModelValue(string? propertyType, string? propertyValue)
-    {
-        if (propertyValue != null)
-        {
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(propertyType))
-        {
-            return false;
-        }
-
-        return propertyType switch
-        {
-            "String" or "Boolean" or "Byte" or "SByte" or "Char" or "Decimal" or "Double" or "Single" or
-            "Int16" or "Int32" or "Int64" or "UInt16" or "UInt32" or "UInt64" or "DateTime" or "Guid" or
-            "TimeSpan" or "Uri" => true,
-            _ when propertyType.StartsWith("Nullable<", StringComparison.Ordinal) => true,
-            _ => false
-        };
-    }
-
-    private static string? GetRestoreSkipReason(
-        string propertyName,
-        bool canWrite,
-        string? propertyType,
-        string? propertyValue)
-    {
-        if (!canWrite)
-        {
-            return $"Property '{propertyName}' is read-only or derived and cannot be restored via modify_viewmodel.";
-        }
-
-        if (!IsRestorableViewModelValue(propertyType, propertyValue))
-        {
-            return $"Property '{propertyName}' is a complex reference with a null snapshot value and cannot be deterministically restored via modify_viewmodel.";
-        }
-
-        return null;
-    }
-
-    private static string? GetDependencyPropertySkipReason(string propertyName, bool isExpression)
-    {
-        if (!isExpression)
-        {
-            return null;
-        }
-
-        return $"Property '{propertyName}' is expression-backed and cannot be deterministically restored after a local mutation replaces the expression.";
-    }
-
-    private static (bool canRestore, string? skipReason, string? restoreToken, string? expressionKind)
-        GetDirectDependencyPropertyRestore(
-            string propertyName,
-            bool hadLocalValue,
-            string? localValue,
-            string? localValueType)
-    {
-        if (!hadLocalValue || localValue == null || IsStringConvertibleLocalValue(localValueType))
-        {
-            return (true, null, null, null);
-        }
-
-        var typeLabel = string.IsNullOrWhiteSpace(localValueType) ? "unknown" : localValueType;
-        return (
-            false,
-            $"Property '{propertyName}' has a complex local value of type '{typeLabel}' and cannot be deterministically restored via set_dp_value.",
-            null,
-            null);
-    }
-
-    private static bool IsStringConvertibleLocalValue(string? localValueType)
-    {
-        if (string.IsNullOrWhiteSpace(localValueType))
-        {
-            return true;
-        }
-
-        return localValueType switch
-        {
-            "String" or "Boolean" or "Byte" or "SByte" or "Char" or "Decimal" or "Double" or "Single" or
-            "Int16" or "Int32" or "Int64" or "UInt16" or "UInt32" or "UInt64" or "DateTime" or
-            "DateTimeOffset" or "Guid" or "TimeSpan" or "Uri" or "Thickness" or "CornerRadius" or
-            "GridLength" or "Color" or "SolidColorBrush" or "FontWeight" or "FontStyle" or "FontStretch" or
-            "Visibility" => true,
-            _ => false
-        };
-    }
-
-    private async Task<(bool canRestore, string? skipReason, string? restoreToken, string? expressionKind)> TryCaptureDependencyPropertyExpressionRestoreAsync(
-        int processId,
-        string? elementId,
-        string propertyName,
-        CancellationToken cancellationToken)
-    {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
-            processId,
-            "capture_dp_expression_restore",
-            new { elementId, propertyName },
-            cancellationToken).ConfigureAwait(false));
-
-        if (!IsSuccess(response))
-        {
-            return (false, $"Property '{propertyName}' is expression-backed but its restore handle could not be captured for this session.", null, null);
-        }
-
-        if (!GetOptionalBool(response, "canRestore"))
-        {
-            return (
-                false,
-                GetOptionalString(response, "reason") ?? GetDependencyPropertySkipReason(propertyName, isExpression: true),
-                null,
-                GetOptionalString(response, "expressionKind"));
-        }
-
-        return (
-            true,
-            null,
-            GetOptionalString(response, "restoreToken"),
-            GetOptionalString(response, "expressionKind"));
-    }
-
-    private static ToolErrorPayload CreateStepFailure(string method, string? propertyName, JsonElement response)
-    {
-        var contextMessage = propertyName == null
-            ? $"Failed during {method}."
-            : $"Failed during {method} for '{propertyName}'.";
-
-        var originalError = response.TryGetProperty("error", out var errorProperty)
-            ? errorProperty.GetString()
-            : null;
-        var errorCode = response.TryGetProperty("errorCode", out var errorCodeProperty)
-            ? errorCodeProperty.GetString()
-            : null;
-        var hint = response.TryGetProperty("hint", out var hintProperty)
-            ? hintProperty.GetString()
-            : null;
-
-        return new ToolErrorPayload
-        {
-            Error = originalError is { Length: > 0 }
-                ? $"{contextMessage} {originalError}"
-                : contextMessage,
-            ErrorCode = string.IsNullOrWhiteSpace(errorCode)
-                ? ToolErrorCode.OperationFailed.ToString()
-                : errorCode!,
-            Hint = hint ?? $"Inspect the failing {method} step and re-query the current runtime state before retrying capture_state_snapshot.",
-            ErrorData = response.Clone()
-        };
-    }
-
-    private async Task<(IReadOnlyList<StoredBindingErrorSnapshot> bindingErrors, bool success)> TryCaptureBindingErrorBaselineAsync(
-        int processId,
-        CancellationToken cancellationToken)
-    {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
-            processId,
-            "get_binding_errors",
-            new { },
-            cancellationToken).ConfigureAwait(false));
-
-        if (!IsSuccess(response) || !response.TryGetProperty("errors", out var errors) || errors.ValueKind != JsonValueKind.Array)
-        {
-            return (Array.Empty<StoredBindingErrorSnapshot>(), false);
-        }
-
-        var snapshots = errors.EnumerateArray()
-            .Select(error => new StoredBindingErrorSnapshot(
-                GetOptionalString(error, "elementId"),
-                GetOptionalString(error, "suggestedElementId"),
-                GetOptionalString(error, "matchConfidence"),
-                GetOptionalString(error, "propertyName"),
-                GetOptionalString(error, "bindingPath"),
-                GetOptionalString(error, "message")))
-            .ToArray();
-
-        return (snapshots, true);
-    }
-
-    private async Task<(IReadOnlyList<StoredValidationErrorSnapshot> validationErrors, bool success)> TryCaptureValidationBaselineAsync(
-        int processId,
-        string? elementId,
-        CancellationToken cancellationToken)
-    {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
-            processId,
-            "get_validation_errors",
-            new { elementId },
-            cancellationToken).ConfigureAwait(false));
-
-        if (!IsSuccess(response) || !response.TryGetProperty("errors", out var errors) || errors.ValueKind != JsonValueKind.Array)
-        {
-            return (Array.Empty<StoredValidationErrorSnapshot>(), false);
-        }
-
-        var snapshots = errors.EnumerateArray()
-            .Select(error => new StoredValidationErrorSnapshot(
-                GetOptionalString(error, "elementType") ?? "Unknown",
-                GetOptionalString(error, "elementName"),
-                GetOptionalString(error, "errorContent") ?? string.Empty,
-                error.TryGetProperty("isRuleError", out var isRuleErrorProperty) && isRuleErrorProperty.GetBoolean(),
-                GetOptionalString(error, "ruleType")))
-            .ToArray();
-
-        return (snapshots, true);
-    }
 }

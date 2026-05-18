@@ -49,31 +49,32 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
             };
         }
 
-        var dependencyProperties = await GetCurrentDependencyPropertyStatesAsync(processId, snapshot, cancellationToken).ConfigureAwait(false);
+        var sessionGeneration = snapshot.SessionGeneration;
+        var dependencyProperties = await GetCurrentDependencyPropertyStatesAsync(processId, sessionGeneration, snapshot, cancellationToken).ConfigureAwait(false);
         if (dependencyProperties.error != null)
         {
             return dependencyProperties.error;
         }
 
-        var viewModelProperties = await GetCurrentViewModelStatesAsync(processId, snapshot, cancellationToken).ConfigureAwait(false);
+        var viewModelProperties = await GetCurrentViewModelStatesAsync(processId, sessionGeneration, snapshot, cancellationToken).ConfigureAwait(false);
         if (viewModelProperties.error != null)
         {
             return viewModelProperties.error;
         }
 
-        var bindingErrors = await GetCurrentBindingErrorsAsync(processId, cancellationToken).ConfigureAwait(false);
+        var bindingErrors = await GetCurrentBindingErrorsAsync(processId, sessionGeneration, cancellationToken).ConfigureAwait(false);
         if (bindingErrors.error != null)
         {
             return bindingErrors.error;
         }
 
-        var validationErrors = await GetCurrentValidationErrorsAsync(processId, snapshot.ElementId, cancellationToken).ConfigureAwait(false);
+        var validationErrors = await GetCurrentValidationErrorsAsync(processId, sessionGeneration, snapshot.ElementId, cancellationToken).ConfigureAwait(false);
         if (validationErrors.error != null)
         {
             return validationErrors.error;
         }
 
-        var focusState = await GetCurrentFocusStateAsync(processId, snapshot, cancellationToken).ConfigureAwait(false);
+        var focusState = await GetCurrentFocusStateAsync(processId, sessionGeneration, snapshot, cancellationToken).ConfigureAwait(false);
         if (focusState.error != null)
         {
             return focusState.error;
@@ -154,17 +155,20 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
 
     private async Task<(IReadOnlyList<CurrentDependencyPropertyState>? states, object? error)> GetCurrentDependencyPropertyStatesAsync(
         int processId,
+        long sessionGeneration,
         StoredStateSnapshot snapshot,
         CancellationToken cancellationToken)
     {
         var states = new List<CurrentDependencyPropertyState>();
         foreach (var property in snapshot.DependencyProperties)
         {
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
                 processId,
+                sessionGeneration,
                 "get_dp_value_source",
                 new { elementId = property.ElementId, propertyName = property.PropertyName },
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken,
+                piggybackPendingEvents: false).ConfigureAwait(false));
 
             if (!IsSuccess(response))
             {
@@ -183,6 +187,7 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
 
     private async Task<(IReadOnlyList<CurrentViewModelPropertyState>? states, object? error)> GetCurrentViewModelStatesAsync(
         int processId,
+        long sessionGeneration,
         StoredStateSnapshot snapshot,
         CancellationToken cancellationToken)
     {
@@ -191,15 +196,17 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
             return (Array.Empty<CurrentViewModelPropertyState>(), null);
         }
 
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
             processId,
+            sessionGeneration,
             "get_viewmodel",
             new
             {
                 elementId = snapshot.ElementId,
                 propertyNames = snapshot.ViewModelProperties.Select(item => item.PropertyName).Distinct().ToArray()
             },
-            cancellationToken).ConfigureAwait(false));
+            cancellationToken,
+            piggybackPendingEvents: false).ConfigureAwait(false));
 
         if (!IsSuccess(response))
         {
@@ -219,13 +226,16 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
 
     private async Task<(IReadOnlyList<StoredBindingErrorSnapshot>? errors, object? error)> GetCurrentBindingErrorsAsync(
         int processId,
+        long sessionGeneration,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
             processId,
+            sessionGeneration,
             "get_binding_errors",
             new { },
-            cancellationToken).ConfigureAwait(false));
+            cancellationToken,
+            piggybackPendingEvents: false).ConfigureAwait(false));
 
         if (!IsSuccess(response))
         {
@@ -237,14 +247,17 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
 
     private async Task<(IReadOnlyList<StoredValidationErrorSnapshot>? errors, object? error)> GetCurrentValidationErrorsAsync(
         int processId,
+        long sessionGeneration,
         string? elementId,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
             processId,
+            sessionGeneration,
             "get_validation_errors",
             new { elementId },
-            cancellationToken).ConfigureAwait(false));
+            cancellationToken,
+            piggybackPendingEvents: false).ConfigureAwait(false));
 
         if (!IsSuccess(response))
         {
@@ -256,6 +269,7 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
 
     private async Task<(CurrentFocusState? state, object? error)> GetCurrentFocusStateAsync(
         int processId,
+        long sessionGeneration,
         StoredStateSnapshot snapshot,
         CancellationToken cancellationToken)
     {
@@ -264,11 +278,13 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
             return (null, null);
         }
 
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
             processId,
+            sessionGeneration,
             "get_focus_state",
             new { elementId = snapshot.ElementId },
-            cancellationToken).ConfigureAwait(false));
+            cancellationToken,
+            piggybackPendingEvents: false).ConfigureAwait(false));
 
         if (!IsSuccess(response))
         {

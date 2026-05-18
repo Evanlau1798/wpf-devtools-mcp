@@ -16,6 +16,28 @@ public sealed partial class SessionManager
         }
     }
 
+    internal bool TrySetActiveSnapshotId(int processId, string snapshotId, long expectedSessionGeneration)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (!_sessionGenerations.TryGetValue(processId, out var currentSessionGeneration) ||
+                currentSessionGeneration != expectedSessionGeneration)
+            {
+                return false;
+            }
+
+            if (!_stateSnapshots.TryGetValue(processId, out var retainedSnapshots) ||
+                !retainedSnapshots.ContainsKey(snapshotId))
+            {
+                return false;
+            }
+
+            _navigationStateStore.SetActiveSnapshotId(processId, snapshotId);
+            return true;
+        }
+    }
+
     internal void ClearActiveSnapshotId(int processId)
     {
         ThrowIfDisposed();

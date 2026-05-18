@@ -32,21 +32,25 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             };
         }
 
+        var sessionGeneration = snapshot.SessionGeneration;
         var progress = new RestoreProgress();
         try
         {
             await RestoreViewModelPropertiesAsync(
                 processId,
+                sessionGeneration,
                 snapshot.ViewModelProperties,
                 progress,
                 cancellationToken).ConfigureAwait(false);
             await RestoreDependencyPropertiesAsync(
                 processId,
+                sessionGeneration,
                 snapshot.DependencyProperties,
                 progress,
                 cancellationToken).ConfigureAwait(false);
             progress.RestoredFocus = await RestoreFocusAsync(
                 processId,
+                sessionGeneration,
                 snapshot.Focus,
                 progress.Warnings,
                 cancellationToken).ConfigureAwait(false);
@@ -74,6 +78,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
     private async Task RestoreDependencyPropertiesAsync(
         int processId,
+        long sessionGeneration,
         IReadOnlyList<StoredDependencyPropertySnapshot> snapshots,
         RestoreProgress progress,
         CancellationToken cancellationToken)
@@ -82,8 +87,9 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
         {
             if (snapshot.IsExpression && !string.IsNullOrWhiteSpace(snapshot.ExpressionRestoreToken))
             {
-                var restoreResponse = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+                var restoreResponse = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
                     processId,
+                    sessionGeneration,
                     "restore_dp_expression",
                     new
                     {
@@ -91,12 +97,14 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                         propertyName = snapshot.PropertyName,
                         restoreToken = snapshot.ExpressionRestoreToken
                     },
-                    cancellationToken).ConfigureAwait(false));
+                    cancellationToken,
+                    piggybackPendingEvents: false).ConfigureAwait(false));
 
                 if (IsSuccess(restoreResponse))
                 {
                     var verification = await VerifyDependencyPropertyAsync(
                         processId,
+                        sessionGeneration,
                         snapshot,
                         cancellationToken).ConfigureAwait(false);
                     progress.RestoredDependencyProperties.Add(CreateDependencyPropertyVerificationResult(snapshot, verification));
@@ -117,6 +125,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             {
                 var verification = await VerifyDependencyPropertyAsync(
                     processId,
+                    sessionGeneration,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
                 progress.SkippedDependencyProperties.Add(new
@@ -142,16 +151,19 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                 ? new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName, value = snapshot.LocalValue }
                 : new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName };
             var method = snapshot.HadLocalValue ? "set_dp_value" : "clear_dp_value";
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
                 processId,
+                sessionGeneration,
                 method,
                 parameters,
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken,
+                piggybackPendingEvents: false).ConfigureAwait(false));
 
             if (IsSuccess(response))
             {
                 var verification = await VerifyDependencyPropertyAsync(
                     processId,
+                    sessionGeneration,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
                 progress.RestoredDependencyProperties.Add(CreateDependencyPropertyVerificationResult(snapshot, verification));
@@ -170,6 +182,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
     private async Task RestoreViewModelPropertiesAsync(
         int processId,
+        long sessionGeneration,
         IReadOnlyList<StoredViewModelPropertySnapshot> snapshots,
         RestoreProgress progress,
         CancellationToken cancellationToken)
@@ -180,6 +193,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             {
                 var verification = await VerifyViewModelPropertyAsync(
                     processId,
+                    sessionGeneration,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
                 progress.SkippedViewModelProperties.Add(new
@@ -201,16 +215,19 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                 continue;
             }
 
-            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+            var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
                 processId,
+                sessionGeneration,
                 "modify_viewmodel",
                 new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName, value = snapshot.Value },
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken,
+                piggybackPendingEvents: false).ConfigureAwait(false));
 
             if (IsSuccess(response))
             {
                 var verification = await VerifyViewModelPropertyAsync(
                     processId,
+                    sessionGeneration,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
                 progress.RestoredViewModelProperties.Add(new
@@ -237,14 +254,17 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
     private async Task<(bool verified, string? currentValue, string? skippedReason)> VerifyViewModelPropertyAsync(
         int processId,
+        long sessionGeneration,
         StoredViewModelPropertySnapshot snapshot,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
             processId,
+            sessionGeneration,
             "get_viewmodel",
             new { elementId = snapshot.ElementId },
-            cancellationToken).ConfigureAwait(false));
+            cancellationToken,
+            piggybackPendingEvents: false).ConfigureAwait(false));
 
         if (!IsSuccess(response))
         {
@@ -269,6 +289,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
     private async Task<bool> RestoreFocusAsync(
         int processId,
+        long sessionGeneration,
         StoredFocusSnapshot? snapshot,
         List<string> warnings,
         CancellationToken cancellationToken)
@@ -278,11 +299,13 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             return false;
         }
 
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
             processId,
+            sessionGeneration,
             "focus_element",
             new { elementId = snapshot.FocusedElementId },
-            cancellationToken).ConfigureAwait(false));
+            cancellationToken,
+            piggybackPendingEvents: false).ConfigureAwait(false));
 
         if (IsSuccess(response))
         {
@@ -295,14 +318,17 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
     private async Task<(bool verified, string? currentValue, bool? currentIsExpression, string? currentBaseValueSource, string? skippedReason)> VerifyDependencyPropertyAsync(
         int processId,
+        long sessionGeneration,
         StoredDependencyPropertySnapshot snapshot,
         CancellationToken cancellationToken)
     {
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
+        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
             processId,
+            sessionGeneration,
             "get_dp_value_source",
             new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName },
-            cancellationToken).ConfigureAwait(false));
+            cancellationToken,
+            piggybackPendingEvents: false).ConfigureAwait(false));
 
         if (!IsSuccess(response))
         {

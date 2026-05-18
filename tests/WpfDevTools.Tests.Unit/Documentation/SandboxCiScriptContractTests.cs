@@ -404,10 +404,25 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
             }
 
             process.WaitForExit(30000).Should().BeTrue($"{fileName} should exit after timeout cleanup");
-            WaitForProcessesToExit(processTreeIds, TimeSpan.FromSeconds(30), fileName);
+            TimeoutException? cleanupException = null;
+            try
+            {
+                WaitForProcessesToExit(processTreeIds, TimeSpan.FromSeconds(30), fileName);
+            }
+            catch (TimeoutException exception)
+            {
+                cleanupException = exception;
+            }
+
             Task.WaitAll(new Task[] { stdout, stderr }, TimeSpan.FromSeconds(30))
                 .Should().BeTrue("redirected process output should close after timeout cleanup");
-            throw new TimeoutException($"{fileName} timed out after {timeout.TotalSeconds:0.###} seconds.");
+            var message = $"{fileName} timed out after {timeout.TotalSeconds:0.###} seconds.";
+            if (cleanupException is not null)
+            {
+                message += $" Cleanup verification warning: {cleanupException.Message}";
+            }
+
+            throw new TimeoutException(message, cleanupException);
         }
 
         return new CommandResult(process.ExitCode, stdout.Result + stderr.Result);

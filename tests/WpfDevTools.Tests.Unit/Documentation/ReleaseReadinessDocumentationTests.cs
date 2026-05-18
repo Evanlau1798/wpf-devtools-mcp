@@ -99,6 +99,7 @@ public sealed class ReleaseReadinessDocumentationTests
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
     [InlineData("1. build-release.ps1 builds, tests, and packages the release.")]
     [InlineData("1. Stops after package generation; it does not run the preflight build/test validation, but it runs the full test suite.")]
+    [InlineData("1. Stops after package generation; it does not run the preflight build/test validation but it runs the full test suite.")]
     public void BuildReleaseValidationGuard_ShouldRejectRewordedPositiveValidationClaims(string staleClaim)
     {
         var guide = string.Join("\n",
@@ -283,7 +284,7 @@ public sealed class ReleaseReadinessDocumentationTests
     {
         return Regex.Replace(
             line,
-            @"\b(does\s+not|do\s+not|will\s+not|without)\s+(run(?:ning)?|execute|executing|perform(?:ing)?|build(?:ing)?|test(?:ing)?|validate|validating)\b[^;,.]*",
+            @"\b(does\s+not|do\s+not|will\s+not|without)\s+(run(?:ning)?|execute|executing|perform(?:ing)?|build(?:ing)?|test(?:ing)?|validate|validating)\b(?:(?!(?:\bbut\b|\bhowever\b|\byet\b|\balthough\b|\bthough\b)|[;,.]).)*",
             string.Empty,
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }

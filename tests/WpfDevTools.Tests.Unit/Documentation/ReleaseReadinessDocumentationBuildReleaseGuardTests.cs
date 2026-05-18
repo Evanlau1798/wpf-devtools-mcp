@@ -128,6 +128,23 @@ public sealed partial class ReleaseReadinessDocumentationTests
     }
 
     [Theory]
+    [InlineData("1. Produces packages and does not execute release validation.")]
+    [InlineData("1. Produces packages and does not run release validation.")]
+    [InlineData("1. Produces packages and does not perform release validation.")]
+    [InlineData("1. Produces packages and does not run the unit tests.")]
+    [InlineData("1. Produces packages and does not run `dotnet test`.")]
+    public void BuildReleaseValidationGuard_ShouldAllowNegatedValidationAndTestCommandPhrases(string negatedClaim)
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            negatedClaim);
+
+        GetBuildReleaseValidationClaims(guide).Should().BeEmpty(
+            "valid negated validation and test-command phrases should not become false positive build-release claims");
+    }
+
+    [Theory]
     [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
     [InlineData("1. build-release.ps1 builds, tests, and packages the release.")]
@@ -235,11 +252,11 @@ public sealed partial class ReleaseReadinessDocumentationTests
     {
         var scrubbed = clause;
         scrubbed = Regex.Replace(scrubbed,
-            @"\b(?:does\s+not|do\s+not|will\s+not)\s+(?:run|execute|perform|validate)\s+(?:the\s+)?(?:preflight\s+)?(?:build/test\s+)?validation(?:\s+steps?)?\b",
+            @"\b(?:does\s+not|do\s+not|will\s+not)\s+(?:run|execute|perform|validate)\s+(?:the\s+)?(?:preflight|release|build/test)?\s*validation(?:\s+steps?)?\b",
             " ",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         scrubbed = Regex.Replace(scrubbed,
-            @"\b(?:does\s+not|do\s+not|will\s+not)\s+(?:run|execute)\s+(?:dotnet\s+test|[^\s,;]+\.csproj|unit\s+tests?|integration\s+tests?|tests?|full\s+test\s+suite)(?:\s+--no-build)?\b",
+            @"\b(?:does\s+not|do\s+not|will\s+not)\s+(?:run|execute)\s+(?:the\s+)?(?:`?dotnet\s+test`?|[^\s,;]+\.csproj|unit\s+tests?|integration\s+tests?|tests?|full\s+test\s+suite)(?:\s+--no-build)?\b",
             " ",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         scrubbed = Regex.Replace(scrubbed,

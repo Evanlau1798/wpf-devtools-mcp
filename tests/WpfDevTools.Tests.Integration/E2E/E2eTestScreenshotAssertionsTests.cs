@@ -17,6 +17,7 @@ public sealed class E2eTestScreenshotAssertionsTests
             {
               "success": true,
               "localPathRedacted": true,
+              "resourceUri": "wpf://screenshots/shot_00000000000000000000000000000000",
               "fileName": "{{fileName}}",
               "width": 1,
               "height": 1,

@@ -74,6 +74,27 @@ public class BootstrapperProjectContractTests
             "the bootstrapper linker inputs should include the explicit NetFx SDK library fallback directory");
     }
 
+    [Fact]
+    public void BootstrapperProject_ShouldInjectPackageVersionIntoNativeResource()
+    {
+        var project = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj"));
+        var resource = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrapper.rc"));
+
+        project.Should().Contain("BootstrapperFileVersion",
+            "release packaging must pass the server package version into the native resource compiler");
+        project.Should().Contain("WPFDEVTOOLS_BOOTSTRAPPER_FILE_VERSION=$(BootstrapperFileVersion)");
+        project.Should().Contain("WPFDEVTOOLS_BOOTSTRAPPER_PRODUCT_VERSION_STRING");
+
+        resource.Should().Contain("WPFDEVTOOLS_BOOTSTRAPPER_FILE_VERSION");
+        resource.Should().Contain("WPFDEVTOOLS_BOOTSTRAPPER_PRODUCT_VERSION_STRING");
+        resource.Should().NotContain("VALUE \"FileVersion\", \"1.0.0.0\"",
+            "the native bootstrapper file version must not stay pinned to a stale resource literal");
+        resource.Should().NotContain("VALUE \"ProductVersion\", \"1.0.0.0\"",
+            "the native bootstrapper product version must match the release package version");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

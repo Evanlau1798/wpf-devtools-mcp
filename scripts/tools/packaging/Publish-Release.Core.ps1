@@ -126,6 +126,42 @@ function Assert-ExpectedReleaseTagMatchesVersion {
     }
 }
 
+function ConvertTo-NativeResourceVersion {
+    param([Parameter(Mandatory)] [string]$Version)
+
+    $trimmedVersion = $Version.Trim()
+    if ($trimmedVersion.StartsWith('v')) {
+        $trimmedVersion = $trimmedVersion.Substring(1)
+    }
+
+    $numericVersion = ($trimmedVersion -split '\+', 2)[0]
+    $numericVersion = ($numericVersion -split '-', 2)[0]
+    $parts = @($numericVersion -split '\.')
+    if ($parts.Count -gt 4) {
+        throw "Version '$Version' contains more than four numeric components."
+    }
+
+    $resolvedParts = @(0, 0, 0, 0)
+    for ($index = 0; $index -lt $parts.Count; $index++) {
+        if ($parts[$index] -notmatch '^\d+$') {
+            throw "Version '$Version' contains a non-numeric resource version component: '$($parts[$index])'."
+        }
+
+        $value = [int]$parts[$index]
+        if ($value -lt 0 -or $value -gt 65535) {
+            throw "Version '$Version' contains a resource version component outside 0..65535: $value."
+        }
+
+        $resolvedParts[$index] = $value
+    }
+
+    return [ordered]@{
+        Numeric = [string]::Join(',', $resolvedParts)
+        FileVersionString = [string]::Join('.', $resolvedParts)
+        ProductVersionString = $trimmedVersion
+    }
+}
+
 function Copy-DirectoryContents {
     param(
         [Parameter(Mandatory)] [string]$Source,

@@ -58,6 +58,18 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void PublishReleaseScript_ShouldPassProjectVersionIntoNativeBootstrapperResource()
+    {
+        var publishScript = ReadPublishReleaseScript("Publish-Release.ps1");
+        var coreHelper = ReadPublishReleaseScript("Publish-Release.Core.ps1");
+
+        coreHelper.Should().Contain("function ConvertTo-NativeResourceVersion");
+        publishScript.Should().Contain("ConvertTo-NativeResourceVersion -Version $version");
+        publishScript.Should().Contain("/p:BootstrapperFileVersion=");
+        publishScript.Should().Contain("/p:BootstrapperProductVersionString=");
+    }
+
+    [Fact]
     public void CiWorkflow_ShouldSmokeTestCanonicalOnlineInstaller()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));

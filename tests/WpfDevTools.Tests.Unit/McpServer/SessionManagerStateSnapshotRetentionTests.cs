@@ -37,11 +37,15 @@ public sealed class SessionManagerStateSnapshotRetentionTests
     public void SaveStateSnapshot_WhenTimestampsTie_ShouldRetainNewlySavedSnapshot()
     {
         const int processId = 51066;
-        using var sessionManager = new SessionManager();
+        var capturedAtUtc = new DateTimeOffset(2026, 5, 18, 12, 0, 0, TimeSpan.Zero);
+        using var sessionManager = new SessionManager(
+            McpServerConfiguration.RateLimitRequestsPerMinute,
+            authManager: null,
+            certManager: null,
+            utcNowProvider: () => capturedAtUtc.AddMinutes(1));
         DisableSessionManagerCleanupTimer(sessionManager);
         sessionManager.AddSession(processId);
 
-        var capturedAtUtc = new DateTimeOffset(2026, 5, 18, 12, 0, 0, TimeSpan.Zero);
         for (var index = 0; index < ExpectedRetainedSnapshotsPerProcess; index++)
         {
             sessionManager.SaveStateSnapshot(

@@ -16,15 +16,33 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public abstract partial class DispatcherAnalyzerBase
 {
-    private static readonly ConcurrentDictionary<DependencyPropertyLookupKey, DependencyProperty?> DependencyPropertyLookupCache = new();
-    private static int _assemblyLoadHandlerRegistered;
+    private static readonly ConcurrentDictionary<DependencyPropertyLookupKey, DependencyPropertyLookupResult> DependencyPropertyLookupCache = new();
+    private static readonly object DependencyPropertyLookupCacheLock = new();
+    private static bool _assemblyLoadHandlerRegistered;
+    private static long _dependencyPropertyLookupGeneration;
     private readonly ElementFinder? _elementFinder;
     internal static long LoadedTypeEnumerationCount { get; private set; }
+    internal static long DependencyPropertyLookupGeneration => Volatile.Read(ref _dependencyPropertyLookupGeneration);
+    internal static int DependencyPropertyLookupCacheCount => DependencyPropertyLookupCache.Count;
 
     internal static void ResetDependencyPropertyLookupDiagnostics()
     {
         LoadedTypeEnumerationCount = 0;
         DependencyPropertyLookupCache.Clear();
+    }
+
+    internal static void AdvanceDependencyPropertyLookupGenerationForTesting()
+    {
+        AdvanceDependencyPropertyLookupGeneration();
+    }
+
+    internal static bool HasDependencyPropertyLookupCacheEntryForTesting(Type elementType, string propertyName)
+    {
+        var key = new DependencyPropertyLookupKey(
+            elementType,
+            propertyName.Trim(),
+            Volatile.Read(ref _dependencyPropertyLookupGeneration));
+        return DependencyPropertyLookupCache.ContainsKey(key);
     }
 
     /// <summary>
@@ -286,11 +304,13 @@ public abstract partial class DispatcherAnalyzerBase
             return null;
         }
 
-        EnsureDependencyPropertyCacheInvalidationRegistered();
-        var key = new DependencyPropertyLookupKey(element.GetType(), propertyName.Trim());
+        var generation = EnsureDependencyPropertyCacheInvalidationRegistered();
+        var key = new DependencyPropertyLookupKey(element.GetType(), propertyName.Trim(), generation);
         return DependencyPropertyLookupCache.GetOrAdd(
             key,
-            static entry => FindDependencyPropertyUncached(entry.ElementType, entry.PropertyName));
+            static entry => new DependencyPropertyLookupResult(
+                Cached: true,
+                FindDependencyPropertyUncached(entry.ElementType, entry.PropertyName))).Property;
     }
 
     private static DependencyProperty? FindDependencyPropertyUncached(Type elementType, string propertyName)
@@ -306,14 +326,29 @@ public abstract partial class DispatcherAnalyzerBase
         return hierarchyProperty ?? FindAttachedDependencyProperty(simplePropertyName);
     }
 
-    private static void EnsureDependencyPropertyCacheInvalidationRegistered()
+    private static long EnsureDependencyPropertyCacheInvalidationRegistered()
     {
-        if (Interlocked.Exchange(ref _assemblyLoadHandlerRegistered, 1) == 1)
+        if (_assemblyLoadHandlerRegistered)
         {
-            return;
+            return Volatile.Read(ref _dependencyPropertyLookupGeneration);
         }
 
-        AppDomain.CurrentDomain.AssemblyLoad += static (_, _) => DependencyPropertyLookupCache.Clear();
+        lock (DependencyPropertyLookupCacheLock)
+        {
+            if (!_assemblyLoadHandlerRegistered)
+            {
+                AppDomain.CurrentDomain.AssemblyLoad += static (_, _) => AdvanceDependencyPropertyLookupGeneration();
+                _assemblyLoadHandlerRegistered = true;
+            }
+
+            return Volatile.Read(ref _dependencyPropertyLookupGeneration);
+        }
+    }
+
+    private static void AdvanceDependencyPropertyLookupGeneration()
+    {
+        Interlocked.Increment(ref _dependencyPropertyLookupGeneration);
+        DependencyPropertyLookupCache.Clear();
     }
 
     private static DependencyProperty? FindDependencyPropertyOnHierarchy(Type? type, string propertyName)
@@ -442,5 +477,7 @@ public abstract partial class DispatcherAnalyzerBase
         }
     }
 
-    private readonly record struct DependencyPropertyLookupKey(Type ElementType, string PropertyName);
+    private readonly record struct DependencyPropertyLookupKey(Type ElementType, string PropertyName, long Generation);
+
+    private readonly record struct DependencyPropertyLookupResult(bool Cached, DependencyProperty? Property);
 }

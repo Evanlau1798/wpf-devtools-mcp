@@ -61,9 +61,23 @@ public class DispatcherAnalyzerBaseTests
 
         public static long TestLoadedTypeEnumerationCount => LoadedTypeEnumerationCount;
 
+        public static long TestDependencyPropertyLookupGeneration => DependencyPropertyLookupGeneration;
+
+        public static int TestDependencyPropertyLookupCacheCount => DependencyPropertyLookupCacheCount;
+
         public static void TestResetDependencyPropertyLookupDiagnostics()
         {
             ResetDependencyPropertyLookupDiagnostics();
+        }
+
+        public static void TestAdvanceDependencyPropertyLookupGeneration()
+        {
+            AdvanceDependencyPropertyLookupGenerationForTesting();
+        }
+
+        public static bool TestHasDependencyPropertyLookupCacheEntry(Type elementType, string propertyName)
+        {
+            return HasDependencyPropertyLookupCacheEntryForTesting(elementType, propertyName);
         }
 
         public DependencyObject? TestResolveElement(string? elementId)
@@ -380,15 +394,45 @@ public class DispatcherAnalyzerBaseTests
     {
         var button = new Button();
         TestAnalyzer.TestResetDependencyPropertyLookupDiagnostics();
+        TestAnalyzer.TestFindDependencyProperty(button, "MissingAttachedProperty").Should().BeNull();
+        TestAnalyzer.TestResetDependencyPropertyLookupDiagnostics();
 
         var first = TestAnalyzer.TestFindDependencyProperty(button, "MissingAttachedProperty");
         var afterFirstLookup = TestAnalyzer.TestLoadedTypeEnumerationCount;
+        var afterFirstGeneration = TestAnalyzer.TestDependencyPropertyLookupGeneration;
+        var hasCurrentGenerationCacheEntry = TestAnalyzer.TestHasDependencyPropertyLookupCacheEntry(
+            button.GetType(),
+            "MissingAttachedProperty");
         var second = TestAnalyzer.TestFindDependencyProperty(button, "MissingAttachedProperty");
 
         first.Should().BeNull();
         second.Should().BeNull();
         afterFirstLookup.Should().BeGreaterThan(0);
-        TestAnalyzer.TestLoadedTypeEnumerationCount.Should().Be(afterFirstLookup,
-            "missing dependency property lookups should cache misses instead of rescanning all loaded types");
+        if (hasCurrentGenerationCacheEntry && TestAnalyzer.TestDependencyPropertyLookupGeneration == afterFirstGeneration)
+        {
+            TestAnalyzer.TestLoadedTypeEnumerationCount.Should().Be(afterFirstLookup,
+                "missing dependency property lookups should cache misses inside one assembly generation");
+        }
+        else
+        {
+            TestAnalyzer.TestLoadedTypeEnumerationCount.Should().BeGreaterThan(afterFirstLookup,
+                "a new assembly generation must intentionally bypass cached misses");
+        }
+    }
+
+    [StaFact]
+    public void FindDependencyProperty_AfterAssemblyGenerationAdvances_ShouldNotReusePreviousMiss()
+    {
+        var button = new Button();
+        TestAnalyzer.TestResetDependencyPropertyLookupDiagnostics();
+
+        TestAnalyzer.TestFindDependencyProperty(button, "MissingAttachedProperty").Should().BeNull();
+        var afterFirstLookup = TestAnalyzer.TestLoadedTypeEnumerationCount;
+
+        TestAnalyzer.TestAdvanceDependencyPropertyLookupGeneration();
+        TestAnalyzer.TestFindDependencyProperty(button, "MissingAttachedProperty").Should().BeNull();
+
+        TestAnalyzer.TestLoadedTypeEnumerationCount.Should().BeGreaterThan(afterFirstLookup,
+            "assembly-load invalidation must prevent stale misses from hiding newly loaded dependency property owners");
     }
 }

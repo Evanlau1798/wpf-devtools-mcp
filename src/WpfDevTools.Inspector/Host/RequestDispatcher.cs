@@ -22,6 +22,7 @@ public sealed class RequestDispatcher : IDisposable
     private readonly FileLogger _logger;
     private readonly ElementFinder _elementFinder;
     private readonly EventAnalyzer _eventAnalyzer;
+    private readonly IReadOnlyList<IDisposable> _ownedDisposables;
     private readonly int _processId;
 
     /// <summary>
@@ -51,6 +52,7 @@ public sealed class RequestDispatcher : IDisposable
         var composition = RequestDispatcherRegistry.Create(_logger, eventTraceCleanupInvoker);
         _elementFinder = composition.ElementFinder;
         _eventAnalyzer = composition.EventAnalyzer;
+        _ownedDisposables = composition.OwnedDisposables;
         _handlerMap = composition.HandlerMap.ToDictionary(
             entry => entry.Key,
             entry => entry.Value,
@@ -213,28 +215,29 @@ public sealed class RequestDispatcher : IDisposable
     }
 
     /// <summary>
-    /// Dispose the ElementFinder to stop its cleanup timer
+    /// Dispose analyzer composition resources owned by this dispatcher.
     /// </summary>
     public void Dispose()
     {
-        Exception? disposeException = null;
+        Exception? firstDisposeException = null;
+        foreach (var disposable in _ownedDisposables)
+        {
+            try
+            {
+                disposable.Dispose();
+            }
+            catch (Exception ex) when (firstDisposeException is null)
+            {
+                firstDisposeException = ex;
+            }
+            catch
+            {
+            }
+        }
 
-        try
+        if (firstDisposeException != null)
         {
-            _eventAnalyzer.Dispose();
-        }
-        catch (Exception ex)
-        {
-            disposeException = ex;
-        }
-        finally
-        {
-            _elementFinder.Dispose();
-        }
-
-        if (disposeException != null)
-        {
-            ExceptionDispatchInfo.Capture(disposeException).Throw();
+            ExceptionDispatchInfo.Capture(firstDisposeException).Throw();
         }
     }
 }

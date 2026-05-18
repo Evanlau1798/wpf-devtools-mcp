@@ -61,13 +61,21 @@ public sealed class RequestDispatcherRegistryTests
             var eventAnalyzer = (EventAnalyzer)typeof(EventHandlers)
                 .GetField("_eventAnalyzer", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .GetValue(composition.HandlerMap["trace_routed_events"])!;
+            var bindingAnalyzer = (BindingAnalyzer)typeof(BindingHandlers)
+                .GetField("_bindingAnalyzer", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(composition.HandlerMap["get_bindings"])!;
 
             eventAnalyzer.Should().BeSameAs(composition.EventAnalyzer);
+            composition.OwnedDisposables.Should().Equal(
+                [composition.EventAnalyzer, bindingAnalyzer, composition.ElementFinder],
+                "the dispatcher lifecycle must release every disposable analyzer that owns process-global or timer state");
         }
         finally
         {
-            composition.EventAnalyzer.Dispose();
-            composition.ElementFinder.Dispose();
+            foreach (var disposable in composition.OwnedDisposables)
+            {
+                disposable.Dispose();
+            }
         }
     }
 

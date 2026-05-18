@@ -12,16 +12,20 @@ internal sealed class RequestDispatcherComposition
     public RequestDispatcherComposition(
         ElementFinder elementFinder,
         EventAnalyzer eventAnalyzer,
+        IReadOnlyList<IDisposable> ownedDisposables,
         IReadOnlyDictionary<string, IRequestHandler> handlerMap)
     {
         ElementFinder = elementFinder;
         EventAnalyzer = eventAnalyzer;
+        OwnedDisposables = ownedDisposables;
         HandlerMap = handlerMap;
     }
 
     public ElementFinder ElementFinder { get; }
 
     public EventAnalyzer EventAnalyzer { get; }
+
+    public IReadOnlyList<IDisposable> OwnedDisposables { get; }
 
     public IReadOnlyDictionary<string, IRequestHandler> HandlerMap { get; }
 }
@@ -94,6 +98,7 @@ internal static class RequestDispatcherRegistry
         return new RequestDispatcherComposition(
             elementFinder,
             eventAnalyzer,
+            [eventAnalyzer, bindingAnalyzer, elementFinder],
             CreateHandlerMap(handlers));
     }
 

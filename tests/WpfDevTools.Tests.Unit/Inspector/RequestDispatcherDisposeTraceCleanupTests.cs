@@ -12,8 +12,34 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector;
 
-public sealed class RequestDispatcherDisposeTraceCleanupTests
+[Collection("BindingErrorTests")]
+public sealed class RequestDispatcherDisposeTraceCleanupTests : IDisposable
 {
+    public RequestDispatcherDisposeTraceCleanupTests()
+    {
+        BindingErrorTraceListener.ResetInstance();
+    }
+
+    public void Dispose()
+    {
+        BindingErrorTraceListener.ResetInstance();
+    }
+
+    [Fact]
+    public void Dispose_WhenBindingAnalyzerOwnsTraceSink_ShouldStopForwardingBindingEvents()
+    {
+        using var logger = new FileLogger();
+        var dispatcher = new RequestDispatcher(logger);
+
+        GetBindingWatchEventSink().Should().NotBeNull(
+            "dispatcher composition wires binding trace events into the shared watch-event buffer");
+
+        dispatcher.Dispose();
+
+        GetBindingWatchEventSink().Should().BeNull(
+            "disposing the dispatcher must release the BindingAnalyzer sink so trace events cannot keep forwarding to a disposed dispatcher composition");
+    }
+
     [StaFact]
     public void Dispose_WithActiveTraceSession_ShouldStopTracing()
     {
@@ -182,6 +208,13 @@ public sealed class RequestDispatcherDisposeTraceCleanupTests
         return (EventAnalyzer)typeof(EventHandlers)
             .GetField("_eventAnalyzer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
             .GetValue(eventHandler)!;
+    }
+
+    private static Action<BindingErrorInfo>? GetBindingWatchEventSink()
+    {
+        return (Action<BindingErrorInfo>?)typeof(BindingErrorTraceListener)
+            .GetField("_watchEventSink", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetValue(BindingErrorTraceListener.Instance);
     }
 
     private static bool WaitForTraceCleanup(EventAnalyzer analyzer, Button button, string elementId, TimeSpan timeout)

@@ -170,6 +170,8 @@ public sealed class UnitTestParallelizationContractTests
             .Should().Be("BindingErrorTests");
         GetCollectionName(typeof(DiagnosticNormalizationTests))
             .Should().Be("BindingErrorTests");
+        GetCollectionName(typeof(RequestDispatcherDisposeTraceCleanupTests))
+            .Should().Be("BindingErrorTests");
     }
 
     [Fact]

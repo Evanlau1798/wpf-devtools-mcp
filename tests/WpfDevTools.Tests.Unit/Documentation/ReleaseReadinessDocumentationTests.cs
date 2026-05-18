@@ -94,6 +94,18 @@ public sealed class ReleaseReadinessDocumentationTests
             "the guard must reject build/test validation claims inside the build-release.ps1 packaging-wrapper section even when the file uses LF line endings");
     }
 
+    [Fact]
+    public void BuildReleaseValidationGuard_ShouldPreserveDottedSolutionFilenames()
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            "1. Builds `WpfDevTools.sln` in `Release`.");
+
+        GetBuildReleaseValidationClaims(guide).Should().NotBeEmpty(
+            "sentence splitting must not break dotted filenames before the validation claim scanner runs");
+    }
+
     [Theory]
     [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
@@ -288,7 +300,7 @@ public sealed class ReleaseReadinessDocumentationTests
     {
         return Regex.Split(
             line,
-            @"[;.]|\b(?:but|however|yet|although|though|and|then|while)\b",
+            @";|\.(?=\s|$)|\b(?:but|however|yet|although|though|and|then|while)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
             .Select(clause => clause.Trim())
             .Where(clause => clause.Length > 0);

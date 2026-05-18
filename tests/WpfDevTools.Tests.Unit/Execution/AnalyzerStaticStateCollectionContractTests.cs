@@ -21,6 +21,7 @@ public sealed class AnalyzerStaticStateCollectionContractTests
         typeof(DependencyPropertyAnalyzerWatchEventTests),
         typeof(DependencyPropertyAnalyzerWatcherCleanupTests),
         typeof(DependencyPropertyAnalyzerWatchRegistrationRaceTests),
+        typeof(DispatcherAnalyzerBaseTests),
         typeof(PerformanceAnalyzerTests),
         typeof(PerformanceAnalyzerGapTests),
         typeof(PerformanceAnalyzerContractTests),

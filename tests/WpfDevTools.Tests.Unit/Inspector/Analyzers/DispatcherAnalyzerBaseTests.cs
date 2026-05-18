@@ -10,6 +10,7 @@ using WpfDevTools.Inspector.Utilities;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("AnalyzerStaticState")]
 public class DispatcherAnalyzerBaseTests
 {
 

@@ -29,6 +29,7 @@ public sealed class AnalyzerStaticStateFixture : IDisposable
         PerformanceAnalyzer.ResetForcedGcPathExecutionCount();
         DependencyPropertyAnalyzer.StopAllWatchers();
         DependencyPropertyAnalyzer.ResetMonitoring();
+        DispatcherAnalyzerBase.ResetDependencyPropertyLookupDiagnostics();
         ElementFinder.ResetIdsForTests();
     }
 }

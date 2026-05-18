@@ -24,7 +24,7 @@ This creates:
 
 ### Install Certificate (Required for Testing)
 
-1. Double-click `cert/WpfDevTools.cer`
+1. Double-click `tmp/cert/WpfDevTools.cer`
 2. Click "Install Certificate"
 3. Select "Local Machine" (requires administrator)
 4. Place in "Trusted Root Certification Authorities"

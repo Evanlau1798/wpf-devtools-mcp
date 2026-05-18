@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -66,6 +67,8 @@ public sealed class ReleaseReadinessDocumentationTests
             "the code-signing guide should use the current signing script path");
         content.Should().Contain("tmp/cert/WpfDevTools.pfx",
             "the guide should document the current default output path for development certificates");
+        content.Should().Contain($"Double-click `{GetDefaultSelfSignedCertificateCerPath()}`",
+            "the guide should install the public certificate from the helper's default output path");
         content.Should().Contain("CertificateThumbprint",
             "the guide should document the supported certificate-store signing parameter");
         content.Should().Contain("WPFDEVTOOLS_PFX_PASSWORD",
@@ -82,6 +85,15 @@ public sealed class ReleaseReadinessDocumentationTests
             "the guide should not describe a PFX password parameter that the current signing script does not expose");
         content.Should().NotContain("CERT_PATH",
             "the GitHub Actions guidance should not rely on a runner-local certificate path secret that does not exist on hosted runners");
+    }
+
+    private static string GetDefaultSelfSignedCertificateCerPath()
+    {
+        var script = File.ReadAllText(GetRepoFilePath("scripts/tools/Create-SelfSignedCert.ps1"));
+        var match = Regex.Match(script, @"\[string\]\$OutputPath\s*=\s*""(?<path>[^""]+)""");
+        match.Success.Should().BeTrue("Create-SelfSignedCert.ps1 should keep a discoverable OutputPath default");
+
+        return $"{match.Groups["path"].Value.Replace("\\", "/").TrimStart('.', '/')}/WpfDevTools.cer";
     }
 
     [Theory]

@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using FluentAssertions;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Inspector.Sdk;
@@ -7,124 +6,66 @@ using SdkInspector = WpfDevTools.Inspector.Sdk.InspectorSdk;
 namespace WpfDevTools.Tests.Unit.InspectorSdk;
 
 [Collection("ProcessEnvironment")]
-public sealed class InspectorSdkInitializationTests
+public sealed class InspectorSdkInitializationTests : IDisposable
 {
+    private readonly InspectorSdkTestContext _testContext = new();
+
+    public void Dispose()
+    {
+        _testContext.Dispose();
+    }
+
     [Fact]
     public void Initialize_WithInvalidAuthenticationSecret_ShouldExposeInitializationError()
     {
-        var originalAuthSecret = Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET");
-        var originalCertDirectory = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR");
-        var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-sdk-init-{Guid.NewGuid():N}");
+        var certDirectory = _testContext.CreateTemporaryDirectory("wpf-devtools-sdk-init");
 
-        try
-        {
-            SdkInspector.Shutdown();
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET", "not-base64");
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR", certDirectory);
+        _testContext.SetTransport("not-base64", certDirectory);
+        SdkInspector.Initialize(processId: 12345);
 
-            SdkInspector.Initialize(processId: 12345);
-
-            SdkInspector.IsInitialized.Should().BeFalse();
-            SdkInspector.LastInitializationError.Should().NotBeNull();
-            SdkInspector.LastInitializationError.Should().BeOfType<FormatException>();
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET", originalAuthSecret);
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR", originalCertDirectory);
-            SdkInspector.Shutdown();
-        }
+        SdkInspector.IsInitialized.Should().BeFalse();
+        SdkInspector.LastInitializationError.Should().NotBeNull();
+        SdkInspector.LastInitializationError.Should().BeOfType<FormatException>();
     }
 
     [Fact]
     public void Initialize_WithInvalidCertificateDirectory_ShouldExposeInitializationError()
     {
-        var originalAuthSecret = Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET");
-        var originalCertDirectory = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR");
-        var invalidCertDirectory = Path.GetTempFileName();
-        var authSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var invalidCertDirectory = _testContext.CreateTemporaryFile();
 
-        try
-        {
-            SdkInspector.Shutdown();
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET", authSecret);
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR", invalidCertDirectory);
+        _testContext.SetTransport(InspectorSdkTestContext.CreateAuthSecret(), invalidCertDirectory);
+        SdkInspector.Initialize(processId: 12345);
 
-            SdkInspector.Initialize(processId: 12345);
-
-            SdkInspector.IsInitialized.Should().BeFalse();
-            SdkInspector.LastInitializationError.Should().NotBeNull();
-            SdkInspector.LastInitializationError.Should().BeOfType<IOException>();
-            SdkInspector.LastInitializationError!.Message.Should().Contain(invalidCertDirectory);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET", originalAuthSecret);
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR", originalCertDirectory);
-            SdkInspector.Shutdown();
-            if (File.Exists(invalidCertDirectory))
-            {
-                File.Delete(invalidCertDirectory);
-            }
-        }
+        SdkInspector.IsInitialized.Should().BeFalse();
+        SdkInspector.LastInitializationError.Should().NotBeNull();
+        SdkInspector.LastInitializationError.Should().BeOfType<IOException>();
+        SdkInspector.LastInitializationError!.Message.Should().Contain(invalidCertDirectory);
     }
 
     [Fact]
     public void Initialize_WithOnlyAuthenticationSecret_ShouldExposeClearInitializationError()
     {
-        var originalAuthSecret = Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET");
-        var originalCertDirectory = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR");
-        var authSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var authSecret = InspectorSdkTestContext.CreateAuthSecret();
 
-        try
-        {
-            SdkInspector.Shutdown();
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET", authSecret);
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR", null);
+        _testContext.SetTransport(authSecret, certDirectory: null);
+        SdkInspector.Initialize(processId: 12345);
 
-            SdkInspector.Initialize(processId: 12345);
-
-            SdkInspector.IsInitialized.Should().BeFalse();
-            SdkInspector.LastInitializationError.Should().BeOfType<InvalidOperationException>();
-            SdkInspector.LastInitializationError!.Message.Should().Contain("set together");
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET", originalAuthSecret);
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR", originalCertDirectory);
-            SdkInspector.Shutdown();
-        }
+        SdkInspector.IsInitialized.Should().BeFalse();
+        SdkInspector.LastInitializationError.Should().BeOfType<InvalidOperationException>();
+        SdkInspector.LastInitializationError!.Message.Should().Contain("set together");
     }
 
     [Fact]
     public void Initialize_WithOnlyCertificateDirectory_ShouldExposeClearInitializationError()
     {
-        var originalAuthSecret = Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET");
-        var originalCertDirectory = Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR");
-        var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-sdk-init-{Guid.NewGuid():N}");
+        var certDirectory = _testContext.CreateTemporaryDirectory("wpf-devtools-sdk-init");
 
-        try
-        {
-            SdkInspector.Shutdown();
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET", null);
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR", certDirectory);
+        _testContext.SetTransport(authSecret: null, certDirectory);
+        SdkInspector.Initialize(processId: 12345);
 
-            SdkInspector.Initialize(processId: 12345);
-
-            SdkInspector.IsInitialized.Should().BeFalse();
-            SdkInspector.LastInitializationError.Should().BeOfType<InvalidOperationException>();
-            SdkInspector.LastInitializationError!.Message.Should().Contain("set together");
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET", originalAuthSecret);
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR", originalCertDirectory);
-            SdkInspector.Shutdown();
-            if (Directory.Exists(certDirectory))
-            {
-                Directory.Delete(certDirectory, recursive: true);
-            }
-        }
+        SdkInspector.IsInitialized.Should().BeFalse();
+        SdkInspector.LastInitializationError.Should().BeOfType<InvalidOperationException>();
+        SdkInspector.LastInitializationError!.Message.Should().Contain("set together");
     }
 
     [Fact]

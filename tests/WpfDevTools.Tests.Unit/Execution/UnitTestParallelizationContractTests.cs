@@ -238,6 +238,13 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
+    public void InspectorSdkInitializationTests_ShouldUseTrackedTestContextCleanup()
+    {
+        typeof(InspectorSdkInitializationTests).Should().BeAssignableTo<IDisposable>(
+            "SDK initialization tests create temporary certificate directories and must use tracked cleanup even when initialization fails early");
+    }
+
+    [Fact]
     public void TimingSensitiveCollection_ShouldRemainParallelizable()
     {
         var collectionType = typeof(SignaturePolicyTests).Assembly

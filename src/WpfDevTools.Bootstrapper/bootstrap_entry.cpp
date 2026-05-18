@@ -303,7 +303,9 @@ static bool WipeFileContents(const std::wstring& path)
     LARGE_INTEGER fileSize;
     if (!GetFileSizeEx(file, &fileSize))
     {
+        DWORD errorCode = GetLastError();
         CloseHandle(file);
+        SetLastError(errorCode == ERROR_SUCCESS ? ERROR_READ_FAULT : errorCode);
         return false;
     }
 
@@ -327,9 +329,16 @@ static bool WipeFileContents(const std::wstring& path)
         {
             DWORD bytesToWrite = static_cast<DWORD>(std::min<LONGLONG>(remaining, sizeof(zeros)));
             DWORD bytesWritten = 0;
-            if (!WriteFile(file, zeros, bytesToWrite, &bytesWritten, nullptr) || bytesWritten != bytesToWrite)
+            BOOL wrote = WriteFile(file, zeros, bytesToWrite, &bytesWritten, nullptr);
+            if (!wrote)
             {
                 recordFailure();
+                break;
+            }
+
+            if (bytesWritten != bytesToWrite)
+            {
+                recordFailure(ERROR_WRITE_FAULT);
                 break;
             }
 

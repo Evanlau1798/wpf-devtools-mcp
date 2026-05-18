@@ -88,6 +88,35 @@ public class BootstrapperSecureTransportContractTests
     }
 
     [Fact]
+    public void BootstrapEntry_ShouldPreserveAuthSecretWipeSizeErrorCode()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+        var method = GetMethodBody(content, "static bool WipeFileContents");
+        var getFileSizeFailureBlock = GetBlockAfter(method, "if (!GetFileSizeEx(file, &fileSize))");
+
+        getFileSizeFailureBlock.Should().Contain("DWORD errorCode = GetLastError();",
+            "native cleanup diagnostics should preserve the GetFileSizeEx failure before CloseHandle can overwrite last-error state");
+        getFileSizeFailureBlock.Should().Contain("SetLastError(errorCode");
+        getFileSizeFailureBlock.IndexOf("GetLastError()", StringComparison.Ordinal)
+            .Should().BeLessThan(getFileSizeFailureBlock.IndexOf("CloseHandle(file)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void BootstrapEntry_ShouldUseDeterministicErrorForAuthSecretPartialWipe()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+        var method = GetMethodBody(content, "static bool WipeFileContents");
+
+        method.Should().NotContain("|| bytesWritten != bytesToWrite",
+            "partial WriteFile success does not guarantee GetLastError contains the current failure");
+        method.Should().Contain("if (bytesWritten != bytesToWrite)");
+        method.Should().Contain("recordFailure(ERROR_WRITE_FAULT);",
+            "short writes should report a deterministic fallback error instead of reading stale last-error state");
+    }
+
+    [Fact]
     public void BootstrapEntry_ShouldUseFailClosedJsonConfigParser()
     {
         var entryContent = File.ReadAllText(GetRepoFilePath(
@@ -195,5 +224,32 @@ public class BootstrapperSecureTransportContractTests
         }
 
         throw new InvalidOperationException($"Could not locate method body for {signature}.");
+    }
+
+    private static string GetBlockAfter(string content, string marker)
+    {
+        var start = content.IndexOf(marker, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0);
+        var braceStart = content.IndexOf('{', start);
+        braceStart.Should().BeGreaterThan(start);
+
+        var depth = 0;
+        for (var i = braceStart; i < content.Length; i++)
+        {
+            if (content[i] == '{')
+            {
+                depth++;
+            }
+            else if (content[i] == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return content[braceStart..(i + 1)];
+                }
+            }
+        }
+
+        throw new InvalidOperationException($"Could not locate block for {marker}.");
     }
 }

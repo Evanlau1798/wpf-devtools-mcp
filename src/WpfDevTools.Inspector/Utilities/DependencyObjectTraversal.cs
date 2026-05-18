@@ -49,7 +49,9 @@ internal static class DependencyObjectTraversal
                 yield break;
             }
 
-            var visited = new HashSet<DependencyObject>();
+            var yielded = new HashSet<DependencyObject>();
+            var expandedDepths = new Dictionary<DependencyObject, int>();
+            var depthPrunedCandidates = new HashSet<DependencyObject>();
             var stack = new Stack<(DependencyObject Element, int Depth)>();
             var yieldedNodeCount = 0;
             stack.Push((_root, 0));
@@ -58,29 +60,49 @@ internal static class DependencyObjectTraversal
             {
                 var (current, depth) = stack.Pop();
 
-                if (depth > _maxDepth || !visited.Add(current))
+                if (depth > _maxDepth)
+                {
+                    if (!yielded.Contains(current))
+                    {
+                        depthPrunedCandidates.Add(current);
+                    }
+
+                    continue;
+                }
+
+                if (!CanImproveExpansionDepth(current, depth, expandedDepths))
                 {
                     continue;
                 }
 
-                yield return current;
-                yieldedNodeCount++;
+                expandedDepths[current] = depth;
+                depthPrunedCandidates.Remove(current);
+
+                if (yielded.Add(current))
+                {
+                    yield return current;
+                    yieldedNodeCount++;
+                }
 
                 if (_maxNodes.HasValue)
                 {
                     var remainingBudget = _maxNodes.Value - yieldedNodeCount;
                     if (remainingBudget <= 0)
                     {
-                        Truncated |= stack.Count > 0 || HasAnyChild(current);
+                        Truncated |= depthPrunedCandidates.Count > 0 ||
+                            HasAnyPendingStackWork(stack, yielded, expandedDepths) ||
+                            HasAnyPendingChildWork(current, depth, yielded, expandedDepths);
                         yield break;
                     }
 
-                    PushChildrenWithinBudget(current, depth, remainingBudget, stack);
+                    PushChildrenWithinBudget(current, depth, remainingBudget, stack, yielded, expandedDepths);
                     continue;
                 }
 
                 PushAllChildren(current, depth, stack);
             }
+
+            Truncated |= depthPrunedCandidates.Count > 0;
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
@@ -90,9 +112,11 @@ internal static class DependencyObjectTraversal
             DependencyObject current,
             int depth,
             int remainingBudget,
-            Stack<(DependencyObject Element, int Depth)> stack)
+            Stack<(DependencyObject Element, int Depth)> stack,
+            HashSet<DependencyObject> yielded,
+            Dictionary<DependencyObject, int> expandedDepths)
         {
-            var children = CollectChildrenWithinBudget(current, remainingBudget, out var childOverflow);
+            var children = CollectChildrenWithinBudget(current, depth, remainingBudget, yielded, expandedDepths, out var childOverflow);
             Truncated |= childOverflow;
             for (var i = children.Count - 1; i >= 0; i--)
             {
@@ -113,26 +137,72 @@ internal static class DependencyObjectTraversal
         }
     }
 
-    private static bool HasAnyChild(DependencyObject current)
+    private static bool HasAnyPendingStackWork(
+        Stack<(DependencyObject Element, int Depth)> stack,
+        HashSet<DependencyObject> yielded,
+        Dictionary<DependencyObject, int> expandedDepths)
+    {
+        foreach (var (element, depth) in stack)
+        {
+            if (!yielded.Contains(element) || CanImproveExpansionDepth(element, depth, expandedDepths))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasAnyPendingChildWork(
+        DependencyObject current,
+        int depth,
+        HashSet<DependencyObject> yielded,
+        Dictionary<DependencyObject, int> expandedDepths)
     {
         using var enumerator = EnumerateChildren(current).GetEnumerator();
-        return enumerator.MoveNext();
+        while (enumerator.MoveNext())
+        {
+            var childDepth = depth + 1;
+            if (!yielded.Contains(enumerator.Current) ||
+                CanImproveExpansionDepth(enumerator.Current, childDepth, expandedDepths))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static List<DependencyObject> CollectChildrenWithinBudget(
         DependencyObject current,
+        int depth,
         int remainingBudget,
+        HashSet<DependencyObject> yielded,
+        Dictionary<DependencyObject, int> expandedDepths,
         out bool truncated)
     {
         truncated = false;
         var children = new List<DependencyObject>(remainingBudget);
+        var unyieldedChildrenCount = 0;
 
         foreach (var child in EnumerateChildren(current))
         {
-            if (children.Count >= remainingBudget)
+            var childDepth = depth + 1;
+            var childAlreadyYielded = yielded.Contains(child);
+            if (childAlreadyYielded && !CanImproveExpansionDepth(child, childDepth, expandedDepths))
             {
-                truncated = true;
-                break;
+                continue;
+            }
+
+            if (!childAlreadyYielded)
+            {
+                if (unyieldedChildrenCount >= remainingBudget)
+                {
+                    truncated = true;
+                    break;
+                }
+
+                unyieldedChildrenCount++;
             }
 
             children.Add(child);
@@ -140,6 +210,12 @@ internal static class DependencyObjectTraversal
 
         return children;
     }
+
+    private static bool CanImproveExpansionDepth(
+        DependencyObject element,
+        int depth,
+        Dictionary<DependencyObject, int> expandedDepths)
+        => !expandedDepths.TryGetValue(element, out var bestDepth) || depth < bestDepth;
 
     internal static IEnumerable<DependencyObject> EnumerateChildren(DependencyObject element)
     {

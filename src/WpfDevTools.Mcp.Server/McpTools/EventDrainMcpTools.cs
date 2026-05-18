@@ -14,7 +14,7 @@ public static class EventDrainMcpTools
 {
     private const string EventMetadata = "CATEGORY: Event\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
-    [McpServerTool(Name = "drain_events", Title = "Drain Pending Runtime Events", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
+    [McpServerTool(Name = "drain_events", Title = "Drain Pending Runtime Events", OpenWorld = false, ReadOnly = false, Destructive = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to explicitly drain pending runtime watch events that were buffered by prior DependencyProperty or routed-event activity.\n\n" +
         EventMetadata + "[Event] Return and clear buffered runtime events from the current Inspector session. " +

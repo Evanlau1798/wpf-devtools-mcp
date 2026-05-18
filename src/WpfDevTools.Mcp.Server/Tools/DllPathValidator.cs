@@ -1,6 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using WpfDevTools.Shared.IO;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -75,6 +76,13 @@ internal static partial class DllPathValidator
 
         // SECURITY: Normalize path to prevent traversal attacks (..)
         var fullPath = Path.GetFullPath(dllPath);
+
+        if (CertificateStorageSecurity.ContainsReparsePointInPathChain(fullPath))
+        {
+            throw new ArgumentException(
+                "DLL path must not traverse symbolic links or reparse points.",
+                nameof(dllPath));
+        }
 
         // SECURITY: Whitelist approach ??only allow DLLs under trusted roots
         if (!IsUnderTrustedRoot(fullPath, baseDirectory))

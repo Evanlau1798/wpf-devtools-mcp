@@ -1,7 +1,9 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Diagnostics;
 using System.Reflection;
 using Xunit;
 using FluentAssertions;
+using Xunit.Sdk;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Tests.Unit.Execution;
 using WpfDevTools.Tests.Unit.Release;
@@ -77,6 +79,45 @@ public class SignaturePolicyTests
         finally
         {
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK", previousValue);
+        }
+    }
+
+    [Fact]
+    public void ValidateDllPath_WithTrustedRootJunctionToOutsidePath_ShouldThrow()
+    {
+        RequireWindowsJunctions();
+
+        var root = Path.Combine(Path.GetTempPath(), "WpfDevTools_DllPathValidator_" + Guid.NewGuid().ToString("N"));
+        var trustedRoot = Path.Combine(root, "trusted");
+        var outsideRoot = Path.Combine(root, "outside");
+        var junctionPath = Path.Combine(trustedRoot, "linked");
+        var outsideDllPath = Path.Combine(outsideRoot, "WpfDevTools.Bootstrapper.x64.dll");
+        var candidatePath = Path.Combine(junctionPath, "WpfDevTools.Bootstrapper.x64.dll");
+        var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
+
+        Directory.CreateDirectory(trustedRoot);
+        Directory.CreateDirectory(outsideRoot);
+        File.WriteAllText(outsideDllPath, string.Empty);
+
+        try
+        {
+            CreateDirectoryJunctionOrSkip(junctionPath, outsideRoot);
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = true;
+
+            var act = () => DllPathValidator.ValidateDllPath(candidatePath, trustedRoot);
+
+            act.Should().Throw<ArgumentException>()
+                .WithMessage("*reparse*",
+                    "a trusted-root string prefix must not allow a junction or symlink to redirect DLL loading outside the trusted root");
+        }
+        finally
+        {
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
+            TryDeleteDirectoryJunction(junctionPath);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
         }
     }
 
@@ -401,5 +442,50 @@ public class SignaturePolicyTests
             TestReleaseSignerSubject,
             DateTimeOffset.UtcNow.AddDays(-1),
             DateTimeOffset.UtcNow.AddDays(1));
+
+    private static void RequireWindowsJunctions()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw SkipException.ForSkip("Directory junction contract is Windows-specific.");
+        }
+    }
+
+    private static void CreateDirectoryJunctionOrSkip(string junctionPath, string targetPath)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = "/c mklink /J \"" + junctionPath + "\" \"" + targetPath + "\"",
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(startInfo);
+        process.Should().NotBeNull();
+        process!.WaitForExit(5000).Should().BeTrue("mklink should complete promptly");
+        if (process.ExitCode != 0)
+        {
+            throw SkipException.ForSkip(
+                "Directory junction creation failed: " + process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd());
+        }
+    }
+
+    private static void TryDeleteDirectoryJunction(string junctionPath)
+    {
+        try
+        {
+            if (Directory.Exists(junctionPath))
+            {
+                Directory.Delete(junctionPath);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup for a failed junction test.
+        }
+    }
 }
 

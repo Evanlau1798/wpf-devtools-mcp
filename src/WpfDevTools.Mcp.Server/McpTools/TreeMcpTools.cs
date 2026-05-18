@@ -192,10 +192,7 @@ public static class TreeMcpTools
             ("maxNodes", maxNodes));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
-                sessionManager,
-                "get_namescope",
-                () => new GenericPipeTool(sessionManager, "get_namescope", GenericPipeTool.ExtractNameScopeParams)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, "get_namescope", () => new GenericPipeTool(sessionManager, "get_namescope", GenericPipeTool.ExtractNameScopeParams)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

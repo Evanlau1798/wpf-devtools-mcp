@@ -10,7 +10,15 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
 {
-    private static readonly string[] SummaryColumns = ["elementId", "type", "name", "childCount", "depth", "parentId"];
+    private static readonly string[] SummaryColumns = [
+        "elementId",
+        "type",
+        "name",
+        "childCount",
+        "depth",
+        "parentId",
+        "childCountExact",
+        "hasMoreChildren"];
     private readonly ElementFinder _elementFinder;
 
     /// <summary>
@@ -98,12 +106,17 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
         TreeTraversalBudget budget,
         TreeDepthSufficiencyTracker depthHintTracker)
     {
-        var children = GetLogicalChildren(element);
-        var node = CreateNodeMap(element, children.Count, options.Compact);
+        var children = GetLogicalChildren(element, options.MaxChildrenPerNode);
+        var node = CreateNodeMap(element, children, options.Compact);
 
         if (currentDepth >= options.MaxDepth)
         {
-            if (children.Count > 0)
+            if (children.OmittedChildCount > 0)
+            {
+                budget.OmitSubtree(children.OmittedChildCount);
+            }
+
+            if (children.HasChildren)
             {
                 depthHintTracker.MarkDepthLimitedBranch();
             }
@@ -111,24 +124,22 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
             return node;
         }
 
-        if (children.Count == 0)
+        if (!children.HasChildren)
         {
             return node;
         }
 
-        var childrenToExpand = children.Count;
-        var omittedImmediateChildren = 0;
-        if (options.MaxChildrenPerNode.HasValue && childrenToExpand > options.MaxChildrenPerNode.Value)
+        var childrenToExpand = children.Children.Count;
+        var omittedImmediateChildren = children.OmittedChildCount;
+        if (omittedImmediateChildren > 0)
         {
-            childrenToExpand = options.MaxChildrenPerNode.Value;
-            omittedImmediateChildren = children.Count - childrenToExpand;
             budget.OmitSubtree(omittedImmediateChildren);
         }
 
         var expandedChildren = new List<object>(childrenToExpand);
         for (var index = 0; index < childrenToExpand; index++)
         {
-            var child = children[index];
+            var child = children.Children[index];
             if (!budget.TryTakeNode())
             {
                 var remainingImmediateChildren = childrenToExpand - index;
@@ -167,21 +178,28 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
         TreeDepthSufficiencyTracker depthHintTracker)
     {
         var elementId = _elementFinder.GenerateElementId(element);
-        var children = GetLogicalChildren(element);
+        var children = GetLogicalChildren(element, options.MaxChildrenPerNode);
         var name = (element as FrameworkElement)?.Name;
 
         nodes.Add(new object?[] {
             elementId,
             element.GetType().Name,
             string.IsNullOrEmpty(name) ? null : name,
-            children.Count,
+            children.ChildCount,
             currentDepth,
-            parentId
+            parentId,
+            children.ChildCountExact,
+            children.HasMoreChildren
         });
 
         if (currentDepth >= options.MaxDepth)
         {
-            if (children.Count > 0)
+            if (children.OmittedChildCount > 0)
+            {
+                budget.OmitSubtree(children.OmittedChildCount);
+            }
+
+            if (children.HasChildren)
             {
                 depthHintTracker.MarkDepthLimitedBranch();
             }
@@ -189,21 +207,20 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
             return;
         }
 
-        if (children.Count == 0)
+        if (!children.HasChildren)
         {
             return;
         }
 
-        var childrenToExpand = children.Count;
-        if (options.MaxChildrenPerNode.HasValue && childrenToExpand > options.MaxChildrenPerNode.Value)
+        var childrenToExpand = children.Children.Count;
+        if (children.OmittedChildCount > 0)
         {
-            childrenToExpand = options.MaxChildrenPerNode.Value;
-            budget.OmitSubtree(children.Count - childrenToExpand);
+            budget.OmitSubtree(children.OmittedChildCount);
         }
 
         for (var index = 0; index < childrenToExpand; index++)
         {
-            var child = children[index];
+            var child = children.Children[index];
             if (!budget.TryTakeNode())
             {
                 budget.OmitSubtree(childrenToExpand - index);
@@ -216,7 +233,7 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
 
     private Dictionary<string, object?> CreateNodeMap(
         DependencyObject element,
-        int childCount,
+        LogicalChildrenWindow children,
         bool compact)
     {
         var elementId = _elementFinder.GenerateElementId(element);
@@ -224,8 +241,15 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
         {
             ["elementId"] = elementId,
             ["type"] = element.GetType().Name,
-            ["childCount"] = childCount
+            ["childCount"] = children.ChildCount
         };
+
+        if (!children.ChildCountExact)
+        {
+            node["childCountExact"] = false;
+            node["hasMoreChildren"] = true;
+            node["omittedChildCount"] = children.OmittedChildCount;
+        }
 
         var name = (element as FrameworkElement)?.Name;
         if (!compact || !string.IsNullOrEmpty(name))
@@ -236,18 +260,52 @@ public sealed class LogicalTreeAnalyzer : DispatcherAnalyzerBase
         return node;
     }
 
-    private List<DependencyObject> GetLogicalChildren(DependencyObject element)
+    private LogicalChildrenWindow GetLogicalChildren(DependencyObject element, int? maxChildrenPerNode)
     {
-        var children = new List<DependencyObject>();
+        var childLimit = Math.Max(1, maxChildrenPerNode ?? int.MaxValue);
+        var rawScanLimit = childLimit == int.MaxValue ? int.MaxValue : childLimit + 1;
+        var children = new List<DependencyObject>(Math.Min(childLimit, 32));
+        var omittedChildCount = 0;
+        var rawItemsSeen = 0;
+
         foreach (var child in LogicalTreeHelper.GetChildren(element))
         {
-            if (child is DependencyObject dependencyObject)
+            rawItemsSeen++;
+            if (children.Count >= childLimit || rawItemsSeen > rawScanLimit)
             {
-                children.Add(dependencyObject);
+                omittedChildCount = 1;
+                break;
             }
+
+            if (child is not DependencyObject dependencyObject)
+            {
+                continue;
+            }
+
+            children.Add(dependencyObject);
         }
 
-        return children;
+        return new LogicalChildrenWindow(children, omittedChildCount);
     }
 
+    private sealed class LogicalChildrenWindow
+    {
+        public LogicalChildrenWindow(List<DependencyObject> children, int omittedChildCount)
+        {
+            Children = children;
+            OmittedChildCount = omittedChildCount;
+        }
+
+        public List<DependencyObject> Children { get; }
+
+        public int OmittedChildCount { get; }
+
+        public int ChildCount => Children.Count + OmittedChildCount;
+
+        public bool ChildCountExact => OmittedChildCount == 0;
+
+        public bool HasMoreChildren => OmittedChildCount > 0;
+
+        public bool HasChildren => ChildCount > 0;
+    }
 }

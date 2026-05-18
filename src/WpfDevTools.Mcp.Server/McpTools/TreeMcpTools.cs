@@ -51,7 +51,7 @@ public static class TreeMcpTools
         [Range(1, TreeRequestOptions.MaxNodesLimit)]
         [Description("Optional hard cap for the number of returned nodes. Defaults to 1000 when omitted.")] int? maxNodes = null,
         [Range(1, TreeRequestOptions.MaxChildrenPerNodeLimit)]
-        [Description("Optional per-node child cap. Defaults to 200; extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
+        [Description("Optional per-node child cap. Defaults to 200; extra children are reported in omittedChildCount.")] int? maxChildrenPerNode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -81,10 +81,12 @@ public static class TreeMcpTools
         "RESPONSE FORMAT:\n" +
         "Nested mode:\n" +
         "{ success, tree, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
-        "- tree: { elementId, type, name?, childCount, children?, omittedChildCount? }\n" +
+        "- tree: { elementId, type, name?, childCount, childCountExact?, hasMoreChildren?, children?, omittedChildCount? }\n" +
         "Summary mode (summaryOnly=true):\n" +
         "{ success, format: \"flat-summary-v1\", columns, nodes, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
-        "- columns: [elementId, type, name, childCount, depth, parentId]\n\n" +
+        "- columns: [elementId, type, name, childCount, depth, parentId, childCountExact, hasMoreChildren]\n" +
+        "- For capped logical collections, childCount, omittedChildCount, and omittedNodeCount are lower-bound sentinel counts when childCountExact=false / hasMoreChildren=true.\n" +
+        "- hasMoreChildren can mean uninspected raw logical items remain, not necessarily DependencyObject nodes.\n\n" +
         "- depthSufficiencyHint: { isSufficient, reasonCode, currentDepth, recommendedDepth, suggestion } when deeper traversal is likely required\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -103,7 +105,7 @@ public static class TreeMcpTools
         [Range(1, TreeRequestOptions.MaxNodesLimit)]
         [Description("Optional hard cap for the number of returned nodes. Defaults to 1000 when omitted.")] int? maxNodes = null,
         [Range(1, TreeRequestOptions.MaxChildrenPerNodeLimit)]
-        [Description("Optional per-node child cap. Defaults to 200; extra children are counted in omittedChildCount.")] int? maxChildrenPerNode = null,
+        [Description("Optional per-node child cap. Defaults to 200; extra raw logical items are signaled as lower-bound omitted counts without fully enumerating large logical collections.")] int? maxChildrenPerNode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Windows;
+using System.Reflection;
+using FluentAssertions;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Inspector.Sdk;
 using WpfDevTools.Shared.Security;
@@ -82,6 +84,43 @@ internal sealed class InspectorSdkTestContext : IDisposable
         typeof(SdkInspector)
             .GetField("_isInitializing", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
             .SetValue(null, isInitializing);
+        typeof(SdkInspector)
+            .GetField("_shutdownRequestedDuringInitialization", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .SetValue(null, 0);
+    }
+
+    public static void SetInspectorSdkErrorState(Exception? initializationError, Exception? shutdownError, int isInitializing)
+    {
+        typeof(SdkInspector)
+            .GetProperty(nameof(SdkInspector.LastInitializationError), BindingFlags.Public | BindingFlags.Static)!
+            .SetValue(null, initializationError);
+        typeof(SdkInspector)
+            .GetProperty(nameof(SdkInspector.LastShutdownError), BindingFlags.Public | BindingFlags.Static)!
+            .SetValue(null, shutdownError);
+        typeof(SdkInspector)
+            .GetField("_isInitializing", BindingFlags.NonPublic | BindingFlags.Static)!
+            .SetValue(null, isInitializing);
+        typeof(SdkInspector)
+            .GetField("_shutdownRequestedDuringInitialization", BindingFlags.NonPublic | BindingFlags.Static)!
+            .SetValue(null, 0);
+    }
+
+    public static bool CompleteInitializationIfShutdownRequestedForTesting(
+        ref InspectorHost? host,
+        ref AuthenticationManager? authenticationManager,
+        ref CertificateManager? certificateManager)
+    {
+        var method = typeof(SdkInspector).GetMethod(
+            "DisposeStartedHostIfShutdownRequested",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        object?[] args = [host, authenticationManager, certificateManager];
+        var completed = (bool)method!.Invoke(null, args)!;
+        host = (InspectorHost?)args[0];
+        authenticationManager = (AuthenticationManager?)args[1];
+        certificateManager = (CertificateManager?)args[2];
+        return completed;
     }
 
     public static InspectorHost? GetInspectorSdkHost()

@@ -88,15 +88,88 @@ public sealed class InspectorSdkCleanupTests
         var initializeTask = Task.Run(() => SdkInspector.Initialize(processId: 12346));
         hostStarted.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
 
-        SdkInspector.Shutdown();
-        releaseInitialization.Set();
-        await initializeTask.WaitAsync(TimeSpan.FromSeconds(10));
+        try
+        {
+            SdkInspector.Shutdown();
+        }
+        finally
+        {
+            releaseInitialization.Set();
+            await initializeTask.WaitAsync(TimeSpan.FromSeconds(10));
+        }
 
         SdkInspector.IsInitialized.Should().BeFalse(
             "shutdown requested during initialization must prevent the started host from being published afterward");
         InspectorSdkTestContext.GetInspectorSdkHost().Should().BeNull();
         startedHost.Should().NotBeNull();
         startedHost!.IsDisposed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Shutdown_DuringFailedInitialization_ShouldPreserveInitializationError()
+    {
+        using var testContext = new InspectorSdkTestContext();
+        var initializationError = new InvalidOperationException("simulated initialization failure");
+        InspectorSdkTestContext.SetInspectorSdkErrorState(initializationError, shutdownError: null, isInitializing: 1);
+
+        try
+        {
+            SdkInspector.Shutdown();
+
+            SdkInspector.LastInitializationError.Should().BeSameAs(initializationError,
+                "deferred shutdown requests must not erase the initialization failure reported by the initializing thread");
+        }
+        finally
+        {
+            InspectorSdkTestContext.SetInspectorSdkState(
+                host: null,
+                authenticationManager: null,
+                certificateManager: null,
+                isInitialized: false,
+                isInitializing: 0);
+        }
+    }
+
+    [Fact]
+    public void CompleteInitializationIfShutdownRequested_ShouldNotPublishAfterFinalGate()
+    {
+        using var testContext = new InspectorSdkTestContext();
+        var host = new InspectorHost(processId: 12347);
+        AuthenticationManager? authenticationManager = new(() => InspectorSdkTestContext.CreateAuthSecret());
+        var certificateManager = new CertificateManager(testContext.CreateTemporaryDirectory("wpf-devtools-sdk-final-gate"));
+
+        try
+        {
+            InspectorSdkTestContext.SetInspectorSdkState(
+                host: null,
+                authenticationManager: null,
+                certificateManager: null,
+                isInitialized: false,
+                isInitializing: 1);
+            SdkInspector.Shutdown();
+
+            var completed = InspectorSdkTestContext.CompleteInitializationIfShutdownRequestedForTesting(
+                ref host,
+                ref authenticationManager,
+                ref certificateManager);
+
+            completed.Should().BeTrue();
+            host.Should().BeNull();
+            authenticationManager.Should().BeNull();
+            certificateManager.Should().BeNull();
+            SdkInspector.IsInitialized.Should().BeFalse();
+        }
+        finally
+        {
+            InspectorSdkTestContext.SetInspectorSdkState(
+                host: null,
+                authenticationManager: null,
+                certificateManager: null,
+                isInitialized: false,
+                isInitializing: 0);
+            host?.Dispose();
+            authenticationManager?.Dispose();
+        }
     }
 
     [Fact]

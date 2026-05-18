@@ -29,6 +29,7 @@ public static partial class InspectorSdk
     private static WpfDevTools.Shared.Security.CertificateManager? _certificateManager;
     private static int _isInitializing; // 0 = not initializing, 1 = initializing (atomic guard)
     private static int _shutdownRequestedDuringInitialization;
+    private static readonly object LifecycleLock = new();
     private static volatile bool _isInitialized;
 
     internal static Func<Dispatcher?> DispatcherResolver { get; set; } = static () => Application.Current?.Dispatcher;
@@ -118,7 +119,7 @@ public static partial class InspectorSdk
             host.Start();
             HostStartedCallback?.Invoke(host);
 
-            if (CompleteInitializationIfShutdownRequested(ref host, ref authenticationManager, ref certificateManager))
+            if (DisposeStartedHostIfShutdownRequested(ref host, ref authenticationManager, ref certificateManager))
             {
                 return;
             }
@@ -128,16 +129,11 @@ public static partial class InspectorSdk
                 throw deadline.CreateCompletionTimeoutException();
             }
 
-            if (CompleteInitializationIfShutdownRequested(ref host, ref authenticationManager, ref certificateManager))
+            if (!TryPublishInitializedHost(pid, ref host, ref authenticationManager, ref certificateManager))
             {
+                DisposeStartedHostIfShutdownRequested(ref host, ref authenticationManager, ref certificateManager);
                 return;
             }
-
-            _authenticationManager = authenticationManager;
-            _certificateManager = certificateManager;
-            _host = host;
-            _isInitialized = true;
-            LastInitializationStatus = CreateInitializedStatus(pid);
         }
         catch (Exception ex)
         {
@@ -162,40 +158,27 @@ public static partial class InspectorSdk
     /// </summary>
     public static void Shutdown()
     {
-        LastInitializationError = null;
-        LastShutdownError = null;
-
-        if (!_isInitialized)
+        if (TryRecordShutdownDuringInitialization())
         {
-            if (Volatile.Read(ref _isInitializing) != 0)
-            {
-                Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 1);
-            }
-
             return;
         }
 
         // Atomic guard: reuse _isInitializing to serialize Initialize/Shutdown
         if (Interlocked.CompareExchange(ref _isInitializing, 1, 0) != 0)
         {
-            Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 1);
+            RecordShutdownRequestedDuringInitialization();
             return;
         }
 
+        LastInitializationError = null;
+        LastShutdownError = null;
+
         try
         {
-            if (!_isInitialized)
+            if (!TryTakePublishedHostForShutdown(out var host, out var authenticationManager))
+            {
                 return;
-
-            var host = _host;
-            var authenticationManager = _authenticationManager;
-
-            _host = null;
-            _authenticationManager = null;
-            _certificateManager = null;
-            _isInitialized = false;
-            Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 0);
-            LastInitializationStatus = CreateNotStartedStatus();
+            }
 
             CleanupHostResources(host, authenticationManager);
         }

@@ -5,16 +5,94 @@ namespace WpfDevTools.Inspector.Sdk;
 
 public static partial class InspectorSdk
 {
-    private static bool CompleteInitializationIfShutdownRequested(
+    private static bool DisposeStartedHostIfShutdownRequested(
         ref InspectorHost? host,
         ref AuthenticationManager? authenticationManager,
         ref CertificateManager? certificateManager)
     {
-        if (Volatile.Read(ref _shutdownRequestedDuringInitialization) == 0)
+        lock (LifecycleLock)
         {
-            return false;
+            if (Volatile.Read(ref _shutdownRequestedDuringInitialization) == 0)
+            {
+                return false;
+            }
         }
 
+        DisposeUnpublishedHost(ref host, ref authenticationManager, ref certificateManager);
+        return true;
+    }
+
+    private static bool TryPublishInitializedHost(
+        int processId,
+        ref InspectorHost? host,
+        ref AuthenticationManager? authenticationManager,
+        ref CertificateManager? certificateManager)
+    {
+        lock (LifecycleLock)
+        {
+            if (Volatile.Read(ref _shutdownRequestedDuringInitialization) != 0)
+            {
+                return false;
+            }
+
+            _authenticationManager = authenticationManager;
+            _certificateManager = certificateManager;
+            _host = host;
+            _isInitialized = true;
+            LastInitializationStatus = CreateInitializedStatus(processId);
+            return true;
+        }
+    }
+
+    private static bool TryRecordShutdownDuringInitialization()
+    {
+        lock (LifecycleLock)
+        {
+            if (!_isInitialized && Volatile.Read(ref _isInitializing) != 0)
+            {
+                RecordShutdownRequestedDuringInitialization();
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    private static void RecordShutdownRequestedDuringInitialization()
+        => Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 1);
+
+    private static bool TryTakePublishedHostForShutdown(
+        out InspectorHost? host,
+        out AuthenticationManager? authenticationManager)
+    {
+        lock (LifecycleLock)
+        {
+            if (!_isInitialized)
+            {
+                host = null;
+                authenticationManager = null;
+                return false;
+            }
+
+            host = _host;
+            authenticationManager = _authenticationManager;
+
+            _host = null;
+            _authenticationManager = null;
+            _certificateManager = null;
+            _isInitialized = false;
+            Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 0);
+            LastInitializationStatus = CreateNotStartedStatus();
+
+            return true;
+        }
+    }
+
+    private static void DisposeUnpublishedHost(
+        ref InspectorHost? host,
+        ref AuthenticationManager? authenticationManager,
+        ref CertificateManager? certificateManager)
+    {
         try
         {
             CleanupHostResources(host, authenticationManager);
@@ -26,8 +104,6 @@ public static partial class InspectorSdk
             certificateManager = null;
             LastInitializationStatus = CreateNotStartedStatus();
         }
-
-        return true;
     }
 
     private static void RunDeferredShutdownIfRequested()

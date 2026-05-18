@@ -69,6 +69,37 @@ public sealed class InspectorSdkCleanupTests
     }
 
     [Fact]
+    public async Task Shutdown_DuringInFlightInitialization_ShouldDisposeStartedHostBeforePublish()
+    {
+        using var testContext = new InspectorSdkTestContext();
+        var certDirectory = testContext.CreateTemporaryDirectory("wpf-devtools-sdk-shutdown-during-init");
+        using var hostStarted = new ManualResetEventSlim(false);
+        using var releaseInitialization = new ManualResetEventSlim(false);
+        InspectorHost? startedHost = null;
+
+        SdkInspector.HostStartedCallback = host =>
+        {
+            startedHost = host;
+            hostStarted.Set();
+            releaseInitialization.Wait();
+        };
+        testContext.SetTransport(InspectorSdkTestContext.CreateAuthSecret(), certDirectory);
+
+        var initializeTask = Task.Run(() => SdkInspector.Initialize(processId: 12346));
+        hostStarted.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+
+        SdkInspector.Shutdown();
+        releaseInitialization.Set();
+        await initializeTask.WaitAsync(TimeSpan.FromSeconds(10));
+
+        SdkInspector.IsInitialized.Should().BeFalse(
+            "shutdown requested during initialization must prevent the started host from being published afterward");
+        InspectorSdkTestContext.GetInspectorSdkHost().Should().BeNull();
+        startedHost.Should().NotBeNull();
+        startedHost!.IsDisposed.Should().BeTrue();
+    }
+
+    [Fact]
     public void CleanupHostResources_WhenHostDisposeFails_ShouldStillDisposeAuthenticationManager()
     {
         using var testContext = new InspectorSdkTestContext();

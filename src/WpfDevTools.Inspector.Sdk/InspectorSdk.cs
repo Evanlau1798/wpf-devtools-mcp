@@ -28,6 +28,7 @@ public static partial class InspectorSdk
     private static WpfDevTools.Shared.Security.AuthenticationManager? _authenticationManager;
     private static WpfDevTools.Shared.Security.CertificateManager? _certificateManager;
     private static int _isInitializing; // 0 = not initializing, 1 = initializing (atomic guard)
+    private static int _shutdownRequestedDuringInitialization;
     private static volatile bool _isInitialized;
 
     internal static Func<Dispatcher?> DispatcherResolver { get; set; } = static () => Application.Current?.Dispatcher;
@@ -89,6 +90,7 @@ public static partial class InspectorSdk
         finally
         {
             Interlocked.Exchange(ref _isInitializing, 0);
+            RunDeferredShutdownIfRequested();
         }
     }
 
@@ -116,9 +118,19 @@ public static partial class InspectorSdk
             host.Start();
             HostStartedCallback?.Invoke(host);
 
+            if (CompleteInitializationIfShutdownRequested(ref host, ref authenticationManager, ref certificateManager))
+            {
+                return;
+            }
+
             if (deadline?.TryClaimPublish() == false)
             {
                 throw deadline.CreateCompletionTimeoutException();
+            }
+
+            if (CompleteInitializationIfShutdownRequested(ref host, ref authenticationManager, ref certificateManager))
+            {
+                return;
             }
 
             _authenticationManager = authenticationManager;
@@ -154,11 +166,21 @@ public static partial class InspectorSdk
         LastShutdownError = null;
 
         if (!_isInitialized)
+        {
+            if (Volatile.Read(ref _isInitializing) != 0)
+            {
+                Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 1);
+            }
+
             return;
+        }
 
         // Atomic guard: reuse _isInitializing to serialize Initialize/Shutdown
         if (Interlocked.CompareExchange(ref _isInitializing, 1, 0) != 0)
+        {
+            Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 1);
             return;
+        }
 
         try
         {
@@ -172,6 +194,7 @@ public static partial class InspectorSdk
             _authenticationManager = null;
             _certificateManager = null;
             _isInitialized = false;
+            Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 0);
             LastInitializationStatus = CreateNotStartedStatus();
 
             CleanupHostResources(host, authenticationManager);

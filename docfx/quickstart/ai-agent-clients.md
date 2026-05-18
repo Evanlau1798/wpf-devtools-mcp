@@ -4,27 +4,30 @@ Install WPF DevTools first, then register the installed executable with your pre
 
 ## Install source of truth
 
-- Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
-- Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
-- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) (maintainer source; compare it with the version-matched `bin/install.ps1` inside the release package you actually execute)
+- Canonical source repository: this checkout
+- Planned public repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
+- Planned public releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
+- Online installer source: `scripts/online-installer.ps1` (maintainer source; compare it with the version-matched `bin/install.ps1` inside the release package you actually execute)
 
-Recommended public path:
+> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
+
+Recommended local package path:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -NonInteractive -Force -OutputJson
 ```
 
-That reviewed installer resolves the versioned release asset, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
+That reviewed installer validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
 
 Client-specific example:
 
 ```powershell
-& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 Manual package alternative:
 
-1. Download `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt` and `release-assets.json`.
+1. Use a locally generated package, or after public endpoint smoke checks pass, download `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt` and `release-assets.json`.
 2. Verify the archive with `SHA256SUMS.txt` and `release-assets.json` before extraction.
 3. Extract the package.
 4. Run `run.bat`.

@@ -4,12 +4,14 @@
 
 ## 正式生成來源
 
-- Packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
-- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Packaging source: `scripts/tools/packaging/Publish-Release.ps1`
+- Online installer source: `scripts/online-installer.ps1`
 
 下列說明描述的是這些腳本的輸出結果，而不是取代這些腳本本身。
 
 ## 公開 release asset
+
+> **公開端點狀態：** Public release endpoints are not yet anonymously reachable。GitHub repository、Releases、latest-release API、raw installer URL 與 installer alias 都通過匿名 smoke check 前，請先把下列 release 名稱視為本機產生 artifact 的 package layout 契約。
 
 目前正式的 release 壓縮檔命名為：
 
@@ -17,7 +19,7 @@
 - `release_<version>_win-x86.zip`
 - `release_<version>_win-arm64.zip`
 
-請從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載。
+等 public endpoint smoke check 通過後，再從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載。
 
 ## 解壓後 package 結構
 

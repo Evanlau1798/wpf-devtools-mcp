@@ -1,6 +1,6 @@
 # 5-Minute Setup
 
-This quickstart is optimized for the current public distribution model: use the release package published on GitHub Releases, register the installed executable with your MCP client, and verify the first live WPF session with a scene-first workflow.
+This quickstart is optimized for the pre-publication distribution model: use a locally generated and verified release package, register the installed executable with your MCP client, and verify the first live WPF session with a scene-first workflow.
 
 ## Prerequisites
 
@@ -19,12 +19,14 @@ This quickstart is optimized for the current public distribution model: use the 
 
 ## Step 1: Choose an install path
 
-### Reviewed online installer
+### Reviewed local package installer
 
-Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the canonical source first. That installer resolves the published release asset, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow. It downloads a published GitHub Release package; it does not build from source.
+> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
+
+Review `scripts/online-installer.ps1` as the canonical source first. That installer can install a local package archive, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -NonInteractive -Force -OutputJson
 ```
 
 The default interactive flow asks for the release version, uses the current machine architecture (`x64`, `x86`, or `arm64`) as the default architecture, and then asks which MCP client registration to generate. When you omit `-Architecture`, the installer detects the system architecture; pass `-Architecture` only when you intentionally need to install a different package.
@@ -32,12 +34,12 @@ The default interactive flow asks for the release version, uses the current mach
 Client-specific automation example:
 
 ```powershell
-& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### Manual release package
 
-1. Open [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
+1. Use a locally generated package, or after public endpoint smoke checks pass, open [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 2. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` together with `SHA256SUMS.txt` and `release-assets.json`.
 3. Verify the archive with `SHA256SUMS.txt` and `release-assets.json` before extraction.
 4. Extract the archive.

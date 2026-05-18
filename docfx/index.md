@@ -6,24 +6,27 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 
 ## Canonical sources
 
-- Repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
-- Releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
-- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) (maintainer source; review the version-matched release artifact before executing a published package)
-- Release packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
-- Installed-layout sources: [scripts/installer/Installer.Actions.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Actions.ps1), [scripts/installer/Installer.Registration.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Registration.ps1)
+- Canonical source repository: this checkout
+- Planned public repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
+- Planned public releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
+- Online installer source: `scripts/online-installer.ps1` (maintainer source; review the version-matched release artifact before executing a published package)
+- Release packaging source: `scripts/tools/packaging/Publish-Release.ps1`
+- Installed-layout sources: `scripts/installer/Installer.Actions.ps1`, `scripts/installer/Installer.Registration.ps1`
 
 `scripts/` is the canonical source of truth for installer and release behavior. This DocFX site documents those scripts; it does not define them.
 
 ## Install paths
 
-### Online installer path
+### Verified local package path
 
-Review the canonical maintainer source first: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1). The reviewed installer resolves the matching published release asset, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow. It downloads the selected GitHub Release package; it does not build from source.
+> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
 
-Recommended example:
+Review the canonical maintainer source first: `scripts/online-installer.ps1`. The reviewed installer can install a local package archive, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
+
+Recommended local package example:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -NonInteractive -Force -OutputJson
 ```
 
 The default interactive flow asks for the release version, uses the current machine architecture (`x64`, `x86`, or `arm64`) as the default architecture, and then asks which MCP client registration to generate. When you omit `-Architecture`, the installer detects the system architecture; pass `-Architecture` only when you intentionally need to install a different package.
@@ -31,14 +34,14 @@ The default interactive flow asks for the release version, uses the current mach
 Client-specific automation example:
 
 ```powershell
-& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
-The repository entrypoint is still only the bootstrap layer; the actual install uses the verified extracted release payload through the reviewed installer/helper flow.
+The repository entrypoint is still only the bootstrap layer; the actual install uses the verified extracted package payload through the reviewed installer/helper flow.
 
 ### Manual release package path
 
-1. Download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt` and `release-assets.json`.
+1. Use a locally generated package, or after public endpoint smoke checks pass, download `release_<version>_win-x64.zip`, `release_<version>_win-x86.zip`, or `release_<version>_win-arm64.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt` and `release-assets.json`.
 2. Verify the downloaded archive against the release provenance sidecars before extraction. Confirm the asset hash matches `SHA256SUMS.txt` and the exact asset entry in `release-assets.json`. The reviewed online installer performs this verification automatically; the manual path does not.
 3. Keep the verified release zip plus `SHA256SUMS.txt` and `release-assets.json` in the extracted folder's parent directory while you run the package-local installer, or explicitly provide `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`.
 4. Extract the package.

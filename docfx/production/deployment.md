@@ -8,20 +8,22 @@ This server is usually deployed as a local Windows companion process next to the
 
 Installer and packaging behavior are defined in `scripts/`, not in the documentation site:
 
-- [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
-- [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
-- [scripts/installer/Installer.Actions.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/installer/Installer.Actions.ps1)
+- `scripts/online-installer.ps1`
+- `scripts/tools/packaging/Publish-Release.ps1`
+- `scripts/installer/Installer.Actions.ps1`
 
 ## Recommended install modes
 
-### Reviewed script-driven install
+### Reviewed local package install
 
-Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the maintainer source first. The reviewed installer resolves the matching GitHub Release asset, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow. It downloads published release artifacts instead of building from source.
+> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
 
-Recommended example:
+Review `scripts/online-installer.ps1` as the maintainer source first. The reviewed installer can install a local package archive, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
+
+Recommended local package example:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -NonInteractive -Force -OutputJson
 ```
 
 The default interactive flow asks for the release version, uses the current machine architecture (`x64`, `x86`, or `arm64`) as the default architecture, and then asks which MCP client registration to generate. When you omit `-Architecture`, the installer detects the system architecture; pass `-Architecture` only when you intentionally need to install a different package.
@@ -29,12 +31,12 @@ The default interactive flow asks for the release version, uses the current mach
 Client-specific automation example:
 
 ```powershell
-& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### Public release package fallback
 
-1. Download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt` and `release-assets.json`.
+1. Use a locally generated package, or after public endpoint smoke checks pass, download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt` and `release-assets.json`.
 2. Verify the archive with `SHA256SUMS.txt` and `release-assets.json` before extraction.
 3. Extract the package.
 4. Run `run.bat`.

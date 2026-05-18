@@ -1,6 +1,6 @@
 # 5 分鐘快速開始
 
-這份 quickstart 以目前正式發佈流程為準：從 GitHub Releases 下載 release package、將安裝後的執行檔註冊到 MCP client，最後用 scene-first 工作流驗證第一個 live WPF session。
+這份 quickstart 以公開發布前流程為準：使用本機產生且已驗證的 release package、將安裝後的執行檔註冊到 MCP client，最後用 scene-first 工作流驗證第一個 live WPF session。
 
 ## 先決條件
 
@@ -19,12 +19,14 @@
 
 ## Step 1：選擇安裝路徑
 
-### 已審查的線上安裝腳本
+### 已審查的本機 package 安裝
 
-請先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) 作為正式來源。這支 installer 會解析對應的 published release asset、在解壓前驗證 archive integrity，然後透過已審查的 installer/helper flow 安裝解壓出的 packaged payload。它會下載已發布的 GitHub Release package，不會從原始碼建置。
+> **公開端點狀態：** Public release endpoints are not yet anonymously reachable。GitHub repository、Releases、latest-release API、raw installer URL 與 installer alias 都通過匿名 smoke check 前，請使用本機產生且已驗證的 release package 或 source checkout，不要執行遠端一行安裝命令。
+
+請先審查 `scripts/online-installer.ps1` 作為正式來源。這支 installer 可安裝本機 package archive、在解壓前驗證 archive integrity，然後透過已審查的 installer/helper flow 安裝解壓出的 packaged payload。
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -NonInteractive -Force -OutputJson
 ```
 
 預設互動流程會詢問 release 版本，以目前電腦架構（`x64`、`x86` 或 `arm64`）作為預設架構，接著詢問要產生哪一種 MCP client registration。省略 `-Architecture` 時，installer 會偵測系統架構；只有在刻意安裝不同套件時才傳入 `-Architecture`。
@@ -32,12 +34,12 @@ irm https://wpf-mcptools.evanlau1798.com | iex
 指定 client 的自動化範例：
 
 ```powershell
-& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client claude-code -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -Client claude-code -NonInteractive -Force -OutputJson
 ```
 
 ### 手動 release package
 
-1. 開啟 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)。
+1. 使用本機產生的 package，或等 public endpoint smoke check 通過後，再開啟 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)。
 2. 下載 `release_<version>_win-x64.zip`、`release_<version>_win-x86.zip` 或 `release_<version>_win-arm64.zip`，並一併下載 `SHA256SUMS.txt` 與 `release-assets.json`。
 3. 解壓前，先用 `SHA256SUMS.txt` 與 `release-assets.json` 驗證 archive。
 4. 解壓縮。

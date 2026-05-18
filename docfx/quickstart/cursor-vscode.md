@@ -4,20 +4,22 @@ Cursor, VS Code, and Visual Studio are easiest to configure from the JSON artifa
 
 ## 1. Install WPF DevTools
 
-Preferred public path:
+> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
 
-1. Review [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1) as the canonical source entrypoint.
-2. Run the reviewed installer locally.
+Preferred local package path:
+
+1. Review `scripts/online-installer.ps1` as the canonical source entrypoint.
+2. Run the reviewed installer against a verified local package archive.
 
 Example:
 
 ```powershell
-& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client vscode -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -Client vscode -NonInteractive -Force -OutputJson
 ```
 
 Package-local fallback:
 
-1. Download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt` and `release-assets.json`.
+1. Use a locally generated package, or after public endpoint smoke checks pass, download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt` and `release-assets.json`.
 2. Verify the archive with `SHA256SUMS.txt` and `release-assets.json` before extraction.
 3. Extract the package.
 4. Run `run.bat`.

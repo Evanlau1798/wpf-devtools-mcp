@@ -4,12 +4,14 @@ This page documents the stable public folder contract for published release asse
 
 ## Canonical generation sources
 
-- Packaging source: [scripts/tools/packaging/Publish-Release.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/tools/packaging/Publish-Release.ps1)
-- Online installer source: [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)
+- Packaging source: `scripts/tools/packaging/Publish-Release.ps1`
+- Online installer source: `scripts/online-installer.ps1`
 
 The documentation below describes the output of those scripts. It does not replace them.
 
 ## Public release assets
+
+> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, treat the release names below as the package layout contract for locally generated artifacts.
 
 The current release archives are named:
 
@@ -17,7 +19,7 @@ The current release archives are named:
 - `release_<version>_win-x86.zip`
 - `release_<version>_win-arm64.zip`
 
-Download them from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
+After public endpoint smoke checks pass, download them from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
 
 ## Extracted package layout
 

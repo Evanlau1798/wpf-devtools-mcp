@@ -10,20 +10,22 @@ npm install -g @openai/codex
 
 ## 2. 安裝 WPF DevTools
 
-建議的公開安裝路徑：
+> **公開端點狀態：** Public release endpoints are not yet anonymously reachable。GitHub repository、Releases、latest-release API、raw installer URL 與 installer alias 都通過匿名 smoke check 前，請使用本機產生且已驗證的 release package 或 source checkout，不要執行遠端一行安裝命令。
 
-1. 先審查 [scripts/online-installer.ps1](https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1)，把它當成正式來源入口。
-2. 在本機執行已審查的 installer。
+建議的本機 package 安裝路徑：
+
+1. 先審查 `scripts/online-installer.ps1`，把它當成正式來源入口。
+2. 使用已審查的 installer 安裝已驗證的本機 package archive。
 
 範例：
 
 ```powershell
-& ([scriptblock]::Create((irm https://wpf-mcptools.evanlau1798.com))) -Version latest -Client codex -NonInteractive -Force -OutputJson
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -Client codex -NonInteractive -Force -OutputJson
 ```
 
 package-local 回退路徑：
 
-1. 從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`、`SHA256SUMS.txt` 與 `release-assets.json`。
+1. 使用本機產生的 package，或等 public endpoint smoke check 通過後，再從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`、`SHA256SUMS.txt` 與 `release-assets.json`。
 2. 解壓前，先用 `SHA256SUMS.txt` 與 `release-assets.json` 驗證 archive。
 3. 解壓縮套件。
 4. 執行 `run.bat`。

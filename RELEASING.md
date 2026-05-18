@@ -76,9 +76,12 @@ Before publishing a public Release channel build, confirm:
 - `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` is set to the expected release signer
 - `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` or an installed certificate thumbprint is available to `Publish-Release.ps1`
 - `WPFDEVTOOLS_PFX_PASSWORD` is available when the signing certificate is supplied as a PFX file
-- The repository online installer source remains available at `https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/scripts/online-installer.ps1`
-- The raw installer URL still resolves to `https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1`
-- The public installer alias `https://wpf-mcptools.evanlau1798.com` still serves the reviewed online installer so `irm https://wpf-mcptools.evanlau1798.com | iex` installs from GitHub Release assets, not source builds
+- A public endpoint smoke check passes from an anonymous shell before any public installer docs are promoted. The repository, Releases page, latest-release API, raw installer URL, and installer alias must return HTTP 200 anonymously:
+  - `https://github.com/Evanlau1798/wpf-devtools-mcp`
+  - `https://github.com/Evanlau1798/wpf-devtools-mcp/releases`
+  - `https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest`
+  - `https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1`
+  - `https://wpf-mcptools.evanlau1798.com`
 
 ## 4. GitHub automation
 

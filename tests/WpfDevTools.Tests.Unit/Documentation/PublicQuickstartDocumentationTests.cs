@@ -99,7 +99,7 @@ public sealed class PublicQuickstartDocumentationTests
         var troubleshooting = File.ReadAllText(GetRepoFilePath("docfx/guides/troubleshooting.md"));
         var toc = File.ReadAllText(GetRepoFilePath("docfx/toc.yml"));
 
-        deployment.Should().Contain("irm https://wpf-mcptools.evanlau1798.com | iex");
+        deployment.Should().Contain("Public release endpoints are not yet anonymously reachable");
         deployment.Should().Contain("validates archive integrity before extraction");
         deployment.Should().Contain("run.bat");
         deployment.Should().Contain("release layout");
@@ -241,8 +241,10 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("irm https://wpf-mcptools.evanlau1798.com | iex",
-                $"{file} should make the public installer alias the primary bootstrap path");
+            content.Should().Contain("Public release endpoints are not yet anonymously reachable",
+                $"{file} should not promote public installer commands before anonymous endpoint smoke checks pass");
+            content.Should().Contain("-PackageArchivePath",
+                $"{file} should point readers at the local package installer path while public endpoints are unavailable");
             content.Should().Contain("integrity",
                 $"{file} should explain that the reviewed installer validates the release archive before extraction");
             content.Should().Contain("run.bat",

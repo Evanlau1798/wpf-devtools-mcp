@@ -18,7 +18,8 @@ public static class StateMcpTools
         "Use this tool to capture a WPF runtime state snapshot before mutations or multi-step debugging.\n\n" +
         StateMetadata + "[State] Capture a restorable runtime snapshot for a connected WPF process.\n\n" +
         "USE WHEN: Before mutation-heavy debugging, demos, or regression flows where rollback matters.\n" +
-        "DO NOT USE: As durable persistence; snapshots are in-memory and session-scoped only.\n\n" +
+        "DO NOT USE: As durable persistence; snapshots are in-memory and session-scoped only.\n" +
+        "RETENTION: The server retains at most 20 snapshots per process for up to 30 minutes; capture a fresh snapshot before long mutation sequences.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -35,8 +36,8 @@ public static class StateMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID whose state should be captured. Omit for the root window.")] string? elementId = null,
-        [Description("Optional DependencyProperty names to capture as restorable local-value state. Binding-backed expressions are captured with same-session restore handles when possible; non-Binding expressions remain skipped capability boundaries.")] string[]? propertyNames = null,
-        [Description("Optional ViewModel property names to capture from the current DataContext.")] string[]? viewModelPropertyNames = null,
+        [Description("Optional DependencyProperty names to capture as restorable local-value state. At most 100 names, each 256 characters or fewer; duplicates are ignored. Binding-backed expressions are captured with same-session restore handles when possible; non-Binding expressions remain skipped capability boundaries.")] string[]? propertyNames = null,
+        [Description("Optional ViewModel property names to capture from the current DataContext. At most 100 names, each 256 characters or fewer; duplicates are ignored.")] string[]? viewModelPropertyNames = null,
         [Description("When true, also capture the current logical/keyboard focus snapshot.")] bool includeFocus = false,
         [Description("Optional human-friendly label for the snapshot.")] string? snapshotName = null,
         CancellationToken cancellationToken = default)
@@ -63,7 +64,8 @@ public static class StateMcpTools
         "Use this tool to restore a WPF runtime state snapshot after temporary debugging changes.\n\n" +
         StateMetadata + "[State] Restore a previously captured in-memory runtime snapshot.\n\n" +
         "USE WHEN: Rolling back temporary DependencyProperty, ViewModel, or focus changes in the same session.\n" +
-        "DO NOT USE: Across disconnected sessions or application restarts.\n\n" +
+        "DO NOT USE: Across disconnected sessions, application restarts, or after the in-memory snapshot has expired.\n" +
+        "RETENTION: Snapshots are kept for at most 30 minutes and the oldest snapshots are evicted when a process retains more than 20.\n\n" +
         "EXPRESSION ROLLBACK: Binding-backed DependencyProperty expressions captured in the same session can be restored. When a two-way source property also needs to return to its baseline value, capture that ViewModel property in the same snapshot. Non-Binding expressions are still surfaced through skippedDependencyProperties with explicit reasons.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +

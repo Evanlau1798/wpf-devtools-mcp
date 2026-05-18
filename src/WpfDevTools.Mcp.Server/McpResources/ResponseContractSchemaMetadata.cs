@@ -19,6 +19,8 @@ internal static class ResponseContractSchemaMetadata
                 "defaultValue",
                 "minimum",
                 "maximum",
+                "maxItems",
+                "maxLength",
                 "allowedValues"
             }
         };

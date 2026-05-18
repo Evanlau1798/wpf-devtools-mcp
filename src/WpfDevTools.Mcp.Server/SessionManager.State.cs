@@ -4,6 +4,9 @@ namespace WpfDevTools.Mcp.Server;
 
 public sealed partial class SessionManager
 {
+    internal const int MaxRetainedStateSnapshotsPerProcess = 20;
+    internal static readonly TimeSpan StateSnapshotRetentionWindow = TimeSpan.FromMinutes(30);
+
     /// <summary>
     /// Check if session exists
     /// </summary>
@@ -31,7 +34,9 @@ public sealed partial class SessionManager
                 _stateSnapshots[processId] = snapshots;
             }
 
+            TrimStateSnapshotsLocked(processId, snapshots, _utcNowProvider());
             snapshots[snapshot.SnapshotId] = snapshot;
+            TrimStateSnapshotsLocked(processId, snapshots, _utcNowProvider(), snapshot.SnapshotId);
         }
     }
 
@@ -40,11 +45,15 @@ public sealed partial class SessionManager
         ThrowIfDisposed();
         lock (_lock)
         {
-            if (_stateSnapshots.TryGetValue(processId, out var snapshots) &&
-                snapshots.TryGetValue(snapshotId, out var storedSnapshot))
+            if (_stateSnapshots.TryGetValue(processId, out var snapshots))
             {
-                snapshot = storedSnapshot;
-                return true;
+                TrimStateSnapshotsLocked(processId, snapshots, _utcNowProvider());
+
+                if (snapshots.TryGetValue(snapshotId, out var storedSnapshot))
+                {
+                    snapshot = storedSnapshot;
+                    return true;
+                }
             }
         }
 
@@ -58,8 +67,63 @@ public sealed partial class SessionManager
         lock (_lock)
         {
             return _stateSnapshots.TryGetValue(processId, out var snapshots) &&
-                   snapshots.Remove(snapshotId);
+                   RemoveStateSnapshotLocked(processId, snapshots, snapshotId);
         }
+    }
+
+    private void TrimStateSnapshotsLocked(
+        int processId,
+        Dictionary<string, StoredStateSnapshot> snapshots,
+        DateTimeOffset now,
+        string? retainedSnapshotId = null)
+    {
+        var expirationCutoff = now - StateSnapshotRetentionWindow;
+        foreach (var snapshotId in snapshots
+            .Where(entry => !string.Equals(entry.Key, retainedSnapshotId, StringComparison.Ordinal)
+                && entry.Value.CapturedAtUtc < expirationCutoff)
+            .Select(entry => entry.Key)
+            .ToArray())
+        {
+            RemoveStateSnapshotLocked(processId, snapshots, snapshotId);
+        }
+
+        while (snapshots.Count > MaxRetainedStateSnapshotsPerProcess)
+        {
+            var oldestSnapshotId = snapshots
+                .Where(entry => !string.Equals(entry.Key, retainedSnapshotId, StringComparison.Ordinal))
+                .OrderBy(entry => entry.Value.CapturedAtUtc)
+                .ThenBy(entry => entry.Key, StringComparer.Ordinal)
+                .First()
+                .Key;
+            RemoveStateSnapshotLocked(processId, snapshots, oldestSnapshotId);
+        }
+    }
+
+    private void TrimStateSnapshotsForProcessLocked(int processId)
+    {
+        if (_stateSnapshots.TryGetValue(processId, out var snapshots))
+        {
+            TrimStateSnapshotsLocked(processId, snapshots, _utcNowProvider());
+        }
+    }
+
+    private bool RemoveStateSnapshotLocked(
+        int processId,
+        Dictionary<string, StoredStateSnapshot> snapshots,
+        string snapshotId)
+    {
+        if (!snapshots.Remove(snapshotId))
+        {
+            return false;
+        }
+
+        if (_navigationStateStore.TryGetState(processId, out var state) &&
+            string.Equals(state?.ActiveSnapshotId, snapshotId, StringComparison.Ordinal))
+        {
+            _navigationStateStore.SetActiveSnapshotId(processId, null);
+        }
+
+        return true;
     }
 
     /// <summary>

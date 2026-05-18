@@ -61,6 +61,20 @@ public sealed class McpToolDescriptionContractTests
     }
 
     [Fact]
+    public void BatchMutate_Description_ShouldGateRollbackGuidanceOnRetainedSnapshots()
+    {
+        var description = GetDescriptionText("batch_mutate");
+
+        description.Should().ContainAll(
+            "rollback.available",
+            "recovery.tool",
+            "20 snapshots",
+            "30 minutes",
+            "manual reversal");
+        description.Should().NotContain("stateAfterTimeoutUnknown=true means reconnect and restore before retrying");
+    }
+
+    [Fact]
     public void BatchMutate_Description_ShouldDocumentActualResponseEnvelope()
     {
         var description = GetDescriptionText("batch_mutate");

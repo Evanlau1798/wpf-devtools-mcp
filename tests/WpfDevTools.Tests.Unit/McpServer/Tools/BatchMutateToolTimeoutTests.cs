@@ -12,8 +12,9 @@ public sealed class BatchMutateToolTimeoutTests
     public async Task ExecuteAsync_WhenMutationReturnsTimeoutPayloadAfterSnapshot_ShouldEscalateBatchTimeoutRecovery()
     {
         var executedProperties = new List<string?>();
+        var sessionManager = new SessionManager();
         var tool = new BatchMutateTool(
-            new SessionManager(),
+            sessionManager,
             (_, args, _) =>
             {
                 var propertyName = args.GetProperty("propertyName").GetString();
@@ -29,11 +30,7 @@ public sealed class BatchMutateToolTimeoutTests
                     }
                     : new { success = true, propertyName });
             },
-            (_, _) => Task.FromResult<object>(new
-            {
-                success = true,
-                snapshotId = "snapshot_batch_timeout_payload"
-            }),
+            (args, _) => Task.FromResult(SaveStoredSnapshotResult(sessionManager, args, "snapshot_batch_timeout_payload")),
             null);
 
         var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
@@ -73,14 +70,11 @@ public sealed class BatchMutateToolTimeoutTests
     public async Task ExecuteAsync_WhenStateDiffIsCanceledAfterSnapshot_ShouldReturnPartialStateAndRollbackRecovery()
     {
         using var cancellation = new CancellationTokenSource();
+        var sessionManager = new SessionManager();
         var tool = new BatchMutateTool(
-            new SessionManager(),
+            sessionManager,
             (_, _, _) => Task.FromResult<object>(new { success = true }),
-            (_, _) => Task.FromResult<object>(new
-            {
-                success = true,
-                snapshotId = "snapshot_batch_diff_cancel"
-            }),
+            (args, _) => Task.FromResult(SaveStoredSnapshotResult(sessionManager, args, "snapshot_batch_diff_cancel")),
             (_, token) =>
             {
                 cancellation.Cancel();

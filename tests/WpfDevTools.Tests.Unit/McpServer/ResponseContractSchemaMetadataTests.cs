@@ -26,6 +26,8 @@ public sealed class ResponseContractSchemaMetadataTests
             "defaultValue",
             "minimum",
             "maximum",
+            "maxItems",
+            "maxLength",
             "allowedValues");
     }
 
@@ -51,6 +53,18 @@ public sealed class ResponseContractSchemaMetadataTests
         AssertNumericConstraint(constraints, "get_ui_summary", "depth", null, 0, 100);
         AssertNumericConstraint(constraints, "element_screenshot", "maxWidth", null, 1, int.MaxValue);
         AssertNumericConstraint(constraints, "element_screenshot", "maxHeight", null, 1, int.MaxValue);
+    }
+
+    [Fact]
+    public void ResponseContractResource_ShouldExposeStateSnapshotArrayAndStringConstraints()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
+        var constraints = document.RootElement.GetProperty("parameterConstraints");
+
+        AssertArrayConstraint(constraints, "capture_state_snapshot", "propertyNames", 100);
+        AssertArrayConstraint(constraints, "capture_state_snapshot", "viewModelPropertyNames", 100);
+        AssertStringConstraint(constraints, "capture_state_snapshot", "propertyNames[]", 256);
+        AssertStringConstraint(constraints, "capture_state_snapshot", "viewModelPropertyNames[]", 256);
     }
 
     [Fact]
@@ -112,6 +126,34 @@ public sealed class ResponseContractSchemaMetadataTests
             .Select(entry => entry.GetString())
             .ToArray();
         values.Should().BeEquivalentTo(expectedValues);
+    }
+
+    private static void AssertArrayConstraint(
+        JsonElement constraints,
+        string toolName,
+        string parameterName,
+        int maxItems)
+    {
+        var constraint = constraints.EnumerateArray().Single(entry =>
+            entry.GetProperty("tool").GetString() == toolName &&
+            entry.GetProperty("parameter").GetString() == parameterName);
+
+        constraint.GetProperty("type").GetString().Should().Be("array");
+        constraint.GetProperty("maxItems").GetInt32().Should().Be(maxItems);
+    }
+
+    private static void AssertStringConstraint(
+        JsonElement constraints,
+        string toolName,
+        string parameterName,
+        int maxLength)
+    {
+        var constraint = constraints.EnumerateArray().Single(entry =>
+            entry.GetProperty("tool").GetString() == toolName &&
+            entry.GetProperty("parameter").GetString() == parameterName);
+
+        constraint.GetProperty("type").GetString().Should().Be("string");
+        constraint.GetProperty("maxLength").GetInt32().Should().Be(maxLength);
     }
 
     private static void AssertArrayContains(JsonElement arrayElement, params string[] expectedValues)

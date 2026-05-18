@@ -9,14 +9,12 @@ public sealed partial class BatchMutateTool
             return null;
         }
 
-        var snapshotId = capturedSnapshotId;
-        if (string.IsNullOrWhiteSpace(snapshotId)
-            && !_sessionManager.TryGetActiveSnapshotId(processId, out snapshotId))
+        if (!TryGetRetainedRollbackSnapshotId(processId, capturedSnapshotId, out var snapshotId, out var reason))
         {
             return new
             {
                 available = false,
-                reason = "No active snapshot is available for rollback guidance."
+                reason
             };
         }
 
@@ -35,14 +33,12 @@ public sealed partial class BatchMutateTool
 
     private object? BuildRecovery(int processId, string? capturedSnapshotId)
     {
-        var snapshotId = capturedSnapshotId;
-        if (string.IsNullOrWhiteSpace(snapshotId)
-            && !_sessionManager.TryGetActiveSnapshotId(processId, out snapshotId))
+        if (!TryGetRetainedRollbackSnapshotId(processId, capturedSnapshotId, out var snapshotId, out var reason))
         {
             return new
             {
                 suggestedAction = "Inspect the failed batch_mutate response and manually reverse any completed mutations.",
-                hint = "No active snapshot is available for automatic rollback guidance."
+                hint = reason
             };
         }
 
@@ -65,6 +61,36 @@ public sealed partial class BatchMutateTool
         string errorCode,
         string error) =>
         new(error, errorCode, BuildRecovery(processId, snapshotId));
+
+    private bool TryGetRetainedRollbackSnapshotId(
+        int processId,
+        string? capturedSnapshotId,
+        out string? snapshotId,
+        out string reason)
+    {
+        if (!string.IsNullOrWhiteSpace(capturedSnapshotId))
+        {
+            if (_sessionManager.TryGetStateSnapshot(processId, capturedSnapshotId, out _))
+            {
+                snapshotId = capturedSnapshotId;
+                reason = string.Empty;
+                return true;
+            }
+
+            snapshotId = null;
+            reason = "The captured snapshot is no longer retained for automatic rollback guidance.";
+            return false;
+        }
+
+        if (_sessionManager.TryGetActiveSnapshotId(processId, out snapshotId))
+        {
+            reason = string.Empty;
+            return true;
+        }
+
+        reason = "No active snapshot is available for rollback guidance.";
+        return false;
+    }
 
     private sealed record BatchMutationFailure(string Error, string ErrorCode, object? Recovery);
 }

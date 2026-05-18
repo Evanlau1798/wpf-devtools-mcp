@@ -79,8 +79,9 @@ public sealed class BatchMutateToolTests
     public async Task ExecuteAsync_WhenMutationFails_ShouldStopRemainingMutationsAndReturnRollbackGuidance()
     {
         var executedTools = new List<string>();
+        var sessionManager = new SessionManager();
         var tool = new BatchMutateTool(
-            new SessionManager(),
+            sessionManager,
             (toolName, args, _) =>
             {
                 executedTools.Add(toolName);
@@ -92,11 +93,7 @@ public sealed class BatchMutateToolTests
                     _ => throw new InvalidOperationException("Skipped mutation should not execute")
                 });
             },
-            (_, _) => Task.FromResult<object>(new
-            {
-                success = true,
-                snapshotId = "snapshot_batch_rollback"
-            }),
+            (args, _) => Task.FromResult(SaveStoredSnapshotResult(sessionManager, args, "snapshot_batch_rollback")),
             (_, _) => Task.FromResult<object>(new
             {
                 success = true,
@@ -146,14 +143,11 @@ public sealed class BatchMutateToolTests
     [Fact]
     public async Task ExecuteAsync_WhenStateDiffFails_ShouldReturnRollbackRecovery()
     {
+        var sessionManager = new SessionManager();
         var tool = new BatchMutateTool(
-            new SessionManager(),
+            sessionManager,
             (_, _, _) => Task.FromResult<object>(new { success = true }),
-            (_, _) => Task.FromResult<object>(new
-            {
-                success = true,
-                snapshotId = "snapshot_batch_diff_failure"
-            }),
+            (args, _) => Task.FromResult(SaveStoredSnapshotResult(sessionManager, args, "snapshot_batch_diff_failure")),
             (_, _) => Task.FromResult<object>(new
             {
                 success = false,
@@ -191,8 +185,9 @@ public sealed class BatchMutateToolTests
     {
         using var cancellation = new CancellationTokenSource();
         var executedProperties = new List<string?>();
+        var sessionManager = new SessionManager();
         var tool = new BatchMutateTool(
-            new SessionManager(),
+            sessionManager,
             (_, args, token) =>
             {
                 var propertyName = args.GetProperty("propertyName").GetString();
@@ -205,11 +200,7 @@ public sealed class BatchMutateToolTests
 
                 return Task.FromResult<object>(new { success = true, propertyName });
             },
-            (_, _) => Task.FromResult<object>(new
-            {
-                success = true,
-                snapshotId = "snapshot_batch_cancel"
-            }),
+            (args, _) => Task.FromResult(SaveStoredSnapshotResult(sessionManager, args, "snapshot_batch_cancel")),
             null);
 
         var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(

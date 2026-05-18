@@ -50,21 +50,60 @@ public sealed partial class SessionManager
     internal bool TryGetNavigationState(int processId, out NavigationSessionState? state)
     {
         ThrowIfDisposed();
-        return _navigationStateStore.TryGetState(processId, out state);
+        lock (_lock)
+        {
+            TrimStateSnapshotsForProcessLocked(processId);
+            ClearMissingActiveSnapshotIdLocked(processId);
+            return _navigationStateStore.TryGetState(processId, out state);
+        }
     }
 
     internal bool TryGetActiveSnapshotId(int processId, out string? snapshotId)
     {
         ThrowIfDisposed();
-        if (_navigationStateStore.TryGetState(processId, out var state)
-            && !string.IsNullOrWhiteSpace(state?.ActiveSnapshotId))
+        lock (_lock)
         {
-            snapshotId = state.ActiveSnapshotId;
-            return true;
+            TrimStateSnapshotsForProcessLocked(processId);
+
+            if (_navigationStateStore.TryGetState(processId, out var state)
+                && !string.IsNullOrWhiteSpace(state?.ActiveSnapshotId))
+            {
+                if (ClearMissingActiveSnapshotIdLocked(processId, state.ActiveSnapshotId))
+                {
+                    snapshotId = null;
+                    return false;
+                }
+
+                snapshotId = state.ActiveSnapshotId;
+                return true;
+            }
         }
 
         snapshotId = null;
         return false;
+    }
+
+    private bool ClearMissingActiveSnapshotIdLocked(int processId)
+    {
+        if (!_navigationStateStore.TryGetState(processId, out var state) ||
+            string.IsNullOrWhiteSpace(state?.ActiveSnapshotId))
+        {
+            return false;
+        }
+
+        return ClearMissingActiveSnapshotIdLocked(processId, state.ActiveSnapshotId);
+    }
+
+    private bool ClearMissingActiveSnapshotIdLocked(int processId, string snapshotId)
+    {
+        if (_stateSnapshots.TryGetValue(processId, out var retainedSnapshots) &&
+            retainedSnapshots.ContainsKey(snapshotId))
+        {
+            return false;
+        }
+
+        _navigationStateStore.SetActiveSnapshotId(processId, null);
+        return true;
     }
 
     private void EnsureSessionExists(int processId)

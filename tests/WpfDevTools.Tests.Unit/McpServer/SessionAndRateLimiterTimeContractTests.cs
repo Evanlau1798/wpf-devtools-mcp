@@ -2,6 +2,7 @@ using System.Reflection;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Navigation;
+using WpfDevTools.Mcp.Server.State;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -53,6 +54,7 @@ public class SessionAndRateLimiterTimeContractTests
         var sessionManager = new SessionManager();
         sessionManager.AddSession(1001);
 
+        sessionManager.SaveStateSnapshot(1001, CreateSnapshot("snapshot_123"));
         sessionManager.SetActiveSnapshotId(1001, "snapshot_123");
         sessionManager.TryGetNavigationState(1001, out var state).Should().BeTrue();
         state!.ActiveSnapshotId.Should().Be("snapshot_123");
@@ -85,6 +87,7 @@ public class SessionAndRateLimiterTimeContractTests
         sessionManager.AddSession(1003);
         sessionManager.AddSession(1004);
 
+        sessionManager.SaveStateSnapshot(1003, CreateSnapshot("snapshot_a"));
         sessionManager.SetActiveSnapshotId(1003, "snapshot_a");
         sessionManager.SetActiveTraceState(1004, new ActiveTraceNavigationState("MouseDown", "Panel_1", DateTimeOffset.UtcNow));
 
@@ -111,4 +114,18 @@ public class SessionAndRateLimiterTimeContractTests
         sessionManager.TryGetNavigationState(1005, out var state).Should().BeFalse();
         state.Should().BeNull();
     }
+
+    private static StoredStateSnapshot CreateSnapshot(string snapshotId) =>
+        new(
+            snapshotId,
+            SnapshotName: null,
+            ElementId: null,
+            DependencyProperties: Array.Empty<StoredDependencyPropertySnapshot>(),
+            ViewModelProperties: Array.Empty<StoredViewModelPropertySnapshot>(),
+            Focus: null,
+            BindingErrors: Array.Empty<StoredBindingErrorSnapshot>(),
+            HasBindingErrorBaseline: true,
+            ValidationErrors: Array.Empty<StoredValidationErrorSnapshot>(),
+            HasValidationBaseline: true,
+            DateTimeOffset.UtcNow);
 }

@@ -6,6 +6,9 @@ namespace WpfDevTools.Mcp.Server.Tools;
 
 public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : PipeConnectedToolBase(sessionManager)
 {
+    internal const int MaxSnapshotPropertyNameCount = BatchItemLimits.MaxQueryInputItems;
+    internal const int MaxSnapshotPropertyNameLength = 256;
+
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
         var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
@@ -14,18 +17,28 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
             return error;
         }
 
-        var propertyNames = ParseStringArray(arguments, "propertyNames");
-        var viewModelPropertyNames = ParseStringArray(arguments, "viewModelPropertyNames");
+        var propertyNames = ParsePropertyNameArray(arguments, "propertyNames");
+        if (propertyNames.Error != null)
+        {
+            return propertyNames.Error;
+        }
+
+        var viewModelPropertyNames = ParsePropertyNameArray(arguments, "viewModelPropertyNames");
+        if (viewModelPropertyNames.Error != null)
+        {
+            return viewModelPropertyNames.Error;
+        }
+
         var includeFocus = ParseBoolParam(arguments, "includeFocus") ?? false;
         var snapshotName = ParseStringParam(arguments, "snapshotName");
 
-        if (propertyNames.Count == 0 && viewModelPropertyNames.Count == 0 && !includeFocus)
+        if (propertyNames.Values.Count == 0 && viewModelPropertyNames.Values.Count == 0 && !includeFocus)
         {
             return CreateMissingParamError("propertyNames / viewModelPropertyNames / includeFocus");
         }
 
         var dependencyProperties = new List<StoredDependencyPropertySnapshot>();
-        foreach (var propertyName in propertyNames)
+        foreach (var propertyName in propertyNames.Values)
         {
             var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
                 processId,
@@ -67,7 +80,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         }
 
         var viewModelProperties = new List<StoredViewModelPropertySnapshot>();
-        if (viewModelPropertyNames.Count > 0)
+        if (viewModelPropertyNames.Values.Count > 0)
         {
             var response = JsonSerializer.SerializeToElement(await SendInspectorRequestWithoutPiggybackAsync(
                 processId,
@@ -87,7 +100,7 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
                     item => item,
                     StringComparer.Ordinal);
 
-            foreach (var propertyName in viewModelPropertyNames)
+            foreach (var propertyName in viewModelPropertyNames.Values)
             {
                 if (!availableProperties.TryGetValue(propertyName, out var property))
                 {
@@ -188,22 +201,71 @@ public sealed class CaptureStateSnapshotTool(SessionManager sessionManager) : Pi
         };
     }
 
-    private static List<string> ParseStringArray(JsonElement? arguments, string propertyName)
+    private static (IReadOnlyList<string> Values, object? Error) ParsePropertyNameArray(
+        JsonElement? arguments,
+        string parameterName)
     {
         if (arguments == null ||
-            !arguments.Value.TryGetProperty(propertyName, out var property) ||
+            !arguments.Value.TryGetProperty(parameterName, out var property) ||
             property.ValueKind != JsonValueKind.Array)
         {
-            return [];
+            return (Array.Empty<string>(), null);
         }
 
-        return property.EnumerateArray()
-            .Where(item => item.ValueKind == JsonValueKind.String)
-            .Select(item => item.GetString())
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Cast<string>()
-            .ToList();
+        var rawItemCount = property.GetArrayLength();
+        if (rawItemCount > MaxSnapshotPropertyNameCount)
+        {
+            return (Array.Empty<string>(), BatchItemLimits.CreateInvalidArgumentError(
+                parameterName,
+                rawItemCount,
+                MaxSnapshotPropertyNameCount,
+                $"{parameterName} must contain at most {MaxSnapshotPropertyNameCount} items; received {rawItemCount}.",
+                $"Split large state snapshot captures into requests with {MaxSnapshotPropertyNameCount} or fewer property names."));
+        }
+
+        var values = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in property.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            var rawValue = item.GetString();
+            if (rawValue?.Length > MaxSnapshotPropertyNameLength)
+            {
+                return (Array.Empty<string>(), CreatePropertyNameLengthError(parameterName, rawValue.Length));
+            }
+
+            var value = rawValue?.Trim();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            if (seen.Add(value))
+            {
+                values.Add(value);
+            }
+        }
+
+        return (values, null);
     }
+
+    private static ToolErrorPayload CreatePropertyNameLengthError(string parameterName, int actualLength) =>
+        new()
+        {
+            Error = $"{parameterName} values must be {MaxSnapshotPropertyNameLength} characters or fewer; received {actualLength}.",
+            ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
+            Hint = "Use exact WPF DependencyProperty or ViewModel property names and split unusually large capture sets into smaller requests.",
+            ErrorData = new Dictionary<string, object?>
+            {
+                ["parameter"] = parameterName,
+                ["actualLength"] = actualLength,
+                ["maxLength"] = MaxSnapshotPropertyNameLength
+            }
+        };
 
     private static bool IsSuccess(JsonElement response) =>
         response.TryGetProperty("success", out var successProperty) && successProperty.GetBoolean();

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.State;
 
 namespace WpfDevTools.Tests.Unit;
 
@@ -26,6 +27,36 @@ public static class TestHelpers
 
     public static string CreateUniquePipeName(string prefix = "WpfDevTools_Test") =>
         $"{prefix}_{Guid.NewGuid():N}";
+
+    public static object SaveStoredSnapshotResult(
+        SessionManager sessionManager,
+        JsonElement args,
+        string snapshotId,
+        DateTimeOffset? capturedAtUtc = null)
+    {
+        var processId = args.GetProperty("processId").GetInt32();
+        sessionManager.SaveStateSnapshot(
+            processId,
+            CreateStoredStateSnapshot(snapshotId, capturedAtUtc ?? DateTimeOffset.UtcNow));
+
+        return new { success = true, snapshotId };
+    }
+
+    internal static StoredStateSnapshot CreateStoredStateSnapshot(
+        string snapshotId,
+        DateTimeOffset capturedAtUtc) =>
+        new(
+            snapshotId,
+            SnapshotName: null,
+            ElementId: null,
+            DependencyProperties: Array.Empty<StoredDependencyPropertySnapshot>(),
+            ViewModelProperties: Array.Empty<StoredViewModelPropertySnapshot>(),
+            Focus: null,
+            BindingErrors: Array.Empty<StoredBindingErrorSnapshot>(),
+            HasBindingErrorBaseline: true,
+            ValidationErrors: Array.Empty<StoredValidationErrorSnapshot>(),
+            HasValidationBaseline: true,
+            capturedAtUtc);
 
     public static string EnsureSharedDummyBootstrapperExists()
     {

@@ -22,9 +22,10 @@ public static class MutationBatchMcpTools
         "DO NOT USE: When you need automatic rollback, when a single mutation call is sufficient, or when you have not captured an explicit snapshot for destructive experimentation.\n\n" +
         "SEQUENTIAL SEMANTICS: Mutations run in order, stop on the first failure, and do not roll back automatically.\n" +
         "FAILURE RECOVERY: When step N fails after steps 1..N-1 succeeded, the target application is left in a partially mutated state. " +
-        "If captureSnapshot was provided, call restore_state_snapshot(snapshotId) using the returned snapshotId to revert. " +
-        "If no snapshot was captured, manual reversal via inverse mutations (e.g. set_dp_value with the prior value) is required.\n" +
-        "ROLLBACK GUIDANCE: When captureSnapshot is provided, failures include explicit restore_state_snapshot guidance instead of hidden transaction behavior.\n" +
+        "If captureSnapshot was provided and rollback.available=true, call restore_state_snapshot using rollback.params.snapshotId or recovery.params.snapshotId. " +
+        "If rollback.available=false or recovery.tool is absent, the captured snapshot is not currently retained and manual reversal via inverse mutations (e.g. set_dp_value with the prior value) is required.\n" +
+        "ROLLBACK GUIDANCE: Captured snapshots are retained per process for up to 20 snapshots or 30 minutes. " +
+        "Failures include restore_state_snapshot guidance only while that snapshot remains retained; otherwise inspect rollback.available and recovery.tool before retrying.\n" +
         "DIFF SUPPORT: Set includeDiff=true together with captureSnapshot to compute get_state_diff after all mutations succeed.\n\n" +
         "REQUEST FORMAT:\n" +
         "{\n" +
@@ -63,7 +64,7 @@ public static class MutationBatchMcpTools
         "- BatchStepFailed: a mutation step returned success=false; failed/skipped counts identify where execution stopped.\n" +
         "- OperationFailed: captureSnapshot was requested but the snapshot call failed before mutation execution.\n" +
         "- DiffFailed: includeDiff was true but get_state_diff failed after mutations succeeded.\n" +
-        "- Timeout: a mutation or get_state_diff was canceled/timed out after snapshot capture; stateAfterTimeoutUnknown=true means reconnect and restore before retrying.")]
+        "- Timeout: a mutation or get_state_diff was canceled/timed out after snapshot capture; stateAfterTimeoutUnknown=true means reconnect, then inspect rollback.available and recovery.tool before restoring or retrying.")]
     public static Task<CallToolResult> BatchMutate(
         SessionManager sessionManager,
         [Description("Mutation steps as a JSON array. Each step must include tool (string) and may include label (string) plus args (object). Example: [{ \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }]")] JsonElement? mutations = null,

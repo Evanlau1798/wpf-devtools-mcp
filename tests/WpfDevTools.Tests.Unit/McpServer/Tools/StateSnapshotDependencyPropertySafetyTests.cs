@@ -67,6 +67,53 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
     }
 
     [Fact]
+    public async Task CaptureStateSnapshot_ShouldDeduplicateRequestedPropertyNamesBeforeCapture()
+    {
+        var processId = NextSyntheticProcessId();
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "get_dp_value_source" => new
+                {
+                    success = true,
+                    propertyName = request.Params!.Value.GetProperty("propertyName").GetString(),
+                    currentValue = "120",
+                    hadLocalValue = true,
+                    localValue = "120",
+                    baseValueSource = "LocalValue",
+                    isExpression = false
+                },
+                "get_viewmodel" => new
+                {
+                    success = true,
+                    typeName = "SampleViewModel",
+                    properties = new[]
+                    {
+                        new { name = "Name", type = "String", value = "Alice", canWrite = true }
+                    }
+                },
+                "get_binding_errors" => EmptyErrors(),
+                "get_validation_errors" => EmptyErrors(),
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+
+        var tool = new CaptureStateSnapshotTool(connected.SessionManager);
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "TextBox_1",
+            propertyNames = new[] { "Width", "Width" },
+            viewModelPropertyNames = new[] { "Name", "Name" }
+        }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("snapshotSummary").GetProperty("dependencyPropertyCount").GetInt32().Should().Be(1);
+        result.GetProperty("snapshotSummary").GetProperty("viewModelPropertyCount").GetInt32().Should().Be(1);
+        connected.RequestMethods.Count(method => method == "get_dp_value_source").Should().Be(1);
+    }
+
+    [Fact]
     public async Task RestoreStateSnapshot_ShouldRestoreBindingBackedDependencyProperty_WhenRestoreHandleWasCaptured()
     {
         var processId = NextSyntheticProcessId();

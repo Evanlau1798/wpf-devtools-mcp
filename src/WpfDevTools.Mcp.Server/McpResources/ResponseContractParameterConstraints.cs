@@ -30,6 +30,10 @@ internal static class ResponseContractParameterConstraints
             Integer("get_binding_errors", "maxErrors", defaultValue: null, minimum: 1, maximum: null),
             Integer("get_ui_summary", "depth", defaultValue: null, minimum: 0, maximum: TreeRequestOptions.MaxDepthLimit),
             StringEnum("get_ui_summary", "depthMode", defaultValue: "semantic", "semantic", "visual"),
+            Array("capture_state_snapshot", "propertyNames", maxItems: CaptureStateSnapshotTool.MaxSnapshotPropertyNameCount),
+            Array("capture_state_snapshot", "viewModelPropertyNames", maxItems: CaptureStateSnapshotTool.MaxSnapshotPropertyNameCount),
+            String("capture_state_snapshot", "propertyNames[]", maxLength: CaptureStateSnapshotTool.MaxSnapshotPropertyNameLength),
+            String("capture_state_snapshot", "viewModelPropertyNames[]", maxLength: CaptureStateSnapshotTool.MaxSnapshotPropertyNameLength),
             StringEnum("element_screenshot", "outputMode", defaultValue: "metadata", "metadata", "file", "base64"),
             Integer("element_screenshot", "maxWidth", defaultValue: null, minimum: 1, maximum: int.MaxValue),
             Integer("element_screenshot", "maxHeight", defaultValue: null, minimum: 1, maximum: int.MaxValue)
@@ -55,5 +59,23 @@ internal static class ResponseContractParameterConstraints
             type = "string",
             defaultValue,
             allowedValues
+        };
+
+    private static object Array(string tool, string parameter, int maxItems)
+        => new
+        {
+            tool,
+            parameter,
+            type = "array",
+            maxItems
+        };
+
+    private static object String(string tool, string parameter, int maxLength)
+        => new
+        {
+            tool,
+            parameter,
+            type = "string",
+            maxLength
         };
 }

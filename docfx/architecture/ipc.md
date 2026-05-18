@@ -22,7 +22,7 @@ This avoids ambiguity around message boundaries and handles large payloads more 
 ## Request model
 
 - request/response with correlation IDs
-- event push from inspector to server when needed
+- buffered events are surfaced by explicit drain, polling, or piggyback fields on tool responses
 - bounded message sizes and timeouts
 
 ## Operational implications

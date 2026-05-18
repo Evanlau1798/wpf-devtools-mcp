@@ -22,7 +22,7 @@ inspector protocol 在 named pipes 上使用 length-prefix framing。
 ## Request 模型
 
 - request/response，使用 correlation ID
-- 需要時 inspector 可以主動推送 event
+- buffered event 會透過 explicit drain、polling 或 piggyback 欄位呈現
 - 具備訊息大小上限與 timeout 控制
 
 ## 營運層面的含意

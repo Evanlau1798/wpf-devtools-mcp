@@ -20,6 +20,27 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData(
+        "docfx/architecture/ipc.md",
+        "event push from inspector to server",
+        "buffered events are surfaced by explicit drain, polling, or piggyback fields")]
+    [InlineData(
+        "docfx/zh-tw/architecture/ipc.md",
+        "inspector 可以主動推送 event",
+        "buffered event 會透過 explicit drain、polling 或 piggyback 欄位呈現")]
+    public void IpcArchitecturePages_ShouldNotClaimUnsolicitedInspectorEventPush(
+        string relativePath,
+        string forbiddenPushClaim,
+        string expectedBufferedSemantics)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().NotContain(forbiddenPushClaim,
+            "the shipping STDIO/named-pipe workflow does not deliver unsolicited inspector event pushes");
+        content.Should().Contain(expectedBufferedSemantics);
+    }
+
+    [Theory]
     [InlineData("docfx/reference/tools/process-and-connection.md")]
     [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
     public void ProcessReferencePages_ShouldDocumentActiveProcessWorkflow(string relativePath)

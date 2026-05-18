@@ -6,6 +6,7 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class ReleaseReadinessDocumentationTests
 {
+    private const string PublicEndpointUnavailableWarning = "Public release endpoints are not yet anonymously reachable";
     private static readonly string RepoRoot = ResolveRepoRoot();
 
     [Fact]
@@ -73,13 +74,28 @@ public sealed class ReleaseReadinessDocumentationTests
     public void PublicReleaseChecklist_ShouldNotClaimInstallerCommandIsDocumentedBeforeEndpointPublication()
     {
         var checklist = File.ReadAllText(GetRepoFilePath("PUBLIC_RELEASE_READINESS_CHECKLIST.md"));
-        var readme = File.ReadAllText(GetRepoFilePath("README.md"));
-        var quickstart = File.ReadAllText(GetRepoFilePath("docfx/quickstart/index.md"));
+        var warningFiles = GetPublicEndpointWarningFiles();
+        var completedClaims = GetCompletedPublicInstallerOnboardingClaims(checklist);
 
-        readme.Should().Contain("Public release endpoints are not yet anonymously reachable");
-        quickstart.Should().Contain("Public release endpoints are not yet anonymously reachable");
-        checklist.Should().NotContain("- [x] Document the preferred public installer command `irm https://wpf-mcptools.evanlau1798.com | iex`",
+        warningFiles.Should().NotBeEmpty(
+            "this contract applies while README or DocFX quickstarts still warn that public endpoints are unavailable");
+        completedClaims.Should().BeEmpty(
             "the checklist must not mark public installer onboarding complete while README and DocFX still warn that public endpoints are unavailable");
+    }
+
+    [Fact]
+    public void PublicReleaseChecklistGuard_ShouldRejectRewordedCheckedInstallerOnboardingClaims()
+    {
+        const string rewordedCompletedClaim = "- [x] Publish the public installer alias and document the one-line installer in README and DocFX quickstarts.";
+        const string uncheckedRemainingClaim = "- [ ] Publish the public installer alias and document `irm https://wpf-mcptools.evanlau1798.com | iex` in README and DocFX quickstart pages after anonymous endpoint smoke checks pass.";
+        const string releaseGateClaim = "- [x] Document release preflight gates for signing and the public installer alias in `RELEASING.md`.";
+
+        GetCompletedPublicInstallerOnboardingClaims(rewordedCompletedClaim).Should().ContainSingle(
+            "the guard should reject reworded checked public installer onboarding claims");
+        GetCompletedPublicInstallerOnboardingClaims(uncheckedRemainingClaim).Should().BeEmpty(
+            "unchecked remaining-work items are allowed to mention the public installer");
+        GetCompletedPublicInstallerOnboardingClaims(releaseGateClaim).Should().BeEmpty(
+            "release preflight documentation is not the same as public onboarding documentation");
     }
 
     [Fact]
@@ -120,6 +136,48 @@ public sealed class ReleaseReadinessDocumentationTests
         match.Success.Should().BeTrue("Create-SelfSignedCert.ps1 should keep a discoverable OutputPath default");
 
         return $"{match.Groups["path"].Value.Replace("\\", "/").TrimStart('.', '/')}/WpfDevTools.cer";
+    }
+
+    private static IReadOnlyList<string> GetCompletedPublicInstallerOnboardingClaims(string checklist)
+        => checklist.Split(["\r\n", "\n"], StringSplitOptions.None)
+            .Select(line => line.Trim())
+            .Where(line => Regex.IsMatch(line, @"^-\s*\[x\]\s+",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            .Where(IsPublicInstallerOnboardingClaim)
+            .ToList();
+
+    private static bool IsPublicInstallerOnboardingClaim(string checkedLine)
+    {
+        var normalized = Regex.Replace(checkedLine, @"\s+", " ");
+        if (Regex.IsMatch(normalized,
+            @"https://wpf-mcptools\.evanlau1798\.com|irm\s+https://wpf-mcptools\.evanlau1798\.com\s*\|\s*iex",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            return true;
+        }
+
+        var mentionsPublicInstaller = Regex.IsMatch(normalized,
+            @"public\s+installer|installer\s+alias|installer\s+command|one-line\s+installer",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var mentionsOnboardingDocs = Regex.IsMatch(normalized,
+            @"README|DocFX|quickstart|onboarding",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        return mentionsPublicInstaller && mentionsOnboardingDocs;
+    }
+
+    private static IReadOnlyList<string> GetPublicEndpointWarningFiles()
+    {
+        var paths = new List<string> { GetRepoFilePath("README.md") };
+        paths.AddRange(Directory.EnumerateFiles(GetRepoFilePath("docfx/quickstart"), "*.md"));
+        paths.AddRange(Directory.EnumerateFiles(GetRepoFilePath("docfx/zh-tw/quickstart"), "*.md"));
+
+        return paths
+            .Where(path => File.ReadAllText(path).Contains(
+                PublicEndpointUnavailableWarning,
+                StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(RepoRoot, path).Replace('\\', '/'))
+            .ToList();
     }
 
     [Theory]

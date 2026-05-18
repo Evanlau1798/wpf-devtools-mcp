@@ -5,7 +5,14 @@ detailed examples are split into focused files so each document stays small and
 all fenced examples remain parser-safe.
 
 The examples follow the recommended scene-first workflow and use the modern API
-where `processId` is optional after the initial `connect()` call.
+where `processId` is optional after the initial connection succeeds.
+
+## Local Prerequisites
+
+Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to a semicolon-separated list of exact
+absolute executable paths for the WPF targets you have reviewed before any
+example makes an initial connection. The server fails closed when this allowlist
+is missing, malformed, or does not contain the target process path.
 
 ## Quick Start
 

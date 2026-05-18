@@ -4,6 +4,12 @@ These workflows start with scene-level summaries before using focused diagnostic
 tools. The JSON blocks group sequential calls as arrays for parser validation;
 send each request one at a time unless your client explicitly supports batching.
 
+## Local Prerequisites
+
+Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target executable's exact
+absolute path before `connect()`. The server fails closed when this allowlist is
+missing, malformed, or does not contain the target process path.
+
 ## Example 1: Scene-First Inspection
 
 ### Scenario

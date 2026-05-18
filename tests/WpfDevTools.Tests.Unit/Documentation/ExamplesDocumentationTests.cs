@@ -76,6 +76,26 @@ public sealed class ExamplesDocumentationTests
         }
     }
 
+    [Fact]
+    public void ExamplesWithConnectWorkflow_ShouldDocumentTargetAllowlistBeforeFirstConnect()
+    {
+        foreach (var relativePath in GetExampleMarkdownRelativePaths())
+        {
+            var content = File.ReadAllText(GetRepoFilePath(relativePath));
+            var connectIndex = content.IndexOf("connect(", StringComparison.OrdinalIgnoreCase);
+            if (connectIndex < 0)
+            {
+                continue;
+            }
+
+            content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+                $"{relativePath} should document the target allowlist prerequisite for connect workflows");
+            content.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)
+                .Should().BeLessThan(connectIndex,
+                    $"{relativePath} should explain the allowlist prerequisite before the first connect step");
+        }
+    }
+
     [Theory]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"click_element\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"element_screenshot\"", "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS", null)]

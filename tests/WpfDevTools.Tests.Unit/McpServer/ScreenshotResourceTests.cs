@@ -109,6 +109,25 @@ public sealed class ScreenshotResourceTests
     }
 
     [Fact]
+    public void RemoveSession_ShouldPruneRetainedScreenshotResourceOrderEntries()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        using var sessionManager = new SessionManager();
+
+        for (var index = 0; index < 10; index++)
+        {
+            var processId = 12345 + index;
+            var screenshotId = "shot_" + index.ToString("x32");
+            RegisterValidScreenshot(sessionManager, tempDirectory.Path, processId, screenshotId);
+            sessionManager.RemoveSession(processId);
+        }
+
+        var counts = GetRetainedScreenshotResourceCounts(sessionManager);
+        counts.Resources.Should().Be(0);
+        counts.Order.Should().Be(0);
+    }
+
+    [Fact]
     public void Dispose_ShouldClearRetainedScreenshotResources()
     {
         using var tempDirectory = new TemporaryDirectory();
@@ -134,9 +153,9 @@ public sealed class ScreenshotResourceTests
     private static string RegisterValidScreenshot(
         SessionManager sessionManager,
         string directory,
-        int processId)
+        int processId,
+        string screenshotId = "shot_0123456789abcdef0123456789abcdef")
     {
-        var screenshotId = "shot_0123456789abcdef0123456789abcdef";
         var imageBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 };
         var filePath = Path.Combine(directory, screenshotId + ".png");
         File.WriteAllBytes(filePath, imageBytes);

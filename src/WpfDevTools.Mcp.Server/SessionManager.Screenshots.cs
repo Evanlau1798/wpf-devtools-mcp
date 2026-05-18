@@ -66,12 +66,18 @@ public sealed partial class SessionManager
 
     private void RemoveScreenshotResources(int processId)
     {
+        var removedAny = false;
         foreach (var screenshotId in _screenshotResources
             .Where(entry => entry.Value.ProcessId == processId)
             .Select(entry => entry.Key)
             .ToArray())
         {
-            _screenshotResources.Remove(screenshotId);
+            removedAny |= _screenshotResources.Remove(screenshotId);
+        }
+
+        if (removedAny)
+        {
+            CompactScreenshotResourceOrder();
         }
     }
 
@@ -81,6 +87,19 @@ public sealed partial class SessionManager
             _screenshotResourceOrder.TryDequeue(out var oldestScreenshotId))
         {
             _screenshotResources.Remove(oldestScreenshotId);
+        }
+    }
+
+    private void CompactScreenshotResourceOrder()
+    {
+        var retainedOrder = _screenshotResourceOrder
+            .Where(_screenshotResources.ContainsKey)
+            .ToArray();
+
+        _screenshotResourceOrder.Clear();
+        foreach (var screenshotId in retainedOrder)
+        {
+            _screenshotResourceOrder.Enqueue(screenshotId);
         }
     }
 

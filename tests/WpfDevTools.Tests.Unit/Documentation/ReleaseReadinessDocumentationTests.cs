@@ -166,6 +166,18 @@ public sealed class ReleaseReadinessDocumentationTests
             "subject-prefixed active no-negation clauses should not become false positive validation claims after comma splitting");
     }
 
+    [Fact]
+    public void BuildReleaseValidationGuard_ShouldRejectPositiveClaimsAfterSubjectPrefixedActiveNoNegation()
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            "1. Does not run signing, it runs no unit tests before executing release validation.");
+
+        GetBuildReleaseValidationClaims(guide).Should().NotBeEmpty(
+            "subject-prefixed active no-negation must not hide later positive validation claims in the same clause");
+    }
+
     [Theory]
     [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
@@ -326,8 +338,8 @@ public sealed class ReleaseReadinessDocumentationTests
             .Select(line => line.Trim())
             .Where(line => line.Length > 0)
             .SelectMany(GetBuildReleaseValidationClauses)
+            .Select(RemoveNegatedBuildReleaseValidationPhrases)
             .Where(IsBuildReleaseValidationClaim)
-            .Where(clause => !IsNegatedBuildReleaseValidationClause(clause))
             .ToList();
     }
 
@@ -366,12 +378,31 @@ public sealed class ReleaseReadinessDocumentationTests
             .Where(clause => clause.Length > 0);
     }
 
-    private static bool IsNegatedBuildReleaseValidationClause(string clause)
+    private static string RemoveNegatedBuildReleaseValidationPhrases(string clause)
     {
-        return Regex.IsMatch(
-            clause,
-            @"\b(does\s+not|do\s+not|will\s+not|without)\s+(run(?:ning)?|execute|executing|perform(?:ing)?|build(?:ing)?|test(?:ing)?|validate|validating)\b|\b(?:it|this|build-release\.ps1|the\s+wrapper)\s+(?:runs?|executes?)\s+no\s+(?:unit\s+tests?|integration\s+tests?|tests?|full\s+test\s+suite|release\s+validation|preflight\s+validation)\b",
+        var scrubbed = clause;
+        scrubbed = Regex.Replace(scrubbed,
+            @"\b(?:does\s+not|do\s+not|will\s+not)\s+(?:run|execute|perform|validate)\s+(?:the\s+)?(?:preflight\s+)?(?:build/test\s+)?validation(?:\s+steps?)?\b",
+            " ",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        scrubbed = Regex.Replace(scrubbed,
+            @"\b(?:does\s+not|do\s+not|will\s+not)\s+(?:run|execute)\s+(?:dotnet\s+test|[^\s,;]+\.csproj|unit\s+tests?|integration\s+tests?|tests?|full\s+test\s+suite)(?:\s+--no-build)?\b",
+            " ",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        scrubbed = Regex.Replace(scrubbed,
+            @"\b(?:does\s+not|do\s+not|will\s+not)\s+(?:build|test|validate)\s+(?:`?WpfDevTools\.sln`?|unit\s+tests?|integration\s+tests?|tests?|full\s+test\s+suite|release\s+validation|preflight\s+validation)\b",
+            " ",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        scrubbed = Regex.Replace(scrubbed,
+            @"\bwithout\s+(?:running|executing|performing|building|testing|validating)\s+(?:`?WpfDevTools\.sln`?|dotnet\s+test|[^\s,;]+\.csproj|unit\s+tests?|integration\s+tests?|tests?|full\s+test\s+suite|release\s+validation|preflight\s+validation)\b",
+            " ",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        scrubbed = Regex.Replace(scrubbed,
+            @"\b(?:it|this|build-release\.ps1|the\s+wrapper)\s+(?:runs?|executes?)\s+no\s+(?:unit\s+tests?|integration\s+tests?|tests?|full\s+test\s+suite|release\s+validation|preflight\s+validation)\b",
+            " ",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        return scrubbed;
     }
 
     private static bool IsBuildReleaseValidationClaim(string line)

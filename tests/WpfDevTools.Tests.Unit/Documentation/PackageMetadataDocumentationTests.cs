@@ -23,6 +23,19 @@ public class PackageMetadataDocumentationTests
         content.Should().Contain("WPF DevTools MCP Server");
     }
 
+    [Fact]
+    public void InspectorSdkPackageReadme_ShouldUsePublicationAwareInstallGuidance()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector.Sdk/README.md"));
+
+        content.Should().NotContain(
+            "dotnet add package WpfDevTools.Inspector.Sdk\n",
+            "the SDK package is not currently discoverable from NuGet.org, so the README should not over-promise public package availability");
+        content.Should().Contain("dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj");
+        content.Should().Contain("--source");
+        content.Should().Contain("After public NuGet publication");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

@@ -6,8 +6,17 @@ Single-file and Native AOT packaging constraints affect raw injection, not the o
 
 ## Installation
 
+Before public NuGet publication, build the package locally from the repository root and install it from an explicit package source:
+
 ```bash
-dotnet add package WpfDevTools.Inspector.Sdk
+dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg -p:GeneratePackageOnBuild=false
+dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk --source ./nupkg
+```
+
+After public NuGet publication, consumers can install from the configured NuGet.org source:
+
+```bash
+dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk
 ```
 
 ## Usage

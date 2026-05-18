@@ -114,7 +114,9 @@ public class BootstrapperSecureTransportContractTests
         method.Should().Contain("if (bytesWritten != bytesToWrite)");
         var partialWriteBlock = GetBlockAfter(method, "if (bytesWritten != bytesToWrite)");
 
-        partialWriteBlock.Should().NotContain("recordFailure(",
+        partialWriteBlock.Should().NotContain("recordLastErrorFailure(",
+            "short writes should not call any helper that reads stale Win32 last-error state");
+        partialWriteBlock.Should().NotContain("GetLastError()",
             "short writes should not call the last-error helper because WriteFile can succeed without setting a fresh error");
         partialWriteBlock.Should().Contain("recordDeterministicFailure(ERROR_WRITE_FAULT);",
             "short writes should report a deterministic fallback error instead of reading stale last-error state");

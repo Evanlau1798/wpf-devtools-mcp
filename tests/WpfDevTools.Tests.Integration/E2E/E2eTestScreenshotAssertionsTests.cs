@@ -10,15 +10,19 @@ public sealed class E2eTestScreenshotAssertionsTests
     public void AssertFileScreenshotMatchesReportedMetadata_ShouldExposeCleanupPathBeforePngAssertions()
     {
         using var tempDirectory = new TemporaryDirectory();
-        var fileName = "shot_invalid.png";
+        var screenshotId = "shot_00000000000000000000000000000000";
+        var fileName = screenshotId + ".png";
         var filePath = Path.Combine(tempDirectory.Path, fileName);
         File.WriteAllBytes(filePath, new byte[] { 1, 2, 3 });
         using var document = JsonDocument.Parse($$"""
             {
               "success": true,
               "localPathRedacted": true,
-              "resourceUri": "wpf://screenshots/shot_00000000000000000000000000000000",
+              "screenshotId": "{{screenshotId}}",
+              "outputMode": "file",
+              "resourceUri": "wpf://screenshots/{{screenshotId}}",
               "fileName": "{{fileName}}",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
               "width": 1,
               "height": 1,
               "format": "png",

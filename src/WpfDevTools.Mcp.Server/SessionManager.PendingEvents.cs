@@ -12,22 +12,41 @@ public sealed partial class SessionManager
         ThrowIfDisposed();
 
         SemaphoreSlim replayLock;
+        bool disposeReplayLock;
         long sessionGeneration;
         lock (_lock)
         {
-            if (!_pendingEventReplayLocks.TryGetValue(processId, out replayLock!))
+            if (!_sessionGenerations.TryGetValue(processId, out sessionGeneration))
             {
                 replayLock = new SemaphoreSlim(1, 1);
-                _pendingEventReplayLocks[processId] = replayLock;
+                disposeReplayLock = true;
             }
-
-            sessionGeneration = _sessionGenerations.TryGetValue(processId, out var currentGeneration)
-                ? currentGeneration
-                : 0;
+            else
+            {
+                disposeReplayLock = false;
+                if (!_pendingEventReplayLocks.TryGetValue(processId, out replayLock!))
+                {
+                    replayLock = new SemaphoreSlim(1, 1);
+                    _pendingEventReplayLocks[processId] = replayLock;
+                }
+            }
         }
 
-        await replayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        return new PendingEventReplayLockScope(replayLock, sessionGeneration);
+        try
+        {
+            await replayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            if (disposeReplayLock)
+            {
+                replayLock.Dispose();
+            }
+
+            throw;
+        }
+
+        return new PendingEventReplayLockScope(replayLock, sessionGeneration, disposeReplayLock);
     }
 
     internal void SavePendingEventReplay(int processId, JsonElement drainPayload)
@@ -190,13 +209,20 @@ public sealed partial class SessionManager
         DateTimeOffset SavedAtUtc,
         long SessionGeneration);
 
-    internal sealed class PendingEventReplayLockScope(SemaphoreSlim replayLock, long sessionGeneration) : IDisposable
+    internal sealed class PendingEventReplayLockScope(
+        SemaphoreSlim replayLock,
+        long sessionGeneration,
+        bool disposeReplayLock) : IDisposable
     {
         internal long SessionGeneration { get; } = sessionGeneration;
 
         public void Dispose()
         {
             replayLock.Release();
+            if (disposeReplayLock)
+            {
+                replayLock.Dispose();
+            }
         }
     }
 }

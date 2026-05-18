@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentAssertions;
+using System.Reflection;
 using WpfDevTools.Mcp.Server;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
@@ -86,6 +87,28 @@ public sealed class SessionManagerPendingEventReplayTests
     }
 
     [Fact]
+    public async Task AcquirePendingEventReplayLockAsync_WithoutCurrentSession_ShouldNotRetainReplayLock()
+    {
+        const int processId = 43115;
+        using var sessionManager = new SessionManager();
+        DisableSessionManagerCleanupTimer(sessionManager);
+        sessionManager.AddSession(processId);
+
+        using (await sessionManager.AcquirePendingEventReplayLockAsync(processId, CancellationToken.None))
+        {
+        }
+
+        sessionManager.RemoveSession(processId);
+        GetPendingEventReplayLocks(sessionManager).Should().NotContainKey(processId);
+
+        using (await sessionManager.AcquirePendingEventReplayLockAsync(processId, CancellationToken.None))
+        {
+            GetPendingEventReplayLocks(sessionManager).Should().NotContainKey(processId,
+                "acquiring a replay lock for a removed session must not recreate retained semaphore state");
+        }
+    }
+
+    [Fact]
     public void TryPeekPendingEventReplayMetadata_WithoutTimestampUtc_ShouldReturnInjectedSavedAtUtc()
     {
         const int processId = 43114;
@@ -125,5 +148,13 @@ public sealed class SessionManagerPendingEventReplayTests
 
         savedAtUtc.Should().Be(currentTime);
         replayPayload.GetProperty("pendingEvents")[0].TryGetProperty("timestampUtc", out _).Should().BeFalse();
+    }
+
+    private static IReadOnlyDictionary<int, SemaphoreSlim> GetPendingEventReplayLocks(SessionManager sessionManager)
+    {
+        var field = typeof(SessionManager).GetField(
+            "_pendingEventReplayLocks",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        return (IReadOnlyDictionary<int, SemaphoreSlim>)field.GetValue(sessionManager)!;
     }
 }

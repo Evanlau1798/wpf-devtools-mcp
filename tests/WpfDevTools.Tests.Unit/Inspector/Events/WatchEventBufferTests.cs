@@ -58,6 +58,19 @@ public sealed class WatchEventBufferTests
     }
 
     [Fact]
+    public void Enqueue_WithSurrogatePairAcrossHashChunkBoundary_ShouldPreserveHash()
+    {
+        var buffer = new WatchEventBuffer(capacity: 4, new WatchEventDeduplicator());
+        var value = new string('x', 511) + char.ConvertFromUtf32(0x1F680) + new string('y', 700);
+
+        buffer.Enqueue(CreateDpChange(value, "TextBox_1", "Text", value));
+
+        var record = buffer.GetSnapshot().Should().ContainSingle().Subject;
+        record.SourceKey.Should().EndWith("#" + ComputeHashPrefix(value));
+        record.NewValue.Should().EndWith("#" + ComputeHashPrefix(value));
+    }
+
+    [Fact]
     public void Source_ShouldHashTruncatedPayloadStringsWithoutMaterializingFullUtf8Array()
     {
         var source = File.ReadAllText(GetRepoFilePath(

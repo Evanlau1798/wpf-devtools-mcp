@@ -35,6 +35,11 @@ public static class TestHelpers
         DateTimeOffset? capturedAtUtc = null)
     {
         var processId = args.GetProperty("processId").GetInt32();
+        if (!sessionManager.HasSession(processId))
+        {
+            sessionManager.AddSession(processId);
+        }
+
         sessionManager.SaveStateSnapshot(
             processId,
             CreateStoredStateSnapshot(snapshotId, capturedAtUtc ?? DateTimeOffset.UtcNow));

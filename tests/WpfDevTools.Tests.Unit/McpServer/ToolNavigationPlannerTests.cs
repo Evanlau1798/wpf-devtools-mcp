@@ -279,6 +279,48 @@ public sealed class ToolNavigationPlannerTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_WithSuccessfulConnect_ShouldRecommendSceneFirstSummary()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                processId = 12345,
+                processName = "TestApp"
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "connect");
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        var firstStep = navigation.GetProperty("recommended")[0];
+        firstStep.GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        firstStep.GetProperty("params").GetProperty("processId").GetInt32().Should().Be(12345);
+        firstStep.GetProperty("whyNow").GetString().Should().Contain("scene");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithAmbiguousConnect_ShouldRecommendProcessListing()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = false,
+                errorCode = "MultipleWpfProcessesFound",
+                candidateCount = 2
+            }),
+            ToolCallHelper.BuildJsonArgs(("windowFilter", "foreground")),
+            CancellationToken.None,
+            toolName: "connect");
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        var firstStep = navigation.GetProperty("recommended")[0];
+        firstStep.GetProperty("tool").GetString().Should().Be("get_processes");
+        firstStep.GetProperty("params").GetProperty("windowFilter").GetString().Should().Be("foreground");
+        firstStep.GetProperty("whyNow").GetString().Should().Contain("multiple");
+    }
+
+    [Fact]
     public void PlanEnvelope_ShouldDeriveCompactPrefetchToolsFromRecommendedAndAlternatives()
     {
         var registry = new ToolNavigationRegistry();

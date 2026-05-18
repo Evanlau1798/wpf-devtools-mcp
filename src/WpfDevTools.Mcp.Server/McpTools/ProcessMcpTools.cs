@@ -134,7 +134,8 @@ public static class ProcessMcpTools
             (a, ct) => ToolCallHelper.CachedTool<ConnectTool>(sessionManager, "ConnectTool", () => CreateConnectTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
-            timeoutSeconds: McpServerConfiguration.ConnectTimeoutSeconds);
+            timeoutSeconds: McpServerConfiguration.ConnectTimeoutSeconds,
+            toolName: "connect");
     }
 
     private static ConnectTool CreateConnectTool(SessionManager sessionManager)

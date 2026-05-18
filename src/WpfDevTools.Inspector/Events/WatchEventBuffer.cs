@@ -210,10 +210,13 @@ internal sealed class WatchEventBuffer
     private sealed class PayloadTruncationBuilder : IDisposable
     {
         private const int HashPrefixLength = 8;
+        private const int HashCharBufferLength = 512;
         private const string HexDigits = "0123456789ABCDEF";
 
         private readonly Dictionary<string, int> _originalStringLengths = new(StringComparer.Ordinal);
         private SHA256? _sha256;
+        private readonly Encoder _utf8Encoder = Encoding.UTF8.GetEncoder();
+        private readonly byte[] _hashByteBuffer = new byte[Encoding.UTF8.GetMaxByteCount(HashCharBufferLength)];
 
         public bool Truncated => _originalStringLengths.Count > 0;
 
@@ -244,7 +247,46 @@ internal sealed class WatchEventBuffer
         private string ComputeHashPrefix(string value)
         {
             var sha256 = _sha256 ??= SHA256.Create();
-            var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(value));
+            _utf8Encoder.Reset();
+
+            for (var offset = 0; offset < value.Length;)
+            {
+                var chars = value.AsSpan(offset, Math.Min(HashCharBufferLength, value.Length - offset));
+                var flush = offset + chars.Length == value.Length;
+                _utf8Encoder.Convert(
+                    chars,
+                    _hashByteBuffer,
+                    flush,
+                    out var charsUsed,
+                    out var bytesUsed,
+                    out _);
+
+                if (bytesUsed > 0)
+                {
+                    if (flush && charsUsed == chars.Length)
+                    {
+                        sha256.TransformFinalBlock(_hashByteBuffer, 0, bytesUsed);
+                    }
+                    else
+                    {
+                        sha256.TransformBlock(_hashByteBuffer, 0, bytesUsed, null, 0);
+                    }
+                }
+                else if (flush && charsUsed == chars.Length)
+                {
+                    sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                }
+
+                offset += charsUsed;
+            }
+
+            if (value.Length == 0)
+            {
+                sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+            }
+
+            var hash = sha256.Hash!;
+            sha256.Initialize();
             var characters = new char[HashPrefixLength];
             for (var index = 0; index < HashPrefixLength / 2; index++)
             {

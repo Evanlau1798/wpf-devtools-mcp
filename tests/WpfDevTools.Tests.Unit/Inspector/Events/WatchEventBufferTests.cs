@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using FluentAssertions;
 using WpfDevTools.Inspector.Events;
 
@@ -50,7 +52,29 @@ public sealed class WatchEventBufferTests
         record.TruncationMetadata.Should().NotBeNull();
         record.TruncationMetadata!.Reasons.Should().Contain("PayloadStringLength");
         record.TruncationMetadata.OriginalStringLengths["sourceKey"].Should().Be(4096);
+        record.SourceKey.Should().EndWith("#" + ComputeHashPrefix(longValue));
+        record.NewValue.Should().EndWith("#" + ComputeHashPrefix(longValue));
         GetDedupIndexCount(buffer).Should().BeLessThanOrEqualTo(buffer.PendingCount);
+    }
+
+    [Fact]
+    public void Source_ShouldHashTruncatedPayloadStringsWithoutMaterializingFullUtf8Array()
+    {
+        var source = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Inspector/Events/WatchEventBuffer.cs"));
+        var computeHashStart = source.IndexOf(
+            "private string ComputeHashPrefix(string value)",
+            StringComparison.Ordinal);
+        var disposeStart = source.IndexOf(
+            "public void Dispose()",
+            computeHashStart,
+            StringComparison.Ordinal);
+        var computeHashBody = source[computeHashStart..disposeStart];
+
+        computeHashBody.Should().NotContain("Encoding.UTF8.GetBytes(value)",
+            "oversized payload hashing should not allocate a byte[] for the full original string");
+        computeHashBody.Should().Contain("Encoder.Convert",
+            "hashing should stream bounded char chunks through a reusable encoder buffer");
     }
 
     [Fact]
@@ -176,4 +200,13 @@ public sealed class WatchEventBufferTests
         var index = (System.Collections.IDictionary)field!.GetValue(buffer)!;
         return index.Count;
     }
+
+    private static string ComputeHashPrefix(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(hash)[..8];
+    }
+
+    private static string GetRepoFilePath(string relativePath)
+        => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

@@ -1,10 +1,10 @@
-using System.IO.Pipes;
+using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.State;
 using WpfDevTools.Mcp.Server.Tools;
-using WpfDevTools.Shared.Messages;
-using WpfDevTools.Shared.Serialization;
+using WpfDevTools.Shared.ErrorHandling;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -31,138 +31,60 @@ public sealed class StateSnapshotSessionGenerationTests
     }
 
     [Fact]
-    public async Task CaptureStateSnapshot_WhenSessionGenerationChangesBetweenSteps_ShouldFailWithoutSavingSnapshot()
+    public void SaveStateSnapshot_WhenExpectedSessionGenerationIsStale_ShouldRejectSnapshot()
     {
         const int processId = 51140;
         using var sessionManager = new SessionManager();
         DisableSessionManagerCleanupTimer(sessionManager);
+        sessionManager.AddSession(processId);
+        sessionManager.TryGetSessionGeneration(processId, out var staleGeneration).Should().BeTrue();
+        sessionManager.RemoveSession(processId);
+        sessionManager.AddSession(processId);
 
-        using var firstServer = new PipeResponseServer([
-            JsonSerializer.Serialize(new
-            {
-                success = true,
-                propertyName = "Width",
-                currentValue = "120",
-                hadLocalValue = true,
-                localValue = "120",
-                baseValueSource = "Local"
-            })
-        ]);
-        await firstServer.AttachAsync(sessionManager, processId);
+        var saved = sessionManager.SaveStateSnapshot(
+            processId,
+            CreateStoredStateSnapshot("snapshot_stale_save", DateTimeOffset.UtcNow),
+            staleGeneration);
 
-        var tool = new CaptureStateSnapshotTool(sessionManager);
-        var captureTask = tool.ExecuteAsync(ToJsonElement(new
+        saved.Should().BeFalse();
+        sessionManager.TryGetStateSnapshot(processId, "snapshot_stale_save", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetStateDiff_WhenSnapshotGenerationIsStale_ShouldRejectAndClearSnapshotReference()
+    {
+        const int processId = 51142;
+        const string snapshotId = "snapshot_stale_diff";
+        using var sessionManager = new SessionManager();
+        DisableSessionManagerCleanupTimer(sessionManager);
+        sessionManager.AddSession(processId);
+
+        InsertStoredSnapshot(
+            sessionManager,
+            processId,
+            CreateStoredStateSnapshot(snapshotId, DateTimeOffset.UtcNow) with { SessionGeneration = 0 });
+        sessionManager.SetActiveSnapshotId(processId, snapshotId);
+
+        var result = JsonSerializer.SerializeToElement(await new GetStateDiffTool(sessionManager).ExecuteAsync(ToJsonElement(new
         {
             processId,
-            elementId = "Button_1",
-            propertyNames = new[] { "Width", "Height" }
-        }), CancellationToken.None);
+            snapshotId
+        }), CancellationToken.None));
 
-        await firstServer.WaitForResponsesWrittenAsync(1);
-
-        using var secondServer = new PipeResponseServer([
-            JsonSerializer.Serialize(new
-            {
-                success = true,
-                propertyName = "Height",
-                currentValue = "48",
-                hadLocalValue = true,
-                localValue = "48",
-                baseValueSource = "Local"
-            }),
-            JsonSerializer.Serialize(new
-            {
-                success = true,
-                errorCount = 0,
-                errors = Array.Empty<object>()
-            }),
-            JsonSerializer.Serialize(new
-            {
-                success = true,
-                errorCount = 0,
-                errors = Array.Empty<object>()
-            })
-        ]);
-
-        sessionManager.RemoveSession(processId);
-        await secondServer.AttachAsync(sessionManager, processId);
-
-        var result = JsonSerializer.SerializeToElement(await captureTask);
-
-        result.GetProperty("success").GetBoolean().Should().BeFalse();
-        result.GetProperty("errorCode").GetString().Should().Be("NotConnected");
+        result.GetProperty("errorCode").GetString().Should().Be(ToolErrorCode.InvalidArgument.ToString());
+        sessionManager.TryGetStateSnapshot(processId, snapshotId, out _).Should().BeFalse();
         sessionManager.TryGetActiveSnapshotId(processId, out _).Should().BeFalse();
     }
 
-    private sealed class PipeResponseServer : IDisposable
+    private static void InsertStoredSnapshot(
+        SessionManager sessionManager,
+        int processId,
+        StoredStateSnapshot snapshot)
     {
-        private readonly IReadOnlyList<string> _responses;
-        private readonly NamedPipeServerStream _server;
-        private readonly TaskCompletionSource<int> _responsesWritten = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly Task _serverTask;
-
-        public PipeResponseServer(IReadOnlyList<string> responses)
-        {
-            _responses = responses;
-            PipeName = CreateUniquePipeName();
-            _server = new NamedPipeServerStream(
-                PipeName,
-                PipeDirection.InOut,
-                1,
-                PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous);
-            _serverTask = Task.Run(RunAsync);
-        }
-
-        public string PipeName { get; }
-
-        public async Task AttachAsync(SessionManager sessionManager, int processId)
-        {
-            sessionManager.AddSession(processId);
-            var client = new NamedPipeClient(processId, PipeName);
-            (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
-            ReplaceSessionManagerPipeClient(sessionManager, processId, client);
-        }
-
-        public async Task WaitForResponsesWrittenAsync(int responseCount)
-        {
-            while (await _responsesWritten.Task.WaitAsync(TimeSpan.FromSeconds(5)) < responseCount)
-            {
-            }
-        }
-
-        public void Dispose()
-        {
-            _server.Dispose();
-            _serverTask.GetAwaiter().GetResult();
-        }
-
-        private async Task RunAsync()
-        {
-            try
-            {
-                await _server.WaitForConnectionAsync();
-                for (var index = 0; index < _responses.Count; index++)
-                {
-                    var requestJson = await MessageFraming.ReadMessageAsync(_server, CancellationToken.None);
-                    var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
-                    var response = new InspectorResponse
-                    {
-                        Id = request!.Id,
-                        CorrelationId = request.CorrelationId,
-                        Result = JsonSerializer.Deserialize<JsonElement>(_responses[index])
-                    };
-
-                    await MessageFraming.WriteMessageAsync(
-                        _server,
-                        JsonSerializer.Serialize(response),
-                        CancellationToken.None);
-                    _responsesWritten.TrySetResult(index + 1);
-                }
-            }
-            catch (Exception ex) when (ex is EndOfStreamException or IOException or ObjectDisposedException)
-            {
-            }
-        }
+        var field = typeof(SessionManager).GetField(
+            "_stateSnapshots",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var snapshotsByProcess = (Dictionary<int, Dictionary<string, StoredStateSnapshot>>)field.GetValue(sessionManager)!;
+        snapshotsByProcess[processId][snapshot.SnapshotId] = snapshot;
     }
 }

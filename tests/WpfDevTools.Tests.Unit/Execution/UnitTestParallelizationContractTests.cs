@@ -231,6 +231,13 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
+    public void FileLoggerTests_ShouldUseXunitV2DisposableCleanup()
+    {
+        typeof(FileLoggerTests).Should().BeAssignableTo<IDisposable>(
+            "xUnit v2 reliably invokes IDisposable on test classes, while IAsyncDisposable-only cleanup left test_log_* files in OS temp");
+    }
+
+    [Fact]
     public void TimingSensitiveCollection_ShouldRemainParallelizable()
     {
         var collectionType = typeof(SignaturePolicyTests).Assembly

@@ -7,7 +7,7 @@ using System.Threading.Channels;
 namespace WpfDevTools.Tests.Unit.McpServer;
 
 [Collection("TimingSensitive")]
-public class FileLoggerTests : IAsyncDisposable
+public class FileLoggerTests : IDisposable, IAsyncDisposable
 {
     private readonly string _testLogPath;
     private readonly FileLogger _logger;
@@ -18,10 +18,15 @@ public class FileLoggerTests : IAsyncDisposable
         _logger = new FileLogger(_testLogPath);
     }
 
+    public void Dispose()
+    {
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
+    }
+
     public async ValueTask DisposeAsync()
     {
         // Dispose logger to flush queue
-        await _logger.DisposeAsync();
+        await _logger.DisposeAsync().ConfigureAwait(false);
 
         // Cleanup test log files
         try

@@ -51,6 +51,16 @@ public sealed class ReadmeTestCountBadgeTests
         }
     }
 
+    [Fact]
+    public void TopLevelContributingDocs_ShouldNotClaimCurrentCoveragePercentages()
+    {
+        var content = ReadRepoFile("CONTRIBUTING.md");
+
+        content.Should().NotMatchRegex(
+            @"(?im)^\s*-\s*Current Status:\s*\d+(?:\.\d+)?%",
+            "top-level contributor guidance should not publish stale current coverage percentages without a generated source");
+    }
+
     public static IEnumerable<object[]> ExactCountDocumentationFiles()
     {
         yield return new object[] { "docfx/contributors/testing-and-tdd.md" };

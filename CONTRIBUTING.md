@@ -117,7 +117,8 @@ If you run `tests/WpfDevTools.Tests.Integration/BootstrapInjectionTests.cs`, bui
 
 **Test Coverage Requirements:**
 - Minimum: 80% line coverage (MANDATORY)
-- Current Status: 83.17% ✅ (Exceeds target)
+- For the latest merged coverage snapshot and source notes, see `docfx/contributors/testing-and-tdd.md`
+- Do not copy hardcoded current coverage percentages into top-level contributor docs
 - Unit test coverage is the primary metric
 - Integration test coverage (27%) is normal for end-to-end tests
 

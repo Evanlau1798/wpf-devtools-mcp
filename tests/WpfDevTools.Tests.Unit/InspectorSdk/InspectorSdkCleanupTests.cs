@@ -131,6 +131,27 @@ public sealed class InspectorSdkCleanupTests
     }
 
     [Fact]
+    public void Initialize_WithStaleDeferredShutdownFlag_ShouldPublishNewHost()
+    {
+        using var testContext = new InspectorSdkTestContext();
+        var certDirectory = testContext.CreateTemporaryDirectory("wpf-devtools-sdk-stale-shutdown");
+        testContext.SetTransport(InspectorSdkTestContext.CreateAuthSecret(), certDirectory);
+        InspectorSdkTestContext.SetInspectorSdkState(
+            host: null,
+            authenticationManager: null,
+            certificateManager: null,
+            isInitialized: false,
+            isInitializing: 0);
+        InspectorSdkTestContext.SetShutdownRequestedDuringInitializationForTesting(1);
+
+        SdkInspector.Initialize(processId: 12349);
+
+        SdkInspector.IsInitialized.Should().BeTrue(
+            "a stale deferred shutdown flag from a previous shutdown must not poison the next initialize");
+        InspectorSdkTestContext.GetInspectorSdkHost().Should().NotBeNull();
+    }
+
+    [Fact]
     public void CompleteInitializationIfShutdownRequested_ShouldNotPublishAfterFinalGate()
     {
         using var testContext = new InspectorSdkTestContext();

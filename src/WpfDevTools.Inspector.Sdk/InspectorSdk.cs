@@ -59,6 +59,8 @@ public static partial class InspectorSdk
             return;
         }
 
+        ClearStaleDeferredShutdownRequestIfIdle();
+
         // Atomic check-and-set to prevent race condition (same pattern as Bootstrap.cs)
         if (Interlocked.CompareExchange(ref _isInitializing, 1, 0) != 0)
             return;
@@ -166,7 +168,7 @@ public static partial class InspectorSdk
         // Atomic guard: reuse _isInitializing to serialize Initialize/Shutdown
         if (Interlocked.CompareExchange(ref _isInitializing, 1, 0) != 0)
         {
-            RecordShutdownRequestedDuringInitialization();
+            _ = TryRecordShutdownDuringInitialization();
             return;
         }
 
@@ -190,7 +192,7 @@ public static partial class InspectorSdk
         }
         finally
         {
-            Interlocked.Exchange(ref _isInitializing, 0);
+            FinishShutdownOperation();
         }
     }
 

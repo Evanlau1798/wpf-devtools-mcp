@@ -58,8 +58,28 @@ public static partial class InspectorSdk
         }
     }
 
+    private static void ClearStaleDeferredShutdownRequestIfIdle()
+    {
+        lock (LifecycleLock)
+        {
+            if (!_isInitialized && Volatile.Read(ref _isInitializing) == 0)
+            {
+                Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 0);
+            }
+        }
+    }
+
     private static void RecordShutdownRequestedDuringInitialization()
         => Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 1);
+
+    private static void FinishShutdownOperation()
+    {
+        lock (LifecycleLock)
+        {
+            Interlocked.Exchange(ref _shutdownRequestedDuringInitialization, 0);
+            Interlocked.Exchange(ref _isInitializing, 0);
+        }
+    }
 
     private static bool TryTakePublishedHostForShutdown(
         out InspectorHost? host,

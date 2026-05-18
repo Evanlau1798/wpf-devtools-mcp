@@ -142,6 +142,13 @@ internal sealed class InspectorSdkTestContext : IDisposable
         return published;
     }
 
+    public static void SetShutdownRequestedDuringInitializationForTesting(int value)
+    {
+        typeof(SdkInspector)
+            .GetField("_shutdownRequestedDuringInitialization", BindingFlags.NonPublic | BindingFlags.Static)!
+            .SetValue(null, value);
+    }
+
     public static InspectorHost? GetInspectorSdkHost()
     {
         return (InspectorHost?)typeof(SdkInspector)

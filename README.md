@@ -118,7 +118,7 @@ dotnet run --project src/WpfDevTools.Mcp.Server/
 
 1. After `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the target executable, call `connect()` first and let the server auto-discover the target when only one visible WPF app is available.
 2. Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you intentionally need background / foreground filtering before connecting.
-3. Build initial context with `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before expanding full trees.
+3. Build initial context with `get_ui_summary` or `get_form_summary`; use `get_element_snapshot(elementId)` only after a concrete elementId is known.
 4. Use tree tools only when scene-level summaries are insufficient and you need stable `elementId` values.
 5. After diagnostics, interaction, or mutation, prefer `navigation.recommended` first and treat `nextSteps` as the compatibility field for older clients instead of guessing the next tool.
 
@@ -222,7 +222,7 @@ The current implementation hardens the default injection-based transport and sti
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected inspector certificate | Useful when you want strict certificate selection |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Explicitly allowlists raw-injection targets | Use a semicolon-separated list of exact absolute executable paths when SDK-hosted reuse is not possible |
 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Restricts all `connect()` targets | Required semicolon-separated exact absolute executable paths; unset or malformed configured entries fail closed |
-| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Gates runtime mutation, interaction, and render-measurement tools | Set `true` to opt in; unset, invalid, or `false` values fail closed |
+| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Gates runtime mutation, interaction, render-measurement, and session state-consuming tools such as `capture_state_snapshot` and `drain_events` | Set `true` to opt in; unset, invalid, or `false` values fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Gates `element_screenshot` | Set `true` to opt in; unset, invalid, or `false` values fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Gates ViewModel inspection tools | Set `true` to opt in; unset, invalid, or `false` values fail closed |
 

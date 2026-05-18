@@ -20,7 +20,7 @@ public static class ServerInstructions
         1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path; unset or malformed values fail closed with SecurityError before connect() attaches
         2. connect() -> try auto-discovery against visible allowlisted WPF apps, then reuse a compatible existing SDK host or apply the raw-injection target policy before injecting Inspector DLL
         3. If connect() reports multiple candidates, call get_processes(windowFilter) and retry connect(processId)
-        4. Build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees
+        4. Build initial context with get_ui_summary or get_form_summary before expanding trees; use get_element_snapshot(elementId) only after a concrete elementId is known
         5. Use focused inspection/interaction tools against the connected process
         6. Do not call get_processes before connect() unless auto-discovery is ambiguous or you explicitly need filtered discovery before connecting
 
@@ -78,7 +78,7 @@ public static class ServerInstructions
         - Runtime metadata is returned as structured JSON; use structured fields over text scraping when possible
 
         === TOOL SELECTION GUIDE ===
-        - Need quick scene context first? -> get_ui_summary (semantic default; use summaryOnly=true when you only need summaryText), get_element_snapshot, or get_form_summary
+        - Need quick scene context first? -> get_ui_summary (semantic default; use summaryOnly=true when you only need summaryText) or get_form_summary; use get_element_snapshot(elementId) only after a concrete elementId is known
         - Need exact element lookup first? -> find_elements, then get_visual_tree/get_logical_tree for local structure
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
         - Binding active but data looks wrong? -> get_binding_mismatches (path, type, nullability analysis)
@@ -106,14 +106,14 @@ public static class ServerInstructions
         === AI AGENT BEST PRACTICES ===
         - Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path before connect(); unset or malformed values fail closed
         - Start with connect() after the target is allowlisted unless you already know you need a specific processId or non-default windowFilter
-        - After connect() succeeds, immediately build context with get_ui_summary, get_element_snapshot, or get_form_summary before tree-heavy inspection or screenshots
+        - After connect() succeeds, immediately build context with get_ui_summary or get_form_summary before tree-heavy inspection or screenshots; use get_element_snapshot(elementId) only after a concrete elementId is known
         - When connect() reports multiple candidates, use get_processes(windowFilter) to disambiguate and retry
         - If connect() returns SecurityError with requiresExplicitTargetOptIn=true, prefer SDK-hosted reuse first. Only use WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS for explicitly reviewed external executables.
         - Do not call get_processes before connect() as a default habit; treat it as a disambiguation or filtering tool
         - When hidden or background targets matter, prefer connect(windowFilter='all') instead of listing processes first just to widen auto-discovery
         - When multiple WPF processes are expected and largest-target auto-selection is intentional, prefer connect(selectionStrategy='largest_working_set', windowFilter='all') instead of a separate get_processes round trip
         - Store processId in conversation context after successful connect()
-        - Prefer get_ui_summary/get_element_snapshot/get_form_summary before tree-heavy inspection
+        - Prefer get_ui_summary/get_form_summary before tree-heavy inspection; use get_element_snapshot(elementId) only after a concrete elementId is known
         - Prefer get_ui_summary(summaryOnly=true, depthMode='semantic') for initial scene orientation unless you already have a narrow element-centric question
         - Use depth=2-3 for initial tree exploration; increase only if needed
         - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
@@ -137,18 +137,19 @@ public static class ServerInstructions
 
         === SERVER-SIDE POLICY GATES ===
         - Operators must configure WPFDEVTOOLS_MCP_ALLOWED_TARGETS with a semicolon-separated exact absolute executable path allowlist before connect(); unset or malformed configured entries fail closed
-        - WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true opts into runtime mutation, interaction, and render-measurement tools before they reach the target process
+        - WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true opts into runtime mutation, interaction, render-measurement, and session state-consuming tools such as capture_state_snapshot and drain_events before they reach the target process
         - WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true opts into element_screenshot at the MCP boundary
         - WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true opts into get_viewmodel, get_commands, modify_viewmodel, and execute_command
         - Unset or disabled gates return errorCode: SecurityError; invalid boolean gate values return errorCode: InvalidPolicyConfiguration
 
-        === DESTRUCTIVE TOOLS (modify running app - changes NOT persisted to XAML) ===
+        === DESTRUCTIVE TOOLS (modify running app or consume session state - changes NOT persisted to XAML) ===
         - set_dp_value, clear_dp_value, override_style_setter: change property/style values
         - modify_viewmodel: change ViewModel properties
         - execute_command, fire_routed_event, click_element, simulate_keyboard: trigger actions
         - drag_and_drop: simulate drag-drop operations
         - invalidate_layout: force layout recalculation
         - focus_element, restore_state_snapshot: change focus or replay captured runtime state
+        - capture_state_snapshot, drain_events: create/replace session snapshots or consume buffered runtime events
         - wait_for_dp_change_after_mutation: executes one live mutation before waiting for the resulting property transition
         - batch_mutate: execute multiple mutations in ordered sequence
         - scroll_to_element: change scroll position to bring element into view

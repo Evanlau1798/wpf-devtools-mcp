@@ -140,11 +140,13 @@ public class SecurityDocumentationTests
     }
 
     [Theory]
+    [InlineData("README.md", "session state-consuming tools")]
     [InlineData("SECURITY.md", "session state-consuming tools")]
     [InlineData("docfx/production/security.md", "session state-consuming tools")]
     [InlineData("docfx/reference/configuration.md", "session state-consuming tools")]
     [InlineData("docfx/zh-tw/production/security.md", "session state-consuming tools")]
     [InlineData("docfx/zh-tw/reference/configuration.md", "session state-consuming tools")]
+    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs", "session state-consuming tools")]
     public void Documentation_ShouldDescribeDestructiveGateForSessionStateConsumingTools(
         string relativePath,
         string expectedCategory)

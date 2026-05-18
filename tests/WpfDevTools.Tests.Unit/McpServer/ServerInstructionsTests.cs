@@ -80,8 +80,9 @@ public class ServerInstructionsTests
     [Fact]
     public void Value_ShouldGuideSceneFirstContextAndDirectConnectOverrides()
     {
-        ServerInstructions.Value.Should().Contain("get_ui_summary, get_element_snapshot, or get_form_summary",
-            "server instructions should explicitly tie successful connect flows to the scene-first context tools");
+        ServerInstructions.Value.Should().Contain("get_ui_summary or get_form_summary");
+        ServerInstructions.Value.Should().Contain("get_element_snapshot(elementId) only after a concrete elementId is known",
+            "server instructions should explicitly tie successful connect flows to scene-first context tools without implying element snapshots work before element discovery");
         ServerInstructions.Value.Should().Contain("connect(windowFilter='all')",
             "server instructions should show the direct hidden/background auto-discovery override");
         ServerInstructions.Value.Should().Contain("connect(selectionStrategy='largest_working_set', windowFilter='all')",

@@ -224,6 +224,26 @@ public class ElementFinderTests
     }
 
     [StaFact]
+    public void FindById_WhenCacheMissExceedsDefaultTreePayloadBudget_ShouldFindWithinAcceptedLookupLimit()
+    {
+        using var finder = new ElementFinder();
+        var root = new StackPanel();
+        for (var index = 0; index < 1000; index++)
+        {
+            root.Children.Add(new Button());
+        }
+
+        var target = new Button();
+        root.Children.Add(target);
+        var targetId = finder.GenerateElementId(target);
+        ClearWeakElementCacheEntry(finder, targetId);
+
+        var found = finder.FindById(targetId, root);
+
+        found.Should().BeSameAs(target);
+    }
+
+    [StaFact]
     public void FindByIdAcrossRoots_WhenFirstRootConsumesBudget_ShouldNotSearchSecondRoot()
     {
         using var finder = new ElementFinder();

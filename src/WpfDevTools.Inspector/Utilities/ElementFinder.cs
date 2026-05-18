@@ -315,7 +315,7 @@ public sealed class ElementFinder : IDisposable
     }
 
     private static int NormalizeTraversalLimit(int? maxTraversalNodes)
-        => Math.Max(1, Math.Min(maxTraversalNodes ?? TreeTraversalDefaults.DefaultMaxNodes, TreeTraversalDefaults.MaxNodesLimit));
+        => Math.Max(1, Math.Min(maxTraversalNodes ?? TreeTraversalDefaults.DefaultElementLookupMaxNodes, TreeTraversalDefaults.MaxNodesLimit));
 
     private sealed class TraversalBudget(int initialBudget)
     {

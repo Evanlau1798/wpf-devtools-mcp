@@ -65,6 +65,7 @@ public class ReleasePackagingWorkflowTests
 
         coreHelper.Should().Contain("function ConvertTo-NativeResourceVersion");
         publishScript.Should().Contain("ConvertTo-NativeResourceVersion -Version $version");
+        publishScript.Should().Contain("ConvertTo-MSBuildPropertyValue -Value $nativeResourceVersion.Numeric");
         publishScript.Should().Contain("/p:BootstrapperFileVersion=");
         publishScript.Should().Contain("/p:BootstrapperProductVersionString=");
     }

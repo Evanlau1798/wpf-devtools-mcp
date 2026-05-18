@@ -48,6 +48,7 @@ if ([string]::IsNullOrWhiteSpace($version)) {
 
 Assert-ExpectedReleaseTagMatchesVersion -Version $version -ExpectedReleaseTag $ExpectedReleaseTag -ProjectPath $serverProject
 $nativeResourceVersion = ConvertTo-NativeResourceVersion -Version $version
+$nativeResourceNumericVersion = ConvertTo-MSBuildPropertyValue -Value $nativeResourceVersion.Numeric
 
 $resolvedArchitectures = Resolve-ArchitectureList -InputArchitectures $Architectures
 Assert-ArchitectureToolchainAvailable `
@@ -107,8 +108,8 @@ foreach ($architecture in $resolvedArchitectures) {
             $bootstrapperProject,
             "/p:Configuration=$Configuration",
             "/p:Platform=$bootstrapperPlatform",
-            "/p:BootstrapperFileVersion=$($nativeResourceVersion.Numeric)",
-            "/p:BootstrapperProductVersion=$($nativeResourceVersion.Numeric)",
+            "/p:BootstrapperFileVersion=$nativeResourceNumericVersion",
+            "/p:BootstrapperProductVersion=$nativeResourceNumericVersion",
             "/p:BootstrapperFileVersionString=$($nativeResourceVersion.FileVersionString)",
             "/p:BootstrapperProductVersionString=$($nativeResourceVersion.ProductVersionString)",
             '/p:LinkIncremental=false'

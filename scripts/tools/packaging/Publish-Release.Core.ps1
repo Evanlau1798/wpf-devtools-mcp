@@ -40,7 +40,7 @@ function ConvertTo-MSBuildPropertyValue {
         return ''
     }
 
-    return $Value.TrimEnd(';') -replace ';', '%3B'
+    return ($Value.TrimEnd(';') -replace ';', '%3B') -replace ',', '%2c'
 }
 
 function Resolve-WindowsSdkDirectory {

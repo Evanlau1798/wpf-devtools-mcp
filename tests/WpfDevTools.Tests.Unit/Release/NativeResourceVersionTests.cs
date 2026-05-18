@@ -26,6 +26,20 @@ public sealed class NativeResourceVersionTests
         result.Stdout.Trim().Should().Be($"{expectedNumeric}|{expectedFileVersion}|{expectedProductVersion}");
     }
 
+    [Fact]
+    public void ConvertToMsBuildPropertyValue_ShouldEscapeNativeResourceVersionCommas()
+    {
+        var command = $"""
+            . '{EscapePowerShellPath(GetRepoFilePath("scripts/tools/packaging/Publish-Release.Core.ps1"))}'
+            ConvertTo-MSBuildPropertyValue -Value '0,1,0,0'
+            """;
+
+        var result = RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(20));
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        result.Stdout.Trim().Should().Be("0%2c1%2c0%2c0");
+    }
+
     private static string EscapePowerShellPath(string path) =>
         path.Replace("'", "''", StringComparison.Ordinal);
 }

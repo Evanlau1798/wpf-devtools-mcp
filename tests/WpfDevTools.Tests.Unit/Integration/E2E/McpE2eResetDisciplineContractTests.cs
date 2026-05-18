@@ -70,10 +70,25 @@ public sealed class McpE2eResetDisciplineContractTests
             "tests/WpfDevTools.Tests.Integration/E2E/NestedExecuteCommandPolicyE2eTests.cs");
 
         var content = File.ReadAllText(path);
+        var initializeBody = ExtractMethodBody(content, "InitializeAsync");
+        var liveTryIndex = initializeBody.IndexOf("try", StringComparison.Ordinal);
+        liveTryIndex.Should().BeGreaterThan(0);
 
-        content.Should().NotContain(
-            "ShouldConvertInitializationFailureToSkip",
-            "locked-down live security E2E setup/connect failures should fail visibly once the live TestApp and MCP server startup path has begun");
+        Regex.Matches(initializeBody, "SkipException\\.ForSkip", RegexOptions.CultureInvariant)
+            .Select(match => match.Index)
+            .Should()
+            .OnlyContain(index => index < liveTryIndex,
+                "only missing prerequisite artifacts may skip before live TestApp/MCP setup begins");
+
+        var catchBody = ExtractCatchBody(initializeBody, "catch (Exception ex)");
+        catchBody.Should().NotContain("SkipException.ForSkip",
+            "live setup/connect failures should fail visibly rather than being reported as skipped");
+
+        var disposeIndex = catchBody.IndexOf("Dispose();", StringComparison.Ordinal);
+        var visibleFailureIndex = catchBody.IndexOf("throw new InvalidOperationException", StringComparison.Ordinal);
+        disposeIndex.Should().BeGreaterOrEqualTo(0, "live setup failure handling must clean up partial-start resources");
+        visibleFailureIndex.Should().BeGreaterThan(disposeIndex,
+            "cleanup should run before the visible setup failure is thrown");
     }
 
     private static IEnumerable<McpE2eClassContract> GetMcpE2eClassContracts(string path)
@@ -107,6 +122,34 @@ public sealed class McpE2eResetDisciplineContractTests
 
     private static bool InheritsSharedResetBase(string baseList)
         => baseList.Contains("SharedStateMcpE2eTestBase", StringComparison.Ordinal);
+
+    private static string ExtractMethodBody(string content, string methodName)
+    {
+        var methodIndex = content.IndexOf(methodName, StringComparison.Ordinal);
+        methodIndex.Should().BeGreaterOrEqualTo(0);
+
+        var bodyStartIndex = content.IndexOf('{', methodIndex);
+        bodyStartIndex.Should().BeGreaterOrEqualTo(methodIndex);
+
+        var bodyEndIndex = FindMatchingBrace(content, bodyStartIndex);
+        bodyEndIndex.Should().BeGreaterThan(bodyStartIndex);
+
+        return content.Substring(bodyStartIndex, bodyEndIndex - bodyStartIndex + 1);
+    }
+
+    private static string ExtractCatchBody(string content, string catchSignature)
+    {
+        var catchIndex = content.IndexOf(catchSignature, StringComparison.Ordinal);
+        catchIndex.Should().BeGreaterOrEqualTo(0);
+
+        var bodyStartIndex = content.IndexOf('{', catchIndex);
+        bodyStartIndex.Should().BeGreaterOrEqualTo(catchIndex);
+
+        var bodyEndIndex = FindMatchingBrace(content, bodyStartIndex);
+        bodyEndIndex.Should().BeGreaterThan(bodyStartIndex);
+
+        return content.Substring(bodyStartIndex, bodyEndIndex - bodyStartIndex + 1);
+    }
 
     private static int FindMatchingBrace(string content, int openingBraceIndex)
     {

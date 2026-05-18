@@ -63,6 +63,19 @@ public sealed class McpE2eResetDisciplineContractTests
             "shared McpE2E tests that mutate app/UI state or attach global monitoring must inherit SharedStateMcpE2eTestBase so each test resets the shared TestApp session before and after execution");
     }
 
+    [Fact]
+    public void SelfContainedLiveSecurityE2e_ShouldFailRuntimeSetupFailuresVisibly()
+    {
+        var path = TestRepositoryPaths.GetRepoFilePath(
+            "tests/WpfDevTools.Tests.Integration/E2E/NestedExecuteCommandPolicyE2eTests.cs");
+
+        var content = File.ReadAllText(path);
+
+        content.Should().NotContain(
+            "ShouldConvertInitializationFailureToSkip",
+            "locked-down live security E2E setup/connect failures should fail visibly once the live TestApp and MCP server startup path has begun");
+    }
+
     private static IEnumerable<McpE2eClassContract> GetMcpE2eClassContracts(string path)
     {
         var content = File.ReadAllText(path);

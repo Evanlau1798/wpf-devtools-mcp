@@ -201,11 +201,13 @@ public sealed class NestedExecuteCommandPolicyE2eTests : IAsyncLifetime, IDispos
 
             connectResult.GetProperty("success").GetBoolean().Should().BeTrue();
         }
-        catch (Exception ex) when (McpE2eFixture.ShouldConvertInitializationFailureToSkip(ex))
+        catch (Exception ex)
         {
             var stderr = _client?.ServerStderr ?? string.Empty;
             Dispose();
-            throw SkipException.ForSkip($"Nested execute_command policy E2E setup failed: {ex.Message}\n---STDERR---\n{stderr}");
+            throw new InvalidOperationException(
+                $"Nested execute_command policy E2E setup failed: {ex.Message}\n---STDERR---\n{stderr}",
+                ex);
         }
     }
 

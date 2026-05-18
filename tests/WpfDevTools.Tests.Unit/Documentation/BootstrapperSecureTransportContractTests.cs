@@ -73,6 +73,21 @@ public class BootstrapperSecureTransportContractTests
     }
 
     [Fact]
+    public void BootstrapEntry_ShouldLogAuthSecretWipeFailureBeforeDeleting()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+        var method = GetMethodBody(content, "static void SecureDeleteAuthSecretFile");
+
+        method.Should().Contain("if (!WipeFileContents(path))",
+            "native cleanup must not silently ignore wipe/truncate failures before deleting the primary path");
+        method.Should().Contain("LogAuthSecretFileCleanupFailure(L\"wipe\"",
+            "native cleanup should emit a diagnostic when a hard-link mitigation wipe fails");
+        method.IndexOf("WipeFileContents(path)", StringComparison.Ordinal)
+            .Should().BeLessThan(method.IndexOf("DeleteFileW", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void BootstrapEntry_ShouldUseFailClosedJsonConfigParser()
     {
         var entryContent = File.ReadAllText(GetRepoFilePath(
@@ -154,4 +169,31 @@ public class BootstrapperSecureTransportContractTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string GetMethodBody(string content, string signature)
+    {
+        var start = content.IndexOf(signature, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0);
+        var braceStart = content.IndexOf('{', start);
+        braceStart.Should().BeGreaterThan(start);
+
+        var depth = 0;
+        for (var i = braceStart; i < content.Length; i++)
+        {
+            if (content[i] == '{')
+            {
+                depth++;
+            }
+            else if (content[i] == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return content[braceStart..(i + 1)];
+                }
+            }
+        }
+
+        throw new InvalidOperationException($"Could not locate method body for {signature}.");
+    }
 }

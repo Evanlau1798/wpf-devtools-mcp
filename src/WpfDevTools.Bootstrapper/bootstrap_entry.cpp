@@ -278,9 +278,11 @@ static bool ReadUtf8File(const std::wstring& path, std::wstring& value)
     return success;
 }
 
-static void LogAuthSecretDeleteFailure(DWORD errorCode)
+static void LogAuthSecretFileCleanupFailure(const wchar_t* operation, DWORD errorCode)
 {
-    std::wstring message = L"WpfDevTools Bootstrapper warning: failed to delete authentication secret file. error="
+    std::wstring message = L"WpfDevTools Bootstrapper warning: failed to ";
+    message += operation;
+    message += L" authentication secret file. error="
         + std::to_wstring(errorCode) + L"\n";
     OutputDebugStringW(message.c_str());
 }
@@ -306,6 +308,17 @@ static bool WipeFileContents(const std::wstring& path)
     }
 
     bool success = true;
+    DWORD errorCode = ERROR_SUCCESS;
+    auto recordFailure = [&errorCode, &success](DWORD fallbackError = ERROR_WRITE_FAULT)
+    {
+        success = false;
+        if (errorCode == ERROR_SUCCESS)
+        {
+            DWORD lastError = GetLastError();
+            errorCode = lastError == ERROR_SUCCESS ? fallbackError : lastError;
+        }
+    };
+
     if (fileSize.QuadPart > 0)
     {
         BYTE zeros[256] = {};
@@ -316,7 +329,7 @@ static bool WipeFileContents(const std::wstring& path)
             DWORD bytesWritten = 0;
             if (!WriteFile(file, zeros, bytesToWrite, &bytesWritten, nullptr) || bytesWritten != bytesToWrite)
             {
-                success = false;
+                recordFailure();
                 break;
             }
 
@@ -324,24 +337,32 @@ static bool WipeFileContents(const std::wstring& path)
         }
 
         if (!FlushFileBuffers(file))
-            success = false;
+            recordFailure(ERROR_WRITE_FAULT);
 
         SetFilePointer(file, 0, nullptr, FILE_BEGIN);
     }
 
     if (!SetEndOfFile(file))
-        success = false;
+        recordFailure(ERROR_WRITE_FAULT);
 
     if (!FlushFileBuffers(file))
-        success = false;
+        recordFailure(ERROR_WRITE_FAULT);
 
     CloseHandle(file);
+    if (!success)
+        SetLastError(errorCode);
+
     return success;
 }
 
 static void SecureDeleteAuthSecretFile(const std::wstring& path)
 {
-    WipeFileContents(path);
+    if (!WipeFileContents(path))
+    {
+        DWORD wipeErrorCode = GetLastError();
+        if (wipeErrorCode != ERROR_FILE_NOT_FOUND && wipeErrorCode != ERROR_PATH_NOT_FOUND)
+            LogAuthSecretFileCleanupFailure(L"wipe", wipeErrorCode);
+    }
 
     if (DeleteFileW(path.c_str()))
         return;
@@ -350,7 +371,7 @@ static void SecureDeleteAuthSecretFile(const std::wstring& path)
     if (errorCode == ERROR_FILE_NOT_FOUND || errorCode == ERROR_PATH_NOT_FOUND)
         return;
 
-    LogAuthSecretDeleteFailure(errorCode);
+    LogAuthSecretFileCleanupFailure(L"delete", errorCode);
 }
 
 static bool LoadAuthSecretFromFile(BootstrapConfig& config)

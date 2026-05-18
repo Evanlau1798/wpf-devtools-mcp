@@ -1,5 +1,8 @@
 using System.ComponentModel;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using FluentAssertions;
 using WpfDevTools.Injector.Injection;
 using Xunit;
@@ -209,6 +212,67 @@ public class InjectionRequestTests
     }
 
     [Fact]
+    public void CreateBootstrapParameterPayload_WithSecuritySettings_ShouldGrantCurrentUserWriteForCleanup()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = @"C:\app\Bootstrapper.x64.dll",
+            InspectorDllPath = @"C:\app\net8.0-windows\Inspector.dll",
+            ExpectedPipeName = "WpfDevTools_1234",
+            AuthenticationSecretBase64 = "YWJjZA=="
+        };
+
+        using var payload = request.CreateBootstrapParameterPayload();
+        var currentUser = WindowsIdentity.GetCurrent().User
+            ?? throw new InvalidOperationException("Current Windows identity has no SID.");
+        var security = new FileInfo(payload.AuthenticationSecretFilePath!).GetAccessControl();
+        var rules = security.GetAccessRules(includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier));
+
+        var rights = rules
+            .OfType<FileSystemAccessRule>()
+            .Where(rule => rule.AccessControlType == AccessControlType.Allow
+                && Equals(rule.IdentityReference, currentUser))
+            .Aggregate((FileSystemRights)0, (current, rule) => current | rule.FileSystemRights);
+
+        rights.Should().HaveFlag(FileSystemRights.Write,
+            "the same non-elevated user that owns the bootstrap secret file must be able to overwrite and truncate it during cleanup");
+    }
+
+    [Fact]
+    public void SecureDeleteSecretFile_WhenWipeCannotOpenForWrite_ShouldStillAttemptDelete()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var path = Path.Combine(
+            Path.GetTempPath(),
+            $"WpfDevTools_AuthSecret_DeleteOnly_{Guid.NewGuid():N}.txt");
+        File.WriteAllText(path, "YWJjZA==");
+
+        try
+        {
+            RestrictToCurrentUserDeleteOnly(path);
+
+            InvokeSecureDeleteSecretFile(path);
+
+            File.Exists(path).Should().BeFalse(
+                "a best-effort wipe failure must not leave the primary plaintext temp file behind");
+        }
+        finally
+        {
+            TryDelete(path);
+        }
+    }
+
+    [Fact]
     public void CreateBootstrapParameterPayload_WhenSecretFileCreationFails_ShouldDeletePartialSecretFile()
     {
         var request = new InjectionRequest
@@ -258,6 +322,32 @@ public class InjectionRequestTests
         {
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
+    }
+
+    private static void InvokeSecureDeleteSecretFile(string path)
+    {
+        var method = typeof(BootstrapParameterPayload).GetMethod(
+            "SecureDeleteSecretFile",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        method!.Invoke(null, new object?[] { path });
+    }
+
+    private static void RestrictToCurrentUserDeleteOnly(string path)
+    {
+        var currentUser = WindowsIdentity.GetCurrent().User
+            ?? throw new InvalidOperationException("Current Windows identity has no SID.");
+
+        var security = new FileSecurity();
+        security.SetOwner(currentUser);
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.AddAccessRule(new FileSystemAccessRule(
+            currentUser,
+            FileSystemRights.Read | FileSystemRights.Delete | FileSystemRights.Synchronize,
+            AccessControlType.Allow));
+
+        new FileInfo(path).SetAccessControl(security);
     }
 
     private static void TryDelete(string path)

@@ -116,7 +116,7 @@ internal sealed class BootstrapParameterPayload : IDisposable
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
         security.AddAccessRule(new FileSystemAccessRule(
             currentUser,
-            FileSystemRights.Read | FileSystemRights.Delete | FileSystemRights.ReadPermissions,
+            FileSystemRights.Read | FileSystemRights.Write | FileSystemRights.Delete,
             AccessControlType.Allow));
         security.AddAccessRule(new FileSystemAccessRule(
             new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
@@ -137,13 +137,27 @@ internal sealed class BootstrapParameterPayload : IDisposable
             return;
         }
 
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
         try
         {
-            if (File.Exists(path))
-            {
-                WipeSecretFile(path);
-                File.Delete(path);
-            }
+            WipeSecretFile(path);
+        }
+        catch (IOException ex)
+        {
+            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file '{path}': {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file '{path}': {ex.Message}");
+        }
+
+        try
+        {
+            File.Delete(path);
         }
         catch (IOException ex)
         {

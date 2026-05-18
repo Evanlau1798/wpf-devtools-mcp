@@ -182,6 +182,36 @@ public sealed class ElementSearchEnhancedQueryIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void FindElements_WithExplicitTraversalBudget_ShouldApplyBudgetToScopedRootLookup()
+    {
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            using var finder = new ElementFinder();
+            var analyzer = new ElementSearchAnalyzer(finder);
+            var searchPanel = new StackPanel();
+            searchPanel.Children.Add(new Button { Name = "LateScopedButton" });
+
+            var root = new StackPanel();
+            root.Children.Add(new TextBlock { Text = "Header" });
+            root.Children.Add(new TextBlock { Text = "Spacer" });
+            root.Children.Add(searchPanel);
+
+            CreateVisibleMainWindow(root);
+
+            var rootId = finder.GenerateElementId(searchPanel);
+            EvictElementCacheEntry(finder, rootId);
+
+            return JsonSerializer.SerializeToElement(analyzer.FindElementsWithTraversalBudget(
+                rootElementId: rootId,
+                typeName: "Button",
+                maxTraversalNodes: 2));
+        });
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+    }
+
+    [Fact]
     public void FindElements_WithNoMatches_ShouldReturnEmptyResults()
     {
         using var finder = new ElementFinder();

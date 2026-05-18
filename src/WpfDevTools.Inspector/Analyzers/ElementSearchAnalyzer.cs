@@ -102,33 +102,29 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         int? maxTraversalNodes,
         string? matchMode)
     {
-        var root = rootElementId == null
-            ? ResolveRootElement()
-            : _elementFinder.FindById(rootElementId);
+        var limit = maxResults.GetValueOrDefault(20);
+        if (limit <= 0)
+        {
+            return ToolErrorFactory.InvalidArgument("maxResults must be a positive integer.");
+        }
+
+        if (maxTraversalNodes is <= 0)
+        {
+            return ToolErrorFactory.InvalidArgument("maxTraversalNodes must be a positive integer.");
+        }
+
+        var traversalLimit = ResolveTraversalLimit(maxTraversalNodes);
+        var rootLookupLimit = maxTraversalNodes.HasValue ? traversalLimit : (int?)null;
+        var root = ResolveSearchRoot(rootElementId, rootLookupLimit);
 
         return InvokeOnDispatcher<object>(root?.Dispatcher ?? Application.Current?.Dispatcher, () =>
         {
-            var resolvedRoot = root ?? (rootElementId == null
-                ? ResolveRootElement()
-                : _elementFinder.FindById(rootElementId));
+            var resolvedRoot = root ?? ResolveSearchRoot(rootElementId, rootLookupLimit);
 
             if (resolvedRoot == null)
             {
                 return ToolErrorFactory.ElementNotFound(rootElementId);
             }
-
-            var limit = maxResults.GetValueOrDefault(20);
-            if (limit <= 0)
-            {
-                return ToolErrorFactory.InvalidArgument("maxResults must be a positive integer.");
-            }
-
-            if (maxTraversalNodes is <= 0)
-            {
-                return ToolErrorFactory.InvalidArgument("maxTraversalNodes must be a positive integer.");
-            }
-
-            var traversalLimit = ResolveTraversalLimit(maxTraversalNodes);
 
             if (propertyName?.Length > MaxSearchPropertyNameLength)
             {
@@ -339,6 +335,13 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
     {
         var resolved = maxTraversalNodes ?? TreeTraversalDefaults.DefaultMaxNodes;
         return Math.Max(1, Math.Min(resolved, TreeTraversalDefaults.MaxNodesLimit));
+    }
+
+    private DependencyObject? ResolveSearchRoot(string? rootElementId, int? maxTraversalNodes)
+    {
+        return rootElementId == null
+            ? ResolveRootElement()
+            : _elementFinder.FindById(rootElementId, maxTraversalNodes: maxTraversalNodes);
     }
 
     private DependencyObject? ResolveRootElement()

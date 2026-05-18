@@ -422,9 +422,8 @@ function Assert-PackagePayloadIntegrity {
         -TrustedSignerThumbprint $TrustedSignerThumbprint `
         -TrustedSignerSubject $TrustedSignerSubject
     if (-not (Test-InstallerTestModeEnabled) -and
-        [string]::IsNullOrWhiteSpace([string]$expectedSigner.Thumbprint) -and
-        [string]::IsNullOrWhiteSpace([string]$expectedSigner.Subject)) {
-        throw 'Package payload signature verification requires pinned signer metadata from WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT/WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT or another independent trust root.'
+        [string]::IsNullOrWhiteSpace([string]$expectedSigner.Thumbprint)) {
+        throw 'Package payload signature verification requires pinned signer metadata with WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT or another independent signer thumbprint trust root. WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT cannot be used without a thumbprint.'
     }
 
     foreach ($targetPath in $targets) {

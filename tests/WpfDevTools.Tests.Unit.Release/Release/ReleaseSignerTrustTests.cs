@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Xunit;
 
@@ -6,6 +8,65 @@ namespace WpfDevTools.Tests.Unit.Release;
 
 public sealed class ReleaseSignerTrustTests
 {
+    [Fact]
+    public void PackagePayloadIntegrity_ShouldRejectSubjectOnlySignerPinInProductionMode()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(
+                tempRoot,
+                "x64",
+                useSignedPayload: false,
+                isolateArchiveContents: true);
+            var extractRoot = Path.Combine(tempRoot, "package-extract");
+            ZipFile.ExtractToDirectory(archivePath, extractRoot);
+            RewriteManifestAsReleaseSigned(Path.Combine(extractRoot, "bin", "manifest.json"));
+
+            var command = string.Join(Environment.NewLine, new[]
+            {
+                "$ErrorActionPreference = 'Stop'",
+                "$script:WpfDevToolsInstallerTestModeEnabled = $false",
+                $". {QuotePowerShellString(ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Release.ps1"))}",
+                $". {QuotePowerShellString(ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.PackageIntegrity.ps1"))}",
+                "function Resolve-InstallerMode { return 'online' }",
+                "function Get-PackagePayloadSignature {",
+                "    param([string]$Path)",
+                "    return [pscustomobject]@{",
+                "        Status = [System.Management.Automation.SignatureStatus]::Valid",
+                "        SignerCertificate = [pscustomobject]@{",
+                "            Thumbprint = 'TESTSIGNER00000000000000000000000000000000'",
+                "            Subject = 'CN=WPFDEVTOOLS TEST SIGNER'",
+                "        }",
+                "    }",
+                "}",
+                "$env:WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT = 'CN=WPFDEVTOOLS TEST SIGNER'",
+                $"$manifest = Get-Content -LiteralPath {QuotePowerShellString(Path.Combine(extractRoot, "bin", "manifest.json"))} -Raw | ConvertFrom-Json",
+                "Assert-PackagePayloadIntegrity -PackageDirectory " +
+                    $"{QuotePowerShellString(extractRoot)} -PackageManifest $manifest " +
+                    "-TrustedArchiveManifestPolicy",
+                "'accepted'"
+            });
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
+                    ["WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"] = null,
+                    ["WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT"] = null
+                });
+
+            result.ExitCode.Should().NotBe(0, result.Stdout + result.Stderr);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     [Fact]
     public void PackagePayloadIntegrity_ShouldRejectGitHubReleaseSignerWhenOnlyPinComesFromReleaseMetadata()
     {
@@ -71,4 +132,13 @@ public sealed class ReleaseSignerTrustTests
 
     private static string QuotePowerShellString(string value)
         => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
+
+    private static void RewriteManifestAsReleaseSigned(string manifestPath)
+    {
+        var manifest = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+        manifest["channel"] = "release";
+        manifest["buildConfiguration"] = "Release";
+        manifest["signaturePolicy"] = "RequireAuthenticodeSignature";
+        File.WriteAllText(manifestPath, manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+    }
 }

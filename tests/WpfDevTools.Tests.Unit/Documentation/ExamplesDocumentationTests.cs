@@ -79,21 +79,44 @@ public sealed class ExamplesDocumentationTests
     [Fact]
     public void ExamplesWithConnectWorkflow_ShouldDocumentTargetAllowlistBeforeFirstConnect()
     {
+        var checkedPaths = 0;
         foreach (var relativePath in GetExampleMarkdownRelativePaths())
         {
             var content = File.ReadAllText(GetRepoFilePath(relativePath));
-            var connectIndex = content.IndexOf("connect(", StringComparison.OrdinalIgnoreCase);
+            var connectIndex = GetFirstConnectWorkflowIndex(content);
             if (connectIndex < 0)
             {
                 continue;
             }
 
+            checkedPaths++;
             content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
                 $"{relativePath} should document the target allowlist prerequisite for connect workflows");
             content.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)
                 .Should().BeLessThan(connectIndex,
                     $"{relativePath} should explain the allowlist prerequisite before the first connect step");
         }
+
+        checkedPaths.Should().BeGreaterThan(0, "the examples allowlist contract should exercise at least one connect workflow");
+    }
+
+    [Fact]
+    public void FirstConnectWorkflowIndex_ShouldDetectJsonOnlyConnectToolCalls()
+    {
+        const string content = """
+            ```json
+            {
+              "jsonrpc": "2.0",
+              "method": "tools/call",
+              "params": {
+                "name": "connect"
+              }
+            }
+            ```
+            """;
+
+        GetFirstConnectWorkflowIndex(content).Should().BeGreaterThanOrEqualTo(0,
+            "JSON-RPC examples often express connect as a tool name rather than prose");
     }
 
     [Theory]
@@ -231,6 +254,25 @@ public sealed class ExamplesDocumentationTests
         => string.Join(
             Environment.NewLine,
             GetExampleMarkdownRelativePaths().Select(relativePath => File.ReadAllText(GetRepoFilePath(relativePath))));
+
+    private static int GetFirstConnectWorkflowIndex(string content)
+    {
+        var proseIndex = content.IndexOf("connect(", StringComparison.OrdinalIgnoreCase);
+        var jsonToolMatch = Regex.Match(content, @"""name""\s*:\s*""connect""",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var jsonToolIndex = jsonToolMatch.Success ? jsonToolMatch.Index : -1;
+        if (proseIndex < 0)
+        {
+            return jsonToolIndex;
+        }
+
+        if (jsonToolIndex < 0)
+        {
+            return proseIndex;
+        }
+
+        return Math.Min(proseIndex, jsonToolIndex);
+    }
 
     private static IReadOnlyList<string> GetExampleMarkdownRelativePaths()
     {

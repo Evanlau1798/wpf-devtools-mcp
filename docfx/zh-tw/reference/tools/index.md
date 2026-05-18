@@ -24,7 +24,7 @@
 
 1. `connect()` 使用預設 auto-discovery 路徑
 2. `get_active_process`
-3. `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 作為 scene-first context
+3. `get_ui_summary` 或 `get_form_summary` 作為 scene-first context
 4. 聚焦式 diagnostics
 5. interaction 或 mutation
 6. verification
@@ -62,7 +62,7 @@
 - `drain_events`：用於對 shared runtime event buffer 做 deterministic read
 - `find_elements`：支援 `exact` 與不分大小寫的 `contains` 搜尋
 - `get_affected_elements`：在大範圍 `get_bindings(recursive: true)` 之前，先做低成本的 best-effort candidate scan
-- `get_state_diff`、`get_element_snapshot`、`diagnose_visibility`、`get_interaction_readiness`：提供 scene-level diagnostics，降低對 screenshot 的依賴
+- `get_state_diff`、`get_element_snapshot(elementId)`、`diagnose_visibility`、`get_interaction_readiness`：在已取得具體 `elementId` 後提供 scene-level diagnostics，降低對 screenshot 的依賴
 - `get_ui_summary` 與 `get_form_summary`：在深入檢查前先取得語意化摘要
 
 ## Navigation 模型

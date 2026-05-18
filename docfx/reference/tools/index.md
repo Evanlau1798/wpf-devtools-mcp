@@ -24,7 +24,7 @@ Before step 1, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed t
 
 1. `connect()` for the default auto-discovery path
 2. `get_active_process`
-3. `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` for scene-first context
+3. `get_ui_summary` or `get_form_summary` for scene-first context
 4. Focused diagnostics
 5. Interaction or mutation
 6. Verification
@@ -62,7 +62,7 @@ Key capabilities worth learning early:
 - `drain_events` for deterministic reads from the shared runtime event buffer
 - `find_elements` for compact lookup with `exact` or case-insensitive `contains` matching
 - `get_affected_elements` for a cheap best-effort scan before broad `get_bindings(recursive: true)` inspection
-- `get_state_diff`, `get_element_snapshot`, `diagnose_visibility`, and `get_interaction_readiness` for scene-level diagnostics that reduce screenshot dependence
+- `get_state_diff`, `get_element_snapshot(elementId)`, `diagnose_visibility`, and `get_interaction_readiness` for scene-level diagnostics that reduce screenshot dependence after a concrete elementId is known
 - `get_ui_summary` and `get_form_summary` for semantic subtree summaries before deep inspection or form triage
 
 ## Navigation model

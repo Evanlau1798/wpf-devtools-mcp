@@ -92,7 +92,7 @@ After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absol
 - server 必須執行在 Windows。
 - 不要在 `wpf-devtools-x64.exe` 外層再包會污染 `stdout` 的啟動器。
 - `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact absolute executable path 後，一般情況先從 `connect()` 開始；只有 auto-discovery 回報多個候選，或你需要先拿到 target metadata 時才用 `get_processes(windowFilter)`。
-- 在 tree-heavy inspection 前，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`。
+- 在 tree-heavy inspection 前，優先使用 `get_ui_summary` 或 `get_form_summary`；只有在已取得具體 `elementId` 後，才呼叫 `get_element_snapshot(elementId)`。
 - 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`，並把 `nextSteps` 當成相容欄位。
 - 如果你已經知道下一步工具，且希望回應更精簡，具備額外 optional args 傳遞能力的 client 可在 `get_binding_errors` 呼叫傳入 `navigation=false`；schema-driven client 可以在這個工具上依賴這個 opt-out，因為它今天已經公告在 tool schema 中，但不應假設其他工具今天也有公開這個參數。
 - 若 `connect` 失敗，先一起檢查 server、bootstrapper 與 target 的 bitness。

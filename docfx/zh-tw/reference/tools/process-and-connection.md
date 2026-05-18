@@ -27,7 +27,7 @@
 - `connect()` 預設會對單一可見 WPF 目標做 auto-discovery；若找到多個目標，會回傳候選清單而不是隨機連線
 - `connect` 會驗證目標、解析 bootstrapper 候選項，並在目前 server 權限不足時提早阻擋
 - 同一個 `SessionManager` 與 `processId` 的並行 `connect` 會共享同一個 in-flight operation，而不是重複啟動 injection。單一 caller cancellation 只會停止該 caller 等待；只要還有其他 waiter，shared operation 會繼續；如果最後一個 waiter 也取消，shared operation 會被取消。完成後的 single-flight operation 會被移除；後續呼叫若已有 connected session 會回傳 `AlreadyConnected`，否則會開始新的 connect 嘗試。
-- connect 成功後，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 建立 scene-first 上下文，再決定是否真的需要 tree-heavy follow-up。
+- connect 成功後，優先使用 `get_ui_summary` 或 `get_form_summary` 建立 scene-first 上下文；只有在已取得具體 `elementId` 後，才呼叫 `get_element_snapshot(elementId)`。
 - `select_active_process` 只接受已成功建立 session 的程序
 - `get_active_process` 會顯示目前是否已有 active selection，以及它是在何時被選擇
 - `ping` 是快速存活檢查，不會取代 `connect`
@@ -35,7 +35,7 @@
 ## 實際工作流程
 
 ```text
-connect -> get_ui_summary -> get_element_snapshot
+connect -> get_ui_summary -> find_elements -> get_element_snapshot(elementId)
 ```
 
 ```text
@@ -43,7 +43,7 @@ connect -> get_ui_summary -> get_form_summary
 ```
 
 ```text
-connect(windowFilter='all') -> get_ui_summary -> get_element_snapshot
+connect(windowFilter='all') -> get_ui_summary -> find_elements -> get_element_snapshot(elementId)
 ```
 
 ```text

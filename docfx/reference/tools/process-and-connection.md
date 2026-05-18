@@ -27,7 +27,7 @@
 - `connect()` auto-discovers a single visible WPF target by default and returns deterministic candidate data when multiple targets are found
 - `connect` validates the target, resolves bootstrapper candidates, and blocks early when the current server lacks permission to attach
 - Concurrent `connect` calls for the same `SessionManager` and `processId` share one in-flight operation instead of starting duplicate injection attempts. A caller cancellation stops waiting for that caller only while other waiters keep the shared operation alive; if the last waiter cancels, the shared operation is cancelled. Completed single-flight operations are removed; later calls either return `AlreadyConnected` for an existing connected session or start a fresh connect attempt.
-- After connect succeeds, prefer get_ui_summary, get_element_snapshot, or get_form_summary before any tree-heavy follow-up.
+- After connect succeeds, prefer get_ui_summary or get_form_summary before any tree-heavy follow-up; use get_element_snapshot(elementId) only after a concrete elementId is known.
 - `select_active_process` only succeeds for already-connected sessions
 - `get_active_process` exposes whether an active selection exists and when it was chosen
 - `ping` is a fast liveness check, not a substitute for `connect`
@@ -35,7 +35,7 @@
 ## Practical sequences
 
 ```text
-connect -> get_ui_summary -> get_element_snapshot
+connect -> get_ui_summary -> find_elements -> get_element_snapshot(elementId)
 ```
 
 ```text
@@ -43,7 +43,7 @@ connect -> get_ui_summary -> get_form_summary
 ```
 
 ```text
-connect(windowFilter='all') -> get_ui_summary -> get_element_snapshot
+connect(windowFilter='all') -> get_ui_summary -> find_elements -> get_element_snapshot(elementId)
 ```
 
 ```text

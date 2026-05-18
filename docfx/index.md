@@ -76,7 +76,7 @@ The repository entrypoint is still only the bootstrap layer; the actual install 
 ## What you can do today
 
 - Discover running WPF processes and connect to the correct target.
-- Start with scene-level tools such as `get_ui_summary`, `get_element_snapshot`, and `get_form_summary`.
+- Start with directly executable scene-level tools such as `get_ui_summary` and `get_form_summary`; use `get_element_snapshot(elementId)` after discovering a concrete elementId.
 - Diagnose binding issues with `get_binding_errors`, `get_affected_elements`, `get_bindings`, and `get_binding_value_chain`.
 - Investigate dependency property precedence, metadata, watches, and time-bounded waits.
 - Run safe runtime workflows with `capture_state_snapshot`, `get_state_diff`, `restore_state_snapshot`, and `batch_mutate`.

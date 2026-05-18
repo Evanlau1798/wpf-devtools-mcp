@@ -82,8 +82,8 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
-    [InlineData("docfx/reference/tools/process-and-connection.md", "After connect succeeds, prefer get_ui_summary, get_element_snapshot, or get_form_summary before any tree-heavy follow-up.")]
-    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md", "connect 成功後，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 建立 scene-first 上下文，再決定是否真的需要 tree-heavy follow-up。")] 
+    [InlineData("docfx/reference/tools/process-and-connection.md", "After connect succeeds, prefer get_ui_summary or get_form_summary before any tree-heavy follow-up; use get_element_snapshot(elementId) only after a concrete elementId is known.")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md", "connect 成功後，優先使用 `get_ui_summary` 或 `get_form_summary` 建立 scene-first 上下文；只有在已取得具體 `elementId` 後，才呼叫 `get_element_snapshot(elementId)`。")]
     public void ProcessReferencePages_ShouldExplicitlyPreferSceneFirstFollowUpsAfterConnect(string relativePath, string expectedSnippet)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
@@ -93,16 +93,39 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
-    [InlineData("docfx/reference/tools/index.md", "3. `get_ui_summary`, `get_element_snapshot`, or `get_form_summary`")]
-    [InlineData("docfx/zh-tw/reference/tools/index.md", "3. `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`")]
-    public void ToolOverviewPages_ShouldListSceneFirstTriadInRecommendedStepThree(
+    [InlineData("docfx/reference/tools/index.md", "3. `get_ui_summary` or `get_form_summary` for scene-first context")]
+    [InlineData("docfx/zh-tw/reference/tools/index.md", "3. `get_ui_summary` 或 `get_form_summary` 作為 scene-first context")]
+    public void ToolOverviewPages_ShouldListDirectlyExecutableSceneFirstStepThree(
         string relativePath,
         string expectedStep)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
         content.Should().Contain(expectedStep,
-            "tool overview pages should present get_ui_summary, get_element_snapshot, and get_form_summary as the same scene-first entry step");
+            "tool overview pages should list only directly executable scene-first calls after connect succeeds");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/process-and-connection.md", "connect -> get_ui_summary -> get_element_snapshot")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md", "connect -> get_ui_summary -> get_element_snapshot")]
+    [InlineData("docfx/reference/tools/index.md", "`get_ui_summary`, `get_element_snapshot`, or `get_form_summary`")]
+    [InlineData("docfx/zh-tw/reference/tools/index.md", "`get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`")]
+    [InlineData("docfx/guides/ai-agent-guide.md", "Use scene-level tools such as `get_ui_summary`, `get_element_snapshot`, or `get_form_summary`")]
+    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md", "先用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`")]
+    [InlineData("docfx/index.md", "Start with scene-level tools such as `get_ui_summary`, `get_element_snapshot`, and `get_form_summary`.")]
+    [InlineData("docfx/zh-tw/index.md", "以 `get_ui_summary`、`get_element_snapshot`、`get_form_summary` 等 scene-level 工具作為第一步。")]
+    [InlineData("docfx/quickstart/claude-code.md", "Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.")]
+    [InlineData("docfx/zh-tw/quickstart/claude-code.md", "在 tree-heavy inspection 前，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`。")]
+    public void DocfxPages_ShouldNotAdvertiseElementSnapshotBeforeElementIdIsKnown(
+        string relativePath,
+        string staleGuidance)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().NotContain(staleGuidance,
+            "get_element_snapshot requires an elementId and should not be advertised as an immediate post-connect step");
+        content.Should().Contain("get_element_snapshot(elementId)",
+            "docs may recommend element snapshots only after a concrete elementId has been discovered");
     }
 
     [Theory]

@@ -8,8 +8,8 @@
 2. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
 3. 先呼叫 `connect()`，若目前只有一個可見的 WPF app，讓 server 自動完成連線。
 4. 若 auto-discovery 回傳多個候選，再呼叫 `get_processes(windowFilter)`，之後用 `connect(processId)` 明確指定目標。
-5. 先用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary` 建立場景理解，再決定是否需要完整 tree。
-6. 當 scene-level 摘要仍不足時，再瀏覽 tree 取得穩定的 `elementId`。
+5. 先用可直接執行的 scene-level 工具，例如 `get_ui_summary` 或 `get_form_summary` 建立場景理解，再決定是否需要完整 tree。
+6. 當 scene-level 摘要仍不足時，再瀏覽 tree 或使用聚焦搜尋取得穩定的 `elementId`；只有在已取得具體 `elementId` 後，才呼叫 `get_element_snapshot(elementId)`。
 7. 執行聚焦式診斷工具，並優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`。
 8. 只有在必要時，才進行受控互動或 mutation。
 9. 每次互動或 mutation 後，都先看該工具回應建議的 follow-up；若目前 session 有 active snapshot，通常第一步應是 `get_state_diff`。
@@ -117,7 +117,7 @@ gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
 目前最有效率的 agent 流程，通常先從這些工具開始：
 
 - `get_ui_summary`：快速取得語義化畫面上下文
-- `get_element_snapshot`：單一元素的聚合診斷
+- `get_element_snapshot(elementId)`：已取得具體 `elementId` 後，針對單一元素做聚合診斷
 - `get_form_summary`：表單輸入與送出狀態總覽
 - `get_state_diff`：互動或 mutation 後的 before/after 差異
 
@@ -144,7 +144,7 @@ gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
 ### Binding triage 提示詞
 
 ```text
-先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，以 compact 預設檢查 binding errors，再用 `get_affected_elements` 或 `get_element_snapshot` 檢查失敗 path，說明哪些 bindings 失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，以 compact 預設檢查 binding errors，再用 `get_affected_elements` 或在已辨識具體失敗元素後呼叫 `get_element_snapshot(elementId)` 檢查失敗 path，說明哪些 bindings 失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
 ```
 
 ### 安全互動提示詞
@@ -175,8 +175,8 @@ gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
 1. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed
 2. `connect()`
 3. 若需要，再呼叫 `get_processes(windowFilter)` 並使用 `connect(processId)`
-4. `get_ui_summary` 或 `get_element_snapshot`
-5. 一個或多個聚焦式診斷工具
+4. `get_ui_summary` 或 `get_form_summary`
+5. 一個或多個聚焦式診斷工具；只有在已取得具體 `elementId` 後，才呼叫 `get_element_snapshot(elementId)`
 6. 一次只做一個 mutation 或 interaction
 7. 先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`
 8. 若目前 session 有 active snapshot，優先呼叫 `get_state_diff`

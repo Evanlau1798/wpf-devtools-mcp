@@ -71,16 +71,23 @@ public sealed class McpE2eResetDisciplineContractTests
 
         var content = File.ReadAllText(path);
         var initializeBody = ExtractMethodBody(content, "InitializeAsync");
-        var liveTryIndex = initializeBody.IndexOf("try", StringComparison.Ordinal);
-        liveTryIndex.Should().BeGreaterThan(0);
+        var liveTry = Regex.Match(initializeBody, @"(?m)^\s*try\s*$", RegexOptions.CultureInvariant);
+        liveTry.Success.Should().BeTrue("the live setup block should have an explicit top-level try before starting child processes");
+        var liveTryIndex = liveTry.Index;
 
-        Regex.Matches(initializeBody, "SkipException\\.ForSkip", RegexOptions.CultureInvariant)
-            .Select(match => match.Index)
+        var skipMatches = Regex.Matches(initializeBody, "SkipException\\.ForSkip", RegexOptions.CultureInvariant)
+            .ToArray();
+        skipMatches.Should().HaveCount(3, "only the three prerequisite artifact checks may skip");
+        skipMatches.Select(match => match.Index)
             .Should()
             .OnlyContain(index => index < liveTryIndex,
                 "only missing prerequisite artifacts may skip before live TestApp/MCP setup begins");
 
-        var catchBody = ExtractCatchBody(initializeBody, "catch (Exception ex)");
+        initializeBody.Should().Contain("MCP Server executable not found");
+        initializeBody.Should().Contain("TestApp executable not found");
+        initializeBody.Should().Contain("Native bootstrapper DLLs not found");
+
+        var catchBody = ExtractCatchBody(initializeBody, @"(?m)^\s*catch\s*\(\s*Exception\s+\w+\s*\)\s*$");
         catchBody.Should().NotContain("SkipException.ForSkip",
             "live setup/connect failures should fail visibly rather than being reported as skipped");
 
@@ -137,10 +144,11 @@ public sealed class McpE2eResetDisciplineContractTests
         return content.Substring(bodyStartIndex, bodyEndIndex - bodyStartIndex + 1);
     }
 
-    private static string ExtractCatchBody(string content, string catchSignature)
+    private static string ExtractCatchBody(string content, string catchPattern)
     {
-        var catchIndex = content.IndexOf(catchSignature, StringComparison.Ordinal);
-        catchIndex.Should().BeGreaterOrEqualTo(0);
+        var catchMatch = Regex.Match(content, catchPattern, RegexOptions.CultureInvariant);
+        catchMatch.Success.Should().BeTrue();
+        var catchIndex = catchMatch.Index;
 
         var bodyStartIndex = content.IndexOf('{', catchIndex);
         bodyStartIndex.Should().BeGreaterOrEqualTo(catchIndex);

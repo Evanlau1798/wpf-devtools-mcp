@@ -94,6 +94,37 @@ public sealed class ReleaseReadinessDocumentationTests
             "the guard must reject build/test validation claims inside the build-release.ps1 packaging-wrapper section even when the file uses LF line endings");
     }
 
+    [Theory]
+    [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
+    [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
+    [InlineData("1. build-release.ps1 builds, tests, and packages the release.")]
+    public void BuildReleaseValidationGuard_ShouldRejectRewordedPositiveValidationClaims(string staleClaim)
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            staleClaim);
+
+        GetBuildReleaseValidationClaims(guide).Should().NotBeEmpty(
+            "reworded positive build/test validation claims should not be hidden by negation words or narrow keyword matching");
+    }
+
+    [Fact]
+    public void BuildReleaseValidationGuard_ShouldStopAtEndOfWhatThisDoesList()
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            "1. Produces release packages",
+            "2. Stops after package generation; it does not run the preflight build/test validation",
+            "3. Does not upload anything",
+            "",
+            "After package generation, Preflight-Release.ps1 can run dotnet test and release validation.");
+
+        GetBuildReleaseValidationClaims(guide).Should().BeEmpty(
+            "the build-release wrapper guard should inspect only the What this does list and not drift into later Preflight guidance");
+    }
+
     [Fact]
     public void PublicReleaseChecklist_ShouldNotClaimInstallerCommandIsDocumentedBeforeEndpointPublication()
     {
@@ -218,29 +249,39 @@ public sealed class ReleaseReadinessDocumentationTests
             return string.Empty;
         }
 
-        var sectionEnd = normalized.IndexOf("\nIf you also want", sectionStart, StringComparison.Ordinal);
-        if (sectionEnd < 0)
+        var listStart = normalized.IndexOf("\n1.", sectionStart, StringComparison.Ordinal);
+        if (listStart < 0)
         {
-            sectionEnd = normalized.IndexOf("\n## ", sectionStart, StringComparison.Ordinal);
+            return normalized[sectionStart..];
         }
 
-        return sectionEnd < 0
-            ? normalized[sectionStart..]
-            : normalized[sectionStart..sectionEnd];
+        var lines = normalized[listStart..]
+            .Split('\n')
+            .TakeWhile(IsOrderedListOrBlankLine)
+            .ToArray();
+
+        return string.Join("\n", lines);
     }
 
     private static bool IsNegatedBuildReleaseValidationLine(string line)
     {
-        return Regex.IsMatch(line,
-            @"\b(does\s+not|do\s+not|without|not)\b",
+        return Regex.IsMatch(
+            line,
+            @"\b(does\s+not|do\s+not|will\s+not|without)\s+(run(?:ning)?|execute|executing|perform(?:ing)?|build(?:ing)?|test(?:ing)?|validate|validating)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     private static bool IsBuildReleaseValidationClaim(string line)
     {
         return Regex.IsMatch(line,
-            @"\bBuilds?\s+`?WpfDevTools\.sln`?|\bdotnet\s+build\b|\bdotnet\s+test\b|--no-build|\bunit\s+tests?\b|\bintegration\s+tests?\b|\bruns?\s+tests?\b",
+            @"\bBuilds?\s+`?WpfDevTools\.sln`?|\bdotnet\s+build\b|\bdotnet\s+test\b|--no-build|\bunit\s+tests?\b|\bintegration\s+tests?\b|\bruns?\s+tests?\b|\bfull\s+test\s+suite\b|\bbuilds?\s*,\s*tests?\b|\bexecutes?\s+release\s+validation\b|\brelease\s+validation\b|\bpreflight\s+validation\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private static bool IsOrderedListOrBlankLine(string line)
+    {
+        return string.IsNullOrWhiteSpace(line)
+            || Regex.IsMatch(line, @"^\d+\.\s+", RegexOptions.CultureInvariant);
     }
 
     private static IReadOnlyList<string> GetPublicEndpointWarningFiles()

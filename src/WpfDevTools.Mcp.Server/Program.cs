@@ -69,6 +69,13 @@ try
     .WithStdioServerTransport()
     .WithRequestFilters(filters =>
     {
+        filters.AddListToolsFilter(next => async (request, cancellationToken) =>
+        {
+            var result = await next(request, cancellationToken);
+            McpToolOutputSchemas.Apply(result.Tools);
+            return result;
+        });
+
         filters.AddCallToolFilter(next => async (request, cancellationToken) =>
         {
             var parameters = request.Params;

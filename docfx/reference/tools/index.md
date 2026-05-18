@@ -77,8 +77,8 @@ Key capabilities worth learning early:
 
 - Structured clients should read `structuredContent` as the canonical payload.
 - High-value tool descriptions in `tools/list` are intentionally brief discovery hints; use `wpf://contracts/response` for stable field-level contracts instead of relying on long inline prose.
-- `tools/list` advertises SDK-generated `outputSchema` for the `CallToolResult` envelope, including `structuredContent`, because all tools opt in to native structured content metadata. Claude-compatible client smoke tests should validate discovery against this structured-output metadata shape.
-- Need a machine-readable contract? Read MCP resource `wpf://contracts/response`. It publishes the stable WPF payload contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, and the `get_binding_errors` `navigation=false` opt-out beyond the generic SDK `outputSchema`.
+- `tools/list` advertises an `outputSchema` for the common `result.structuredContent` payload fields, including `success`, `navigation`, and common identifiers such as `processId`. Claude-compatible client smoke tests should validate discovery against this structured-output metadata shape.
+- Need a machine-readable contract? Read MCP resource `wpf://contracts/response`. It publishes the stable detailed WPF payload contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, and the `get_binding_errors` `navigation=false` opt-out beyond the common `tools/list` schema.
 - `content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `content[0].text`.
 - Diagnostic tools may also piggyback `pendingEvents` when the session has buffered runtime events. Use `drain_events` when you need an explicit deterministic read of the shared event buffer.
 

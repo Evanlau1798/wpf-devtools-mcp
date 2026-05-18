@@ -29,7 +29,7 @@ public sealed class McpToolSearchMetadataE2eTests
     }
 
     [Fact]
-    public async Task ToolsList_ShouldExposeStructuredContentOutputSchema()
+    public async Task ToolsList_ShouldExposeStructuredPayloadOutputSchema()
     {
         var serverExe = FindServerExecutable();
         using var client = new McpStdioClient();
@@ -43,14 +43,24 @@ public sealed class McpToolSearchMetadataE2eTests
         {
             var toolName = tool.GetProperty("name").GetString();
             tool.TryGetProperty("outputSchema", out var outputSchema).Should().BeTrue(
-                $"tool '{toolName}' should advertise SDK-generated structured content metadata");
+                $"tool '{toolName}' should advertise structured payload metadata");
             outputSchema.ValueKind.Should().Be(JsonValueKind.Object,
                 $"tool '{toolName}' should expose outputSchema as an object schema");
             outputSchema.TryGetProperty("properties", out var properties).Should().BeTrue(
-                $"tool '{toolName}' outputSchema should describe result envelope properties");
-            properties.TryGetProperty("structuredContent", out _).Should().BeTrue(
-                $"tool '{toolName}' should include outputSchema.properties.structuredContent because UseStructuredContent=true changes tools/list metadata");
+                $"tool '{toolName}' outputSchema should describe result.structuredContent payload properties");
+            properties.TryGetProperty("success", out _).Should().BeTrue(
+                $"tool '{toolName}' should expose the common structuredContent success field");
+            properties.TryGetProperty("navigation", out _).Should().BeTrue(
+                $"tool '{toolName}' should expose the common navigation payload field");
+            properties.TryGetProperty("structuredContent", out _).Should().BeFalse(
+                $"tool '{toolName}' outputSchema must describe result.structuredContent itself, not the CallToolResult envelope");
         }
+
+        var connect = tools.EnumerateArray().Single(tool => tool.GetProperty("name").GetString() == "connect");
+        connect.GetProperty("outputSchema")
+            .GetProperty("properties")
+            .TryGetProperty("processId", out _)
+            .Should().BeTrue("connect should publish its primary process identifier field in tools/list outputSchema");
     }
 
     [Fact]

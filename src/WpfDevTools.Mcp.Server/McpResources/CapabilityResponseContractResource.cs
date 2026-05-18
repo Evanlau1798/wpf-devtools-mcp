@@ -176,11 +176,11 @@ public static partial class CapabilityResources
             compatibility = new
             {
                 toolListOutputSchema = "advertised",
-                toolListOutputSchemaReason = "UseStructuredContent=true asks the SDK to publish tools/list outputSchema while structuredContent remains canonical",
+                toolListOutputSchemaReason = "tools/list outputSchema advertises common result.structuredContent payload fields while this resource remains the detailed contract for WPF-specific fields",
                 outputSchemaPublication = new
                 {
                     canonicalLocation = "tools/list",
-                    reason = "Native tools/list outputSchema advertises the CallToolResult envelope; this resource remains the stable contract for WPF-specific structuredContent payload fields."
+                    reason = "Native tools/list outputSchema describes the common result.structuredContent payload shape; this resource remains the stable detailed contract for WPF-specific structuredContent fields."
                 },
                 versioning = new
                 {

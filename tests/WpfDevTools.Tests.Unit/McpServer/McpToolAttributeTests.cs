@@ -6,6 +6,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -151,15 +152,21 @@ public class McpToolAttributeTests
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Ping))]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.GetVisualTree))]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools.GetBindingErrors))]
-    public void RepresentativeTools_ShouldExposeStructuredContentOutputSchema_WhenSdkCreatesProtocolTool(Type toolType, string methodName)
+    public void RepresentativeTools_ShouldExposeStructuredPayloadOutputSchema_WhenPublishedInToolsList(Type toolType, string methodName)
     {
-        var outputSchema = CreateTool(toolType, methodName).ProtocolTool.OutputSchema;
+        var protocolTool = CreateTool(toolType, methodName).ProtocolTool;
+        McpToolOutputSchemas.Apply(protocolTool);
+        var outputSchema = protocolTool.OutputSchema;
 
         outputSchema.Should().NotBeNull(
-            "UseStructuredContent=true changes tools/list metadata by asking the SDK to publish outputSchema");
+            "tools/list should publish a structuredContent payload schema for schema-driven clients");
         outputSchema!.Value.TryGetProperty("properties", out var properties).Should().BeTrue();
-        properties.TryGetProperty("structuredContent", out _).Should().BeTrue(
-            "these tools return CallToolResult and the SDK advertises the structuredContent envelope field");
+        properties.TryGetProperty("success", out _).Should().BeTrue(
+            "the schema should describe result.structuredContent, including its common success field");
+        properties.TryGetProperty("navigation", out _).Should().BeTrue(
+            "the schema should describe the common navigation field when it is present");
+        properties.TryGetProperty("structuredContent", out _).Should().BeFalse(
+            "tools/list outputSchema should describe result.structuredContent itself, not the CallToolResult envelope");
     }
 
     [Theory]
@@ -366,7 +373,7 @@ public class McpToolAttributeTests
         attr!.Title.Should().Be(expectedTitle,
             "AI-facing clients should receive a stable human-friendly tool title");
         attr.UseStructuredContent.Should().BeTrue(
-            "process tools return CallToolResult values and should publish SDK-generated outputSchema metadata");
+            "process tools return CallToolResult values and should participate in structuredContent outputSchema publication");
     }
 
     [Fact]

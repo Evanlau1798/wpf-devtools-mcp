@@ -16,6 +16,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Execution;
 
+[Collection("BindingErrorTests")]
 public sealed class UnitTestParallelizationContractTests
 {
     private const string ReleaseUnitTestProjectPath =

@@ -7,7 +7,8 @@ using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Tests.Unit.Inspector;
 
-public sealed class RequestDispatcherRegistryTests
+[Collection("BindingErrorTests")]
+public sealed class RequestDispatcherRegistryTests : IDisposable
 {
     private static readonly (Type HandlerType, string[] Methods)[] ExpectedHandlerGroups =
     [
@@ -24,6 +25,16 @@ public sealed class RequestDispatcherRegistryTests
         (typeof(SceneSummaryHandlers), ["get_ui_summary", "get_form_summary"]),
         (typeof(ElementSnapshotHandlers), ["get_element_snapshot"])
     ];
+
+    public RequestDispatcherRegistryTests()
+    {
+        BindingErrorTraceListener.ResetInstance();
+    }
+
+    public void Dispose()
+    {
+        BindingErrorTraceListener.ResetInstance();
+    }
 
     [Fact]
     public void Create_ShouldComposeSharedHandlersAndRegisterSupportedMethods()

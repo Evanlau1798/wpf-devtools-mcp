@@ -196,7 +196,7 @@ public sealed partial class NamedPipeClient : IDisposable
 
                     if (_authManager != null && _authManager.IsAuthenticationEnabled)
                     {
-                        if (!await AuthenticateToInspectorAsync(localClient, cts.Token).ConfigureAwait(false))
+                        if (!await AuthenticateToInspectorAsync(localClient, cts.Token, cancellationToken).ConfigureAwait(false))
                         {
                             ResetConnectionState();
                             return false;
@@ -205,7 +205,7 @@ public sealed partial class NamedPipeClient : IDisposable
 
                     if (_certManager != null)
                     {
-                        var sslStream = await CreateClientSslStreamAsync(localClient, cts.Token).ConfigureAwait(false);
+                        var sslStream = await CreateClientSslStreamAsync(localClient, cts.Token, cancellationToken).ConfigureAwait(false);
                         if (sslStream == null)
                         {
                             ResetConnectionState();
@@ -233,7 +233,7 @@ public sealed partial class NamedPipeClient : IDisposable
 
                     if (_enforceHostCompatibilityValidation)
                     {
-                        var compatibilityFailure = await ValidateConnectedHostAsync(localClient, cts.Token).ConfigureAwait(false);
+                        var compatibilityFailure = await ValidateConnectedHostAsync(localClient, cts.Token, cancellationToken).ConfigureAwait(false);
                         if (compatibilityFailure != NamedPipeConnectFailure.None)
                         {
                             SetLastConnectFailure(compatibilityFailure);

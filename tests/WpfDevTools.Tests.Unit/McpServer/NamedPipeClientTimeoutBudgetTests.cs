@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.Cryptography;
+using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Mcp.Server;
@@ -89,6 +90,147 @@ public class NamedPipeClientTimeoutBudgetTests
     }
 
     [Fact]
+    public async Task ConnectAsync_WithAuthenticatedClientAndSilentAuthPipe_WhenCallerCancels_ShouldPropagateCancellation()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var authManager = new AuthenticationManager(() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        using var serverLifetime = new CancellationTokenSource();
+        using var callerCancellation = new CancellationTokenSource();
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        var serverConnected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var serverTask = RunSilentPipeServerAsync(server, serverConnected, serverLifetime.Token);
+        using var client = new NamedPipeClient(
+            pid,
+            pipeName,
+            authManager,
+            certManager: null,
+            enforceHostCompatibilityValidation: false);
+
+        var connectTask = client.ConnectAsync(
+            TimeSpan.FromSeconds(10),
+            maxRetries: 1,
+            cancellationToken: callerCancellation.Token);
+
+        try
+        {
+            await serverConnected.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            callerCancellation.Cancel();
+
+            await connectTask.Invoking(static task => task).Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            serverLifetime.Cancel();
+            await serverTask.IgnoreExceptionsAsync();
+        }
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WithTlsClientAndSilentPipe_WhenCallerCancels_ShouldPropagateCancellation()
+    {
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var certDirectory = Path.Combine(Path.GetTempPath(), "WpfDevTools_Test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(certDirectory);
+        using var serverLifetime = new CancellationTokenSource();
+        using var callerCancellation = new CancellationTokenSource();
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        var serverConnected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var serverTask = RunSilentPipeServerAsync(server, serverConnected, serverLifetime.Token);
+
+        try
+        {
+            var certManager = new CertificateManager(certDirectory);
+            using var client = new NamedPipeClient(
+                pid,
+                pipeName,
+                authManager: null,
+                certManager,
+                enforceHostCompatibilityValidation: false);
+
+            var connectTask = client.ConnectAsync(
+                TimeSpan.FromSeconds(10),
+                maxRetries: 1,
+                cancellationToken: callerCancellation.Token);
+            await serverConnected.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            callerCancellation.Cancel();
+
+            await connectTask.Invoking(static task => task).Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            serverLifetime.Cancel();
+            await serverTask.IgnoreExceptionsAsync();
+            try { Directory.Delete(certDirectory, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WithHostValidationPending_WhenCallerCancels_ShouldPropagateCancellation()
+    {
+        var pid = Environment.ProcessId;
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        using var serverLifetime = new CancellationTokenSource();
+        using var callerCancellation = new CancellationTokenSource();
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        var validationRequestReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync(serverLifetime.Token);
+            var requestJson = await MessageFraming.ReadMessageAsync(server, serverLifetime.Token);
+            using var requestDocument = JsonDocument.Parse(requestJson);
+            var request = requestDocument.RootElement;
+
+            request.GetProperty("method").GetString().Should().Be("ping");
+            request.GetProperty("id").GetString().Should().StartWith("connect-verify-");
+            validationRequestReceived.SetResult();
+
+            await Task.Delay(Timeout.InfiniteTimeSpan, serverLifetime.Token);
+        });
+
+        using var client = new NamedPipeClient(
+            pid,
+            pipeName,
+            authManager: null,
+            certManager: null,
+            enforceHostCompatibilityValidation: true);
+
+        var connectTask = client.ConnectAsync(
+            TimeSpan.FromSeconds(10),
+            maxRetries: 1,
+            cancellationToken: callerCancellation.Token);
+
+        try
+        {
+            await validationRequestReceived.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            callerCancellation.Cancel();
+
+            await connectTask.Invoking(static task => task).Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            serverLifetime.Cancel();
+            await serverTask.IgnoreExceptionsAsync();
+        }
+    }
+
+    [Fact]
     public async Task ConnectPhaseTimeoutGuard_WhenNet48StyleOperationIgnoresCancellation_ShouldStopAtTheBudget()
     {
         var neverCompletes = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -163,6 +305,16 @@ public class NamedPipeClientTimeoutBudgetTests
 
         completedBeforeTimeout.Should().BeTrue(
             "Dispose should close the pipe and use a bounded semaphore wait instead of blocking until the request timeout");
+    }
+
+    private static async Task RunSilentPipeServerAsync(
+        NamedPipeServerStream server,
+        TaskCompletionSource serverConnected,
+        CancellationToken cancellationToken)
+    {
+        await server.WaitForConnectionAsync(cancellationToken);
+        serverConnected.TrySetResult();
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
     }
 }
 

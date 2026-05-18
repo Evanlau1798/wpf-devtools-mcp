@@ -61,7 +61,9 @@ public sealed partial class NamedPipeClient
     }
 
     private async Task<SslStream?> CreateClientSslStreamAsync(
-        NamedPipeClientStream pipe, CancellationToken cancellationToken)
+        NamedPipeClientStream pipe,
+        CancellationToken cancellationToken,
+        CancellationToken callerCancellationToken)
     {
         SslStream? sslStream = null;
         try
@@ -93,6 +95,11 @@ public sealed partial class NamedPipeClient
                 cancellationToken).ConfigureAwait(false);
 #endif
             return sslStream;
+        }
+        catch (OperationCanceledException) when (callerCancellationToken.IsCancellationRequested)
+        {
+            sslStream?.Dispose();
+            throw;
         }
         catch (OperationCanceledException)
         {
@@ -143,7 +150,9 @@ public sealed partial class NamedPipeClient
     }
 
     private async Task<bool> AuthenticateToInspectorAsync(
-        NamedPipeClientStream pipe, CancellationToken cancellationToken)
+        NamedPipeClientStream pipe,
+        CancellationToken cancellationToken,
+        CancellationToken callerCancellationToken)
     {
         try
         {
@@ -204,6 +213,10 @@ public sealed partial class NamedPipeClient
 
             return authenticated;
         }
+        catch (OperationCanceledException) when (callerCancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (OperationCanceledException)
         {
             SetLastConnectFailure(NamedPipeConnectFailure.Timeout);
@@ -223,7 +236,8 @@ public sealed partial class NamedPipeClient
 
     private async Task<NamedPipeConnectFailure> ValidateConnectedHostAsync(
         NamedPipeClientStream pipe,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CancellationToken callerCancellationToken)
     {
         var serverProcessId = TryGetConnectedServerProcessId(pipe);
         if (serverProcessId.HasValue && serverProcessId.Value != _processId && !IsSameProcessDefaultPipeHost(serverProcessId.Value))
@@ -263,6 +277,10 @@ public sealed partial class NamedPipeClient
             }
 
             return NamedPipeConnectFailure.None;
+        }
+        catch (OperationCanceledException) when (callerCancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (OperationCanceledException)
         {

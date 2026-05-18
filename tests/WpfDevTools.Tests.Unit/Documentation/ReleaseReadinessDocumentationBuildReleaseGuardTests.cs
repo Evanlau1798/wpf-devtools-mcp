@@ -183,6 +183,20 @@ public sealed partial class ReleaseReadinessDocumentationTests
     }
 
     [Theory]
+    [InlineData("1. Does not run signing, dotnet test is not run before building WpfDevTools.sln.")]
+    [InlineData("1. Does not run signing, unit tests are not run before running tests.")]
+    public void BuildReleaseValidationGuard_ShouldRejectGerundPositiveClaimsAfterPassiveNegation(string staleClaim)
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            staleClaim);
+
+        GetBuildReleaseValidationClaims(guide).Should().NotBeEmpty(
+            "passive negation must not hide a later positive gerund validation tail in the same clause");
+    }
+
+    [Theory]
     [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
     [InlineData("1. build-release.ps1 builds, tests, and packages the release.")]
@@ -320,7 +334,7 @@ public sealed partial class ReleaseReadinessDocumentationTests
     private static bool IsBuildReleaseValidationClaim(string line)
     {
         return Regex.IsMatch(line,
-            @"\bBuilds?\s+`?WpfDevTools\.sln`?|\bdotnet\s+build\b|\bdotnet\s+test\b|--no-build|\bunit\s+tests?\b|\bintegration\s+tests?\b|\bruns?\s+tests?\b|\bfull\s+test\s+suite\b|\bbuilds?\s*,\s*tests?\b|\bexecutes?\s+release\s+validation\b|\brelease\s+validation\b|\bpreflight\s+validation\b",
+            @"\bBuilds?\s+`?WpfDevTools\.sln`?|\bbuilding\s+`?WpfDevTools\.sln`?|\bdotnet\s+build\b|\bdotnet\s+test\b|--no-build|\bunit\s+tests?\b|\bintegration\s+tests?\b|\bruns?\s+tests?\b|\brunning\s+(?:tests?|unit\s+tests?|integration\s+tests?|the\s+full\s+test\s+suite|full\s+test\s+suite)\b|\bfull\s+test\s+suite\b|\bbuilds?\s*,\s*tests?\b|\bexecutes?\s+release\s+validation\b|\brelease\s+validation\b|\bpreflight\s+validation\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 

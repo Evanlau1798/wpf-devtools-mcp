@@ -70,6 +70,19 @@ public sealed class ReleaseReadinessDocumentationTests
     }
 
     [Fact]
+    public void PublicReleaseChecklist_ShouldNotClaimInstallerCommandIsDocumentedBeforeEndpointPublication()
+    {
+        var checklist = File.ReadAllText(GetRepoFilePath("PUBLIC_RELEASE_READINESS_CHECKLIST.md"));
+        var readme = File.ReadAllText(GetRepoFilePath("README.md"));
+        var quickstart = File.ReadAllText(GetRepoFilePath("docfx/quickstart/index.md"));
+
+        readme.Should().Contain("Public release endpoints are not yet anonymously reachable");
+        quickstart.Should().Contain("Public release endpoints are not yet anonymously reachable");
+        checklist.Should().NotContain("- [x] Document the preferred public installer command `irm https://wpf-mcptools.evanlau1798.com | iex`",
+            "the checklist must not mark public installer onboarding complete while README and DocFX still warn that public endpoints are unavailable");
+    }
+
+    [Fact]
     public void CodeSigningGuide_ShouldMatchCurrentToolPathsAndParameters()
     {
         var content = File.ReadAllText(GetRepoFilePath("CODE_SIGNING.md"));

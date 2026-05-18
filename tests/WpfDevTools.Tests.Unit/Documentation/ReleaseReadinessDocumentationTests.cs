@@ -100,6 +100,9 @@ public sealed class ReleaseReadinessDocumentationTests
     [InlineData("1. build-release.ps1 builds, tests, and packages the release.")]
     [InlineData("1. Stops after package generation; it does not run the preflight build/test validation, but it runs the full test suite.")]
     [InlineData("1. Stops after package generation; it does not run the preflight build/test validation but it runs the full test suite.")]
+    [InlineData("1. Stops after package generation; it does not run the preflight build/test validation and runs the full test suite.")]
+    [InlineData("1. Stops after package generation; it does not run the preflight build/test validation then runs the full test suite.")]
+    [InlineData("1. Stops after package generation; it does not run the preflight build/test validation while running the full test suite.")]
     public void BuildReleaseValidationGuard_ShouldRejectRewordedPositiveValidationClaims(string staleClaim)
     {
         var guide = string.Join("\n",
@@ -250,8 +253,9 @@ public sealed class ReleaseReadinessDocumentationTests
             .Split('\n')
             .Select(line => line.Trim())
             .Where(line => line.Length > 0)
-            .Select(RemoveAllowedNegatedValidationPhrases)
+            .SelectMany(GetBuildReleaseValidationClauses)
             .Where(IsBuildReleaseValidationClaim)
+            .Where(clause => !IsNegatedBuildReleaseValidationClause(clause))
             .ToList();
     }
 
@@ -280,12 +284,21 @@ public sealed class ReleaseReadinessDocumentationTests
         return string.Join("\n", lines);
     }
 
-    private static string RemoveAllowedNegatedValidationPhrases(string line)
+    private static IEnumerable<string> GetBuildReleaseValidationClauses(string line)
     {
-        return Regex.Replace(
+        return Regex.Split(
             line,
-            @"\b(does\s+not|do\s+not|will\s+not|without)\s+(run(?:ning)?|execute|executing|perform(?:ing)?|build(?:ing)?|test(?:ing)?|validate|validating)\b(?:(?!(?:\bbut\b|\bhowever\b|\byet\b|\balthough\b|\bthough\b)|[;,.]).)*",
-            string.Empty,
+            @"[;.]|\b(?:but|however|yet|although|though|and|then|while)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+            .Select(clause => clause.Trim())
+            .Where(clause => clause.Length > 0);
+    }
+
+    private static bool IsNegatedBuildReleaseValidationClause(string clause)
+    {
+        return Regex.IsMatch(
+            clause,
+            @"\b(does\s+not|do\s+not|will\s+not|without)\s+(run(?:ning)?|execute|executing|perform(?:ing)?|build(?:ing)?|test(?:ing)?|validate|validating)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 

@@ -59,6 +59,13 @@ public class DispatcherAnalyzerBaseTests
             return FindDependencyProperty(element, propertyName);
         }
 
+        public static long TestLoadedTypeEnumerationCount => LoadedTypeEnumerationCount;
+
+        public static void TestResetDependencyPropertyLookupDiagnostics()
+        {
+            ResetDependencyPropertyLookupDiagnostics();
+        }
+
         public DependencyObject? TestResolveElement(string? elementId)
         {
             return ResolveElement(elementId);
@@ -349,5 +356,39 @@ public class DispatcherAnalyzerBaseTests
         // Assert
         result.Should().NotBeNull();
         result.Should().Be(ContentControl.ContentProperty);
+    }
+
+    [StaFact]
+    public void FindDependencyProperty_WithRepeatedAttachedLookup_ShouldReuseLoadedTypeScan()
+    {
+        var button = new Button();
+        TestAnalyzer.TestResetDependencyPropertyLookupDiagnostics();
+
+        var first = TestAnalyzer.TestFindDependencyProperty(button, "Grid.Row");
+        var afterFirstLookup = TestAnalyzer.TestLoadedTypeEnumerationCount;
+        var second = TestAnalyzer.TestFindDependencyProperty(button, "Grid.Row");
+
+        first.Should().Be(Grid.RowProperty);
+        second.Should().Be(Grid.RowProperty);
+        afterFirstLookup.Should().BeGreaterThan(0);
+        TestAnalyzer.TestLoadedTypeEnumerationCount.Should().Be(afterFirstLookup,
+            "the same qualified dependency property lookup should not rescan all loaded types");
+    }
+
+    [StaFact]
+    public void FindDependencyProperty_WithRepeatedMissingLookup_ShouldReuseLoadedTypeScanMiss()
+    {
+        var button = new Button();
+        TestAnalyzer.TestResetDependencyPropertyLookupDiagnostics();
+
+        var first = TestAnalyzer.TestFindDependencyProperty(button, "MissingAttachedProperty");
+        var afterFirstLookup = TestAnalyzer.TestLoadedTypeEnumerationCount;
+        var second = TestAnalyzer.TestFindDependencyProperty(button, "MissingAttachedProperty");
+
+        first.Should().BeNull();
+        second.Should().BeNull();
+        afterFirstLookup.Should().BeGreaterThan(0);
+        TestAnalyzer.TestLoadedTypeEnumerationCount.Should().Be(afterFirstLookup,
+            "missing dependency property lookups should cache misses instead of rescanning all loaded types");
     }
 }

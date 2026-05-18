@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using System.ComponentModel;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
 using System.Globalization;
@@ -15,7 +16,16 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// </summary>
 public abstract partial class DispatcherAnalyzerBase
 {
+    private static readonly ConcurrentDictionary<DependencyPropertyLookupKey, DependencyProperty?> DependencyPropertyLookupCache = new();
+    private static int _assemblyLoadHandlerRegistered;
     private readonly ElementFinder? _elementFinder;
+    internal static long LoadedTypeEnumerationCount { get; private set; }
+
+    internal static void ResetDependencyPropertyLookupDiagnostics()
+    {
+        LoadedTypeEnumerationCount = 0;
+        DependencyPropertyLookupCache.Clear();
+    }
 
     /// <summary>
     /// Initializes a dispatcher analyzer without element resolution support.
@@ -276,6 +286,15 @@ public abstract partial class DispatcherAnalyzerBase
             return null;
         }
 
+        EnsureDependencyPropertyCacheInvalidationRegistered();
+        var key = new DependencyPropertyLookupKey(element.GetType(), propertyName.Trim());
+        return DependencyPropertyLookupCache.GetOrAdd(
+            key,
+            static entry => FindDependencyPropertyUncached(entry.ElementType, entry.PropertyName));
+    }
+
+    private static DependencyProperty? FindDependencyPropertyUncached(Type elementType, string propertyName)
+    {
         var qualifiedProperty = TryFindQualifiedDependencyProperty(propertyName);
         if (qualifiedProperty != null)
         {
@@ -283,8 +302,18 @@ public abstract partial class DispatcherAnalyzerBase
         }
 
         var simplePropertyName = GetSimplePropertyName(propertyName);
-        var hierarchyProperty = FindDependencyPropertyOnHierarchy(element.GetType(), simplePropertyName);
+        var hierarchyProperty = FindDependencyPropertyOnHierarchy(elementType, simplePropertyName);
         return hierarchyProperty ?? FindAttachedDependencyProperty(simplePropertyName);
+    }
+
+    private static void EnsureDependencyPropertyCacheInvalidationRegistered()
+    {
+        if (Interlocked.Exchange(ref _assemblyLoadHandlerRegistered, 1) == 1)
+        {
+            return;
+        }
+
+        AppDomain.CurrentDomain.AssemblyLoad += static (_, _) => DependencyPropertyLookupCache.Clear();
     }
 
     private static DependencyProperty? FindDependencyPropertyOnHierarchy(Type? type, string propertyName)
@@ -389,6 +418,7 @@ public abstract partial class DispatcherAnalyzerBase
 
     private static IEnumerable<Type> EnumerateLoadedTypes()
     {
+        LoadedTypeEnumerationCount++;
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
             Type[] types;
@@ -411,4 +441,6 @@ public abstract partial class DispatcherAnalyzerBase
             }
         }
     }
+
+    private readonly record struct DependencyPropertyLookupKey(Type ElementType, string PropertyName);
 }

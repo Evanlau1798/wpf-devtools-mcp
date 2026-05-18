@@ -100,6 +100,38 @@ public sealed class UnitTestParallelizationContractTests
             "contracts in the split release test assembly must inspect the active harness copy, not the stale file left in the original unit assembly");
     }
 
+    [Theory]
+    [InlineData("tests/WpfDevTools.Tests.Unit/Release/ReleaseScriptTestHarness.Packaging.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Unit.Release/Release/ReleaseScriptTestHarness.Packaging.cs")]
+    public void ReleaseScriptHarnessPackageCache_ShouldUseCrossProcessLock(string relativePath)
+    {
+        var source = ReadRepoFile(relativePath);
+        var buildStart = source.IndexOf(
+            "private static CachedPackageArtifacts BuildCachedPackageArtifacts",
+            StringComparison.Ordinal);
+        var lockIndex = source.IndexOf(
+            "using var cacheLock = AcquirePackageArtifactCacheLock(cacheKey);",
+            StringComparison.Ordinal);
+        var firstCacheProbe = source.IndexOf(
+            "if (Directory.Exists(packageDir)",
+            buildStart,
+            StringComparison.Ordinal);
+        var firstCacheDelete = source.IndexOf(
+            "DeleteDirectory(cacheRoot);",
+            buildStart,
+            StringComparison.Ordinal);
+
+        buildStart.Should().BeGreaterThanOrEqualTo(0);
+        lockIndex.Should().BeGreaterThan(buildStart,
+            "shared release package cache rebuilds must be serialized across the Unit and ReleaseUnit assemblies");
+        firstCacheProbe.Should().BeGreaterThan(lockIndex,
+            "cache validity probes must run under the same cross-process lock as destructive rebuilds");
+        firstCacheDelete.Should().BeGreaterThan(lockIndex,
+            "deleting the shared cache root must happen only after the lock is held");
+        source.Should().Contain("private static FileStream AcquirePackageArtifactCacheLock(string cacheKey)");
+        source.Should().Contain("release-script-harness-cache-locks");
+    }
+
     [Fact]
     public void SignaturePolicyTests_ShouldUseProcessEnvironmentCollection()
     {

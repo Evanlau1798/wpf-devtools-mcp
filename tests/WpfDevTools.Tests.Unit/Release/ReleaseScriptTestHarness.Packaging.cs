@@ -191,6 +191,8 @@ internal static partial class ReleaseScriptTestHarness
         var archivePath = Path.Combine(cacheRoot, $"release_1.2.3_win-{architecture}.zip");
         var metadataDirectoryPath = cacheRoot;
 
+        using var cacheLock = AcquirePackageArtifactCacheLock(cacheKey);
+
         if (Directory.Exists(packageDir) &&
             File.Exists(archivePath) &&
             File.Exists(Path.Combine(metadataDirectoryPath, "SHA256SUMS.txt")) &&
@@ -218,6 +220,36 @@ internal static partial class ReleaseScriptTestHarness
         DeleteDirectory(archiveLayoutDir);
 
         return new CachedPackageArtifacts(packageDir, archivePath, metadataDirectoryPath);
+    }
+
+    private static FileStream AcquirePackageArtifactCacheLock(string cacheKey)
+    {
+        var lockRoot = Path.Combine(GetRepoFilePath("tmp"), "release-script-harness-cache-locks");
+        Directory.CreateDirectory(lockRoot);
+        var lockPath = Path.Combine(lockRoot, cacheKey + ".lock");
+        Exception? lastException = null;
+
+        for (var attempt = 0; attempt < 240; attempt++)
+        {
+            try
+            {
+                return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException ex)
+            {
+                lastException = ex;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                lastException = ex;
+            }
+
+            Thread.Sleep(250);
+        }
+
+        throw new TimeoutException(
+            $"Timed out waiting for release package artifact cache lock: {lockPath}",
+            lastException);
     }
 
     private static void BuildPackageDirectory(string packageDir, string architecture, bool useSignedPayload)

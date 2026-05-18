@@ -248,6 +248,37 @@ public sealed class ToolNavigationPlannerTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_WithSuccessfulBatchMutationSnapshot_ShouldRecommendRollbackAndVerification()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                snapshotId = "snapshot_123",
+                stateDiff = new
+                {
+                    success = true,
+                    propertyChanges = new[] { new { elementId = "NameTextBox", propertyName = "Text" } }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "NameTextBox")),
+            CancellationToken.None,
+            toolName: "batch_mutate");
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        var recommendedTools = navigation
+            .GetProperty("recommended")
+            .EnumerateArray()
+            .Select(step => step.GetProperty("tool").GetString())
+            .ToArray();
+
+        recommendedTools.Should().Contain("restore_state_snapshot");
+        recommendedTools.Should().Contain("get_ui_summary");
+        navigation.GetProperty("contextRefs")[0].GetProperty("type").GetString().Should().Be("mutation-session");
+        navigation.GetProperty("contextRefs")[0].GetProperty("snapshotId").GetString().Should().Be("snapshot_123");
+    }
+
+    [Fact]
     public void PlanEnvelope_ShouldDeriveCompactPrefetchToolsFromRecommendedAndAlternatives()
     {
         var registry = new ToolNavigationRegistry();

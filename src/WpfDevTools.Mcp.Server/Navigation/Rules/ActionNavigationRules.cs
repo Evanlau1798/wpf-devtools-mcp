@@ -13,6 +13,7 @@ internal static class ActionNavigationRules
         registry.Register("modify_viewmodel", BuildModifyViewModel);
         registry.Register("set_dp_value", BuildSetDpValue);
         registry.Register("fire_routed_event", BuildFireRoutedEvent);
+        registry.Register("batch_mutate", BuildBatchMutate);
     }
 
     private static ToolNavigationEnvelope BuildClickElement(ToolNavigationContext context) =>
@@ -141,6 +142,57 @@ internal static class ActionNavigationRules
                 : [CreateMutationSessionContext(context, "set_dp_value")!]);
     }
 
+    private static ToolNavigationEnvelope BuildBatchMutate(ToolNavigationContext context)
+    {
+        if (TryGetBool(context.Payload, "success", out var success) && !success)
+        {
+            return ToolNavigationEnvelope.Empty;
+        }
+
+        if (!TryGetString(context.Payload, "snapshotId", out var snapshotId))
+        {
+            return BuildUiSummaryVerification(context, "Inspect the updated UI state after the batch mutations.");
+        }
+
+        var recommended = new List<ToolNextStep>
+        {
+            new(
+                "restore_state_snapshot",
+                NavigationParamBuilders.Create(
+                    ("processId", TryGetInt(context.Arguments, "processId")),
+                    ("snapshotId", snapshotId)),
+                "Restore the captured snapshot when the batch mutations should be rolled back.",
+                ToolNextStepKind.Action,
+                1),
+            new(
+                "get_ui_summary",
+                NavigationParamBuilders.Create(
+                    ("processId", TryGetInt(context.Arguments, "processId")),
+                    ("elementId", TryGetOptionalString(context.Arguments, "elementId"))),
+                "Inspect the updated UI state after the batch mutations.",
+                ToolNextStepKind.Verification,
+                2)
+        };
+
+        if (!context.Payload.TryGetProperty("stateDiff", out _))
+        {
+            recommended.Add(ConditionalNavigationRules.CreateActiveSnapshotStep(
+                "get_state_diff",
+                NavigationParamBuilders.Create(
+                    ("processId", TryGetInt(context.Arguments, "processId")),
+                    ("snapshotId", snapshotId)),
+                "Compare the batch snapshot against current runtime state after the mutations.",
+                ToolNextStepKind.Verification,
+                3,
+                "Returns semantic runtime changes caused by the batch mutations.",
+                "restore_state_snapshot"));
+        }
+
+        return ToolNavigationEnvelope.FromRecommended(
+            recommended,
+            contextRefs: [MutationSessionContextRefBuilder.Create(snapshotId, "batch_mutate")]);
+    }
+
     private static ToolNavigationEnvelope BuildUiSummaryVerification(ToolNavigationContext context, string reason) =>
         ToolNavigationEnvelope.FromRecommended(
             [
@@ -254,5 +306,20 @@ internal static class ActionNavigationRules
         }
 
         return null;
+    }
+
+    private static bool TryGetBool(JsonElement? element, string propertyName, out bool value)
+    {
+        if (element is { } candidate
+            && candidate.ValueKind == JsonValueKind.Object
+            && candidate.TryGetProperty(propertyName, out var property)
+            && (property.ValueKind == JsonValueKind.True || property.ValueKind == JsonValueKind.False))
+        {
+            value = property.GetBoolean();
+            return true;
+        }
+
+        value = false;
+        return false;
     }
 }

@@ -170,9 +170,9 @@ public class AuditLoggerStaticTests
     {
         // Arrange
         var customLogger = new TestAuditLogger();
+        using var _ = UseCustomLoggerForTest(customLogger);
 
         // Act
-        AuditLogger.InitializeForTesting(customLogger);
         AuditLogger.LogSecurityEvent("Test", "Custom logger test", AuditSeverity.Information);
 
         // Assert
@@ -181,11 +181,33 @@ public class AuditLoggerStaticTests
     }
 
     [Fact]
+    public void CustomLoggerTests_ShouldRestoreDefaultTraceLoggerAfterReturning()
+    {
+        AuditLogger.ResetForTesting();
+        Initialize_WithCustomLogger_ShouldUseCustomLogger();
+
+        var listener = new TestTraceListener();
+        Trace.Listeners.Add(listener);
+
+        try
+        {
+            AuditLogger.LogSecurityEvent("Test", "Post custom logger test", AuditSeverity.Information);
+
+            listener.Messages.Should().ContainSingle(message => message.Contains("Post custom logger test"));
+        }
+        finally
+        {
+            Trace.Listeners.Remove(listener);
+            AuditLogger.ResetForTesting();
+        }
+    }
+
+    [Fact]
     public async Task LogSecurityEvent_ConcurrentCalls_ShouldBeThreadSafe()
     {
         // Arrange
         var customLogger = new TestAuditLogger();
-        AuditLogger.InitializeForTesting(customLogger);
+        using var _ = UseCustomLoggerForTest(customLogger);
 
         // Act - log from multiple threads
         var tasks = Enumerable.Range(0, 100)
@@ -207,7 +229,7 @@ public class AuditLoggerStaticTests
     {
         // Arrange
         var customLogger = new TestAuditLogger();
-        AuditLogger.InitializeForTesting(customLogger);
+        using var _ = UseCustomLoggerForTest(customLogger);
 
         // Act
         AuditLogger.LogSecurityEvent("Test", "Severity test", severity);
@@ -236,7 +258,20 @@ public class AuditLoggerStaticTests
         finally
         {
             Trace.Listeners.Remove(listener);
+            AuditLogger.ResetForTesting();
         }
+    }
+
+    private static IDisposable UseCustomLoggerForTest(IAuditLogger logger)
+    {
+        AuditLogger.ResetForTesting();
+        AuditLogger.InitializeForTesting(logger);
+        return new AuditLoggerTestScope();
+    }
+
+    private sealed class AuditLoggerTestScope : IDisposable
+    {
+        public void Dispose() => AuditLogger.ResetForTesting();
     }
 
     private class TestAuditLogger : IAuditLogger

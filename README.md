@@ -286,7 +286,7 @@ Injected Inspector DLL (In-Process)
 Target WPF Application
 ```
 
-DLL injection uses the `CreateRemoteThread` technique (Snoop-based). Once injected, the Inspector DLL runs in the target process and communicates with the MCP Server over Named Pipes using JSON-RPC with length-prefix framing.
+DLL injection uses the `CreateRemoteThread` technique (Snoop-based). Once injected, the Inspector DLL runs in the target process and communicates with the MCP Server over Named Pipes using custom length-prefixed JSON request/response messages (`[4-byte little-endian length][UTF-8 JSON payload]`).
 
 ## Repository Layout
 

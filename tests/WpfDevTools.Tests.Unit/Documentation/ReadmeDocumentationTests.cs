@@ -1,4 +1,7 @@
+using System.Buffers.Binary;
+using System.Text;
 using FluentAssertions;
+using WpfDevTools.Shared.Serialization;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -30,6 +33,33 @@ public class ReadmeDocumentationTests
 
         content.Should().NotContain("tools/call");
         content.Should().NotContain("\"jsonrpc\"");
+    }
+
+    [Fact]
+    public async Task Readme_ShouldMatchInspectorNamedPipeFramingContract()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+        var architectureSection = content.Split("## Architecture", 2)[1].Split("## Repository Layout", 2)[0];
+        var inspectorIpcSentence = architectureSection
+            .Split('\n')
+            .Single(line => line.Contains("Once injected") && line.Contains("Named Pipes"));
+        var requestSource = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Shared/Messages/InspectorRequest.cs"));
+        var responseSource = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Shared/Messages/InspectorResponse.cs"));
+        const string jsonPayload = "{\"id\":\"readme-contract\",\"method\":\"ping\",\"params\":{}}";
+        var payloadBytes = Encoding.UTF8.GetBytes(jsonPayload);
+
+        using var stream = new MemoryStream();
+        await MessageFraming.WriteMessageAsync(stream, jsonPayload);
+        var frame = stream.ToArray();
+
+        frame.Should().HaveCount(4 + payloadBytes.Length);
+        BinaryPrimitives.ReadInt32LittleEndian(frame.AsSpan(0, 4)).Should().Be(payloadBytes.Length);
+        frame[4..].Should().Equal(payloadBytes);
+        requestSource.Should().NotContain("\"jsonrpc\"");
+        responseSource.Should().NotContain("\"jsonrpc\"");
+        inspectorIpcSentence.Should().Contain("custom length-prefixed JSON request/response messages");
+        inspectorIpcSentence.Should().Contain("4-byte little-endian length");
+        inspectorIpcSentence.Should().NotContain("JSON-RPC");
     }
 
     [Fact]

@@ -132,40 +132,41 @@ internal sealed class BootstrapParameterPayload : IDisposable
 
     private static void SecureDeleteSecretFile(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        var secretPath = path ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(secretPath))
         {
             return;
         }
 
-        if (!File.Exists(path))
+        if (!File.Exists(secretPath))
         {
             return;
         }
 
         try
         {
-            WipeSecretFile(path);
+            WipeSecretFile(secretPath);
         }
         catch (IOException ex)
         {
-            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file '{path}': {ex.Message}");
+            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file '{secretPath}': {ex.Message}");
         }
         catch (UnauthorizedAccessException ex)
         {
-            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file '{path}': {ex.Message}");
+            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file '{secretPath}': {ex.Message}");
         }
 
         try
         {
-            File.Delete(path);
+            File.Delete(secretPath);
         }
         catch (IOException ex)
         {
-            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file '{path}': {ex.Message}");
+            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file '{secretPath}': {ex.Message}");
         }
         catch (UnauthorizedAccessException ex)
         {
-            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file '{path}': {ex.Message}");
+            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file '{secretPath}': {ex.Message}");
         }
     }
 
@@ -182,11 +183,11 @@ internal sealed class BootstrapParameterPayload : IDisposable
         var length = stream.Length;
         if (length > 0)
         {
-            Span<byte> zeros = stackalloc byte[256];
+            var zeros = new byte[256];
             while (length > 0)
             {
                 var bytesToWrite = (int)Math.Min(zeros.Length, length);
-                stream.Write(zeros[..bytesToWrite]);
+                stream.Write(zeros, 0, bytesToWrite);
                 length -= bytesToWrite;
             }
 

@@ -98,6 +98,7 @@ public sealed class ReleaseReadinessDocumentationTests
     [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
     [InlineData("1. build-release.ps1 builds, tests, and packages the release.")]
+    [InlineData("1. Stops after package generation; it does not run the preflight build/test validation, but it runs the full test suite.")]
     public void BuildReleaseValidationGuard_ShouldRejectRewordedPositiveValidationClaims(string staleClaim)
     {
         var guide = string.Join("\n",
@@ -123,6 +124,21 @@ public sealed class ReleaseReadinessDocumentationTests
 
         GetBuildReleaseValidationClaims(guide).Should().BeEmpty(
             "the build-release wrapper guard should inspect only the What this does list and not drift into later Preflight guidance");
+    }
+
+    [Fact]
+    public void BuildReleaseValidationGuard_ShouldRejectValidationClaimsOnOrderedListContinuationLines()
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            "1. Produces release packages",
+            "   and runs the full test suite.",
+            "",
+            "After package generation, Preflight-Release.ps1 can run dotnet test and release validation.");
+
+        GetBuildReleaseValidationClaims(guide).Should().NotBeEmpty(
+            "wrapped Markdown ordered-list lines still belong to the build-release wrapper list and should be scanned");
     }
 
     [Fact]
@@ -233,7 +249,7 @@ public sealed class ReleaseReadinessDocumentationTests
             .Split('\n')
             .Select(line => line.Trim())
             .Where(line => line.Length > 0)
-            .Where(line => !IsNegatedBuildReleaseValidationLine(line))
+            .Select(RemoveAllowedNegatedValidationPhrases)
             .Where(IsBuildReleaseValidationClaim)
             .ToList();
     }
@@ -257,17 +273,18 @@ public sealed class ReleaseReadinessDocumentationTests
 
         var lines = normalized[listStart..]
             .Split('\n')
-            .TakeWhile(IsOrderedListOrBlankLine)
+            .TakeWhile(IsOrderedListBlankOrContinuationLine)
             .ToArray();
 
         return string.Join("\n", lines);
     }
 
-    private static bool IsNegatedBuildReleaseValidationLine(string line)
+    private static string RemoveAllowedNegatedValidationPhrases(string line)
     {
-        return Regex.IsMatch(
+        return Regex.Replace(
             line,
-            @"\b(does\s+not|do\s+not|will\s+not|without)\s+(run(?:ning)?|execute|executing|perform(?:ing)?|build(?:ing)?|test(?:ing)?|validate|validating)\b",
+            @"\b(does\s+not|do\s+not|will\s+not|without)\s+(run(?:ning)?|execute|executing|perform(?:ing)?|build(?:ing)?|test(?:ing)?|validate|validating)\b[^;,.]*",
+            string.Empty,
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
@@ -278,10 +295,11 @@ public sealed class ReleaseReadinessDocumentationTests
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
-    private static bool IsOrderedListOrBlankLine(string line)
+    private static bool IsOrderedListBlankOrContinuationLine(string line)
     {
         return string.IsNullOrWhiteSpace(line)
-            || Regex.IsMatch(line, @"^\d+\.\s+", RegexOptions.CultureInvariant);
+            || Regex.IsMatch(line, @"^\d+\.\s+", RegexOptions.CultureInvariant)
+            || Regex.IsMatch(line, @"^\s{2,}\S", RegexOptions.CultureInvariant);
     }
 
     private static IReadOnlyList<string> GetPublicEndpointWarningFiles()

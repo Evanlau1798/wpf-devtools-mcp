@@ -16,7 +16,7 @@ public static class EventMcpTools
 {
     private const string EventMetadata = "CATEGORY: Event\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
-    [McpServerTool(Name = "trace_routed_events", Title = "Trace WPF Routed Events", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "trace_routed_events", Title = "Trace WPF Routed Events", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
     [Description(
         "Use this tool to trace WPF routed events during runtime interaction and diagnose event flow.\n\n" +
         EventMetadata + "[Event] Trace a routed event over a short capture window and return collected records, or run in a two-step non-blocking workflow for AI agents. " +

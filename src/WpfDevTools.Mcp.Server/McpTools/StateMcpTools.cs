@@ -13,7 +13,7 @@ public static class StateMcpTools
 {
     private const string StateMetadata = "CATEGORY: State\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
-    [McpServerTool(Name = "capture_state_snapshot", Title = "Capture WPF Runtime State Snapshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "capture_state_snapshot", Title = "Capture WPF Runtime State Snapshot", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
     [Description(
         "Use this tool to capture a WPF runtime state snapshot before mutations or multi-step debugging.\n\n" +
         StateMetadata + "[State] Capture a restorable runtime snapshot for a connected WPF process.\n\n" +

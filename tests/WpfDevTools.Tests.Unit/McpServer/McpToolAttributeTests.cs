@@ -296,7 +296,6 @@ public class McpToolAttributeTests
     [InlineData("get_dp_value_source")]
     [InlineData("get_applied_styles")]
     [InlineData("get_event_handlers")]
-    [InlineData("drain_events")]
     [InlineData("element_screenshot")]
     [InlineData("get_focus_state")]
     [InlineData("get_layout_info")]

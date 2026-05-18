@@ -20,4 +20,24 @@ public class McpToolAnnotationSemanticsTests
         attribute.Destructive.Should().BeFalse(
             "watch_dp_changes does not perform destructive updates to the inspected application");
     }
+
+    [Theory]
+    [InlineData(typeof(EventMcpTools), nameof(EventMcpTools.TraceRoutedEvents), "trace_routed_events")]
+    [InlineData(typeof(EventDrainMcpTools), nameof(EventDrainMcpTools.DrainEvents), "drain_events")]
+    [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.CaptureStateSnapshot), "capture_state_snapshot")]
+    public void StatefulObserverTools_ShouldAdvertiseNonReadOnlyNonDestructiveSemantics(
+        Type toolType,
+        string methodName,
+        string toolName)
+    {
+        var method = toolType.GetMethod(methodName);
+        method.Should().NotBeNull();
+
+        var attribute = method!.GetCustomAttribute<McpServerToolAttribute>();
+        attribute.Should().NotBeNull();
+        attribute!.ReadOnly.Should().BeFalse(
+            $"{toolName} mutates session-scoped observer or snapshot state and is not a pure read");
+        attribute.Destructive.Should().BeFalse(
+            $"{toolName} should not be classified as destructive because it does not directly mutate the inspected WPF application");
+    }
 }

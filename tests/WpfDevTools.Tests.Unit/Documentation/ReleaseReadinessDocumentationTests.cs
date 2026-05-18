@@ -66,8 +66,32 @@ public sealed class ReleaseReadinessDocumentationTests
             "release validation must point at the preflight entrypoint that actually runs build and test steps");
         content.Should().Contain("build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1",
             "build-release.ps1 should be documented as the packaging wrapper it is today");
-        content.Should().NotContain("What this does:\r\n\r\n1. Builds `WpfDevTools.sln` in `Release`",
+        GetBuildReleaseValidationClaims(content).Should().BeEmpty(
             "the build-release.ps1 section must not claim that the packaging wrapper runs release validation");
+    }
+
+    [Fact]
+    public void BuildReleaseValidationGuard_ShouldRejectLfValidationClaimsInsideBuildReleaseSection()
+    {
+        var guide = string.Join("\n",
+            "# Releasing",
+            "",
+            "Preflight-Release.ps1 builds, tests, packages, and optionally stages release sidecars.",
+            "",
+            "To generate release zip packages locally without running the preflight validation steps or uploading anything, use:",
+            "",
+            "```powershell",
+            "powershell -ExecutionPolicy Bypass -File scripts/tools/build-release.ps1 -Configuration Release",
+            "```",
+            "",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            "1. Builds `WpfDevTools.sln` in `Release`",
+            "2. Runs `dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build`",
+            "3. Produces release packages");
+
+        GetBuildReleaseValidationClaims(guide).Should().NotBeEmpty(
+            "the guard must reject build/test validation claims inside the build-release.ps1 packaging-wrapper section even when the file uses LF line endings");
     }
 
     [Fact]
@@ -164,6 +188,59 @@ public sealed class ReleaseReadinessDocumentationTests
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         return mentionsPublicInstaller && mentionsOnboardingDocs;
+    }
+
+    private static IReadOnlyList<string> GetBuildReleaseValidationClaims(string releaseGuide)
+    {
+        var section = GetBuildReleaseSection(releaseGuide);
+        if (string.IsNullOrWhiteSpace(section))
+        {
+            return [];
+        }
+
+        return section
+            .Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .Where(line => !IsNegatedBuildReleaseValidationLine(line))
+            .Where(IsBuildReleaseValidationClaim)
+            .ToList();
+    }
+
+    private static string GetBuildReleaseSection(string releaseGuide)
+    {
+        var normalized = releaseGuide.Replace("\r\n", "\n").Replace('\r', '\n');
+        const string sectionStartMarker =
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1";
+        var sectionStart = normalized.IndexOf(sectionStartMarker, StringComparison.Ordinal);
+        if (sectionStart < 0)
+        {
+            return string.Empty;
+        }
+
+        var sectionEnd = normalized.IndexOf("\nIf you also want", sectionStart, StringComparison.Ordinal);
+        if (sectionEnd < 0)
+        {
+            sectionEnd = normalized.IndexOf("\n## ", sectionStart, StringComparison.Ordinal);
+        }
+
+        return sectionEnd < 0
+            ? normalized[sectionStart..]
+            : normalized[sectionStart..sectionEnd];
+    }
+
+    private static bool IsNegatedBuildReleaseValidationLine(string line)
+    {
+        return Regex.IsMatch(line,
+            @"\b(does\s+not|do\s+not|without|not)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private static bool IsBuildReleaseValidationClaim(string line)
+    {
+        return Regex.IsMatch(line,
+            @"\bBuilds?\s+`?WpfDevTools\.sln`?|\bdotnet\s+build\b|\bdotnet\s+test\b|--no-build|\bunit\s+tests?\b|\bintegration\s+tests?\b|\bruns?\s+tests?\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     private static IReadOnlyList<string> GetPublicEndpointWarningFiles()

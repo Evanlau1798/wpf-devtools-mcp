@@ -194,6 +194,107 @@ $global:MaliciousInstalledBootstrapLoaded
         }
     }
 
+    [Fact]
+    public void OnlineInstallerDefinitions_ShouldRejectSelfAttestedLocalHelperManifestBeforeBootstrapImport()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var scriptRoot = Path.Combine(tempRoot, "scripts");
+            var helperRoot = Path.Combine(scriptRoot, "installer");
+            Directory.CreateDirectory(helperRoot);
+
+            var scriptPath = Path.Combine(scriptRoot, "online-installer.ps1");
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"), scriptPath);
+            CopyInstallerHelpers(helperRoot);
+
+            var markerPath = Path.Combine(tempRoot, "self-attested-bootstrap.marker");
+            var bootstrapPath = Path.Combine(helperRoot, "Installer.BootstrapUi.ps1");
+            File.WriteAllText(
+                bootstrapPath,
+                "Set-Content -LiteralPath $env:WPFDEVTOOLS_SELF_ATTESTED_HELPER_MARKER -Value executed -Encoding UTF8" +
+                Environment.NewLine);
+            RewriteHelperManifestForDirectory(helperRoot);
+
+            var command = $$"""
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Architecture x64 -Client other -NonInteractive", scriptPath, enableInternalTestMode: false)}}
+$null = Ensure-TuiHelpersAvailable
+'loaded'
+""";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["WPFDEVTOOLS_SELF_ATTESTED_HELPER_MARKER"] = markerPath,
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("pinned installer helper manifest cache key");
+            File.Exists(markerPath).Should().BeFalse(
+                "a helper plus a matching co-located manifest must not be trusted before an independent helper trust anchor is checked");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstallerDefinitions_ShouldAcceptArchiveTrustedHelperManifestWithDifferentCacheKey()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64", isolateArchiveContents: true);
+            var extractRoot = Path.Combine(tempRoot, "modified-package");
+            System.IO.Compression.ZipFile.ExtractToDirectory(archivePath, extractRoot);
+
+            var helperRoot = Path.Combine(extractRoot, "bin", "installer");
+            File.AppendAllText(
+                Path.Combine(helperRoot, "Installer.Actions.ps1"),
+                Environment.NewLine + "# archive-trusted helper version under release metadata" + Environment.NewLine);
+            RewriteHelperManifestForDirectory(helperRoot);
+
+            File.Delete(archivePath);
+            System.IO.Compression.ZipFile.CreateFromDirectory(extractRoot, archivePath);
+            ReleaseScriptTestHarness.WriteAdjacentReleaseMetadata(archivePath);
+
+            var scriptPath = Path.Combine(tempRoot, "online-installer.ps1");
+            var workingRoot = Path.Combine(tempRoot, "working");
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"), scriptPath);
+
+            var command = $$"""
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Version 1.2.3 -Architecture x64 -Client other -PackageArchivePath '" + archivePath.Replace("'", "''") + "' -TrustedReleaseMetadataDirectory '" + tempRoot.Replace("'", "''") + "' -WorkingRoot '" + workingRoot.Replace("'", "''") + "' -NonInteractive", scriptPath, enableInternalTestMode: false)}}
+$helperRoot = Ensure-TuiHelpersAvailable
+Test-Path -LiteralPath (Join-Path $helperRoot 'Installer.Actions.ps1')
+""";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be("True",
+                "release-metadata-trusted archives are independently verified before helper extraction");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static string ComputeManifestCacheKey(string installerDirectory, IReadOnlyCollection<string> helperFiles)
     {
         var records = helperFiles
@@ -201,6 +302,38 @@ $global:MaliciousInstalledBootstrapLoaded
             .Select(file => file + ":" + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(installerDirectory, file)))).ToLowerInvariant())
             .ToArray();
         return "sha256:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("|", records)))).ToLowerInvariant();
+    }
+
+    private static void CopyInstallerHelpers(string helperRoot)
+    {
+        var sourceHelperRoot = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+        foreach (var sourcePath in Directory.EnumerateFiles(sourceHelperRoot))
+        {
+            File.Copy(sourcePath, Path.Combine(helperRoot, Path.GetFileName(sourcePath)), overwrite: true);
+        }
+    }
+
+    private static void RewriteHelperManifestForDirectory(string helperRoot)
+    {
+        var manifestPath = Path.Combine(helperRoot, "installer-helpers.manifest.json");
+        var manifestNode = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+        var helperFiles = manifestNode["helperFiles"]!.AsArray();
+        var helperNames = new List<string>();
+
+        foreach (var entry in helperFiles)
+        {
+            var entryObject = entry!.AsObject();
+            var helperName = entryObject["path"]!.GetValue<string>();
+            var helperPath = Path.Combine(helperRoot, helperName);
+            var helperBytes = File.ReadAllBytes(helperPath);
+
+            entryObject["sha256"] = Convert.ToHexString(SHA256.HashData(helperBytes)).ToLowerInvariant();
+            entryObject["sizeBytes"] = helperBytes.Length;
+            helperNames.Add(helperName);
+        }
+
+        manifestNode["cacheKey"] = ComputeManifestCacheKey(helperRoot, helperNames);
+        File.WriteAllText(manifestPath, manifestNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
     private static bool CanValidateTrackedFilesWithGit(string repoRoot)

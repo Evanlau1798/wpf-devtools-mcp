@@ -287,6 +287,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
+$script:InstallerHelperManifestCacheKey = 'sha256:35aef94667e54739265df75529d0aa44dd4d180f2c93276e4f825fcbf69ade7d'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/Installer.BootstrapUi.ps1'
     'scripts/installer/Tui.Terminal.ps1'
@@ -2747,7 +2748,8 @@ function Get-InstallerHelperRecordMap {
 function Assert-InstallerHelperManifestIntegrity {
     param(
         [Parameter(Mandatory)] [string]$HelperDirectory,
-        [Parameter(Mandatory)] $Manifest
+        [Parameter(Mandatory)] $Manifest,
+        [switch]$RequirePinnedCacheKey
     )
 
     $expectedHelperFiles = @(Get-HelperLeafNames | Sort-Object)
@@ -2764,6 +2766,16 @@ function Assert-InstallerHelperManifestIntegrity {
         }
 
         Assert-InstallerHelperFileRecord -HelperPath (Join-Path $HelperDirectory $helperFile) -HelperRecord $recordMap[$helperFile]
+    }
+
+    $computedCacheKey = Get-ComputedInstallerHelperCacheKey -HelperDirectory $HelperDirectory -HelperFiles $expectedHelperFiles
+    if (-not [string]::Equals([string]$Manifest.CacheKey, $computedCacheKey, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Installer helper manifest cache key does not match the helper file records. Expected $computedCacheKey but found $([string]$Manifest.CacheKey)."
+    }
+
+    if ($RequirePinnedCacheKey -and
+        -not [string]::Equals($computedCacheKey, $script:InstallerHelperManifestCacheKey, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Installer helper manifest cache key does not match the pinned installer helper manifest cache key."
     }
 }
 function Get-InstallerHelperRuntimeCacheKey {
@@ -2857,6 +2869,7 @@ if (-not [string]::IsNullOrWhiteSpace($script:InstallerBootstrapUiPath)) {
     $helperDirectory = Split-Path -Parent $script:InstallerBootstrapUiPath
     $manifest = Read-TuiHelperManifest -ManifestPath (Get-TuiHelperManifestPath -RootPath $helperDirectory) -HelperDirectory $helperDirectory
     if ($null -ne $manifest) {
+        Assert-InstallerHelperManifestIntegrity -HelperDirectory $helperDirectory -Manifest $manifest -RequirePinnedCacheKey
         $recordMap = Get-InstallerHelperRecordMap -Manifest $manifest
         if (-not $recordMap.ContainsKey('Installer.BootstrapUi.ps1')) {
             throw 'Installer helper manifest is missing integrity metadata for Installer.BootstrapUi.ps1.'
@@ -2896,7 +2909,7 @@ function Get-TuiHelperManifest {
             continue
         }
 
-        Assert-InstallerHelperManifestIntegrity -HelperDirectory $candidateRoot -Manifest $manifest
+        Assert-InstallerHelperManifestIntegrity -HelperDirectory $candidateRoot -Manifest $manifest -RequirePinnedCacheKey
 
         $script:TuiHelperManifest = $manifest
         return $manifest
@@ -2968,7 +2981,7 @@ function Ensure-TuiHelpersAvailable {
 
         if ($allPresent) {
             if ($null -ne $manifest) {
-                Assert-InstallerHelperManifestIntegrity -HelperDirectory $trustedCandidateRoot -Manifest $manifest
+                Assert-InstallerHelperManifestIntegrity -HelperDirectory $trustedCandidateRoot -Manifest $manifest -RequirePinnedCacheKey
             }
             $script:TuiHelperResolvedRoot = $trustedCandidateRoot
             return $trustedCandidateRoot

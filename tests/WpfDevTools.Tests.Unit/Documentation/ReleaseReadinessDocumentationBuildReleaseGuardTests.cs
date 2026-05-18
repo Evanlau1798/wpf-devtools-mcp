@@ -80,6 +80,18 @@ public sealed partial class ReleaseReadinessDocumentationTests
     }
 
     [Fact]
+    public void BuildReleaseValidationGuard_ShouldRejectTitleCasePositiveClaimsAfterMalformedNoSpaceSentenceBoundary()
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            "1. Stops after package generation; it does not run the preflight validation.Full Test Suite passes.");
+
+        GetBuildReleaseValidationClaims(guide).Should().NotBeEmpty(
+            "malformed no-space title-case sentence boundaries must not let a negated validation phrase hide a later positive claim");
+    }
+
+    [Fact]
     public void BuildReleaseValidationGuard_ShouldAllowNegatedDottedProjectPathClaims()
     {
         var guide = string.Join("\n",

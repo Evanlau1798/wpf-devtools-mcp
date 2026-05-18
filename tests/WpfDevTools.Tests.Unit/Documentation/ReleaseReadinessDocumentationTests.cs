@@ -106,6 +106,18 @@ public sealed class ReleaseReadinessDocumentationTests
             "sentence splitting must not break dotted filenames before the validation claim scanner runs");
     }
 
+    [Fact]
+    public void BuildReleaseValidationGuard_ShouldRejectPositiveClaimsAfterNoSpaceSentenceBoundary()
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            "1. Stops after package generation; it does not run the preflight validation.Runs the full test suite.");
+
+        GetBuildReleaseValidationClaims(guide).Should().NotBeEmpty(
+            "positive validation claims after a no-space sentence boundary must not be hidden by the preceding negated sentence");
+    }
+
     [Theory]
     [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
@@ -300,7 +312,7 @@ public sealed class ReleaseReadinessDocumentationTests
     {
         return Regex.Split(
             line,
-            @";|\.(?=\s|$)|\b(?:but|however|yet|although|though|and|then|while)\b",
+            @";|\.(?=\s|$|(?-i:[A-Z]))|\b(?:but|however|yet|although|though|and|then|while)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
             .Select(clause => clause.Trim())
             .Where(clause => clause.Length > 0);

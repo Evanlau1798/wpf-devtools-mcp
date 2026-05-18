@@ -311,13 +311,21 @@ static bool WipeFileContents(const std::wstring& path)
 
     bool success = true;
     DWORD errorCode = ERROR_SUCCESS;
-    auto recordFailure = [&errorCode, &success](DWORD fallbackError = ERROR_WRITE_FAULT)
+    auto recordLastErrorFailure = [&errorCode, &success](DWORD fallbackError = ERROR_WRITE_FAULT)
     {
         success = false;
         if (errorCode == ERROR_SUCCESS)
         {
             DWORD lastError = GetLastError();
             errorCode = lastError == ERROR_SUCCESS ? fallbackError : lastError;
+        }
+    };
+    auto recordDeterministicFailure = [&errorCode, &success](DWORD failureCode)
+    {
+        success = false;
+        if (errorCode == ERROR_SUCCESS)
+        {
+            errorCode = failureCode;
         }
     };
 
@@ -332,13 +340,13 @@ static bool WipeFileContents(const std::wstring& path)
             BOOL wrote = WriteFile(file, zeros, bytesToWrite, &bytesWritten, nullptr);
             if (!wrote)
             {
-                recordFailure();
+                recordLastErrorFailure();
                 break;
             }
 
             if (bytesWritten != bytesToWrite)
             {
-                recordFailure(ERROR_WRITE_FAULT);
+                recordDeterministicFailure(ERROR_WRITE_FAULT);
                 break;
             }
 
@@ -346,16 +354,16 @@ static bool WipeFileContents(const std::wstring& path)
         }
 
         if (!FlushFileBuffers(file))
-            recordFailure(ERROR_WRITE_FAULT);
+            recordLastErrorFailure(ERROR_WRITE_FAULT);
 
         SetFilePointer(file, 0, nullptr, FILE_BEGIN);
     }
 
     if (!SetEndOfFile(file))
-        recordFailure(ERROR_WRITE_FAULT);
+        recordLastErrorFailure(ERROR_WRITE_FAULT);
 
     if (!FlushFileBuffers(file))
-        recordFailure(ERROR_WRITE_FAULT);
+        recordLastErrorFailure(ERROR_WRITE_FAULT);
 
     CloseHandle(file);
     if (!success)

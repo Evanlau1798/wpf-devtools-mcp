@@ -18,11 +18,17 @@ dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.cs
 
 目前專案層級的驗證狀態會結合最近一次完整完成的 suite baseline，以及測試數量或排程調整後的 focused rerun。
 
-### 測試結果
+### 測試 discovery 基準
 
-- Unit tests：目前以 `dotnet test --no-build --list-tests` discover 到 3301 個（main unit 2978 + release-unit 323）
-- Integration tests：目前以 `dotnet test --no-build --list-tests` discover 到 315 個
-- 合計基準：目前以 `dotnet test --no-build --list-tests` discover 到 3616 個測試，涵蓋 unit、release-unit 與 integration suites
+README 的公開 badge 刻意使用保守的 `tests-3600+` 下限宣告。請使用 `dotnet test --no-build --list-tests` 從已建置的測試 assembly discover 目前精確數量，不要把一次性的 snapshot 複製到此頁：
+
+```powershell
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build --list-tests
+dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --no-build --list-tests
+dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --no-build --list-tests
+```
+
+請把 unit、release-unit 與 integration suites 視為合併後的公開基準。不要在此頁寫入精確測試數量；精確命令輸出只應記錄在 release notes、PR validation logs，或該次 audit evidence 中。
 
 ### Coverage
 

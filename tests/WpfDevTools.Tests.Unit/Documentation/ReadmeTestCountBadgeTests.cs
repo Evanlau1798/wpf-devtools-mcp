@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using FluentAssertions;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -6,50 +5,73 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public sealed class ReadmeTestCountBadgeTests
 {
     [Fact]
-    public void ReadmeTestBadge_ShouldTrackDocumentedCombinedTestBaseline()
+    public void ReadmeTestBadge_ShouldStayCoarseLowerBound()
     {
         var readme = ReadRepoFile("README.md");
-        var testingGuide = ReadRepoFile("docfx/contributors/testing-and-tdd.md");
-
-        var documentedTotal = ExtractEnglishCombinedTotal(testingGuide);
-        var expectedBadgeFloor = documentedTotal / 100 * 100;
 
         readme.Should().Contain(
-            $"https://img.shields.io/badge/tests-{expectedBadgeFloor}%2B-brightgreen",
-            "the README badge should be a rounded lower bound of the documented combined test baseline");
+            "https://img.shields.io/badge/tests-3600%2B-brightgreen",
+            "the public badge should stay a conservative lower-bound claim instead of mirroring exact discovery output");
     }
 
     [Fact]
-    public void LocalizedTestingGuides_ShouldAgreeOnTestBaselineCounts()
+    public void TestingGuides_ShouldDescribeDiscoveryDrivenCounts()
     {
         var english = ReadRepoFile("docfx/contributors/testing-and-tdd.md");
         var zhTw = ReadRepoFile("docfx/zh-tw/contributors/testing-and-tdd.md");
 
-        ExtractEnglishCounts(english).Should().BeEquivalentTo(ExtractTraditionalChineseCounts(zhTw));
+        english.Should().Contain("dotnet test --no-build --list-tests");
+        english.Should().Contain("Do not update this page with exact test counts");
+        english.Should().Contain("unit, release-unit, and integration suites");
+
+        zhTw.Should().Contain("dotnet test --no-build --list-tests");
+        zhTw.Should().Contain("不要在此頁寫入精確測試數量");
+        zhTw.Should().Contain("unit、release-unit 與 integration suites");
     }
 
-    private static (int Unit, int Integration, int Total) ExtractEnglishCounts(string content) =>
-        (
-            ExtractFirstInt(content, @"Unit tests:\s+(\d+)"),
-            ExtractFirstInt(content, @"Integration tests:\s+(\d+)"),
-            ExtractEnglishCombinedTotal(content)
-        );
-
-    private static (int Unit, int Integration, int Total) ExtractTraditionalChineseCounts(string content) =>
-        (
-            ExtractFirstInt(content, @"Unit tests：.*?discover 到\s+(\d+)\s+個"),
-            ExtractFirstInt(content, @"Integration tests：.*?discover 到\s+(\d+)\s+個"),
-            ExtractFirstInt(content, @"合計基準：.*?discover 到\s+(\d+)\s+個測試")
-        );
-
-    private static int ExtractEnglishCombinedTotal(string content) =>
-        ExtractFirstInt(content, @"Verified combined total:\s+(\d+)");
-
-    private static int ExtractFirstInt(string content, string pattern)
+    [Fact]
+    public void PublicReleaseChecklist_ShouldUseDiscoveryCommandInsteadOfExactSnapshot()
     {
-        var match = Regex.Match(content, pattern, RegexOptions.CultureInvariant);
-        match.Success.Should().BeTrue($"documentation should contain a count matching `{pattern}`");
-        return int.Parse(match.Groups[1].Value);
+        var checklist = ReadRepoFile("PUBLIC_RELEASE_READINESS_CHECKLIST.md");
+
+        checklist.Should().Contain("tests-3600+");
+        checklist.Should().Contain("dotnet test --no-build --list-tests");
+    }
+
+    [Theory]
+    [MemberData(nameof(ExactCountDocumentationFiles))]
+    public void PublicCountDocs_ShouldNotReintroduceExactTestCountSnapshots(string relativePath)
+    {
+        var content = ReadRepoFile(relativePath);
+
+        foreach (var forbiddenToken in ExactCountSnapshotTokens())
+        {
+            content.Should().NotContain(forbiddenToken,
+                $"{relativePath} should stay discovery-driven instead of restoring stale exact test-count snapshots");
+        }
+    }
+
+    public static IEnumerable<object[]> ExactCountDocumentationFiles()
+    {
+        yield return new object[] { "docfx/contributors/testing-and-tdd.md" };
+        yield return new object[] { "docfx/zh-tw/contributors/testing-and-tdd.md" };
+        yield return new object[] { "PUBLIC_RELEASE_READINESS_CHECKLIST.md" };
+    }
+
+    private static IEnumerable<string> ExactCountSnapshotTokens()
+    {
+        yield return "3301";
+        yield return "2978";
+        yield return "323";
+        yield return "315";
+        yield return "3616";
+        yield return "3462";
+        yield return "tests-3400+";
+        yield return "currently discovered";
+        yield return "discover 到 3301";
+        yield return "302/302";
+        yield return "311/311";
+        yield return "15/15";
     }
 
     private static string ReadRepoFile(string relativePath)

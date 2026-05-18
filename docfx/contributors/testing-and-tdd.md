@@ -18,11 +18,17 @@ dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.cs
 
 The current project-level verification status combines the latest completed suite baselines with subsequent focused reruns when test counts or scheduling change.
 
-### Test results
+### Test discovery baseline
 
-- Unit tests: 3301 currently discovered across the main unit and release-unit suites (`2978 + 323`) via `dotnet test --no-build --list-tests`
-- Integration tests: 315 currently discovered in the integration suite via `dotnet test --no-build --list-tests`
-- Verified combined total: 3616 currently discovered tests across unit, release-unit, and integration suites
+The public README badge intentionally uses a conservative `tests-3600+` lower-bound claim. Use `dotnet test --no-build --list-tests` to discover the current exact counts from the built test assemblies instead of copying a snapshot into this page:
+
+```powershell
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build --list-tests
+dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --no-build --list-tests
+dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --no-build --list-tests
+```
+
+Treat the unit, release-unit, and integration suites as the combined public baseline. Do not update this page with exact test counts; record exact command output only in release notes, PR validation logs, or the relevant audit evidence for that run.
 
 ### Coverage
 

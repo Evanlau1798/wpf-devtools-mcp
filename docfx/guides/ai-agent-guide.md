@@ -48,8 +48,10 @@ For stateful validation, prefer this sequence:
 Local policy gates must be confirmed close to any prompt or example that uses
 high-risk tools. `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must include the target
 executable's exact absolute path before `connect`. In addition,
-`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` gates mutation tools such as
-`click_element`, `set_dp_value`, `restore_state_snapshot`, and `batch_mutate`;
+`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` gates mutation, interaction,
+render-measurement, and session state-consuming tools such as `click_element`,
+`set_dp_value`, `capture_state_snapshot`, `restore_state_snapshot`,
+`drain_events`, and `batch_mutate`;
 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` gates `element_screenshot`; and
 `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` gates `get_viewmodel` and
 `get_commands`. `execute_command` requires both

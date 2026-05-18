@@ -36,7 +36,7 @@
 server 會在把高風險 MCP `tools/call` 派送到 tool implementation 前先做政策檢查。
 
 - `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 會把所有 `connect()` target 限制在 exact absolute executable path 清單內，且會在 SDK-hosted reuse 或 raw injection 前套用；未設定或 malformed entry 會 fail closed。
-- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` 會 opt in runtime mutation、interaction 與 render-measurement tools，例如 `set_dp_value`、`click_element`、`execute_command`、`measure_element_render_time`、`restore_state_snapshot`、`batch_mutate`。
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` 會 opt in runtime mutation、interaction、render-measurement 與 session state-consuming tools，例如 `set_dp_value`、`click_element`、`execute_command`、`measure_element_render_time`、`capture_state_snapshot`、`restore_state_snapshot`、`drain_events`、`batch_mutate`。
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 會 opt in MCP 邊界的 `element_screenshot`。
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` 會 opt in `get_viewmodel`、`get_commands`、`modify_viewmodel` 與 `execute_command`。
 - boolean gate 未設定、false 或無效時會讓受影響類別 fail closed。

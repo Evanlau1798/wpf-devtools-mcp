@@ -16,7 +16,7 @@ goes wrong.
 Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target executable's
 exact absolute path before `connect`. This workflow mutates live state and
 restores it, so enable `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` for
-`set_dp_value` and `restore_state_snapshot`.
+`capture_state_snapshot`, `set_dp_value`, and `restore_state_snapshot`.
 
 ### Solution
 
@@ -181,6 +181,13 @@ screenshot tools, so enable `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` for
 ### Scenario
 
 You want to monitor property changes over time.
+
+### Local prerequisites
+
+Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target executable's
+exact absolute path before `connect`. This workflow reads and consumes the
+shared runtime event buffer, so enable
+`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` for `drain_events`.
 
 ### Solution
 

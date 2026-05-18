@@ -9,7 +9,7 @@
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | pin 預期憑證的 thumbprint | 在高限制部署中很有幫助 |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | allowlist raw-injection target executable | 以分號分隔的 exact absolute executable path；優先使用 SDK-hosted reuse |
 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | 限制所有 MCP `connect()` target | 必填，以分號分隔的 exact absolute executable path；未設定或 malformed entry 會 fail closed |
-| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | 啟用或停用 destructive MCP tool call | 涵蓋 runtime mutation、interaction 與 render measurement；接受 `true`/`false`、`1`/`0`、`yes`/`no`、`on`/`off`；未設定、無效或 false 會 fail closed |
+| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | 啟用或停用 destructive MCP tool call | 涵蓋 runtime mutation、interaction、render measurement 與 session state-consuming tools，例如 `capture_state_snapshot` 與 `drain_events`；接受 `true`/`false`、`1`/`0`、`yes`/`no`、`on`/`off`；未設定、無效或 false 會 fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | 啟用或停用 `element_screenshot` | boolean 值同上；未設定、無效或 false 會讓 screenshot call fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | 啟用或停用 ViewModel inspection tool | boolean 值同上；未設定、無效或 false 會擋下 `get_viewmodel`、`get_commands`、`modify_viewmodel` 與 `execute_command` |
 | `WPFDEVTOOLS_RATE_LIMIT_RPM` | 覆寫 MCP server request rate limit | 每分鐘 request 數，必須是正整數；預設值為 300；超過 10000 的值會被 clamp 為 10000 |

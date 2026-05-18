@@ -120,10 +120,12 @@ public sealed class ExamplesDocumentationTests
     }
 
     [Theory]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"capture_state_snapshot\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"click_element\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"element_screenshot\"", "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS", null)]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"set_dp_value\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"restore_state_snapshot\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"drain_events\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", null)]
     [InlineData("examples/scene-inspection.md", "\"name\": \"get_viewmodel\"", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION", null)]
     [InlineData("examples/scene-inspection.md", "\"name\": \"get_commands\"", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION", null)]
     [InlineData("examples/scene-inspection.md", "\"name\": \"execute_command\"", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION")]
@@ -160,10 +162,12 @@ public sealed class ExamplesDocumentationTests
     }
 
     [Theory]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"capture_state_snapshot\"", "`capture_state_snapshot`")]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"set_dp_value\"", "`set_dp_value`")]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"restore_state_snapshot\"", "`restore_state_snapshot`")]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"click_element\"", "`click_element`")]
     [InlineData("examples/state-and-interaction.md", "\"name\": \"element_screenshot\"", "`element_screenshot`")]
+    [InlineData("examples/state-and-interaction.md", "\"name\": \"drain_events\"", "`drain_events`")]
     [InlineData("examples/scene-inspection.md", "\"name\": \"get_viewmodel\"", "`get_viewmodel`")]
     [InlineData("examples/scene-inspection.md", "\"name\": \"get_commands\"", "`get_commands`")]
     [InlineData("examples/scene-inspection.md", "\"name\": \"execute_command\"", "`execute_command`")]

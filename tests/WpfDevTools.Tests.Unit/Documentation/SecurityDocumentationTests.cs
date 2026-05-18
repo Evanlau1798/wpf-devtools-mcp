@@ -140,6 +140,26 @@ public class SecurityDocumentationTests
     }
 
     [Theory]
+    [InlineData("SECURITY.md", "session state-consuming tools")]
+    [InlineData("docfx/production/security.md", "session state-consuming tools")]
+    [InlineData("docfx/reference/configuration.md", "session state-consuming tools")]
+    [InlineData("docfx/zh-tw/production/security.md", "session state-consuming tools")]
+    [InlineData("docfx/zh-tw/reference/configuration.md", "session state-consuming tools")]
+    public void Documentation_ShouldDescribeDestructiveGateForSessionStateConsumingTools(
+        string relativePath,
+        string expectedCategory)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(expectedCategory,
+            $"{relativePath} should explain that the destructive policy gate also covers tools that consume or mutate MCP session state");
+        content.Should().Contain("capture_state_snapshot",
+            $"{relativePath} should name the destructive snapshot capture gate coverage");
+        content.Should().Contain("drain_events",
+            $"{relativePath} should name the destructive buffered-event drain gate coverage");
+    }
+
+    [Theory]
     [InlineData("README.md")]
     [InlineData("SECURITY.md")]
     [InlineData("docfx/production/security.md")]

@@ -48,8 +48,10 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 使用高風險工具的 prompt 或範例附近，必須明確確認 local policy gates。
 `connect` 前，`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 必須包含 target executable
 的 exact absolute path。此外，`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`
-會 gate `click_element`、`set_dp_value`、`restore_state_snapshot`、
-`batch_mutate` 等 mutation 工具；`WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` 會
+會 gate `click_element`、`set_dp_value`、`capture_state_snapshot`、
+`restore_state_snapshot`、`drain_events`、`batch_mutate` 等 mutation、
+interaction、render-measurement 與 session state-consuming tools；
+`WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` 會
 gate `element_screenshot`；`WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` 會
 gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
 `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` 與

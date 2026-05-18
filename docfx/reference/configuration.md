@@ -9,7 +9,7 @@
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Optional but useful in locked-down deployments |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Allowlists raw-injection target executables | Semicolon-separated exact absolute executable paths; prefer SDK-hosted reuse first |
 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Restricts all MCP `connect()` targets | Required semicolon-separated exact absolute executable paths; unset or malformed configured entries fail closed |
-| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Enables or disables destructive MCP tool calls | Covers runtime mutation, interaction, and render measurement; accepts `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`; unset, invalid, or false values fail closed |
+| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Enables or disables destructive MCP tool calls | Covers runtime mutation, interaction, render measurement, and session state-consuming tools such as `capture_state_snapshot` and `drain_events`; accepts `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`; unset, invalid, or false values fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Enables or disables `element_screenshot` | Same boolean values as above; unset, invalid, or false values fail closed for screenshot calls |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Enables or disables ViewModel inspection tools | Same boolean values as above; unset, invalid, or false values block `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command` |
 | `WPFDEVTOOLS_RATE_LIMIT_RPM` | Overrides the MCP server request rate limit | Positive integer requests per minute; default is 300; values above 10000 are clamped to 10000 |

@@ -1,5 +1,6 @@
 #include "coreclr_hosting.h"
 #include "exit_codes.h"
+#include "secure_memory.h"
 
 #include <nethost.h>
 #include <coreclr_delegates.h>
@@ -127,13 +128,18 @@ DWORD HostNetCore(const wchar_t* inspectorDllPath, const wchar_t* parameters)
         if (utf8Len > 0)
         {
             auto utf8Buf = std::make_unique<uint8_t[]>(utf8Len);
-            WideCharToMultiByte(CP_UTF8, 0, parameters, -1,
+            int converted = WideCharToMultiByte(CP_UTF8, 0, parameters, -1,
                 reinterpret_cast<char*>(utf8Buf.get()), utf8Len, nullptr, nullptr);
 
-            // sizeBytes excludes null terminator
-            int sizeBytes = utf8Len - 1;
-            int managedResult = bridgeFn(utf8Buf.get(), sizeBytes);
-            result = (managedResult == 0) ? ExitCodes::Success : ExitCodes::ManagedEntrypointFailed;
+            if (converted == utf8Len)
+            {
+                // sizeBytes excludes null terminator
+                int sizeBytes = utf8Len - 1;
+                int managedResult = bridgeFn(utf8Buf.get(), sizeBytes);
+                result = (managedResult == 0) ? ExitCodes::Success : ExitCodes::ManagedEntrypointFailed;
+            }
+
+            SecureWipeBuffer(utf8Buf.get(), static_cast<size_t>(utf8Len));
         }
     }
     else

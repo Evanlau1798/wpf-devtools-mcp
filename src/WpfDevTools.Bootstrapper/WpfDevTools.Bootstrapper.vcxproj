@@ -111,6 +111,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bootstrap_config_parser.h" />
+    <ClInclude Include="secure_memory.h" />
     <ClInclude Include="exit_codes.h" />
     <ClInclude Include="clr_hosting.h" />
     <ClInclude Include="coreclr_hosting.h" />

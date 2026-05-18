@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <algorithm>
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -6,6 +7,7 @@
 #include "clr_hosting.h"
 #include "coreclr_hosting.h"
 #include "bootstrap_config_parser.h"
+#include "secure_memory.h"
 
 static void AppendParam(std::wstring& target, const wchar_t* key, const std::wstring& value)
 {
@@ -124,30 +126,57 @@ static bool ParseParams(const wchar_t* params, BootstrapConfig& config)
     return ParseKeyValueParams(input, config);
 }
 
-static std::wstring TrimWhitespace(const std::wstring& value)
+static void TrimWhitespaceInPlace(std::wstring& value)
 {
     const wchar_t* whitespace = L" \t\r\n";
     auto start = value.find_first_not_of(whitespace);
     if (start == std::wstring::npos)
-        return L"";
+    {
+        SecureWipeString(value);
+        return;
+    }
 
     auto end = value.find_last_not_of(whitespace);
-    return value.substr(start, end - start + 1);
+    if (end + 1 < value.size())
+    {
+        SecureWipeBuffer(
+            value.data() + end + 1,
+            (value.size() - end - 1) * sizeof(wchar_t));
+        value.erase(end + 1);
+    }
+
+    if (start > 0)
+    {
+        size_t newSize = value.size() - start;
+        std::move(value.begin() + start, value.end(), value.begin());
+        SecureWipeBuffer(value.data() + newSize, start * sizeof(wchar_t));
+        value.resize(newSize);
+    }
 }
 
-static std::wstring Utf8ToWide(const std::string& value)
+static bool TryUtf8ToWide(const std::string& value, std::wstring& output)
 {
-    int wideLen = MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, nullptr, 0);
-    if (wideLen <= 1)
-        return L"";
+    output.clear();
+    if (value.empty())
+        return true;
 
-    std::wstring wval(wideLen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, wval.data(), wideLen);
-    return wval;
+    int byteCount = static_cast<int>(value.size());
+    int wideLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(), byteCount, nullptr, 0);
+    if (wideLen <= 0)
+        return false;
+
+    output.assign(wideLen, L'\0');
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(), byteCount, output.data(), wideLen) == wideLen)
+        return true;
+
+    SecureWipeString(output);
+    return false;
 }
 
 static bool ReadUtf8File(const std::wstring& path, std::wstring& value)
 {
+    SecureWipeString(value);
+
     HANDLE file = CreateFileW(
         path.c_str(),
         GENERIC_READ,
@@ -177,11 +206,27 @@ static bool ReadUtf8File(const std::wstring& path, std::wstring& value)
     CloseHandle(file);
 
     if (!read || bytesRead == 0)
+    {
+        SecureWipeString(content);
         return false;
+    }
 
     content.resize(bytesRead);
-    value = TrimWhitespace(Utf8ToWide(content));
-    return !value.empty();
+    std::wstring decoded;
+    bool success = TryUtf8ToWide(content, decoded);
+    if (success)
+    {
+        TrimWhitespaceInPlace(decoded);
+        success = !decoded.empty();
+        if (success)
+        {
+            value.swap(decoded);
+        }
+    }
+
+    SecureWipeString(decoded);
+    SecureWipeString(content);
+    return success;
 }
 
 static void LogAuthSecretDeleteFailure(DWORD errorCode)
@@ -213,9 +258,14 @@ static bool LoadAuthSecretFromFile(BootstrapConfig& config)
     DeleteAuthSecretFile(config.AuthSecretFile);
 
     if (!loaded)
+    {
+        SecureWipeString(secret);
         return false;
+    }
 
-    config.AuthSecretBase64 = secret;
+    SecureWipeString(config.AuthSecretBase64);
+    config.AuthSecretBase64.swap(secret);
+    SecureWipeString(secret);
     config.AuthEnabled = true;
     return true;
 }
@@ -245,6 +295,7 @@ static bool ReadConfigFile(DWORD pid, BootstrapConfig& config)
 extern "C" __declspec(dllexport) DWORD WINAPI BootstrapInspector(LPVOID lpParameter)
 {
     BootstrapConfig config;
+    DWORD result = ExitCodes::NoClrFound;
 
     auto params = static_cast<const wchar_t*>(lpParameter);
     if (!ParseParams(params, config))
@@ -255,7 +306,10 @@ extern "C" __declspec(dllexport) DWORD WINAPI BootstrapInspector(LPVOID lpParame
     }
 
     if (!LoadAuthSecretFromFile(config))
+    {
+        SecureWipeString(config.AuthSecretBase64);
         return ExitCodes::AuthSecretLoadFailed;
+    }
 
     std::wstring managedParams = BuildManagedParams(config);
 
@@ -264,13 +318,14 @@ extern "C" __declspec(dllexport) DWORD WINAPI BootstrapInspector(LPVOID lpParame
 
     if (hClr != nullptr)
     {
-        return HostNetFramework(config.InspectorPath.c_str(), managedParams.c_str());
+        result = HostNetFramework(config.InspectorPath.c_str(), managedParams.c_str());
     }
-
-    if (hCoreclr != nullptr)
+    else if (hCoreclr != nullptr)
     {
-        return HostNetCore(config.InspectorPath.c_str(), managedParams.c_str());
+        result = HostNetCore(config.InspectorPath.c_str(), managedParams.c_str());
     }
 
-    return ExitCodes::NoClrFound;
+    SecureWipeString(config.AuthSecretBase64);
+    SecureWipeString(managedParams);
+    return result;
 }

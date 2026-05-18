@@ -37,7 +37,9 @@ public class BootstrapperSecureTransportContractTests
         var content = File.ReadAllText(GetRepoFilePath(
             "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
 
-        content.Should().MatchRegex(@"if\s*\(\s*!LoadAuthSecretFromFile\(config\)\s*\)\s*return\s+ExitCodes::AuthSecretLoadFailed\s*;",
+        content.Should().Contain("if (!LoadAuthSecretFromFile(config))",
+            "auth secret file load failures should have a dedicated bootstrap branch");
+        content.Should().Contain("return ExitCodes::AuthSecretLoadFailed;",
             "auth secret file read failures should not be misclassified as inspector path failures");
     }
 
@@ -76,6 +78,39 @@ public class BootstrapperSecureTransportContractTests
             "JSON unicode escapes should be handled explicitly");
         projectContent.Should().Contain("bootstrap_config_parser.cpp",
             "the native parser implementation must be compiled into the bootstrapper");
+    }
+
+    [Fact]
+    public void BootstrapperSecretBuffers_ShouldBeSecurelyWipedAfterManagedHandoff()
+    {
+        var wipeHeaderPath = GetRepoFilePath("src/WpfDevTools.Bootstrapper/secure_memory.h");
+        File.Exists(wipeHeaderPath).Should().BeTrue(
+            "secret-bearing native buffers should share one audited wipe helper instead of ad hoc cleanup");
+
+        var wipeHeader = File.ReadAllText(wipeHeaderPath);
+        var entryContent = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+        var coreClrContent = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/coreclr_hosting.cpp"));
+        var projectContent = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj"));
+
+        wipeHeader.Should().Contain("SecureZeroMemory",
+            "the compiler must not optimize away secret buffer wiping");
+        wipeHeader.Should().Contain("SecureWipeString");
+        wipeHeader.Should().Contain("SecureWipeBuffer");
+        projectContent.Should().Contain("secure_memory.h");
+
+        entryContent.Should().Contain("#include \"secure_memory.h\"");
+        entryContent.Should().Contain("SecureWipeString(content)");
+        entryContent.Should().Contain("SecureWipeString(secret)");
+        entryContent.Should().Contain("SecureWipeString(config.AuthSecretBase64)");
+        entryContent.Should().Contain("SecureWipeString(managedParams)");
+        entryContent.Should().NotContain("return HostNetFramework(config.InspectorPath.c_str(), managedParams.c_str());");
+        entryContent.Should().NotContain("return HostNetCore(config.InspectorPath.c_str(), managedParams.c_str());");
+
+        coreClrContent.Should().Contain("#include \"secure_memory.h\"");
+        coreClrContent.Should().Contain("SecureWipeBuffer(utf8Buf.get()");
     }
 
     private static string GetRepoFilePath(string relativePath)

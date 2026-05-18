@@ -57,6 +57,19 @@ public sealed class ReleaseReadinessDocumentationTests
     }
 
     [Fact]
+    public void ReleasingGuide_ShouldSeparatePreflightValidationFromBuildReleasePackaging()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("RELEASING.md"));
+
+        content.Should().Contain("Preflight-Release.ps1 builds, tests, packages",
+            "release validation must point at the preflight entrypoint that actually runs build and test steps");
+        content.Should().Contain("build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1",
+            "build-release.ps1 should be documented as the packaging wrapper it is today");
+        content.Should().NotContain("What this does:\r\n\r\n1. Builds `WpfDevTools.sln` in `Release`",
+            "the build-release.ps1 section must not claim that the packaging wrapper runs release validation");
+    }
+
+    [Fact]
     public void CodeSigningGuide_ShouldMatchCurrentToolPathsAndParameters()
     {
         var content = File.ReadAllText(GetRepoFilePath("CODE_SIGNING.md"));

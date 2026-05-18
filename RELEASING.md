@@ -31,18 +31,19 @@ Run the release preflight script from the repository root:
 powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Preflight-Release.ps1 -VersionTag v0.1.0 -OutputJson
 ```
 
-To generate release zip packages locally without uploading anything, use:
+Preflight-Release.ps1 builds, tests, packages, and optionally stages GitHub Release sidecars when `-VersionTag` is present. Use this command as the local validation gate before publishing.
+
+To generate release zip packages locally without running the preflight validation steps or uploading anything, use:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/tools/build-release.ps1 -Configuration Release -Architectures x64,x86,arm64 -OutputRoot release
 ```
 
-What this does:
+build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:
 
-1. Builds `WpfDevTools.sln` in `Release`
-2. Runs the unit test project separately with `--no-build`
-3. Produces `x64`, `x86`, and `arm64` release packages through `scripts/tools/packaging/Publish-Release.ps1`
-4. Stops after package generation; it does not stage GitHub Release assets or upload anything
+1. Produces `x64`, `x86`, and `arm64` release packages through `scripts/tools/packaging/Publish-Release.ps1`
+2. Stops after package generation; it does not run the preflight build/test validation
+3. Does not stage GitHub Release assets or upload anything
 
 If you also want the local GitHub Release staging artifacts, run the preflight command above with `-VersionTag`. `Preflight-Release.ps1` builds, tests, produces packages, and then stages checksums plus upload metadata through `scripts/tools/packaging/Export-GitHubReleaseAssets.ps1`.
 

@@ -73,6 +73,10 @@ public sealed class WatchEventBufferTests
 
         computeHashBody.Should().NotContain("Encoding.UTF8.GetBytes(value)",
             "oversized payload hashing should not allocate a byte[] for the full original string");
+        computeHashBody.Should().NotContain(".AsSpan(",
+            "the inspector targets net48, so hash streaming should avoid span-only Encoder.Convert overloads");
+        computeHashBody.Should().Contain("_hashCharBuffer",
+            "hashing should stream bounded char chunks through a net48-compatible reusable char buffer");
         computeHashBody.Should().Contain("Encoder.Convert",
             "hashing should stream bounded char chunks through a reusable encoder buffer");
     }

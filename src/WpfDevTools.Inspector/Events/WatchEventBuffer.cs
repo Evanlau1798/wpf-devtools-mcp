@@ -216,6 +216,7 @@ internal sealed class WatchEventBuffer
         private readonly Dictionary<string, int> _originalStringLengths = new(StringComparer.Ordinal);
         private SHA256? _sha256;
         private readonly Encoder _utf8Encoder = Encoding.UTF8.GetEncoder();
+        private readonly char[] _hashCharBuffer = new char[HashCharBufferLength];
         private readonly byte[] _hashByteBuffer = new byte[Encoding.UTF8.GetMaxByteCount(HashCharBufferLength)];
 
         public bool Truncated => _originalStringLengths.Count > 0;
@@ -251,11 +252,16 @@ internal sealed class WatchEventBuffer
 
             for (var offset = 0; offset < value.Length;)
             {
-                var chars = value.AsSpan(offset, Math.Min(HashCharBufferLength, value.Length - offset));
-                var flush = offset + chars.Length == value.Length;
+                var charCount = Math.Min(HashCharBufferLength, value.Length - offset);
+                value.CopyTo(offset, _hashCharBuffer, 0, charCount);
+                var flush = offset + charCount == value.Length;
                 _utf8Encoder.Convert(
-                    chars,
+                    _hashCharBuffer,
+                    0,
+                    charCount,
                     _hashByteBuffer,
+                    0,
+                    _hashByteBuffer.Length,
                     flush,
                     out var charsUsed,
                     out var bytesUsed,
@@ -263,7 +269,7 @@ internal sealed class WatchEventBuffer
 
                 if (bytesUsed > 0)
                 {
-                    if (flush && charsUsed == chars.Length)
+                    if (flush && charsUsed == charCount)
                     {
                         sha256.TransformFinalBlock(_hashByteBuffer, 0, bytesUsed);
                     }
@@ -272,7 +278,7 @@ internal sealed class WatchEventBuffer
                         sha256.TransformBlock(_hashByteBuffer, 0, bytesUsed, null, 0);
                     }
                 }
-                else if (flush && charsUsed == chars.Length)
+                else if (flush && charsUsed == charCount)
                 {
                     sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
                 }

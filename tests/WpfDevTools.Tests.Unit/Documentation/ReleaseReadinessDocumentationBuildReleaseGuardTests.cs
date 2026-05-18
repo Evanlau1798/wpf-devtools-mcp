@@ -169,6 +169,20 @@ public sealed partial class ReleaseReadinessDocumentationTests
     }
 
     [Theory]
+    [InlineData("1. Does not run signing, dotnet test is not run.")]
+    [InlineData("1. Does not run signing, unit tests are not run.")]
+    public void BuildReleaseValidationGuard_ShouldAllowPassiveNegatedValidationClaimsAfterComma(string negatedClaim)
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            negatedClaim);
+
+        GetBuildReleaseValidationClaims(guide).Should().BeEmpty(
+            "passive negated validation clauses after comma splitting should not become false positive build-release claims");
+    }
+
+    [Theory]
     [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
     [InlineData("1. build-release.ps1 builds, tests, and packages the release.")]
@@ -293,6 +307,10 @@ public sealed partial class ReleaseReadinessDocumentationTests
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         scrubbed = Regex.Replace(scrubbed,
             @"\b(?:it|this|build-release\.ps1|the\s+wrapper)\s+(?:runs?|executes?)\s+no\s+(?:unit\s+tests?|integration\s+tests?|tests?|full\s+test\s+suite|release\s+validation|preflight\s+validation)\b",
+            " ",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        scrubbed = Regex.Replace(scrubbed,
+            @"\b(?:`?dotnet\s+test`?|unit\s+tests?|integration\s+tests?|tests?|full\s+test\s+suite|release\s+validation|preflight\s+validation)\s+(?:is|are)\s+not\s+(?:run|executed|performed|validated)\b",
             " ",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 

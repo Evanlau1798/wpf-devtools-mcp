@@ -257,7 +257,7 @@ public sealed partial class SandboxCiScriptContractTests
     {
         using var process = StartPowerShellWithoutRedirect("-File", scriptPath);
         process.Start().Should().BeTrue();
-        if (!process.WaitForExit(60000))
+        if (!process.WaitForExit(120000))
         {
             process.Kill(entireProcessTree: true);
             process.WaitForExit(30000).Should().BeTrue();

@@ -109,8 +109,7 @@ public sealed class DocfxCapabilityDocumentationTests
     public void DocfxPages_ShouldQualifyElementSnapshotWithElementIdPrecondition()
     {
         var repoRoot = GetRepoFilePath(".");
-        var violations = Directory
-            .EnumerateFiles(GetRepoFilePath("docfx"), "*.md", SearchOption.AllDirectories)
+        var violations = EnumerateDocfxContractMarkdownFiles()
             .SelectMany(path => File
                 .ReadLines(path)
                 .Select((line, index) => new
@@ -126,6 +125,18 @@ public sealed class DocfxCapabilityDocumentationTests
 
         violations.Should().BeEmpty(
             "get_element_snapshot requires an elementId and every DocFX mention should describe that precondition");
+    }
+
+    [Fact]
+    public void DocfxContractSweeps_ShouldExcludeAgentFeedbackReports()
+    {
+        var repoRoot = GetRepoFilePath(".");
+        var sweptPaths = EnumerateDocfxContractMarkdownFiles()
+            .Select(path => Path.GetRelativePath(repoRoot, path).Replace('\\', '/'))
+            .ToArray();
+
+        sweptPaths.Should().NotContain(path => path.Contains("/agent-feedback/", StringComparison.Ordinal),
+            "agent feedback reports are versioned local reports and can change outside stable documentation contracts");
     }
 
     [Theory]
@@ -341,4 +352,19 @@ public sealed class DocfxCapabilityDocumentationTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static IEnumerable<string> EnumerateDocfxContractMarkdownFiles()
+    {
+        var docfxRoot = GetRepoFilePath("docfx");
+        return Directory
+            .EnumerateFiles(docfxRoot, "*.md", SearchOption.AllDirectories)
+            .Where(path => !IsAgentFeedbackPath(docfxRoot, path));
+    }
+
+    private static bool IsAgentFeedbackPath(string docfxRoot, string path)
+    {
+        var relativePath = Path.GetRelativePath(docfxRoot, path).Replace('\\', '/');
+        return relativePath.StartsWith("agent-feedback/", StringComparison.Ordinal)
+            || relativePath.StartsWith("zh-tw/agent-feedback/", StringComparison.Ordinal);
+    }
 }

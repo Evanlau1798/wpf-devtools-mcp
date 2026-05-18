@@ -73,6 +73,13 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Fact]
+    public void BindingErrorCorrelationIntegrationTests_ShouldDisposeBindingTraceState()
+    {
+        typeof(BindingErrorCorrelationIntegrationTests).Should().BeAssignableTo<IDisposable>(
+            "the test resets and installs process-global WPF binding trace state and must restore it after each run");
+    }
+
+    [Fact]
     public void McpFixtureBackedE2eTests_ShouldUseMcpE2ECollectionUnlessExplicitlyIsolated()
     {
         var explicitlyIsolatedTypes = new[] { typeof(VisibilityDiagnosisE2eTests) };

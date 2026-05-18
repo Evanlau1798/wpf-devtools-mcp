@@ -11,8 +11,23 @@ using Xunit;
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
 [Collection("BindingErrorTests")]
-public sealed class DiagnosticNormalizationTests
+public sealed class DiagnosticNormalizationTests : IDisposable
 {
+    private readonly SourceLevels _originalBindingTraceLevel;
+
+    public DiagnosticNormalizationTests()
+    {
+        _originalBindingTraceLevel = PresentationTraceSources.DataBindingSource.Switch.Level;
+        BindingErrorTraceListener.ResetInstance();
+        PresentationTraceSources.DataBindingSource.Switch.Level = _originalBindingTraceLevel;
+    }
+
+    public void Dispose()
+    {
+        BindingErrorTraceListener.ResetInstance();
+        PresentationTraceSources.DataBindingSource.Switch.Level = _originalBindingTraceLevel;
+    }
+
     [Fact]
     public void GetBindingErrors_ShouldExposeNormalizedDiagnosticFields()
     {

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,14 +11,23 @@ using Xunit;
 namespace WpfDevTools.Tests.Integration;
 
 [Collection("WpfAndBootstrapIntegration")]
-public sealed class BindingErrorCorrelationIntegrationTests
+public sealed class BindingErrorCorrelationIntegrationTests : IDisposable
 {
     private readonly WpfApplicationFixture _fixture;
+    private readonly SourceLevels _originalBindingTraceLevel;
 
     public BindingErrorCorrelationIntegrationTests(WpfApplicationFixture fixture)
     {
         _fixture = fixture;
+        _originalBindingTraceLevel = PresentationTraceSources.DataBindingSource.Switch.Level;
         BindingErrorTraceListener.ResetInstance();
+        PresentationTraceSources.DataBindingSource.Switch.Level = _originalBindingTraceLevel;
+    }
+
+    public void Dispose()
+    {
+        BindingErrorTraceListener.ResetInstance();
+        PresentationTraceSources.DataBindingSource.Switch.Level = _originalBindingTraceLevel;
     }
 
     [Fact]

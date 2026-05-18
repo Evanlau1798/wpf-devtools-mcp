@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Tests.Unit.Injector;
 using WpfDevTools.Tests.Unit.Inspector;
 using WpfDevTools.Tests.Unit.Inspector.Analyzers;
@@ -174,6 +176,29 @@ public sealed class UnitTestParallelizationContractTests
     public void BindingErrorCollection_ShouldDisableParallelization()
     {
         AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Inspector.Analyzers.BindingErrorTestCollection");
+    }
+
+    [Fact]
+    public void DiagnosticNormalizationTests_ShouldRestoreBindingTraceSwitchLevelOnDispose()
+    {
+        var source = PresentationTraceSources.DataBindingSource;
+        var originalLevel = source.Switch.Level;
+        try
+        {
+            source.Switch.Level = SourceLevels.Warning;
+            var test = new DiagnosticNormalizationTests();
+            test.GetBindingErrors_ShouldExposeNormalizedDiagnosticFields();
+            source.Switch.Level.Should().Be(SourceLevels.Error);
+
+            ((IDisposable)test).Dispose();
+
+            source.Switch.Level.Should().Be(SourceLevels.Warning);
+        }
+        finally
+        {
+            BindingErrorTraceListener.ResetInstance();
+            source.Switch.Level = originalLevel;
+        }
     }
 
     [Fact]

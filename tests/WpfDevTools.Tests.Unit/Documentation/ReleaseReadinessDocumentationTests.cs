@@ -142,6 +142,18 @@ public sealed class ReleaseReadinessDocumentationTests
             "a negated non-validation phrase before a comma must not hide a later positive validation claim");
     }
 
+    [Fact]
+    public void BuildReleaseValidationGuard_ShouldRejectCommaSeparatedPositiveClaimsWithSubjectAfterNegation()
+    {
+        var guide = string.Join("\n",
+            "build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.ps1. What this does:",
+            "",
+            "1. Does not run signing, it runs the full test suite.");
+
+        GetBuildReleaseValidationClaims(guide).Should().NotBeEmpty(
+            "a comma-separated positive validation claim with an explicit subject must not be hidden by a preceding negated phrase");
+    }
+
     [Theory]
     [InlineData("1. build-release.ps1 does not only package; it builds WpfDevTools.sln and runs tests.")]
     [InlineData("1. Produces packages, runs the full test suite, and executes release validation.")]
@@ -336,7 +348,7 @@ public sealed class ReleaseReadinessDocumentationTests
     {
         return Regex.Split(
             line,
-            @";|,(?=\s*(?:runs?|builds?|executes?|release|preflight|unit\s+tests?|integration\s+tests?|full\s+test\s+suite|dotnet)\b)|\.(?=\s|$|(?-i:Builds?\b|Runs?\b|Executes?\b|Release\b|Preflight\b|Unit\s+tests?\b|Integration\s+tests?\b|Full\s+test\s+suite\b|Dotnet\b))|\b(?:but|however|yet|although|though|and|then|while)\b",
+            @";|,(?=\s*(?:(?:it|this|build-release\.ps1|the\s+wrapper)\s+)?(?:runs?|builds?|executes?|release|preflight|unit\s+tests?|integration\s+tests?|full\s+test\s+suite|dotnet)\b)|\.(?=\s|$|(?-i:Builds?\b|Runs?\b|Executes?\b|Release\b|Preflight\b|Unit\s+tests?\b|Integration\s+tests?\b|Full\s+test\s+suite\b|Dotnet\b))|\b(?:but|however|yet|although|though|and|then|while)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
             .Select(clause => clause.Trim())
             .Where(clause => clause.Length > 0);

@@ -106,11 +106,34 @@ public class BootstrapperSecureTransportContractTests
         entryContent.Should().Contain("SecureWipeString(secret)");
         entryContent.Should().Contain("SecureWipeString(config.AuthSecretBase64)");
         entryContent.Should().Contain("SecureWipeString(managedParams)");
+        entryContent.Should().Contain("ReserveManagedParamsCapacity(result, config)",
+            "managed parameter construction should reserve capacity before copying the secret to avoid allocator-retained stale copies");
         entryContent.Should().NotContain("return HostNetFramework(config.InspectorPath.c_str(), managedParams.c_str());");
         entryContent.Should().NotContain("return HostNetCore(config.InspectorPath.c_str(), managedParams.c_str());");
+        GetBuildManagedParamsSecretTail(entryContent).Should().NotContain("AppendParam",
+            "authSecretBase64 should be the final managed parameter appended so no later growth can copy the secret into an allocator-retained old buffer");
 
         coreClrContent.Should().Contain("#include \"secure_memory.h\"");
         coreClrContent.Should().Contain("SecureWipeBuffer(utf8Buf.get()");
+    }
+
+    private static string GetBuildManagedParamsSecretTail(string entryContent)
+    {
+        var methodStart = entryContent.IndexOf("static std::wstring BuildManagedParams", StringComparison.Ordinal);
+        methodStart.Should().BeGreaterThanOrEqualTo(0);
+
+        var methodEnd = entryContent.IndexOf("static bool ParseLegacyParams", methodStart, StringComparison.Ordinal);
+        methodEnd.Should().BeGreaterThan(methodStart);
+
+        var method = entryContent[methodStart..methodEnd];
+        const string secretAppendMarker = "AppendParam(result, L\"authSecretBase64\"";
+        var secretAppend = method.IndexOf(secretAppendMarker, StringComparison.Ordinal);
+        secretAppend.Should().BeGreaterThanOrEqualTo(0);
+
+        var secretAppendLineEnd = method.IndexOf('\n', secretAppend);
+        secretAppendLineEnd.Should().BeGreaterThan(secretAppend);
+
+        return method[secretAppendLineEnd..];
     }
 
     private static string GetRepoFilePath(string relativePath)

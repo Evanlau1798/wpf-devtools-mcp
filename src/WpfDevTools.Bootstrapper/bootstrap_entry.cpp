@@ -22,22 +22,71 @@ static void AppendParam(std::wstring& target, const wchar_t* key, const std::wst
     target += value;
 }
 
+static size_t GetParamLength(const wchar_t* key, const std::wstring& value)
+{
+    if (value.empty())
+        return 0;
+
+    return wcslen(key) + 1 + value.size();
+}
+
+static void ReserveManagedParamsCapacity(std::wstring& target, const BootstrapConfig& config)
+{
+    size_t capacity = GetParamLength(L"inspectorDllPath", config.InspectorPath)
+        + GetParamLength(L"pipeName", config.PipeName);
+    int paramCount = 0;
+
+    if (!config.InspectorPath.empty())
+        ++paramCount;
+    if (!config.PipeName.empty())
+        ++paramCount;
+
+    if (config.AuthEnabled)
+    {
+        capacity += GetParamLength(L"auth", L"enabled")
+            + GetParamLength(L"authSecretBase64", config.AuthSecretBase64);
+        ++paramCount;
+        if (!config.AuthSecretBase64.empty())
+            ++paramCount;
+    }
+
+    if (config.EncryptionEnabled)
+    {
+        capacity += GetParamLength(L"encryption", L"enabled")
+            + GetParamLength(L"certDirectory", config.CertDirectory);
+        ++paramCount;
+        if (!config.CertDirectory.empty())
+            ++paramCount;
+    }
+
+    if (paramCount > 1)
+        capacity += static_cast<size_t>(paramCount - 1);
+
+    target.reserve(capacity);
+}
+
 static std::wstring BuildManagedParams(const BootstrapConfig& config)
 {
     std::wstring result;
+    ReserveManagedParamsCapacity(result, config);
+
     AppendParam(result, L"inspectorDllPath", config.InspectorPath);
     AppendParam(result, L"pipeName", config.PipeName);
 
     if (config.AuthEnabled)
     {
         AppendParam(result, L"auth", L"enabled");
-        AppendParam(result, L"authSecretBase64", config.AuthSecretBase64);
     }
 
     if (config.EncryptionEnabled)
     {
         AppendParam(result, L"encryption", L"enabled");
         AppendParam(result, L"certDirectory", config.CertDirectory);
+    }
+
+    if (config.AuthEnabled)
+    {
+        AppendParam(result, L"authSecretBase64", config.AuthSecretBase64);
     }
 
     return result;

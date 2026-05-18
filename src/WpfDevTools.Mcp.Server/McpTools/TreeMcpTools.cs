@@ -323,6 +323,7 @@ public static class TreeMcpTools
         [Description("Optional maximum number of results to return. Default: 20.")] int? maxResults = null,
         [Range(1, TreeTraversalDefaults.MaxNodesLimit)]
         [Description("Optional maximum number of elements to inspect before truncating traversal. Default: 1000; capped at 10000.")] int? maxTraversalNodes = null,
+        [AllowedValues("exact", "contains")]
         [Description("Optional match mode: 'exact' (default) or 'contains' for case-insensitive substring matching.")] string? matchMode = null,
         CancellationToken cancellationToken = default)
     {

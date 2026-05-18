@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
@@ -138,6 +139,7 @@ public static class DependencyPropertyMcpTools
         [Description("New property value encoded as raw JSON.")] JsonElement value,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
+        [AllowedValues("compact", "minimal", "verbose", "standard")]
         [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
@@ -182,6 +184,7 @@ public static class DependencyPropertyMcpTools
         [Description("DependencyProperty name whose local value should be cleared.")] string propertyName,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
+        [AllowedValues("compact", "minimal", "verbose", "standard")]
         [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {

@@ -55,6 +55,7 @@ public static class EventMcpTools
         [Description("Optional element ID to scope the event trace. Omit for the root window.")] string? elementId = null,
         [Range(0, TraceRoutedEventsTool.MaxDurationMs)]
         [Description("Optional capture window in milliseconds (default: 5000, maximum: 60000). Use smaller values (250-2000) for interactive STDIO sessions.")] int? durationMs = null,
+        [AllowedValues("capture", "start", "get")]
         [Description("Optional tracing mode: `capture` (default), `start`, or `get`. Use `start` + `get` for AI-friendly non-blocking workflows.")] string? mode = null,
         [Description("Optional opt-in override for start mode. When true, short requested durations are honored instead of being raised to the default 30s minimum.")] bool allowShortStartDuration = false,
         [Description("Optional positive cap on returned trace event records. Responses include returnedEventCount, totalEventCount, eventsTruncated, and maxEvents so agents can detect truncation and retry with a larger cap when needed.")] int? maxEvents = null,
@@ -141,7 +142,7 @@ public static class EventMcpTools
         "- fire_routed_event('Click') on non-ButtonBase: only fires routed event handlers, no ICommand\n" +
         "- click_element: calls OnClick() for ButtonBase descendants, selects TabItem; returns error for other element types\n\n" +
         "WARNING: This triggers real application logic. For ButtonBase+Click, ICommand WILL execute.\n\n" +
-        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core routed-event result while still preserving semantically relevant fallback indicators. Use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core routed-event result while still preserving semantically relevant fallback indicators. Use `minimal` for success/property/newValue confirmation only, `verbose` for requested/effective input + observedEffect, or legacy `standard` as a compatibility alias.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -163,7 +164,8 @@ public static class EventMcpTools
         [Description("Required target element ID that should receive the routed event.")] string elementId,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional JSON payload for custom routed event arguments. Currently unused for standard RoutedEvents (Click, MouseDown); reserved for custom events.")] JsonElement? eventArgs = null,
-        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
+        [AllowedValues("compact", "minimal", "verbose", "standard")]
+        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

@@ -17,6 +17,13 @@ public sealed class McpToolInputSchemaEnumTests
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.MvvmMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.MvvmMcpTools.ModifyViewModel), "detail", "compact", "minimal", "verbose", "standard")]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools.ForceBindingUpdate), "direction", "Source", "Target")]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools.GetBindings), "statusFilter", "All", "Active", "Error")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.DependencyPropertyMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.DependencyPropertyMcpTools.SetDpValue), "detail", "compact", "minimal", "verbose", "standard")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.DependencyPropertyMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.DependencyPropertyMcpTools.ClearDpValue), "detail", "compact", "minimal", "verbose", "standard")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.EventMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.EventMcpTools.FireRoutedEvent), "detail", "compact", "minimal", "verbose", "standard")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.EventMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.EventMcpTools.TraceRoutedEvents), "mode", "capture", "start", "get")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.FindElements), "matchMode", "exact", "contains")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.InteractionMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.InteractionMcpTools.SimulateKeyboard), "eventType", "KeyDown", "KeyUp")]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.StyleMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.StyleMcpTools.OverrideStyleSetter), "detail", "compact", "minimal", "verbose", "standard")]
     public void ClosedStringParameters_ShouldPublishInputSchemaEnums(
         Type toolType,
         string methodName,

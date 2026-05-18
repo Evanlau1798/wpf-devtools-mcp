@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Tools;
@@ -148,7 +149,7 @@ public static class StyleMcpTools
         "USE WHEN: Testing different style values; debugging style precedence issues.\n" +
         "DO NOT USE: For permanent changes (not persisted to XAML).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
-        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core mutation result. Use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
+        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core mutation result. Use `minimal` for success/property/newValue confirmation only, `verbose` for requested/effective input + observedEffect, or legacy `standard` as a compatibility alias.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -169,7 +170,8 @@ public static class StyleMcpTools
         [Description("New property value encoded as raw JSON.")] JsonElement value,
         [Description("Required element ID whose style setter should be overridden.")] string elementId,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
-        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
+        [AllowedValues("compact", "minimal", "verbose", "standard")]
+        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

@@ -261,6 +261,7 @@ public static class InteractionMcpTools
         [Description("WPF Key enum name to simulate, such as Enter or Tab.")] string key,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional focused element ID that should receive the key input.")] string? elementId = null,
+        [AllowedValues("KeyDown", "KeyUp")]
         [Description("Optional keyboard event type: 'KeyDown' (default) or 'KeyUp'.")] string? eventType = null,
         CancellationToken cancellationToken = default)
     {

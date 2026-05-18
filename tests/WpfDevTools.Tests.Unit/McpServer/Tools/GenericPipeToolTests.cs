@@ -107,4 +107,43 @@ public class GenericPipeToolTests
         json.GetProperty("propertyName").GetString().Should().Be("Width");
         json.GetProperty("value").GetInt32().Should().Be(100);
     }
+
+    [Fact]
+    public void ExtractNameScopeParams_WithMaxNodes_ShouldForwardTraversalBudget()
+    {
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(51070);
+        var arguments = ToJsonElement(new
+        {
+            processId = 51070,
+            elementId = "Window_1",
+            maxNodes = 42
+        });
+
+        var (_, parameters, error) = GenericPipeTool.ExtractNameScopeParams(sessionManager, arguments);
+
+        error.Should().BeNull();
+        var json = JsonSerializer.SerializeToElement(parameters!);
+        json.GetProperty("elementId").GetString().Should().Be("Window_1");
+        json.GetProperty("maxNodes").GetInt32().Should().Be(42);
+    }
+
+    [Theory]
+    [InlineData("""{"processId":51070,"maxNodes":0}""")]
+    [InlineData("""{"processId":51070,"maxNodes":10001}""")]
+    [InlineData("""{"processId":51070,"maxNodes":"42"}""")]
+    public void ExtractNameScopeParams_WithInvalidMaxNodes_ShouldReturnInvalidArgument(string rawArguments)
+    {
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(51070);
+        using var document = JsonDocument.Parse(rawArguments);
+
+        var (_, parameters, error) = GenericPipeTool.ExtractNameScopeParams(sessionManager, document.RootElement);
+
+        parameters.Should().BeNull();
+        error.Should().NotBeNull();
+        var json = JsonSerializer.SerializeToElement(error!);
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("maxNodes");
+    }
 }

@@ -165,26 +165,37 @@ public static class TreeMcpTools
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
+        "  hasNameScope: boolean,\n" +
         "  namedElementCount: integer,\n" +
+        "  traversalNodeCount: integer,\n" +
+        "  maxTraversalNodes: integer,\n" +
+        "  traversalTruncated: boolean,\n" +
         "  namedElements: [{ name, elementId, type }]\n" +
         "}\n\n" +
+        "NO NAMESCOPE: If the element is not a namescope root, the response is success=true with hasNameScope=false, namedElementCount=0, traversalNodeCount=0, and traversalTruncated=false. Try the parent window or UserControl when names are expected.\n" +
+        "TRUNCATION: traversalTruncated=true only means a namescope root was present and maxNodes stopped name discovery before all descendants were inspected.\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"no namescope\" -> element is not a namescope root (try parent window)\n\n" +
+        "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
         "- { processId: 12345 }")]
     public static Task<CallToolResult> GetNamescope(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional namescope root element ID. Omit for the root window.")] string? elementId = null,
+        [Range(1, TreeTraversalDefaults.MaxNodesLimit)]
+        [Description("Optional hard cap for the number of elements inspected while discovering names. Defaults to 1000.")] int? maxNodes = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("maxNodes", maxNodes));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(sessionManager, "get_namescope", () => new GenericPipeTool(sessionManager, "get_namescope")).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<GenericPipeTool>(
+                sessionManager,
+                "get_namescope",
+                () => new GenericPipeTool(sessionManager, "get_namescope", GenericPipeTool.ExtractNameScopeParams)).ExecuteAsync(a, ct),
             args,
             cancellationToken);
     }

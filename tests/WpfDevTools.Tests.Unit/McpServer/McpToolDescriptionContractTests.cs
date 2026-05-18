@@ -100,6 +100,19 @@ public sealed class McpToolDescriptionContractTests
     }
 
     [Fact]
+    public void GetNameScope_Description_ShouldDocumentNoNameScopeAsSuccessfulEmptyResult()
+    {
+        var description = GetDescriptionText("get_namescope");
+
+        description.Should().ContainAll(
+            "hasNameScope",
+            "hasNameScope=false",
+            "success=true",
+            "traversalTruncated");
+        description.Should().NotContain("ERROR: no namescope");
+    }
+
+    [Fact]
     public void DrainEvents_Description_ShouldAdvertiseCleanupDiagnosticsAndReplaySubsetSemantics()
     {
         var description = GetDescriptionText("drain_events");

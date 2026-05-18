@@ -3,6 +3,7 @@ using FluentAssertions;
 using WpfDevTools.Inspector.Utilities;
 using System.Reflection;
 using System.Collections.Concurrent;
+using System.Collections;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -205,6 +206,47 @@ public class ElementFinderTests
     }
 
     [StaFact]
+    public void FindById_WhenWeakCacheMisses_ShouldRespectTraversalBudget()
+    {
+        using var finder = new ElementFinder();
+        var target = new Button();
+        var root = new CountingLogicalElement(Enumerable
+            .Range(0, 5)
+            .Select(index => index == 4 ? target : new Button())
+            .Cast<DependencyObject>());
+        var targetId = finder.GenerateElementId(target);
+        ClearWeakElementCacheEntry(finder, targetId);
+
+        var found = finder.FindById(targetId, root, maxTraversalNodes: 2);
+
+        found.Should().BeNull();
+        root.YieldedLogicalChildrenCount.Should().BeLessThan(5);
+    }
+
+    [StaFact]
+    public void FindByIdAcrossRoots_WhenFirstRootConsumesBudget_ShouldNotSearchSecondRoot()
+    {
+        using var finder = new ElementFinder();
+        var target = new Button();
+        var firstRoot = new CountingLogicalElement(Enumerable
+            .Range(0, 5)
+            .Select(_ => new Button())
+            .Cast<DependencyObject>());
+        var secondRoot = new CountingLogicalElement(new DependencyObject[] { target });
+        var targetId = finder.GenerateElementId(target);
+        ClearWeakElementCacheEntry(finder, targetId);
+
+        var found = finder.FindByIdAcrossRoots(
+            targetId,
+            new DependencyObject[] { firstRoot, secondRoot },
+            maxTraversalNodes: 2);
+
+        found.Should().BeNull();
+        firstRoot.YieldedLogicalChildrenCount.Should().BeLessThan(5);
+        secondRoot.YieldedLogicalChildrenCount.Should().Be(0);
+    }
+
+    [StaFact]
     public void CleanupDeadReferences_RemovesEntriesForCollectedElements()
     {
         // Arrange
@@ -236,5 +278,29 @@ public class ElementFinderTests
         var cache = field!.GetValue(finder) as ConcurrentDictionary<string, WeakReference<DependencyObject>>;
         cache.Should().NotBeNull();
         cache!.TryRemove(elementId, out _).Should().BeTrue();
+    }
+
+    private sealed class CountingLogicalElement : FrameworkElement
+    {
+        private readonly DependencyObject[] _children;
+
+        public CountingLogicalElement(IEnumerable<DependencyObject> children)
+        {
+            _children = children.ToArray();
+        }
+
+        public int YieldedLogicalChildrenCount { get; private set; }
+
+        protected override IEnumerator LogicalChildren
+        {
+            get
+            {
+                foreach (var child in _children)
+                {
+                    YieldedLogicalChildrenCount++;
+                    yield return child;
+                }
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Markup;
 using System.Windows.Media;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -148,7 +149,7 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     /// <summary>
     /// Gets the current XAML namescope entries for the specified element.
     /// </summary>
-    public object GetNameScope(string? elementId = null)
+    public object GetNameScope(string? elementId = null, int? maxNodes = null)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -161,12 +162,13 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
 
             var nameScope = NameScope.GetNameScope(element);
             var namedElements = new List<object>();
+            var traversalLimit = NormalizeTraversalLimit(maxNodes);
+            (IReadOnlyList<string> Names, int NodeCount, bool Truncated) scopeNames = (Array.Empty<string>(), 0, false);
 
             if (nameScope != null)
             {
-                var names = GetNamesInScope(element);
-
-                foreach (var name in names)
+                scopeNames = GetNamesInScope(element, traversalLimit);
+                foreach (var name in scopeNames.Names)
                 {
                     var namedElement = nameScope.FindName(name);
                     if (namedElement != null)
@@ -187,24 +189,33 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
                 success = true,
                 hasNameScope = nameScope != null,
                 namedElementCount = namedElements.Count,
+                traversalNodeCount = scopeNames.NodeCount,
+                maxTraversalNodes = traversalLimit,
+                traversalTruncated = scopeNames.Truncated,
                 namedElements
             };
         });
     }
 
-    private IReadOnlyList<string> GetNamesInScope(DependencyObject element)
+    private (IReadOnlyList<string> Names, int NodeCount, bool Truncated) GetNamesInScope(DependencyObject element, int maxNodes)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var current in DependencyObjectTraversal.EnumerateDescendantsAndSelf(element))
+        var traversal = DependencyObjectTraversal.EnumerateDescendantsAndSelfWithMetadata(element, maxDepth: int.MaxValue, maxNodes: maxNodes);
+        var nodeCount = 0;
+        foreach (var current in traversal)
         {
+            nodeCount++;
             if (current is FrameworkElement fe && !string.IsNullOrEmpty(fe.Name))
             {
                 names.Add(fe.Name);
             }
         }
 
-        return names.ToArray();
+        return (names.ToArray(), nodeCount, traversal.Truncated);
     }
+
+    private static int NormalizeTraversalLimit(int? maxNodes)
+        => Math.Max(1, Math.Min(maxNodes ?? TreeTraversalDefaults.DefaultMaxNodes, TreeTraversalDefaults.MaxNodesLimit));
 
     /// <summary>
     /// Gets the template visual tree for the specified templated control.

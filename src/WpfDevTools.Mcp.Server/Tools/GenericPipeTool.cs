@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -90,6 +91,27 @@ public sealed class GenericPipeTool : PipeConnectedToolBase
         var direction = WpfDevTools.Shared.Utilities.ParameterParser.ParseStringParam(arguments, "direction");
 
         return (processId, new { elementId, propertyName, direction }, null);
+    }
+
+    public static (int processId, object? parameters, object? error) ExtractNameScopeParams(
+        SessionManager sessionManager,
+        JsonElement? arguments)
+    {
+        var (processId, elementId, error) = ParseCommonParams(arguments, sessionManager);
+        if (error != null) return (-1, null, error);
+
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+            arguments,
+            "maxNodes",
+            1,
+            TreeTraversalDefaults.MaxNodesLimit,
+            out var maxNodes,
+            out var maxNodesError))
+        {
+            return (-1, null, maxNodesError);
+        }
+
+        return (processId, new { elementId, maxNodes }, null);
     }
 
     /// <summary>

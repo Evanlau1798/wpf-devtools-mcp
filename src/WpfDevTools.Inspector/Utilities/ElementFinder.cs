@@ -192,8 +192,9 @@ public sealed class ElementFinder : IDisposable
     /// </summary>
     /// <param name="elementId">Element ID to search for. If null or empty, returns root element.</param>
     /// <param name="root">Root element to start search from. If null, uses application root.</param>
+    /// <param name="maxTraversalNodes">Optional maximum number of nodes to inspect during cache-miss fallback search.</param>
     /// <returns>Found DependencyObject, or null if not found</returns>
-    public DependencyObject? FindById(string? elementId, DependencyObject? root = null)
+    public DependencyObject? FindById(string? elementId, DependencyObject? root = null, int? maxTraversalNodes = null)
     {
         if (string.IsNullOrEmpty(elementId))
         {
@@ -226,43 +227,49 @@ public sealed class ElementFinder : IDisposable
 
         return InvokeOnDispatcher(searchRoot.Dispatcher, () =>
         {
-            // Search the provided root first
-            var found = SearchTree(searchRoot, elementId!);
+            var searchRoots = new List<DependencyObject> { searchRoot };
+
+            // If not found, search other windows (only when no explicit root was provided)
+            if (root == null && Application.Current is { } application)
+            {
+                var windows = application.Windows;
+                for (var i = 0; i < windows.Count; i++)
+                {
+                    var window = windows[i];
+                    if (ReferenceEquals(window, searchRoot))
+                    {
+                        continue;
+                    }
+
+                    searchRoots.Add(window);
+                }
+            }
+
+            return FindByIdAcrossRoots(elementId!, searchRoots, maxTraversalNodes);
+        });
+    }
+
+    internal DependencyObject? FindByIdAcrossRoots(
+        string elementId,
+        IEnumerable<DependencyObject> roots,
+        int? maxTraversalNodes)
+    {
+        var budget = new TraversalBudget(NormalizeTraversalLimit(maxTraversalNodes));
+        foreach (var candidateRoot in roots)
+        {
+            if (budget.IsExhausted)
+            {
+                return null;
+            }
+
+            var found = SearchTree(candidateRoot, elementId, budget);
             if (found != null)
             {
                 return found;
             }
+        }
 
-            // If not found, search other windows (only when no explicit root was provided)
-            if (root != null)
-            {
-                return null;
-            }
-
-            var application = Application.Current;
-            if (application == null)
-            {
-                return null;
-            }
-
-            var windows = application.Windows;
-            for (var i = 0; i < windows.Count; i++)
-            {
-                var window = windows[i];
-                if (ReferenceEquals(window, searchRoot))
-                {
-                    continue;
-                }
-
-                found = SearchTree(window, elementId!);
-                if (found != null)
-                {
-                    return found;
-                }
-            }
-
-            return null;
-        });
+        return null;
     }
 
     internal static T InvokeOnDispatcher<T>(
@@ -287,19 +294,39 @@ public sealed class ElementFinder : IDisposable
             actualTimeout);
     }
 
-    private DependencyObject? SearchTree(DependencyObject element, string targetId)
+    private DependencyObject? SearchTree(DependencyObject element, string targetId, TraversalBudget budget)
     {
-        foreach (var current in DependencyObjectTraversal.EnumerateDescendantsAndSelf(element))
+        var visitedNodeCount = 0;
+        foreach (var current in DependencyObjectTraversal.EnumerateDescendantsAndSelf(element, maxNodes: budget.Remaining))
         {
+            visitedNodeCount++;
             if (!_objectToIdCache.TryGetValue(current, out var id) || id != targetId)
             {
                 continue;
             }
 
             _elementCache[targetId] = new WeakReference<DependencyObject>(current);
+            budget.Consume(visitedNodeCount);
             return current;
         }
+
+        budget.Consume(visitedNodeCount);
         return null;
+    }
+
+    private static int NormalizeTraversalLimit(int? maxTraversalNodes)
+        => Math.Max(1, Math.Min(maxTraversalNodes ?? TreeTraversalDefaults.DefaultMaxNodes, TreeTraversalDefaults.MaxNodesLimit));
+
+    private sealed class TraversalBudget(int initialBudget)
+    {
+        public int Remaining { get; private set; } = initialBudget;
+
+        public bool IsExhausted => Remaining <= 0;
+
+        public void Consume(int nodeCount)
+        {
+            Remaining = Math.Max(0, Remaining - nodeCount);
+        }
     }
 
     /// <summary>

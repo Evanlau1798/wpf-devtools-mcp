@@ -187,9 +187,10 @@ public class TreeHandlers : IRequestHandler
     private async Task<object> HandleGetNameScopeAsync(JsonElement? @params, CancellationToken cancellationToken)
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        var maxNodes = ParameterHelpers.GetIntParam(@params, "maxNodes");
 
         return await Task.Run(() =>
-            _visualTreeAnalyzer.GetNameScope(elementId), cancellationToken).ConfigureAwait(false);
+            _visualTreeAnalyzer.GetNameScope(elementId, maxNodes), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetTemplateTreeAsync(JsonElement? @params, CancellationToken cancellationToken)

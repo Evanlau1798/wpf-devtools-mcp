@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 using Xunit;
 
@@ -66,6 +67,35 @@ public sealed class BindingErrorCorrelationTests : IDisposable
         suggestedElementId.ValueKind.Should().Be(JsonValueKind.Null);
         firstError.TryGetProperty("matchConfidence", out var matchConfidence).Should().BeTrue();
         matchConfidence.ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public void EnqueueBindingError_WithManyUniqueErrors_ShouldBoundDedupStateToWatchBufferCapacity()
+    {
+        var analyzer = new BindingAnalyzer(
+            new ElementFinder(),
+            new WatchEventBuffer(capacity: 8));
+        var enqueueMethod = typeof(BindingAnalyzer).GetMethod(
+            "EnqueueBindingError",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        enqueueMethod.Should().NotBeNull();
+
+        for (var index = 0; index < 100; index++)
+        {
+            enqueueMethod!.Invoke(analyzer, [new BindingErrorInfo
+            {
+                Timestamp = DateTime.UtcNow,
+                Origin = BindingErrorInfo.OriginBindingTrace,
+                ElementId = $"TextBox_{index}",
+                PropertyName = "Text",
+                BindingPath = $"Missing_{index}",
+                SourceId = 40,
+                EventType = TraceEventType.Error.ToString(),
+                Message = $"Binding error {index}"
+            }]);
+        }
+
+        GetEmittedBindingEventKeyCount(analyzer).Should().BeLessThanOrEqualTo(8);
     }
 
     [StaFact]
@@ -140,5 +170,15 @@ public sealed class BindingErrorCorrelationTests : IDisposable
             int.MaxValue,
             "TraversalLimit",
             "ResultLimit")!;
+    }
+
+    private static int GetEmittedBindingEventKeyCount(BindingAnalyzer analyzer)
+    {
+        var field = typeof(BindingAnalyzer).GetField(
+            "_emittedBindingEventKeys",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        field.Should().NotBeNull();
+        var value = field!.GetValue(analyzer)!;
+        return (int)value.GetType().GetProperty("Count")!.GetValue(value)!;
     }
 }

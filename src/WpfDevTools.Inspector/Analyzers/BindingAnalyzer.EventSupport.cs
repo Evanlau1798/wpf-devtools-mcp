@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using WpfDevTools.Inspector.Events;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -6,7 +5,9 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed partial class BindingAnalyzer
 {
     private readonly WatchEventBuffer? _watchEventBuffer;
-    private readonly ConcurrentDictionary<string, byte> _emittedBindingEventKeys = new(StringComparer.Ordinal);
+    private readonly object _bindingEventDedupLock = new();
+    private readonly HashSet<string> _emittedBindingEventKeys = new(StringComparer.Ordinal);
+    private readonly Queue<string> _emittedBindingEventKeyOrder = new();
     private Action<BindingErrorInfo>? _bindingEventSink;
 
     private void ConfigureBindingEventBridge()
@@ -51,7 +52,7 @@ public sealed partial class BindingAnalyzer
         }
 
         var sourceKey = BuildBindingEventKey(error);
-        if (!_emittedBindingEventKeys.TryAdd(sourceKey, 0))
+        if (!TryRememberBindingEventKey(sourceKey))
         {
             return;
         }
@@ -70,6 +71,31 @@ public sealed partial class BindingAnalyzer
             RoutingStrategy: null,
             Handled: null,
             OriginalSourceType: null));
+    }
+
+    private bool TryRememberBindingEventKey(string sourceKey)
+    {
+        var capacity = _watchEventBuffer?.Capacity ?? 0;
+        if (capacity <= 0)
+        {
+            return true;
+        }
+
+        lock (_bindingEventDedupLock)
+        {
+            if (!_emittedBindingEventKeys.Add(sourceKey))
+            {
+                return false;
+            }
+
+            _emittedBindingEventKeyOrder.Enqueue(sourceKey);
+            while (_emittedBindingEventKeys.Count > capacity && _emittedBindingEventKeyOrder.Count > 0)
+            {
+                _emittedBindingEventKeys.Remove(_emittedBindingEventKeyOrder.Dequeue());
+            }
+
+            return true;
+        }
     }
 
     private static string BuildBindingEventKey(BindingErrorInfo error)

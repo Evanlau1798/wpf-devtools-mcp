@@ -26,6 +26,8 @@ internal sealed class WatchEventBuffer
         _deduplicator = deduplicator;
     }
 
+    internal int Capacity => _capacity;
+
     public int PendingCount
     {
         get

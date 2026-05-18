@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Runtime.InteropServices;
 using FluentAssertions;
 using WpfDevTools.Injector.Injection;
 using Xunit;
@@ -168,6 +170,45 @@ public class InjectionRequestTests
     }
 
     [Fact]
+    public void CreateBootstrapParameterPayload_Dispose_ShouldWipeSecretFileBeforeDeleting()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = @"C:\app\Bootstrapper.x64.dll",
+            InspectorDllPath = @"C:\app\net8.0-windows\Inspector.dll",
+            ExpectedPipeName = "WpfDevTools_1234",
+            AuthenticationSecretBase64 = "YWJjZA=="
+        };
+        var linkPath = Path.Combine(
+            Path.GetTempPath(),
+            $"WpfDevTools_AuthSecret_Link_{Guid.NewGuid():N}.txt");
+        var payload = request.CreateBootstrapParameterPayload();
+
+        try
+        {
+            var secretFilePath = payload.AuthenticationSecretFilePath!;
+            CreateHardLinkOrThrow(linkPath, secretFilePath);
+
+            payload.Dispose();
+
+            File.Exists(secretFilePath).Should().BeFalse();
+            new FileInfo(linkPath).Length.Should().Be(0,
+                "other file links must not retain the plaintext authentication secret after cleanup");
+        }
+        finally
+        {
+            payload.Dispose();
+            TryDelete(linkPath);
+        }
+    }
+
+    [Fact]
     public void CreateBootstrapParameterPayload_WhenSecretFileCreationFails_ShouldDeletePartialSecretFile()
     {
         var request = new InjectionRequest
@@ -210,4 +251,33 @@ public class InjectionRequestTests
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*semicolon*");
     }
+
+    private static void CreateHardLinkOrThrow(string linkPath, string existingPath)
+    {
+        if (!CreateHardLink(linkPath, existingPath, IntPtr.Zero))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup for the hard-link probe.
+        }
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool CreateHardLink(
+        string lpFileName,
+        string lpExistingFileName,
+        IntPtr lpSecurityAttributes);
 }

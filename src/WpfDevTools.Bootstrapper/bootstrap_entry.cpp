@@ -285,8 +285,64 @@ static void LogAuthSecretDeleteFailure(DWORD errorCode)
     OutputDebugStringW(message.c_str());
 }
 
-static void DeleteAuthSecretFile(const std::wstring& path)
+static bool WipeFileContents(const std::wstring& path)
 {
+    HANDLE file = CreateFileW(
+        path.c_str(),
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+    if (file == INVALID_HANDLE_VALUE)
+        return false;
+
+    LARGE_INTEGER fileSize;
+    if (!GetFileSizeEx(file, &fileSize))
+    {
+        CloseHandle(file);
+        return false;
+    }
+
+    bool success = true;
+    if (fileSize.QuadPart > 0)
+    {
+        BYTE zeros[256] = {};
+        LONGLONG remaining = fileSize.QuadPart;
+        while (remaining > 0)
+        {
+            DWORD bytesToWrite = static_cast<DWORD>(std::min<LONGLONG>(remaining, sizeof(zeros)));
+            DWORD bytesWritten = 0;
+            if (!WriteFile(file, zeros, bytesToWrite, &bytesWritten, nullptr) || bytesWritten != bytesToWrite)
+            {
+                success = false;
+                break;
+            }
+
+            remaining -= bytesWritten;
+        }
+
+        if (!FlushFileBuffers(file))
+            success = false;
+
+        SetFilePointer(file, 0, nullptr, FILE_BEGIN);
+    }
+
+    if (!SetEndOfFile(file))
+        success = false;
+
+    if (!FlushFileBuffers(file))
+        success = false;
+
+    CloseHandle(file);
+    return success;
+}
+
+static void SecureDeleteAuthSecretFile(const std::wstring& path)
+{
+    WipeFileContents(path);
+
     if (DeleteFileW(path.c_str()))
         return;
 
@@ -304,7 +360,7 @@ static bool LoadAuthSecretFromFile(BootstrapConfig& config)
 
     std::wstring secret;
     bool loaded = ReadUtf8File(config.AuthSecretFile, secret);
-    DeleteAuthSecretFile(config.AuthSecretFile);
+    SecureDeleteAuthSecretFile(config.AuthSecretFile);
 
     if (!loaded)
     {

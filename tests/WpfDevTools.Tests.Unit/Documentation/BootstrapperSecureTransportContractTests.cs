@@ -49,11 +49,27 @@ public class BootstrapperSecureTransportContractTests
         var content = File.ReadAllText(GetRepoFilePath(
             "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
 
-        content.Should().Contain("DeleteAuthSecretFile(config.AuthSecretFile)");
+        content.Should().Contain("SecureDeleteAuthSecretFile(config.AuthSecretFile)");
         content.Should().Contain("GetLastError()");
         content.Should().Contain("OutputDebugStringW");
         content.Should().NotContain("DeleteFileW(config.AuthSecretFile.c_str());",
             "auth secret file deletion failures should produce a diagnostic signal");
+    }
+
+    [Fact]
+    public void BootstrapEntry_ShouldWipeAuthSecretFileBeforeDeleting()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+
+        content.Should().Contain("static bool WipeFileContents(",
+            "native cleanup should overwrite and truncate the temporary auth secret file before deletion");
+        content.Should().Contain("FlushFileBuffers",
+            "best-effort file wiping should flush the overwritten content before truncation/deletion");
+        content.Should().Contain("SetEndOfFile",
+            "best-effort cleanup should truncate the auth secret file so hard links do not retain plaintext bytes");
+        content.Should().Contain("SecureDeleteAuthSecretFile(config.AuthSecretFile)",
+            "auth secret cleanup should use the wiping delete helper after loading the secret");
     }
 
     [Fact]

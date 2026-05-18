@@ -47,14 +47,14 @@ internal sealed class BootstrapParameterPayload : IDisposable
         }
         catch
         {
-            DeleteSecretFile(secretFilePath);
+            SecureDeleteSecretFile(secretFilePath);
             throw;
         }
     }
 
     public void Dispose()
     {
-        DeleteSecretFile(AuthenticationSecretFilePath);
+        SecureDeleteSecretFile(AuthenticationSecretFilePath);
     }
 
     private static string CreateAuthenticationSecretFile(
@@ -93,7 +93,7 @@ internal sealed class BootstrapParameterPayload : IDisposable
         }
         catch
         {
-            DeleteSecretFile(path);
+            SecureDeleteSecretFile(path);
             throw;
         }
     }
@@ -130,7 +130,7 @@ internal sealed class BootstrapParameterPayload : IDisposable
         new FileInfo(path).SetAccessControl(security);
     }
 
-    private static void DeleteSecretFile(string? path)
+    private static void SecureDeleteSecretFile(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -141,6 +141,7 @@ internal sealed class BootstrapParameterPayload : IDisposable
         {
             if (File.Exists(path))
             {
+                WipeSecretFile(path);
                 File.Delete(path);
             }
         }
@@ -152,5 +153,34 @@ internal sealed class BootstrapParameterPayload : IDisposable
         {
             Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file '{path}': {ex.Message}");
         }
+    }
+
+    private static void WipeSecretFile(string path)
+    {
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Write,
+            FileShare.ReadWrite | FileShare.Delete,
+            bufferSize: 4096,
+            FileOptions.WriteThrough);
+
+        var length = stream.Length;
+        if (length > 0)
+        {
+            Span<byte> zeros = stackalloc byte[256];
+            while (length > 0)
+            {
+                var bytesToWrite = (int)Math.Min(zeros.Length, length);
+                stream.Write(zeros[..bytesToWrite]);
+                length -= bytesToWrite;
+            }
+
+            stream.Flush(flushToDisk: true);
+            stream.Position = 0;
+        }
+
+        stream.SetLength(0);
+        stream.Flush(flushToDisk: true);
     }
 }

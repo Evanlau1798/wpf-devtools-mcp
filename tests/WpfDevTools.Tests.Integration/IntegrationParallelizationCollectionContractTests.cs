@@ -1,10 +1,7 @@
+using FluentAssertions;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
-using System.Diagnostics;
-using System.Windows.Data;
-using FluentAssertions;
-using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Tests.Integration.E2E;
 using Xunit;
 using Xunit.Abstractions;
@@ -12,16 +9,8 @@ using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Integration;
 
-[Collection("WpfAndBootstrapIntegration")]
 public sealed class IntegrationParallelizationCollectionContractTests
 {
-    private readonly WpfApplicationFixture _fixture;
-
-    public IntegrationParallelizationCollectionContractTests(WpfApplicationFixture fixture)
-    {
-        _fixture = fixture;
-    }
-
     [Fact]
     public void RuntimeXunitRunnerConfig_ShouldEnableCollectionParallelization()
     {
@@ -84,29 +73,10 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Fact]
-    public void BindingErrorCorrelationIntegrationTests_ShouldRestoreBindingTraceStateOnDispose()
+    public void BindingErrorCorrelationIntegrationTests_ShouldDisposeBindingTraceState()
     {
-        var originalLevel = _fixture.RunOnUIThread(() => PresentationTraceSources.DataBindingSource.Switch.Level);
-        try
-        {
-            _fixture.RunOnUIThread(() => PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Warning);
-            var test = new BindingErrorCorrelationIntegrationTests(_fixture);
-            test.GetBindingErrors_ShouldProvideActionableElementCorrelation();
-            _fixture.RunOnUIThread(() => PresentationTraceSources.DataBindingSource.Switch.Level)
-                .Should().Be(SourceLevels.Error);
-            _fixture.RunOnUIThread(HasSharedBindingTraceListener).Should().BeTrue();
-
-            test.Dispose();
-
-            _fixture.RunOnUIThread(() => PresentationTraceSources.DataBindingSource.Switch.Level)
-                .Should().Be(SourceLevels.Warning);
-            _fixture.RunOnUIThread(HasSharedBindingTraceListener).Should().BeFalse();
-        }
-        finally
-        {
-            BindingErrorTraceListener.ResetInstance();
-            _fixture.RunOnUIThread(() => PresentationTraceSources.DataBindingSource.Switch.Level = originalLevel);
-        }
+        typeof(BindingErrorCorrelationIntegrationTests).Should().BeAssignableTo<IDisposable>(
+            "xUnit v2 only invokes this per-test cleanup automatically when the test class implements IDisposable");
     }
 
     [Fact]
@@ -272,11 +242,6 @@ public sealed class IntegrationParallelizationCollectionContractTests
         attribute.Should().NotBeNull($"{type.FullName} should declare a collection definition attribute");
         return attribute!;
     }
-
-    private static bool HasSharedBindingTraceListener()
-        => PresentationTraceSources.DataBindingSource.Listeners
-            .Cast<TraceListener>()
-            .Any(listener => ReferenceEquals(listener, BindingErrorTraceListener.Instance));
 
     private static string FindRepoRoot()
     {

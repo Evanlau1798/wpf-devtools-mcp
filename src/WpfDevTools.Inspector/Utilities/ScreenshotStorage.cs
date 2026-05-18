@@ -35,6 +35,7 @@ internal static class ScreenshotStorage
 
         var path = Path.Combine(directory, screenshotId + ScreenshotExtension);
         File.WriteAllBytes(path, imageBytes);
+        CleanupExpiredScreenshots(directory, DateTimeOffset.UtcNow);
 
         return new ScreenshotFile(
             screenshotId,

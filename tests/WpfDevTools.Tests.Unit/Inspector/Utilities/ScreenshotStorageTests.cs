@@ -117,6 +117,26 @@ public sealed class ScreenshotStorageTests
         }
     }
 
+    [Fact]
+    public void WritePng_WhenRetentionCountIsFull_ShouldStayWithinRetentionCapAfterWrite()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var now = DateTimeOffset.UtcNow;
+        for (var index = 0; index < ScreenshotStorage.MaxStoredScreenshots; index++)
+        {
+            var path = Path.Combine(tempDirectory.Path, $"shot_{index:x32}.png");
+            File.WriteAllBytes(path, new byte[] { 9, 9, 9 });
+            File.SetLastWriteTimeUtc(path, now.AddMinutes(-index - 1).UtcDateTime);
+        }
+
+        var screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 }, tempDirectory.Path);
+
+        File.Exists(screenshot.Path).Should().BeTrue("the newly written screenshot must not be evicted immediately");
+        Directory.EnumerateFiles(tempDirectory.Path, "shot_*.png")
+            .Should().HaveCount(ScreenshotStorage.MaxStoredScreenshots,
+                "on-disk screenshot retention should enforce the cap after every write");
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory()

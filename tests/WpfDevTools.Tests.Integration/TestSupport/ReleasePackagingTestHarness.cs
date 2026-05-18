@@ -72,6 +72,7 @@ internal static partial class ReleasePackagingTestHarness
         }
 
         EnsureIsolatedProcessEnvironment(startInfo, environmentRoot, environmentOverrides);
+        ClearInheritedWpfDevToolsEnvironment(startInfo, environmentOverrides);
 
         if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
         {
@@ -237,6 +238,7 @@ internal static partial class ReleasePackagingTestHarness
         }
 
         EnsureIsolatedProcessEnvironment(startInfo, isolatedEnvironmentRoot, environmentOverrides);
+        ClearInheritedWpfDevToolsEnvironment(startInfo, environmentOverrides);
 
         if (!startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_TEST_MODE"))
         {
@@ -395,6 +397,24 @@ internal static partial class ReleasePackagingTestHarness
             ? tmpOverride
             : startInfo.Environment["TEMP"];
         ReleasePackagingNuGetEnvironment.EnsureStablePackageCache(startInfo, GetRepoFilePath("tmp"));
+    }
+
+    private static void ClearInheritedWpfDevToolsEnvironment(
+        ProcessStartInfo startInfo,
+        IReadOnlyDictionary<string, string?>? environmentOverrides)
+    {
+        var explicitOverrideKeys = environmentOverrides is null
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(environmentOverrides.Keys, StringComparer.OrdinalIgnoreCase);
+        foreach (var variableName in startInfo.Environment.Keys
+                     .Where(static key => key.StartsWith("WPFDEVTOOLS_", StringComparison.OrdinalIgnoreCase))
+                     .ToArray())
+        {
+            if (!explicitOverrideKeys.Contains(variableName))
+            {
+                startInfo.Environment.Remove(variableName);
+            }
+        }
     }
 
     private static string ResolveRepoRoot()

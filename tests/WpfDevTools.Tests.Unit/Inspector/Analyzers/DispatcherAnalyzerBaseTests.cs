@@ -408,8 +408,10 @@ public class DispatcherAnalyzerBaseTests
         first.Should().BeNull();
         second.Should().BeNull();
         afterFirstLookup.Should().BeGreaterThan(0);
-        if (hasCurrentGenerationCacheEntry && TestAnalyzer.TestDependencyPropertyLookupGeneration == afterFirstGeneration)
+        if (TestAnalyzer.TestDependencyPropertyLookupGeneration == afterFirstGeneration)
         {
+            hasCurrentGenerationCacheEntry.Should().BeTrue(
+                "same-generation missing dependency property lookups must leave a reusable miss entry");
             TestAnalyzer.TestLoadedTypeEnumerationCount.Should().Be(afterFirstLookup,
                 "missing dependency property lookups should cache misses inside one assembly generation");
         }

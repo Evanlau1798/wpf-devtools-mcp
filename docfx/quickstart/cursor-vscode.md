@@ -97,7 +97,7 @@ Before the first workflow, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains th
 3. If auto-discovery reports multiple candidates, run `get_processes(windowFilter)` and retry `connect(processId)`.
 4. Run `get_ui_summary(depthMode: "semantic")`.
 5. Follow `navigation.recommended` first and use `nextSteps` as the compatibility field when the client does not surface navigation yet.
-6. Use `get_element_snapshot` or `get_visual_tree` only if you still need deeper structure.
+6. Use `get_visual_tree`, or `get_element_snapshot(elementId)` after a concrete elementId is known, only if you still need deeper structure.
 
 ## Notes
 

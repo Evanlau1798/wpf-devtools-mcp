@@ -7,7 +7,7 @@ These workflows are stable human-facing baselines, not a replacement for the `na
 1. `connect`
 2. `get_binding_errors`
 3. Use `navigation.recommended` or `nextSteps` to choose the next action
-4. Common follow-ups are `get_affected_elements`, `get_bindings`, `get_element_snapshot`, and `get_binding_value_chain`
+4. Common follow-ups are `get_affected_elements`, `get_bindings`, `get_element_snapshot(elementId)`, and `get_binding_value_chain`; use the element snapshot only after a concrete elementId is known
 5. Use `get_datacontext_chain` when the source path is still unclear
 6. `force_binding_update` if you need to retrigger evaluation
 7. `drain_events` if you need an explicit read of buffered binding or validation events after a mutation
@@ -41,13 +41,13 @@ Use this when a property value is not coming from the source you expected.
 ## Safe interaction validation
 
 1. `connect`
-2. Use `get_ui_summary`, `get_element_snapshot`, or `get_interaction_readiness` to confirm the scene and the target
+2. Use `get_ui_summary`, `get_interaction_readiness`, or `get_element_snapshot(elementId)` after identifying a concrete target elementId to confirm the scene and the target
 3. Add tree, binding, or command inspection only when more detail is needed
 4. Use `click_element`, `simulate_keyboard`, or `drag_and_drop`
 5. Follow `navigation.recommended` or `nextSteps` from the interaction result
 6. If the current session has an active snapshot, `get_state_diff` is usually the first verification step
 7. If the current session has buffered runtime events, `drain_events` is the first explicit event-verification step
-8. Without a snapshot, use `get_interaction_readiness`, `get_element_snapshot`, `get_dp_value_source`, or scoped `get_ui_summary` to verify the effect
+8. Without a snapshot, use `get_interaction_readiness`, `get_element_snapshot(elementId)`, `get_dp_value_source`, or scoped `get_ui_summary` to verify the effect after a concrete elementId is known
 
 ## Mutation with snapshot rollback
 

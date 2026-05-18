@@ -77,7 +77,7 @@ No matter which client you choose, verify the first connection in this order:
 1. `connect`
 2. If auto-discovery reports multiple candidates, `get_processes(windowFilter)` and retry `connect(processId)`
 3. `get_ui_summary(depthMode: "semantic")`
-4. `get_element_snapshot` or `get_visual_tree` only if the summary is insufficient
+4. `get_visual_tree`, or `get_element_snapshot(elementId)` after a concrete elementId is known, only if the summary is insufficient
 5. `ping` only if you want an explicit liveness check
 6. After a diagnostic, interaction, or mutation, follow `navigation.recommended` first and treat `nextSteps` as the compatibility field for older clients
 

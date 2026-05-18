@@ -85,7 +85,7 @@ server 只能檢查 live WPF process。先啟動目標應用程式，再啟動 M
 2. `connect`
 3. 如果 auto-discovery 回報多個候選，先呼叫 `get_processes(windowFilter)`，再重試 `connect(processId)`
 4. `get_ui_summary(depthMode: "semantic")`
-5. 只有當 summary 還不夠時，才使用 `get_element_snapshot` 或 `get_visual_tree`
+5. 只有當 summary 還不夠時，才使用 `get_visual_tree`，或在已取得具體 `elementId` 後使用 `get_element_snapshot(elementId)`
 6. 只有需要明確健康檢查時才呼叫 `ping`
 7. 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`；若 client 尚未呈現 navigation，則把 `nextSteps` 當成相容欄位
 

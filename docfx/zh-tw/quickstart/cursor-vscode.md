@@ -97,7 +97,7 @@ installer 預設會把 VS Code 註冊寫到 `%APPDATA%\Code\User\mcp.json`，並
 3. 若 auto-discovery 回傳多個候選，執行 `get_processes(windowFilter)` 並重新執行 `connect(processId)`。
 4. 執行 `get_ui_summary(depthMode: "semantic")`。
 5. 優先遵循 `navigation.recommended`，若 client 尚未呈現 navigation，則把 `nextSteps` 當成相容欄位。
-6. 只有在仍需要更深層結構時才使用 `get_element_snapshot` 或 `get_visual_tree`。
+6. 只有在仍需要更深層結構時才使用 `get_visual_tree`，或在已取得具體 `elementId` 後使用 `get_element_snapshot(elementId)`。
 
 ## 注意事項
 

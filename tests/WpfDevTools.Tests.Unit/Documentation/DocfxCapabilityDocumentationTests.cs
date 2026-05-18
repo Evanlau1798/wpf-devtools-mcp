@@ -105,27 +105,27 @@ public sealed class DocfxCapabilityDocumentationTests
             "tool overview pages should list only directly executable scene-first calls after connect succeeds");
     }
 
-    [Theory]
-    [InlineData("docfx/reference/tools/process-and-connection.md", "connect -> get_ui_summary -> get_element_snapshot")]
-    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md", "connect -> get_ui_summary -> get_element_snapshot")]
-    [InlineData("docfx/reference/tools/index.md", "`get_ui_summary`, `get_element_snapshot`, or `get_form_summary`")]
-    [InlineData("docfx/zh-tw/reference/tools/index.md", "`get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`")]
-    [InlineData("docfx/guides/ai-agent-guide.md", "Use scene-level tools such as `get_ui_summary`, `get_element_snapshot`, or `get_form_summary`")]
-    [InlineData("docfx/zh-tw/guides/ai-agent-guide.md", "先用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`")]
-    [InlineData("docfx/index.md", "Start with scene-level tools such as `get_ui_summary`, `get_element_snapshot`, and `get_form_summary`.")]
-    [InlineData("docfx/zh-tw/index.md", "以 `get_ui_summary`、`get_element_snapshot`、`get_form_summary` 等 scene-level 工具作為第一步。")]
-    [InlineData("docfx/quickstart/claude-code.md", "Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.")]
-    [InlineData("docfx/zh-tw/quickstart/claude-code.md", "在 tree-heavy inspection 前，優先使用 `get_ui_summary`、`get_element_snapshot` 或 `get_form_summary`。")]
-    public void DocfxPages_ShouldNotAdvertiseElementSnapshotBeforeElementIdIsKnown(
-        string relativePath,
-        string staleGuidance)
+    [Fact]
+    public void DocfxPages_ShouldQualifyElementSnapshotWithElementIdPrecondition()
     {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var repoRoot = GetRepoFilePath(".");
+        var violations = Directory
+            .EnumerateFiles(GetRepoFilePath("docfx"), "*.md", SearchOption.AllDirectories)
+            .SelectMany(path => File
+                .ReadLines(path)
+                .Select((line, index) => new
+                {
+                    Path = Path.GetRelativePath(repoRoot, path),
+                    LineNumber = index + 1,
+                    Text = line
+                }))
+            .Where(entry => entry.Text.Contains("get_element_snapshot", StringComparison.Ordinal)
+                && !entry.Text.Contains("elementId", StringComparison.Ordinal))
+            .Select(entry => $"{entry.Path}:{entry.LineNumber}: {entry.Text}")
+            .ToArray();
 
-        content.Should().NotContain(staleGuidance,
-            "get_element_snapshot requires an elementId and should not be advertised as an immediate post-connect step");
-        content.Should().Contain("get_element_snapshot(elementId)",
-            "docs may recommend element snapshots only after a concrete elementId has been discovered");
+        violations.Should().BeEmpty(
+            "get_element_snapshot requires an elementId and every DocFX mention should describe that precondition");
     }
 
     [Theory]

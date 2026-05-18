@@ -85,7 +85,7 @@ Use this sequence in your MCP client:
 2. `connect`
 3. If auto-discovery reports multiple candidates, `get_processes(windowFilter)` and retry `connect(processId)`
 4. `get_ui_summary(depthMode: "semantic")`
-5. `get_element_snapshot` or `get_visual_tree` only if the summary is still insufficient
+5. `get_visual_tree`, or `get_element_snapshot(elementId)` after a concrete elementId is known, only if the summary is still insufficient
 6. `ping` only if you want an explicit health check
 7. After each diagnostic, interaction, or mutation, follow `navigation.recommended` first; use `nextSteps` as the compatibility fallback for clients that do not surface navigation yet
 

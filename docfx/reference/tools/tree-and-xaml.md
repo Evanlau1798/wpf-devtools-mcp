@@ -13,7 +13,7 @@
 
 ## When to use which
 
-- Start with `get_ui_summary` or `get_element_snapshot` before tree expansion when you only need scene context or one-element triage.
+- Start with `get_ui_summary` before tree expansion when you need scene context; use `get_element_snapshot(elementId)` for one-element triage after `find_elements` or another result supplies a concrete elementId.
 - Use **visual tree** when you need actual rendered structure.
 - Use **logical tree** when you want content relationships.
 - Use **template tree** when control templates generate visual children.

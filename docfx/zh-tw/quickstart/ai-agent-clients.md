@@ -77,7 +77,7 @@ Package-local 替代路徑：
 1. `connect`
 2. 如果 auto-discovery 回報多個候選，先呼叫 `get_processes(windowFilter)`，再重試 `connect(processId)`
 3. `get_ui_summary(depthMode: "semantic")`
-4. 只有當 summary 還不夠時，才使用 `get_element_snapshot` 或 `get_visual_tree`
+4. 只有當 summary 還不夠時，才使用 `get_visual_tree`，或在已取得具體 `elementId` 後使用 `get_element_snapshot(elementId)`
 5. 只有需要明確存活檢查時才呼叫 `ping`
 6. 每次診斷、互動或 mutation 後，優先遵循 `navigation.recommended`，並把 `nextSteps` 視為舊版 client 的相容欄位
 

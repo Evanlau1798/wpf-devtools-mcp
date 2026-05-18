@@ -7,7 +7,7 @@
 1. `connect`
 2. `get_binding_errors`
 3. 先依 `navigation.recommended` 或 `nextSteps` 決定下一步
-4. 常見 follow-up 是 `get_affected_elements`、`get_bindings`、`get_element_snapshot`、`get_binding_value_chain`
+4. 常見 follow-up 是 `get_affected_elements`、`get_bindings`、`get_element_snapshot(elementId)`、`get_binding_value_chain`；只有在已取得具體 `elementId` 後，才使用 element snapshot
 5. 若仍不清楚 source 來源，再呼叫 `get_datacontext_chain`
 6. 若需要重新觸發評估，再呼叫 `force_binding_update`
 7. 若 mutation 後需要明確讀出 buffered binding 或 validation event，再呼叫 `drain_events`
@@ -41,13 +41,13 @@
 ## 安全的互動驗證
 
 1. `connect`
-2. 先用 `get_ui_summary`、`get_element_snapshot` 或 `get_interaction_readiness` 確認場景與目標
+2. 先用 `get_ui_summary`、`get_interaction_readiness`，或在已辨識具體目標 `elementId` 後使用 `get_element_snapshot(elementId)`，確認場景與目標
 3. 若有需要，再用 tree、binding 或 command 工具補足細節
 4. 使用 `click_element`、`simulate_keyboard` 或 `drag_and_drop`
 5. 優先遵循工具回應中的 `navigation.recommended` 或 `nextSteps`
 6. 若當前 session 有 active snapshot，通常應先呼叫 `get_state_diff`
 7. 若當前 session 有 buffered runtime event，第一個明確的 event verification 步驟是 `drain_events`
-8. 若沒有 snapshot，則用 `get_interaction_readiness`、`get_element_snapshot`、`get_dp_value_source` 或 scoped `get_ui_summary` 驗證結果
+8. 若沒有 snapshot，則用 `get_interaction_readiness`、`get_element_snapshot(elementId)`、`get_dp_value_source` 或 scoped `get_ui_summary` 驗證結果；element snapshot 只在已取得具體 `elementId` 後使用
 
 ## 搭配 snapshot 的可回復 mutation 流程
 

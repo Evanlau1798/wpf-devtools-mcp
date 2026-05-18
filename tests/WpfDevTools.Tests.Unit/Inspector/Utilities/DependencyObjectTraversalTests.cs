@@ -58,6 +58,28 @@ public sealed class DependencyObjectTraversalTests
     }
 
     [StaFact]
+    public void EnumerateDescendantsAndSelf_WithLargeNodeBudget_ShouldNotPreallocateRemainingBudgetPerNode()
+    {
+        var root = new CountingLogicalElement(new Button());
+        DependencyObjectTraversal
+            .EnumerateDescendantsAndSelfWithMetadata(root, maxDepth: 50, maxNodes: 2)
+            .ToList();
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+
+        var traversal = DependencyObjectTraversal
+            .EnumerateDescendantsAndSelfWithMetadata(root, maxDepth: 50, maxNodes: 10_000);
+        var result = traversal.ToList();
+
+        var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        result.Should().HaveCount(2);
+        traversal.Truncated.Should().BeFalse();
+        allocatedBytes.Should().BeLessThan(64 * 1024,
+            "traversing a tiny tree with a large budget should not allocate arrays sized to the remaining node budget");
+    }
+
+    [StaFact]
     public void EnumerateDescendantsAndSelf_WithTreeExactlyAtBudget_ShouldNotReportTruncation()
     {
         var root = new CountingLogicalElement(new Button());

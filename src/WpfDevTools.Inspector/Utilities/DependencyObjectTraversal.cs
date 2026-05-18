@@ -12,6 +12,7 @@ internal static class DependencyObjectTraversal
     /// Prevents unbounded iteration on large DataGrid/ListBox scenarios.
     /// </summary>
     private const int MaxItemsControlChildren = 1000;
+    private const int InitialChildBufferCapacity = 16;
 
     public static IEnumerable<DependencyObject> EnumerateDescendantsAndSelf(
         DependencyObject root,
@@ -182,7 +183,7 @@ internal static class DependencyObjectTraversal
         out bool truncated)
     {
         truncated = false;
-        var children = new List<DependencyObject>(remainingBudget);
+        var children = new List<DependencyObject>(Math.Min(remainingBudget, InitialChildBufferCapacity));
         var unyieldedChildrenCount = 0;
 
         foreach (var child in EnumerateChildren(current))

@@ -88,3 +88,11 @@ release_<version>_win-x64/
 - `bin/install.ps1` 是 canonical TUI-first installer 腳本在 package 內的複本，並保留 CLI fallback。
 - `client-registration` 會在安裝時產生，並作為 AI client setup 的公開 copy-paste 來源。
 - 若省略 `-InstallRoot`，installer 會優先重用最後一個仍可存取的 live install root；只有沒有可重用途徑時，才會使用 `%APPDATA%\WpfDevToolsMcp` 作為回退根目錄。
+
+## Online installer source exception
+
+`scripts/online-installer.ps1` 目前仍作為 canonical single-file release artifact source 維護，讓公開安裝說明、package 內的 `bin/install.ps1` 與 recovery flow 保持 byte-for-byte 對齊。
+這是對一般 source file size target 的明確暫時例外；不要在目前的 production remediation loop 內拆分它。
+
+Post-remediation，應排程一次 packaging refactor：保留 thin source entrypoint，並為正式發布組合 generated single-file release artifact。
+該後續工作必須維持公開 `scripts/online-installer.ps1` contract，同時把可重用實作移到較小的 helper modules，並由既有 release packaging smoke tests 覆蓋。

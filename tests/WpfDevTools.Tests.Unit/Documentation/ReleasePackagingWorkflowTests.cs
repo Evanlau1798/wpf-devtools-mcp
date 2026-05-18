@@ -70,6 +70,33 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void ReleaseLayoutDocs_ShouldDocumentOnlineInstallerSplitExceptionAndFollowUpPlan()
+    {
+        var english = File.ReadAllText(GetRepoFilePath("docfx/production/release-layout.md"));
+        var traditionalChinese = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/production/release-layout.md"));
+
+        foreach (var content in new[] { english, traditionalChinese })
+        {
+            content.Should().Contain("scripts/online-installer.ps1");
+            content.Should().Contain("single-file release artifact");
+            content.Should().Contain("thin source entrypoint");
+            content.Should().Contain("generated single-file release artifact");
+            content.Should().Contain("Post-remediation");
+        }
+
+        english.Should().Contain("temporary exception");
+        english.Should().Contain("source-file size target");
+        english.Should().Contain("do not split");
+        english.Should().Contain("current production remediation loop");
+
+        traditionalChinese.Should().Contain("暫時例外");
+        traditionalChinese.Should().Contain("source file size target");
+        traditionalChinese.Should().Contain("不要");
+        traditionalChinese.Should().Contain("拆分");
+        traditionalChinese.Should().Contain("目前的 production remediation loop");
+    }
+
+    [Fact]
     public void CiWorkflow_ShouldSmokeTestCanonicalOnlineInstaller()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));

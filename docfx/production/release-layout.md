@@ -88,3 +88,11 @@ release_<version>_win-x64/
 - `bin/install.ps1` is the packaged copy of the canonical TUI-first installer script with CLI fallback.
 - `client-registration` is generated at install time and is the public copy-paste source for AI client setup.
 - If `-InstallRoot` is omitted, the installer reuses the last live install root when possible; `%APPDATA%\WpfDevToolsMcp` is only the fallback root when no reusable install root exists.
+
+## Online installer source exception
+
+`scripts/online-installer.ps1` is currently maintained as the canonical single-file release artifact source so public install instructions, packaged `bin/install.ps1`, and recovery flows stay byte-for-byte aligned.
+This is an explicit temporary exception to the normal source-file size target; do not split it inside the current production remediation loop.
+
+Post-remediation, schedule a packaging refactor that keeps a thin source entrypoint and composes a generated single-file release artifact for publication.
+That follow-up should preserve the public `scripts/online-installer.ps1` contract while moving reusable implementation into smaller helper modules covered by the existing release packaging smoke tests.

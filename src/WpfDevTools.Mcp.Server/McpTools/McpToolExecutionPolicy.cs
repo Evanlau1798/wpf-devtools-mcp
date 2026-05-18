@@ -24,6 +24,8 @@ internal sealed class McpToolExecutionPolicy
         "highlight_element",
         "measure_element_render_time",
         "restore_state_snapshot",
+        "capture_state_snapshot",
+        "drain_events",
         "batch_mutate"
     };
 

@@ -35,7 +35,7 @@ internal static class ScreenshotStorage
 
         var path = Path.Combine(directory, screenshotId + ScreenshotExtension);
         File.WriteAllBytes(path, imageBytes);
-        CleanupExpiredScreenshots(directory, DateTimeOffset.UtcNow);
+        CleanupExpiredScreenshots(directory, DateTimeOffset.UtcNow, path);
 
         return new ScreenshotFile(
             screenshotId,
@@ -43,23 +43,35 @@ internal static class ScreenshotStorage
             ComputeSha256Hex(imageBytes));
     }
 
-    private static void CleanupExpiredScreenshots(string directory, DateTimeOffset now)
+    private static void CleanupExpiredScreenshots(string directory, DateTimeOffset now, string? protectedPath = null)
     {
+        var fullProtectedPath = protectedPath is null ? null : Path.GetFullPath(protectedPath);
         var candidates = Directory.EnumerateFiles(directory, "shot_*" + ScreenshotExtension)
             .Select(path => new FileInfo(path))
             .Where(file => file.Exists)
             .OrderByDescending(file => file.LastWriteTimeUtc)
             .ToArray();
+        var retainedUnprotectedLimit = MaxStoredScreenshots -
+            (candidates.Any(file => IsProtected(file, fullProtectedPath)) ? 1 : 0);
+        var retainedUnprotectedCount = 0;
 
         for (var index = 0; index < candidates.Length; index++)
         {
             var file = candidates[index];
             var age = now - new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero);
-            var exceedsCount = index >= MaxStoredScreenshots;
+            if (IsProtected(file, fullProtectedPath))
+            {
+                continue;
+            }
+
+            var exceedsCount = retainedUnprotectedCount >= retainedUnprotectedLimit;
             if (age > RetentionMaxAge || exceedsCount)
             {
                 TryDelete(file);
+                continue;
             }
+
+            retainedUnprotectedCount++;
         }
     }
 
@@ -76,6 +88,10 @@ internal static class ScreenshotStorage
         {
         }
     }
+
+    private static bool IsProtected(FileInfo file, string? fullProtectedPath)
+        => fullProtectedPath is not null &&
+           string.Equals(file.FullName, fullProtectedPath, StringComparison.OrdinalIgnoreCase);
 
     private static string GetScreenshotDirectory()
     {

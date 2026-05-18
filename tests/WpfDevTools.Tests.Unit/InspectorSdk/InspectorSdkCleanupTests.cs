@@ -173,6 +173,59 @@ public sealed class InspectorSdkCleanupTests
     }
 
     [Fact]
+    public void TryPublishInitializedHost_WhenShutdownAlreadyRequested_ShouldRejectPublication()
+    {
+        using var testContext = new InspectorSdkTestContext();
+        var host = new InspectorHost(processId: 12348);
+        var originalHost = host;
+        AuthenticationManager? authenticationManager = new(() => InspectorSdkTestContext.CreateAuthSecret());
+        var certificateManager = new CertificateManager(testContext.CreateTemporaryDirectory("wpf-devtools-sdk-publish-gate"));
+
+        try
+        {
+            InspectorSdkTestContext.SetInspectorSdkState(
+                host: null,
+                authenticationManager: null,
+                certificateManager: null,
+                isInitialized: false,
+                isInitializing: 1);
+            SdkInspector.Shutdown();
+
+            var published = InspectorSdkTestContext.TryPublishInitializedHostForTesting(
+                processId: 12348,
+                ref host,
+                ref authenticationManager,
+                ref certificateManager);
+
+            published.Should().BeFalse();
+            SdkInspector.IsInitialized.Should().BeFalse();
+            InspectorSdkTestContext.GetInspectorSdkHost().Should().BeNull();
+
+            var completed = InspectorSdkTestContext.CompleteInitializationIfShutdownRequestedForTesting(
+                ref host,
+                ref authenticationManager,
+                ref certificateManager);
+
+            completed.Should().BeTrue();
+            host.Should().BeNull();
+            authenticationManager.Should().BeNull();
+            certificateManager.Should().BeNull();
+            originalHost.IsDisposed.Should().BeTrue();
+        }
+        finally
+        {
+            InspectorSdkTestContext.SetInspectorSdkState(
+                host: null,
+                authenticationManager: null,
+                certificateManager: null,
+                isInitialized: false,
+                isInitializing: 0);
+            host?.Dispose();
+            authenticationManager?.Dispose();
+        }
+    }
+
+    [Fact]
     public void CleanupHostResources_WhenHostDisposeFails_ShouldStillDisposeAuthenticationManager()
     {
         using var testContext = new InspectorSdkTestContext();

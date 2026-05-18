@@ -123,6 +123,25 @@ internal sealed class InspectorSdkTestContext : IDisposable
         return completed;
     }
 
+    public static bool TryPublishInitializedHostForTesting(
+        int processId,
+        ref InspectorHost? host,
+        ref AuthenticationManager? authenticationManager,
+        ref CertificateManager? certificateManager)
+    {
+        var method = typeof(SdkInspector).GetMethod(
+            "TryPublishInitializedHost",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        object?[] args = [processId, host, authenticationManager, certificateManager];
+        var published = (bool)method!.Invoke(null, args)!;
+        host = (InspectorHost?)args[1];
+        authenticationManager = (AuthenticationManager?)args[2];
+        certificateManager = (CertificateManager?)args[3];
+        return published;
+    }
+
     public static InspectorHost? GetInspectorSdkHost()
     {
         return (InspectorHost?)typeof(SdkInspector)
